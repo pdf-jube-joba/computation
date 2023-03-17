@@ -670,6 +670,7 @@ dependencies = [
 name = "turingmachine"
 version = "0.1.0"
 dependencies = [
+ "gloo",
  "wasm-bindgen",
  "web-sys",
  "yew",
