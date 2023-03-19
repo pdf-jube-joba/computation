@@ -21,7 +21,7 @@ impl TryFrom<&str> for MoveTo {
 
 pub type Sign = Option<String>;
 pub fn sign_to_str(sign: &Sign) -> &str {
-        if let Some(ref str) = sign {str} else {" "}
+    if let Some(ref str) = sign {str} else {" "}
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Properties)]
@@ -82,18 +82,24 @@ impl TuringMachine {
             true
         } else {false}
     }
+    pub fn try_parse(str: &str) -> Result<TuringMachine, ()> {
+        todo!()
+    }
 }
 
 #[derive(Default)]
 pub struct TuringMachineView {
     machine: TuringMachine,
-    machine_event: Vec<String>,
+    // machine_event: Vec<String>,
+    callback_onlog: Option<Callback<String>>,
 }
 
 #[derive(Clone, PartialEq)]
 pub enum TuringMachineMsg {
     Load(TuringMachine),
+    LoadFromString(String, String, String),
     Step,
+    SetEventLog(Callback<String>),
 }
 
 #[derive(Default, Clone, PartialEq, Properties)]
@@ -112,13 +118,13 @@ impl Component for TuringMachineView {
             <div class="turing-machine-view">
                 <> {"state:"} {machine.state.clone()} {""} </>
                 <> {"l:"} {
-                    machine.tape.left.iter().map(|sign| html!{<> {sign_to_str(sign)} {"|"} </>}).collect::<Html>()
+                    machine.tape.left.iter().rev().map(|sign| html!{<> {sign_to_str(sign)} {"|"} </>}).collect::<Html>()
                 } {"..."} </>
                 <> {"h:"} {
                     machine.tape.head.clone()
                 } </>
                 <> {"r:"} {
-                    machine.tape.left.iter().map(|sign| html!{<> {sign_to_str(sign)} {"|"} </>}).collect::<Html>()
+                    machine.tape.left.iter().rev().map(|sign| html!{<> {sign_to_str(sign)} {"|"} </>}).collect::<Html>()
                 } {"..."} </>
                 <div class="code-view-entry">
                     <table>
@@ -146,17 +152,26 @@ impl Component for TuringMachineView {
                     </tbody>
                     </table>
                 </div>
-                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step)}> {"step"} </button>
+                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step) }> {"step"} </button>
             </div>
         }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             TuringMachineMsg::Step => {
+                if let Some(ref on_step) = self.callback_onlog {
+                    on_step.emit("machine step".to_owned())
+                }
                 self.machine.step();
             }
             TuringMachineMsg::Load(machine) => {
                 self.machine = machine;
+            }
+            TuringMachineMsg::SetEventLog(callback) => {
+                self.callback_onlog = Some(callback);
+            }
+            TuringMachineMsg::LoadFromString(str1, st2, str3) => {
+                // todo!()
             }
         }
         true
