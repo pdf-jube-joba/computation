@@ -2,15 +2,16 @@
 <html lang="en">
     <head>
         <style>
-            .turing-machine-view {
-                border: 1pt solid #000;
+            .box {
+                border: 1px solid #000;
             }
-            .codewrite-entry-view {
-                border: 1pt solid #000;
+            .machine {
+                width: 500px;
             }
-            .event-view {
-                border: 1pt solid #000;
+            .control {
+                width: 500px;
             }
+
             table,
             td {
                 border: 1px solid #333;
@@ -23,7 +24,9 @@
         </style>
     </head>
     <body>
-        <div id="control"> </div>
-        <div id="machine"> </div>
+        <div style="display: flex;">
+            <div id="control"> </div>
+            <div id="machine"> </div>
+        </div>
     </body>
 </html>

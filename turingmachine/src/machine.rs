@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 use yew::prelude::*;
 use yew::{Properties};
 
@@ -19,12 +20,16 @@ impl TryFrom<&str> for MoveTo {
     }
 }
 
-pub type Sign = Option<String>;
-pub fn sign_to_str(sign: &Sign) -> &str {
-    if let Some(ref str) = sign {str} else {" "}
+#[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
+pub struct Sign(Option<String>);
+impl Display for Sign {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = if let Sign(Some(str)) = self {str} else {""};
+        write!(f, "{}", str)
+    }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Properties)]
+#[derive(Debug, Default, Clone, PartialEq, Properties, Hash, Eq)]
 struct Tape {
     left: Vec<Sign>,
     head: Sign,
@@ -48,57 +53,104 @@ impl Tape {
     }
 }
 
-pub type State = String;
+impl TryFrom<String> for Tape {
+    type Error = ();
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let v: Vec<&str> = value.lines().collect();
+        if v.len() < 3 {return Err(());}
+        let left: Vec<Sign> = v[0].rsplit("|").map(|s| Sign(Some(s.to_string()))).collect();
+        let head: Sign = Sign(Some(v[1].trim().to_string()));
+        let right: Vec<Sign> = v[2].rsplit("|").map(|s| Sign(Some(s.to_string()))).collect();
+        Ok(Self {left, head, right})
+    }
+}
 
-pub type CodeKey = (Sign, State);
-pub type CodeValue = (Sign, State, MoveTo);
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct State(String);
+impl Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
-type Code = HashMap<CodeKey, CodeValue>;
 
-pub fn try_parse(s: String) -> Option<(CodeKey, CodeValue)> {
-    let v: Vec<&str> = s.split_ascii_whitespace().collect();
-    if v.len() < 5 {return None;}
-    let move_to: MoveTo = if let Ok(move_to) = (v[4]).try_into() {move_to} else {return None};
-    let code_key: CodeKey = (Some(v[0].to_string()), v[1].to_string());
-    let code_value: CodeValue = (Some(v[2].to_string()), v[3].to_string(), move_to);
-    Some((code_key, code_value))
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct CodeKey(Sign, State);
+#[derive(Debug, Clone, PartialEq)]
+pub struct CodeValue(Sign, State, MoveTo);
+
+pub fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), ()> {
+    let v: Vec<&str> = s.split(",").collect();
+    if v.len() < 5 {return Err(());}
+    let move_to: MoveTo = if let Ok(move_to) = (v[4]).try_into() {move_to} else {return Err(())};
+    let code_key: CodeKey = CodeKey(Sign(Some(v[0].to_string())), State(v[1].to_string()));
+    let code_value: CodeValue = CodeValue(Sign(Some(v[2].to_string())), State(v[3].to_string()), move_to);
+    Ok((code_key, code_value))
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
+struct Code(HashMap<CodeKey, CodeValue>);
+
+impl TryFrom<String> for Code {
+    type Error = ();
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let mut hash = HashMap::new();
+        for str in value.lines() {
+            let (key, value) = try_parse_one_entry(str)?;
+            hash.insert(key, value);
+        }
+        Ok(Code(hash))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachine {
     state: State,
     tape: Tape,
-    code: Code
+    code: Code,
 }
 
 impl TuringMachine {
-    pub fn step(&mut self) -> bool {
-        let now = (self.tape.head.clone(), self.state.clone());
-        let next = self.code.get(&now);
-        if let Some((write_sign, next_state, move_to)) = next {
+    pub fn is_terminate(&mut self) -> bool {
+        let State(ref state) = self.state;
+        state == "" || {
+            let head_sign = self.tape.head.clone();
+            let Code(ref code) = &self.code;
+            code.get(&CodeKey(head_sign, self.state.clone())).is_none()
+        }
+    }
+    pub fn step(&mut self){
+        let head_sign = self.tape.head.clone();
+        let maybe_next = {
+            let Code(code) = &self.code;
+            code.get(&CodeKey(head_sign, self.state.clone()))
+        };
+        if let Some(CodeValue(write_sign, next_state, move_to)) = maybe_next {
             self.state = next_state.clone();
             self.tape.head = write_sign.clone();
             self.tape.move_to(move_to);
-            true
-        } else {false}
-    }
-    pub fn try_parse(str: &str) -> Result<TuringMachine, ()> {
-        todo!()
+        }
     }
 }
 
 #[derive(Default)]
 pub struct TuringMachineView {
-    machine: TuringMachine,
-    // machine_event: Vec<String>,
+    machine: Option<TuringMachine>,
     callback_onlog: Option<Callback<String>>,
+}
+
+impl TuringMachineView {
+    fn send_log(&mut self, str: String) {
+        if let Some(ref callback) = self.callback_onlog {
+            callback.emit(str);
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
 pub enum TuringMachineMsg {
-    Load(TuringMachine),
     LoadFromString(String, String, String),
-    Step,
+    Step(usize),
     SetEventLog(Callback<String>),
 }
 
@@ -113,20 +165,23 @@ impl Component for TuringMachineView {
         Self::default()
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let machine = &self.machine;
-        html! {
-            <div class="turing-machine-view">
-                <> {"state:"} {machine.state.clone()} {""} </>
-                <> {"l:"} {
-                    machine.tape.left.iter().rev().map(|sign| html!{<> {sign_to_str(sign)} {"|"} </>}).collect::<Html>()
-                } {"..."} </>
-                <> {"h:"} {
-                    machine.tape.head.clone()
-                } </>
-                <> {"r:"} {
-                    machine.tape.left.iter().rev().map(|sign| html!{<> {sign_to_str(sign)} {"|"} </>}).collect::<Html>()
-                } {"..."} </>
-                <div class="code-view-entry">
+        let machine_html: Html =
+        match &self.machine {
+            Some(ref machine) => html! {
+                <>
+                <div class="box">
+                    <> {"state:"} {machine.state.clone()} {""} <br/> </>
+                    <> {"l:"} {
+                        machine.tape.left.iter().rev().map(|sign| html!{<> {sign} {"|"} </>}).collect::<Html>()
+                    } {"..."} <br/> </>
+                    <> {"h:"} {
+                        machine.tape.head.clone()
+                    } <br/> </>
+                    <> {"r:"} {
+                        machine.tape.right.iter().rev().map(|sign| html!{<> {sign} {"|"} </>}).collect::<Html>()
+                    } {"..."} <br/> </>
+                </div>
+                <div class="box">
                     <table>
                     <thead> <tr>
                         <td> {"key_sign"} </td>
@@ -137,12 +192,12 @@ impl Component for TuringMachineView {
                     </tr> </thead>
                     <tbody>
                     {
-                        machine.code.iter().map(|((key_sign, key_state), (value_sign, value_state, value_move))|{
+                        machine.code.0.iter().map(|(CodeKey(key_sign, key_state), CodeValue(value_sign, value_state, value_move))|{
                             html! {
                                 <tr>
-                                    <td> {sign_to_str(&key_sign)} </td>
+                                    <td> {key_sign} </td>
                                     <td> {key_state} </td>
-                                    <td> {sign_to_str(&value_sign)} </td>
+                                    <td> {value_sign} </td>
                                     <td> {value_state} </td>
                                     <td> {format!("{:?}", value_move)} </td>
                                 </tr>
@@ -152,26 +207,66 @@ impl Component for TuringMachineView {
                     </tbody>
                     </table>
                 </div>
-                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step) }> {"step"} </button>
+                </>
+            },
+            None => html! {
+                <>
+                    {"no machine found"}
+                </>
+            }
+        };
+        let controls_html: Html = html! {
+            <>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(1)) }> {"step"} </button>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(10)) }> {"step 10"} </button>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(100)) }> {"step 100"} </button>
+            </>
+        };
+        html! {
+            <div class="machine">
+            {"machine"} <br/>
+            {machine_html}
+            {controls_html}
             </div>
         }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            TuringMachineMsg::Step => {
-                if let Some(ref on_step) = self.callback_onlog {
-                    on_step.emit("machine step".to_owned())
+            TuringMachineMsg::Step(num) => {
+                if let Some(ref mut machine) = self.machine {
+                    let mut result = None;
+                    for index in 0..num {
+                        if machine.is_terminate() {
+                            result = Some(index);
+                            break;
+                        } else {machine.step()}
+                    }
+                    if let Some(num) = result {
+                        self.send_log(format!("machine terminated at {num}"));
+                    } else {
+                        self.send_log(format!("machine step {num}"));
+                    }
+                } else {
+                    self.send_log("no machine found but step pushed".to_owned());
                 }
-                self.machine.step();
-            }
-            TuringMachineMsg::Load(machine) => {
-                self.machine = machine;
             }
             TuringMachineMsg::SetEventLog(callback) => {
+                callback.emit("callback setted".to_owned());
                 self.callback_onlog = Some(callback);
             }
-            TuringMachineMsg::LoadFromString(str1, st2, str3) => {
-                // todo!()
+            TuringMachineMsg::LoadFromString(state, tape, code) => {
+                let state: State = State(state);
+                let tape: Tape = if let Ok(tape) = Tape::try_from(tape) {tape} else {
+                    self.send_log("failed parse tape".to_owned());
+                    return true;
+                };
+                let code: Code = if let Ok(code) = Code::try_from(code) {code} else {
+                    self.send_log("failed parse code".to_owned());
+                    return true;
+                };
+                self.send_log("succed to parse".to_owned());
+                let machine: TuringMachine = TuringMachine { state, tape, code} ;
+                self.machine = Some(machine);
             }
         }
         true

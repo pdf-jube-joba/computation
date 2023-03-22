@@ -4,132 +4,6 @@ use yew::{Properties};
 use web_sys::{HtmlInputElement};
 
 use super::machine::*;
-// struct CodeWriteView {
-//     // codes: String,
-// }
-
-// #[derive(Default, Clone, PartialEq, Properties)]
-// struct CodeWriteProps {
-//     codes: String,
-// }
-
-// enum CodeWriteMsg {
-//     // ChangedInput(String),
-// }
-
-// impl Component for CodeWriteView {
-//   type Message = ();
-//   type Properties = CodeWriteProps;
-//   fn create(_ctx: &Context<Self>) -> Self {
-//       Self {}
-//   }
-//   fn view(&self, ctx: &Context<Self>) -> Html {
-//       let CodeWriteProps {codes} = ctx.props();
-//       html! {
-//         <>
-//             <textarea
-//                 value={codes}
-//             />
-//         </>
-//       }
-//     //   let add_callback_button: Callback<MouseEvent> = add_callback.reform(move |_e: MouseEvent| {
-//     //       str.to_string()
-//     //   });
-//     //   let message_callback: Callback<CodeWriteMsg> = ctx.link().callback(|e| e);
-//     //   let change_callback: Callback<Event> = message_callback.reform(|e: Event|{
-//     //       let value: HtmlInputElement = e.target_unchecked_into();
-//     //       let str = value.value();
-//     //       CodeWriteMsg::ChangedInput(str)
-//     //   });
-//     //   //  Callback::from(|e: Event|{
-//     //   //     let value: HtmlInputElement = e.target_unchecked_into();
-//     //   //     let value = value.value();
-//     //   //     ctx.link().callback(function)
-//     //   // });
-//     //   html!{
-//     //       <>
-//     //       <div class="codewrite-entry-view">
-//     //           <table>
-//     //           <thead> <tr>
-//     //               <td> {"key_sign"} </td>
-//     //               <td> {"key_state"} </td>
-//     //               <td> {"value_sign"} </td>
-//     //               <td> {"value_state"} </td>
-//     //               <td> {"value_move"} </td>
-//     //               <td> </td>
-//     //           </tr> </thead>
-//     //           <tbody>
-//     //           {
-//     //               code_entry.iter().enumerate()
-//     //               .map(|(index, ((key_sign, key_state), (value_sign, value_state, value_move), callback))|{
-//     //                   let remove_callback: Callback<MouseEvent> = callback.reform(move |_| index);
-//     //                   html! {
-//     //                       <tr>
-//     //                           <td> {sign_to_str(&key_sign)} </td>
-//     //                           <td> {key_state} </td>
-//     //                           <td> {sign_to_str(&value_sign)} </td>
-//     //                           <td> {value_state} </td>
-//     //                           <td> {format!("{:?}", value_move)} </td>
-//     //                           <td onclick={remove_callback}> {"-"} </td>
-//     //                       </tr>
-//     //                   }
-//     //               }).collect::<Html>()
-//     //           }
-//     //           {
-//     //               html! {
-//     //                   <>
-//     //                   <input onchange={change_callback}/>
-//     //                   <div onclick={add_callback_button}> {"+"} </div>
-//     //                   </>
-//     //               }
-//     //           }
-//     //           </tbody>
-//     //       </table>
-//     //       </div>
-//     //   </>
-//     //   }
-//   }
-//   fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-//       match msg {
-//           CodeWriteMsg::ChangedInput(str) => {
-//               self.code_key_value = str;
-//           }
-//       }
-//       true
-//   }
-// }
-
-// struct EventView;
-
-// #[derive(Debug, Clone, PartialEq, Properties)]
-// struct EventProps {
-//     event_print: Vec<String>,
-// }
-
-// impl Component for EventView {
-//     type Message = ();
-//     type Properties = EventProps;
-//     fn create(_ctx: &Context<Self>) -> Self {
-//         Self {}
-//     }
-//     fn view(&self, ctx: &Context<Self>) -> Html {
-//         let EventProps { event_print } = ctx.props();
-//         html!{
-//             <div class="event-view"> {"event-view"} <br/> {
-//                 {
-//                     event_print.iter()
-//                     .map(|str|{
-//                         html!{
-//                             <>
-//                                 {str} <br/>
-//                             </>
-//                         }
-//                     }).collect::<Html>()
-//                 }
-//             } </div>
-//         }
-//     }
-// }
 
 #[derive(Default)]
 pub struct ControlView {
@@ -143,9 +17,9 @@ pub struct ControlView {
 pub enum ControlMsg {
     SetTargetMachineView(Scope<TuringMachineView>),
     EventLog(String),
-    OnChangeCode(String),
-    OnChangeTape(String),
-    OnChangeState(String),
+    OnInputCode(String),
+    OnInputTape(String),
+    OnInputState(String),
     Load,
 }
 
@@ -159,39 +33,45 @@ impl Component for ControlView {
     Self::default()
   }
   fn view(&self, ctx: &Context<Self>) -> Html {
-    let onchange_code = ctx.link().callback(|e: Event|{
-        let value = todo!() ;
-        ControlMsg::OnChangeCode(value)
+    let oninput_code = ctx.link().callback(|e: InputEvent| {
+        let value: HtmlInputElement = e.target_unchecked_into();
+        let str: String = value.value() ;
+        ControlMsg::OnInputCode(str)
     });
-    let onchange_tape = ctx.link().callback(|e: Event|{
-        ControlMsg::OnChangeTape(todo!())
+    let oninput_tape = ctx.link().callback(|e: InputEvent| {
+        let value: HtmlInputElement = e.target_unchecked_into();
+        let str: String = value.value() ;
+        ControlMsg::OnInputTape(str)
     });
-    let onchange_state = ctx.link().callback(|e: Event |{
-        ControlMsg::OnChangeState(todo!())
+    let oninput_state = ctx.link().callback(|e: InputEvent| {
+        let value: HtmlInputElement = e.target_unchecked_into();
+        let str: String = value.value() ;
+        ControlMsg::OnInputState(str)
     });
+    
     html!{
+        <div class="control">
+        {"control"} <br/>
         <>
-        {"control"}
-        <>
-            <div class="code">
-                {"code"}
-                <textarea onchange={onchange_code}/>
-            </div>
-            <div class="tape">
-                {"tape"}
-                <textarea onchange={onchange_tape}/>
-            </div>
-            <div class="state">
+            <div class="box">
                 {"state"}
-                <textarea onchange={onchange_state}/>
+                <textarea oninput={oninput_state}/>
             </div>
-            <div class="event">
-                {"event"}
-                {for self.event_log.iter().map(|str| html!{<> {str} <br/> </>})}
+            <div class="box">
+            {"tape"}
+            <textarea rows="3" oninput={oninput_tape}/>
+            </div>
+            <div class="box">
+                {"code"}
+                <textarea oninput={oninput_code}/>
+            </div>
+            <div class="box">
+                {"event"} <br/>
+                {for self.event_log.iter().rev().take(10).map(|str| html!{<> {str} <br/> </>})}
             </div>
             <button onclick={ctx.link().callback(|_| ControlMsg::Load)}> {"load"} </button>
         </>
-        </>
+        </div>
     }
   }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -204,19 +84,20 @@ impl Component for ControlView {
             ControlMsg::EventLog(str) => {
                 self.event_log.push(str);
             }
-            ControlMsg::OnChangeCode(code) => {
+            ControlMsg::OnInputCode(code) => {
                 self.code = code;
             }
-            ControlMsg::OnChangeTape(tape) => {
+            ControlMsg::OnInputTape(tape) => {
                 self.tape = tape;
             }
-            ControlMsg::OnChangeState(state) => {
+            ControlMsg::OnInputState(state) => {
                 self.state = state;
             }
             ControlMsg::Load => {
                 if let Some(ref scope) = self.machine {
-                    scope.send_message(TuringMachineMsg::LoadFromString(self.code.clone(), self.tape.clone(), self.state.clone()))
+                    scope.send_message(TuringMachineMsg::LoadFromString(self.state.clone(), self.tape.clone(), self.code.clone()))
                 }
+                self.event_log.push("load".to_owned());
             }
         }
         true
