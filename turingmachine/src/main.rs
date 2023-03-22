@@ -1,8 +1,3 @@
-use web_sys::{HtmlInputElement, Element};
-use yew::html::Scope;
-use yew::prelude::*;
-use yew::{Properties};
-
 mod machine;
 use machine::*;
 mod control;

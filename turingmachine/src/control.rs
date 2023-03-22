@@ -67,7 +67,9 @@ impl Component for ControlView {
             </div>
             <div class="box">
                 {"event"} <br/>
+                <pre>
                 {for self.event_log.iter().rev().take(10).map(|str| html!{<> {str} <br/> </>})}
+                </pre>
             </div>
             <button onclick={ctx.link().callback(|_| ControlMsg::Load)}> {"load"} </button>
         </>
@@ -77,7 +79,7 @@ impl Component for ControlView {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             ControlMsg::SetTargetMachineView(scope) => {
-                let callback = ctx.link().callback(|log| ControlMsg::EventLog(log));
+                let callback = ctx.link().callback(|log| ControlMsg::EventLog(format!("machine: {}", log)));
                 scope.send_message(TuringMachineMsg::SetEventLog(callback));
                 self.machine = Some(scope);
             }
@@ -95,9 +97,11 @@ impl Component for ControlView {
             }
             ControlMsg::Load => {
                 if let Some(ref scope) = self.machine {
-                    scope.send_message(TuringMachineMsg::LoadFromString(self.state.clone(), self.tape.clone(), self.code.clone()))
+                    self.event_log.push("control: load".to_owned());
+                    scope.send_message(TuringMachineMsg::LoadFromString(self.state.clone(), self.tape.clone(), self.code.clone()));
+                } else {
+                    self.event_log.push("control: machine not found".to_string());
                 }
-                self.event_log.push("load".to_owned());
             }
         }
         true

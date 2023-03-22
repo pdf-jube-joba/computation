@@ -1,34 +1,46 @@
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt::{Display};
 use yew::prelude::*;
 use yew::{Properties};
 
+// テープの動く方向を表す。
 #[derive(Debug, Clone, PartialEq)]
-pub enum MoveTo {
+pub enum Direction {
     Right,
-    Left
+    Left,
 }
 
-impl TryFrom<&str> for MoveTo {
-    type Error = ();
+impl TryFrom<&str> for Direction {
+    type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "R" => Ok(MoveTo::Right),
-            "L" => Ok(MoveTo::Left),
-            _ => Err(()),
+            "R" => Ok(Direction::Right),
+            "L" => Ok(Direction::Left),
+            _ => Err("direction: fail".to_string()),
         }
     }
 }
 
+// テープで用いる記号について
+// 一般の（空白を含む）文字列が一つの記号を表す。
+// None が空白記号を表す。
 #[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
-pub struct Sign(Option<String>);
+pub struct Sign(String);
+
 impl Display for Sign {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let str = if let Sign(Some(str)) = self {str} else {""};
-        write!(f, "{}", str)
+        write!(f, "{}", self.0)
     }
 }
 
+// 空白記号
+impl From<&str> for Sign {
+    fn from(value: &str) -> Self {
+        Sign(value.to_string())
+    }
+}
+
+// 左右無限のテープ
 #[derive(Debug, Default, Clone, PartialEq, Properties, Hash, Eq)]
 struct Tape {
     left: Vec<Sign>,
@@ -37,14 +49,14 @@ struct Tape {
 }
 
 impl Tape {
-    fn move_to(&mut self, m: &MoveTo) {
+    fn move_to(&mut self, m: &Direction) {
         match m {
-            MoveTo::Left => {
+            Direction::Left => {
                 let next_head = self.left.pop().unwrap_or_default();
                 let old_head = std::mem::replace(&mut self.head, next_head);
                 self.right.push(old_head);
             }
-            MoveTo::Right => {
+            Direction::Right => {
                 let next_head = self.right.pop().unwrap_or_default();
                 let old_head = std::mem::replace(&mut self.head, next_head);
                 self.left.push(old_head);
@@ -54,17 +66,20 @@ impl Tape {
 }
 
 impl TryFrom<String> for Tape {
-    type Error = ();
+    type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let v: Vec<&str> = value.lines().collect();
-        if v.len() < 3 {return Err(());}
-        let left: Vec<Sign> = v[0].rsplit("|").map(|s| Sign(Some(s.to_string()))).collect();
-        let head: Sign = Sign(Some(v[1].trim().to_string()));
-        let right: Vec<Sign> = v[2].rsplit("|").map(|s| Sign(Some(s.to_string()))).collect();
+        if v.len() < 3 {return Err("tape: argument is too few".to_owned());}
+        let left: Vec<Sign> = v[0].rsplit("|").map(|s| s.into()).collect();
+        let head: Sign = v[1].into();
+        let right: Vec<Sign> = v[2].rsplit("|").map(|s| s.into()).collect();
         Ok(Self {left, head, right})
     }
 }
 
+// マシンの状態について
+// マシンの状態も文字列を用いて表す。
+// ただし、空白記号であらわされる状態を停止状態とする。
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct State(String);
 impl Display for State {
@@ -72,19 +87,22 @@ impl Display for State {
         write!(f, "{}", self.0)
     }
 }
-
+impl From<&str> for State {
+    fn from(value: &str) -> Self {
+        State(value.to_string())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct CodeKey(Sign, State);
 #[derive(Debug, Clone, PartialEq)]
-pub struct CodeValue(Sign, State, MoveTo);
+pub struct CodeValue(Sign, State, Direction);
 
-pub fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), ()> {
+pub fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), String> {
     let v: Vec<&str> = s.split(",").collect();
-    if v.len() < 5 {return Err(());}
-    let move_to: MoveTo = if let Ok(move_to) = (v[4]).try_into() {move_to} else {return Err(())};
-    let code_key: CodeKey = CodeKey(Sign(Some(v[0].to_string())), State(v[1].to_string()));
-    let code_value: CodeValue = CodeValue(Sign(Some(v[2].to_string())), State(v[3].to_string()), move_to);
+    if v.len() < 5 {return Err("code-entry: argument is too few".to_string());}
+    let code_key: CodeKey = CodeKey(v[0].into(), v[1].into());
+    let code_value: CodeValue = CodeValue(v[2].into(), v[3].into(), v[4].try_into()?);
     Ok((code_key, code_value))
 }
 
@@ -92,12 +110,18 @@ pub fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), ()> {
 struct Code(HashMap<CodeKey, CodeValue>);
 
 impl TryFrom<String> for Code {
-    type Error = ();
+    type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let mut hash = HashMap::new();
-        for str in value.lines() {
-            let (key, value) = try_parse_one_entry(str)?;
-            hash.insert(key, value);
+        for (index, str) in value.lines().enumerate() {
+            match try_parse_one_entry(str) {
+                Ok((key, value)) => {
+                    hash.insert(key, value);
+                },
+                Err(err) => {
+                    return Err(format!("{} at line {}", err, index));
+                }
+            }
         }
         Ok(Code(hash))
     }
@@ -114,21 +138,19 @@ impl TuringMachine {
     pub fn is_terminate(&mut self) -> bool {
         let State(ref state) = self.state;
         state == "" || {
-            let head_sign = self.tape.head.clone();
             let Code(ref code) = &self.code;
-            code.get(&CodeKey(head_sign, self.state.clone())).is_none()
+            // todo clone しないやり方はある？
+            code.get(&CodeKey(self.tape.head.clone(), self.state.clone())).is_none()
         }
     }
     pub fn step(&mut self){
-        let head_sign = self.tape.head.clone();
-        let maybe_next = {
-            let Code(code) = &self.code;
-            code.get(&CodeKey(head_sign, self.state.clone()))
-        };
-        if let Some(CodeValue(write_sign, next_state, move_to)) = maybe_next {
-            self.state = next_state.clone();
-            self.tape.head = write_sign.clone();
-            self.tape.move_to(move_to);
+        if !self.is_terminate() {
+            let maybe_next = &self.code.0.get(&CodeKey(self.tape.head.clone(), self.state.clone()));
+            if let Some(CodeValue(write_sign, next_state, direction)) = maybe_next {
+                self.state = next_state.clone();
+                self.tape.head = write_sign.clone();
+                self.tape.move_to(direction);
+            }
         }
     }
 }
@@ -150,6 +172,8 @@ impl TuringMachineView {
 #[derive(Clone, PartialEq)]
 pub enum TuringMachineMsg {
     LoadFromString(String, String, String),
+    #[allow(dead_code)]
+    LoadFromMachine(TuringMachine),
     Step(usize),
     SetEventLog(Callback<String>),
 }
@@ -172,13 +196,13 @@ impl Component for TuringMachineView {
                 <div class="box">
                     <> {"state:"} {machine.state.clone()} {""} <br/> </>
                     <> {"l:"} {
-                        machine.tape.left.iter().rev().map(|sign| html!{<> {sign} {"|"} </>}).collect::<Html>()
+                        for machine.tape.left.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
                     } {"..."} <br/> </>
                     <> {"h:"} {
                         machine.tape.head.clone()
                     } <br/> </>
                     <> {"r:"} {
-                        machine.tape.right.iter().rev().map(|sign| html!{<> {sign} {"|"} </>}).collect::<Html>()
+                        for machine.tape.right.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
                     } {"..."} <br/> </>
                 </div>
                 <div class="box">
@@ -242,12 +266,12 @@ impl Component for TuringMachineView {
                         } else {machine.step()}
                     }
                     if let Some(num) = result {
-                        self.send_log(format!("machine terminated at {num}"));
+                        self.send_log(format!("machine terminated at step {num}"));
                     } else {
                         self.send_log(format!("machine step {num}"));
                     }
                 } else {
-                    self.send_log("no machine found but step pushed".to_owned());
+                    unreachable!()
                 }
             }
             TuringMachineMsg::SetEventLog(callback) => {
@@ -255,17 +279,27 @@ impl Component for TuringMachineView {
                 self.callback_onlog = Some(callback);
             }
             TuringMachineMsg::LoadFromString(state, tape, code) => {
+                self.send_log("parsing...".to_string());
                 let state: State = State(state);
-                let tape: Tape = if let Ok(tape) = Tape::try_from(tape) {tape} else {
-                    self.send_log("failed parse tape".to_owned());
-                    return true;
+                let tape: Tape = match Tape::try_from(tape) {
+                    Ok(tape) => {tape}
+                    Err(err) => {
+                        self.send_log(format!("error! {}", err));
+                        return false;
+                    }
                 };
-                let code: Code = if let Ok(code) = Code::try_from(code) {code} else {
-                    self.send_log("failed parse code".to_owned());
-                    return true;
+                let code: Code = match Code::try_from(code) {
+                    Ok(code) => {code}
+                    Err(err) => {
+                        self.send_log(format!("error! {}", err));
+                        return false;
+                    }
                 };
-                self.send_log("succed to parse".to_owned());
-                let machine: TuringMachine = TuringMachine { state, tape, code} ;
+                self.send_log("succeed!".to_owned());
+                let machine: TuringMachine = TuringMachine { state, tape, code } ;
+                self.machine = Some(machine);
+            }
+            TuringMachineMsg::LoadFromMachine(machine) => {
                 self.machine = Some(machine);
             }
         }
