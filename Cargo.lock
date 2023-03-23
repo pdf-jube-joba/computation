@@ -52,6 +52,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "countermachine"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "yew",
+]
+
+[[package]]
 name = "form_urlencoded"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
