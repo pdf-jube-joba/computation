@@ -1,4 +1,6 @@
-use std::{collections::HashMap};
+use std::{collections::HashMap, fmt::Display};
+
+use yew::{Properties, Component, html};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct RegisterIndex(usize);
@@ -37,6 +39,18 @@ enum Operation {
     Dec(RegisterIndex),
     Clr(RegisterIndex),
     Ifz(RegisterIndex, ProgramIndex),
+}
+
+impl Display for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Inc(index) => write!(f, "INC register:{}", index.0),
+            Self::Dec(index) => write!(f, "DEC register:{}", index.0),
+            Self::Clr(index) => write!(f, "CLR register:{}", index.0),
+            Self::Ifz(r_index, p_index) => write!(f, "IFZ register:{} program:{}", r_index.0, p_index.0),
+            _ => todo!()
+        }
+    }
 }
 
 struct Code(Vec<Operation>);
@@ -87,6 +101,48 @@ impl CounterMachine {
                 }
                 _ => todo!()
             }
+        }
+    }
+}
+
+#[derive(Default)]
+struct CounterMachineView {
+    machine: Option<CounterMachine>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Properties)]
+struct CounterMachineProp {
+}
+
+struct CounterMachineMsg {
+}
+
+impl Component for CounterMachineView {
+    type Message = CounterMachineMsg;
+    type Properties = CounterMachineProp;
+    fn create(ctx: &yew::Context<Self>) -> Self {
+        Self::default()
+    }
+    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+        let html1 =
+        if let Some(machine) = &self.machine {
+            let code_html: yew::Html = (&machine.code.0).into_iter().map(|s| html!{s}).collect();
+            html! {
+                <>
+                    {"machine"}
+                    {code_html}
+                </>
+            }
+        } else {
+            html! {
+                <>
+                    {"not found"}
+                </>
+            }
+        };
+
+        html!{
+            {html1}
         }
     }
 }
