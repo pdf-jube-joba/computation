@@ -1,7 +1,9 @@
-mod machine;
-use machine::*;
-mod control;
-use control::*;
+use Turing_machine::machine::*;
+use Turing_machine::control::*;
+// mod machine;
+// use machine::*;
+// mod control;
+// use control::*;
 
 fn main() {
     let document = gloo::utils::document();

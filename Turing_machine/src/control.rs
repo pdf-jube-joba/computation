@@ -3,7 +3,7 @@ use yew::prelude::*;
 use yew::{Properties};
 use web_sys::{HtmlInputElement};
 
-use super::machine::*;
+use super::machine::app::*;
 
 #[derive(Default)]
 pub struct ControlView {
