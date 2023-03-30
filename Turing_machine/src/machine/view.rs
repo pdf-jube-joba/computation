@@ -1,9 +1,69 @@
 use crate::machine::*;
 use yew::prelude::*;
 
+#[derive(Debug, Clone, PartialEq, Properties)]
+struct TapeProps {
+    tape: Tape,
+}
+
+#[function_component(TapeView)]
+fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
+    html!{
+        <>
+        {"tape"}
+        <> {"l:"} {
+            for tape.left.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
+        } {"..."} <br/> </>
+        <> {"h:"} {
+            tape.head.clone()
+        } <br/> </>
+        <> {"r:"} {
+            for tape.right.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
+        } {"..."} <br/> </>
+        </>
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+struct CodeProps {
+    code: Code,
+}
+
+#[function_component(CodeView)]
+fn code_view(CodeProps { code }: &CodeProps) -> Html {
+    html!{
+        <>
+        <table>
+        <thead> <tr>
+            <td> {"key_sign"} </td>
+            <td> {"key_state"} </td>
+            <td> {"value_sign"} </td>
+            <td> {"value_state"} </td>
+            <td> {"value_move"} </td>
+        </tr> </thead>
+        <tbody>
+        {
+            code.hash.iter().map(|(CodeKey(key_sign, key_state), CodeValue(value_sign, value_state, value_move))|{
+                html! {
+                    <tr>
+                        <td> {key_sign} </td>
+                        <td> {key_state} </td>
+                        <td> {value_sign} </td>
+                        <td> {value_state} </td>
+                        <td> {format!("{:?}", value_move)} </td>
+                    </tr>
+                }
+            }).collect::<Html>()
+        }
+        </tbody>
+        </table>
+        </>
+    }
+}
+
 #[derive(Default)]
 pub struct TuringMachineView {
-    machine: Option<TuringMachine>,
+    machine: Option<TuringMachineSet>,
     callback_onlog: Option<Callback<String>>,
 }
 
@@ -17,9 +77,9 @@ impl TuringMachineView {
 
 #[derive(Clone, PartialEq)]
 pub enum TuringMachineMsg {
-    LoadFromString(String, String, String),
+    LoadFromBuilder(TuringMachineBuilder),
     #[allow(dead_code)]
-    LoadFromMachine(TuringMachine),
+    LoadFromMachine(TuringMachineSet),
     Step(usize),
     SetEventLog(Callback<String>),
 }
@@ -37,45 +97,14 @@ impl Component for TuringMachineView {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let machine_html: Html =
         match &self.machine {
-            Some(ref machine) => html! {
+            Some(TuringMachineSet { ref machine_code, ref machine_state }) => html! {
                 <>
                 <div class="box">
-                    <> {"state:"} {machine.state.clone()} {""} <br/> </>
-                    <> {"l:"} {
-                        for machine.tape.left.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
-                    } {"..."} <br/> </>
-                    <> {"h:"} {
-                        machine.tape.head.clone()
-                    } <br/> </>
-                    <> {"r:"} {
-                        for machine.tape.right.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
-                    } {"..."} <br/> </>
+                    <> {"state:"} {machine_state.state.clone()} {""} <br/> </>
+                    <TapeView tape={machine_state.tape.clone()}/>
                 </div>
                 <div class="box">
-                    <table>
-                    <thead> <tr>
-                        <td> {"key_sign"} </td>
-                        <td> {"key_state"} </td>
-                        <td> {"value_sign"} </td>
-                        <td> {"value_state"} </td>
-                        <td> {"value_move"} </td>
-                    </tr> </thead>
-                    <tbody>
-                    {
-                        machine.code.0.iter().map(|(CodeKey(key_sign, key_state), CodeValue(value_sign, value_state, value_move))|{
-                            html! {
-                                <tr>
-                                    <td> {key_sign} </td>
-                                    <td> {key_state} </td>
-                                    <td> {value_sign} </td>
-                                    <td> {value_state} </td>
-                                    <td> {format!("{:?}", value_move)} </td>
-                                </tr>
-                            }
-                        }).collect::<Html>()
-                    }
-                    </tbody>
-                    </table>
+                    <CodeView code={machine_code.code.clone()}/>
                 </div>
                 </>
             },
@@ -124,26 +153,18 @@ impl Component for TuringMachineView {
                 callback.emit("callback setted".to_owned());
                 self.callback_onlog = Some(callback);
             }
-            TuringMachineMsg::LoadFromString(state, tape, code) => {
+            TuringMachineMsg::LoadFromBuilder(builder) => {
                 self.send_log("parsing...".to_string());
-                let state: State = State(state);
-                let tape: Tape = match Tape::try_from(tape) {
-                    Ok(tape) => {tape}
-                    Err(err) => {
-                        self.send_log(format!("error! {}", err));
-                        return false;
+                match builder.build() {
+                    Ok(machine) => {
+                        self.send_log("success".to_string());
+                        self.machine = Some(machine);
                     }
-                };
-                let code: Code = match Code::try_from(code) {
-                    Ok(code) => {code}
                     Err(err) => {
-                        self.send_log(format!("error! {}", err));
-                        return false;
+                        self.send_log("failed to parse".to_string());
+                        self.send_log(format!("calsed by {err}"));
                     }
-                };
-                self.send_log("succeed!".to_owned());
-                let machine: TuringMachine = TuringMachine { state, tape, code } ;
-                self.machine = Some(machine);
+                }
             }
             TuringMachineMsg::LoadFromMachine(machine) => {
                 self.machine = Some(machine);

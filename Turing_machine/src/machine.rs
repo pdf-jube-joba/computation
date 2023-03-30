@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display};
 use yew::{Properties};
 
-pub mod app;
+pub mod view;
 pub mod manipulation;
 
 // テープの動く方向を表す。
@@ -49,6 +49,9 @@ struct Tape {
 }
 
 impl Tape {
+    fn head(&mut self) -> &mut Sign {
+        &mut self.head
+    }
     fn move_to(&mut self, m: &Direction) {
         match m {
             Direction::Left => {
@@ -79,9 +82,6 @@ impl TryFrom<String> for Tape {
     }
 }
 
-// マシンの状態について
-// マシンの状態も文字列を用いて表す。
-// ただし、空白記号であらわされる状態を停止状態とする。
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct State(String);
 impl Display for State {
@@ -100,20 +100,27 @@ pub struct CodeKey(Sign, State);
 #[derive(Debug, Clone, PartialEq)]
 pub struct CodeValue(Sign, State, Direction);
 
-pub fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), String> {
-    let v: Vec<&str> = s.split(",").collect();
-    if v.len() < 5 {return Err("code-entry: argument is too few".to_string());}
-    let code_key: CodeKey = CodeKey(v[0].into(), v[1].into());
-    let code_value: CodeValue = CodeValue(v[2].into(), v[3].into(), v[4].try_into()?);
-    Ok((code_key, code_value))
+#[derive(Debug, Default, Clone, PartialEq, Properties)]
+struct Code {
+    hash: HashMap<CodeKey, CodeValue>,
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
-struct Code(HashMap<CodeKey, CodeValue>);
+impl Code {
+    fn code(&self) -> &HashMap<CodeKey, CodeValue> {
+        &self.hash
+    }
+}
 
 impl TryFrom<String> for Code {
     type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
+        fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), String> {
+            let v: Vec<&str> = s.split(",").collect();
+            if v.len() < 5 {return Err("code-entry: argument is too few".to_string());}
+            let code_key: CodeKey = CodeKey(v[0].into(), v[1].into());
+            let code_value: CodeValue = CodeValue(v[2].into(), v[3].into(), v[4].try_into()?);
+            Ok((code_key, code_value))
+        }
         let mut hash = HashMap::new();
         for (index, str) in value.lines().enumerate() {
             match try_parse_one_entry(str) {
@@ -125,34 +132,88 @@ impl TryFrom<String> for Code {
                 }
             }
         }
-        Ok(Code(hash))
+        Ok(Code{ hash })
     }
 }
 
+// Turing machine は次のものから構成されている。
+// Σ:有限集合...テープに用いる記号
+// b:Σ...空白記号
+// Q:有限集合...マシンの状態
+// q_init:Q...マシンの初期状態
+// F:subset of Q...マシンの受理状態全体
+// δ:(Q,Σ) -> (Q,Σ,{E,R,C})...マシンの遷移関数
+// ただし、実装上は次のように固定してしまう
+// ΣやQはある無限集合（可能なマシンの用いうる記号や状態の集合）Sign, State の部分集合を（暗黙的に）指しているものとし、
+// δを（有限な）HashMap<(Sign, State), (Sign, State, {L,R,C})> により実装することで、
+// このHashMapに存在するSignやStateが「実は考えていたQやΣである」とする。
+// また、マシンの停止は以下の二つの可能性があるものとする。
+// - マシンの状態が accepted_state に含まれる。
+// - 部分関数である遷移関数の定義域に含まれない。
 #[derive(Debug, Clone, PartialEq)]
-pub struct TuringMachine {
-    state: State,
-    tape: Tape,
+struct TuringMachine {
+    init_state: State,
+    accepted_state: HashSet<State>,
     code: Code,
 }
 
-impl TuringMachine {
+// TuringMachine の計算過程を表す。
+// 
+#[derive(Debug, Clone, PartialEq)]
+pub struct TuringMachineState {
+    state: State,
+    tape: Tape,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TuringMachineSet {
+    machine_code: TuringMachine,
+    machine_state: TuringMachineState,
+}
+
+impl TuringMachineSet {
     pub fn is_terminate(&mut self) -> bool {
-        let State(ref state) = self.state;
-        state == "" || {
-            let Code(ref code) = &self.code;
-            // todo clone しないやり方はある？
-            code.get(&CodeKey(self.tape.head.clone(), self.state.clone())).is_none()
+        self.machine_code.accepted_state.contains(&self.machine_state.state) || {
+            let hash = &self.machine_code.code.code();
+            let key = CodeKey(self.machine_state.tape.head().clone(), self.machine_state.state.clone());
+            hash.contains_key(&key)
         }
     }
     pub fn step(&mut self){
         if !self.is_terminate() {
-            let maybe_next = &self.code.0.get(&CodeKey(self.tape.head.clone(), self.state.clone()));
-            if let Some(CodeValue(write_sign, next_state, direction)) = maybe_next {
-                self.state = next_state.clone();
-                self.tape.head = write_sign.clone();
-                self.tape.move_to(direction);
-            }
+            let hash = &self.machine_code.code.code();
+            let key = CodeKey(self.machine_state.tape.head().clone(), self.machine_state.state.clone());
+            let CodeValue(sign, state, direction) = hash.get(&key).unwrap();
+            *self.machine_state.tape.head() = sign.clone();
+            self.machine_state.tape.move_to(direction);
+            self.machine_state.state = state.clone();
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TuringMachineBuilder {
+    pub init_state: String,
+    pub accepted_state: String,
+    pub code: String,
+    pub initial_tape: String,
+}
+
+impl TuringMachineBuilder {
+    fn build(self) -> Result<TuringMachineSet, String> {
+        let machine_code = {
+            let init_state = State(self.init_state.clone());
+            let accepted_state = self.accepted_state.split_ascii_whitespace().map(|str|{
+                State(str.to_string())
+            }).collect();
+            let code = Code::try_from(self.code)?;
+            TuringMachine { init_state, accepted_state, code }
+        };
+        let machine_state = {
+            let state = State(self.init_state);
+            let tape = Tape::try_from(self.initial_tape)?;
+            TuringMachineState { state, tape }
+        };
+        Ok(TuringMachineSet { machine_code, machine_state })
     }
 }

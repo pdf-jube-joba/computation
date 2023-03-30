@@ -1,4 +1,4 @@
-use Turing_machine::machine::*;
+use Turing_machine::machine::view::*;
 use Turing_machine::control::*;
 // mod machine;
 // use machine::*;

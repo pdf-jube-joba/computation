@@ -3,13 +3,15 @@ use yew::prelude::*;
 use yew::{Properties};
 use web_sys::{HtmlInputElement};
 
-use super::machine::app::*;
+use super::machine::view::*;
+use super::machine::TuringMachineBuilder;
 
 #[derive(Default)]
 pub struct ControlView {
     code: String,
     tape: String,
-    state: String,
+    initial_state: String,
+    accepted_state: String,
     machine: Option<Scope<TuringMachineView>>,
     event_log: Vec<String>,
 }
@@ -19,7 +21,8 @@ pub enum ControlMsg {
     EventLog(String),
     OnInputCode(String),
     OnInputTape(String),
-    OnInputState(String),
+    OnInputInitialState(String),
+    OnInputAcceptedState(String),
     Load,
 }
 
@@ -33,29 +36,34 @@ impl Component for ControlView {
     Self::default()
   }
   fn view(&self, ctx: &Context<Self>) -> Html {
-    let oninput_code = ctx.link().callback(|e: InputEvent| {
+    fn to(e: InputEvent) -> String {
         let value: HtmlInputElement = e.target_unchecked_into();
-        let str: String = value.value() ;
-        ControlMsg::OnInputCode(str)
-    });
-    let oninput_tape = ctx.link().callback(|e: InputEvent| {
-        let value: HtmlInputElement = e.target_unchecked_into();
-        let str: String = value.value() ;
-        ControlMsg::OnInputTape(str)
-    });
-    let oninput_state = ctx.link().callback(|e: InputEvent| {
-        let value: HtmlInputElement = e.target_unchecked_into();
-        let str: String = value.value() ;
-        ControlMsg::OnInputState(str)
-    });
+        value.value()
+    }
+    let oninput_code = ctx.link().callback(
+        |e| ControlMsg::OnInputCode(to(e))
+    );
+    let oninput_tape = ctx.link().callback(
+        |e| ControlMsg::OnInputTape(to(e))
+    );
+    let oninput_initial_state = ctx.link().callback(
+        |e| ControlMsg::OnInputInitialState(to(e))
+    );
+    let oninput_accepted_state = ctx.link().callback(
+        |e| ControlMsg::OnInputAcceptedState(to(e))
+    );
     
     html!{
         <div class="control">
         {"control"} <br/>
         <>
             <div class="box">
-                {"state"}
-                <textarea oninput={oninput_state}/>
+                {"initial state"}
+                <textarea oninput={oninput_initial_state}/>
+            </div>
+            <div class="box">
+                {"accepted state"}
+                <textarea oninput={oninput_accepted_state}/>
             </div>
             <div class="box">
             {"tape"}
@@ -92,13 +100,23 @@ impl Component for ControlView {
             ControlMsg::OnInputTape(tape) => {
                 self.tape = tape;
             }
-            ControlMsg::OnInputState(state) => {
-                self.state = state;
+            ControlMsg::OnInputInitialState(state) => {
+                self.initial_state = state;
+            }
+            ControlMsg::OnInputAcceptedState(state) => {
+                self.accepted_state = state;
             }
             ControlMsg::Load => {
                 if let Some(ref scope) = self.machine {
                     self.event_log.push("control: load".to_owned());
-                    scope.send_message(TuringMachineMsg::LoadFromString(self.state.clone(), self.tape.clone(), self.code.clone()));
+                    let builder = TuringMachineBuilder {
+                        init_state: self.initial_state.clone(),
+                        accepted_state: self.accepted_state.clone(),
+                        code: self.code.clone(),
+                        initial_tape: self.tape.clone(),
+                    };
+                    scope.send_message(TuringMachineMsg::LoadFromBuilder(builder));
+                    self.event_log.push("sended".to_string());
                 } else {
                     self.event_log.push("control: machine not found".to_string());
                 }
