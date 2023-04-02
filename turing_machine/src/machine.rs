@@ -75,9 +75,9 @@ impl TryFrom<String> for Tape {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let v: Vec<&str> = value.lines().collect();
         if v.len() < 3 {return Err("tape: argument is too few".to_owned());}
-        let left: Vec<Sign> = v[0].rsplit("|").map(|s| s.into()).collect();
+        let left: Vec<Sign> = v[0].rsplit('|').map(|s| s.into()).collect();
         let head: Sign = v[1].into();
-        let right: Vec<Sign> = v[2].rsplit("|").map(|s| s.into()).collect();
+        let right: Vec<Sign> = v[2].rsplit('|').map(|s| s.into()).collect();
         Ok(Self {left, head, right})
     }
 }
@@ -115,7 +115,7 @@ impl TryFrom<String> for Code {
     type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), String> {
-            let v: Vec<&str> = s.split(",").collect();
+            let v: Vec<&str> = s.split(',').collect();
             if v.len() < 5 {return Err("code-entry: argument is too few".to_string());}
             let code_key: CodeKey = CodeKey(v[0].into(), v[1].into());
             let code_value: CodeValue = CodeValue(v[2].into(), v[3].into(), v[4].try_into()?);

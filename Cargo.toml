@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "Turing_machine",
+  "turing_machine",
   "countermachine",
-  "integration/Turing_machine",
+  "integration/turing_machine",
 ]

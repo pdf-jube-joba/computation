@@ -1,5 +1,5 @@
-use Turing_machine::machine::view::*;
-use Turing_machine::control::*;
+use turing_machine::machine::view::*;
+use turing_machine::control::*;
 // mod machine;
 // use machine::*;
 // mod control;

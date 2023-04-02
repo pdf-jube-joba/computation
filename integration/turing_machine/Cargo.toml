@@ -1,5 +1,5 @@
 [package]
-name = "Turing_machine_app"
+name = "turing_machine_app"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 gloo = "0.8.0"
-Turing_machine = { path = "../../Turing_machine" }
+turing_machine = { path = "../../turing_machine" }
 yew = { version = "0.20.0", features = ["csr"] }
