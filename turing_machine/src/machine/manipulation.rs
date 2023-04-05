@@ -1,4 +1,4 @@
-mod example {
+pub mod example {
     use crate::machine::*;
 
     fn one() -> Sign {
@@ -6,7 +6,7 @@ mod example {
     }
 
     #[derive(Debug, Clone, PartialEq)]
-    struct Number(usize);
+    pub struct Number(usize);
 
     impl Number {
         fn succ(self) -> Self {
@@ -54,8 +54,15 @@ mod example {
             .code_push("1, read, 1, read, R").unwrap()
             .code_push(" , read, 1, read_end, L").unwrap()
             .code_push("1, read_end, 1, read_end, L").unwrap()
-            .code_push(" , read_end,  , end_inc, C").unwrap()
+            .code_push(" , read_end,  , end_inc, R").unwrap()
             ;
+        builder
+    }
+
+    pub fn inc_example(i: usize) -> TuringMachineBuilder {
+        let mut builder = inc();
+        builder
+            .initial_tape_from_tape(write_natural_numbers(vec![Number(i)]));
         builder
     }
 
