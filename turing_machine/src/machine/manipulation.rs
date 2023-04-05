@@ -2,11 +2,16 @@ mod example {
     use crate::machine::*;
 
     fn one() -> Sign {
-        Sign::from("1")
+        Sign::try_from("1").unwrap()
     }
 
+    #[derive(Debug, Clone, PartialEq)]
     struct Number(usize);
+
     impl Number {
+        fn succ(self) -> Self {
+            Number(self.0 + 1)
+        }
         fn to_signs(self) -> Vec<Sign> {
             let Number(num) = self;
             (0..num).map(|_| one()).collect()
@@ -14,20 +19,21 @@ mod example {
     }
 
     fn write_natural_numbers(vec: Vec<Number>) -> Tape {
-        let mut tape =
-        Tape {
+        let mut tape = Tape {
             left: vec![],
             head: Sign::blank(),
-            right: vec.into_iter().flat_map(|num|{
-                num.to_signs().into_iter()
-            }).collect(),
+            right: vec
+                .into_iter()
+                .flat_map(|num| num.to_signs().into_iter())
+                .collect(),
         };
         tape.move_to(&Direction::Right);
         tape
     }
 
-    fn read_natural_numbers(tape: Tape) -> Result<Vec<Number>, ()> {
+    fn read_natural_numbers(mut tape: Tape) -> Result<Vec<Number>, ()> {
         let mut vec = Vec::new();
+        tape.move_to(&Direction::Left);
         for l in tape.right.split(|sign| Sign::blank() == *sign) {
             if l.iter().all(|sign| one() == *sign) {
                 vec.push(Number(l.len()));
@@ -38,38 +44,43 @@ mod example {
         Ok(vec)
     }
 
-    fn inc() -> TuringMachine {
-        TuringMachine {
-            init_state: State(String::from("start_inc")),
-            accepted_state: HashSet::from_iter(vec![
-                State("".to_string()),
-            ]),
-            code: Code::try_from(
-                ",start_inc,,read,R
-                ").unwrap(),
-        }
+    fn inc() -> TuringMachineBuilder {
+        let mut builder = TuringMachineBuilder::default();
+        builder
+            .init_state("start_inc").unwrap()
+            .accepted_state("end_inc").unwrap()
+            // .code_push(" , start_inc , , end_inc , C").unwrap()
+            .code_push("1, start_inc, 1, read, C").unwrap()
+            .code_push("1, read, 1, read, R").unwrap()
+            .code_push(" , read, 1, read_end, L").unwrap()
+            .code_push("1, read_end, 1, read_end, L").unwrap()
+            .code_push(" , read_end,  , end_inc, C").unwrap()
+            ;
+        builder
     }
 
     mod test {
-        use crate::{machine::TuringMachine, builder};
         use super::*;
+        use crate::{machine::TuringMachine};
 
         #[test]
         fn inc_test1() {
-            let mut builder = TuringMachineBuilder::default();
-                builder
-                .init_state("start_add").unwrap();
-            // let builder = TuringMachineBuilder {
-            //     init_state: String::from("start_add"),
-            //     accepted_state: String::from("end"),
-            //     code: String::from(",start_add,,read,R"),
-            //     initial_tape: String::from(""),
-            // };
-            let mut machine = match builder.build() {
-                Ok(machine) => machine,
-                Err(err) => panic!("error! {err}"),
-            };
-            machine.step();
+            let number_pred = Number(10);
+
+            let mut builder = inc();
+            builder
+                .initial_tape_from_tape(write_natural_numbers(vec![number_pred.clone()]));
+            let mut machine = builder.build().unwrap();
+            eprintln!("{machine}");
+
+            for i in 0..100 {
+                if machine.is_terminate() {break;}
+                machine.step();
+                eprintln!("{i} step {machine:?}");
+            }
+            let tape = machine.machine_state.tape;
+            let number_succ = read_natural_numbers(tape).unwrap()[0].clone();
+            assert_eq!(number_pred.succ(), number_succ);
         }
     }
 }

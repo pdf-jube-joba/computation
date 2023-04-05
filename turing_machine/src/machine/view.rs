@@ -8,7 +8,7 @@ struct TapeProps {
 
 #[function_component(TapeView)]
 fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
-    html!{
+    html! {
         <>
         {"tape"}
         <> {"l:"} {
@@ -31,7 +31,7 @@ struct CodeProps {
 
 #[function_component(CodeView)]
 fn code_view(CodeProps { code }: &CodeProps) -> Html {
-    html!{
+    html! {
         <>
         <table>
         <thead> <tr>
@@ -85,8 +85,7 @@ pub enum TuringMachineMsg {
 }
 
 #[derive(Default, Clone, PartialEq, Properties)]
-pub struct TuringMachineProp {
-}
+pub struct TuringMachineProp {}
 
 impl Component for TuringMachineView {
     type Message = TuringMachineMsg;
@@ -95,9 +94,11 @@ impl Component for TuringMachineView {
         Self::default()
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let machine_html: Html =
-        match &self.machine {
-            Some(TuringMachineSet { ref machine_code, ref machine_state }) => html! {
+        let machine_html: Html = match &self.machine {
+            Some(TuringMachineSet {
+                ref machine_code,
+                ref machine_state,
+            }) => html! {
                 <>
                 <div class="box">
                     <> {"state:"} {machine_state.state.clone()} {""} <br/> </>
@@ -112,7 +113,7 @@ impl Component for TuringMachineView {
                 <>
                     {"no machine found"}
                 </>
-            }
+            },
         };
         let controls_html: Html = html! {
             <>
@@ -138,7 +139,9 @@ impl Component for TuringMachineView {
                         if machine.is_terminate() {
                             result = Some(index);
                             break;
-                        } else {machine.step()}
+                        } else {
+                            machine.step()
+                        }
                     }
                     if let Some(num) = result {
                         self.send_log(format!("machine terminated at step {num}"));

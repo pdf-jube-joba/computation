@@ -1,7 +1,7 @@
+use web_sys::HtmlInputElement;
 use yew::html::Scope;
 use yew::prelude::*;
-use yew::{Properties};
-use web_sys::{HtmlInputElement};
+use yew::Properties;
 
 use super::machine::view::*;
 use super::machine::TuringMachineBuilder;
@@ -18,10 +18,11 @@ pub struct ControlView {
 
 impl ControlView {
     fn send_this_log<T>(&mut self, str: T)
-    where T: AsRef<str>
+    where
+        T: AsRef<str>,
     {
         self.event_log.push(format!("control: {}", str.as_ref()));
-    } 
+    }
 }
 
 pub enum ControlMsg {
@@ -38,64 +39,62 @@ pub enum ControlMsg {
 pub struct ControlProp {}
 
 impl Component for ControlView {
-  type Message = ControlMsg;
-  type Properties = ();
-  fn create(_ctx: &Context<Self>) -> Self {
-    Self::default()
-  }
-  fn view(&self, ctx: &Context<Self>) -> Html {
-    fn to(e: InputEvent) -> String {
-        let value: HtmlInputElement = e.target_unchecked_into();
-        value.value()
+    type Message = ControlMsg;
+    type Properties = ();
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self::default()
     }
-    let oninput_code = ctx.link().callback(
-        |e| ControlMsg::OnInputCode(to(e))
-    );
-    let oninput_tape = ctx.link().callback(
-        |e| ControlMsg::OnInputTape(to(e))
-    );
-    let oninput_initial_state = ctx.link().callback(
-        |e| ControlMsg::OnInputInitialState(to(e))
-    );
-    let oninput_accepted_state = ctx.link().callback(
-        |e| ControlMsg::OnInputAcceptedState(to(e))
-    );
-    
-    html!{
-        <div class="control">
-        {"control"} <br/>
-        <>
-            <div class="box">
-                {"initial state"}
-                <textarea oninput={oninput_initial_state}/>
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        fn to(e: InputEvent) -> String {
+            let value: HtmlInputElement = e.target_unchecked_into();
+            value.value()
+        }
+        let oninput_code = ctx.link().callback(|e| ControlMsg::OnInputCode(to(e)));
+        let oninput_tape = ctx.link().callback(|e| ControlMsg::OnInputTape(to(e)));
+        let oninput_initial_state = ctx
+            .link()
+            .callback(|e| ControlMsg::OnInputInitialState(to(e)));
+        let oninput_accepted_state = ctx
+            .link()
+            .callback(|e| ControlMsg::OnInputAcceptedState(to(e)));
+
+        html! {
+            <div class="control">
+            {"control"} <br/>
+            <>
+                <div class="box">
+                    {"initial state"}
+                    <textarea oninput={oninput_initial_state}/>
+                </div>
+                <div class="box">
+                    {"accepted state"}
+                    <textarea oninput={oninput_accepted_state}/>
+                </div>
+                <div class="box">
+                {"tape"}
+                <textarea rows="3" oninput={oninput_tape}/>
+                </div>
+                <div class="box">
+                    {"code"}
+                    <textarea oninput={oninput_code}/>
+                </div>
+                <div class="box">
+                    {"event"} <br/>
+                    <pre>
+                    {for self.event_log.iter().rev().take(10).map(|str| html!{<> {str} <br/> </>})}
+                    </pre>
+                </div>
+                <button onclick={ctx.link().callback(|_| ControlMsg::Load)}> {"load"} </button>
+            </>
             </div>
-            <div class="box">
-                {"accepted state"}
-                <textarea oninput={oninput_accepted_state}/>
-            </div>
-            <div class="box">
-            {"tape"}
-            <textarea rows="3" oninput={oninput_tape}/>
-            </div>
-            <div class="box">
-                {"code"}
-                <textarea oninput={oninput_code}/>
-            </div>
-            <div class="box">
-                {"event"} <br/>
-                <pre>
-                {for self.event_log.iter().rev().take(10).map(|str| html!{<> {str} <br/> </>})}
-                </pre>
-            </div>
-            <button onclick={ctx.link().callback(|_| ControlMsg::Load)}> {"load"} </button>
-        </>
-        </div>
+        }
     }
-  }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             ControlMsg::SetTargetMachineView(scope) => {
-                let callback = ctx.link().callback(|log| ControlMsg::EventLog(format!("machine: {}", log)));
+                let callback = ctx
+                    .link()
+                    .callback(|log| ControlMsg::EventLog(format!("machine: {}", log)));
                 scope.send_message(TuringMachineMsg::SetEventLog(callback));
                 self.machine = Some(scope);
             }
@@ -116,9 +115,9 @@ impl Component for ControlView {
             }
             ControlMsg::Load => {
                 if let Some(ref mut scope) = self.machine {
-                    let handle  = ||{
+                    let handle = || {
                         let mut builder = TuringMachineBuilder::default();
-                            builder
+                        builder
                             .init_state(&self.initial_state)?
                             .accepted_state(&self.accepted_state)?
                             .code(&self.code)?

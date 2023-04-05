@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Display};
-use yew::{Properties};
+use std::fmt::{Display, format, write};
+use yew::Properties;
 
-pub mod view;
 pub mod manipulation;
+pub mod view;
 
 // テープの動く方向を表す。
 #[derive(Debug, Clone, PartialEq)]
@@ -16,6 +16,7 @@ pub enum Direction {
 impl TryFrom<&str> for Direction {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value = value.trim();
         match value {
             "R" => Ok(Direction::Right),
             "L" => Ok(Direction::Left),
@@ -26,14 +27,14 @@ impl TryFrom<&str> for Direction {
 }
 
 // テープで扱う記号の定義
-// 空白記号（スペース）の含まれない文字列を記号として扱う
+// 空白記号（スペース）と','と制御記号の含まれない文字列を記号として扱う
 // 空の文字列で記号としての空白記号を表す
 #[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
 pub struct Sign(String);
 
 impl Sign {
     fn blank() -> Sign {
-        Sign::from("")
+        Sign::try_from("").unwrap()
     }
 }
 
@@ -43,10 +44,21 @@ impl Display for Sign {
     }
 }
 
-impl From<&str> for Sign {
-    fn from(value: &str) -> Self {
-        Sign(value.to_string())
+impl TryFrom<&str> for Sign {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value = value.trim();
+        if value.contains(|char: char| char.is_whitespace() || char == ',') {
+            return Err(format!("whitespace contained input: {value}"));
+        }
+        Ok(Sign(value.to_string()))
     }
+}
+
+fn to_vec_sign(str: &str) -> Vec<Sign> {
+    str.split_whitespace()
+        .map(|s| Sign::try_from(s).unwrap())
+        .collect()
 }
 
 // 左右無限のテープ
@@ -54,11 +66,14 @@ impl From<&str> for Sign {
 struct Tape {
     left: Vec<Sign>,
     head: Sign,
-    right: Vec<Sign>
+    right: Vec<Sign>,
 }
 
 impl Tape {
-    fn head(&mut self) -> &mut Sign {
+    fn head(&self) -> &Sign {
+        &self.head
+    }
+    fn head_mut(&mut self) -> &mut Sign {
         &mut self.head
     }
     fn move_to(&mut self, m: &Direction) {
@@ -73,8 +88,7 @@ impl Tape {
                 let old_head = std::mem::replace(&mut self.head, next_head);
                 self.left.push(old_head);
             }
-            Direction::Constant => {
-            }
+            Direction::Constant => {}
         }
     }
 }
@@ -83,14 +97,18 @@ impl TryFrom<&str> for Tape {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let v: Vec<&str> = value.lines().collect();
-        if v.len() < 3 {return Err("tape: argument is too few".to_owned());}
-        let left: Vec<Sign> = v[0].rsplit('|').map(|s| s.into()).collect();
-        let head: Sign = v[1].into();
-        let right: Vec<Sign> = v[2].rsplit('|').map(|s| s.into()).collect();
-        Ok(Self {left, head, right})
+        if v.len() < 3 {
+            return Err("tape: argument is too few".to_owned());
+        }
+        let left: Vec<Sign> = to_vec_sign(v[0]);
+        let head: Sign = v[1].try_into()?;
+        let right: Vec<Sign> = to_vec_sign(v[2]);
+        Ok(Self { left, head, right })
     }
 }
 
+// マシンの持つ状態の定義
+// テープの記号と同じ
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct State(String);
 impl Display for State {
@@ -98,9 +116,14 @@ impl Display for State {
         write!(f, "{}", self.0)
     }
 }
-impl From<&str> for State {
-    fn from(value: &str) -> Self {
-        State(value.to_string())
+impl TryFrom<&str> for State {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value = value.trim();
+        if value.contains(|char: char| char.is_whitespace() || char ==',') {
+            return Err(format!("whitespace contained input:{value}"));
+        }
+        Ok(State(value.to_string()))
     }
 }
 
@@ -108,6 +131,25 @@ impl From<&str> for State {
 pub struct CodeKey(Sign, State);
 #[derive(Debug, Clone, PartialEq)]
 pub struct CodeValue(Sign, State, Direction);
+
+struct CodeEntry(CodeKey, CodeValue);
+
+impl TryFrom<&str> for CodeEntry {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value.contains(|char: char| char.is_control()) {
+            return Err("code-entry: some control char contained".to_string());
+        };
+        let v: Vec<&str> = value.split(',').collect();
+        if v.len() < 5 {
+            return Err("code-entry: argument is too few".to_string());
+        }
+        let code_key: CodeKey = CodeKey(v[0].try_into()?, v[1].try_into()?);
+        let code_value: CodeValue =
+            CodeValue(v[2].try_into()?, v[3].try_into()?, v[4].try_into()?);
+        Ok(CodeEntry(code_key, code_value))
+    }
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Properties)]
 struct Code {
@@ -118,30 +160,29 @@ impl Code {
     fn code(&self) -> &HashMap<CodeKey, CodeValue> {
         &self.hash
     }
+    fn add(&mut self, CodeEntry(k, v): CodeEntry) {
+        self.hash.insert(k, v);
+    }
+    fn refresh(&mut self) {
+        self.hash.clear();
+    }
 }
 
 impl TryFrom<&str> for Code {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), String> {
-            let v: Vec<&str> = s.split(',').collect();
-            if v.len() < 5 {return Err("code-entry: argument is too few".to_string());}
-            let code_key: CodeKey = CodeKey(v[0].into(), v[1].into());
-            let code_value: CodeValue = CodeValue(v[2].into(), v[3].into(), v[4].try_into()?);
-            Ok((code_key, code_value))
-        }
-        let mut hash = HashMap::new();
+        let mut code = Code::default();
         for (index, str) in value.lines().enumerate() {
-            match try_parse_one_entry(str) {
-                Ok((key, value)) => {
-                    hash.insert(key, value);
-                },
+            match CodeEntry::try_from(str) {
+                Ok(entry) => {
+                    code.add(entry);
+                }
                 Err(err) => {
                     return Err(format!("{} at line {}", err, index));
                 }
             }
         }
-        Ok(Code{ hash })
+        Ok(code)
     }
 }
 
@@ -167,7 +208,7 @@ struct TuringMachine {
 }
 
 // TuringMachine の計算過程を表す。
-// 
+//
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachineState {
     state: State,
@@ -181,22 +222,42 @@ pub struct TuringMachineSet {
 }
 
 impl TuringMachineSet {
-    pub fn is_terminate(&mut self) -> bool {
-        self.machine_code.accepted_state.contains(&self.machine_state.state) || {
-            let hash = &self.machine_code.code.code();
-            let key = CodeKey(self.machine_state.tape.head().clone(), self.machine_state.state.clone());
-            hash.contains_key(&key)
-        }
+    fn now_key(&self) -> CodeKey {
+        CodeKey(
+            self.machine_state.tape.head().clone(),
+            self.machine_state.state.clone(),
+        )
     }
-    pub fn step(&mut self){
+    pub fn is_terminate(&mut self) -> bool {
+        self.machine_code
+            .accepted_state
+            .contains(&self.machine_state.state)
+            || {
+                let hash = &self.machine_code.code.code();
+                let key = self.now_key();
+                !hash.contains_key(&key)
+            }
+    }
+    pub fn step(&mut self) {
         if !self.is_terminate() {
             let hash = &self.machine_code.code.code();
-            let key = CodeKey(self.machine_state.tape.head().clone(), self.machine_state.state.clone());
+            let key = self.now_key();
             let CodeValue(sign, state, direction) = hash.get(&key).unwrap();
-            *self.machine_state.tape.head() = sign.clone();
+            *self.machine_state.tape.head_mut() = sign.clone();
             self.machine_state.tape.move_to(direction);
             self.machine_state.state = state.clone();
         }
+    }
+}
+
+impl Display for TuringMachineSet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "code:")?;
+        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in (&self.machine_code.code.hash).into_iter() {
+            writeln!(f, "{k1}, {k2}, {v1}, {v2}, {v3:?}")?;
+        }
+        writeln!(f, "state: {}", self.machine_state.state)?;
+        writeln!(f, "tape: {:?}", self.machine_state.tape)
     }
 }
 
@@ -204,68 +265,89 @@ impl TuringMachineSet {
 pub struct TuringMachineBuilder {
     init_state: Option<State>,
     accepted_state: Option<HashSet<State>>,
-    code: Option<Code>,
-    initial_tape: Option<Tape>,
+    code: Code,
+    initial_tape: Tape,
 }
 
 impl TuringMachineBuilder {
     pub fn build(self) -> Result<TuringMachineSet, String> {
         let machine_code = {
-            let init_state = if let Some(state) = self.init_state.clone() {state} else {
-                return Err("fail on initial state".to_string())
+            let init_state = if let Some(state) = self.init_state.clone() {
+                state
+            } else {
+                return Err("fail on initial state".to_string());
             };
-            let accepted_state = if let Some(state) = self.accepted_state.clone() {state} else {
-                return Err("fail on accepted state".to_string())
+            let accepted_state = if let Some(state) = self.accepted_state.clone() {
+                state
+            } else {
+                return Err("fail on accepted state".to_string());
             };
-            let code = if let Some(state) = self.code.clone() {state} else {
-                return Err("fail on initial state".to_string())
-            };
-            TuringMachine { init_state, accepted_state, code }
+            let code = self.code.clone();
+            TuringMachine {
+                init_state,
+                accepted_state,
+                code,
+            }
         };
         let machine_state = {
-            let state = if let Some(state) = self.init_state.clone() {state} else {
-                return Err("fail on initial state".to_string())
-            };
-            let tape = if let Some(state) = self.initial_tape.clone() {state} else {
-                return Err("fail on initial state".to_string())
-            };
+            let state = self.init_state.unwrap();
+            let tape = self.initial_tape;
             TuringMachineState { state, tape }
         };
-        Ok(TuringMachineSet { machine_code, machine_state })
+        Ok(TuringMachineSet {
+            machine_code,
+            machine_state,
+        })
     }
-    
+
     pub fn init_state(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.init_state = Some(State::from(str));
+        self.init_state = Some(State::try_from(str)?);
         Ok(self)
     }
 
     pub fn accepted_state(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.accepted_state = str.split_ascii_whitespace()
-            .map(|str| State::from(str) )
-            .collect::<HashSet<State>>().into();
+        self.accepted_state = str
+            .split_whitespace()
+            .map(|str| State::try_from(str).unwrap())
+            .collect::<HashSet<State>>()
+            .into();
         Ok(self)
     }
 
     pub fn code(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.code = Some(Code::try_from(str)?);
+        self.code = Code::try_from(str)?;
         Ok(self)
     }
 
+    pub fn code_push(&mut self, str: &str) -> Result<&mut Self, String> {
+        let entry = CodeEntry::try_from(str)?;
+        self.code.add(entry);
+        Ok(self)
+    }
+
+    pub fn code_refresh(&mut self) {
+        self.code.refresh();
+    }
+
     pub fn initial_tape_left(&mut self, str: &str) -> Result<&mut Self, String> {
-        todo!()
+        self.initial_tape.left = to_vec_sign(str);
+        Ok(self)
     }
 
     pub fn initial_tape_head(&mut self, str: &str) -> Result<&mut Self, String> {
-        todo!()
+        self.initial_tape.head = Sign::try_from(str)?;
+        Ok(self)
     }
 
     pub fn initial_tape_right(&mut self, str: &str) -> Result<&mut Self, String> {
-        todo!()
+        self.initial_tape.right = to_vec_sign(str);
+        Ok(self)
     }
     pub fn initial_tape(&mut self, str: &str) -> Result<&mut Self, String> {
         self.initial_tape = Tape::try_from(str)?.into();
         Ok(self)
     }
-
-
+    fn initial_tape_from_tape(&mut self, tape: Tape) {
+        self.initial_tape = tape;
+    }
 }
