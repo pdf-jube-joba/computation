@@ -25,8 +25,17 @@ impl TryFrom<&str> for Direction {
     }
 }
 
+// テープで扱う記号の定義
+// 空白記号（スペース）の含まれない文字列を記号として扱う
+// 空の文字列で記号としての空白記号を表す
 #[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
 pub struct Sign(String);
+
+impl Sign {
+    fn blank() -> Sign {
+        Sign::from("")
+    }
+}
 
 impl Display for Sign {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -70,9 +79,9 @@ impl Tape {
     }
 }
 
-impl TryFrom<String> for Tape {
+impl TryFrom<&str> for Tape {
     type Error = String;
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         let v: Vec<&str> = value.lines().collect();
         if v.len() < 3 {return Err("tape: argument is too few".to_owned());}
         let left: Vec<Sign> = v[0].rsplit('|').map(|s| s.into()).collect();
@@ -111,9 +120,9 @@ impl Code {
     }
 }
 
-impl TryFrom<String> for Code {
+impl TryFrom<&str> for Code {
     type Error = String;
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         fn try_parse_one_entry(s: &str) -> Result<(CodeKey, CodeValue), String> {
             let v: Vec<&str> = s.split(',').collect();
             if v.len() < 5 {return Err("code-entry: argument is too few".to_string());}
@@ -191,29 +200,72 @@ impl TuringMachineSet {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct TuringMachineBuilder {
-    pub init_state: String,
-    pub accepted_state: String,
-    pub code: String,
-    pub initial_tape: String,
+    init_state: Option<State>,
+    accepted_state: Option<HashSet<State>>,
+    code: Option<Code>,
+    initial_tape: Option<Tape>,
 }
 
 impl TuringMachineBuilder {
-    fn build(self) -> Result<TuringMachineSet, String> {
+    pub fn build(self) -> Result<TuringMachineSet, String> {
         let machine_code = {
-            let init_state = State(self.init_state.clone());
-            let accepted_state = self.accepted_state.split_ascii_whitespace().map(|str|{
-                State(str.to_string())
-            }).collect();
-            let code = Code::try_from(self.code)?;
+            let init_state = if let Some(state) = self.init_state.clone() {state} else {
+                return Err("fail on initial state".to_string())
+            };
+            let accepted_state = if let Some(state) = self.accepted_state.clone() {state} else {
+                return Err("fail on accepted state".to_string())
+            };
+            let code = if let Some(state) = self.code.clone() {state} else {
+                return Err("fail on initial state".to_string())
+            };
             TuringMachine { init_state, accepted_state, code }
         };
         let machine_state = {
-            let state = State(self.init_state);
-            let tape = Tape::try_from(self.initial_tape)?;
+            let state = if let Some(state) = self.init_state.clone() {state} else {
+                return Err("fail on initial state".to_string())
+            };
+            let tape = if let Some(state) = self.initial_tape.clone() {state} else {
+                return Err("fail on initial state".to_string())
+            };
             TuringMachineState { state, tape }
         };
         Ok(TuringMachineSet { machine_code, machine_state })
     }
+    
+    pub fn init_state(&mut self, str: &str) -> Result<&mut Self, String> {
+        self.init_state = Some(State::from(str));
+        Ok(self)
+    }
+
+    pub fn accepted_state(&mut self, str: &str) -> Result<&mut Self, String> {
+        self.accepted_state = str.split_ascii_whitespace()
+            .map(|str| State::from(str) )
+            .collect::<HashSet<State>>().into();
+        Ok(self)
+    }
+
+    pub fn code(&mut self, str: &str) -> Result<&mut Self, String> {
+        self.code = Some(Code::try_from(str)?);
+        Ok(self)
+    }
+
+    pub fn initial_tape_left(&mut self, str: &str) -> Result<&mut Self, String> {
+        todo!()
+    }
+
+    pub fn initial_tape_head(&mut self, str: &str) -> Result<&mut Self, String> {
+        todo!()
+    }
+
+    pub fn initial_tape_right(&mut self, str: &str) -> Result<&mut Self, String> {
+        todo!()
+    }
+    pub fn initial_tape(&mut self, str: &str) -> Result<&mut Self, String> {
+        self.initial_tape = Tape::try_from(str)?.into();
+        Ok(self)
+    }
+
+
 }

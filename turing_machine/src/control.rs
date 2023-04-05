@@ -16,6 +16,14 @@ pub struct ControlView {
     event_log: Vec<String>,
 }
 
+impl ControlView {
+    fn send_this_log<T>(&mut self, str: T)
+    where T: AsRef<str>
+    {
+        self.event_log.push(format!("control: {}", str.as_ref()));
+    } 
+}
+
 pub enum ControlMsg {
     SetTargetMachineView(Scope<TuringMachineView>),
     EventLog(String),
@@ -107,18 +115,28 @@ impl Component for ControlView {
                 self.accepted_state = state;
             }
             ControlMsg::Load => {
-                if let Some(ref scope) = self.machine {
-                    self.event_log.push("control: load".to_owned());
-                    let builder = TuringMachineBuilder {
-                        init_state: self.initial_state.clone(),
-                        accepted_state: self.accepted_state.clone(),
-                        code: self.code.clone(),
-                        initial_tape: self.tape.clone(),
+                if let Some(ref mut scope) = self.machine {
+                    let handle  = ||{
+                        let mut builder = TuringMachineBuilder::default();
+                            builder
+                            .init_state(&self.initial_state)?
+                            .accepted_state(&self.accepted_state)?
+                            .code(&self.code)?
+                            .initial_tape(&self.tape)?;
+                        Ok::<TuringMachineBuilder, String>(builder)
                     };
-                    scope.send_message(TuringMachineMsg::LoadFromBuilder(builder));
-                    self.event_log.push("sended".to_string());
+                    let builder = handle();
+                    match builder {
+                        Ok(builder) => {
+                            scope.send_message(TuringMachineMsg::LoadFromBuilder(builder));
+                            self.send_this_log(&format!("success"));
+                        }
+                        Err(err) => {
+                            self.send_this_log(&format!("failed on {err}"));
+                        }
+                    }
                 } else {
-                    self.event_log.push("control: machine not found".to_string());
+                    self.send_this_log("no machine found");
                 }
             }
         }
