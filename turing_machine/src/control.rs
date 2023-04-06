@@ -118,10 +118,10 @@ impl Component for ControlView {
                     let handle = || {
                         let mut builder = TuringMachineBuilder::new("user").unwrap();
                         builder
-                            .init_state(&self.initial_state)?
-                            .accepted_state(&self.accepted_state)?
+                            .init_state_from_str(&self.initial_state)?
+                            .accepted_state_from_str(&self.accepted_state)?
                             .code(&self.code)?
-                            .initial_tape(&self.tape)?;
+                            .initial_tape_from_str(&self.tape)?;
                         Ok::<TuringMachineBuilder, String>(builder)
                     };
                     let builder = handle();
