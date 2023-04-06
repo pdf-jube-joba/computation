@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Display, format, write};
+use std::fmt::Display;
 use yew::Properties;
 
 pub mod manipulation;
@@ -258,7 +258,7 @@ impl TuringMachineSet {
 impl Display for TuringMachineSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "code:")?;
-        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in (&self.machine_code.code.hash).into_iter() {
+        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in (&self.machine_code.code.hash).iter() {
             writeln!(f, "{k1}, {k2}, {v1}, {v2}, {v3:?}")?;
         }
         writeln!(f, "state: {}", self.machine_state.state)?;

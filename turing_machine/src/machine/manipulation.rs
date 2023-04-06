@@ -1,3 +1,5 @@
+use std::process::Output;
+
 use super::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,7 +84,7 @@ impl TuringMachineBuilder {
 
     pub fn code(&mut self, str: &str) -> Result<&mut Self, String> {
         let mut vec = Vec::new();
-        for entry in str.lines().map(|str| CodeEntry::try_from(str)) {
+        for entry in str.lines().map(CodeEntry::try_from) {
             vec.push(entry?)
         }
         self.code = vec;
@@ -114,7 +116,7 @@ impl TuringMachineBuilder {
         Ok(self)
     }
     pub fn initial_tape_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape = Tape::try_from(str)?.into();
+        self.initial_tape = Tape::try_from(str)?;
         Ok(self)
     }
     fn initial_tape(&mut self, tape: Tape) {
@@ -152,7 +154,7 @@ impl TuringMachineBuilder {
 
         let name = format!("{first_name}-{second_name}");
 
-        let init_state = first_init_state.clone();
+        let init_state = first_init_state;
 
         let accepted_state = {
             if !first_accepted_state.contains(&specified_state) {
@@ -168,10 +170,9 @@ impl TuringMachineBuilder {
         };
 
         let code = {
-            let used_sign = (&first_code).iter()
-                .chain((&second_code).iter())
-                .map(|CodeEntry(CodeKey(s1, _), CodeValue(s2, _, _))| vec![s1.clone(), s2.clone()])
-                .flatten()
+            let used_sign = first_code.iter()
+                .chain((second_code).iter())
+                .flat_map(|CodeEntry(CodeKey(s1, _), CodeValue(s2, _, _))| vec![s1.clone(), s2.clone()])
                 .collect::<HashSet<Sign>>();
 
             let mut code = Vec::new();
@@ -209,51 +210,68 @@ impl TuringMachineBuilder {
     }
 }
 
+trait Interpretation {
+    type Input;
+    type Output;
+    fn write(input: Self::Input) -> Tape;
+    fn read(tape: &Tape) -> Result<Self::Output, String>;
+}
+
 pub mod example {
+    use std::iter::Once;
+
     use crate::machine::*;
     use crate::machine::manipulation::TuringMachineBuilder;
 
-    fn one() -> Sign {
-        Sign::try_from("1").unwrap()
-    }
+    use super::Interpretation;
 
     #[derive(Debug, Clone, PartialEq)]
     pub struct Number(usize);
-
+    
     impl Number {
+        fn is_zero(self) -> bool {
+            self.0 == 0
+        }
         fn succ(self) -> Self {
             Number(self.0 + 1)
         }
-        fn to_signs(self) -> Vec<Sign> {
-            let Number(num) = self;
-            (0..num).map(|_| one()).collect()
+    }
+    pub struct NatNumInterpretation;
+
+    impl NatNumInterpretation {
+        fn partition() -> Sign {
+            Sign::try_from("-").unwrap()
+        }
+        fn one() -> Sign {
+            Sign::try_from("1").unwrap()
         }
     }
 
-    fn write_natural_numbers(vec: Vec<Number>) -> Tape {
-        let mut tape = Tape {
-            left: vec![],
-            head: Sign::blank(),
-            right: vec
-                .into_iter()
-                .flat_map(|num| num.to_signs().into_iter())
-                .collect(),
-        };
-        tape.move_to(&Direction::Right);
-        tape
-    }
-
-    fn read_natural_numbers(mut tape: Tape) -> Result<Vec<Number>, ()> {
-        let mut vec = Vec::new();
-        tape.move_to(&Direction::Left);
-        for l in tape.right.split(|sign| Sign::blank() == *sign) {
-            if l.iter().all(|sign| one() == *sign) {
-                vec.push(Number(l.len()));
-            } else {
-                return Err(());
+    impl Interpretation for NatNumInterpretation {
+        type Input = Vec<Number>;
+        type Output = Vec<Number>;
+        fn write(input: Self::Input) -> Tape {
+            Tape {
+                left: vec![],
+                head: Sign::try_from("-").unwrap(),
+                right: input
+                    .into_iter()
+                    .flat_map(|num| std::iter::repeat(Sign::try_from("1").unwrap())
+                        .take(num.0).chain(std::iter::once(Sign::try_from("-").unwrap())))
+                    .collect(),
             }
         }
-        Ok(vec)
+        fn read(tape: &Tape) -> Result<Self::Output, String> {
+            let mut vec = Vec::new();
+            for l in tape.right.split(|sign| Sign::try_from("-").unwrap() == *sign) {
+                if l.iter().all(|sign| NatNumInterpretation::partition() == *sign) {
+                    vec.push(Number(l.len()));
+                } else {
+                    return Err("fail on interpreting".to_string());
+                }
+            }
+            Ok(vec)
+        }
     }
 
     fn inc() -> TuringMachineBuilder {
@@ -276,7 +294,7 @@ pub mod example {
     pub fn inc_example(i: usize) -> TuringMachineBuilder {
         let mut builder = inc();
         builder
-            .initial_tape(write_natural_numbers(vec![Number(i)]));
+            .initial_tape(NatNumInterpretation::write(vec![Number(i)]));
         builder
     }
 
@@ -289,7 +307,7 @@ pub mod example {
 
             let mut builder = inc();
             builder
-                .initial_tape(write_natural_numbers(vec![number_pred.clone()]));
+                .initial_tape(NatNumInterpretation::write(vec![number_pred.clone()]));
             let mut machine = builder.build().unwrap();
             eprintln!("{machine}");
 
@@ -299,7 +317,7 @@ pub mod example {
                 eprintln!("{i} step {machine:?}");
             }
             let tape = machine.machine_state.tape;
-            let number_succ = read_natural_numbers(tape).unwrap()[0].clone();
+            let number_succ = NatNumInterpretation::read(&tape).unwrap()[0].clone();
             assert_eq!(number_pred.succ(), number_succ);
         }
     }
