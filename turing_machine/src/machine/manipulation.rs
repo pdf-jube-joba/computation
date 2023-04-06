@@ -1,15 +1,26 @@
 use super::*;
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachineBuilder {
     name: String,
     init_state: Option<State>,
-    accepted_state: Option<HashSet<State>>,
+    accepted_state: Option<Vec<State>>,
     code: Vec<CodeEntry>,
     initial_tape: Tape,
 }
 
 impl TuringMachineBuilder {
+    pub fn new(name: &str) -> Result<TuringMachineBuilder, String> {
+        if name.is_empty() {return Err("empty string".to_string())}
+        let builder = TuringMachineBuilder {
+            name: name.to_string(),
+            init_state: None,
+            accepted_state: None,
+            code: Vec::new(),
+            initial_tape: Tape::default(),
+        };
+        Ok(builder)
+    }
     pub fn build(self) -> Result<TuringMachineSet, String> {
         let machine_code = {
             let init_state = if let Some(state) = self.init_state.clone() {
@@ -18,7 +29,7 @@ impl TuringMachineBuilder {
                 return Err("fail on initial state".to_string());
             };
             let accepted_state = if let Some(state) = self.accepted_state.clone() {
-                state
+                HashSet::from_iter(state.into_iter())
             } else {
                 return Err("fail on accepted state".to_string());
             };
@@ -49,7 +60,7 @@ impl TuringMachineBuilder {
         self.accepted_state = str
             .split_whitespace()
             .map(|str| State::try_from(str).unwrap())
-            .collect::<HashSet<State>>()
+            .collect::<Vec<State>>()
             .into();
         Ok(self)
     }
@@ -93,6 +104,18 @@ impl TuringMachineBuilder {
     }
     fn initial_tape_from_tape(&mut self, tape: Tape) {
         self.initial_tape = tape;
+    }
+
+    fn composition(self, accepted_state: State, other: Self) -> Result<Self, String> {
+        let composition_name = {
+            let mut first_name = (&self.name).to_string();
+            first_name.push_str(&format!("-{}", (&other.name)));
+            first_name
+        };
+
+
+        let builder = TuringMachineBuilder::new(&composition_name).unwrap();
+        Ok(builder)
     }
 }
 
@@ -144,7 +167,7 @@ pub mod example {
     }
 
     fn inc() -> TuringMachineBuilder {
-        let mut builder = TuringMachineBuilder::default();
+        let mut builder = TuringMachineBuilder::new("one").unwrap();
         builder
             .init_state("start_inc").unwrap()
             .accepted_state("end_inc").unwrap()

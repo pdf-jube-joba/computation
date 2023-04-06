@@ -116,7 +116,7 @@ impl Component for ControlView {
             ControlMsg::Load => {
                 if let Some(ref mut scope) = self.machine {
                     let handle = || {
-                        let mut builder = TuringMachineBuilder::default();
+                        let mut builder = TuringMachineBuilder::new("user").unwrap();
                         builder
                             .init_state(&self.initial_state)?
                             .accepted_state(&self.accepted_state)?
