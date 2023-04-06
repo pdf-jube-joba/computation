@@ -112,7 +112,7 @@ impl TuringMachineBuilder {
             first_name.push_str(&format!("-{}", (&other.name)));
             first_name
         };
-
+        let code = ;
 
         let builder = TuringMachineBuilder::new(&composition_name).unwrap();
         Ok(builder)
