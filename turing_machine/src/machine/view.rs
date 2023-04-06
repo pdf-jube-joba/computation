@@ -1,4 +1,5 @@
 use crate::machine::*;
+use crate::machine::manipulation::TuringMachineBuilder;
 use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]

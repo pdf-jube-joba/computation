@@ -132,6 +132,7 @@ pub struct CodeKey(Sign, State);
 #[derive(Debug, Clone, PartialEq)]
 pub struct CodeValue(Sign, State, Direction);
 
+#[derive(Debug, Clone, PartialEq)]
 struct CodeEntry(CodeKey, CodeValue);
 
 impl TryFrom<&str> for CodeEntry {
@@ -163,8 +164,12 @@ impl Code {
     fn add(&mut self, CodeEntry(k, v): CodeEntry) {
         self.hash.insert(k, v);
     }
-    fn refresh(&mut self) {
-        self.hash.clear();
+    fn from_iter_entry(iter: impl IntoIterator<Item = CodeEntry>) -> Self {
+        Code {
+            hash: HashMap::from_iter(iter.into_iter().map(|CodeEntry(k, v)|{
+                (k, v)
+            }))
+        }
     }
 }
 
@@ -258,96 +263,5 @@ impl Display for TuringMachineSet {
         }
         writeln!(f, "state: {}", self.machine_state.state)?;
         writeln!(f, "tape: {:?}", self.machine_state.tape)
-    }
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct TuringMachineBuilder {
-    init_state: Option<State>,
-    accepted_state: Option<HashSet<State>>,
-    code: Code,
-    initial_tape: Tape,
-}
-
-impl TuringMachineBuilder {
-    pub fn build(self) -> Result<TuringMachineSet, String> {
-        let machine_code = {
-            let init_state = if let Some(state) = self.init_state.clone() {
-                state
-            } else {
-                return Err("fail on initial state".to_string());
-            };
-            let accepted_state = if let Some(state) = self.accepted_state.clone() {
-                state
-            } else {
-                return Err("fail on accepted state".to_string());
-            };
-            let code = self.code.clone();
-            TuringMachine {
-                init_state,
-                accepted_state,
-                code,
-            }
-        };
-        let machine_state = {
-            let state = self.init_state.unwrap();
-            let tape = self.initial_tape;
-            TuringMachineState { state, tape }
-        };
-        Ok(TuringMachineSet {
-            machine_code,
-            machine_state,
-        })
-    }
-
-    pub fn init_state(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.init_state = Some(State::try_from(str)?);
-        Ok(self)
-    }
-
-    pub fn accepted_state(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.accepted_state = str
-            .split_whitespace()
-            .map(|str| State::try_from(str).unwrap())
-            .collect::<HashSet<State>>()
-            .into();
-        Ok(self)
-    }
-
-    pub fn code(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.code = Code::try_from(str)?;
-        Ok(self)
-    }
-
-    pub fn code_push(&mut self, str: &str) -> Result<&mut Self, String> {
-        let entry = CodeEntry::try_from(str)?;
-        self.code.add(entry);
-        Ok(self)
-    }
-
-    pub fn code_refresh(&mut self) {
-        self.code.refresh();
-    }
-
-    pub fn initial_tape_left(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape.left = to_vec_sign(str);
-        Ok(self)
-    }
-
-    pub fn initial_tape_head(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape.head = Sign::try_from(str)?;
-        Ok(self)
-    }
-
-    pub fn initial_tape_right(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape.right = to_vec_sign(str);
-        Ok(self)
-    }
-    pub fn initial_tape(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape = Tape::try_from(str)?.into();
-        Ok(self)
-    }
-    fn initial_tape_from_tape(&mut self, tape: Tape) {
-        self.initial_tape = tape;
     }
 }

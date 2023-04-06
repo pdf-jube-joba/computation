@@ -4,7 +4,7 @@ use yew::prelude::*;
 use yew::Properties;
 
 use super::machine::view::*;
-use super::machine::TuringMachineBuilder;
+use super::machine::manipulation::TuringMachineBuilder;
 
 #[derive(Default)]
 pub struct ControlView {
