@@ -1,5 +1,3 @@
-use std::process::Output;
-
 use super::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -154,7 +152,14 @@ impl TuringMachineBuilder {
 
         let name = format!("{first_name}-{second_name}");
 
-        let init_state = first_init_state;
+        let first_state_conversion = |state: &State| {
+            State::try_from(format!("0-{first_name}-{state}").as_ref()).unwrap()
+        };
+        let second_state_conversion = |state: &State| {
+            State::try_from(format!("1-{second_name}-{state}").as_ref()).unwrap()
+        };
+
+        let init_state = first_state_conversion(&first_init_state);
 
         let accepted_state = {
             if !first_accepted_state.contains(&specified_state) {
@@ -179,22 +184,24 @@ impl TuringMachineBuilder {
             code.extend(
                 first_code.into_iter()
                 .map(|CodeEntry(CodeKey(s_1, q_1), CodeValue(s_2, q_2, m))| {
-                    let new_q_1 = State::try_from(format!("{first_name}-{q_1}").as_ref()).unwrap();
-                    let new_q_2 = State::try_from(format!("{first_name}-{q_2}").as_ref()).unwrap();
+                    let new_q_1 = first_state_conversion(&q_1);
+                    let new_q_2 = first_state_conversion(&q_2);
                     CodeEntry(CodeKey(s_1, new_q_1), CodeValue(s_2, new_q_2, m))
             }));
             code.extend(
                 second_code.into_iter()
                 .map(|CodeEntry(CodeKey(s_1, q_1), CodeValue(s_2, q_2, m))| {
-                let new_q_1 = State::try_from(format!("{second_name}-{q_1}").as_ref()).unwrap();
-                let new_q_2 = State::try_from(format!("{second_name}-{q_2}").as_ref()).unwrap();
+                let new_q_1 = second_state_conversion(&q_1);
+                let new_q_2 = second_state_conversion(&q_2);
                 CodeEntry(CodeKey(s_1, new_q_1), CodeValue(s_2, new_q_2, m))
             })
             );
             code.extend(
                 used_sign.into_iter()
                 .map(|sign|{
-                    CodeEntry(CodeKey(sign.clone(), specified_state.clone()), CodeValue(sign, second_init_state.clone(), Direction::Constant))
+                    let key = CodeKey(sign.clone(), first_state_conversion(&specified_state));
+                    let value = CodeValue(sign, second_state_conversion(&second_init_state), Direction::Constant);
+                    CodeEntry(key, value)
                 })
             );
             code
@@ -218,7 +225,6 @@ trait Interpretation {
 }
 
 pub mod example {
-    use std::iter::Once;
 
     use crate::machine::*;
     use crate::machine::manipulation::TuringMachineBuilder;
@@ -251,25 +257,51 @@ pub mod example {
         type Input = Vec<Number>;
         type Output = Vec<Number>;
         fn write(input: Self::Input) -> Tape {
+            let right: VecDeque<Sign> = input
+                .into_iter()
+                .flat_map(|num| {
+                        std::iter::repeat(Sign::try_from("1").unwrap())
+                        .take(num.0)
+                        .chain(std::iter::once(Sign::try_from("-").unwrap()))
+                })
+                .collect();
+
+            eprintln!("{right:?}");
+
             Tape {
-                left: vec![],
+                left: VecDeque::new(),
                 head: Sign::try_from("-").unwrap(),
-                right: input
-                    .into_iter()
-                    .flat_map(|num| std::iter::repeat(Sign::try_from("1").unwrap())
-                        .take(num.0).chain(std::iter::once(Sign::try_from("-").unwrap())))
-                    .collect(),
+                right: right,
             }
         }
+        
         fn read(tape: &Tape) -> Result<Self::Output, String> {
             let mut vec = Vec::new();
-            for l in tape.right.split(|sign| Sign::try_from("-").unwrap() == *sign) {
-                if l.iter().all(|sign| NatNumInterpretation::partition() == *sign) {
-                    vec.push(Number(l.len()));
-                } else {
-                    return Err("fail on interpreting".to_string());
+            let right = &tape.right;
+            
+            let mut num = 0;
+            for i in 0..right.len() {
+                match right[i] {
+                    _ if right[i] == Sign::try_from("-").unwrap() => {
+                        vec.push(Number(num))
+                    }
+                    _ if right[i] == Sign::try_from("1").unwrap() => {
+                        num += 1;
+                    }
+                    _ if right[i] == Sign::blank() => {
+                        break;
+                    }
+                    _ => unreachable!()
                 }
             }
+            // for l in tape.right.(|sign| NatNumInterpretation::partition() == *sign) {
+            //     eprintln!("1:{l:?}");
+            //     if l.iter().all(|sign| NatNumInterpretation::one() == *sign) {
+            //         vec.push(Number(l.len()));
+            //     } else {
+            //         return Err("fail on interpreting".to_string());
+            //     }
+            // }
             Ok(vec)
         }
     }
@@ -282,11 +314,12 @@ pub mod example {
                 State::try_from("end").unwrap()
             ])
             // .code_push(" , start_inc , , end_inc , C").unwrap()
-            .code_push("1, start, 1, read, C").unwrap()
+            .code_push("-, start, -, read, R").unwrap()
             .code_push("1, read, 1, read, R").unwrap()
-            .code_push(" , read, 1, read_end, L").unwrap()
-            .code_push("1, read_end, 1, read_end, L").unwrap()
-            .code_push(" , read_end,  , end, R").unwrap()
+            .code_push("-, read, 1, write, R").unwrap()
+            .code_push(" , write, -, write_end, L").unwrap()
+            .code_push("1, write_end, 1, write_end, L").unwrap()
+            .code_push("-, write_end, - , end, C").unwrap()
             ;
         builder
     }
@@ -295,6 +328,14 @@ pub mod example {
         let mut builder = inc();
         builder
             .initial_tape(NatNumInterpretation::write(vec![Number(i)]));
+        builder
+    }
+
+    pub fn inc_composition_example(i: usize) -> TuringMachineBuilder {
+        let mut builder = inc().composition(State::try_from("end").unwrap(), inc()).unwrap();
+        builder
+            .initial_tape(NatNumInterpretation::write(vec![Number(i)]));
+
         builder
     }
 
@@ -308,17 +349,36 @@ pub mod example {
             let mut builder = inc();
             builder
                 .initial_tape(NatNumInterpretation::write(vec![number_pred.clone()]));
+            
             let mut machine = builder.build().unwrap();
-            eprintln!("{machine}");
 
-            for i in 0..100 {
+            for _ in 0..100 {
                 if machine.is_terminate() {break;}
                 machine.step();
-                eprintln!("{i} step {machine:?}");
             }
             let tape = machine.machine_state.tape;
             let number_succ = NatNumInterpretation::read(&tape).unwrap()[0].clone();
             assert_eq!(number_pred.succ(), number_succ);
+        }
+
+        #[test]
+        fn inc_test2() {
+            let number_pred = Number(10);
+
+            let mut builder = inc().composition(State::try_from("end").unwrap(), inc()).unwrap();
+            
+            builder
+                .initial_tape(NatNumInterpretation::write(vec![number_pred.clone()]));
+            
+            let mut machine = builder.build().unwrap();
+
+            for _ in 0..100 {
+                if machine.is_terminate() {break;}
+                machine.step();
+            }
+            let tape = machine.machine_state.tape;
+            let number_succ = NatNumInterpretation::read(&tape).unwrap()[0].clone();
+            assert_eq!(number_pred.succ().succ(), number_succ);
         }
     }
 }

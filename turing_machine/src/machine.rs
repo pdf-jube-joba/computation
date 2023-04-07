@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use yew::Properties;
 
@@ -55,7 +55,7 @@ impl TryFrom<&str> for Sign {
     }
 }
 
-fn to_vec_sign(str: &str) -> Vec<Sign> {
+fn to_vec_sign(str: &str) -> VecDeque<Sign> {
     str.split_whitespace()
         .map(|s| Sign::try_from(s).unwrap())
         .collect()
@@ -64,9 +64,9 @@ fn to_vec_sign(str: &str) -> Vec<Sign> {
 // 左右無限のテープ
 #[derive(Debug, Default, Clone, PartialEq, Properties, Hash, Eq)]
 struct Tape {
-    left: Vec<Sign>,
+    left: VecDeque<Sign>,
     head: Sign,
-    right: Vec<Sign>,
+    right: VecDeque<Sign>,
 }
 
 impl Tape {
@@ -79,14 +79,14 @@ impl Tape {
     fn move_to(&mut self, m: &Direction) {
         match m {
             Direction::Left => {
-                let next_head = self.left.pop().unwrap_or_default();
+                let next_head = self.left.pop_front().unwrap_or_default();
                 let old_head = std::mem::replace(&mut self.head, next_head);
-                self.right.push(old_head);
+                self.right.push_front(old_head);
             }
             Direction::Right => {
-                let next_head = self.right.pop().unwrap_or_default();
+                let next_head = self.right.pop_front().unwrap_or_default();
                 let old_head = std::mem::replace(&mut self.head, next_head);
-                self.left.push(old_head);
+                self.left.push_front(old_head);
             }
             Direction::Constant => {}
         }
@@ -100,10 +100,24 @@ impl TryFrom<&str> for Tape {
         if v.len() < 3 {
             return Err("tape: argument is too few".to_owned());
         }
-        let left: Vec<Sign> = to_vec_sign(v[0]);
+        let left: VecDeque<Sign> = to_vec_sign(v[0]);
         let head: Sign = v[1].try_into()?;
-        let right: Vec<Sign> = to_vec_sign(v[2]);
+        let right: VecDeque<Sign> = to_vec_sign(v[2]);
         Ok(Self { left, head, right })
+    }
+}
+
+impl Display for Tape {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let left: String = self.left.iter()
+            .map(|sign|{ format!("{sign} ") })
+            .collect();
+        writeln!(f, "l:{left}")?;
+        writeln!(f, "h:{}", self.head)?;
+        let right: String = self.right.iter()
+            .map(|sign|{ format!("{sign} ") })
+            .collect();
+        writeln!(f, "r:{right}")
     }
 }
 

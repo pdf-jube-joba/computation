@@ -1,5 +1,6 @@
 use crate::machine::*;
 use crate::machine::manipulation::TuringMachineBuilder;
+use gloo::timers::callback::Interval;
 use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -11,15 +12,15 @@ struct TapeProps {
 fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
     html! {
         <>
-        {"tape"}
+        {"tape"} <br/>
         <> {"l:"} {
-            for tape.left.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
+            for tape.left.iter().take(10).map(|sign| html!{<> {sign} {"|"} </>})
         } {"..."} <br/> </>
         <> {"h:"} {
             tape.head.clone()
         } <br/> </>
         <> {"r:"} {
-            for tape.right.iter().rev().take(10).map(|sign| html!{<> {sign} {"|"} </>})
+            for tape.right.iter().take(10).map(|sign| html!{<> {sign} {"|"} </>})
         } {"..."} <br/> </>
         </>
     }
@@ -61,11 +62,11 @@ fn code_view(CodeProps { code }: &CodeProps) -> Html {
         </>
     }
 }
-
-#[derive(Default)]
 pub struct TuringMachineView {
     machine: Option<TuringMachineSet>,
     callback_onlog: Option<Callback<String>>,
+    tick_active: bool,
+    tick_interval: Interval,
 }
 
 impl TuringMachineView {
@@ -83,6 +84,8 @@ pub enum TuringMachineMsg {
     LoadFromMachine(TuringMachineSet),
     Step(usize),
     SetEventLog(Callback<String>),
+    TickToggle,
+    Tick,
 }
 
 #[derive(Default, Clone, PartialEq, Properties)]
@@ -91,8 +94,16 @@ pub struct TuringMachineProp {}
 impl Component for TuringMachineView {
     type Message = TuringMachineMsg;
     type Properties = TuringMachineProp;
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self::default()
+    fn create(ctx: &Context<Self>) -> Self {
+        let callback = ctx.link().callback(|_| TuringMachineMsg::Tick);
+        let interval = Interval::new(1000, move || callback.emit(()));
+
+        Self { 
+            machine: None,
+            callback_onlog: None,
+            tick_active: true,
+            tick_interval: interval,
+        }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
         let machine_html: Html = match &self.machine {
@@ -121,6 +132,7 @@ impl Component for TuringMachineView {
             <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(1)) }> {"step"} </button>
             <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(10)) }> {"step 10"} </button>
             <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(100)) }> {"step 100"} </button>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}> {"toggle active"} </button>
             </>
         };
         html! {
@@ -150,7 +162,7 @@ impl Component for TuringMachineView {
                         self.send_log(format!("machine step {num}"));
                     }
                 } else {
-                    unreachable!()
+                    self.send_log(format!("machine not setted"));
                 }
             }
             TuringMachineMsg::SetEventLog(callback) => {
@@ -172,6 +184,27 @@ impl Component for TuringMachineView {
             }
             TuringMachineMsg::LoadFromMachine(machine) => {
                 self.machine = Some(machine);
+            }
+            TuringMachineMsg::TickToggle => {
+                self.tick_active = !self.tick_active;
+            }
+            TuringMachineMsg::Tick => {
+                if self.tick_active {
+                    if let Some(ref mut machine) = self.machine {
+                        if machine.is_terminate() {
+                            self.tick_active = false;
+                            self.send_log(format!("machine teminate"));
+                        } else {
+                            machine.step();
+                            self.send_log(format!("machine step"));
+                        }
+                    } else {
+                        self.send_log(format!("machine not setted"))
+                    }
+                    return true;
+                } else {
+                    return false;
+                }
             }
         }
         true
