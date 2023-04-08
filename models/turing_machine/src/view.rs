@@ -1,11 +1,10 @@
 use crate::machine::*;
-use crate::machine::manipulation::TuringMachineBuilder;
 use gloo::timers::callback::Interval;
 use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 struct TapeProps {
-    tape: Tape,
+    tape: TapeAsVec,
 }
 
 #[function_component(TapeView)]
@@ -28,7 +27,7 @@ fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 struct CodeProps {
-    code: Code,
+    code: Vec<CodeEntry>,
 }
 
 #[function_component(CodeView)]
@@ -45,14 +44,14 @@ fn code_view(CodeProps { code }: &CodeProps) -> Html {
         </tr> </thead>
         <tbody>
         {
-            code.hash.iter().map(|(CodeKey(key_sign, key_state), CodeValue(value_sign, value_state, value_move))|{
+            code.iter().map(|entry|{
                 html! {
                     <tr>
-                        <td> {key_sign} </td>
-                        <td> {key_state} </td>
-                        <td> {value_sign} </td>
-                        <td> {value_state} </td>
-                        <td> {format!("{:?}", value_move)} </td>
+                        <td> {entry.key_sign()} </td>
+                        <td> {entry.key_state()} </td>
+                        <td> {entry.value_sign()} </td>
+                        <td> {entry.value_state()} </td>
+                        <td> {format!("{:?}", entry.value_direction())} </td>
                     </tr>
                 }
             }).collect::<Html>()
@@ -62,28 +61,29 @@ fn code_view(CodeProps { code }: &CodeProps) -> Html {
         </>
     }
 }
+
 pub struct TuringMachineView {
     machine: Option<TuringMachineSet>,
-    callback_onlog: Option<Callback<String>>,
+    callback_on_log: Option<Callback<String>>,
+    callback_on_terminate: Option<Callback<TapeAsVec>>,
     tick_active: bool,
     tick_interval: Interval,
 }
 
 impl TuringMachineView {
     fn send_log(&mut self, str: String) {
-        if let Some(ref callback) = self.callback_onlog {
+        if let Some(ref callback) = self.callback_on_log {
             callback.emit(str);
         }
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum TuringMachineMsg {
-    LoadFromBuilder(TuringMachineBuilder),
-    #[allow(dead_code)]
     LoadFromMachine(TuringMachineSet),
     Step(usize),
     SetEventLog(Callback<String>),
+    SetTerminateCallback(Callback<TapeAsVec>),
     TickToggle,
     Tick,
 }
@@ -98,26 +98,24 @@ impl Component for TuringMachineView {
         let callback = ctx.link().callback(|_| TuringMachineMsg::Tick);
         let interval = Interval::new(1000, move || callback.emit(()));
 
-        Self { 
+        Self {
             machine: None,
-            callback_onlog: None,
+            callback_on_log: None,
+            callback_on_terminate: None,
             tick_active: true,
             tick_interval: interval,
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
         let machine_html: Html = match &self.machine {
-            Some(TuringMachineSet {
-                ref machine_code,
-                ref machine_state,
-            }) => html! {
+            Some(machine) => html! {
                 <>
                 <div class="box">
-                    <> {"state:"} {machine_state.state.clone()} {""} <br/> </>
-                    <TapeView tape={machine_state.tape.clone()}/>
+                    <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
+                    <TapeView tape={machine.now_tape().clone()}/>
                 </div>
                 <div class="box">
-                    <CodeView code={machine_code.code.clone()}/>
+                    <CodeView code={machine.code_as_vec().clone()}/>
                 </div>
                 </>
             },
@@ -167,20 +165,11 @@ impl Component for TuringMachineView {
             }
             TuringMachineMsg::SetEventLog(callback) => {
                 callback.emit("callback setted".to_owned());
-                self.callback_onlog = Some(callback);
+                self.callback_on_log = Some(callback);
             }
-            TuringMachineMsg::LoadFromBuilder(builder) => {
-                self.send_log("parsing...".to_string());
-                match builder.build() {
-                    Ok(machine) => {
-                        self.send_log("success".to_string());
-                        self.machine = Some(machine);
-                    }
-                    Err(err) => {
-                        self.send_log("failed to parse".to_string());
-                        self.send_log(format!("calsed by {err}"));
-                    }
-                }
+            TuringMachineMsg::SetTerminateCallback(callback) => {
+                self.send_log("on terminate callback setted".to_string());
+                self.callback_on_terminate = Some(callback);
             }
             TuringMachineMsg::LoadFromMachine(machine) => {
                 self.machine = Some(machine);

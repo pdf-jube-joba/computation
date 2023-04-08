@@ -2,9 +2,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use yew::Properties;
 
-pub mod manipulation;
-pub mod view;
-
 // テープの動く方向を表す。
 #[derive(Debug, Clone, PartialEq)]
 pub enum Direction {
@@ -33,7 +30,7 @@ impl TryFrom<&str> for Direction {
 pub struct Sign(String);
 
 impl Sign {
-    fn blank() -> Sign {
+    pub fn blank() -> Sign {
         Sign::try_from("").unwrap()
     }
 }
@@ -49,32 +46,71 @@ impl TryFrom<&str> for Sign {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.trim();
         if value.contains(|char: char| char.is_whitespace() || char == ',') {
-            return Err(format!("whitespace contained input: {value}"));
+            return Err(format!("error on parse sign: input...\"{value}\""));
         }
         Ok(Sign(value.to_string()))
     }
 }
 
-fn to_vec_sign(str: &str) -> VecDeque<Sign> {
+pub fn parse_str_to_signs<T>(str: &str) -> Result<T, String> where
+    T: std::iter::FromIterator<Sign>
+    {
     str.split_whitespace()
-        .map(|s| Sign::try_from(s).unwrap())
+        .map(|s| Sign::try_from(s))
         .collect()
 }
 
 // 左右無限のテープ
+// ヘッド部分の読み書きと左右への移動のみが許される
+// これの中身を読みたい場合はコストを払って、TapeAsVec を使う
 #[derive(Debug, Default, Clone, PartialEq, Properties, Hash, Eq)]
-struct Tape {
+pub struct Tape {
     left: VecDeque<Sign>,
     head: Sign,
     right: VecDeque<Sign>,
 }
 
+// テープを簡単に見たり作ったりするための構造体
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct TapeAsVec {
+    pub left: Vec<Sign>,
+    pub head: Sign,
+    pub right: Vec<Sign>
+}
+
+impl TapeAsVec {
+    pub fn new(left: impl IntoIterator<Item = Sign>, head: Sign, right: impl IntoIterator<Item = Sign>) -> Self {
+        Self {
+            left: left.into_iter().collect(),
+            head: head,
+            right: right.into_iter().collect(),
+        }
+    }
+}
+
+impl From<TapeAsVec> for Tape {
+    fn from(TapeAsVec { left, head, right }: TapeAsVec) -> Self {
+        Tape { 
+            left: left.into(),
+            head: head,
+            right: right.into()
+        }
+    }
+}
+
 impl Tape {
-    fn head(&self) -> &Sign {
+    pub fn new(left: impl IntoIterator<Item = Sign>, head: Sign, right: impl IntoIterator<Item = Sign>) -> Self {
+        Self {
+            left: left.into_iter().collect(),
+            head: head,
+            right: right.into_iter().collect(),
+        }
+    }
+    pub fn head_read(&self) -> &Sign {
         &self.head
     }
-    fn head_mut(&mut self) -> &mut Sign {
-        &mut self.head
+    fn head_write(&mut self, sign: &Sign) {
+        self.head = sign.clone();
     }
     fn move_to(&mut self, m: &Direction) {
         match m {
@@ -91,6 +127,13 @@ impl Tape {
             Direction::Constant => {}
         }
     }
+    fn show(&self) -> TapeAsVec {
+        TapeAsVec {
+            left: (&self.left).iter().cloned().collect(),
+            head: self.head.clone(),
+            right: (&self.right).iter().cloned().collect(),
+        }
+    }
 }
 
 impl TryFrom<&str> for Tape {
@@ -100,9 +143,9 @@ impl TryFrom<&str> for Tape {
         if v.len() < 3 {
             return Err("tape: argument is too few".to_owned());
         }
-        let left: VecDeque<Sign> = to_vec_sign(v[0]);
+        let left: VecDeque<Sign> = parse_str_to_signs(v[0])?;
         let head: Sign = v[1].try_into()?;
-        let right: VecDeque<Sign> = to_vec_sign(v[2]);
+        let right: VecDeque<Sign> = parse_str_to_signs(v[2])?;
         Ok(Self { left, head, right })
     }
 }
@@ -147,7 +190,28 @@ pub struct CodeKey(Sign, State);
 pub struct CodeValue(Sign, State, Direction);
 
 #[derive(Debug, Clone, PartialEq)]
-struct CodeEntry(CodeKey, CodeValue);
+pub struct CodeEntry(CodeKey, CodeValue);
+
+impl CodeEntry {
+    pub fn key_sign(&self) -> Sign {
+        self.0.0.clone()
+    }
+    pub fn key_state(&self) -> State {
+        self.0.1.clone()
+    }
+    pub fn value_sign(&self) -> Sign {
+        self.1.0.clone()
+    }
+    pub fn value_state(&self) -> State {
+        self.1.1.clone()
+    }
+    pub fn value_direction(&self) -> Direction {
+        self.1.2.clone()
+    }
+    pub fn from_tuple(key_sign: Sign, key_state: State, value_sign: Sign, value_state: State, value_direction: Direction) -> Self {
+        CodeEntry(CodeKey(key_sign, key_state), CodeValue(value_sign, value_state, value_direction))
+    }
+}
 
 impl TryFrom<&str> for CodeEntry {
     type Error = String;
@@ -167,7 +231,7 @@ impl TryFrom<&str> for CodeEntry {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Properties)]
-struct Code {
+pub struct Code {
     hash: HashMap<CodeKey, CodeValue>,
 }
 
@@ -175,10 +239,13 @@ impl Code {
     fn code(&self) -> &HashMap<CodeKey, CodeValue> {
         &self.hash
     }
-    fn add(&mut self, CodeEntry(k, v): CodeEntry) {
+    pub fn code_as_vec(&self) -> Vec<CodeEntry> {
+        todo!()
+    }
+    pub fn add(&mut self, CodeEntry(k, v): CodeEntry) {
         self.hash.insert(k, v);
     }
-    fn from_iter_entry(iter: impl IntoIterator<Item = CodeEntry>) -> Self {
+    pub fn from_iter_entry(iter: impl IntoIterator<Item = CodeEntry>) -> Self {
         Code {
             hash: HashMap::from_iter(iter.into_iter().map(|CodeEntry(k, v)|{
                 (k, v)
@@ -220,10 +287,20 @@ impl TryFrom<&str> for Code {
 // - マシンの状態が accepted_state に含まれる。
 // - 部分関数である遷移関数の定義域に含まれない。
 #[derive(Debug, Clone, PartialEq)]
-struct TuringMachine {
+pub struct TuringMachine {
     init_state: State,
     accepted_state: HashSet<State>,
     code: Code,
+}
+
+impl TuringMachine {
+    pub fn new(init_state: State, accepted_state: impl IntoIterator<Item = State>, code: impl IntoIterator<Item = CodeEntry>) -> Self {
+        TuringMachine {
+            init_state: init_state,
+            accepted_state: accepted_state.into_iter().collect(),
+            code: Code::from_iter_entry(code.into_iter()),
+        }
+    }
 }
 
 // TuringMachine の計算過程を表す。
@@ -234,6 +311,12 @@ pub struct TuringMachineState {
     tape: Tape,
 }
 
+impl TuringMachineState {
+    pub fn new(state: State, tape: Tape) -> Self {
+        TuringMachineState { state, tape }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachineSet {
     machine_code: TuringMachine,
@@ -241,11 +324,42 @@ pub struct TuringMachineSet {
 }
 
 impl TuringMachineSet {
+    pub fn new(
+        init_state: State,
+        accepted_state: impl IntoIterator<Item = State>,
+        code: impl IntoIterator<Item = CodeEntry>,
+        tape_left: impl IntoIterator<Item = Sign>,
+        tape_head: Sign,
+        tape_right: impl IntoIterator<Item = Sign>,
+    ) -> Self {
+        let machine_code = TuringMachine::new(
+            init_state.clone(),
+            accepted_state.into_iter(),
+            code,
+        );
+        let machine_state = TuringMachineState::new(
+            init_state,
+            Tape::new(tape_left, tape_head, tape_right),
+        );
+        TuringMachineSet {
+            machine_code,
+            machine_state,
+        }
+    }
     fn now_key(&self) -> CodeKey {
         CodeKey(
-            self.machine_state.tape.head().clone(),
+            self.machine_state.tape.head_read().clone(),
             self.machine_state.state.clone(),
         )
+    }
+    pub fn now_state(&self) -> &State {
+        &self.machine_state.state
+    }
+    pub fn now_tape(&self) -> TapeAsVec {
+        self.machine_state.tape.show()
+    }
+    pub fn code_as_vec(&self) -> Vec<CodeEntry> {
+        self.machine_code.code.code_as_vec()
     }
     pub fn is_terminate(&mut self) -> bool {
         self.machine_code
@@ -262,7 +376,7 @@ impl TuringMachineSet {
             let hash = &self.machine_code.code.code();
             let key = self.now_key();
             let CodeValue(sign, state, direction) = hash.get(&key).unwrap();
-            *self.machine_state.tape.head_mut() = sign.clone();
+            self.machine_state.tape.head_write(&sign);
             self.machine_state.tape.move_to(direction);
             self.machine_state.state = state.clone();
         }

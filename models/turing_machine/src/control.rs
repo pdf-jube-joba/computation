@@ -3,8 +3,11 @@ use yew::html::Scope;
 use yew::prelude::*;
 use yew::Properties;
 
-use super::machine::view::*;
-use super::machine::manipulation::TuringMachineBuilder;
+use crate::machine::State;
+use crate::machine::TuringMachineSet;
+
+use super::view::*;
+use super::manipulation::TuringMachineBuilder;
 
 #[derive(Default)]
 pub struct ControlView {
@@ -38,7 +41,7 @@ pub enum ControlMsg {
 #[derive(Clone, PartialEq, Properties)]
 pub struct ControlProp {}
 
-impl Component for ControlView {
+impl Component for ControlView where {
     type Message = ControlMsg;
     type Properties = ();
     fn create(_ctx: &Context<Self>) -> Self {
@@ -116,18 +119,20 @@ impl Component for ControlView {
             ControlMsg::Load => {
                 if let Some(ref mut scope) = self.machine {
                     let handle = || {
-                        let mut builder = TuringMachineBuilder::new("user").unwrap();
+                        let mut builder = TuringMachineBuilder::<(), ()>::new("user").unwrap();
                         builder
-                            .init_state_from_str(&self.initial_state)?
-                            .accepted_state_from_str(&self.accepted_state)?
-                            .code(&self.code)?
+                            .init_state(State::try_from(self.initial_state.as_ref())?)
+                            .accepted_state(
+                                self.accepted_state.split_whitespace().map(|s| todo!())
+                            )
+                            .code_from_str(&self.code)?
                             .initial_tape_from_str(&self.tape)?;
-                        Ok::<TuringMachineBuilder, String>(builder)
+                        let machine = builder.build()?;
+                        Ok::<TuringMachineSet, String>(machine)
                     };
-                    let builder = handle();
-                    match builder {
-                        Ok(builder) => {
-                            scope.send_message(TuringMachineMsg::LoadFromBuilder(builder));
+                    match handle() {
+                        Ok(machine) => {
+                            scope.send_message(TuringMachineMsg::LoadFromMachine(machine));
                             self.send_this_log(&format!("success"));
                         }
                         Err(err) => {
