@@ -133,7 +133,7 @@ impl<Input, Output> TuringMachineBuilder<Input, Output> {
         Ok(self)
     }
     pub fn initial_tape_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        // self.initial_tape = Tape::try_from(str)?;
+        self.initial_tape = TapeAsVec::try_from(str)?;
         Ok(self)
     }
     fn initial_tape(&mut self, tape: TapeAsVec) -> Result<&mut Self, String> {
@@ -143,11 +143,6 @@ impl<Input, Output> TuringMachineBuilder<Input, Output> {
 
     pub fn set_interpretation(&mut self, interpretation: Box<dyn Interpretation<Input = Input, Output = Output>>) -> &mut Self {
         self.interpretation = Some(interpretation);
-        self
-    }
-
-    pub fn set_interpretation_option(&mut self, interpretation: Option<Box<dyn Interpretation<Input = Input, Output = Output>>>) -> &mut Self {
-        self.interpretation = interpretation;
         self
     }
 

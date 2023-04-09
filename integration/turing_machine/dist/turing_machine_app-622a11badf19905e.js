@@ -470,6 +470,10 @@ function getImports() {
     imports.wbg.__wbg_setAttribute_79c9562d32d05e66 = function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
         getObject(arg0).setAttribute(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
     }, arguments) };
+    imports.wbg.__wbg_target_b629c177f9bee3da = function(arg0) {
+        const ret = getObject(arg0).target;
+        return isLikeNone(ret) ? 0 : addHeapObject(ret);
+    };
     imports.wbg.__wbg_bubbles_80a0700df9c59aee = function(arg0) {
         const ret = getObject(arg0).bubbles;
         return ret;
@@ -592,16 +596,16 @@ function getImports() {
     imports.wbg.__wbindgen_throw = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
     };
-    imports.wbg.__wbindgen_closure_wrapper4686 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 327, __wbg_adapter_16);
+    imports.wbg.__wbindgen_closure_wrapper5479 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 394, __wbg_adapter_16);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper4795 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 333, __wbg_adapter_19);
+    imports.wbg.__wbindgen_closure_wrapper5591 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 400, __wbg_adapter_19);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper4923 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 354, __wbg_adapter_22);
+    imports.wbg.__wbindgen_closure_wrapper5719 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 421, __wbg_adapter_22);
         return addHeapObject(ret);
     };
 
@@ -639,7 +643,7 @@ function initSync(module) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('turing_machine_app-5bdbfcc54f117a03_bg.wasm', import.meta.url);
+        input = new URL('turing_machine_app-622a11badf19905e_bg.wasm', import.meta.url);
     }
     const imports = getImports();
 

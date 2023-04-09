@@ -67,6 +67,7 @@ pub struct TuringMachineView {
     callback_on_log: Option<Callback<String>>,
     callback_on_terminate: Option<Callback<TapeAsVec>>,
     tick_active: bool,
+    #[allow(dead_code)]
     tick_interval: Interval,
 }
 
@@ -80,6 +81,7 @@ impl TuringMachineView {
 
 #[derive(Clone)]
 pub enum TuringMachineMsg {
+    // LoadFromBuilder(TuringMachinePropBuilder),
     LoadFromMachine(TuringMachineSet),
     Step(usize),
     SetEventLog(Callback<String>),
@@ -107,6 +109,14 @@ impl Component for TuringMachineView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let controls_html: Html = html! {
+            <>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(1)) }> {"step"} </button>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(10)) }> {"step 10"} </button>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(100)) }> {"step 100"} </button>
+            <button onclick={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}> {"toggle active"} </button>
+            </>
+        };
         let machine_html: Html = match &self.machine {
             Some(machine) => html! {
                 <>
@@ -125,19 +135,11 @@ impl Component for TuringMachineView {
                 </>
             },
         };
-        let controls_html: Html = html! {
-            <>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(1)) }> {"step"} </button>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(10)) }> {"step 10"} </button>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(100)) }> {"step 100"} </button>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}> {"toggle active"} </button>
-            </>
-        };
         html! {
             <div class="machine">
             {"machine"} <br/>
-            {machine_html}
             {controls_html}
+            {machine_html}
             </div>
         }
     }

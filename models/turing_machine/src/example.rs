@@ -30,9 +30,9 @@ impl Interpretation for NatNumInterpretation {
         let right: Vec<Sign> = input
             .into_iter()
             .flat_map(|num| {
-                    std::iter::repeat(Sign::try_from("1").unwrap())
+                    std::iter::repeat(NatNumInterpretation::one())
                     .take(num.0)
-                    .chain(std::iter::once(Sign::try_from("-").unwrap()))
+                    .chain(std::iter::once(NatNumInterpretation::partition()))
             })
             .collect();
 
@@ -40,7 +40,7 @@ impl Interpretation for NatNumInterpretation {
 
         TapeAsVec::new(
             Vec::new(),
-            Sign::try_from("-").unwrap(),
+            NatNumInterpretation::partition(),
             right,
         )
     }
@@ -52,10 +52,10 @@ impl Interpretation for NatNumInterpretation {
         let mut num = 0;
         for i in 0..right.len() {
             match right[i] {
-                _ if right[i] == Sign::try_from("-").unwrap() => {
+                _ if right[i] == NatNumInterpretation::partition() => {
                     vec.push(Number(num))
                 }
-                _ if right[i] == Sign::try_from("1").unwrap() => {
+                _ if right[i] == NatNumInterpretation::one() => {
                     num += 1;
                 }
                 _ if right[i] == Sign::blank() => {
@@ -155,7 +155,6 @@ pub mod view {
     pub struct ExampleView {
         scope: Option<Scope<TuringMachineView>>,
     }
-
     pub enum ExampleMsg {
         SetTargetMachineView(Scope<TuringMachineView>),
         SendIncMachine,
@@ -176,26 +175,34 @@ pub mod view {
                 <>
                     {"example"} <br/>
                     <>
-                        <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncIncMachine)}> { "zero" } </button>
-                    </> <br/>
-                    <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncMachine)}> { "inc" } </button>
+                        <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncMachine)}> { "inc 10" } </button>
+                    </>
+                    <br/>
+                    <>
+                        <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncIncMachine)}> { "incinc 10" } </button>
+                    </>
                     // <button onclick={ctx.link()}> { "zero" } </button>
                 </>
             }
         }
-        fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
             match msg {
                 ExampleMsg::SetTargetMachineView(scope) => {
                     self.scope = Some(scope);
                 }
-                ExampleMsg::SendIncIncMachine => {
+                ExampleMsg::SendIncMachine => {
                     if let Some(scope) = &self.scope {
-                        let mut builder = composition(inc(), State::try_from("end").unwrap(), inc()).unwrap();
+                        let mut builder = inc();
+                        builder.write(&vec![Number(10)]).unwrap();
                         scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()))
                     }
                 }
-                _ => {
-                    todo!()
+                ExampleMsg::SendIncIncMachine => {
+                    if let Some(scope) = &self.scope {
+                        let mut builder = composition(inc(), State::try_from("end").unwrap(), inc()).unwrap();
+                        builder.write(&vec![Number(10)]).unwrap();
+                        scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()))
+                    }
                 }
             }
             false

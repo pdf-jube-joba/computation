@@ -98,6 +98,20 @@ impl From<TapeAsVec> for Tape {
     }
 }
 
+impl TryFrom<&str> for TapeAsVec {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let v: Vec<&str> = value.lines().collect();
+        if v.len() < 3 {
+            return Err("tape: argument is too few".to_owned());
+        }
+        let left: Vec<Sign> = parse_str_to_signs(v[0])?;
+        let head: Sign = v[1].try_into()?;
+        let right: Vec<Sign> = parse_str_to_signs(v[2])?;
+        Ok(Self { left, head, right })
+    }
+}
+
 impl Tape {
     pub fn new(left: impl IntoIterator<Item = Sign>, head: Sign, right: impl IntoIterator<Item = Sign>) -> Self {
         Self {
@@ -133,20 +147,6 @@ impl Tape {
             head: self.head.clone(),
             right: (&self.right).iter().cloned().collect(),
         }
-    }
-}
-
-impl TryFrom<&str> for Tape {
-    type Error = String;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let v: Vec<&str> = value.lines().collect();
-        if v.len() < 3 {
-            return Err("tape: argument is too few".to_owned());
-        }
-        let left: VecDeque<Sign> = parse_str_to_signs(v[0])?;
-        let head: Sign = v[1].try_into()?;
-        let right: VecDeque<Sign> = parse_str_to_signs(v[2])?;
-        Ok(Self { left, head, right })
     }
 }
 
@@ -240,7 +240,7 @@ impl Code {
         &self.hash
     }
     pub fn code_as_vec(&self) -> Vec<CodeEntry> {
-        todo!()
+        self.hash.iter().map(|(k, v)| CodeEntry(k.clone(), v.clone())).collect()
     }
     pub fn add(&mut self, CodeEntry(k, v): CodeEntry) {
         self.hash.insert(k, v);

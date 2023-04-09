@@ -122,9 +122,13 @@ impl Component for ControlView where {
                         let mut builder = TuringMachineBuilder::<(), ()>::new("user").unwrap();
                         builder
                             .init_state(State::try_from(self.initial_state.as_ref())?)
-                            .accepted_state(
-                                self.accepted_state.split_whitespace().map(|s| todo!())
-                            )
+                            .accepted_state({
+                                let vec: Vec<State> = self.accepted_state
+                                    .split_whitespace().map(|s| {
+                                            State::try_from(s)
+                                    }).collect::<Result<_, _>>()?;
+                                vec
+                            })
                             .code_from_str(&self.code)?
                             .initial_tape_from_str(&self.tape)?;
                         let machine = builder.build()?;
