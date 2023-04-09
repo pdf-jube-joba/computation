@@ -30,6 +30,17 @@ impl<I1, I2, In, Mid, Out> Interpretation for CompositionInterpretation<I1, I2, 
     }
 }
 
+impl<In, Out> Interpretation for Box<dyn Interpretation<Input = In, Output = Out>> {
+    type Input = In;
+    type Output = Out;
+    fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String> {
+        self.as_ref().read(tape)
+    }
+    fn write(&self, input: &Self::Input) -> TapeAsVec {
+        self.as_ref().write(input)
+    }
+}
+
 pub struct TuringMachineBuilder<Input, Output> {
     name: String,
     init_state: Option<State>,
@@ -130,8 +141,14 @@ impl<Input, Output> TuringMachineBuilder<Input, Output> {
         Ok(self)
     }
 
-    pub fn set_interpretation(&mut self, interpretation: Box<dyn Interpretation<Input = Input, Output = Output>>) {
+    pub fn set_interpretation(&mut self, interpretation: Box<dyn Interpretation<Input = Input, Output = Output>>) -> &mut Self {
         self.interpretation = Some(interpretation);
+        self
+    }
+
+    pub fn set_interpretation_option(&mut self, interpretation: Option<Box<dyn Interpretation<Input = Input, Output = Output>>>) -> &mut Self {
+        self.interpretation = interpretation;
+        self
     }
 
     pub fn write(&mut self, input: &Input) -> Result<&mut Self, String> {
@@ -144,9 +161,28 @@ impl<Input, Output> TuringMachineBuilder<Input, Output> {
         self.initial_tape(tape)?;
         Ok(self)
     }
+
+    pub fn read(&self, tape: TapeAsVec) -> Result<Output, String> {
+        match &self.interpretation {
+            Some(interpretation) => {
+                interpretation.as_ref().read(&tape)
+            }
+            None => {
+                Err("no interpretation".to_string())
+            }
+        }
+    }
 }
 
-fn composition<In, Mid, Out>(first: TuringMachineBuilder<In, Mid>, specified_state: State, second: TuringMachineBuilder<Mid, Out>) -> Result<TuringMachineBuilder<In, Out>, String> {
+// struct TuringMachineBuilded {
+
+// }
+
+pub fn composition<In, Mid, Out>(first: TuringMachineBuilder<In, Mid>, specified_state: State, second: TuringMachineBuilder<Mid, Out>) -> Result<TuringMachineBuilder<In, Out>, String> where
+    In: 'static,
+    Mid: 'static,
+    Out: 'static,
+{
     let TuringMachineBuilder {
         name: first_name,
         init_state: first_init_state,
@@ -238,18 +274,23 @@ fn composition<In, Mid, Out>(first: TuringMachineBuilder<In, Mid>, specified_sta
         code
     };
 
-    let handle = ||{
-        CompositionInterpretation {
-            first: first_interpretation?,
-            second: second_interpretation?,
-        }
-    };
-
     let mut builder = TuringMachineBuilder::new(&name).unwrap();
         builder
             .init_state(init_state)
             .accepted_state(accepted_state)
             .code_from_entries(code)
             .initial_tape(first_initial_tape)?;
+
+    match (first_interpretation, second_interpretation) {
+        (Some(first), Some(second)) => {
+            let composition = CompositionInterpretation {
+                first,
+                second,
+            };
+            builder.set_interpretation(Box::new(composition));
+        }
+        _ => {},
+    }
+
     Ok(builder)
 }

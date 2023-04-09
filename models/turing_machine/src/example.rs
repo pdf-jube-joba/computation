@@ -1,5 +1,5 @@
 use crate::machine::*;
-use crate::manipulation::{TuringMachineBuilder, Interpretation};
+use crate::manipulation::{TuringMachineBuilder, Interpretation, composition};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Number(usize);
@@ -26,7 +26,7 @@ impl NatNumInterpretation {
 impl Interpretation for NatNumInterpretation {
     type Input = Vec<Number>;
     type Output = Vec<Number>;
-    fn write(input: Self::Input) -> Tape {
+    fn write(&self, input: &Self::Input) -> TapeAsVec {
         let right: Vec<Sign> = input
             .into_iter()
             .flat_map(|num| {
@@ -38,40 +38,32 @@ impl Interpretation for NatNumInterpretation {
 
         eprintln!("{right:?}");
 
-        Tape::new(
+        TapeAsVec::new(
             Vec::new(),
             Sign::try_from("-").unwrap(),
             right,
         )
     }
     
-    fn read(tape: &Tape) -> Result<Self::Output, String> {
+    fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String> {
         let mut vec = Vec::new();
-        let right = tape.right();
+        let right = tape.right.clone();
         
         let mut num = 0;
         for i in 0..right.len() {
             match right[i] {
-                _ if *right[i] == Sign::try_from("-").unwrap() => {
+                _ if right[i] == Sign::try_from("-").unwrap() => {
                     vec.push(Number(num))
                 }
-                _ if *right[i] == Sign::try_from("1").unwrap() => {
+                _ if right[i] == Sign::try_from("1").unwrap() => {
                     num += 1;
                 }
-                _ if *right[i] == Sign::blank() => {
+                _ if right[i] == Sign::blank() => {
                     break;
                 }
                 _ => unreachable!()
             }
         }
-        // for l in tape.right.(|sign| NatNumInterpretation::partition() == *sign) {
-        //     eprintln!("1:{l:?}");
-        //     if l.iter().all(|sign| NatNumInterpretation::one() == *sign) {
-        //         vec.push(Number(l.len()));
-        //     } else {
-        //         return Err("fail on interpreting".to_string());
-        //     }
-        // }
         Ok(vec)
     }
 }
@@ -79,17 +71,18 @@ impl Interpretation for NatNumInterpretation {
 fn inc() -> TuringMachineBuilder<Vec<Number>, Vec<Number>> {
     let mut builder = TuringMachineBuilder::new("one").unwrap();
     builder
+        .set_interpretation(Box::new(NatNumInterpretation))
         .init_state(State::try_from("start").unwrap())
         .accepted_state(vec![
             State::try_from("end").unwrap()
         ])
         // .code_push(" , start_inc , , end_inc , C").unwrap()
-        .code_push("-, start, -, read, R").unwrap()
-        .code_push("1, read, 1, read, R").unwrap()
-        .code_push("-, read, 1, write, R").unwrap()
-        .code_push(" , write, -, write_end, L").unwrap()
-        .code_push("1, write_end, 1, write_end, L").unwrap()
-        .code_push("-, write_end, - , end, C").unwrap()
+        .code_push_str("-, start, -, read, R").unwrap()
+        .code_push_str("1, read, 1, read, R").unwrap()
+        .code_push_str("-, read, 1, write, R").unwrap()
+        .code_push_str(" , write, -, write_end, L").unwrap()
+        .code_push_str("1, write_end, 1, write_end, L").unwrap()
+        .code_push_str("-, write_end, - , end, C").unwrap()
         ;
     builder
 }
@@ -97,15 +90,14 @@ fn inc() -> TuringMachineBuilder<Vec<Number>, Vec<Number>> {
 pub fn inc_example(i: usize) -> TuringMachineBuilder::<Vec<Number>, Vec<Number>> {
     let mut builder = inc();
     builder
-        .initial_tape(NatNumInterpretation::write(vec![Number(i)]));
+        .write(&vec![Number(i)]).unwrap();
     builder
 }
 
-pub fn inc_composition_example(i: usize) -> TuringMachineBuilder {
-    let mut builder = inc().composition(State::try_from("end").unwrap(), inc()).unwrap();
+pub fn inc_composition_example(i: usize) -> TuringMachineBuilder<Vec<Number>, Vec<Number>> {
+    let mut builder = composition(inc(), State::try_from("end").unwrap(), inc()).unwrap();
     builder
-        .initial_tape(NatNumInterpretation::write(vec![Number(i)]));
-
+        .write(&vec![Number(i)]).unwrap();
     builder
 }
 
@@ -118,7 +110,7 @@ mod test {
 
         let mut builder = inc();
         builder
-            .initial_tape(NatNumInterpretation::write(vec![number_pred.clone()]));
+            .write(&vec![number_pred.clone()]).unwrap();
         
         let mut machine = builder.build().unwrap();
 
@@ -126,19 +118,19 @@ mod test {
             if machine.is_terminate() {break;}
             machine.step();
         }
-        let tape = machine.machine_state.tape;
-        let number_succ = NatNumInterpretation::read(&tape).unwrap()[0].clone();
-        assert_eq!(number_pred.succ(), number_succ);
+
+        let tape = machine.now_tape();
+        let number_succ = builder.read(tape).unwrap();
+        assert_eq!(vec![number_pred.succ()], number_succ);
     }
 
     #[test]
     fn inc_test2() {
         let number_pred = Number(10);
 
-        let mut builder = inc().composition(State::try_from("end").unwrap(), inc()).unwrap();
-        
+        let mut builder = composition(inc(), State::try_from("end").unwrap(), inc()).unwrap();
         builder
-            .initial_tape(NatNumInterpretation::write(vec![number_pred.clone()]));
+            .write(&vec![number_pred.clone()]).unwrap();
         
         let mut machine = builder.build().unwrap();
 
@@ -146,8 +138,67 @@ mod test {
             if machine.is_terminate() {break;}
             machine.step();
         }
-        let tape = machine.machine_state.tape;
-        let number_succ = NatNumInterpretation::read(&tape).unwrap()[0].clone();
-        assert_eq!(number_pred.succ().succ(), number_succ);
+        
+        let tape = machine.now_tape();
+        let number_succ = builder.read(tape).unwrap();
+        assert_eq!(vec![number_pred.succ().succ()], number_succ);
     }
+}
+
+pub mod view {
+    use yew::html::Scope;
+    use yew::prelude::*;
+    use crate::{view::{TuringMachineView, TuringMachineMsg}, manipulation};
+    use super::*;
+
+    #[derive(Debug, Default)]
+    pub struct ExampleView {
+        scope: Option<Scope<TuringMachineView>>,
+    }
+
+    pub enum ExampleMsg {
+        SetTargetMachineView(Scope<TuringMachineView>),
+        SendIncMachine,
+        SendIncIncMachine,
+    }
+
+    #[derive(Debug, Default, Clone, PartialEq, Properties)]
+    pub struct ExampleProps {}
+
+    impl Component for ExampleView {
+        type Message = ExampleMsg;
+        type Properties = ExampleProps;
+        fn create(ctx: &Context<Self>) -> Self {
+            Self::default()
+        }
+        fn view(&self, ctx: &Context<Self>) -> Html {
+            html!{
+                <>
+                    {"example"} <br/>
+                    <>
+                        <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncIncMachine)}> { "zero" } </button>
+                    </> <br/>
+                    <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncMachine)}> { "inc" } </button>
+                    // <button onclick={ctx.link()}> { "zero" } </button>
+                </>
+            }
+        }
+        fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+            match msg {
+                ExampleMsg::SetTargetMachineView(scope) => {
+                    self.scope = Some(scope);
+                }
+                ExampleMsg::SendIncIncMachine => {
+                    if let Some(scope) = &self.scope {
+                        let mut builder = composition(inc(), State::try_from("end").unwrap(), inc()).unwrap();
+                        scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()))
+                    }
+                }
+                _ => {
+                    todo!()
+                }
+            }
+            false
+        }
+}
 }
