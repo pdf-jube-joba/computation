@@ -79,9 +79,9 @@ impl TuringMachineView {
     }
 }
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub enum TuringMachineMsg {
-    // LoadFromBuilder(TuringMachinePropBuilder),
+    // LoadFromBuilder(TuringMachineBuilder<Input, Output>),
     LoadFromMachine(TuringMachineSet),
     Step(usize),
     SetEventLog(Callback<String>),

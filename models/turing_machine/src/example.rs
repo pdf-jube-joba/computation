@@ -1,5 +1,5 @@
 use crate::machine::*;
-use crate::manipulation::{TuringMachineBuilder, Interpretation, composition};
+use crate::manipulation::{TuringMachineBuilder, Interpretation, composition, CompositionInterpretation};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Number(usize);
@@ -68,10 +68,10 @@ impl Interpretation for NatNumInterpretation {
     }
 }
 
-fn inc() -> TuringMachineBuilder<Vec<Number>, Vec<Number>> {
+fn inc() -> TuringMachineBuilder<NatNumInterpretation, Vec<Number>, Vec<Number>> {
     let mut builder = TuringMachineBuilder::new("one").unwrap();
     builder
-        .set_interpretation(Box::new(NatNumInterpretation))
+        .set_interpretation(NatNumInterpretation)
         .init_state(State::try_from("start").unwrap())
         .accepted_state(vec![
             State::try_from("end").unwrap()
@@ -87,14 +87,14 @@ fn inc() -> TuringMachineBuilder<Vec<Number>, Vec<Number>> {
     builder
 }
 
-pub fn inc_example(i: usize) -> TuringMachineBuilder::<Vec<Number>, Vec<Number>> {
+pub fn inc_example(i: usize) -> TuringMachineBuilder::<NatNumInterpretation, Vec<Number>, Vec<Number>> {
     let mut builder = inc();
     builder
         .write(&vec![Number(i)]).unwrap();
     builder
 }
 
-pub fn inc_composition_example(i: usize) -> TuringMachineBuilder<Vec<Number>, Vec<Number>> {
+pub fn inc_composition_example(i: usize) -> TuringMachineBuilder<CompositionInterpretation<NatNumInterpretation, NatNumInterpretation, Vec<Number>, Vec<Number>, Vec<Number>>, Vec<Number>, Vec<Number>> {
     let mut builder = composition(inc(), State::try_from("end").unwrap(), inc()).unwrap();
     builder
         .write(&vec![Number(i)]).unwrap();

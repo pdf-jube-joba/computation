@@ -4,7 +4,9 @@ use yew::prelude::*;
 use yew::Properties;
 
 use crate::machine::State;
+use crate::machine::TapeAsVec;
 use crate::machine::TuringMachineSet;
+use crate::manipulation::StandardIntepretation;
 
 use super::view::*;
 use super::manipulation::TuringMachineBuilder;
@@ -119,7 +121,7 @@ impl Component for ControlView where {
             ControlMsg::Load => {
                 if let Some(ref mut scope) = self.machine {
                     let handle = || {
-                        let mut builder = TuringMachineBuilder::<(), ()>::new("user").unwrap();
+                        let mut builder = TuringMachineBuilder::<StandardIntepretation, TapeAsVec, TapeAsVec>::new("user").unwrap();
                         builder
                             .init_state(State::try_from(self.initial_state.as_ref())?)
                             .accepted_state({

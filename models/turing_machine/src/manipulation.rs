@@ -8,7 +8,20 @@ pub trait Interpretation {
     fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String>;
 }
 
-struct CompositionInterpretation<I1, I2, In, Mid, Out> where 
+pub struct StandardIntepretation {}
+
+impl Interpretation for StandardIntepretation {
+    type Input = TapeAsVec;
+    type Output = TapeAsVec;
+    fn write(&self, input: &Self::Input) -> TapeAsVec {
+        input.clone()
+    }
+    fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String> {
+        Ok(tape.clone())
+    }
+}
+
+pub struct CompositionInterpretation<I1, I2, In, Mid, Out> where 
     I1: Interpretation<Input = In, Output = Mid>,
     I2: Interpretation<Input = Mid, Output = Out>,
 {
@@ -41,17 +54,21 @@ impl<In, Out> Interpretation for Box<dyn Interpretation<Input = In, Output = Out
     }
 }
 
-pub struct TuringMachineBuilder<Input, Output> {
+pub struct TuringMachineBuilder<I, Input, Output> where
+    I: Interpretation<Input = Input, Output = Output>,
+{
     name: String,
     init_state: Option<State>,
     accepted_state: Option<Vec<State>>,
     code: Vec<CodeEntry>,
     initial_tape: TapeAsVec,
-    interpretation: Option<Box<dyn Interpretation<Input = Input, Output = Output>>>,
+    interpretation: Option<I>,
 }
 
-impl<Input, Output> TuringMachineBuilder<Input, Output> {
-    pub fn new(name: &str) -> Result<TuringMachineBuilder<Input, Output>, String> {
+impl<I, Input, Output> TuringMachineBuilder<I, Input, Output> where
+    I: Interpretation<Input = Input, Output = Output>,
+{
+    pub fn new(name: &str) -> Result<TuringMachineBuilder<I, Input, Output>, String> {
         if name.is_empty() {return Err("empty string".to_string())}
         let builder = TuringMachineBuilder {
             name: name.to_string(),
@@ -141,7 +158,7 @@ impl<Input, Output> TuringMachineBuilder<Input, Output> {
         Ok(self)
     }
 
-    pub fn set_interpretation(&mut self, interpretation: Box<dyn Interpretation<Input = Input, Output = Output>>) -> &mut Self {
+    pub fn set_interpretation(&mut self, interpretation: I) -> &mut Self {
         self.interpretation = Some(interpretation);
         self
     }
@@ -160,7 +177,7 @@ impl<Input, Output> TuringMachineBuilder<Input, Output> {
     pub fn read(&self, tape: TapeAsVec) -> Result<Output, String> {
         match &self.interpretation {
             Some(interpretation) => {
-                interpretation.as_ref().read(&tape)
+                interpretation.read(&tape)
             }
             None => {
                 Err("no interpretation".to_string())
@@ -173,7 +190,10 @@ impl<Input, Output> TuringMachineBuilder<Input, Output> {
 
 // }
 
-pub fn composition<In, Mid, Out>(first: TuringMachineBuilder<In, Mid>, specified_state: State, second: TuringMachineBuilder<Mid, Out>) -> Result<TuringMachineBuilder<In, Out>, String> where
+pub fn composition<I1, I2, In, Mid, Out>(first: TuringMachineBuilder<I1, In, Mid>, specified_state: State, second: TuringMachineBuilder<I2, Mid, Out>)
+    -> Result<TuringMachineBuilder<CompositionInterpretation<I1, I2, In, Mid, Out>, In, Out>, String> where
+    I1: Interpretation<Input = In, Output = Mid>,
+    I2: Interpretation<Input = Mid, Output = Out>,
     In: 'static,
     Mid: 'static,
     Out: 'static,
@@ -282,7 +302,7 @@ pub fn composition<In, Mid, Out>(first: TuringMachineBuilder<In, Mid>, specified
                 first,
                 second,
             };
-            builder.set_interpretation(Box::new(composition));
+            builder.set_interpretation(composition);
         }
         _ => {},
     }
