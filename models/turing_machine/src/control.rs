@@ -121,7 +121,7 @@ impl Component for ControlView where {
             ControlMsg::Load => {
                 if let Some(ref mut scope) = self.machine {
                     let handle = || {
-                        let mut builder = TuringMachineBuilder::<StandardIntepretation, TapeAsVec, TapeAsVec>::new("user").unwrap();
+                        let mut builder = TuringMachineBuilder::<TapeAsVec, TapeAsVec>::new("user", StandardIntepretation{}).unwrap();
                         builder
                             .init_state(State::try_from(self.initial_state.as_ref())?)
                             .accepted_state({
@@ -131,15 +131,15 @@ impl Component for ControlView where {
                                     }).collect::<Result<_, _>>()?;
                                 vec
                             })
-                            .code_from_str(&self.code)?
-                            .initial_tape_from_str(&self.tape)?;
-                        let machine = builder.build()?;
-                        Ok::<TuringMachineSet, String>(machine)
+                            .code_from_str(&self.code)?;
+                        let input_tape = StandardIntepretation::write_str(self.tape.clone())?;
+                        builder.input(&input_tape);
+                        Ok::<TuringMachineBuilder<_, _>, String>(builder.stringfy())
                     };
                     match handle() {
-                        Ok(machine) => {
-                            scope.send_message(TuringMachineMsg::LoadFromMachine(machine));
-                            self.send_this_log(&format!("success"));
+                        Ok(builder) => {
+                            scope.send_message(TuringMachineMsg::LoadFromBuilder(builder));
+                            // self.send_this_log(&format!("success"));
                         }
                         Err(err) => {
                             self.send_this_log(&format!("failed on {err}"));

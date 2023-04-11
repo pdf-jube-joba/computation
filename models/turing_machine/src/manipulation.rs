@@ -2,10 +2,10 @@ use crate::machine::*;
 use std::{collections::HashSet};
 
 pub trait Interpretation {
-    type Input;
-    type Output;
-    fn write(&self, input: &Self::Input) -> TapeAsVec;
-    fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String>;
+    type Input: Clone;
+    type Output: Clone;
+    fn write(&self, input: Self::Input) -> Result<TapeAsVec, String>;
+    fn read(&self, tape: TapeAsVec) -> Result<Self::Output, String>;
 }
 
 pub struct StandardIntepretation {}
@@ -13,74 +13,116 @@ pub struct StandardIntepretation {}
 impl Interpretation for StandardIntepretation {
     type Input = TapeAsVec;
     type Output = TapeAsVec;
-    fn write(&self, input: &Self::Input) -> TapeAsVec {
-        input.clone()
+    fn write(&self, input: Self::Input) -> Result<TapeAsVec, String> {
+        Ok(input)
     }
-    fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String> {
-        Ok(tape.clone())
+    fn read(&self, tape: TapeAsVec) -> Result<Self::Output, String> {
+        Ok(tape)
     }
 }
 
-pub struct CompositionInterpretation<I1, I2, In, Mid, Out> where 
-    I1: Interpretation<Input = In, Output = Mid>,
-    I2: Interpretation<Input = Mid, Output = Out>,
+impl StandardIntepretation {
+    pub fn write_str(input: String) -> Result<TapeAsVec, String> {
+        let lines: Vec<&str> = input.lines().collect();
+        if lines.len() < 3 {return Err("error on str to tape".to_string())}
+        let left: Vec<Sign> = lines[0].split_whitespace().map(|s| Sign::try_from(s)).collect::<Result<Vec<Sign>, String>>()?;
+        let head = Sign::try_from(lines[1])?;
+        let right: Vec<Sign> = lines[2].split_whitespace().map(|s| Sign::try_from(s)).collect::<Result<Vec<Sign>, String>>()?;
+        Ok(TapeAsVec {
+            left,
+            head,
+            right, 
+        })
+    }
+}
+
+struct Stringfy<I, In, Out> where
+    I: Interpretation<Input = In, Output = Out>,
+    In: Clone + TryFrom<String, Error = String>,
+    Out: Clone + Into<String>,
 {
-    first: I1,
-    second: I2,
+    content: I
 }
 
-impl<I1, I2, In, Mid, Out> Interpretation for CompositionInterpretation<I1, I2, In, Mid, Out> where
-    I1: Interpretation<Input = In, Output = Mid>,
-    I2: Interpretation<Input = Mid, Output = Out>,
+impl<I, In, Out> Interpretation for Stringfy<I, In, Out> where
+    I: Interpretation<Input = In, Output = Out>,
+    In: Clone + TryFrom<String, Error =  String>,
+    Out: Clone + Into<String>,
+{
+    type Input = String;
+    type Output = String;
+    fn write(&self, input: Self::Input) -> Result<TapeAsVec, String> {
+        self.content.write(input.try_into()?)
+    }
+    fn read(&self, tape: TapeAsVec) -> Result<Self::Output, String> {
+        Ok(self.content.read(tape)?.into())
+    }
+}
+
+pub struct CompositionInterpretation<In, Mid, Out>
+{
+    first: Box<dyn Interpretation<Input = In, Output = Mid>>,
+    second: Box<dyn Interpretation<Input = Mid, Output = Out>>,
+}
+
+impl<In, Mid, Out> Interpretation for CompositionInterpretation<In, Mid, Out> where
+    In : Clone, Mid: Clone, Out: Clone,
 {
     type Input = In;
     type Output = Out;
-    fn write(&self, input: &Self::Input) -> TapeAsVec {
+    fn write(&self, input: Self::Input) -> Result<TapeAsVec, String> {
         self.first.write(input)
     }
-    fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String> {
+    fn read(&self, tape: TapeAsVec) -> Result<Self::Output, String> {
         self.second.read(tape)
     }
 }
 
-impl<In, Out> Interpretation for Box<dyn Interpretation<Input = In, Output = Out>> {
+impl<In, Out> Interpretation for Box<dyn Interpretation<Input = In, Output = Out>> where
+    In: Clone, Out: Clone,
+{
     type Input = In;
     type Output = Out;
-    fn read(&self, tape: &TapeAsVec) -> Result<Self::Output, String> {
-        self.as_ref().read(tape)
-    }
-    fn write(&self, input: &Self::Input) -> TapeAsVec {
+    fn write(&self, input: Self::Input) -> Result<TapeAsVec, String> {
         self.as_ref().write(input)
+    }
+    fn read(&self, tape: TapeAsVec) -> Result<Self::Output, String> {
+        self.as_ref().read(tape)
     }
 }
 
-pub struct TuringMachineBuilder<I, Input, Output> where
-    I: Interpretation<Input = Input, Output = Output>,
+pub struct TuringMachineBuilder<Input, Output> 
 {
     name: String,
     init_state: Option<State>,
     accepted_state: Option<Vec<State>>,
     code: Vec<CodeEntry>,
-    initial_tape: TapeAsVec,
-    interpretation: Option<I>,
+    interpretation: Box<dyn Interpretation<Input = Input, Output = Output>>,
+    input: Option<Input>,
 }
 
-impl<I, Input, Output> TuringMachineBuilder<I, Input, Output> where
-    I: Interpretation<Input = Input, Output = Output>,
+impl<Input, Output> TuringMachineBuilder<Input, Output> where
+    Input: Clone ,
+    Output: Clone ,
 {
-    pub fn new(name: &str) -> Result<TuringMachineBuilder<I, Input, Output>, String> {
+    pub fn new<I>(name: &str, interpretation: I) -> Result<TuringMachineBuilder<Input, Output>, String> where
+        I: Interpretation<Input = Input, Output = Output> + 'static,
+    {
         if name.is_empty() {return Err("empty string".to_string())}
         let builder = TuringMachineBuilder {
             name: name.to_string(),
             init_state: None,
             accepted_state: None,
             code: Vec::new(),
-            initial_tape: TapeAsVec::default(),
-            interpretation: None,
+            interpretation: Box::new(interpretation),
+            input: None,
         };
         Ok(builder)
     }
-    pub fn build(&self) -> Result<TuringMachineSet, String> {
+    pub fn build_input(self, input: Input) -> Result<RunningTuringMachine<Input, Output>, String> where
+        Input: Clone + 'static,
+        Output: Clone + 'static,
+    {
         let init_state = if let Some(state) = self.init_state.clone() {
             state
         } else {
@@ -91,14 +133,25 @@ impl<I, Input, Output> TuringMachineBuilder<I, Input, Output> where
         } else {
             return Err("fail on accepted state".to_string());
         };
-        Ok(TuringMachineSet::new(
+        let machine = TuringMachineSet::new(
             init_state,
             accepted_state,
             self.code.clone(),
-            self.initial_tape.left.clone(),
-            self.initial_tape.head.clone(),
-            self.initial_tape.right.clone(),
-        ))
+            self.interpretation.as_ref().write(input.clone())?
+        );
+        let run = RunningTuringMachine {
+            machine,
+            input,
+            on_terminate: Box::new(self.interpretation),
+        };
+        Ok(run)
+    }
+    pub fn build(&self) -> Result<RunningTuringMachine<Input, Output>, String> {
+        todo!()
+    }
+
+    pub fn input(&mut self, input: &Input) -> TuringMachineBuilder<Input, Output> {
+        todo!()
     }
 
     pub fn init_state(&mut self, state: State) -> &mut Self {
@@ -135,84 +188,94 @@ impl<I, Input, Output> TuringMachineBuilder<I, Input, Output> where
         self.code = Vec::new();
     }
 
-    pub fn initial_tape_left_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape.left = parse_str_to_signs(str)?;
-        Ok(self)
-    }
+}
 
-    pub fn initial_tape_head_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape.head = Sign::try_from(str)?;
-        Ok(self)
-    }
-
-    pub fn initial_tape_right_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape.right = parse_str_to_signs(str)?;
-        Ok(self)
-    }
-    pub fn initial_tape_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        self.initial_tape = TapeAsVec::try_from(str)?;
-        Ok(self)
-    }
-    fn initial_tape(&mut self, tape: TapeAsVec) -> Result<&mut Self, String> {
-        self.initial_tape = tape;
-        Ok(self)
-    }
-
-    pub fn set_interpretation(&mut self, interpretation: I) -> &mut Self {
-        self.interpretation = Some(interpretation);
-        self
-    }
-
-    pub fn write(&mut self, input: &Input) -> Result<&mut Self, String> {
-        let interpretation = if let Some(interpretation) = &self.interpretation {
-            interpretation
-        } else {
-            return Err("no interpretation".to_string());
+impl<In, Out> TuringMachineBuilder<In, Out> where
+    In: Clone + TryFrom<String, Error =  String> + Into<String> + 'static,
+    Out: Clone + Into<String> + 'static,
+{
+    pub fn stringfy(self) -> TuringMachineBuilder<String, String> {
+        let TuringMachineBuilder { name, init_state, accepted_state, code, interpretation, input } = self;
+        let new_interpretation = Stringfy {
+            content: interpretation,
         };
-        let tape = interpretation.write(input);
-        self.initial_tape(tape)?;
-        Ok(self)
-    }
-
-    pub fn read(&self, tape: TapeAsVec) -> Result<Output, String> {
-        match &self.interpretation {
-            Some(interpretation) => {
-                interpretation.read(&tape)
-            }
-            None => {
-                Err("no interpretation".to_string())
-            }
+        let input = match input {
+            Some(input) => Some(input.into()),
+            None => None,
+        };
+        TuringMachineBuilder {
+            name,
+            init_state,
+            accepted_state,
+            code,
+            interpretation: Box::new(new_interpretation),
+            input,
         }
     }
 }
 
-// struct TuringMachineBuilded {
+pub struct RunningTuringMachine<Input, Output> where
+    Input: Clone ,
+    Output: Clone ,
+{
+    machine: TuringMachineSet,
+    input: Input,
+    on_terminate: Box<dyn Interpretation<Input = Input, Output = Output>>,
+}
 
-// }
+impl<Input, Output> RunningTuringMachine<Input, Output> where
+    Input: Clone ,
+    Output: Clone ,
+{
+    pub fn now_state(&self) -> State {
+        self.machine.now_state().clone()
+    }
+    pub fn now_tape(&self) -> TapeAsVec {
+        self.machine.now_tape()
+    }
+    pub fn code_as_vec(&self) -> Vec<CodeEntry> {
+        self.machine.code_as_vec()
+    }
+    pub fn step(&mut self, n: usize) -> Result<(), usize> {
+        for i in 0..n {
+            if self.machine.is_terminate() {return Err(i)}
+            self.machine.step()
+        }
+        Ok(())
+    }
+    pub fn result(&self) -> Result<Output, String> {
+        if !self.machine.is_terminate() {return Err("not terminated".to_string());}
+        let tape = self.machine.now_tape();
+        self.on_terminate.read(tape)
+    }
+    pub fn first_input(&self) -> &Input {
+        &self.input
+    }
+}
 
-pub fn composition<I1, I2, In, Mid, Out>(first: TuringMachineBuilder<I1, In, Mid>, specified_state: State, second: TuringMachineBuilder<I2, Mid, Out>)
-    -> Result<TuringMachineBuilder<CompositionInterpretation<I1, I2, In, Mid, Out>, In, Out>, String> where
-    I1: Interpretation<Input = In, Output = Mid>,
-    I2: Interpretation<Input = Mid, Output = Out>,
-    In: 'static,
-    Mid: 'static,
-    Out: 'static,
+pub fn composition<I1, I2, In, Mid, Out>(first: TuringMachineBuilder<In, Mid>, specified_state: State, second: TuringMachineBuilder<Mid, Out>)
+    -> Result<TuringMachineBuilder<In, Out>, String> where
+    I1: Interpretation<Input = In, Output = Mid> + 'static,
+    I2: Interpretation<Input = Mid, Output = Out> + 'static,
+    In: 'static + Clone,
+    Mid: 'static + Clone,
+    Out: 'static + Clone,
 {
     let TuringMachineBuilder {
         name: first_name,
         init_state: first_init_state,
         accepted_state: first_accepted_state,
         code: first_code,
-        initial_tape: first_initial_tape,
         interpretation: first_interpretation,
+        input: first_input,
     } = first;
     let TuringMachineBuilder {
         name: second_name,
         init_state: second_init_state,
         accepted_state: second_accepted_state,
         code: second_code,
-        initial_tape: _,
         interpretation: second_interpretation,
+        input: second_input,
     } = second;
 
     let first_init_state = if let Some(state) = first_init_state {state} else {
@@ -289,22 +352,22 @@ pub fn composition<I1, I2, In, Mid, Out>(first: TuringMachineBuilder<I1, In, Mid
         code
     };
 
-    let mut builder = TuringMachineBuilder::new(&name).unwrap();
+    let composition = CompositionInterpretation {
+        first: Box::new(first_interpretation),
+        second: Box::new(second_interpretation),
+    };
+
+    let mut builder = TuringMachineBuilder::new(&name, composition).unwrap();
         builder
             .init_state(init_state)
             .accepted_state(accepted_state)
-            .code_from_entries(code)
-            .initial_tape(first_initial_tape)?;
+            .code_from_entries(code);
 
-    match (first_interpretation, second_interpretation) {
-        (Some(first), Some(second)) => {
-            let composition = CompositionInterpretation {
-                first,
-                second,
-            };
-            builder.set_interpretation(composition);
+    match first_input {
+        Some(input) => {
+            builder.input(&input);
         }
-        _ => {},
+        None => {},
     }
 
     Ok(builder)

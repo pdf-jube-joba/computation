@@ -112,6 +112,29 @@ impl TryFrom<&str> for TapeAsVec {
     }
 }
 
+impl TryFrom<String> for TapeAsVec {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let v: Vec<&str> = value.lines().collect();
+        if v.len() < 3 {
+            return Err("tape: argument is too few".to_owned());
+        }
+        let left: Vec<Sign> = parse_str_to_signs(v[0])?;
+        let head: Sign = v[1].try_into()?;
+        let right: Vec<Sign> = parse_str_to_signs(v[2])?;
+        Ok(Self { left, head, right })
+    }
+}
+
+impl Into<String> for TapeAsVec {
+    fn into(self) -> String {
+        let f = |v: Vec<Sign> | {
+            v.iter().map(|Sign(sign)| sign.to_owned()).collect::<String>()
+        };
+        format!("l: {} \nh: {}\n r: {}", f(self.left), self.head, f(self.right))
+    }
+}
+
 impl Tape {
     pub fn new(left: impl IntoIterator<Item = Sign>, head: Sign, right: impl IntoIterator<Item = Sign>) -> Self {
         Self {
@@ -328,9 +351,7 @@ impl TuringMachineSet {
         init_state: State,
         accepted_state: impl IntoIterator<Item = State>,
         code: impl IntoIterator<Item = CodeEntry>,
-        tape_left: impl IntoIterator<Item = Sign>,
-        tape_head: Sign,
-        tape_right: impl IntoIterator<Item = Sign>,
+        tape: TapeAsVec,
     ) -> Self {
         let machine_code = TuringMachine::new(
             init_state.clone(),
@@ -339,7 +360,7 @@ impl TuringMachineSet {
         );
         let machine_state = TuringMachineState::new(
             init_state,
-            Tape::new(tape_left, tape_head, tape_right),
+            Tape::new(tape.left, tape.head, tape.right),
         );
         TuringMachineSet {
             machine_code,
@@ -361,7 +382,7 @@ impl TuringMachineSet {
     pub fn code_as_vec(&self) -> Vec<CodeEntry> {
         self.machine_code.code.code_as_vec()
     }
-    pub fn is_terminate(&mut self) -> bool {
+    pub fn is_terminate(&self) -> bool {
         self.machine_code
             .accepted_state
             .contains(&self.machine_state.state)

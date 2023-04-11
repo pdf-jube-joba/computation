@@ -1,4 +1,6 @@
 use crate::machine::*;
+use crate::manipulation::TuringMachineBuilder;
+use crate::manipulation::RunningTuringMachine;
 use gloo::timers::callback::Interval;
 use yew::prelude::*;
 
@@ -62,8 +64,28 @@ fn code_view(CodeProps { code }: &CodeProps) -> Html {
     }
 }
 
+#[derive(Clone, PartialEq, Properties)]
+struct TuringMachineResultProps {
+    input: String,
+    result: Result<String, String>,
+}
+
+#[function_component(TuringMachineResultView)]
+fn running_turing_machine_vew(props: &TuringMachineResultProps) -> Html {
+    let TuringMachineResultProps { input, result} = props;
+    html!{
+        <>
+           {"input"} {input.clone()}
+           { match result {
+             Ok(output) => html! {<> {"output"} {output} </>},
+             Err(err) => html! {<> {"error"} {err} </>}
+           }}
+        </>
+    }
+}
+
 pub struct TuringMachineView {
-    machine: Option<TuringMachineSet>,
+    machine: Option<RunningTuringMachine<String, String>>,
     callback_on_log: Option<Callback<String>>,
     callback_on_terminate: Option<Callback<TapeAsVec>>,
     tick_active: bool,
@@ -79,13 +101,11 @@ impl TuringMachineView {
     }
 }
 
-// #[derive(Clone)]
 pub enum TuringMachineMsg {
-    // LoadFromBuilder(TuringMachineBuilder<Input, Output>),
-    LoadFromMachine(TuringMachineSet),
+    LoadFromBuilder(TuringMachineBuilder<String, String>),
+    // LoadFromMachine(TuringMachineSet),
     Step(usize),
     SetEventLog(Callback<String>),
-    SetTerminateCallback(Callback<TapeAsVec>),
     TickToggle,
     Tick,
 }
@@ -111,15 +131,19 @@ impl Component for TuringMachineView {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let controls_html: Html = html! {
             <>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(1)) }> {"step"} </button>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(10)) }> {"step 10"} </button>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(100)) }> {"step 100"} </button>
-            <button onclick={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}> {"toggle active"} </button>
+                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(1)) }> {"step"} </button>
+                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(10)) }> {"step 10"} </button>
+                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(100)) }> {"step 100"} </button>
+                <button onclick={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}> {"toggle active"} </button>
             </>
         };
         let machine_html: Html = match &self.machine {
             Some(machine) => html! {
                 <>
+                <div class="box">
+                    {"result"}
+                    <TuringMachineResultView input={machine.first_input().clone()} result={machine.result()} />
+                </div>
                 <div class="box">
                     <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
                     <TapeView tape={machine.now_tape().clone()}/>
@@ -147,16 +171,8 @@ impl Component for TuringMachineView {
         match msg {
             TuringMachineMsg::Step(num) => {
                 if let Some(ref mut machine) = self.machine {
-                    let mut result = None;
-                    for index in 0..num {
-                        if machine.is_terminate() {
-                            result = Some(index);
-                            break;
-                        } else {
-                            machine.step()
-                        }
-                    }
-                    if let Some(num) = result {
+                    let result = machine.step(num);
+                    if let Err(num) = result {
                         self.send_log(format!("machine terminated at step {num}"));
                     } else {
                         self.send_log(format!("machine step {num}"));
@@ -169,12 +185,16 @@ impl Component for TuringMachineView {
                 callback.emit("callback setted".to_owned());
                 self.callback_on_log = Some(callback);
             }
-            TuringMachineMsg::SetTerminateCallback(callback) => {
-                self.send_log("on terminate callback setted".to_string());
-                self.callback_on_terminate = Some(callback);
-            }
-            TuringMachineMsg::LoadFromMachine(machine) => {
-                self.machine = Some(machine);
+            TuringMachineMsg::LoadFromBuilder(builder) => {
+                match builder.build() {
+                    Ok(machine) => {
+                        self.machine = Some(machine);
+                        self.send_log("machine setted".to_string());
+                    }
+                    Err(err) => {
+                        self.send_log(err);
+                    }
+                }
             }
             TuringMachineMsg::TickToggle => {
                 self.tick_active = !self.tick_active;
@@ -182,12 +202,14 @@ impl Component for TuringMachineView {
             TuringMachineMsg::Tick => {
                 if self.tick_active {
                     if let Some(ref mut machine) = self.machine {
-                        if machine.is_terminate() {
-                            self.tick_active = false;
-                            self.send_log(format!("machine teminate"));
-                        } else {
-                            machine.step();
-                            self.send_log(format!("machine step"));
+                        match machine.step(1) {
+                            Err(_) => {
+                                self.tick_active = false;
+                                self.send_log(format!("machine teminate"));
+                            }
+                            Ok(_) => {
+                                self.send_log(format!("machine step"));
+                            }
                         }
                     } else {
                         self.send_log(format!("machine not setted"))
