@@ -6,10 +6,10 @@ use yew::Properties;
 use crate::machine::State;
 use crate::machine::TapeAsVec;
 use crate::machine::TuringMachineSet;
-use crate::manipulation::StandardIntepretation;
+use crate::manipulation::{write_str, standard_interpretation};
 
-use super::view::*;
-use super::manipulation::TuringMachineBuilder;
+use super::machine::*;
+use crate::manipulation::TuringMachineBuilder;
 
 #[derive(Default)]
 pub struct ControlView {
@@ -121,7 +121,7 @@ impl Component for ControlView where {
             ControlMsg::Load => {
                 if let Some(ref mut scope) = self.machine {
                     let handle = || {
-                        let mut builder = TuringMachineBuilder::<TapeAsVec, TapeAsVec>::new("user", StandardIntepretation{}).unwrap();
+                        let mut builder = TuringMachineBuilder::<TapeAsVec, TapeAsVec>::new("user", standard_interpretation()).unwrap();
                         builder
                             .init_state(State::try_from(self.initial_state.as_ref())?)
                             .accepted_state({
@@ -132,14 +132,15 @@ impl Component for ControlView where {
                                 vec
                             })
                             .code_from_str(&self.code)?;
-                        let input_tape = StandardIntepretation::write_str(self.tape.clone())?;
-                        builder.input(&input_tape);
+                        let input_tape = write_str(self.tape.clone())?;
+                        builder.input(input_tape);
                         Ok::<TuringMachineBuilder<_, _>, String>(builder.stringfy())
                     };
                     match handle() {
                         Ok(builder) => {
-                            scope.send_message(TuringMachineMsg::LoadFromBuilder(builder));
-                            // self.send_this_log(&format!("success"));
+                            scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()));
+                            self.send_this_log(&format!("success"));
+                            todo!()
                         }
                         Err(err) => {
                             self.send_this_log(&format!("failed on {err}"));

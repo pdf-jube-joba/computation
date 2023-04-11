@@ -596,16 +596,16 @@ function getImports() {
     imports.wbg.__wbindgen_throw = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
     };
-    imports.wbg.__wbindgen_closure_wrapper5479 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 394, __wbg_adapter_16);
+    imports.wbg.__wbindgen_closure_wrapper5725 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 400, __wbg_adapter_16);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper5591 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 400, __wbg_adapter_19);
+    imports.wbg.__wbindgen_closure_wrapper5837 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 406, __wbg_adapter_19);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper5719 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 421, __wbg_adapter_22);
+    imports.wbg.__wbindgen_closure_wrapper5965 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 427, __wbg_adapter_22);
         return addHeapObject(ret);
     };
 
@@ -643,7 +643,7 @@ function initSync(module) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('turing_machine_app-622a11badf19905e_bg.wasm', import.meta.url);
+        input = new URL('turing_machine_app-c39ca72c48dcb76e_bg.wasm', import.meta.url);
     }
     const imports = getImports();
 

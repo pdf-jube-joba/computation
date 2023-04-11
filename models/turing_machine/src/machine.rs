@@ -392,7 +392,7 @@ impl TuringMachineSet {
                 !hash.contains_key(&key)
             }
     }
-    pub fn step(&mut self) {
+    fn one_step(&mut self) {
         if !self.is_terminate() {
             let hash = &self.machine_code.code.code();
             let key = self.now_key();
@@ -401,6 +401,19 @@ impl TuringMachineSet {
             self.machine_state.tape.move_to(direction);
             self.machine_state.state = state.clone();
         }
+    }
+    pub fn step(&mut self, num: usize) -> Result<(), usize> {
+        for i in 0..num {
+            if self.is_terminate() {
+                return Err(num);
+            }
+            self.one_step();
+        }
+        Ok(())
+    }
+    pub fn result(&self) -> Result<TapeAsVec, String> {
+        if !self.is_terminate() {return Err("not terminated".to_string());}
+        Ok(self.now_tape())
     }
 }
 
@@ -412,5 +425,14 @@ impl Display for TuringMachineSet {
         }
         writeln!(f, "state: {}", self.machine_state.state)?;
         writeln!(f, "tape: {:?}", self.machine_state.tape)
+    }
+}
+
+
+mod tests {
+    use super::*;
+    #[test]
+    fn tape_test() {
+
     }
 }

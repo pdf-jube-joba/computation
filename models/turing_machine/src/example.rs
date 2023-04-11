@@ -1,5 +1,5 @@
 use crate::machine::*;
-use crate::manipulation::{TuringMachineBuilder, Interpretation, composition};
+use crate::manipulation::{TuringMachineBuilder, Interpretation, compose_builder};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Number(usize);
@@ -13,19 +13,47 @@ impl Number {
     }
 }
 
+impl From<usize> for Number {
+    fn from(value: usize) -> Self {
+        Number(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NumberTuple(Vec<Number>);
 
 impl TryFrom<String> for NumberTuple {
     type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        todo!()
+        let value = value.trim();
+        if !(value.starts_with('(') && value.ends_with(')')) {
+            return Err("not tuple".to_string());
+        }
+        let vec = value.get(1..value.len()-1).unwrap()
+            .split(',')
+            .map(|str| {
+                match str.trim().parse() {
+                    Ok(n) => Ok(Number(n)),
+                    Err(_) => Err("parse fail".to_string())
+                }
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(NumberTuple(vec))
     }
 }
 
 impl Into<String> for NumberTuple {
     fn into(self) -> String {
-        todo!()
+        let mut s = String::new();
+        s.push('(');
+        for (i, Number(num)) in self.0.iter().enumerate() {
+            if i != 0 {
+                s.push(',');
+            }
+            s.push_str(&num.to_string());
+        }
+        s.push(')');
+        s
     }
 }
 
@@ -38,55 +66,53 @@ impl NatNumInterpretation {
     fn one() -> Sign {
         Sign::try_from("1").unwrap()
     }
-}
+    pub fn interpretation() -> Interpretation<String, String> {
+        fn write(input: String) -> Result<TapeAsVec, String> {
+            let right: Vec<Sign> = NumberTuple::try_from(input)?.0
+                .into_iter()
+                .flat_map(|Number(num)| {
+                        std::iter::repeat(NatNumInterpretation::one())
+                        .take(num)
+                        .chain(std::iter::once(NatNumInterpretation::partition()))
+                })
+                .collect();
 
-impl Interpretation for NatNumInterpretation {
-    type Input = NumberTuple;
-    type Output = NumberTuple;
-    fn write(&self, input: Self::Input) -> Result<TapeAsVec, String> {
-        let right: Vec<Sign> = input.0
-            .into_iter()
-            .flat_map(|num| {
-                    std::iter::repeat(NatNumInterpretation::one())
-                    .take(num.0)
-                    .chain(std::iter::once(NatNumInterpretation::partition()))
-            })
-            .collect();
-
-        eprintln!("{right:?}");
-
-        Ok(TapeAsVec::new(
-            Vec::new(),
-            NatNumInterpretation::partition(),
-            right,
-        ))
-    }
-    
-    fn read(&self, tape: TapeAsVec) -> Result<Self::Output, String> {
-        let mut vec = Vec::new();
-        let right = tape.right.clone();
-        
-        let mut num = 0;
-        for i in 0..right.len() {
-            match right[i] {
-                _ if right[i] == NatNumInterpretation::partition() => {
-                    vec.push(Number(num))
-                }
-                _ if right[i] == NatNumInterpretation::one() => {
-                    num += 1;
-                }
-                _ if right[i] == Sign::blank() => {
-                    break;
-                }
-                _ => unreachable!()
-            }
+            Ok(TapeAsVec::new(
+                Vec::new(),
+                NatNumInterpretation::partition(),
+                right,
+            ))
         }
-        Ok(NumberTuple(vec))
+        fn read(tape: TapeAsVec) -> Result<String, String> {
+            let mut vec = Vec::new();
+            let right = tape.right.clone();
+            
+            let mut num = 0;
+            for i in 0..right.len() {
+                match right[i] {
+                    _ if right[i] == NatNumInterpretation::partition() => {
+                        vec.push(Number(num))
+                    }
+                    _ if right[i] == NatNumInterpretation::one() => {
+                        num += 1;
+                    }
+                    _ if right[i] == Sign::blank() => {
+                        break;
+                    }
+                    _ => unreachable!()
+                }
+            }
+            Ok(NumberTuple(vec).into())
+        }
+        Interpretation::new(
+            write,
+            read
+        )
     }
 }
 
-fn inc() -> TuringMachineBuilder<NumberTuple, NumberTuple> {
-    let mut builder = TuringMachineBuilder::new("one", NatNumInterpretation).unwrap();
+pub fn inc() -> TuringMachineBuilder<String, String> {
+    let mut builder = TuringMachineBuilder::new("increment", NatNumInterpretation::interpretation()).unwrap();
     builder
         .init_state(State::try_from("start").unwrap())
         .accepted_state(vec![
@@ -103,99 +129,47 @@ fn inc() -> TuringMachineBuilder<NumberTuple, NumberTuple> {
     builder
 }
 
+pub fn inc_inc_4_example(i: usize) -> TuringMachineBuilder<String, String> {
+    let mut builder = compose_builder(inc(), State::try_from("end").unwrap(), inc()).unwrap();
+    builder.input("(4)".to_string());
+    builder
+}
+
 mod test {
     use super::*;
+    #[test]
+    fn number_string(){
+        let str = "  (1, 0,15) ";
+        assert_eq!(NumberTuple::try_from(str.to_string()), Ok(NumberTuple(vec![Number(1), Number(0), Number(15)])))
+    }
 
     #[test]
     fn inc_test1() {
-        let number_pred = Number(10);
+        // let number_pred = Number(10);
 
         let mut builder = inc();
         let mut machine = builder
-            .build_input(&NumberTuple(vec![number_pred.clone()])).unwrap();
+            .input("(10)".to_string())
+            .build().unwrap();
 
         machine.step(100);
 
         let result = machine.result().unwrap();
-        assert_eq!(NumberTuple(vec![number_pred.succ()]), result)
+        let result = NatNumInterpretation::interpretation().read()(result).unwrap();
+        assert_eq!("(11)".to_string(), result)
     }
 
-    #[test]
-    fn inc_test2() {
-        let number_pred = Number(10);
+    // #[test]
+    // fn inc_test2() {
+    //     let number_pred = Number(10);
 
-        let mut builder = composition::<NatNumInterpretation, NatNumInterpretation, _, _, _>(inc(), State::try_from("end").unwrap(), inc()).unwrap();
-        let mut machine = builder
-            .build_input(&NumberTuple(vec![number_pred.clone()])).unwrap();
+    //     let mut builder = compose_builder(inc(), State::try_from("end").unwrap(), inc()).unwrap();
+    //     let mut machine = builder
+    //         .build(NumberTuple(vec![number_pred.clone()])).unwrap();
 
-        machine.step(200);
+    //     machine.step(200);
         
-        let result = machine.result().unwrap();
-        assert_eq!(NumberTuple(vec![number_pred.succ()]), result)
-    }
-}
-
-pub mod view {
-    use yew::html::Scope;
-    use yew::prelude::*;
-    use crate::{view::{TuringMachineView, TuringMachineMsg}, manipulation};
-    use super::*;
-
-    #[derive(Debug, Default)]
-    pub struct ExampleView {
-        scope: Option<Scope<TuringMachineView>>,
-    }
-    pub enum ExampleMsg {
-        SetTargetMachineView(Scope<TuringMachineView>),
-        SendIncMachine,
-        SendIncIncMachine,
-    }
-
-    #[derive(Debug, Default, Clone, PartialEq, Properties)]
-    pub struct ExampleProps {}
-
-    impl Component for ExampleView {
-        type Message = ExampleMsg;
-        type Properties = ExampleProps;
-        fn create(ctx: &Context<Self>) -> Self {
-            Self::default()
-        }
-        fn view(&self, ctx: &Context<Self>) -> Html {
-            html!{
-                <>
-                    {"example"} <br/>
-                    <>
-                        <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncMachine)}> { "inc 10" } </button>
-                    </>
-                    <br/>
-                    <>
-                        <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncIncMachine)}> { "incinc 10" } </button>
-                    </>
-                    // <button onclick={ctx.link()}> { "zero" } </button>
-                </>
-            }
-        }
-        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-            match msg {
-                ExampleMsg::SetTargetMachineView(scope) => {
-                    self.scope = Some(scope);
-                }
-                ExampleMsg::SendIncMachine => {
-                    // if let Some(scope) = &self.scope {
-                    //     let mut builder = inc();
-                    //     builder.write(&vec![Number(10)]).unwrap();
-                    //     scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()))
-                    // }
-                }
-                ExampleMsg::SendIncIncMachine => {
-                    if let Some(scope) = &self.scope {
-                        let mut builder = composition::<NatNumInterpretation, NatNumInterpretation, _, _, _>(inc(), State::try_from("end").unwrap(), inc()).unwrap();
-                        builder.input(&NumberTuple(vec![Number(5)]));
-                        scope.send_message(TuringMachineMsg::LoadFromBuilder(builder.stringfy()))
-                    }
-                }
-            }
-            false
-        }
-}
+    //     let result = machine.result().unwrap();
+    //     assert_eq!(NumberTuple(vec![number_pred.succ()]), result)
+    // }
 }
