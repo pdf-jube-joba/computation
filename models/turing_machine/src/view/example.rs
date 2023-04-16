@@ -13,7 +13,6 @@ enum ExampleInputState {
     Input(Result<usize, String>),
 }
 
-
 impl ToString for ExampleInputState {
     fn to_string(&self) -> String {
         match self {

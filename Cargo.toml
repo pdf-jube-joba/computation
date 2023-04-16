@@ -2,5 +2,7 @@
 members = [
   "models/turing_machine",
   "models/countermachine",
+  "models/recursive_function",
   "integration/turing_machine",
+  "compile/recursive_function_to_turing_machine",
 ]

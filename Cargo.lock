@@ -515,6 +515,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "recursive_function"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "wasm-bindgen",
+ "web-sys",
+ "yew",
+]
+
+[[package]]
+name = "recursive_function_to_turing_machine"
+version = "0.1.0"
+
+[[package]]
 name = "rustversion"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
