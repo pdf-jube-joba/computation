@@ -1,29 +1,25 @@
+use super::machine::*;
+use crate::example::*;
+use crate::machine::TapeAsVec;
+use web_sys::HtmlInputElement;
 use yew::html::Scope;
 use yew::prelude::*;
-use super::machine::*;
-use web_sys::HtmlInputElement;
-// use crate::manipulation::*;
-use crate::manipulation::compose_builder;
-use crate::example::*;
-use crate::machine::{State, TapeAsVec};
 
 #[derive(Debug, Clone)]
 enum ExampleInputState {
     WaitInput,
-    Input(Result<usize, String>),
+    Input(Option<(usize, usize)>),
 }
 
 impl ToString for ExampleInputState {
     fn to_string(&self) -> String {
         match self {
-            ExampleInputState::WaitInput => {
-                "wait input".to_string()
+            ExampleInputState::WaitInput => "wait input".to_string(),
+            ExampleInputState::Input(Some((u1, u2))) => {
+                format!("input: ({u1}, {u2})")
             }
-            ExampleInputState::Input(Ok(ok)) => {
-                format!("input: {ok}")
-            }
-            ExampleInputState::Input(Err(err)) => {
-                format!("error: {err}")
+            ExampleInputState::Input(None) => {
+                "parse error".to_string()
             }
         }
     }
@@ -38,9 +34,7 @@ enum ExampleResultState {
 impl ToString for ExampleResultState {
     fn to_string(&self) -> String {
         match self {
-            ExampleResultState::NoResult => {
-                "wait output".to_string()
-            }
+            ExampleResultState::NoResult => "wait output".to_string(),
             ExampleResultState::Result(Ok(ok)) => {
                 format!("output: {ok}")
             }
@@ -60,7 +54,7 @@ pub struct ExampleView {
 pub enum ExampleMsg {
     SetTargetMachineView(Scope<TuringMachineView>),
     // SendIncMachine,
-    SendIncIncMachine,
+    SendBinAdderMachine,
     ChangeInput(String),
     Result(Result<String, String>),
 }
@@ -79,21 +73,20 @@ impl Component for ExampleView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let oninput_callback = ctx.link().callback(|e: Event|{
+        let oninput_callback = ctx.link().callback(|e: Event| {
             let value: HtmlInputElement = e.target_unchecked_into();
             let str = value.value();
             ExampleMsg::ChangeInput(str)
         });
-        html!{
+        html! {
             <>
                 {"example"} <br/>
                 <br/>
                 <>
-                    <button onclick={ctx.link().callback(|_| ExampleMsg::SendIncIncMachine)}> { "inc inc" } </button>
+                    <button onclick={ctx.link().callback(|_| ExampleMsg::SendBinAdderMachine)}> { "inc inc" } </button>
                     {"input"} <input type="text" onchange={oninput_callback}/> {self.now_input_state.clone()} <br/>
                     {"output"} {self.now_output_state.clone()}
                 </>
-                // <button onclick={ctx.link()}> { "zero" } </button>
             </>
         }
     }
@@ -103,32 +96,27 @@ impl Component for ExampleView {
                 self.scope = Some(scope);
             }
             ExampleMsg::ChangeInput(str) => {
-                let i = str.parse::<usize>().map_err(|_| "parse error".to_string());
-                // panic!("");
-                self.now_input_state = ExampleInputState::Input(i);
+                self.now_input_state = ExampleInputState::Input(str_to_two_bin(&str));
             }
             ExampleMsg::Result(result) => {
                 self.now_output_state = ExampleResultState::Result(result);
             }
-            ExampleMsg::SendIncIncMachine => {
+            ExampleMsg::SendBinAdderMachine => {
                 if let Some(scope) = &self.scope {
-                    let mut builder = compose_builder(inc(), State::try_from("end").unwrap(), inc()).unwrap();
-                    let i = match self.now_input_state {
-                        ExampleInputState::Input(Ok(num)) => {
-                            num
-                        }
+                    let mut builder = bin_adder();
+                    let u = match self.now_input_state {
+                        ExampleInputState::Input(Some(num)) => num,
                         _ => {
                             return true;
                         }
                     };
-                    builder.input(format!("({i})"));
+                    builder.input(two_bin_to_str(u));
                     let callback = ctx.link().callback(|tape: TapeAsVec| {
-                        let i = crate::example::NatNumInterpretation::interpretation();
+                        let i = BinInt::interpretation();
                         ExampleMsg::Result(i.read()(tape))
                     });
                     scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()));
                     scope.send_message(TuringMachineMsg::SetMachineOnTerminate(callback));
-                    // scope.send_message(TuringMachineMsg::)
                 }
             }
         }

@@ -52,12 +52,11 @@ impl TryFrom<&str> for Sign {
     }
 }
 
-pub fn parse_str_to_signs<T>(str: &str) -> Result<T, String> where
-    T: std::iter::FromIterator<Sign>
-    {
-    str.split_whitespace()
-        .map(|s| Sign::try_from(s))
-        .collect()
+pub fn parse_str_to_signs<T>(str: &str) -> Result<T, String>
+where
+    T: std::iter::FromIterator<Sign>,
+{
+    str.split_whitespace().map(Sign::try_from).collect()
 }
 
 // 左右無限のテープ
@@ -75,11 +74,15 @@ pub struct Tape {
 pub struct TapeAsVec {
     pub left: Vec<Sign>,
     pub head: Sign,
-    pub right: Vec<Sign>
+    pub right: Vec<Sign>,
 }
 
 impl TapeAsVec {
-    pub fn new(left: impl IntoIterator<Item = Sign>, head: Sign, right: impl IntoIterator<Item = Sign>) -> Self {
+    pub fn new(
+        left: impl IntoIterator<Item = Sign>,
+        head: Sign,
+        right: impl IntoIterator<Item = Sign>,
+    ) -> Self {
         Self {
             left: left.into_iter().collect(),
             head: head,
@@ -90,10 +93,10 @@ impl TapeAsVec {
 
 impl From<TapeAsVec> for Tape {
     fn from(TapeAsVec { left, head, right }: TapeAsVec) -> Self {
-        Tape { 
+        Tape {
             left: left.into(),
-            head: head,
-            right: right.into()
+            head,
+            right: right.into(),
         }
     }
 }
@@ -126,20 +129,31 @@ impl TryFrom<String> for TapeAsVec {
     }
 }
 
-impl Into<String> for TapeAsVec {
-    fn into(self) -> String {
-        let f = |v: Vec<Sign> | {
-            v.iter().map(|Sign(sign)| sign.to_owned()).collect::<String>()
+impl From<TapeAsVec> for String {
+    fn from(value: TapeAsVec) -> Self {
+        let f = |v: Vec<Sign>| {
+            v.iter()
+                .map(|Sign(sign)| sign.to_owned())
+                .collect::<String>()
         };
-        format!("l: {} \nh: {}\n r: {}", f(self.left), self.head, f(self.right))
+        format!(
+                "l: {} \nh: {}\n r: {}",
+                f(value.left),
+                value.head,
+                f(value.right)
+            )
     }
 }
 
 impl Tape {
-    pub fn new(left: impl IntoIterator<Item = Sign>, head: Sign, right: impl IntoIterator<Item = Sign>) -> Self {
+    pub fn new(
+        left: impl IntoIterator<Item = Sign>,
+        head: Sign,
+        right: impl IntoIterator<Item = Sign>,
+    ) -> Self {
         Self {
             left: left.into_iter().collect(),
-            head: head,
+            head,
             right: right.into_iter().collect(),
         }
     }
@@ -166,23 +180,19 @@ impl Tape {
     }
     fn show(&self) -> TapeAsVec {
         TapeAsVec {
-            left: (&self.left).iter().cloned().collect(),
+            left: self.left.iter().cloned().collect(),
             head: self.head.clone(),
-            right: (&self.right).iter().cloned().collect(),
+            right: self.right.iter().cloned().collect(),
         }
     }
 }
 
 impl Display for Tape {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let left: String = self.left.iter()
-            .map(|sign|{ format!("{sign} ") })
-            .collect();
+        let left: String = self.left.iter().map(|sign| format!("{sign} ")).collect();
         writeln!(f, "l:{left}")?;
         writeln!(f, "h:{}", self.head)?;
-        let right: String = self.right.iter()
-            .map(|sign|{ format!("{sign} ") })
-            .collect();
+        let right: String = self.right.iter().map(|sign| format!("{sign} ")).collect();
         writeln!(f, "r:{right}")
     }
 }
@@ -200,7 +210,7 @@ impl TryFrom<&str> for State {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.trim();
-        if value.contains(|char: char| char.is_whitespace() || char ==',') {
+        if value.contains(|char: char| char.is_whitespace() || char == ',') {
             return Err(format!("whitespace contained input:{value}"));
         }
         Ok(State(value.to_string()))
@@ -217,22 +227,31 @@ pub struct CodeEntry(CodeKey, CodeValue);
 
 impl CodeEntry {
     pub fn key_sign(&self) -> Sign {
-        self.0.0.clone()
+        self.0 .0.clone()
     }
     pub fn key_state(&self) -> State {
-        self.0.1.clone()
+        self.0 .1.clone()
     }
     pub fn value_sign(&self) -> Sign {
-        self.1.0.clone()
+        self.1 .0.clone()
     }
     pub fn value_state(&self) -> State {
-        self.1.1.clone()
+        self.1 .1.clone()
     }
     pub fn value_direction(&self) -> Direction {
-        self.1.2.clone()
+        self.1 .2.clone()
     }
-    pub fn from_tuple(key_sign: Sign, key_state: State, value_sign: Sign, value_state: State, value_direction: Direction) -> Self {
-        CodeEntry(CodeKey(key_sign, key_state), CodeValue(value_sign, value_state, value_direction))
+    pub fn from_tuple(
+        key_sign: Sign,
+        key_state: State,
+        value_sign: Sign,
+        value_state: State,
+        value_direction: Direction,
+    ) -> Self {
+        CodeEntry(
+            CodeKey(key_sign, key_state),
+            CodeValue(value_sign, value_state, value_direction),
+        )
     }
 }
 
@@ -247,8 +266,7 @@ impl TryFrom<&str> for CodeEntry {
             return Err("code-entry: argument is too few".to_string());
         }
         let code_key: CodeKey = CodeKey(v[0].try_into()?, v[1].try_into()?);
-        let code_value: CodeValue =
-            CodeValue(v[2].try_into()?, v[3].try_into()?, v[4].try_into()?);
+        let code_value: CodeValue = CodeValue(v[2].try_into()?, v[3].try_into()?, v[4].try_into()?);
         Ok(CodeEntry(code_key, code_value))
     }
 }
@@ -263,16 +281,17 @@ impl Code {
         &self.hash
     }
     pub fn code_as_vec(&self) -> Vec<CodeEntry> {
-        self.hash.iter().map(|(k, v)| CodeEntry(k.clone(), v.clone())).collect()
+        self.hash
+            .iter()
+            .map(|(k, v)| CodeEntry(k.clone(), v.clone()))
+            .collect()
     }
     pub fn add(&mut self, CodeEntry(k, v): CodeEntry) {
         self.hash.insert(k, v);
     }
     pub fn from_iter_entry(iter: impl IntoIterator<Item = CodeEntry>) -> Self {
         Code {
-            hash: HashMap::from_iter(iter.into_iter().map(|CodeEntry(k, v)|{
-                (k, v)
-            }))
+            hash: HashMap::from_iter(iter.into_iter().map(|CodeEntry(k, v)| (k, v))),
         }
     }
 }
@@ -317,9 +336,13 @@ pub struct TuringMachine {
 }
 
 impl TuringMachine {
-    pub fn new(init_state: State, accepted_state: impl IntoIterator<Item = State>, code: impl IntoIterator<Item = CodeEntry>) -> Self {
+    pub fn new(
+        init_state: State,
+        accepted_state: impl IntoIterator<Item = State>,
+        code: impl IntoIterator<Item = CodeEntry>,
+    ) -> Self {
         TuringMachine {
-            init_state: init_state,
+            init_state,
             accepted_state: accepted_state.into_iter().collect(),
             code: Code::from_iter_entry(code.into_iter()),
         }
@@ -353,15 +376,9 @@ impl TuringMachineSet {
         code: impl IntoIterator<Item = CodeEntry>,
         tape: TapeAsVec,
     ) -> Self {
-        let machine_code = TuringMachine::new(
-            init_state.clone(),
-            accepted_state.into_iter(),
-            code,
-        );
-        let machine_state = TuringMachineState::new(
-            init_state,
-            Tape::new(tape.left, tape.head, tape.right),
-        );
+        let machine_code = TuringMachine::new(init_state.clone(), accepted_state.into_iter(), code);
+        let machine_state =
+            TuringMachineState::new(init_state, Tape::new(tape.left, tape.head, tape.right));
         TuringMachineSet {
             machine_code,
             machine_state,
@@ -394,10 +411,10 @@ impl TuringMachineSet {
     }
     fn one_step(&mut self) {
         if !self.is_terminate() {
-            let hash = &self.machine_code.code.code();
+            let hash = self.machine_code.code.code();
             let key = self.now_key();
             let CodeValue(sign, state, direction) = hash.get(&key).unwrap();
-            self.machine_state.tape.head_write(&sign);
+            self.machine_state.tape.head_write(sign);
             self.machine_state.tape.move_to(direction);
             self.machine_state.state = state.clone();
         }
@@ -405,14 +422,16 @@ impl TuringMachineSet {
     pub fn step(&mut self, num: usize) -> Result<(), usize> {
         for i in 0..num {
             if self.is_terminate() {
-                return Err(num);
+                return Err(i);
             }
             self.one_step();
         }
         Ok(())
     }
     pub fn result(&self) -> Result<TapeAsVec, String> {
-        if !self.is_terminate() {return Err("not terminated".to_string());}
+        if !self.is_terminate() {
+            return Err("not terminated".to_string());
+        }
         Ok(self.now_tape())
     }
 }
@@ -420,7 +439,7 @@ impl TuringMachineSet {
 impl Display for TuringMachineSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "code:")?;
-        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in (&self.machine_code.code.hash).iter() {
+        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in self.machine_code.code.hash.iter() {
             writeln!(f, "{k1}, {k2}, {v1}, {v2}, {v3:?}")?;
         }
         writeln!(f, "state: {}", self.machine_state.state)?;
@@ -428,11 +447,10 @@ impl Display for TuringMachineSet {
     }
 }
 
+// mod tests {
+//     use super::*;
+//     #[test]
+//     fn tape_test() {
 
-mod tests {
-    use super::*;
-    #[test]
-    fn tape_test() {
-
-    }
-}
+//     }
+// }

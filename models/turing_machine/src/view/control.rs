@@ -4,9 +4,7 @@ use yew::prelude::*;
 use yew::Properties;
 
 use crate::machine::State;
-use crate::machine::TapeAsVec;
-use crate::machine::TuringMachineSet;
-use crate::manipulation::{write_str, standard_interpretation};
+use crate::manipulation::string_line_interpretation;
 
 use super::machine::*;
 use crate::manipulation::TuringMachineBuilder;
@@ -43,7 +41,7 @@ pub enum ControlMsg {
 #[derive(Clone, PartialEq, Properties)]
 pub struct ControlProp {}
 
-impl Component for ControlView where {
+impl Component for ControlView {
     type Message = ControlMsg;
     type Properties = ();
     fn create(_ctx: &Context<Self>) -> Self {
@@ -121,26 +119,33 @@ impl Component for ControlView where {
             ControlMsg::Load => {
                 if let Some(ref mut scope) = self.machine {
                     let handle = || {
-                        let mut builder = TuringMachineBuilder::<TapeAsVec, TapeAsVec>::new("user", standard_interpretation()).unwrap();
+                        let mut builder =
+                            TuringMachineBuilder::new("user", string_line_interpretation())
+                                .unwrap();
                         builder
                             .init_state(State::try_from(self.initial_state.as_ref())?)
                             .accepted_state({
-                                let vec: Vec<State> = self.accepted_state
-                                    .split_whitespace().map(|s| {
-                                            State::try_from(s)
-                                    }).collect::<Result<_, _>>()?;
+                                let vec: Vec<State> = self
+                                    .accepted_state
+                                    .split_whitespace()
+                                    .map(State::try_from)
+                                    .collect::<Result<_, _>>()?;
                                 vec
                             })
                             .code_from_str(&self.code)?;
-                        let input_tape = write_str(self.tape.clone())?;
-                        builder.input(input_tape);
-                        Ok::<TuringMachineBuilder<_, _>, String>(builder.stringfy())
+                        builder.input(self.tape.clone());
+                        Ok::<TuringMachineBuilder<_, _>, String>(builder)
                     };
                     match handle() {
                         Ok(builder) => {
-                            scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()));
-                            self.send_this_log(&format!("success"));
-                            todo!()
+                            match builder.build() {
+                                Ok(machine) => {
+                                    scope.send_message(TuringMachineMsg::LoadFromMachine(machine));
+                                    self.send_this_log("success");
+                                }
+                                Err(_err) => {}
+                            }
+                            // todo!()
                         }
                         Err(err) => {
                             self.send_this_log(&format!("failed on {err}"));

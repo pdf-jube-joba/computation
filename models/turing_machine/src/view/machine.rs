@@ -1,5 +1,5 @@
 use crate::machine::*;
-use crate::manipulation::TuringMachineBuilder;
+// use crate::manipulation::TuringMachineBuilder;
 use gloo::timers::callback::Interval;
 use yew::prelude::*;
 
@@ -71,8 +71,8 @@ struct TuringMachineResultProps {
 
 #[function_component(TuringMachineResultView)]
 fn running_turing_machine_vew(props: &TuringMachineResultProps) -> Html {
-    let TuringMachineResultProps { input, result} = props;
-    html!{
+    let TuringMachineResultProps { input, result } = props;
+    html! {
         <>
            {"input"} {input.clone()}
            { match result {
@@ -124,7 +124,7 @@ impl Component for TuringMachineView {
             machine: None,
             callback_on_log: None,
             callback_on_terminate: None,
-            tick_active: true,
+            tick_active: false,
             tick_interval: interval,
         }
     }
@@ -179,7 +179,7 @@ impl Component for TuringMachineView {
                         self.send_log(format!("machine step {num}"));
                     }
                 } else {
-                    self.send_log(format!("machine not setted"));
+                    self.send_log("machine not setted".to_string());
                 }
             }
             TuringMachineMsg::SetEventLog(callback) => {
@@ -187,8 +187,8 @@ impl Component for TuringMachineView {
                 self.callback_on_log = Some(callback);
             }
             TuringMachineMsg::LoadFromMachine(machine) => {
-                    self.machine = Some(machine);
-                    self.send_log("machine setted".to_string());
+                self.machine = Some(machine);
+                self.send_log("machine setted".to_string());
             }
             TuringMachineMsg::TickToggle => {
                 self.tick_active = !self.tick_active;
@@ -209,10 +209,10 @@ impl Component for TuringMachineView {
                             self.tick_active = false;
                             self.send_log(format!("machine terminated at step {num}"));
                         } else {
-                            self.send_log(format!("machine step 1"));
+                            self.send_log("machine step 1".to_string());
                         }
                     } else {
-                        self.send_log(format!("machine not setted"));
+                        self.send_log("machine not setted".to_string());
                     }
                     return true;
                 } else {
