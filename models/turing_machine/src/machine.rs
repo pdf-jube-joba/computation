@@ -85,7 +85,7 @@ impl TapeAsVec {
     ) -> Self {
         Self {
             left: left.into_iter().collect(),
-            head: head,
+            head,
             right: right.into_iter().collect(),
         }
     }
