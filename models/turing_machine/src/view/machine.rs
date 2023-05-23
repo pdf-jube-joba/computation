@@ -4,6 +4,18 @@ use gloo::timers::callback::Interval;
 use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
+struct SignBoxProps {
+    sign: Sign
+}
+
+#[function_component(SignBox)]
+fn sign_box_view(SignBoxProps { sign }: &SignBoxProps) -> Html {
+    html!{
+        <div class={classes!("sign-box")}> {sign} </div>
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
 struct TapeProps {
     tape: TapeAsVec,
 }
@@ -13,15 +25,15 @@ fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
     html! {
         <>
         {"tape"} <br/>
-        <> {"l:"} {
-            for tape.left.iter().take(10).map(|sign| html!{<> {sign} {"|"} </>})
-        } {"..."} <br/> </>
-        <> {"h:"} {
-            tape.head.clone()
-        } <br/> </>
-        <> {"r:"} {
-            for tape.right.iter().take(10).map(|sign| html!{<> {sign} {"|"} </>})
-        } {"..."} <br/> </>
+        <div class={classes!("tape")}> {"l:"} {
+            for tape.left.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
+        } {"..."} </div>
+        <div class={classes!("tape")}> {"h:"}
+            <SignBox sign={tape.head.clone()}/>
+        </div>
+        <div class={classes!("tape")}> {"r:"} {
+            for tape.right.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
+        } {"..."} </div>
         </>
     }
 }

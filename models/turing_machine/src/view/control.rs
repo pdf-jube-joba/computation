@@ -116,43 +116,50 @@ impl Component for ControlView {
             ControlMsg::OnInputAcceptedState(state) => {
                 self.accepted_state = state;
             }
-            ControlMsg::Load => {
-                if let Some(ref mut scope) = self.machine {
-                    let handle = || {
-                        let mut builder =
-                            TuringMachineBuilder::new("user", string_line_interpretation())
-                                .unwrap();
-                        builder
-                            .init_state(State::try_from(self.initial_state.as_ref())?)
-                            .accepted_state({
-                                let vec: Vec<State> = self
-                                    .accepted_state
-                                    .split_whitespace()
-                                    .map(State::try_from)
-                                    .collect::<Result<_, _>>()?;
-                                vec
-                            })
-                            .code_from_str(&self.code)?;
-                        builder.input(self.tape.clone());
-                        Ok::<TuringMachineBuilder<_, _>, String>(builder)
-                    };
-                    match handle() {
-                        Ok(builder) => {
-                            match builder.build() {
-                                Ok(machine) => {
-                                    scope.send_message(TuringMachineMsg::LoadFromMachine(machine));
-                                    self.send_this_log("success");
-                                }
-                                Err(_err) => {}
-                            }
-                            // todo!()
-                        }
+            ControlMsg::Load => 'comp : {
+                let Some(ref mut scope) = self.machine else {
+                    self.send_this_log("no machine found");
+                    break 'comp;
+                };
+                fn handle(
+                    init_state: &str,
+                    accepted_state: &str,
+                    code: &str,
+                    tape: &str
+                ) -> Result<TuringMachineBuilder<String, String>, String> {
+                    let mut builder =
+                    TuringMachineBuilder::new("user", string_line_interpretation())
+                            .unwrap();
+                    builder
+                        .init_state(State::try_from(init_state.as_ref())?)
+                        .accepted_state({
+                            let vec: Vec<State> = accepted_state
+                                .split_whitespace()
+                                .map(State::try_from)
+                                .collect::<Result<_, _>>()?;
+                            vec
+                        })
+                        .code_from_str(code)?;
+                    builder.input(tape.to_string());
+                    Ok::<TuringMachineBuilder<_, _>, String>(builder)
+                }
+                let builder = {
+                    match handle(&self.initial_state, &self.accepted_state, &self.code, &self.tape) {
+                        Ok(builder) => builder,
                         Err(err) => {
-                            self.send_this_log(&format!("failed on {err}"));
+                            self.send_this_log(format!("failed on build {err}"));
+                            break 'comp;
                         }
                     }
-                } else {
-                    self.send_this_log("no machine found");
+                };
+                match builder.build() {
+                    Ok(machine) => {
+                        scope.send_message(TuringMachineMsg::LoadFromMachine(machine));
+                        self.send_this_log("success");
+                    }
+                    Err(err) => {
+                        self.send_this_log(format!("failed on {err}"));
+                    }
                 }
             }
         }

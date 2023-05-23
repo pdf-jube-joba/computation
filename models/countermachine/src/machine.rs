@@ -23,7 +23,7 @@ impl Number {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct ProgramIndex(usize);
 impl ProgramIndex {
     fn next(&mut self) {
@@ -126,7 +126,19 @@ impl Component for CounterMachineView {
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let html1 =
         if let Some(machine) = &self.machine {
-            let code_html: yew::Html = (&machine.code.0).into_iter().map(|s| html!{s}).collect();
+            let code_html: yew::Html = (&machine.code.0).into_iter().enumerate().map(|(i, s)| {
+                let v = if machine.program_counter == ProgramIndex(i) {
+                    "selected"
+                } else {
+                    "not selected"
+                };
+                html!{
+                <>
+                    <div class={v}>
+                        {s}
+                    </div> <br/>
+                </>}
+            }).collect();
             html! {
                 <>
                     {"machine"}

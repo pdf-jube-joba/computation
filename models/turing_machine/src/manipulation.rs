@@ -207,7 +207,11 @@ where
 
     pub fn code_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
         let mut vec = Vec::new();
-        for entry in str.lines().map(CodeEntry::try_from) {
+        for entry in str.lines()
+        .flat_map(|line|{
+            if line.is_empty() {None} else {Some(line)}
+        })
+        .map(CodeEntry::try_from) {
             vec.push(entry?)
         }
         self.code = vec;

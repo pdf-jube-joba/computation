@@ -8,7 +8,7 @@ use yew::prelude::*;
 #[derive(Debug, Clone)]
 enum ExampleInputState {
     WaitInput,
-    Input(Option<(usize, usize)>),
+    Input(Option<(BinInt, BinInt)>),
 }
 
 impl ToString for ExampleInputState {
@@ -16,7 +16,7 @@ impl ToString for ExampleInputState {
         match self {
             ExampleInputState::WaitInput => "wait input".to_string(),
             ExampleInputState::Input(Some((u1, u2))) => {
-                format!("input: ({u1}, {u2})")
+                format!("input: ({}, {})", String::from(u1), String::from(u2))
             }
             ExampleInputState::Input(None) => {
                 "parse error".to_string()
@@ -103,8 +103,8 @@ impl Component for ExampleView {
             }
             ExampleMsg::SendBinAdderMachine => {
                 if let Some(scope) = &self.scope {
-                    let mut builder = bin_adder();
-                    let u = match self.now_input_state {
+                    let mut builder = bin_adder_str();
+                    let u = match &self.now_input_state {
                         ExampleInputState::Input(Some(num)) => num,
                         _ => {
                             return true;
@@ -112,7 +112,7 @@ impl Component for ExampleView {
                     };
                     builder.input(two_bin_to_str(u));
                     let callback = ctx.link().callback(|tape: TapeAsVec| {
-                        let i = BinInt::interpretation();
+                        let i = BinInt::interpretation_str();
                         ExampleMsg::Result(i.read()(tape))
                     });
                     scope.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()));

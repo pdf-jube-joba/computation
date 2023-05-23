@@ -1,82 +1,72 @@
 use crate::machine::*;
 use crate::manipulation::{Interpretation, TuringMachineBuilder};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BinInt(usize);
 
-fn one() -> Sign {
-    Sign::try_from("1").unwrap()
+impl BinInt {
+    fn zero() -> Sign {
+        Sign::try_from("0").unwrap()
+    }
+    fn one() -> Sign {
+        Sign::try_from("1").unwrap()
+    }
+    fn part() -> Sign {
+        Sign::try_from("-").unwrap()
+    }
 }
 
-fn zero() -> Sign {
-    Sign::try_from("0").unwrap()
+impl From<usize> for BinInt {
+    fn from(value: usize) -> Self {
+        BinInt(value)
+    }
 }
 
-pub fn str_to_bin(str: &str) -> Option<usize> {
-    str.trim().parse().ok()
+impl TryFrom<&str> for BinInt {
+    type Error = String;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.trim().parse::<usize>() {
+            Ok(i) => Ok(BinInt(i)),
+            Err(_) => Err("failed on parse bin".into())
+        }
+    }
 }
 
-pub fn str_to_two_bin(str: &str) -> Option<(usize, usize)> {
+impl From<&BinInt> for String {
+    fn from(value: &BinInt) -> Self {
+        value.0.to_string()
+    }
+}
+
+pub fn str_to_two_bin(str: &str) -> Option<(BinInt, BinInt)> {
     let mut parts = str.split(',');
-    let first = str_to_bin(parts.next()?.trim().trim_start_matches('('))?;
-    let second = str_to_bin(parts.next()?.trim().trim_end_matches(')'))?;
+    let first = BinInt::try_from(parts.next()?.trim().trim_start_matches('(')).ok()?;
+    let second = BinInt::try_from(parts.next()?.trim().trim_end_matches(')')).ok()?;
     Some((first, second))
 }
 
-fn vec_sign_to_usize(vec: Vec<Sign>) -> Result<usize, String> {
-    let vec: Vec<Option<bool>> = vec
-        .iter()
-        .map(|sign| match sign {
-            _ if *sign == Sign::blank() => Ok(None),
-            _ if *sign == one() => Ok(Some(true)),
-            _ if *sign == zero() => Ok(Some(false)),
+pub fn two_bin_to_str((u1, u2): &(BinInt, BinInt)) -> String {
+    format!("({},{})", String::from(u1), String::from(u2))
+}
+
+// 0 か 1 の並んだテープを受け取り、BinIntに変換する。
+// 他の文字が含まれていた場合は失敗する。
+fn vecsign_to_bin(vec: Vec<Sign>) -> Result<BinInt, String> {
+    let u = vec.iter()
+        .enumerate()
+        .map(|(i, sign)| match sign {
+            _ if *sign == BinInt::zero() => Ok(0),
+            _ if *sign == BinInt::one() => Ok(2^i),
             _ => Err("error sign".to_string()),
         })
-        .collect::<Result<_, _>>()?;
-
-    let first = vec
-        .iter()
-        .enumerate()
-        .find(|(_, o)| o.is_some())
-        .ok_or("not found sign".to_string())?
-        .0;
-
-    let last = vec
-        .iter()
-        .rev()
-        .enumerate()
-        .find(|(_, o)| o.is_some())
-        .ok_or("not found sign".to_string())?
-        .0;
-
-    let vec: Vec<bool> = (vec[first..=last])
-        .iter()
-        .rev()
-        .map(|s| s.ok_or("contains blank in center"))
-        .collect::<Result<_, _>>()?;
-
-    let sum = vec
-        .into_iter()
-        .enumerate()
-        .map(|(i, b)| if b { 0 } else { 2 ^ i })
-        .sum();
-
-    Ok(sum)
+        .collect::<Result<Vec<_>, _>>()?
+        .iter().sum::<usize>();
+    Ok(u.into())
 }
 
-// fn tape_to_bin(tape: TapeAsVec) -> Option<usize> {
-
-// }
-
-// ".. 1001 .." => "9"
-fn read(tape: TapeAsVec) -> Result<String, String> {
-    let u = vec_sign_to_usize(tape.right)?;
-    Ok(format!("{u}"))
-}
-
-fn usize_to_bin_vec(u: usize) -> Vec<Sign> {
+fn bin_to_vecsign(BinInt(u): BinInt) -> Vec<Sign> {
     if u == 0 {
-        return vec![zero()];
+        return vec![BinInt::zero()];
     }
     let mut bits = Vec::new();
     let mut n = u;
@@ -86,44 +76,63 @@ fn usize_to_bin_vec(u: usize) -> Vec<Sign> {
     }
     bits.reverse();
     bits.iter()
-        .map(|&b| if b { one() } else { zero() })
+        .map(|&b| if b { BinInt::one() } else { BinInt::zero() })
         .collect()
 }
 
-pub fn two_bin_to_str((u1, u2): (usize, usize)) -> String {
-    format!("({u1},{u2})")
+// fn tape_to_bin(tape: TapeAsVec) -> Option<usize> {
+
+// }
+
+// ".. 1001 .." => "9"
+fn read(tape: TapeAsVec) -> Result<String, String> {
+    let u = vecsign_to_bin(tape.right)?;
+    Ok(format!("{}", String::from(&u)))
 }
 
 // "(2, 3)" => "... 10 . 11 ..."
 fn write(str: String) -> Result<TapeAsVec, String> {
-    fn to_tape((u1, u2): (usize, usize)) -> TapeAsVec {
-        let mut right = usize_to_bin_vec(u1);
-        right.push(Sign::blank());
-        right.extend_from_slice(&usize_to_bin_vec(u2));
-
-        TapeAsVec {
-            left: Vec::new(),
-            head: Sign::blank(),
-            right,
-        }
-    }
-    Ok(to_tape(str_to_two_bin(&str).ok_or("".to_string())?))
+    let (u1, u2) = str_to_two_bin(&str).ok_or("err on str -> bin")?;
+    let mut right = bin_to_vecsign(u1);
+    right.push(BinInt::part());
+    right.extend_from_slice(&bin_to_vecsign(u2));
+    right.push(BinInt::part());
+    let tape = TapeAsVec {
+        left: Vec::new(),
+        head: BinInt::part(),
+        right,
+    };
+    Ok(tape)
 }
 
 impl BinInt {
-    pub fn interpretation() -> Interpretation<String, String> {
+    pub fn interpretation_str() -> Interpretation<String, String> {
         Interpretation::new(write, read)
+    }
+    pub fn interpretation() -> Interpretation<(BinInt, BinInt), BinInt> {
+        todo!()
     }
 }
 
-pub fn bin_adder() -> TuringMachineBuilder<String, String> {
+// fn bin_adder() -> TuringMachineBuilder<usize, usize> {
+
+
+// }
+
+pub fn bin_adder_str() -> TuringMachineBuilder<String, String> {
+    let mut builder = TuringMachineBuilder::new("bin_adder", BinInt::interpretation_str()).unwrap();
+    builder
+        .init_state(State::try_from("start").unwrap())
+        .code_from_str(include_str!("bin_adder.txt")).unwrap()
+        .accepted_state(vec![State::try_from("end").unwrap()]);
+    builder
+}
+
+fn bin_adder() -> TuringMachineBuilder<(BinInt, BinInt), BinInt> {
     let mut builder = TuringMachineBuilder::new("bin_adder", BinInt::interpretation()).unwrap();
     builder
         .init_state(State::try_from("start").unwrap())
-        .code_push_str("")
-        .unwrap()
-        .code_push_str("")
-        .unwrap()
+        .code_from_str(include_str!("bin_adder.txt")).unwrap()
         .accepted_state(vec![State::try_from("end").unwrap()]);
     builder
 }
@@ -133,31 +142,30 @@ mod tests {
     #[test]
     fn test_parse() {
         use super::{str_to_two_bin, two_bin_to_str};
-        assert_eq!(Some((1, 2)), str_to_two_bin("(1, 2)"));
-        assert_eq!(Some((10, 21)), str_to_two_bin("  ( 10  , 21 )"));
-        assert_eq!(Some((1, 2)), str_to_two_bin("1, 2"));
+        assert_eq!(Some((1.into(), 2.into())), str_to_two_bin("(1, 2)"));
+        assert_eq!(Some((10.into(), 21.into())), str_to_two_bin("  ( 10  , 21 )"));
+        assert_eq!(Some((1.into(), 2.into())), str_to_two_bin("1, 2"));
 
         assert_eq!(
-            two_bin_to_str(str_to_two_bin("(1, 2").unwrap()),
+            two_bin_to_str(&str_to_two_bin("(1, 2").unwrap()),
             "(1,2)".to_string()
         );
     }
     #[test]
     fn test_usize_vec_bool() {
-        use super::{one, usize_to_bin_vec, zero};
-
-        assert_eq!(vec![zero()], usize_to_bin_vec(0));
-        assert_eq!(vec![one()], usize_to_bin_vec(1));
-        assert_eq!(vec![one(), zero()], usize_to_bin_vec(2));
-        assert_eq!(vec![one(), one()], usize_to_bin_vec(3));
+        use super::{BinInt, bin_to_vecsign};
+        assert_eq!(vec![BinInt::zero()], bin_to_vecsign(0.into()));
+        assert_eq!(vec![BinInt::one()], bin_to_vecsign(1.into()));
+        assert_eq!(vec![BinInt::one(), BinInt::zero()], bin_to_vecsign(2.into()));
+        assert_eq!(vec![BinInt::one(), BinInt::one()], bin_to_vecsign(3.into()));
     }
     #[test]
     fn other() {
         use super::{bin_adder, two_bin_to_str};
         let mut builder = bin_adder();
-        let u = (10, 2);
-        let str = two_bin_to_str(u);
-        builder.input(str);
-        builder.build().unwrap();
+        let u = (10.into(), 2.into());
+        builder.input(u);
+        let mut machine = builder.build().unwrap();
+        machine.step(100);
     }
 }
