@@ -4,5 +4,6 @@ members = [
   "models/countermachine",
   "models/recursive_function",
   "integration/turing_machine",
+  "integration/book/rust_wasm",
   "compile/recursive_function_to_turing_machine",
 ]

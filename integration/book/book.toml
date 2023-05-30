@@ -1,0 +1,6 @@
+[book]
+authors = ["poijnhy"]
+language = "en"
+multilingual = false
+src = "src"
+title = "computations"
