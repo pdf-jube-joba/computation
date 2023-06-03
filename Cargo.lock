@@ -531,6 +531,10 @@ version = "0.1.0"
 [[package]]
 name = "rust_wasm"
 version = "0.1.0"
+dependencies = [
+ "gloo",
+ "yew",
+]
 
 [[package]]
 name = "rustversion"

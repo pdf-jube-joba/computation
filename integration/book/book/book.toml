@@ -4,3 +4,8 @@ language = "en"
 multilingual = false
 src = "src"
 title = "computations"
+
+[build]
+build-dir = "../out/book"
+
+[output.html]
