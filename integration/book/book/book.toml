@@ -6,4 +6,4 @@ src = "src"
 title = "computations"
 
 [build]
-build-dir = "../out/book/"
+build-dir = "../out/book"

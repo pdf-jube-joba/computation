@@ -1,3 +1,4 @@
 # 計算モデル
-計算モデルを集める。
-<link data-trunk rel="rust" href="../component"/>
+計算モデルを集めて議論する。
+
+<component id="other">
