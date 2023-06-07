@@ -7,3 +7,6 @@ title = "computations"
 
 [build]
 build-dir = "../out/book"
+
+[preproseccor.katex]
+output = "html"
