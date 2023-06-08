@@ -10,3 +10,5 @@ build-dir = "../out/book"
 
 [preprocessor.katex]
 after = ["links"]
+inline-delimiter = { left = "\\(", right = "\\)" }
+block-delimiter = { left = "\\[", right = "\\]" }
