@@ -1,5 +1,6 @@
 use crate::machine::*;
 // use crate::manipulation::TuringMachineBuilder;
+use std::fmt::Display;
 use gloo::timers::callback::Interval;
 use yew::prelude::*;
 
@@ -16,12 +17,12 @@ fn sign_box_view(SignBoxProps { sign }: &SignBoxProps) -> Html {
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
-struct TapeProps {
-    tape: TapeAsVec,
+pub struct TapeProps {
+    pub tape: TapeAsVec,
 }
 
 #[function_component(TapeView)]
-fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
+pub fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
     html! {
         <>
         {"tape"} <br/>
@@ -39,12 +40,12 @@ fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
-struct CodeProps {
-    code: Vec<CodeEntry>,
+pub struct CodeProps {
+    pub code: Vec<CodeEntry>,
 }
 
 #[function_component(CodeView)]
-fn code_view(CodeProps { code }: &CodeProps) -> Html {
+pub fn code_view(CodeProps { code }: &CodeProps) -> Html {
     html! {
         <>
         <table>
@@ -76,21 +77,61 @@ fn code_view(CodeProps { code }: &CodeProps) -> Html {
 }
 
 #[derive(Clone, PartialEq, Properties)]
-struct TuringMachineResultProps {
-    input: String,
-    result: Result<String, String>,
+pub struct TuringMachineResultProps<T1, T2, T3> where
+    T1: Clone + PartialEq + Properties + Display,
+    T2: Clone + PartialEq + Properties + Display,
+    T3: Clone + PartialEq + Properties + Display,
+{
+    pub input: T1,
+    pub result: Option<Result<T2, T3>>,
 }
 
 #[function_component(TuringMachineResultView)]
-fn running_turing_machine_vew(props: &TuringMachineResultProps) -> Html {
+fn running_turing_machine_vew<T1, T2, T3>(props: &TuringMachineResultProps<T1, T2, T3>) -> Html where
+    T1: Clone + PartialEq + Properties + Display,
+    T2: Clone + PartialEq + Properties + Display,
+    T3: Clone + PartialEq + Properties + Display,
+{
     let TuringMachineResultProps { input, result } = props;
     html! {
         <>
-           {"input"} {input.clone()}
-           { match result {
-             Ok(output) => html! {<> {"output"} {output} </>},
-             Err(err) => html! {<> {"error"} {err} </>}
-           }}
+           {"input"} {input}
+           {
+            match result {
+                None => html!{<> {"not yet"} </>},
+                Some(Ok(output)) => html! {<> {"output"} {output} </>},
+                Some(Err(err)) => html! {<> {"error"} {err} </>}
+            }
+            }
+        </>
+    }
+}
+
+#[derive(Clone, PartialEq, Properties)]
+pub struct ControlStepProps {
+    callback_step_usr: Callback<usize>,
+    callback_toggle_autostep: Callback<()>,
+    now_toggle_state: bool,
+}
+
+#[function_component(ControlStepView)]
+fn control_step(props: &ControlStepProps) -> Html {
+    let ControlStepProps {
+        callback_step_usr,
+        callback_toggle_autostep,
+        now_toggle_state,
+    } = props;
+    let callback_step_usr_1 = callback_step_usr.clone();
+    let callback_step_usr_2 = callback_step_usr.clone();
+    let callback_step_usr_3 = callback_step_usr.clone();
+    let callback_toggle_autostep = callback_toggle_autostep.clone();
+    html!{
+        <>
+            <button onclick={move |_| callback_step_usr_1.emit(1)}> {"step 1"} </button>
+            <button onclick={move |_| callback_step_usr_2.emit(10)}> {"step 10"} </button>
+            <button onclick={move |_| callback_step_usr_3.emit(100)}> {"step 100"} </button>
+            <button onclick={move |_| callback_toggle_autostep.emit(())}> {"auto step"} </button>
+            <> {if *now_toggle_state {"on"} else {"off"}} </>
         </>
     }
 }

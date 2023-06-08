@@ -46,6 +46,7 @@ name = "component"
 version = "0.1.0"
 dependencies = [
  "gloo",
+ "turing_machine",
  "yew",
 ]
 
