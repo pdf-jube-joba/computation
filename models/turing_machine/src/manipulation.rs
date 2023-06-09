@@ -43,6 +43,9 @@ pub fn standard_interpretation() -> Interpretation<TapeAsVec, TapeAsVec> {
     }
 }
 
+// この操作はどちらかというと、 interpretation というより、 parse に近い。
+// つまり、 String を parse して、 sign の列にしている。
+// TODO 変更する。
 pub fn string_split_interpretatio() -> Interpretation<String, String> {
     fn write_str(str: String) -> Result<TapeAsVec, String> {
         if str.contains(|c: char| c == ',' || c.is_ascii_control()) {
