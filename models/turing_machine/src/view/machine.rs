@@ -1,7 +1,8 @@
-use crate::machine::*;
+use crate::{machine::*, view::machine::_ControlStepProps::callback_step_usr};
 // use crate::manipulation::TuringMachineBuilder;
 use std::fmt::Display;
 use gloo::timers::callback::Interval;
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -108,31 +109,48 @@ fn running_turing_machine_vew<T1, T2, T3>(props: &TuringMachineResultProps<T1, T
 }
 
 #[derive(Clone, PartialEq, Properties)]
+pub struct ControlStepView {
+    now_input_step: Result<usize, ()>,
+}
+
+#[derive(Clone, PartialEq, Properties)]
 pub struct ControlStepProps {
     callback_step_usr: Callback<usize>,
     callback_toggle_autostep: Callback<()>,
     now_toggle_state: bool,
 }
 
-#[function_component(ControlStepView)]
-fn control_step(props: &ControlStepProps) -> Html {
-    let ControlStepProps {
-        callback_step_usr,
-        callback_toggle_autostep,
-        now_toggle_state,
-    } = props;
-    let callback_step_usr_1 = callback_step_usr.clone();
-    let callback_step_usr_2 = callback_step_usr.clone();
-    let callback_step_usr_3 = callback_step_usr.clone();
-    let callback_toggle_autostep = callback_toggle_autostep.clone();
-    html!{
-        <>
-            <button onclick={move |_| callback_step_usr_1.emit(1)}> {"step 1"} </button>
-            <button onclick={move |_| callback_step_usr_2.emit(10)}> {"step 10"} </button>
-            <button onclick={move |_| callback_step_usr_3.emit(100)}> {"step 100"} </button>
-            <button onclick={move |_| callback_toggle_autostep.emit(())}> {"auto step"} </button>
-            <> {if *now_toggle_state {"on"} else {"off"}} </>
-        </>
+pub enum ControlStepMsg {
+    ChangeStep(String),
+}
+
+impl Component for ControlStepView {
+    type Message = ControlStepMsg;
+    type Properties = ControlStepProps;
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self { now_input_step: Ok(0) }
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let props = ctx.props().clone();
+        let onchange_input = ctx.link().callback(|e: Event| {
+            let value: HtmlInputElement = e.target_unchecked_into();
+            let str = value.value();
+            ControlStepMsg::ChangeStep(str)
+        });
+        let onclick_input = {
+            let step_number = if let Ok(u) = self.now_input_step {u} else {0};
+            move |_| props.callback_step_usr.clone().emit(step_number)
+        };
+        let onclick_toggle = props.callback_toggle_autostep.clone();
+        let now_parse_result = if let Ok(u) = self.now_input_step.clone() {html!{u}} else {html!{"parse error"}};
+        html! {
+            <>
+                <input onchange={onchange_input}/> {now_parse_result}
+                <button onclick={onclick_input}> {"step"} </button>
+                <button onclick={move |_| onclick_toggle.emit(())}> {"toggle auto step"} </button>
+                <> {if props.now_toggle_state {"on"} else {"off"}} </>
+            </>
+        }
     }
 }
 
@@ -172,7 +190,6 @@ impl Component for TuringMachineView {
     fn create(ctx: &Context<Self>) -> Self {
         let callback = ctx.link().callback(|_| TuringMachineMsg::Tick);
         let interval = Interval::new(1000, move || callback.emit(()));
-
         Self {
             machine: None,
             callback_on_log: None,
@@ -182,39 +199,34 @@ impl Component for TuringMachineView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let controls_html: Html = html! {
-            <>
-                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(1)) }> {"step"} </button>
-                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(10)) }> {"step 10"} </button>
-                <button onclick={ctx.link().callback(|_| TuringMachineMsg::Step(100)) }> {"step 100"} </button>
-                <button onclick={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}> {"toggle active"} </button>
-            </>
-        };
-        let machine_html: Html = match &self.machine {
-            Some(machine) => html! {
-                <>
-                <div class="box">
-                    <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
-                    <TapeView tape={machine.now_tape().clone()}/>
-                </div>
-                <div class="box">
-                    <CodeView code={machine.code_as_vec().clone()}/>
-                </div>
-                </>
-            },
-            None => html! {
-                <>
-                    {"no machine found"}
-                </>
-            },
-        };
-        html! {
-            <div class="machine">
+        html! { <div class="machine">
             {"machine"} <br/>
-            {controls_html}
-            {machine_html}
-            </div>
-        }
+            <ControlStepView
+                callback_step_usr={ctx.link().callback(TuringMachineMsg::Step)}
+                callback_toggle_autostep={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}
+                now_toggle_state={self.tick_active}
+            /> <br/>
+            {
+                match &self.machine {
+                    Some(machine) => html! {
+                        <>
+                        <div class="box">
+                            <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
+                            <TapeView tape={machine.now_tape().clone()}/>
+                        </div>
+                        <div class="box">
+                            <CodeView code={machine.code_as_vec().clone()}/>
+                        </div>
+                        </>
+                    },
+                    None => html! {
+                        <>
+                            {"no machine found"}
+                        </>
+                    },
+                }
+            }
+        </div> }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
