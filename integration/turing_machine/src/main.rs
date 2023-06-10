@@ -1,9 +1,9 @@
 use turing_machine::view::{
     machine::{TuringMachineView, TuringMachineMsg},
     control::{ControlView, ControlMsg},
-    example::{ExampleView, ExampleMsg}
+    // example::{ExampleView, ExampleMsg}
 };
-use turing_machine::example;
+// use turing_machine::example;
 
 fn main() {
     let document = gloo::utils::document();
@@ -17,8 +17,8 @@ fn main() {
     // let builder = example::bin_adder();
     // machine_handle.send_message(TuringMachineMsg::LoadFromMachine(builder.build().unwrap()));
 
-    let example_element = document.query_selector("#example").unwrap().unwrap();
-    let example_handle = yew::Renderer::<ExampleView>::with_root(example_element).render();
-    example_handle.send_message(ExampleMsg::SetTargetMachineView(machine_handle.clone()));
+    // let example_element = document.query_selector("#example").unwrap().unwrap();
+    // let example_handle = yew::Renderer::<ExampleView>::with_root(example_element).render();
+    // example_handle.send_message(ExampleMsg::SetTargetMachineView(machine_handle.clone()));
 
 }

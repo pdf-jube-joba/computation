@@ -1,126 +1,123 @@
 use crate::machine::*;
 use std::collections::HashSet;
 
-#[derive(Clone)]
-pub struct Interpretation<Input, Output>
-where
-    Input: Clone,
-    Output: Clone,
-{
-    write: fn(Input) -> Result<TapeAsVec, String>,
-    read: fn(TapeAsVec) -> Result<Output, String>,
-}
+pub mod tape {
+    use crate::machine::*;
 
-impl<Input, Output> Interpretation<Input, Output>
-where
-    Input: Clone,
-    Output: Clone,
-{
-    pub fn new(
-        write: fn(Input) -> Result<TapeAsVec, String>,
-        read: fn(TapeAsVec) -> Result<Output, String>,
-    ) -> Interpretation<Input, Output> {
-        Interpretation { write, read }
+    // tape の書き込み、読み込みを行うための構造体
+    // 入力と出力それぞれの型と読み書きを行うために使う関数を格納することで
+    // "テープに対する解釈"をひとまとめに扱う。
+    // マシンの不可解な合成を行うことを型レベルで防ぐなどを期待する。
+    #[derive(Clone)]
+    pub struct Interpretation<Input, Output>
+    where
+        Input: Clone,
+        Output: Clone,
+    {
+        pub write: fn(Input) -> Result<TapeAsVec, String>,
+        pub read: fn(TapeAsVec) -> Result<Output, String>,
     }
-    pub fn write(&self) -> fn(Input) -> Result<TapeAsVec, String> {
-        self.write
-    }
-    pub fn read(&self) -> fn(TapeAsVec) -> Result<Output, String> {
-        self.read
-    }
-}
 
-pub fn standard_interpretation() -> Interpretation<TapeAsVec, TapeAsVec> {
-    fn write_std(tape: TapeAsVec) -> Result<TapeAsVec, String> {
-        Ok(tape)
-    }
-    fn read_std(tape: TapeAsVec) -> Result<TapeAsVec, String> {
-        Ok(tape)
-    }
-    Interpretation {
-        write: write_std,
-        read: read_std,
-    }
-}
-
-// この操作はどちらかというと、 interpretation というより、 parse に近い。
-// つまり、 String を parse して、 sign の列にしている。
-// TODO 変更する。
-pub fn string_split_interpretatio() -> Interpretation<String, String> {
-    fn write_str(str: String) -> Result<TapeAsVec, String> {
-        if str.contains(|c: char| c == ',' || c.is_ascii_control()) {
-            return Err("contains ill char".to_string());
+    impl<Input, Output> Interpretation<Input, Output>
+    where
+        Input: Clone,
+        Output: Clone,
+    {
+        pub fn new(
+            write: fn(Input) -> Result<TapeAsVec, String>,
+            read: fn(TapeAsVec) -> Result<Output, String>,
+        ) -> Interpretation<Input, Output> {
+            Interpretation { write, read }
         }
-        let mut a = str.split('|');
-        let left: Vec<Sign> = a
-            .next()
-            .ok_or("empty?".to_string())?
+        pub fn write(&self) -> fn(Input) -> Result<TapeAsVec, String> {
+            self.write
+        }
+        pub fn read(&self) -> fn(TapeAsVec) -> Result<Output, String> {
+            self.read
+        }
+    }
+
+    // tape それ自身を入力と出力と解釈するための Interpretation
+    pub fn standard_interpretation() -> Interpretation<TapeAsVec, TapeAsVec> {
+        fn write_std(tape: TapeAsVec) -> Result<TapeAsVec, String> {
+            Ok(tape)
+        }
+        fn read_std(tape: TapeAsVec) -> Result<TapeAsVec, String> {
+            Ok(tape)
+        }
+        Interpretation {
+            write: write_std,
+            read: read_std,
+        }
+    }
+
+    // left head right に対応する文字列をもとに tape を作る。
+    pub fn parse_tape(left: &str, head: &str, right: &str) -> Result<TapeAsVec, String> {
+        let left = left
             .split_whitespace()
             .map(Sign::try_from)
             .collect::<Result<_, _>>()?;
-        let head: Sign = {
-            let h = a.next().ok_or("head epmty".to_string())?.trim();
-            if h.is_empty() || h.contains(|s: char| s.is_whitespace()) {
-                return Err("head contains empty in center".to_string());
-            }
-            Sign::try_from(h).unwrap()
-        };
-        let right: Vec<Sign> = a
-            .next()
-            .ok_or("empty?".to_string())?
+        let head = Sign::try_from(head)?;
+        let right = right
             .split_whitespace()
             .map(Sign::try_from)
             .collect::<Result<_, _>>()?;
-
         Ok(TapeAsVec { left, head, right })
     }
-    fn read_str(tape: TapeAsVec) -> Result<String, String> {
-        Ok(format!("{tape:?}"))
-    }
 
-    Interpretation {
-        write: write_str,
-        read: read_str,
-    }
-}
-
-pub fn string_line_interpretation() -> Interpretation<String, String> {
-    fn write_str_by_line(str: String) -> Result<TapeAsVec, String> {
-        if str.contains(',') {
-            return Err("contains ill char".to_string());
+    pub fn string_split_by_bar_interpretation() -> Interpretation<String, String> {
+        fn write(str: String) -> Result<TapeAsVec, String> {
+            let mut a = str.split('|').collect::<Vec<&str>>();
+            if a.len() != 3 { return Err("length mismatch".to_string()); }
+            parse_tape(a[0], a[1], a[2])
         }
-        let mut lines = str.lines();
-        let left: Vec<Sign> = lines
-            .next()
-            .ok_or("empty?".to_string())?
-            .split_whitespace()
-            .map(Sign::try_from)
-            .collect::<Result<Vec<Sign>, String>>()?;
+        fn read(tape: TapeAsVec) -> Result<String, String> {
+            Ok(format!("{tape:?}"))
+        }
 
-        let head = {
-            let h = lines.next().ok_or("head epmty".to_string())?.trim();
-            if h.is_empty() || h.contains(|s: char| s.is_whitespace()) {
-                return Err("head contains empty in center".to_string());
-            }
-            Sign::try_from(h).unwrap()
-        };
-        let right: Vec<Sign> = lines
-            .next()
-            .ok_or("empty?".to_string())?
-            .split_whitespace()
-            .map(Sign::try_from)
-            .collect::<Result<Vec<Sign>, String>>()?;
-        Ok(TapeAsVec { left, head, right })
-    }
-    fn read_str(tape: TapeAsVec) -> Result<String, String> {
-        Ok(format!("{tape:?}"))
+        Interpretation {
+            write,
+            read,
+        }
     }
 
-    Interpretation {
-        write: write_str_by_line,
-        read: read_str,
+    pub fn string_split_by_line_interpretation() -> Interpretation<String, String> {
+        fn write(str: String) -> Result<TapeAsVec, String> {
+            let mut a = str.lines().collect::<Vec<&str>>();
+            if a.len() != 3 { return Err("length mismatch".to_string()); }
+            parse_tape(a[0], a[1], a[2])
+        }
+        fn read(tape: TapeAsVec) -> Result<String, String> {
+            Ok(format!("{tape:?}"))
+        }
+
+        Interpretation {
+            write,
+            read,
+        }
     }
 }
+
+// コードを書くのは解釈と合わせて使われるべきだがパースを行う部分だけは別とする。
+pub mod code {
+    use crate::machine::CodeEntry;
+
+    // 空の行、 "," を含む行はコメントとみなす。
+    pub fn parse_code(code: &str) -> Result<Vec<CodeEntry>, String> {
+        let mut vec = Vec::new();
+        for entry in code.lines()
+        .flat_map(|line|{
+            if line.is_empty() || !line.contains(",") {None} else {Some(line)}
+        })
+        .map(CodeEntry::try_from) {
+            vec.push(entry?)
+        }
+        Ok(vec)
+    }
+
+}
+
+use tape::*;
 
 pub struct TuringMachineBuilder<Input, Output>
 where
@@ -208,27 +205,19 @@ where
         self
     }
 
-    pub fn code_from_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        let mut vec = Vec::new();
-        for entry in str.lines()
-        .flat_map(|line|{
-            if line.is_empty() {None} else {Some(line)}
-        })
-        .map(CodeEntry::try_from) {
-            vec.push(entry?)
-        }
+    pub fn code_new(&mut self, vec: Vec<CodeEntry>) -> &mut Self {
         self.code = vec;
-        Ok(self)
+        self
     }
 
-    pub fn code_push_str(&mut self, str: &str) -> Result<&mut Self, String> {
-        let entry = CodeEntry::try_from(str)?;
+    pub fn code_push(&mut self, entry: CodeEntry) -> &mut Self {
         self.code.push(entry);
-        Ok(self)
+        self
     }
 
-    pub fn code_refresh(&mut self) {
+    pub fn code_refresh(&mut self) -> &mut Self {
         self.code = Vec::new();
+        self
     }
 }
 

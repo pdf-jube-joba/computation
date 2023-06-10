@@ -154,6 +154,20 @@ impl Component for ControlStepView {
     }
 }
 
+#[derive(Clone, PartialEq, Properties)]
+pub struct MachineWithoutCodeProp {
+    callback_step_usr: Callback<usize>,
+    callback_toggle_autostep: Callback<()>,
+    now_toggle_state: bool,
+    machine: TuringMachineSet,
+}
+
+#[function_component(MachineWithoutCodeView)]
+pub fn machine_without_codeview(props: &MachineWithoutCodeProp) -> Html {
+    let MachineWithoutCodeProp { callback_step_usr: _, callback_toggle_autostep, now_toggle_state, machine } = props;
+    html! {}
+}
+
 pub struct TuringMachineView {
     machine: Option<TuringMachineSet>,
     callback_on_log: Option<Callback<String>>,
@@ -199,34 +213,29 @@ impl Component for TuringMachineView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        html! { <div class="machine">
-            {"machine"} <br/>
-            <ControlStepView
-                callback_step_usr={ctx.link().callback(TuringMachineMsg::Step)}
-                callback_toggle_autostep={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}
-                now_toggle_state={self.tick_active}
-            /> <br/>
-            {
-                match &self.machine {
-                    Some(machine) => html! {
-                        <>
-                        <div class="box">
-                            <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
-                            <TapeView tape={machine.now_tape().clone()}/>
-                        </div>
-                        <div class="box">
-                            <CodeView code={machine.code_as_vec().clone()}/>
-                        </div>
-                        </>
-                    },
-                    None => html! {
-                        <>
-                            {"no machine found"}
-                        </>
-                    },
-                }
+        match &self.machine {
+            None => html! {
+                <> {"no machine found"} </>
+            },
+            Some(machine) => html! {
+                <div class="machine">
+                    {"machine"} <br/>
+                    <div class="box">
+                    <ControlStepView
+                        callback_step_usr={ctx.link().callback(TuringMachineMsg::Step)}
+                        callback_toggle_autostep={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}
+                        now_toggle_state={self.tick_active}
+                    /> </div>
+                    <div class="box">
+                        <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
+                        <TapeView tape={machine.now_tape().clone()}/>
+                    </div>
+                    <div class="box">
+                        <CodeView code={machine.code_as_vec().clone()}/>
+                    </div>
+                </div>
             }
-        </div> }
+        }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {

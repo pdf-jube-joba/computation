@@ -41,6 +41,8 @@ impl Display for Sign {
     }
 }
 
+// 「両端以外に空白を含むか、 "," を含む文字列」以外は記号として扱う。
+// ただし、両端の空白は無視するものとする。
 impl TryFrom<&str> for Sign {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {

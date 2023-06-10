@@ -4,7 +4,7 @@ use yew::prelude::*;
 use yew::Properties;
 
 use crate::machine::State;
-use crate::manipulation::string_line_interpretation;
+use crate::manipulation::tape::string_split_by_line_interpretation;
 
 use super::machine::*;
 use crate::manipulation::TuringMachineBuilder;
