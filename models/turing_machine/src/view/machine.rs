@@ -1,4 +1,4 @@
-use crate::{machine::*, view::machine::_ControlStepProps::callback_step_usr};
+use crate::{machine::*};
 // use crate::manipulation::TuringMachineBuilder;
 use std::fmt::Display;
 use gloo::timers::callback::Interval;
@@ -14,6 +14,18 @@ struct SignBoxProps {
 fn sign_box_view(SignBoxProps { sign }: &SignBoxProps) -> Html {
     html!{
         <div class={classes!("sign-box")}> {sign} </div>
+    }
+}
+
+#[derive(Clone, PartialEq, Properties)]
+struct StateProps {
+    state: State,
+}
+
+#[function_component(StateView)]
+pub fn state_view(StateProps { state }: &StateProps) -> Html {
+    html!{
+        <> {state} </>
     }
 }
 
@@ -109,6 +121,31 @@ fn running_turing_machine_vew<T1, T2, T3>(props: &TuringMachineResultProps<T1, T
 }
 
 #[derive(Clone, PartialEq, Properties)]
+pub struct NextStepProps {
+    next: Result<CodeEntry, ()>,
+}
+
+#[function_component(NextStepView)]
+pub fn next_view_props(NextStepProps { next } : &NextStepProps) -> Html {
+    html!{
+        <> {
+            match next {
+                Ok(entry) => html!{
+                    <table><tbody><tr>
+                        <td> {entry.key_sign()} </td>
+                        <td> {entry.key_state()} </td>
+                        <td> {entry.value_sign()} </td>
+                        <td> {entry.value_state()} </td>
+                        <td> {format!("{:?}", entry.value_direction())} </td>
+                    </tr></tbody></table>
+                },
+                Err(_) => html!{"none"}
+            }
+        }</>
+    }
+}
+
+#[derive(Clone, PartialEq, Properties)]
 pub struct ControlStepView {
     now_input_step: Result<usize, ()>,
 }
@@ -155,17 +192,27 @@ impl Component for ControlStepView {
 }
 
 #[derive(Clone, PartialEq, Properties)]
-pub struct MachineWithoutCodeProp {
+pub struct MachineProp {
     callback_step_usr: Callback<usize>,
     callback_toggle_autostep: Callback<()>,
     now_toggle_state: bool,
     machine: TuringMachineSet,
+    code_visible: bool,
 }
 
-#[function_component(MachineWithoutCodeView)]
-pub fn machine_without_codeview(props: &MachineWithoutCodeProp) -> Html {
-    let MachineWithoutCodeProp { callback_step_usr: _, callback_toggle_autostep, now_toggle_state, machine } = props;
-    html! {}
+#[function_component(MachineView)]
+pub fn machine_without_codeview(props: &MachineProp) -> Html {
+    let MachineProp { callback_step_usr, callback_toggle_autostep, now_toggle_state, machine, code_visible } = props;
+    html! {
+        <>
+            <ControlStepView callback_step_usr={callback_step_usr} callback_toggle_autostep={callback_toggle_autostep} now_toggle_state={now_toggle_state}/>
+            <StateView state={*machine.now_state()} />
+            <TapeView tape={machine.now_tape()} />
+            {
+                if *code_visible {html!{ <CodeView code={machine.code_as_vec()} /> }} else {html!{}}
+            }
+        </>
+    }
 }
 
 pub struct TuringMachineView {

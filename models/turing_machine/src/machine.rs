@@ -411,6 +411,12 @@ impl TuringMachineSet {
                 !hash.contains_key(&key)
             }
     }
+    pub fn next_step(&self) -> Result<CodeEntry, ()> {
+        if self.is_terminate() { return Err(()); }
+        let key = self.now_key();
+        let value = self.machine_code.code.code().get(&key).unwrap().clone();
+        Ok(CodeEntry(key, value))
+    }
     fn one_step(&mut self) {
         if !self.is_terminate() {
             let hash = self.machine_code.code.code();
