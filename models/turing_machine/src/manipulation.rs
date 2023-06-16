@@ -67,7 +67,7 @@ pub mod tape {
 
     pub fn string_split_by_bar_interpretation() -> Interpretation<String, String> {
         fn write(str: String) -> Result<TapeAsVec, String> {
-            let mut a = str.split('|').collect::<Vec<&str>>();
+            let a = str.split('|').collect::<Vec<&str>>();
             if a.len() != 3 { return Err("length mismatch".to_string()); }
             parse_tape(a[0], a[1], a[2])
         }
@@ -83,7 +83,7 @@ pub mod tape {
 
     pub fn string_split_by_line_interpretation() -> Interpretation<String, String> {
         fn write(str: String) -> Result<TapeAsVec, String> {
-            let mut a = str.lines().collect::<Vec<&str>>();
+            let a = str.lines().collect::<Vec<&str>>();
             if a.len() != 3 { return Err("length mismatch".to_string()); }
             parse_tape(a[0], a[1], a[2])
         }
@@ -220,30 +220,6 @@ where
         self
     }
 }
-
-// impl<In, Out> TuringMachineBuilder<In, Out> where
-//     In: Clone + TryFrom<String, Error =  String> + Into<String> + 'static,
-//     Out: Clone + Into<String> + 'static,
-// {
-//     pub fn stringfy(self) -> TuringMachineBuilder<String, String> {
-//         let TuringMachineBuilder { name, init_state, accepted_state, code, interpretation: _, input } = self;
-//         // let new_interpretation = Stringfy {
-//         //     content: interpretation,
-//         // };
-//         let input = match input {
-//             Some(input) => Some(input.into()),
-//             None => None,
-//         };
-//         TuringMachineBuilder {
-//             name,
-//             init_state,
-//             accepted_state,
-//             code,
-//             interpretation: todo!(),
-//             input,
-//         }
-//     }
-// }
 
 pub fn compose_builder<In, Mid, Out>(
     first: TuringMachineBuilder<In, Mid>,

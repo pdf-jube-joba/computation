@@ -4,6 +4,7 @@ use yew::prelude::*;
 use yew::Properties;
 
 use crate::machine::State;
+use crate::manipulation;
 use crate::manipulation::tape::string_split_by_line_interpretation;
 
 use super::machine::*;
@@ -128,8 +129,9 @@ impl Component for ControlView {
                     tape: &str
                 ) -> Result<TuringMachineBuilder<String, String>, String> {
                     let mut builder =
-                    TuringMachineBuilder::new("user", string_line_interpretation())
+                    TuringMachineBuilder::new("user", string_split_by_line_interpretation())
                             .unwrap();
+                    let code = manipulation::code::parse_code(code)?;
                     builder
                         .init_state(State::try_from(init_state.as_ref())?)
                         .accepted_state({
@@ -139,7 +141,7 @@ impl Component for ControlView {
                                 .collect::<Result<_, _>>()?;
                             vec
                         })
-                        .code_from_str(code)?;
+                        .code_new(code);
                     builder.input(tape.to_string());
                     Ok::<TuringMachineBuilder<_, _>, String>(builder)
                 }

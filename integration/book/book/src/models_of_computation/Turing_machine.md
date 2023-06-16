@@ -16,6 +16,7 @@
 
 例えば、次の例はテープに書かれた二つの二進数の足し算を行う。
 
+<component id="example_bin_adder">
 
 ## 定義
 空白記号（ blank symbol ）と呼ばれるものを固定し、 \(\mathbb{B}\) と書く。

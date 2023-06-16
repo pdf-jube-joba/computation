@@ -13,12 +13,12 @@ struct SignBoxProps {
 #[function_component(SignBox)]
 fn sign_box_view(SignBoxProps { sign }: &SignBoxProps) -> Html {
     html!{
-        <div class={classes!("sign-box")}> {sign} </div>
+        <span class={classes!("sign-box")}> {sign} </span>
     }
 }
 
 #[derive(Clone, PartialEq, Properties)]
-struct StateProps {
+pub struct StateProps {
     state: State,
 }
 
@@ -193,11 +193,11 @@ impl Component for ControlStepView {
 
 #[derive(Clone, PartialEq, Properties)]
 pub struct MachineProp {
-    callback_step_usr: Callback<usize>,
-    callback_toggle_autostep: Callback<()>,
-    now_toggle_state: bool,
-    machine: TuringMachineSet,
-    code_visible: bool,
+    pub callback_step_usr: Callback<usize>,
+    pub callback_toggle_autostep: Callback<()>,
+    pub now_toggle_state: bool,
+    pub machine: TuringMachineSet,
+    pub code_visible: bool,
 }
 
 #[function_component(MachineView)]
@@ -206,7 +206,7 @@ pub fn machine_without_codeview(props: &MachineProp) -> Html {
     html! {
         <>
             <ControlStepView callback_step_usr={callback_step_usr} callback_toggle_autostep={callback_toggle_autostep} now_toggle_state={now_toggle_state}/>
-            <StateView state={*machine.now_state()} />
+            <StateView state={machine.now_state().clone()} />
             <TapeView tape={machine.now_tape()} />
             {
                 if *code_visible {html!{ <CodeView code={machine.code_as_vec()} /> }} else {html!{}}
