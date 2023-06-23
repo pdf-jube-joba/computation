@@ -139,11 +139,11 @@ impl From<TapeAsVec> for String {
                 .collect::<String>()
         };
         format!(
-                "l: {} \nh: {}\n r: {}",
-                f(value.left),
-                value.head,
-                f(value.right)
-            )
+            "l: {} \nh: {}\n r: {}",
+            f(value.left),
+            value.head,
+            f(value.right)
+        )
     }
 }
 
@@ -412,7 +412,9 @@ impl TuringMachineSet {
             }
     }
     pub fn next_step(&self) -> Result<CodeEntry, ()> {
-        if self.is_terminate() { return Err(()); }
+        if self.is_terminate() {
+            return Err(());
+        }
         let key = self.now_key();
         let value = self.machine_code.code.code().get(&key).unwrap().clone();
         Ok(CodeEntry(key, value))
