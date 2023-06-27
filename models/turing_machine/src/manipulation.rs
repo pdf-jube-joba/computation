@@ -237,13 +237,52 @@ pub mod graph_compose {
         assign_edge_to_state: HashMap<(usize, usize), State>,
     }
 
-    pub fn naive_composition(graph: GraphOfMachine) -> TuringMachine {
+    pub fn unchecked_composition(graph: GraphOfMachine) -> TuringMachine {
         let GraphOfMachine {
             edge,
             assign_vertex_to_machine,
             assign_edge_to_state,
         } = graph;
-        let first_state = assign_vertex_to_machine[0].0;
+        let init_state: State = assign_vertex_to_machine[0].init_state().clone();
+        let remove_state: HashSet<State> =
+            assign_edge_to_state.values().into_iter().cloned().collect();
+        let accepted_state: Vec<State> = assign_vertex_to_machine
+            .iter()
+            .enumerate()
+            .flat_map(|(index, machine)| {
+                machine
+                    .accepted_state()
+                    .iter()
+                    .filter(|state| !remove_state.contains(*state))
+            })
+            .cloned()
+            .collect();
+        let mut code: Vec<CodeEntry> = assign_vertex_to_machine
+            .iter()
+            .flat_map(|machine| machine.code())
+            .cloned()
+            .collect();
+        let connect_code: Vec<CodeEntry> = assign_edge_to_state
+            .into_iter()
+            .flat_map(|((start, end), state)| {
+                let connect_start_state = state;
+                let connect_end_state = assign_vertex_to_machine[end].init_state().clone();
+                assign_vertex_to_machine[start].signs().iter().map(|sign| {
+                    CodeEntry::from_tuple(
+                        sign.clone(),
+                        connect_start_state,
+                        sign.clone(),
+                        connect_end_state,
+                        Direction::Constant,
+                    )
+                })
+            })
+            .collect();
+        TuringMachine {
+            init_state,
+            accepted_state,
+            code,
+        }
     }
 }
 

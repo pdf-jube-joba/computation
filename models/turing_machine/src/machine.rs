@@ -1,3 +1,4 @@
+use std::collections::hash_map::Keys;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use yew::Properties;
@@ -322,10 +323,10 @@ impl TryFrom<&str> for Code {
 // Q:有限集合...マシンの状態
 // q_init:Q...マシンの初期状態
 // F:subset of Q...マシンの受理状態全体
-// δ:(Q,Σ) -> (Q,Σ,{E,R,C})...マシンの遷移関数
+// δ:(Q,Σ\F) -> (Q,Σ,{E,R,C})...マシンの遷移関数
 // ただし、実装上は次のように固定してしまう
 // ΣやQはある無限集合（可能なマシンの用いうる記号や状態の集合）Sign, State の部分集合を（暗黙的に）指しているものとし、
-// δを（有限な）HashMap<(Sign, State), (Sign, State, {L,R,C})> により実装することで、
+// δを（有限な）Vec<(Sign, State), (Sign, State, {L,R,C})> により実装することで、
 // このHashMapに存在するSignやStateが「実は考えていたQやΣである」とする。
 // また、マシンの停止は以下の二つの可能性があるものとする。
 // - マシンの状態が accepted_state に含まれる。
@@ -333,8 +334,8 @@ impl TryFrom<&str> for Code {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachine {
     init_state: State,
-    accepted_state: HashSet<State>,
-    code: Code,
+    accepted_state: Vec<State>,
+    code: Vec<CodeEntry>,
 }
 
 impl TuringMachine {
@@ -342,17 +343,45 @@ impl TuringMachine {
         init_state: State,
         accepted_state: impl IntoIterator<Item = State>,
         code: impl IntoIterator<Item = CodeEntry>,
-    ) -> Self {
-        TuringMachine {
+    ) -> Result<Self, ()> {
+        let accepted_state: Vec<State> = accepted_state.into_iter().collect();
+        let code: Vec<CodeEntry> = code
+            .into_iter()
+            .map(|entry @ CodeEntry(CodeKey(_, state), value)| {
+                if accepted_state.contains(&state) {
+                    Err(())
+                } else {
+                    Ok(entry)
+                }
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(TuringMachine {
             init_state,
-            accepted_state: accepted_state.into_iter().collect(),
-            code: Code::from_iter_entry(code.into_iter()),
-        }
+            accepted_state,
+            code,
+        })
+    }
+    pub fn init_state(&self) -> &State {
+        &self.init_state
+    }
+    pub fn accepted_state(&self) -> &Vec<State> {
+        &self.accepted_state
+    }
+    pub fn code(&self) -> &Vec<CodeEntry> {
+        &self.code
+    }
+    // return possible sign
+    pub fn signs(&self) -> Vec<Sign> {
+        self.code
+            .iter()
+            .flat_map(|CodeEntry(CodeKey(sign1, _), CodeValue(sign2, _, _))| {
+                vec![sign1.clone(), sign2.clone()]
+            })
+            .collect()
     }
 }
 
 // TuringMachine の計算過程を表す。
-//
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachineState {
     state: State,
@@ -367,23 +396,28 @@ impl TuringMachineState {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachineSet {
-    machine_code: TuringMachine,
+    machine_code: Code,
+    accepted_state: HashSet<State>,
     machine_state: TuringMachineState,
+    made_by: TuringMachine,
 }
 
 impl TuringMachineSet {
-    pub fn new(
-        init_state: State,
-        accepted_state: impl IntoIterator<Item = State>,
-        code: impl IntoIterator<Item = CodeEntry>,
-        tape: TapeAsVec,
-    ) -> Self {
-        let machine_code = TuringMachine::new(init_state.clone(), accepted_state.into_iter(), code);
+    pub fn new(machine: TuringMachine, tape: TapeAsVec) -> Self {
+        let TuringMachine {
+            init_state,
+            accepted_state,
+            code,
+        } = machine;
+        let machine_code = Code::from_iter_entry(code);
+        let accepted_state = HashSet::from_iter(accepted_state);
         let machine_state =
             TuringMachineState::new(init_state, Tape::new(tape.left, tape.head, tape.right));
         TuringMachineSet {
             machine_code,
+            accepted_state,
             machine_state,
+            made_by: machine,
         }
     }
     fn now_key(&self) -> CodeKey {
@@ -398,30 +432,24 @@ impl TuringMachineSet {
     pub fn now_tape(&self) -> TapeAsVec {
         self.machine_state.tape.show()
     }
-    pub fn code_as_vec(&self) -> Vec<CodeEntry> {
-        self.machine_code.code.code_as_vec()
+    pub fn code_as_vec(&self) -> &Vec<CodeEntry> {
+        &self.made_by.code
     }
     pub fn is_terminate(&self) -> bool {
-        self.machine_code
-            .accepted_state
-            .contains(&self.machine_state.state)
-            || {
-                let hash = &self.machine_code.code.code();
-                let key = self.now_key();
-                !hash.contains_key(&key)
-            }
+        self.accepted_state.contains(&self.machine_state.state)
+            || !self.machine_code.code().contains_key(&self.now_key())
     }
     pub fn next_step(&self) -> Result<CodeEntry, ()> {
         if self.is_terminate() {
             return Err(());
         }
         let key = self.now_key();
-        let value = self.machine_code.code.code().get(&key).unwrap().clone();
+        let value = self.machine_code.code().get(&key).unwrap().clone();
         Ok(CodeEntry(key, value))
     }
     fn one_step(&mut self) {
         if !self.is_terminate() {
-            let hash = self.machine_code.code.code();
+            let hash = self.machine_code.code();
             let key = self.now_key();
             let CodeValue(sign, state, direction) = hash.get(&key).unwrap();
             self.machine_state.tape.head_write(sign);
@@ -449,7 +477,7 @@ impl TuringMachineSet {
 impl Display for TuringMachineSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "code:")?;
-        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in self.machine_code.code.hash.iter() {
+        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in self.machine_code.hash.iter() {
             writeln!(f, "{k1}, {k2}, {v1}, {v2}, {v3:?}")?;
         }
         writeln!(f, "state: {}", self.machine_state.state)?;
