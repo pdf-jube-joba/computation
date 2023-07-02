@@ -174,10 +174,16 @@ pub mod builder {
             } else {
                 return Err("fail on accepted state".to_string());
             };
-            let input = self.input.clone().ok_or("input not found".to_string())?;
+            let code = self.code.clone();
+            let machine: TuringMachine =
+                if let Ok(machine) = TuringMachine::new(init_state, accepted_state, code) {
+                    machine
+                } else {
+                    return Err("machine is not well-defined".to_string());
+                };
             let Interpretation { write, read: _ } = self.interpretation.clone();
-            let machine =
-                TuringMachineSet::new(init_state, accepted_state, self.code.clone(), write(input)?);
+            let input_tape = write(self.input.clone().ok_or("input not found".to_string())?)?;
+            let machine = TuringMachineSet::new(machine, input_tape);
             // let run = RunningTuringMachine {
             //     machine,
             //     input,
@@ -229,15 +235,15 @@ pub mod builder {
 pub mod graph_compose {
     use super::{builder::TuringMachineBuilder, *};
     use crate::machine::*;
-    use std::{arch::x86_64::_MM_MANTISSA_SIGN_ENUM, collections::HashMap};
+    use std::{collections::HashMap};
     pub struct GraphOfMachine {
         // number_of_vertex: usize,
         edge: Vec<(usize, usize)>,
-        assign_vertex_to_machine: Vec<TuringMachine>,
+        assign_vertex_to_machine: Vec<crate::machine::TuringMachine>,
         assign_edge_to_state: HashMap<(usize, usize), State>,
     }
 
-    pub fn unchecked_composition(graph: GraphOfMachine) -> TuringMachine {
+    pub fn naive_composition(graph: GraphOfMachine) -> TuringMachine {
         let GraphOfMachine {
             edge,
             assign_vertex_to_machine,
@@ -283,6 +289,25 @@ pub mod graph_compose {
             accepted_state,
             code,
         }
+    }
+
+    pub fn checked_composition(graph: GraphOfMachine) -> Result<TuringMachine, ()> {
+        let GraphOfMachine {
+            edge,
+            assign_vertex_to_machine,
+            assign_edge_to_state,
+        } = graph;
+        let states: HashSet<State> = HashSet::new();
+        for machine in assign_vertex_to_machine {
+            let v_st = machine.states();
+            for state in v_st {
+                if states.contains(&state) {
+                    return Err(());
+                }
+            }
+            states.extend(v_st);
+        }
+        Ok(naive_composition(graph))
     }
 }
 
