@@ -8,7 +8,7 @@ use crate::manipulation;
 use crate::manipulation::tape::string_split_by_line_interpretation;
 
 use super::machine::*;
-use crate::manipulation::TuringMachineBuilder;
+use crate::manipulation::builder::TuringMachineBuilder;
 
 #[derive(Default)]
 pub struct ControlView {
@@ -117,7 +117,7 @@ impl Component for ControlView {
             ControlMsg::OnInputAcceptedState(state) => {
                 self.accepted_state = state;
             }
-            ControlMsg::Load => 'comp : {
+            ControlMsg::Load => 'comp: {
                 let Some(ref mut scope) = self.machine else {
                     self.send_this_log("no machine found");
                     break 'comp;
@@ -126,10 +126,10 @@ impl Component for ControlView {
                     init_state: &str,
                     accepted_state: &str,
                     code: &str,
-                    tape: &str
+                    tape: &str,
                 ) -> Result<TuringMachineBuilder<String, String>, String> {
                     let mut builder =
-                    TuringMachineBuilder::new("user", string_split_by_line_interpretation())
+                        TuringMachineBuilder::new("user", string_split_by_line_interpretation())
                             .unwrap();
                     let code = manipulation::code::parse_code(code)?;
                     builder
@@ -146,7 +146,12 @@ impl Component for ControlView {
                     Ok::<TuringMachineBuilder<_, _>, String>(builder)
                 }
                 let builder = {
-                    match handle(&self.initial_state, &self.accepted_state, &self.code, &self.tape) {
+                    match handle(
+                        &self.initial_state,
+                        &self.accepted_state,
+                        &self.code,
+                        &self.tape,
+                    ) {
                         Ok(builder) => builder,
                         Err(err) => {
                             self.send_this_log(format!("failed on build {err}"));

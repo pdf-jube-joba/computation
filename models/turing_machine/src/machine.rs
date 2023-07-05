@@ -1,4 +1,3 @@
-use std::collections::hash_map::Keys;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use yew::Properties;
@@ -382,11 +381,12 @@ impl TuringMachine {
     pub fn states(&self) -> Vec<State> {
         let mut state: Vec<State> = vec![self.init_state.clone()];
         state.extend_from_slice(&self.accepted_state);
-        state.extend(self.code
-            .iter().flat_map(|CodeEntry(CodeKey(_, state1), CodeValue(_, state2, _))|{
-            vec![state1.clone(), state2.clone()]
-        }));
-        state        
+        state.extend(self.code.iter().flat_map(
+            |CodeEntry(CodeKey(_, state1), CodeValue(_, state2, _))| {
+                vec![state1.clone(), state2.clone()]
+            },
+        ));
+        state
     }
 }
 

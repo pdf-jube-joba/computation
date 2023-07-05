@@ -131,7 +131,7 @@ pub mod builder {
     {
         name: String,
         init_state: Option<State>,
-        accepted_state: Option<Vec<State>>,
+        accepted_state: Vec<State>,
         code: Vec<CodeEntry>,
         interpretation: Interpretation<Input, Output>,
         input: Option<Input>,
@@ -152,7 +152,7 @@ pub mod builder {
             let builder = TuringMachineBuilder {
                 name: name.to_string(),
                 init_state: None,
-                accepted_state: None,
+                accepted_state: Vec::new(),
                 code: Vec::new(),
                 interpretation,
                 input: None,
@@ -169,14 +169,14 @@ pub mod builder {
             } else {
                 return Err("fail on initial state".to_string());
             };
-            let accepted_state = if let Some(accepted_state) = self.accepted_state.clone() {
-                accepted_state
-            } else {
-                return Err("fail on accepted state".to_string());
-            };
+            // let accepted_state = if let Some(accepted_state) = self.accepted_state.clone() {
+            //     accepted_state
+            // } else {
+            //     return Err("fail on accepted state".to_string());
+            // };
             let code = self.code.clone();
             let machine: TuringMachine =
-                if let Ok(machine) = TuringMachine::new(init_state, accepted_state, code) {
+                if let Ok(machine) = TuringMachine::new(init_state, self.accepted_state, code) {
                     machine
                 } else {
                     return Err("machine is not well-defined".to_string());
@@ -202,9 +202,17 @@ pub mod builder {
             self
         }
 
+        pub fn get_init_state(&self) -> Option<State> {
+            self.init_state.to_owned()
+        }
+
         pub fn accepted_state(&mut self, states: impl IntoIterator<Item = State>) -> &mut Self {
-            self.accepted_state = Some(states.into_iter().collect());
+            self.accepted_state = states.into_iter().collect();
             self
+        }
+
+        pub fn get_accepted_state(&self) -> Vec<State> {
+            self.accepted_state.into()
         }
 
         pub fn code_from_entries(
@@ -229,13 +237,21 @@ pub mod builder {
             self.code = Vec::new();
             self
         }
+
+        pub fn get_code(&self) -> Vec<CodeEntry> {
+            self.code.to_owned()
+        }
+
+        pub fn get_name(&self) -> String {
+            self.name.to_owned()
+        }
     }
 }
 
 pub mod graph_compose {
-    use super::{builder::TuringMachineBuilder, *};
+    use super::{builder::TuringMachineBuilder, tape::Interpretation, *};
     use crate::machine::*;
-    use std::{collections::HashMap};
+    use std::collections::HashMap;
     pub struct GraphOfMachine {
         // number_of_vertex: usize,
         edge: Vec<(usize, usize)>,
@@ -309,135 +325,202 @@ pub mod graph_compose {
         }
         Ok(naive_composition(graph))
     }
+
+    // to compose builders on graph which has same type of input and output
+    pub struct GraphOfBuilder<In, Out>
+    where
+        In: Clone,
+        Out: Clone,
+    {
+        edges: Vec<(usize, usize)>,
+        assign_vertex_to_builder: Vec<TuringMachineBuilder<In, Out>>,
+        assign_edge_to_state: HashMap<(usize, usize), State>,
+    }
+    pub fn naive_builder_composition<In, Out>(
+        name: &str,
+        interpretation: Interpretation<In, Out>,
+        graph: GraphOfBuilder<In, Out>,
+    ) -> TuringMachineBuilder<In, Out>
+    where
+        In: Clone,
+        Out: Clone,
+    {
+        let GraphOfBuilder {
+            edges,
+            assign_vertex_to_builder,
+            assign_edge_to_state,
+        } = graph;
+        let builder = TuringMachineBuilder::new(name, interpretation).unwrap();
+        if let Some(initial_state) = assign_vertex_to_builder[0].get_init_state() {
+            builder.init_state(initial_state);
+        };
+
+        let code = {
+            let mut code: Vec<CodeEntry> = Vec::new();
+            assign_vertex_to_builder
+                .iter()
+                .enumerate()
+                .for_each(|(index, builder)| {
+                    let name = builder.get_name();
+                    let builder_code: Vec<CodeEntry> = builder
+                        .get_code()
+                        .into_iter()
+                        .map(|entry| {
+                            let new_key_state: State =
+                                State::try_from("{index}-{name}-{entry.key_state()}").unwrap();
+                            let new_value_state: State =
+                                State::try_from("{index}-{name}-{entry.value_state()}").unwrap();
+                            CodeEntry::from_tuple(
+                                entry.key_sign(),
+                                new_key_state,
+                                entry.value_sign(),
+                                new_value_state,
+                                entry.value_direction(),
+                            )
+                        })
+                        .collect();
+                    code.extend(builder_code);
+                });
+            code
+        };
+        let accepted_state: Vec<State> = {
+            let vec: HashSet<State> = HashSet::new();
+            for builder in assign_vertex_to_builder {
+                vec.extend(builder.get_accepted_state())
+            }
+            for edge in assign_edge_to_state {
+                vec.remove(&edge.1);
+            }
+            vec.into_iter().collect()
+        };
+        builder.accepted_state(accepted_state).code_new(code);
+        builder
+    }
 }
 
-pub fn compose_builder<In, Mid, Out>(
-    first: TuringMachineBuilder<In, Mid>,
-    specified_state: State,
-    second: TuringMachineBuilder<Mid, Out>,
-) -> Result<TuringMachineBuilder<In, Out>, String>
-where
-    In: 'static + Clone,
-    Mid: 'static + Clone,
-    Out: 'static + Clone,
-{
-    let TuringMachineBuilder {
-        name: first_name,
-        init_state: first_init_state,
-        accepted_state: first_accepted_state,
-        code: first_code,
-        interpretation: first_interpretation,
-        input: first_input,
-    } = first;
-    let TuringMachineBuilder {
-        name: second_name,
-        init_state: second_init_state,
-        accepted_state: second_accepted_state,
-        code: second_code,
-        interpretation: second_interpretation,
-        input: _second_input,
-    } = second;
+mod compose_diff_type {
+    use super::{builder::TuringMachineBuilder, tape::Interpretation, *};
+    use crate::machine::*;
+    pub fn compose_builder<In, Mid, Out>(
+        first: TuringMachineBuilder<In, Mid>,
+        specified_state: State,
+        second: TuringMachineBuilder<Mid, Out>,
+    ) -> Result<TuringMachineBuilder<In, Out>, String>
+    where
+        In: 'static + Clone,
+        Mid: 'static + Clone,
+        Out: 'static + Clone,
+    {
+        let TuringMachineBuilder {
+            name: first_name,
+            init_state: first_init_state,
+            accepted_state: first_accepted_state,
+            code: first_code,
+            interpretation: first_interpretation,
+            input: first_input,
+        } = first;
+        let TuringMachineBuilder {
+            name: second_name,
+            init_state: second_init_state,
+            accepted_state: second_accepted_state,
+            code: second_code,
+            interpretation: second_interpretation,
+            input: _second_input,
+        } = second;
 
-    let first_init_state = if let Some(state) = first_init_state {
-        state
-    } else {
-        return Err("first arg's init_state not setted".to_string());
-    };
-    let first_accepted_state = if let Some(states) = first_accepted_state {
-        states
-    } else {
-        return Err("first arg's accepted state not setted".to_string());
-    };
-    let second_init_state = if let Some(state) = second_init_state {
-        state
-    } else {
-        return Err("second arg's init_state not setted".to_string());
-    };
-    let second_accepted_state = if let Some(states) = second_accepted_state {
-        states
-    } else {
-        return Err("second arg's accepted state not setted".to_string());
-    };
+        let first_init_state = if let Some(state) = first_init_state {
+            state
+        } else {
+            return Err("first arg's init_state not setted".to_string());
+        };
+        let first_accepted_state = first_accepted_state;
+        let second_init_state = if let Some(state) = second_init_state {
+            state
+        } else {
+            return Err("second arg's init_state not setted".to_string());
+        };
+        let second_accepted_state = second_accepted_state;
 
-    let name = format!("{first_name}-{second_name}");
+        let name = format!("{first_name}-{second_name}");
 
-    let first_state_conversion =
-        |state: &State| State::try_from(format!("0-{first_name}-{state}").as_ref()).unwrap();
-    let second_state_conversion =
-        |state: &State| State::try_from(format!("1-{second_name}-{state}").as_ref()).unwrap();
+        let first_state_conversion =
+            |state: &State| State::try_from(format!("0-{first_name}-{state}").as_ref()).unwrap();
+        let second_state_conversion =
+            |state: &State| State::try_from(format!("1-{second_name}-{state}").as_ref()).unwrap();
 
-    let init_state = first_state_conversion(&first_init_state);
+        let init_state = first_state_conversion(&first_init_state);
 
-    let accepted_state = {
-        if !first_accepted_state.contains(&specified_state) {
-            return Err("".to_string());
+        let accepted_state = {
+            if !first_accepted_state.contains(&specified_state) {
+                return Err("".to_string());
+            }
+            let mut accepted_state = Vec::new();
+            accepted_state.extend(
+                first_accepted_state
+                    .into_iter()
+                    .filter(|state| *state != specified_state),
+            );
+            accepted_state.extend(second_accepted_state);
+            accepted_state
+        };
+
+        let code = {
+            let used_sign = first_code
+                .iter()
+                .chain((second_code).iter())
+                .flat_map(|entry| vec![entry.key_sign(), entry.value_sign()])
+                .collect::<HashSet<Sign>>();
+
+            let mut code = Vec::new();
+            code.extend(first_code.into_iter().map(|entry| {
+                let new_key_state = first_state_conversion(&entry.key_state());
+                let new_value_state = first_state_conversion(&entry.value_state());
+                CodeEntry::from_tuple(
+                    entry.key_sign(),
+                    new_key_state,
+                    entry.value_sign(),
+                    new_value_state,
+                    entry.value_direction(),
+                )
+            }));
+            code.extend(second_code.into_iter().map(|entry| {
+                let new_key_state = second_state_conversion(&entry.key_state());
+                let new_value_state = second_state_conversion(&entry.value_state());
+                CodeEntry::from_tuple(
+                    entry.key_sign(),
+                    new_key_state,
+                    entry.value_sign(),
+                    new_value_state,
+                    entry.value_direction(),
+                )
+            }));
+            code.extend(used_sign.into_iter().map(|sign| {
+                CodeEntry::from_tuple(
+                    sign.clone(),
+                    first_state_conversion(&specified_state),
+                    sign,
+                    second_state_conversion(&second_init_state),
+                    Direction::Constant,
+                )
+            }));
+            code
+        };
+
+        let composition_interpretation = Interpretation {
+            write: first_interpretation.write,
+            read: second_interpretation.read,
+        };
+
+        let mut builder = TuringMachineBuilder::new(&name, composition_interpretation).unwrap();
+        builder
+            .init_state(init_state)
+            .accepted_state(accepted_state)
+            .code_from_entries(code);
+
+        if let Some(input) = first_input {
+            builder.input(input);
         }
-        let mut accepted_state = Vec::new();
-        accepted_state.extend(
-            first_accepted_state
-                .into_iter()
-                .filter(|state| *state != specified_state),
-        );
-        accepted_state.extend(second_accepted_state);
-        accepted_state
-    };
 
-    let code = {
-        let used_sign = first_code
-            .iter()
-            .chain((second_code).iter())
-            .flat_map(|entry| vec![entry.key_sign(), entry.value_sign()])
-            .collect::<HashSet<Sign>>();
-
-        let mut code = Vec::new();
-        code.extend(first_code.into_iter().map(|entry| {
-            let new_key_state = first_state_conversion(&entry.key_state());
-            let new_value_state = first_state_conversion(&entry.value_state());
-            CodeEntry::from_tuple(
-                entry.key_sign(),
-                new_key_state,
-                entry.value_sign(),
-                new_value_state,
-                entry.value_direction(),
-            )
-        }));
-        code.extend(second_code.into_iter().map(|entry| {
-            let new_key_state = second_state_conversion(&entry.key_state());
-            let new_value_state = second_state_conversion(&entry.value_state());
-            CodeEntry::from_tuple(
-                entry.key_sign(),
-                new_key_state,
-                entry.value_sign(),
-                new_value_state,
-                entry.value_direction(),
-            )
-        }));
-        code.extend(used_sign.into_iter().map(|sign| {
-            CodeEntry::from_tuple(
-                sign.clone(),
-                first_state_conversion(&specified_state),
-                sign,
-                second_state_conversion(&second_init_state),
-                Direction::Constant,
-            )
-        }));
-        code
-    };
-
-    let composition_interpretation = Interpretation {
-        write: first_interpretation.write,
-        read: second_interpretation.read,
-    };
-
-    let mut builder = TuringMachineBuilder::new(&name, composition_interpretation).unwrap();
-    builder
-        .init_state(init_state)
-        .accepted_state(accepted_state)
-        .code_from_entries(code);
-
-    if let Some(input) = first_input {
-        builder.input(input);
+        Ok::<TuringMachineBuilder<In, Out>, String>(builder)
     }
-
-    Ok::<TuringMachineBuilder<In, Out>, String>(builder)
 }
