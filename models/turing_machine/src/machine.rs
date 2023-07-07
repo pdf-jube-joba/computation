@@ -346,8 +346,8 @@ impl TuringMachine {
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
         let code: Vec<CodeEntry> = code
             .into_iter()
-            .map(|entry @ CodeEntry(CodeKey(_, state), value)| {
-                if accepted_state.contains(&state) {
+            .map(| entry | {
+                if accepted_state.contains(& entry.key_state()) {
                     Err(())
                 } else {
                     Ok(entry)
@@ -417,7 +417,7 @@ impl TuringMachineSet {
             init_state,
             accepted_state,
             code,
-        } = machine;
+        } = machine.clone();
         let machine_code = Code::from_iter_entry(code);
         let accepted_state = HashSet::from_iter(accepted_state);
         let machine_state =
@@ -493,11 +493,3 @@ impl Display for TuringMachineSet {
         writeln!(f, "tape: {:?}", self.machine_state.tape)
     }
 }
-
-// mod tests {
-//     use super::*;
-//     #[test]
-//     fn tape_test() {
-
-//     }
-// }

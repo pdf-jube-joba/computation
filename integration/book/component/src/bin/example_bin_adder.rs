@@ -5,7 +5,7 @@ use gloo::timers::callback::Interval;
 fn bin_adder() -> TuringMachineSet {
     let code =  code::parse_code(include_str!("bin_adder.txt")).unwrap();
     let tape_input = "|-|1 0 1 0 1 -".to_string();
-    let mut builder = TuringMachineBuilder::new("bin_adder", tape::string_split_by_bar_interpretation()).unwrap();
+    let mut builder = builder::TuringMachineBuilder::new("bin_adder", tape::string_split_by_bar_interpretation()).unwrap();
     builder
         .code_new(code)
         .init_state(State::try_from("start").unwrap())
