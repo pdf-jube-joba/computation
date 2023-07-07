@@ -25,7 +25,7 @@ pub struct StateProps {
 #[function_component(StateView)]
 pub fn state_view(StateProps { state }: &StateProps) -> Html {
     html! {
-        <> {state} </>
+        <div> {state} </div>
     }
 }
 
@@ -194,11 +194,19 @@ impl Component for ControlStepView {
         };
         html! {
             <>
-                <input onchange={onchange_input}/> {now_parse_result}
+                <input onchange={onchange_input}/> {now_parse_result} <br/>
                 <button onclick={onclick_input}> {"step"} </button>
                 <button onclick={move |_| onclick_toggle.emit(())}> {"toggle auto step"} </button>
                 <> {if props.now_toggle_state {"on"} else {"off"}} </>
             </>
+        }
+    }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            ControlStepMsg::ChangeStep(index) => {
+                self.now_input_step = index.parse().map_err(|_| ());
+                true
+            }
         }
     }
 }
@@ -261,7 +269,9 @@ pub enum TuringMachineMsg {
 }
 
 #[derive(Default, Clone, PartialEq, Properties)]
-pub struct TuringMachineProp {}
+pub struct TuringMachineProp {
+    pub code_visible: bool,
+}
 
 impl Component for TuringMachineView {
     type Message = TuringMachineMsg;
@@ -285,19 +295,13 @@ impl Component for TuringMachineView {
             Some(machine) => html! {
                 <div class="machine">
                     {"machine"} <br/>
-                    <div class="box">
-                    <ControlStepView
+                    <MachineView
                         callback_step_usr={ctx.link().callback(TuringMachineMsg::Step)}
                         callback_toggle_autostep={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}
                         now_toggle_state={self.tick_active}
-                    /> </div>
-                    <div class="box">
-                        <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
-                        <TapeView tape={machine.now_tape().clone()}/>
-                    </div>
-                    <div class="box">
-                        <CodeView code={machine.code_as_vec().clone()}/>
-                    </div>
+                        machine={machine.clone()}
+                        code_visible={ctx.props().code_visible}
+                    />
                 </div>
             },
         }
