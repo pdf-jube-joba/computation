@@ -1,4 +1,3 @@
-use std::collections::hash_map::Keys;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
 use yew::Properties;
@@ -347,8 +346,8 @@ impl TuringMachine {
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
         let code: Vec<CodeEntry> = code
             .into_iter()
-            .map(|entry @ CodeEntry(CodeKey(_, state), value)| {
-                if accepted_state.contains(&state) {
+            .map(| entry | {
+                if accepted_state.contains(& entry.key_state()) {
                     Err(())
                 } else {
                     Ok(entry)
@@ -382,11 +381,12 @@ impl TuringMachine {
     pub fn states(&self) -> Vec<State> {
         let mut state: Vec<State> = vec![self.init_state.clone()];
         state.extend_from_slice(&self.accepted_state);
-        state.extend(self.code
-            .iter().flat_map(|CodeEntry(CodeKey(_, state1), CodeValue(_, state2, _))|{
-            vec![state1.clone(), state2.clone()]
-        }));
-        state        
+        state.extend(self.code.iter().flat_map(
+            |CodeEntry(CodeKey(_, state1), CodeValue(_, state2, _))| {
+                vec![state1.clone(), state2.clone()]
+            },
+        ));
+        state
     }
 }
 
@@ -417,7 +417,7 @@ impl TuringMachineSet {
             init_state,
             accepted_state,
             code,
-        } = machine;
+        } = machine.clone();
         let machine_code = Code::from_iter_entry(code);
         let accepted_state = HashSet::from_iter(accepted_state);
         let machine_state =
@@ -493,11 +493,3 @@ impl Display for TuringMachineSet {
         writeln!(f, "tape: {:?}", self.machine_state.tape)
     }
 }
-
-// mod tests {
-//     use super::*;
-//     #[test]
-//     fn tape_test() {
-
-//     }
-// }

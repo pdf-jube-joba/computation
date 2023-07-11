@@ -1,18 +1,18 @@
-use crate::{machine::*};
+use crate::machine::*;
 // use crate::manipulation::TuringMachineBuilder;
-use std::fmt::Display;
 use gloo::timers::callback::Interval;
+use std::fmt::Display;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 struct SignBoxProps {
-    sign: Sign
+    sign: Sign,
 }
 
 #[function_component(SignBox)]
 fn sign_box_view(SignBoxProps { sign }: &SignBoxProps) -> Html {
-    html!{
+    html! {
         <span class={classes!("sign-box")}> {sign} </span>
     }
 }
@@ -24,8 +24,8 @@ pub struct StateProps {
 
 #[function_component(StateView)]
 pub fn state_view(StateProps { state }: &StateProps) -> Html {
-    html!{
-        <> {state} </>
+    html! {
+        <div> {state} </div>
     }
 }
 
@@ -90,7 +90,8 @@ pub fn code_view(CodeProps { code }: &CodeProps) -> Html {
 }
 
 #[derive(Clone, PartialEq, Properties)]
-pub struct TuringMachineResultProps<T1, T2, T3> where
+pub struct TuringMachineResultProps<T1, T2, T3>
+where
     T1: Clone + PartialEq + Properties + Display,
     T2: Clone + PartialEq + Properties + Display,
     T3: Clone + PartialEq + Properties + Display,
@@ -100,7 +101,8 @@ pub struct TuringMachineResultProps<T1, T2, T3> where
 }
 
 #[function_component(TuringMachineResultView)]
-fn running_turing_machine_vew<T1, T2, T3>(props: &TuringMachineResultProps<T1, T2, T3>) -> Html where
+fn running_turing_machine_vew<T1, T2, T3>(props: &TuringMachineResultProps<T1, T2, T3>) -> Html
+where
     T1: Clone + PartialEq + Properties + Display,
     T2: Clone + PartialEq + Properties + Display,
     T3: Clone + PartialEq + Properties + Display,
@@ -126,8 +128,8 @@ pub struct NextStepProps {
 }
 
 #[function_component(NextStepView)]
-pub fn next_view_props(NextStepProps { next } : &NextStepProps) -> Html {
-    html!{
+pub fn next_view_props(NextStepProps { next }: &NextStepProps) -> Html {
+    html! {
         <> {
             match next {
                 Ok(entry) => html!{
@@ -165,7 +167,9 @@ impl Component for ControlStepView {
     type Message = ControlStepMsg;
     type Properties = ControlStepProps;
     fn create(_ctx: &Context<Self>) -> Self {
-        Self { now_input_step: Ok(0) }
+        Self {
+            now_input_step: Ok(0),
+        }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props().clone();
@@ -175,18 +179,34 @@ impl Component for ControlStepView {
             ControlStepMsg::ChangeStep(str)
         });
         let onclick_input = {
-            let step_number = if let Ok(u) = self.now_input_step {u} else {0};
+            let step_number = if let Ok(u) = self.now_input_step {
+                u
+            } else {
+                0
+            };
             move |_| props.callback_step_usr.clone().emit(step_number)
         };
         let onclick_toggle = props.callback_toggle_autostep.clone();
-        let now_parse_result = if let Ok(u) = self.now_input_step.clone() {html!{u}} else {html!{"parse error"}};
+        let now_parse_result = if let Ok(u) = self.now_input_step.clone() {
+            html! {u}
+        } else {
+            html! {"parse error"}
+        };
         html! {
             <>
-                <input onchange={onchange_input}/> {now_parse_result}
+                <input onchange={onchange_input}/> {now_parse_result} <br/>
                 <button onclick={onclick_input}> {"step"} </button>
                 <button onclick={move |_| onclick_toggle.emit(())}> {"toggle auto step"} </button>
                 <> {if props.now_toggle_state {"on"} else {"off"}} </>
             </>
+        }
+    }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            ControlStepMsg::ChangeStep(index) => {
+                self.now_input_step = index.parse().map_err(|_| ());
+                true
+            }
         }
     }
 }
@@ -202,14 +222,20 @@ pub struct MachineProp {
 
 #[function_component(MachineView)]
 pub fn machine_without_codeview(props: &MachineProp) -> Html {
-    let MachineProp { callback_step_usr, callback_toggle_autostep, now_toggle_state, machine, code_visible } = props;
+    let MachineProp {
+        callback_step_usr,
+        callback_toggle_autostep,
+        now_toggle_state,
+        machine,
+        code_visible,
+    } = props;
     html! {
         <>
             <ControlStepView callback_step_usr={callback_step_usr} callback_toggle_autostep={callback_toggle_autostep} now_toggle_state={now_toggle_state}/>
             <StateView state={machine.now_state().clone()} />
             <TapeView tape={machine.now_tape()} />
             {
-                if *code_visible {html!{ <CodeView code={machine.code_as_vec()} /> }} else {html!{}}
+                if *code_visible {html!{ <CodeView code={machine.code_as_vec().clone()} /> }} else {html!{}}
             }
         </>
     }
@@ -243,7 +269,9 @@ pub enum TuringMachineMsg {
 }
 
 #[derive(Default, Clone, PartialEq, Properties)]
-pub struct TuringMachineProp {}
+pub struct TuringMachineProp {
+    pub code_visible: bool,
+}
 
 impl Component for TuringMachineView {
     type Message = TuringMachineMsg;
@@ -267,21 +295,15 @@ impl Component for TuringMachineView {
             Some(machine) => html! {
                 <div class="machine">
                     {"machine"} <br/>
-                    <div class="box">
-                    <ControlStepView
+                    <MachineView
                         callback_step_usr={ctx.link().callback(TuringMachineMsg::Step)}
                         callback_toggle_autostep={ctx.link().callback(|_| TuringMachineMsg::TickToggle)}
                         now_toggle_state={self.tick_active}
-                    /> </div>
-                    <div class="box">
-                        <> {"state:"} {machine.now_state().clone()} {""} <br/> </>
-                        <TapeView tape={machine.now_tape().clone()}/>
-                    </div>
-                    <div class="box">
-                        <CodeView code={machine.code_as_vec().clone()}/>
-                    </div>
+                        machine={machine.clone()}
+                        code_visible={ctx.props().code_visible}
+                    />
                 </div>
-            }
+            },
         }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
