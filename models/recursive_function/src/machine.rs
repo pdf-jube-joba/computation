@@ -62,8 +62,15 @@ pub struct Projection {
 
 #[derive(Clone)]
 pub struct Composition {
+    parameter_length: usize,
     outer_func: Box<RecursiveFunctions>,
     inner_func: Box<Vec<RecursiveFunctions>>,
+}
+
+#[derive(Clone)]
+pub struct PrimitiveRecursion {
+    zero_func: Box<RecursiveFunctions>,
+    succ_func: Box<RecursiveFunctions>,
 }
 
 #[derive(Clone)]
@@ -77,6 +84,7 @@ pub enum RecursiveFunctions {
     Successor,
     Projection(Projection),
     Composition(Composition),
+    PrimitiveRecursion(PrimitiveRecursion),
     MuOperator(MuOperator),
 }
 
@@ -86,7 +94,61 @@ impl RecursiveFunctions {
             RecursiveFunctions::ZeroConstant => 0,
             RecursiveFunctions::Successor => 1,
             RecursiveFunctions::Projection(ref proj) => proj.parameter_length,
+            RecursiveFunctions::Composition(ref comp) => comp.parameter_length,
+            RecursiveFunctions::PrimitiveRecursion(ref prim) => {
+                &prim.zero_func.parameter_length() + 1
+            }
+            RecursiveFunctions::MuOperator(ref muop) => &muop.func.parameter_length() - 1,
             _ => unimplemented!(),
+        }
+    }
+    fn zero() -> RecursiveFunctions {
+        Self::ZeroConstant
+    }
+    fn succ() -> RecursiveFunctions {
+        Self::Successor
+    }
+    fn projection(len: usize, num: usize) -> Result<RecursiveFunctions, ()> {
+        if len < num {
+            return Err(());
+        } else {
+            Ok(Self::Projection(Projection {
+                parameter_length: len,
+                projection_num: num,
+            }))
+        }
+    }
+    fn composition(
+        inner_funcs: Vec<RecursiveFunctions>,
+        outer_func: RecursiveFunctions,
+    ) -> Result<RecursiveFunctions, ()> {
+        let share_len = (&inner_funcs[0]).parameter_length();
+
+        if inner_funcs.len() != outer_func.parameter_length() || {
+            inner_funcs.len() != 0 && {
+                let share_len = (&inner_funcs[0]).parameter_length();
+                (&inner_funcs)
+                    .iter()
+                    .map(|func| func.parameter_length())
+                    .any(|len| len != share_len)
+            }
+        } {
+            return Err(());
+        } else {
+            return Ok(Self::Composition(Composition {
+                parameter_length: share_len,
+                outer_func: Box::new(outer_func),
+                inner_func: Box::new(inner_funcs),
+            }));
+        }
+    }
+    fn muoperator(func: RecursiveFunctions) -> Result<RecursiveFunctions, ()> {
+        if func.parameter_length() == 0 {
+            return Err(());
+        } else {
+            return Ok(Self::MuOperator(MuOperator {
+                func: Box::new(func),
+            }));
         }
     }
 }
@@ -174,6 +236,29 @@ pub fn interpreter(func: RecursiveFunctions) -> NaturalFunction {
                 parameter_length: length,
                 func,
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Number;
+    use super::{interpreter, RecursiveFunctions};
+
+    #[test]
+    fn zero_call() {
+        let zero = RecursiveFunctions::zero();
+        let zero_func = interpreter(zero);
+        let result = zero_func.checked_subst(vec![]);
+        assert_eq!(result, Ok(Number(0)))
+    }
+    #[test]
+    fn succ_call() {
+        let succ = RecursiveFunctions::succ();
+        let succ_func = interpreter(succ);
+        for i in 0..5 {
+            let result = succ_func.checked_subst(vec![Number(i)]);
+            assert_eq!(result, Ok(Number(i + 1)))
         }
     }
 }
