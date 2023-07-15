@@ -1,4 +1,4 @@
-use crate::machine::*;
+use turing_machine::machine::*;
 // use crate::manipulation::TuringMachineBuilder;
 use gloo::timers::callback::Interval;
 use std::fmt::Display;
@@ -201,7 +201,7 @@ impl Component for ControlStepView {
             </>
         }
     }
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             ControlStepMsg::ChangeStep(index) => {
                 self.now_input_step = index.parse().map_err(|_| ());

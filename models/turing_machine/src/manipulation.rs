@@ -247,11 +247,11 @@ pub mod builder {
             }).collect()
         }
 
-        pub fn write_fn(&self) -> (fn(Input) -> Result<TapeAsVec, String>) {
+        pub fn write_fn(&self) -> fn(Input) -> Result<TapeAsVec, String> {
             self.interpretation.write
         }
 
-        pub fn read_fn(&self) -> (fn(TapeAsVec) -> Result<Output, String>) {
+        pub fn read_fn(&self) -> fn(TapeAsVec) -> Result<Output, String> {
             self.interpretation.read
         }
     }
@@ -342,7 +342,6 @@ pub mod graph_compose {
         In: Clone,
         Out: Clone,
     {
-        edges: Vec<(usize, usize)>,
         assign_vertex_to_builder: Vec<TuringMachineBuilder<In, Out>>,
         assign_edge_to_state: HashMap<(usize, usize), State>,
     }
@@ -356,7 +355,6 @@ pub mod graph_compose {
         Out: Clone,
     {
         let GraphOfBuilder {
-            edges: _,
             assign_vertex_to_builder,
             assign_edge_to_state,
         } = graph;
@@ -408,9 +406,8 @@ pub mod graph_compose {
     }
 }
 
-mod compose_diff_type {
+pub mod compose_diff_type {
     use super::{builder::TuringMachineBuilder, tape::Interpretation, *};
-    use crate::machine::*;
     pub fn compose_builder<In, Mid, Out>(
         first: &TuringMachineBuilder<In, Mid>,
         specified_state: &State,

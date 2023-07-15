@@ -3,12 +3,12 @@ use yew::html::Scope;
 use yew::prelude::*;
 use yew::Properties;
 
-use crate::machine::State;
-use crate::manipulation;
-use crate::manipulation::tape::string_split_by_line_interpretation;
+use turing_machine::machine::State;
+use turing_machine::manipulation;
+use turing_machine::manipulation::tape::string_split_by_line_interpretation;
+use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 use super::machine::*;
-use crate::manipulation::builder::TuringMachineBuilder;
 
 #[derive(Default)]
 pub struct ControlView {

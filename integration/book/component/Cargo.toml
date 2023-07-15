@@ -9,3 +9,4 @@ edition = "2021"
 gloo = "0.8.0"
 yew = { version = "0.20.0", features = ["csr"] }
 turing_machine = { path = "../../../models/turing_machine" }
+turing_machine_view = { path = "../../../view/turing_machine" }

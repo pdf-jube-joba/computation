@@ -47,6 +47,7 @@ version = "0.1.0"
 dependencies = [
  "gloo",
  "turing_machine",
+ "turing_machine_view",
  "yew",
 ]
 
@@ -701,9 +702,6 @@ dependencies = [
 name = "turing_machine"
 version = "0.1.0"
 dependencies = [
- "gloo",
- "wasm-bindgen",
- "web-sys",
  "yew",
 ]
 
@@ -713,6 +711,18 @@ version = "0.1.0"
 dependencies = [
  "gloo",
  "turing_machine",
+ "turing_machine_view",
+ "yew",
+]
+
+[[package]]
+name = "turing_machine_view"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "turing_machine",
+ "wasm-bindgen",
+ "web-sys",
  "yew",
 ]
 

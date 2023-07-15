@@ -1,6 +1,5 @@
-use turing_machine::{machine::*, view::machine::*, manipulation::*};
-use yew::prelude::*;
-use gloo::timers::callback::Interval;
+use turing_machine::{machine::*, manipulation::*};
+use turing_machine_view::{machine::*};
 
 fn bin_adder() -> TuringMachineSet {
     let code =  code::parse_code(include_str!("bin_adder.txt")).unwrap();

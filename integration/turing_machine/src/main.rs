@@ -1,5 +1,5 @@
-use turing_machine::view::{
-    machine::{TuringMachineView, TuringMachineMsg},
+use turing_machine_view::{
+    machine::{TuringMachineView},
     control::{ControlView, ControlMsg},
     // example::{ExampleView, ExampleMsg}
 };
