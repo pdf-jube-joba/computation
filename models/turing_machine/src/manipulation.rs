@@ -53,10 +53,11 @@ pub mod tape {
 
     // left head right に対応する文字列をもとに tape を作る。
     pub fn parse_tape(left: &str, head: &str, right: &str) -> Result<TapeAsVec, String> {
-        let left = left
+        let mut left = left
             .split_whitespace()
             .map(Sign::try_from)
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<Vec<_>, _>>()?;
+        left.reverse();
         let head = Sign::try_from(head)?;
         let right = right
             .split_whitespace()
