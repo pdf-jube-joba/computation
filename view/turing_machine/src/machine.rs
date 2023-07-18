@@ -39,15 +39,17 @@ pub fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
     html! {
         <>
         {"tape"} <br/>
-        <div class={classes!("tape")}> {"l:"} {
-            for tape.left.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
-        } {"..."} </div>
-        <div class={classes!("tape")}> {"h:"}
-            <SignBox sign={tape.head.clone()}/>
-        </div>
-        <div class={classes!("tape")}> {"r:"} {
-            for tape.right.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
-        } {"..."} </div>
+            <div class={classes!("tape")}>
+            <div class={classes!("tape-left")}> {
+                for tape.left.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
+            } </div>
+            <div class={classes!("tape-head")}>
+                <SignBox sign={tape.head.clone()}/>
+            </div>
+            <div class={classes!("tape-right")}> {
+                for tape.right.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
+            } </div>
+            </div>
         </>
     }
 }

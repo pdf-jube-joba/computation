@@ -12,3 +12,6 @@ build-dir = "../out/book"
 after = ["links"]
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
+
+[output.html]
+additional-css = ["css/turing_machine.css"]

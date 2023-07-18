@@ -1,0 +1,22 @@
+.tape {
+    border: 2px solid #000000;
+    display: flex;
+}
+
+.tape-left {
+    display: flex;
+    flex-direction: row-reverse;
+}
+
+.tape-head {
+    border: 2px solid #00FF00;
+    display: flex;
+    justify-content: center;
+}
+
+.tape-right {
+}
+
+.sign-box {
+    border: 2px solid #FF0000;
+}
