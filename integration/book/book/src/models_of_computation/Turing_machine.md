@@ -252,13 +252,16 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 
 > **definition**
 > - \(n \in \mathbb{N}\) に対して、 \(\bar{n} \in \Sigma^*\) を \(1\) を \(n\) 個並べたものとする。
-> - \(k \in \mathbb{N}\) と \(p = (n_1, \ldots, n_k) \in \mathbb{N}^k\) に対して、 \(\tilde{p} \in \text{Tape} \Sigma\) を \((\emptyset, -, \bar{n_1} \mathbb{B} \bar{n_2} \mathbb{B} \cdots \mathbb{B} \bar{n_k} -)\) とする。
+> - \(k \in \mathbb{N}\) と \(p = (n_1, \ldots, n_k) \in \mathbb{N}^k\) に対して、 \(\tilde{p} \in \text{Tape} \Sigma\) を \((\emptyset, -, \mathbb{B} \bar{n_1} \mathbb{B} \bar{n_2} \mathbb{B} \cdots \mathbb{B} \bar{n_k} -)\) とする。
+> - \(-\) ではさまれた中に \(k\) 個の \(\mathbb{B}\) がある。
 > - 逆に、 \(T \in \text{Tape} \Sigma\) に対して、 \(\Phi(T) \in (\bigsqcup_{k} \mathbb{N}^k) \sqcup \{\text{undefined}\}\) を、
 >   - 自然数のペア \(p\) であって \(\tilde{p} = T\) となるものがあるとき \(\phi(T) = p\)
 >   - そうでないとき \(\phi(T) = \text{undefined}\) とする。
 
 ### チューリングマシンの計算する関数
 こうしてテープの解釈が定まったので、自然数関数を計算するマシンの定義ができる。
+\(n\) 引数の関数とは \(\mathbb{N}^n \to \mathbb{N}\) のことである。
+
 > **definition**
 > - \(f\): \(\mathbb{N}^k\) から \(\mathbb{N}\) への部分関数とする。
 > - \(M\): \(\Sigma\) 上のTuring machine とする。
@@ -269,4 +272,31 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 ここではそのような条件は課していない。
 
 ### 再帰的関数
-この節では
+この節では再帰関数と呼ばれる関数たちを定義する。
+
+> **definition**
+> 次のような帰納的定義で定義される自然数関数のクラスを再帰関数と呼ぶ。
+> - 次の関数は自然数関数である
+>   - ゼロ定数関数 \(() \in \mathbb{N}^0 \mapsto 0 \in \mathbb{N}\)
+>   - 後者関数 \(n \in \mathbb{N}^1 \mapsto n+1 \in \mathbb{N}\)
+>   - \(k\) 引数の \(i\) 番目への射影関数 \((n_1, \ldots, n_k) \in \mathbb{N}^k \mapsto n_i \in \mathbb{N}\)
+> - 次のようにして得られる合成関数は再帰関数である
+>   - \(f\): \(n\) 引数の再帰関数, \(g_0, \ldots g_n\): 全て \(m\) 引数の再帰関数をとる
+>   - 合成関数 \((x_1, \ldots, x_m) \in \mathbb{N}^m \mapsto f(g_0(x_1, \ldots, x_m), \ldots g_n(x_1, \ldots, x_m)) \in \mathbb{N}\)
+> - 次のようにして得られる原始再帰関数は再帰関数である
+>   - \(f\): \(n\) 引数の再帰関数, \(g\): \(n+2\) 引数の再帰関数をとる
+>   - 原子再帰関数 \(h (x_0, x_1, \ldots, x_n) =\)
+>       - \(x_0 = 0\) のとき \(f(x_1, \ldots, x_n)\)
+>       - \(x_0 = 1 + x\) のとき \(g(h(x, x_1, \ldots x_n), x_1, \ldots, x_n)\)
+> - 次のようにして得られる \(\mu\) 再帰関数は再帰関数である
+>   - \(f\): \(n+1\) 引数の再帰関数をとる
+>   - \((\mu f)(x_1, \ldots, x_n) = \text{min} \{y \in \mathbb{N} \mid f(y, x_1, \ldots, x_n) = 0\}\)
+
+### 再帰関数の計算可能性
+再帰関数は計算可能であることを示す。
+ここで用いるチューリングマシンは二種類ある。
+- 再帰関数を実際に計算する
+- 補助的な動きをする
+
+#### 基本関数を計算するマシン
+ゼロ定数関数は \(\tilde{()} = (\mathbb{B}, -, -)\) をうけとり \(\tilde{(0)} = (\mathbb{B}, -, \mathbb{B} -)\) を返すようになっていればよい。

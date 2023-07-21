@@ -1,4 +1,4 @@
-use turing_machine::machine::*;
+use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 // use crate::manipulation::TuringMachineBuilder;
 use gloo::timers::callback::Interval;
 use std::fmt::Display;
@@ -242,6 +242,14 @@ pub fn machine_without_codeview(props: &MachineProp) -> Html {
         </>
     }
 }
+
+// #[derive(Clone, PartialEq, Properties)]
+// pub struct UnConnectedMachine<Input, Output> where
+//     Input: Clone + PartialEq + Properties,
+//     Output: Clone + PartialEq + Properties,
+// {
+//     pub builder: TuringMachineBuilder<Input, Output>,
+// }
 
 pub struct TuringMachineView {
     machine: Option<TuringMachineSet>,

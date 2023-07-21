@@ -125,6 +125,7 @@ pub mod builder {
     use super::tape::*;
     use crate::machine::*;
 
+    #[derive(Clone)]
     pub struct TuringMachineBuilder<Input, Output>
     where
         Input: Clone,
