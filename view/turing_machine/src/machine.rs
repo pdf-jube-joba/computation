@@ -243,13 +243,76 @@ pub fn machine_without_codeview(props: &MachineProp) -> Html {
     }
 }
 
-// #[derive(Clone, PartialEq, Properties)]
-// pub struct UnConnectedMachine<Input, Output> where
-//     Input: Clone + PartialEq + Properties,
-//     Output: Clone + PartialEq + Properties,
-// {
-//     pub builder: TuringMachineBuilder<Input, Output>,
-// }
+pub struct UnConnectedMachineView {
+    machine: TuringMachineSet,
+    tick_active: bool,
+    #[allow(dead_code)]
+    tick_interval: Interval,
+}
+
+
+#[derive(Clone, PartialEq)]
+pub enum UnConnectedMachineMsg {
+    Reset,
+    Step(usize),
+    Toggle,
+    Tick,
+}
+
+#[derive(Clone, PartialEq, Properties)]
+pub struct UnConnectedMachineProp {
+    pub builder: TuringMachineBuilder,
+}
+
+impl Component for UnConnectedMachineView {
+    type Message = UnConnectedMachineMsg;
+    type Properties = UnConnectedMachineProp;
+    fn create(ctx: &Context<Self>) -> Self {
+        let UnConnectedMachineProp { builder } = ctx.props();
+        let callback = ctx.link().callback(|_| UnConnectedMachineMsg::Tick);
+        let interval = Interval::new(1000, move || callback.emit(()));
+        Self {
+            machine: builder.build().unwrap(),
+            tick_active: false,
+            tick_interval: interval,
+        }
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        html!{
+            <div class="machine">
+                {"machine"} <br/>
+                <MachineView
+                    callback_step_usr={ctx.link().callback(|u| UnConnectedMachineMsg::Step(u))}
+                    callback_toggle_autostep={ctx.link().callback(|_| UnConnectedMachineMsg::Toggle)}
+                    now_toggle_state={self.tick_active}
+                    machine={(self.machine).clone()}
+                    code_visible={false}
+                />
+                <button onclick={ctx.link().callback(|_| UnConnectedMachineMsg::Reset)}>{"reset button"} </button>
+            </div>
+        }
+    }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            UnConnectedMachineMsg::Reset => {
+                let UnConnectedMachineProp { builder } = ctx.props();
+                self.machine = builder.build().unwrap();
+            }
+            UnConnectedMachineMsg::Step(step) => {
+                let _ = self.machine.step(step);
+            }
+            UnConnectedMachineMsg::Toggle => {
+                let _ = self.tick_active != self.tick_active;
+            }
+            UnConnectedMachineMsg::Tick => {
+                if self.tick_active {
+                    let _ = self.machine.step(1);
+                } 
+            }
+        }
+        true
+    }
+}
 
 pub struct TuringMachineView {
     machine: Option<TuringMachineSet>,
@@ -269,7 +332,6 @@ impl TuringMachineView {
 }
 
 pub enum TuringMachineMsg {
-    // LoadFromBuilder(TuringMachineBuilder<String, String>),
     LoadFromMachine(TuringMachineSet),
     Step(usize),
     SetEventLog(Callback<String>),

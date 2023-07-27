@@ -127,9 +127,10 @@ impl Component for ControlView {
                     accepted_state: &str,
                     code: &str,
                     tape: &str,
-                ) -> Result<TuringMachineBuilder<String, String>, String> {
+                ) -> Result<TuringMachineBuilder, String> {
+                    let interpretation = string_split_by_line_interpretation();
                     let mut builder =
-                        TuringMachineBuilder::new("user", string_split_by_line_interpretation())
+                        TuringMachineBuilder::new("user")
                             .unwrap();
                     let code = manipulation::code::parse_code(code)?;
                     builder
@@ -142,8 +143,8 @@ impl Component for ControlView {
                             vec
                         })
                         .code_new(code);
-                    builder.input(tape.to_string());
-                    Ok::<TuringMachineBuilder<_, _>, String>(builder)
+                    builder.input((interpretation.write())(tape.to_string()).unwrap());
+                    Ok::<TuringMachineBuilder, String>(builder)
                 }
                 let builder = {
                     match handle(

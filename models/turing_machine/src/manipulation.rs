@@ -122,32 +122,23 @@ pub mod code {
 }
 
 pub mod builder {
-    use super::tape::*;
     use crate::machine::*;
 
-    #[derive(Clone)]
-    pub struct TuringMachineBuilder<Input, Output>
-    where
-        Input: Clone,
-        Output: Clone,
+    #[derive(Clone, PartialEq)]
+    pub struct TuringMachineBuilder
     {
         name: String,
         init_state: Option<State>,
         accepted_state: Vec<State>,
         code: Vec<CodeEntry>,
-        interpretation: Interpretation<Input, Output>,
-        input: Option<Input>,
+        input: Option<TapeAsVec>,
     }
 
-    impl<Input, Output> TuringMachineBuilder<Input, Output>
-    where
-        Input: Clone,
-        Output: Clone,
+    impl TuringMachineBuilder
     {
         pub fn new(
             name: &str,
-            interpretation: Interpretation<Input, Output>,
-        ) -> Result<TuringMachineBuilder<Input, Output>, String> {
+        ) -> Result<TuringMachineBuilder, String> {
             if name.is_empty() {
                 return Err("empty string".to_string());
             }
@@ -156,15 +147,11 @@ pub mod builder {
                 init_state: None,
                 accepted_state: Vec::new(),
                 code: Vec::new(),
-                interpretation,
                 input: None,
             };
             Ok(builder)
         }
         pub fn build(&self) -> Result<TuringMachineSet, String>
-        where
-            Input: Clone + 'static,
-            Output: Clone + 'static,
         {
             let init_state = if let Some(state) = self.init_state.clone() {
                 state
@@ -178,8 +165,7 @@ pub mod builder {
                 } else {
                     return Err("machine is not well-defined".to_string());
                 };
-            let Interpretation { write, read: _ } = self.interpretation.clone();
-            let input_tape = write(self.input.clone().ok_or("input not found".to_string())?)?;
+            let input_tape = self.input.clone().ok_or("input not found".to_string())?;
             let machine = TuringMachineSet::new(machine, input_tape);
             // let run = RunningTuringMachine {
             //     machine,
@@ -189,7 +175,7 @@ pub mod builder {
             Ok(machine)
         }
 
-        pub fn input(&mut self, input: Input) -> &mut Self {
+        pub fn input(&mut self, input: TapeAsVec) -> &mut Self {
             self.input = Some(input);
             self
         }
@@ -248,19 +234,11 @@ pub mod builder {
                 vec![entry.key_sign(), entry.value_sign()]
             }).collect()
         }
-
-        pub fn write_fn(&self) -> fn(Input) -> Result<TapeAsVec, String> {
-            self.interpretation.write
-        }
-
-        pub fn read_fn(&self) -> fn(TapeAsVec) -> Result<Output, String> {
-            self.interpretation.read
-        }
     }
 }
 
 pub mod graph_compose {
-    use super::{builder::TuringMachineBuilder, tape::Interpretation, *};
+    use super::{builder::TuringMachineBuilder, *};
     use std::collections::HashMap;
     pub struct GraphOfMachine {
         // number_of_vertex: usize,
@@ -339,28 +317,21 @@ pub mod graph_compose {
     }
 
     // to compose builders on graph which has same type of input and output
-    pub struct GraphOfBuilder<In, Out>
-    where
-        In: Clone,
-        Out: Clone,
+    pub struct GraphOfBuilder
     {
-        assign_vertex_to_builder: Vec<TuringMachineBuilder<In, Out>>,
+        assign_vertex_to_builder: Vec<TuringMachineBuilder>,
         assign_edge_to_state: HashMap<(usize, usize), State>,
     }
-    pub fn naive_builder_composition<In, Out>(
+    pub fn naive_builder_composition(
         name: &str,
-        interpretation: Interpretation<In, Out>,
-        graph: GraphOfBuilder<In, Out>,
-    ) -> TuringMachineBuilder<In, Out>
-    where
-        In: Clone,
-        Out: Clone,
+        graph: GraphOfBuilder,
+    ) -> TuringMachineBuilder
     {
         let GraphOfBuilder {
             assign_vertex_to_builder,
             assign_edge_to_state,
         } = graph;
-        let mut builder = TuringMachineBuilder::new(name, interpretation).unwrap();
+        let mut builder = TuringMachineBuilder::new(name).unwrap();
         if let Some(initial_state) = assign_vertex_to_builder[0].get_init_state() {
             builder.init_state(initial_state);
         };
@@ -409,16 +380,12 @@ pub mod graph_compose {
 }
 
 pub mod compose_diff_type {
-    use super::{builder::TuringMachineBuilder, tape::Interpretation, *};
-    pub fn compose_builder<In, Mid, Out>(
-        first: &TuringMachineBuilder<In, Mid>,
+    use super::{builder::TuringMachineBuilder, *};
+    pub fn compose_builder(
+        first: TuringMachineBuilder,
         specified_state: &State,
-        second: &TuringMachineBuilder<Mid, Out>,
-    ) -> Result<TuringMachineBuilder<In, Out>, String>
-    where
-        In: 'static + Clone,
-        Mid: 'static + Clone,
-        Out: 'static + Clone,
+        second: TuringMachineBuilder,
+    ) -> Result<TuringMachineBuilder, String>
     {
         let first_name = first.get_name();
         let second_name = second.get_name();
@@ -490,12 +457,7 @@ pub mod compose_diff_type {
             code
         };
 
-        let composition_interpretation = Interpretation {
-            write: first.write_fn(),
-            read: second.read_fn(),
-        };
-
-        let mut builder = TuringMachineBuilder::new(&name, composition_interpretation).unwrap();
+        let mut builder = TuringMachineBuilder::new(&name).unwrap();
         if let Some(init_state) = first.get_init_state() {
             builder.init_state(init_state);
         };
@@ -504,6 +466,10 @@ pub mod compose_diff_type {
             .accepted_state(accepted_state)
             .code_from_entries(code);
 
-        Ok::<TuringMachineBuilder<In, Out>, String>(builder)
+        Ok::<TuringMachineBuilder, String>(builder)
     }
+}
+
+pub mod machine_as_function {
+    // pub struct
 }
