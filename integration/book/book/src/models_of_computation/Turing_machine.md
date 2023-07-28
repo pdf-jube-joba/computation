@@ -18,7 +18,7 @@
 
 例えば、次の例はテープに書かれた二つの二進数の足し算を行う。
 
-<component id="example_bin_adder">
+<component id="turing_machine_example">
 
 ## 定義
 ### チューリングマシンの定義
@@ -154,7 +154,7 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 ここでは記号や状態、初期状態と終了状態を省略した。
 実際に動いているサンプルは以下である。
 
-<component id="example_bin_adder_2">
+<component id="turing_machine_example2">
 
 ## チューリングマシンの構成
 チューリングマシンの構成のために考察を行う。
@@ -307,7 +307,7 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 これらは簡単に作れるし、（＊）の条件を満たすように作れることがわかる。
 実際に作ったものが以下になる。
 
-<ここにおく>
+<component id="turing_machine_basic">
 
 #### 補助的な関数を計算するマシン
 合成関数に対応するマシンを計算するにあたり、

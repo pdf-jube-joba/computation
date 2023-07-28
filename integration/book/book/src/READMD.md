@@ -4,3 +4,6 @@ READMD.md という名前なのは、 typo ではなく、mdbook がビルド時
 
 - 計算モデルを動かす。
 - インタプリタとかコンパイラを動かす。
+
+以下はyew用のコンポネントのテスト
+<component id="counter_example">
