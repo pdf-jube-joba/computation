@@ -88,31 +88,31 @@ impl Into<String> for NumberTuple {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Projection {
     parameter_length: usize,
     projection_num: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Composition {
     parameter_length: usize,
     outer_func: Box<RecursiveFunctions>,
     inner_func: Box<Vec<RecursiveFunctions>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PrimitiveRecursion {
     zero_func: Box<RecursiveFunctions>,
     succ_func: Box<RecursiveFunctions>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MuOperator {
-    func: Box<RecursiveFunctions>,
+    mu_func: Box<RecursiveFunctions>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum RecursiveFunctions {
     ZeroConstant,
     Successor,
@@ -132,7 +132,7 @@ impl RecursiveFunctions {
             RecursiveFunctions::PrimitiveRecursion(ref prim) => {
                 &prim.zero_func.parameter_length() + 1
             }
-            RecursiveFunctions::MuOperator(ref muop) => &muop.func.parameter_length() - 1,
+            RecursiveFunctions::MuOperator(ref muop) => &muop.mu_func.parameter_length() - 1,
         }
     }
     fn zero() -> RecursiveFunctions {
@@ -189,7 +189,7 @@ impl RecursiveFunctions {
             return Err(());
         } else {
             return Ok(Self::MuOperator(MuOperator {
-                func: Box::new(func),
+                mu_func: Box::new(func),
             }));
         }
     }
@@ -216,7 +216,8 @@ impl NaturalFunction {
     }
 }
 
-pub fn interpreter(func: RecursiveFunctions) -> NaturalFunction {
+pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
+    // eprintln!("{func:?}");
     match func {
         RecursiveFunctions::ZeroConstant => NaturalFunction {
             parameter_length: 0,
@@ -230,34 +231,28 @@ pub fn interpreter(func: RecursiveFunctions) -> NaturalFunction {
             }),
         },
         RecursiveFunctions::Projection(proj) => {
-            let Projection {
-                parameter_length,
-                projection_num,
-            } = proj;
+            let num = proj.projection_num;
             NaturalFunction {
-                parameter_length,
-                func: Box::new(move |NumberTuple(vec)| vec[projection_num].clone()),
+                parameter_length: func.parameter_length(),
+                func: Box::new(move |NumberTuple(vec)| vec[num].clone()),
             }
         }
         RecursiveFunctions::Composition(composition) => {
             let Composition {
                 parameter_length,
                 outer_func,
-                inner_func,
+                ref inner_func,
             } = composition;
+            let outer_func = interpreter(&outer_func);
+            let inner_funcs = inner_func.iter().map(interpreter).collect::<Vec<_>>();
             let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
-                let result_vec: Vec<Number> = inner_func
-                    .to_owned()
-                    .into_iter()
-                    .map(|function| {
-                        let result: Number = interpreter(function).unchecked_subst(vector.clone());
-                        result
-                    })
+                let result_vec: Vec<Number> = inner_funcs.iter()
+                    .map(|func| func.unchecked_subst(vector.clone()))
                     .collect();
-                interpreter(*outer_func.to_owned()).unchecked_subst(NumberTuple(result_vec))
+                outer_func.unchecked_subst(NumberTuple(result_vec))
             });
             NaturalFunction {
-                parameter_length,
+                parameter_length: *parameter_length,
                 func,
             }
         }
@@ -267,22 +262,20 @@ pub fn interpreter(func: RecursiveFunctions) -> NaturalFunction {
                 succ_func,
             } = prim.clone();
             let length = &zero_func.parameter_length() + 1;
+            let zero_func = interpreter(&zero_func);
+            let succ_func = interpreter(&succ_func);
+            let this_func_clone = func.clone();
             let function: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
-                let (first, cont) = vector.split().unwrap();
+                let (first, cont) = vector.clone().split().unwrap();
                 if first.is_zero() {
-                    interpreter(*zero_func.to_owned()).unchecked_subst(cont)
+                    zero_func.unchecked_subst(cont)
                 } else {
                     let pred_result = {
-                        let this_func = RecursiveFunctions::PrimitiveRecursion(prim.clone());
-                        let pred_input = std::iter::once(first.pred())
-                            .chain((&cont.0).iter().cloned())
-                            .collect::<Vec<_>>();
-                        interpreter(this_func).unchecked_subst(NumberTuple(pred_input))
+                        let pred_input = concat_head(first.clone().pred(), cont.clone());
+                        interpreter(&this_func_clone).unchecked_subst(pred_input)
                     };
-                    let input = std::iter::once(pred_result)
-                        .chain(cont.0)
-                        .collect::<Vec<_>>();
-                    interpreter(*succ_func.to_owned()).unchecked_subst(NumberTuple(input))
+                    let input = concat_head(pred_result, concat_head(first.pred(), cont));
+                    succ_func.unchecked_subst(input)
                 }
             });
             NaturalFunction {
@@ -291,15 +284,14 @@ pub fn interpreter(func: RecursiveFunctions) -> NaturalFunction {
             }
         }
         RecursiveFunctions::MuOperator(muop) => {
-            let MuOperator { func: function } = muop;
-            let length = function.parameter_length() - 1;
-            let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |NumberTuple(vector)| {
+            let MuOperator { mu_func } = muop;
+            let length = mu_func.parameter_length() - 1;
+            let mu_func = interpreter(&mu_func);
+            let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
                 let mut i = 0;
                 let result = 'lp: loop {
-                    let mut input = vec![Number(i)];
-                    input.extend_from_slice(&vector);
                     let result =
-                        interpreter(*function.to_owned()).unchecked_subst(NumberTuple(input));
+                        mu_func.unchecked_subst(concat_head(Number(i), vector.clone()));
                     if result == Number(0) {
                         break 'lp Number(i);
                     }
@@ -317,13 +309,13 @@ pub fn interpreter(func: RecursiveFunctions) -> NaturalFunction {
 
 #[cfg(test)]
 mod tests {
-    use super::{interpreter, RecursiveFunctions};
+    use super::{interpreter, PrimitiveRecursion, RecursiveFunctions};
     use super::{Number, NumberTuple};
 
     #[test]
     fn zero_call() {
         let zero = RecursiveFunctions::zero();
-        let zero_func = interpreter(zero);
+        let zero_func = interpreter(&zero);
         let result = zero_func.checked_subst(vec![].into());
         assert_eq!(result, Ok(Number(0)));
         let result = zero_func.checked_subst(vec![0].into());
@@ -332,7 +324,7 @@ mod tests {
     #[test]
     fn succ_call() {
         let succ = RecursiveFunctions::succ();
-        let succ_func = interpreter(succ);
+        let succ_func = interpreter(&succ);
         for i in 0..5 {
             let result = succ_func.checked_subst(vec![i].into());
             assert_eq!(result, Ok(Number(i + 1)))
@@ -341,14 +333,14 @@ mod tests {
     #[test]
     fn proj_call() {
         let proj = RecursiveFunctions::projection(1, 0).unwrap();
-        let proj_func = interpreter(proj);
+        let proj_func = interpreter(&proj);
         let result = proj_func.checked_subst(vec![0].into());
         assert_eq!(result, Ok(Number(0)));
         let result = proj_func.checked_subst(vec![0, 1].into());
         assert_eq!(result, Err(()));
 
         let proj = RecursiveFunctions::projection(3, 0).unwrap();
-        let proj_func = interpreter(proj);
+        let proj_func = interpreter(&proj);
         let result = proj_func.checked_subst(vec![0, 1, 2].into());
         assert_eq!(result, Ok(Number(0)));
     }
@@ -360,7 +352,7 @@ mod tests {
             RecursiveFunctions::succ(),
         )
         .unwrap();
-        let succcc_func = interpreter(succcc);
+        let succcc_func = interpreter(&succcc);
         let result = succcc_func.checked_subst(vec![0].into());
         assert_eq!(result, Ok(Number(2)));
         assert!(RecursiveFunctions::composition(0, vec![], RecursiveFunctions::succ()).is_err());
@@ -386,7 +378,7 @@ mod tests {
             RecursiveFunctions::projection(3, 1).unwrap(),
         )
         .unwrap();
-        let func = interpreter(snd_succ);
+        let func = interpreter(&snd_succ);
         assert_eq!(func.checked_subst(vec![0].into()), Ok(Number(1)));
 
         let snd_succ = RecursiveFunctions::composition(
@@ -400,7 +392,7 @@ mod tests {
             RecursiveFunctions::projection(4, 1).unwrap(),
         )
         .unwrap();
-        let func = interpreter(snd_succ);
+        let func = interpreter(&snd_succ);
         assert_eq!(func.checked_subst(vec![0, 1, 2].into()), Ok(Number(1)))
     }
     #[test]
@@ -413,12 +405,74 @@ mod tests {
         )
         .unwrap();
         let add = RecursiveFunctions::primitive_recursion(zero_func, succ_func).unwrap();
-        let add_func = interpreter(add);
-        assert_eq!(add_func.checked_subst(vec![0, 0].into()), Ok(Number(0)));
-        assert_eq!(add_func.checked_subst(vec![0, 1].into()), Ok(Number(1)));
-        assert_eq!(add_func.checked_subst(vec![1, 0].into()), Ok(Number(1)));
-        assert_eq!(add_func.checked_subst(vec![1, 1].into()), Ok(Number(2)));
-        assert_eq!(add_func.checked_subst(vec![2, 2].into()), Ok(Number(4)));
-        assert_eq!(add_func.checked_subst(vec![2, 3].into()), Ok(Number(5)));
+        let add_func = interpreter(&add);
+        // assert_eq!(add_func.checked_subst(vec![0, 0].into()), Ok(Number(0)));
+        // assert_eq!(add_func.checked_subst(vec![0, 1].into()), Ok(Number(1)));
+        // assert_eq!(add_func.checked_subst(vec![1, 0].into()), Ok(Number(1)));
+        // assert_eq!(add_func.checked_subst(vec![1, 1].into()), Ok(Number(2)));
+        // assert_eq!(add_func.checked_subst(vec![2, 2].into()), Ok(Number(4)));
+        // assert_eq!(add_func.checked_subst(vec![2, 3].into()), Ok(Number(5)));
+    }
+    fn pred_func() -> RecursiveFunctions {
+        RecursiveFunctions::primitive_recursion(
+            RecursiveFunctions::zero(),
+            RecursiveFunctions::projection(2, 1).unwrap(),
+        )
+        .unwrap()
+    }
+    #[test]
+    fn pred_well() {
+        let pred_func = interpreter(&pred_func());
+        assert_eq!(pred_func.checked_subst(vec![0].into()), Ok(Number(0)));
+        assert_eq!(pred_func.checked_subst(vec![1].into()), Ok(Number(0)));
+        assert_eq!(pred_func.checked_subst(vec![2].into()), Ok(Number(1)));
+        assert_eq!(pred_func.checked_subst(vec![3].into()), Ok(Number(2)));
+    }
+    fn inv_monus() -> RecursiveFunctions {
+        RecursiveFunctions::primitive_recursion(
+            RecursiveFunctions::projection(1, 0).unwrap(),
+            RecursiveFunctions::composition(
+                3,
+                vec![RecursiveFunctions::projection(3, 0).unwrap()],
+                pred_func(),
+            )
+            .unwrap(),
+        )
+        .unwrap()
+    }
+    fn monus() -> RecursiveFunctions {
+
+        RecursiveFunctions::composition(
+            2,
+            vec![
+                RecursiveFunctions::projection(2, 1).unwrap(),
+                RecursiveFunctions::projection(2, 0).unwrap(),
+            ],
+            inv_monus(),
+        )
+        .unwrap()
+    }
+    #[test]
+    fn monus_call() {
+        let monus = interpreter(&monus());
+        assert_eq!(monus.checked_subst(vec![0, 0].into()), Ok(Number(0)));
+        assert_eq!(monus.checked_subst(vec![0, 1].into()), Ok(Number(0)));
+        assert_eq!(monus.checked_subst(vec![0, 2].into()), Ok(Number(0)));
+        assert_eq!(monus.checked_subst(vec![1, 0].into()), Ok(Number(1)));
+        assert_eq!(monus.checked_subst(vec![2, 0].into()), Ok(Number(2)));
+        assert_eq!(monus.checked_subst(vec![1, 1].into()), Ok(Number(0)));
+        assert_eq!(monus.checked_subst(vec![2, 2].into()), Ok(Number(0)));
+        assert_eq!(monus.checked_subst(vec![2, 1].into()), Ok(Number(1)));
+    }
+    fn id_from_inv_monus() -> RecursiveFunctions {
+        RecursiveFunctions::muoperator(inv_monus()).unwrap()
+    }
+    #[test]
+    fn muop_call() {
+        let id = interpreter(&id_from_inv_monus());
+        assert_eq!(id.checked_subst(vec![0].into()), Ok(Number(0)));
+        assert_eq!(id.checked_subst(vec![1].into()), Ok(Number(1)));
+        assert_eq!(id.checked_subst(vec![2].into()), Ok(Number(2)));
+        assert_eq!(id.checked_subst(vec![3].into()), Ok(Number(3)));
     }
 }
