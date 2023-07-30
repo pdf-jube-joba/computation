@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./compile/recursive_function_to_turing_machine/Cargo.toml"
+    ]
+}

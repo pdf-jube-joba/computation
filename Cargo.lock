@@ -537,6 +537,10 @@ dependencies = [
 [[package]]
 name = "recursive_function_to_turing_machine"
 version = "0.1.0"
+dependencies = [
+ "recursive_function",
+ "turing_machine",
+]
 
 [[package]]
 name = "rustversion"

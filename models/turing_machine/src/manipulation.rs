@@ -243,8 +243,8 @@ pub mod graph_compose {
     pub struct GraphOfMachine {
         // number_of_vertex: usize,
         // edge: Vec<(usize, usize)>,
-        assign_vertex_to_machine: Vec<crate::machine::TuringMachine>,
-        assign_edge_to_state: HashMap<(usize, usize), State>,
+        pub assign_vertex_to_machine: Vec<crate::machine::TuringMachine>,
+        pub assign_edge_to_state: HashMap<(usize, usize), State>,
     }
 
     pub fn naive_composition(graph: GraphOfMachine) -> Result<TuringMachine, ()> {
@@ -319,9 +319,10 @@ pub mod graph_compose {
     // to compose builders on graph which has same type of input and output
     pub struct GraphOfBuilder
     {
-        assign_vertex_to_builder: Vec<TuringMachineBuilder>,
-        assign_edge_to_state: HashMap<(usize, usize), State>,
+        pub assign_vertex_to_builder: Vec<TuringMachineBuilder>,
+        pub assign_edge_to_state: HashMap<(usize, usize), State>,
     }
+    // TODO 終了状態の名前を指定できた方がよい。
     pub fn naive_builder_composition(
         name: &str,
         graph: GraphOfBuilder,

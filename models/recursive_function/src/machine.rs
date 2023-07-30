@@ -19,6 +19,12 @@ impl From<usize> for Number {
     }
 }
 
+impl Into<usize> for Number {
+    fn into(self) -> usize {
+        self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NumberTuple(Vec<Number>);
 
@@ -85,6 +91,18 @@ impl Into<String> for NumberTuple {
         }
         s.push(')');
         s
+    }
+}
+
+impl Into<Vec<Number>> for NumberTuple {
+    fn into(self) -> Vec<Number> {
+        self.0
+    }
+}
+
+impl Into<Vec<usize>> for NumberTuple {
+    fn into(self) -> Vec<usize> {
+        self.0.into_iter().map(|num| num.into()).collect()
     }
 }
 
@@ -406,12 +424,12 @@ mod tests {
         .unwrap();
         let add = RecursiveFunctions::primitive_recursion(zero_func, succ_func).unwrap();
         let add_func = interpreter(&add);
-        // assert_eq!(add_func.checked_subst(vec![0, 0].into()), Ok(Number(0)));
-        // assert_eq!(add_func.checked_subst(vec![0, 1].into()), Ok(Number(1)));
-        // assert_eq!(add_func.checked_subst(vec![1, 0].into()), Ok(Number(1)));
-        // assert_eq!(add_func.checked_subst(vec![1, 1].into()), Ok(Number(2)));
-        // assert_eq!(add_func.checked_subst(vec![2, 2].into()), Ok(Number(4)));
-        // assert_eq!(add_func.checked_subst(vec![2, 3].into()), Ok(Number(5)));
+        assert_eq!(add_func.checked_subst(vec![0, 0].into()), Ok(Number(0)));
+        assert_eq!(add_func.checked_subst(vec![0, 1].into()), Ok(Number(1)));
+        assert_eq!(add_func.checked_subst(vec![1, 0].into()), Ok(Number(1)));
+        assert_eq!(add_func.checked_subst(vec![1, 1].into()), Ok(Number(2)));
+        assert_eq!(add_func.checked_subst(vec![2, 2].into()), Ok(Number(4)));
+        assert_eq!(add_func.checked_subst(vec![2, 3].into()), Ok(Number(5)));
     }
     fn pred_func() -> RecursiveFunctions {
         RecursiveFunctions::primitive_recursion(

@@ -6,3 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+turing_machine = { path = "../../models/turing_machine" }
+recursive_function = { path = "../../models/recursive_function" }

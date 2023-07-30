@@ -1,0 +1,4 @@
+-, start, -, next, R
+-, next, , write, R
+ , write, -, ret, L
+ , ret, ,end, L
