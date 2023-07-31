@@ -1,0 +1,4 @@
+-, start, -, till, L
+ ,  till,  , till, L
+1,  till, 1, till, L
+-,  till, -,  end, C

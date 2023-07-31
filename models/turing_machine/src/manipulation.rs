@@ -101,18 +101,12 @@ pub mod tape {
 pub mod code {
     use crate::machine::CodeEntry;
 
-    // 空の行、 "," を含む行はコメントとみなす。
+    // 空の行、 "," を含んでない行はコメントとみなす。
     pub fn parse_code(code: &str) -> Result<Vec<CodeEntry>, String> {
         let mut vec = Vec::new();
         for entry in code
             .lines()
-            .flat_map(|line| {
-                if line.is_empty() || !line.contains(",") {
-                    None
-                } else {
-                    Some(line)
-                }
-            })
+            .filter(|line| !line.is_empty() && line.contains(","))
             .map(CodeEntry::try_from)
         {
             vec.push(entry?)
@@ -319,39 +313,71 @@ pub mod graph_compose {
     // to compose builders on graph which has same type of input and output
     pub struct GraphOfBuilder
     {
+        pub name: String,
+        // pub init_state: State,
         pub assign_vertex_to_builder: Vec<TuringMachineBuilder>,
         pub assign_edge_to_state: HashMap<(usize, usize), State>,
+        // pub acceptable: Vec<Vec<State>>,
     }
     // TODO 終了状態の名前を指定できた方がよい。
     pub fn naive_builder_composition(
-        name: &str,
         graph: GraphOfBuilder,
-    ) -> TuringMachineBuilder
+    ) -> Result<TuringMachineBuilder, String>
     {
         let GraphOfBuilder {
+            name,
+            // init_state,
             assign_vertex_to_builder,
             assign_edge_to_state,
+            // acceptable
         } = graph;
-        let mut builder = TuringMachineBuilder::new(name).unwrap();
-        if let Some(initial_state) = assign_vertex_to_builder[0].get_init_state() {
-            builder.init_state(initial_state);
+        let mut builder = TuringMachineBuilder::new(&name).unwrap();
+        
+        let format_name = |index: usize, state: State| {
+            State::try_from(format!("{index}-{}-{state}", assign_vertex_to_builder[index].get_name()).as_ref()).unwrap()
         };
 
+        // builder に initial state があることが前提。
+        for (index, builder) in assign_vertex_to_builder.iter().enumerate() {
+            if builder.get_init_state().is_none() {
+                return Err(format!("no initial state in builder {index}"));
+            }
+        }
+        
+        builder.init_state(assign_vertex_to_builder[0].get_init_state().unwrap());
+        // builder.init_state(init_state.clone());
+
+        let all_sign: Vec<Sign> = assign_vertex_to_builder.iter()
+            .flat_map(|builder|{
+                builder.get_signs()
+            }).collect();
+
         let code = {
-            let mut code: Vec<CodeEntry> = Vec::new();
-            assign_vertex_to_builder
+
+            let mut code = vec![];
+            
+            // initial_state から builder[0] の initial state への移動
+            // let mut code: Vec<CodeEntry> = all_sign.iter().map(|sign|{
+            //     CodeEntry::from_tuple(
+            //         sign.clone(),
+            //         init_state.clone(),
+            //         sign.clone(),
+            //         assign_vertex_to_builder[0].get_init_state().unwrap(), // 上で検査してるので安全
+            //         Direction::Constant
+            //     )
+            // }).collect();
+
+            // 各 builder の名前の付け替えを行いつつ新たにentryを作る。
+            let iter = assign_vertex_to_builder
                 .iter()
                 .enumerate()
-                .for_each(|(index, builder)| {
-                    let name = builder.get_name();
-                    let builder_code: Vec<CodeEntry> = builder
+                .flat_map(|(index, builder)| {
+                    builder
                         .get_code()
                         .into_iter()
-                        .map(|entry| {
-                            let new_key_state: State =
-                                State::try_from(format!("{index}-{name}-{}", entry.key_state()).as_ref()).unwrap();
-                            let new_value_state: State =
-                                State::try_from(format!("{index}-{name}-{}", entry.value_state()).as_ref()).unwrap();
+                        .map(move |entry| {
+                            let new_key_state: State = format_name(index, entry.key_state());
+                            let new_value_state: State = format_name(index, entry.value_state());
                             CodeEntry::from_tuple(
                                 entry.key_sign(),
                                 new_key_state,
@@ -359,10 +385,29 @@ pub mod graph_compose {
                                 new_value_state,
                                 entry.value_direction(),
                             )
-                        })
-                        .collect();
-                    code.extend(builder_code);
+                    })
                 });
+            code.extend(iter);
+
+            // 各 edge (i,j) ごとに builder[i] の E_{i,j} で指定された state から builder[j] の initial state への移行
+            let iter = assign_edge_to_state
+                .iter()
+                .flat_map(|((index1, index2), state)|{
+                    let init_state2 = assign_vertex_to_builder[*index2].get_init_state().unwrap(); // 上で検査してるので安全
+                    all_sign.iter()
+                        .map(|sign|{
+                            CodeEntry::from_tuple(
+                                sign.clone(),
+                                format_name(*index1, state.clone()),
+                                sign.clone(),
+                                format_name(*index2, init_state2.clone()),
+                                Direction::Constant
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                });
+            code.extend(iter);
+
             code
         };
         let accepted_state: Vec<State> = {
@@ -376,7 +421,7 @@ pub mod graph_compose {
             vec.into_iter().collect()
         };
         builder.accepted_state(accepted_state).code_new(code);
-        builder
+        Ok(builder)
     }
 }
 
@@ -473,4 +518,35 @@ pub mod compose_diff_type {
 
 pub mod machine_as_function {
     // pub struct
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::machine::State;
+
+    use super::{code, builder};
+
+    static CODE_STR: &str = "
+        -, start, -, end, C
+        ";
+
+    #[test]
+    fn parse_code() {
+        let code = code::parse_code(CODE_STR);
+        assert!(code.is_ok());
+    }
+    #[test]
+    fn builder() {
+        let mut builder = builder::TuringMachineBuilder::new("test").unwrap();
+        assert!(builder.build().is_err());
+
+        let start_state = State::try_from("start").unwrap();
+        builder.init_state(start_state.clone());
+        assert_eq!(builder.get_init_state(), Some(start_state));
+
+        let accepted_state = vec![
+            State::try_from("end").unwrap(),
+        ];
+        builder.accepted_state(accepted_state);
+    }
 }

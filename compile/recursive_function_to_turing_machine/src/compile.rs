@@ -18,7 +18,7 @@ mod num_tape {
         (0..num.into()).map(|_| one()).collect()
     }
 
-    fn write(tuple: NumberTuple) -> TapeAsVec {
+    pub fn write(tuple: NumberTuple) -> TapeAsVec {
         let vec: Vec<Number> = tuple.into();
         let mut signs: Vec<Sign> = vec.into_iter().flat_map(|num: Number| {
             let mut vec = vec![Sign::blank()];
@@ -29,17 +29,21 @@ mod num_tape {
         TapeAsVec { left: vec![], head: partition(), right: signs }
     }
 
-    fn read_right_one(tape: TapeAsVec) -> Result<NumberTuple, ()> {
-        if tape.head == partition() {
+    fn read_one(signs: Vec<Sign>) -> Result<NumberTuple, ()> {
+        let v = signs.split(|char| *char == Sign::blank()).map(|vec|{
+            vec.len()
+        }).skip(1);
+        Ok(v.collect::<Vec<_>>().into())
+    }
+
+    pub fn read_right_one(tape: TapeAsVec) -> Result<NumberTuple, ()> {
+        if tape.head != partition() {
             return Err(());
         }
-        // let v = Vec::new();
-        for sign in tape.right.into_iter().take_while(|sign| {
-            *sign == one() || *sign == Sign::blank()
-        }) {
-
-        }
-        unimplemented!()
+        let iter = tape.right.iter().take_while(|sign| {
+            **sign == Sign::blank() || **sign == one()
+        }).cloned();
+        read_one(iter.collect())
     }
 
 }
@@ -85,7 +89,7 @@ fn copy() -> TuringMachineBuilder {
 }
 
 fn move_right() -> TuringMachineBuilder {
-    let code =  unimplemented!();
+    let code =  code::parse_code(include_str!("move_right.txt")).unwrap();
     let mut builder = TuringMachineBuilder::new("move_right").unwrap();
     builder
         .code_new(code)
@@ -95,7 +99,7 @@ fn move_right() -> TuringMachineBuilder {
 }
 
 fn move_left() -> TuringMachineBuilder {
-    let code =  unimplemented!();
+    let code =  code::parse_code(include_str!("move_left.txt")).unwrap();
     let mut builder = TuringMachineBuilder::new("move_left").unwrap();
     builder
         .code_new(code)
@@ -107,10 +111,11 @@ fn move_left() -> TuringMachineBuilder {
 fn copy_n(n: usize) -> TuringMachineBuilder {
     if n == 0 { id() } else {
         let graph = GraphOfBuilder {
+            name: "a".to_string(),
             assign_vertex_to_builder: vec![copy(), move_right(), copy_n(n-1), move_left()],
             assign_edge_to_state: HashMap::new(),
         };
-        naive_builder_composition("copy_n", graph)
+        naive_builder_composition(graph).unwrap()
     }
 }
 
@@ -126,4 +131,26 @@ fn rotate() -> TuringMachineBuilder {
 
 fn composition(inner_builder: Vec<TuringMachineBuilder>, outer_builder: TuringMachineBuilder) -> TuringMachineBuilder {
     unimplemented!()
+}
+
+#[cfg(test)]
+mod test {
+    use recursive_function::machine::NumberTuple;
+
+    use super::num_tape;
+
+    #[test]
+    fn tuple_read_write() {
+        fn assert_equal(tuple: NumberTuple) {
+            let tape = num_tape::write(tuple.clone());
+            let result = num_tape::read_right_one(tape);
+            assert_eq!(Ok(tuple), result)
+        }
+
+        assert_equal(vec![].into());
+        assert_equal(vec![1].into());
+        assert_equal(vec![2].into());
+        assert_equal(vec![1,1].into());
+        assert_equal(vec![1,2,3].into());
+    }
 }
