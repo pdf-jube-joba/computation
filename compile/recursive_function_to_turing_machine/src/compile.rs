@@ -137,7 +137,7 @@ fn composition(inner_builder: Vec<TuringMachineBuilder>, outer_builder: TuringMa
 mod test {
     use recursive_function::machine::NumberTuple;
 
-    use super::num_tape;
+    use super::{num_tape, zero_builder, succ_builder};
 
     #[test]
     fn tuple_read_write() {
@@ -148,9 +148,39 @@ mod test {
         }
 
         assert_equal(vec![].into());
+        assert_equal(vec![0].into());
         assert_equal(vec![1].into());
         assert_equal(vec![2].into());
         assert_equal(vec![1,1].into());
         assert_equal(vec![1,2,3].into());
+    }
+    #[test]
+    fn test_zero() {
+        let mut zero_builder = zero_builder();
+        zero_builder.input(num_tape::write(vec![].into()));
+        let mut machine = zero_builder.build().unwrap();
+        loop {
+            let _ = machine.step(1);
+            if machine.is_terminate() { break;}
+        }
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![0].into()));
+    }
+    #[test]
+    fn succ_zero() {
+        let mut succ_builder = succ_builder();
+
+        for i in 0..5 {
+            succ_builder.input(num_tape::write(vec![i].into()));
+            let mut machine = succ_builder.build().unwrap();
+            eprintln!("start: {} {:?}", machine.now_state(), machine.now_tape());
+            loop {
+                let _ = machine.step(1);
+                eprintln!("next: {} {:?}", machine.now_state(), machine.now_tape());
+                if machine.is_terminate() { break;}
+            }
+            let result = num_tape::read_right_one(machine.now_tape());
+            assert_eq!(result, Ok(vec![i+1].into()))
+        }
     }
 }
