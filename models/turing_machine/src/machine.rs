@@ -147,6 +147,29 @@ impl From<TapeAsVec> for String {
     }
 }
 
+impl Display for TapeAsVec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let TapeAsVec { left, head, right } = &self;
+        let mut str = String::new();
+        left.iter().rev().for_each(|sign| {
+            if *sign == Sign::blank() {
+                str.push_str(" ");
+            } else {
+                str.push_str(&format!("{sign}"));
+            }
+        });
+        str.push_str(&format!("[{}]", head.to_string()));
+        right.iter().for_each(|sign| {
+            if *sign == Sign::blank() {
+                str.push_str(" ");
+            } else {
+                str.push_str(&format!("{sign}"));
+            }
+        });
+        write!(f, "{}", str)
+    }
+}
+
 impl Tape {
     pub fn new(
         left: impl IntoIterator<Item = Sign>,
@@ -447,6 +470,9 @@ impl TuringMachineSet {
     pub fn is_terminate(&self) -> bool {
         self.accepted_state.contains(&self.machine_state.state)
             || !self.machine_code.code().contains_key(&self.now_key())
+    }
+    pub fn is_accepted(&self) -> bool {
+        self.accepted_state.contains(&self.machine_state.state)
     }
     pub fn next_step(&self) -> Result<CodeEntry, ()> {
         if self.is_terminate() {

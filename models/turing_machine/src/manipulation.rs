@@ -352,6 +352,26 @@ pub mod graph_compose {
         } = graph;
         let mut builder = TuringMachineBuilder::new(&name).unwrap();
 
+        // builder に initial state があることが前提。
+        for (index, builder) in assign_vertex_to_builder.iter().enumerate() {
+            if builder.get_init_state().is_none() {
+                return Err(format!("no initial state in builder {index}"));
+            }
+        }
+
+        // vertex の数と acceptable の数が一致することが前提
+        if assign_vertex_to_builder.len() != acceptable.len() {
+            return Err(format!("length of vertex and accpetable is different"));
+        }
+
+        // edge に出てくる数が vertex を超えないことが前提
+        for ((i1, i2), state) in &assign_edge_to_state {
+            let num_vertex = assign_vertex_to_builder.len();
+            if num_vertex <= *i1 || num_vertex <= *i2 {
+                return Err(format!("edge's index out...num: {num_vertex}, edge: {i1} {i2} {state}"));
+            }
+        }
+
         let format_name = |index: usize, state: State| {
             State::try_from(
                 format!(
@@ -362,13 +382,6 @@ pub mod graph_compose {
             )
             .unwrap()
         };
-
-        // builder に initial state があることが前提。
-        for (index, builder) in assign_vertex_to_builder.iter().enumerate() {
-            if builder.get_init_state().is_none() {
-                return Err(format!("no initial state in builder {index}"));
-            }
-        }
 
         // builder.init_state(assign_vertex_to_builder[0].get_init_state().unwrap());
         builder.init_state(init_state.clone());
