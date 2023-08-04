@@ -375,17 +375,6 @@ fn pre_remove_empty_case() -> TuringMachineBuilder {
     naive_builder_composition(graph).unwrap()
 }
 
-fn catch_left_1_in_bar() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("catch_left_1_in_bar").unwrap();
-    builder.init_state(state("start"))
-        .accepted_state(vec![state("end")])
-        .code_new(vec![
-            " , start,  , start, L",
-            "1, start, 1, end, C",
-        ].into_iter().map(|str| str.try_into().unwrap()).collect());
-    builder
-}
-
 fn is_empty() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("is_empty").unwrap();
     builder.from_source(include_str!("is_empty.txt")).unwrap();
@@ -419,48 +408,76 @@ fn pre_remove_one() -> TuringMachineBuilder {
         name: "remove_one".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            move_right(), left_one(), bor1orbar(),
-            putbar(), pre_remove_empty_case(), move_left(),
-            pre_remove_empty_case(), catch_left_1_in_bar(), right_one(), putbar()
+            is_empty(), 
+            pre_remove_empty_case(),
+            move_right(), left_one(), putbar(),
+            pre_remove_empty_case(),
+            move_rights(2),
+            putb(), left_one(), move_lefts(2),
+            pre_remove_one_pre(),
+            move_right(),
+            right_one(),
+            bor1orbar(),
+            putb(),
+            putbar(),
+            move_lefts(2),
+            id(),
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 3), state("endB")),
-            ((2, 6), state("endbar")),
-
-            ((3, 4), state("end")),
-            ((4, 5), state("end")),
-            ((5, 0), state("end")),
-
-            ((6, 7), state("end")),
-            ((7, 8), state("end")),
-            ((8, 9), state("end")),
-        ].into_iter().collect(),
-        acceptable: accept_end_only(9),
+            vec![
+                ((0, 1), state("endT")),
+                ((1, 17), state("end")),
+                ((0, 2), state("endF")),
+            ],
+            (2..=11).map(|i| ((i, i+1), state("end"))).collect(),
+            vec![
+                ((12, 13), state("end")),
+                ((13, 14), state("endbar")),
+                ((13, 15), state("endB")),
+                ((14, 12), state("end")),
+                ((15, 16), state("end")),
+                ((16, 17), state("end")),
+            ]
+            
+        ].into_iter().flatten().collect(),
+        acceptable: accept_end_only(17),
     };
     naive_builder_composition(graph).unwrap()
 }
 
+// -B-p_1-...-p_n- を -p_1-...-p_n-B- にする
 fn pre_remove_first(n: usize) -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
-        name: format!("pre_remove_this_tuple_{n}"),
+        name: format!("pre_remove_first_this_tuple_{n}"),
         init_state: state("start"),
-        assign_vertex_to_builder: unimplemented!(),
-        assign_edge_to_state: unimplemented!(),
-        acceptable: unimplemented!(),
+        assign_vertex_to_builder: {
+            let mut v = Vec::new();
+            v.extend(vec![vec![pre_remove_one(), move_right()]; n-1].into_iter().flatten());
+            v.push(pre_remove_one());
+            v.push(move_lefts(n-1));
+            v
+        },
+        assign_edge_to_state: series_edge_end_only(2 * n -1),
+        acceptable: accept_end_only(2 * n -1),
     };
     naive_builder_composition(graph).unwrap()
 }
 
-pub fn rotate() -> TuringMachineBuilder {
-    let code = code::parse_code(include_str!("rotate.txt")).unwrap();
-    let mut builder = TuringMachineBuilder::new("bin_adder").unwrap();
-    builder
-        .code_new(code)
-        .init_state(state("start"))
-        .accepted_state(vec![State::try_from("end").unwrap()]);
-    builder
+pub fn rotate(n: usize) -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: "rotate".to_string(),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            pre_move_this_tuple(n),
+            pre_remove_first(n),
+            move_rights(n+1),
+            putb(),
+            move_lefts(n+1),
+        ],
+        assign_edge_to_state: series_edge_end_only(4),
+        acceptable: accept_end_only(4),
+    };
+    naive_builder_composition(graph).unwrap()
 }
 
 pub fn composition(
@@ -479,7 +496,7 @@ mod test {
         manipulation::graph_compose::{naive_builder_composition, GraphOfBuilder},
     };
 
-    use super::{move_left, move_right, num_tape, succ_builder, zero_builder, bor1orbar, id, put1, putb, putbar, pre_copy, copy_this_b, copy_this_1, copy, pre_move_this_tuple, pre_put_rotate, pre_move_this_1, pre_move_this_b, move_rights, pre_remove_empty_case, pre_remove_one, pre_remove_one_pre};
+    use super::{move_left, move_right, num_tape, succ_builder, zero_builder, bor1orbar, id, put1, putb, putbar, pre_copy, copy_this_b, copy_this_1, copy, pre_move_this_tuple, pre_put_rotate, pre_move_this_1, pre_move_this_b, move_rights, pre_remove_empty_case, pre_remove_one, pre_remove_one_pre, pre_remove_first, rotate};
     use super::state;
 
     fn sign(str: &str) -> Sign {
@@ -488,16 +505,17 @@ mod test {
     fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
         vec.into_iter().map(|str| sign(str)).collect()
     }
-    fn view_step(machine: &mut TuringMachineSet, step: usize) {
+    fn view_step(machine: &mut TuringMachineSet, step: usize) -> bool {
         eprintln!("start");
         eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
         for _ in 0..step {
             let _ = machine.step(1);
             eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
             if machine.is_terminate() {
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     #[test]
@@ -522,6 +540,9 @@ mod test {
         let _ = pre_move_this_b(2);
         let _ = pre_move_this_tuple(2);
         let _ = pre_remove_empty_case();
+        let _ = pre_remove_one_pre();
+        let _ = pre_remove_one();
+        let _ = rotate(3);
     }
 
     #[test]
@@ -756,6 +777,15 @@ mod test {
                 head: sign("-"),
                 right: vec_sign(vec!["", "1", "", "1",  "-", "-"]),
             }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["",  "",  "", "-",  "", "1",  "", "1", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1",  "", "1", "-", "-", "-", "-", "-"]),
+            }),
         ];
         for (input, expect) in tests {
             let mut machine = pre.input(input).build().unwrap();
@@ -784,14 +814,101 @@ mod test {
             }, TapeAsVec {
                 left: vec![],
                 head: sign("-"),
-                right: vec_sign(vec!["", "1", "", "1",  "", "-"]),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "", "-", "", "1", "", "1", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "", "", "-"]),
             }),
         ];
         for (input, expect) in tests {
             let mut machine = pre.input(input).build().unwrap();
-            view_step(&mut machine, 500);
+            assert!(view_step(&mut machine, 500));
             assert!(machine.is_accepted());
             assert_eq!(machine.now_tape(), expect);
+        }
+    }
+    #[test]
+    fn pre_remove_first_test() {
+        let mut pre = pre_remove_first(2);
+        let tests = vec![
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "-", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec![ "-", "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "", "1", "", "1", "-", "", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "", "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "", "-", "", "1", "", "1", "-", "", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "", "-", "", "", "-"]),
+            }),
+        ];
+        for (input, expect) in tests {
+            let mut machine = pre.input(input).build().unwrap();
+            assert!(view_step(&mut machine, 500));
+            assert!(machine.is_accepted());
+            assert_eq!(machine.now_tape(), expect);
+        }
+    }
+    #[test]
+    fn rotate_test() {
+        let mut pre = rotate(3);
+        let tests = vec![
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "-", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec![ "-", "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "", "1", "", "1", "-", "", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "", "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "", "-", "", "1", "", "1", "-", "", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "", "-", "", "", "-"]),
+            }),
+        ];
+        for (input, expect) in tests {
+            let mut machine = pre.input(input).build().unwrap();
+            assert!(view_step(&mut machine, 2000));
+            assert!(machine.is_accepted());
+            assert!(machine.now_tape().eq(&expect));
         }
     }
 }

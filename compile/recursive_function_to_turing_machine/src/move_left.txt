@@ -2,6 +2,8 @@ start
 end
 
 -, start, -, till, L
+ , start,  , till, L
+1, start, 1, till, L
  ,  till,  , till, L
 1,  till, 1, till, L
 -,  till, -,  end, C

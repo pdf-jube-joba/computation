@@ -386,13 +386,12 @@ pub mod graph_compose {
         // builder.init_state(assign_vertex_to_builder[0].get_init_state().unwrap());
         builder.init_state(init_state.clone());
 
-        let all_sign: Vec<Sign> = assign_vertex_to_builder
+        let all_sign: HashSet<Sign> = assign_vertex_to_builder
             .iter()
             .flat_map(|builder| builder.get_signs())
             .collect();
 
         let code = {
-            // let mut code = vec![];
 
             // initial_state から builder[0] の initial state への移動
             let mut code: Vec<CodeEntry> = all_sign
@@ -468,16 +467,7 @@ pub mod graph_compose {
 
             code
         };
-        // let accepted_state: Vec<State> = {
-        //     let mut vec: HashSet<State> = HashSet::new();
-        //     for builder in assign_vertex_to_builder {
-        //         vec.extend(builder.get_accepted_state())
-        //     }
-        //     for edge in assign_edge_to_state {
-        //         vec.remove(&edge.1);
-        //     }
-        //     vec.into_iter().collect()
-        // };
+
         builder.accepted_state(acceptable.into_iter().flatten()).code_new(code);
         Ok(builder)
     }
