@@ -264,7 +264,8 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
             let outer_func = interpreter(&outer_func);
             let inner_funcs = inner_func.iter().map(interpreter).collect::<Vec<_>>();
             let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
-                let result_vec: Vec<Number> = inner_funcs.iter()
+                let result_vec: Vec<Number> = inner_funcs
+                    .iter()
                     .map(|func| func.unchecked_subst(vector.clone()))
                     .collect();
                 outer_func.unchecked_subst(NumberTuple(result_vec))
@@ -308,8 +309,7 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
             let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
                 let mut i = 0;
                 let result = 'lp: loop {
-                    let result =
-                        mu_func.unchecked_subst(concat_head(Number(i), vector.clone()));
+                    let result = mu_func.unchecked_subst(concat_head(Number(i), vector.clone()));
                     if result == Number(0) {
                         break 'lp Number(i);
                     }
@@ -459,7 +459,6 @@ mod tests {
         .unwrap()
     }
     fn monus() -> RecursiveFunctions {
-
         RecursiveFunctions::composition(
             2,
             vec![

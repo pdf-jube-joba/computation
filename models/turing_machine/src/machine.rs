@@ -93,25 +93,44 @@ impl TapeAsVec {
     }
     pub fn eq(&self, tape2: &TapeAsVec) -> bool {
         fn same_except_last_blanks(vec1: &[Sign], vec2: &[Sign]) -> bool {
-            let iter1 = vec1.into_iter().rev().skip_while(|sign| **sign == Sign::blank());
-            let iter2 = vec2.into_iter().rev().skip_while(|sign| ** sign == Sign::blank());
+            let iter1 = vec1
+                .into_iter()
+                .rev()
+                .skip_while(|sign| **sign == Sign::blank());
+            let iter2 = vec2
+                .into_iter()
+                .rev()
+                .skip_while(|sign| **sign == Sign::blank());
             iter1.eq(iter2)
         }
-        let TapeAsVec { left: left1, head: head1, right: right1 } = self;
-        let TapeAsVec { left: left2, head: head2, right: right2 } = tape2;
-        same_except_last_blanks(&left1, &left2) && head1 == head2 && same_except_last_blanks(&right1, &right2)
+        let TapeAsVec {
+            left: left1,
+            head: head1,
+            right: right1,
+        } = self;
+        let TapeAsVec {
+            left: left2,
+            head: head2,
+            right: right2,
+        } = tape2;
+        same_except_last_blanks(&left1, &left2)
+            && head1 == head2
+            && same_except_last_blanks(&right1, &right2)
     }
 }
 
 impl TryFrom<(Vec<&str>, usize)> for TapeAsVec {
     type Error = String;
     fn try_from(value: (Vec<&str>, usize)) -> Result<Self, Self::Error> {
-        let signs: Vec<Sign> = value.0.into_iter().map(|str| Sign::try_from(str))
-            .collect::<Result<_,_>>()?;
+        let signs: Vec<Sign> = value
+            .0
+            .into_iter()
+            .map(|str| Sign::try_from(str))
+            .collect::<Result<_, _>>()?;
         Ok(TapeAsVec {
             left: signs[..value.1].to_owned(),
             head: signs[value.1].to_owned(),
-            right: signs[value.1+1..].to_owned(),
+            right: signs[value.1 + 1..].to_owned(),
         })
     }
 }
@@ -392,8 +411,8 @@ impl TuringMachine {
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
         let code: Vec<CodeEntry> = code
             .into_iter()
-            .map(| entry | {
-                if accepted_state.contains(& entry.key_state()) {
+            .map(|entry| {
+                if accepted_state.contains(&entry.key_state()) {
                     Err(())
                 } else {
                     Ok(entry)

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use yew::{Properties, Component, html};
+use yew::{html, Component, Properties};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct RegisterIndex(usize);
@@ -47,8 +47,10 @@ impl Display for Operation {
             Self::Inc(index) => write!(f, "INC register:{}", index.0),
             Self::Dec(index) => write!(f, "DEC register:{}", index.0),
             Self::Clr(index) => write!(f, "CLR register:{}", index.0),
-            Self::Ifz(r_index, p_index) => write!(f, "IFZ register:{} program:{}", r_index.0, p_index.0),
-            _ => todo!()
+            Self::Ifz(r_index, p_index) => {
+                write!(f, "IFZ register:{} program:{}", r_index.0, p_index.0)
+            }
+            _ => todo!(),
         }
     }
 }
@@ -60,14 +62,14 @@ impl Registers {
     fn get(&self, index: &RegisterIndex) -> Number {
         match self.0.get(index) {
             Some(num) => num.clone(),
-            None => Number(0)
+            None => Number(0),
         }
     }
     fn set(&mut self, index: RegisterIndex, num: Number) {
         match self.0.get_mut(&index) {
             Some(target) => {
                 *target = num;
-            },
+            }
             None => {
                 self.0.insert(index, num);
             }
@@ -83,7 +85,7 @@ struct CounterMachine {
 
 impl CounterMachine {
     fn is_terminate(&self) -> bool {
-        self.code.0.len() <= self.program_counter.0 
+        self.code.0.len() <= self.program_counter.0
     }
     fn step(&mut self) {
         if !self.is_terminate() {
@@ -99,7 +101,7 @@ impl CounterMachine {
                     self.registers.set(index.clone(), num.dec());
                     self.program_counter.next();
                 }
-                _ => todo!()
+                _ => todo!(),
             }
         }
     }
@@ -111,11 +113,9 @@ struct CounterMachineView {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Properties)]
-struct CounterMachineProp {
-}
+struct CounterMachineProp {}
 
-struct CounterMachineMsg {
-}
+struct CounterMachineMsg {}
 
 impl Component for CounterMachineView {
     type Message = CounterMachineMsg;
@@ -124,21 +124,24 @@ impl Component for CounterMachineView {
         Self::default()
     }
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let html1 =
-        if let Some(machine) = &self.machine {
-            let code_html: yew::Html = (&machine.code.0).into_iter().enumerate().map(|(i, s)| {
-                let v = if machine.program_counter == ProgramIndex(i) {
-                    "selected"
-                } else {
-                    "not selected"
-                };
-                html!{
-                <>
-                    <div class={v}>
-                        {s}
-                    </div> <br/>
-                </>}
-            }).collect();
+        let html1 = if let Some(machine) = &self.machine {
+            let code_html: yew::Html = (&machine.code.0)
+                .into_iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    let v = if machine.program_counter == ProgramIndex(i) {
+                        "selected"
+                    } else {
+                        "not selected"
+                    };
+                    html! {
+                    <>
+                        <div class={v}>
+                            {s}
+                        </div> <br/>
+                    </>}
+                })
+                .collect();
             html! {
                 <>
                     {"machine"}
@@ -153,7 +156,7 @@ impl Component for CounterMachineView {
             }
         };
 
-        html!{
+        html! {
             {html1}
         }
     }

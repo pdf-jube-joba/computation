@@ -250,7 +250,6 @@ pub struct UnConnectedMachineView {
     tick_interval: Interval,
 }
 
-
 #[derive(Clone, PartialEq)]
 pub enum UnConnectedMachineMsg {
     Reset,
@@ -278,7 +277,7 @@ impl Component for UnConnectedMachineView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        html!{
+        html! {
             <div class="machine">
                 {"machine"} <br/>
                 <MachineView
@@ -307,7 +306,7 @@ impl Component for UnConnectedMachineView {
             UnConnectedMachineMsg::Tick => {
                 if self.tick_active {
                     let _ = self.machine.step(1);
-                } 
+                }
             }
         }
         true

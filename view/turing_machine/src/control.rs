@@ -5,8 +5,8 @@ use yew::Properties;
 
 use turing_machine::machine::State;
 use turing_machine::manipulation;
-use turing_machine::manipulation::tape::string_split_by_line_interpretation;
 use turing_machine::manipulation::builder::TuringMachineBuilder;
+use turing_machine::manipulation::tape::string_split_by_line_interpretation;
 
 use super::machine::*;
 
@@ -129,9 +129,7 @@ impl Component for ControlView {
                     tape: &str,
                 ) -> Result<TuringMachineBuilder, String> {
                     let interpretation = string_split_by_line_interpretation();
-                    let mut builder =
-                        TuringMachineBuilder::new("user")
-                            .unwrap();
+                    let mut builder = TuringMachineBuilder::new("user").unwrap();
                     let code = manipulation::code::parse_code(code)?;
                     builder
                         .init_state(State::try_from(init_state.as_ref())?)

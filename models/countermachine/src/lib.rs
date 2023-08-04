@@ -1,2 +1,2 @@
-mod machine;
 mod control;
+mod machine;

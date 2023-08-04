@@ -240,7 +240,8 @@ pub mod builder {
                 return Err(());
             }
             if let Some(str) = lines.next() {
-                let res: Vec<State> = str.split_whitespace()
+                let res: Vec<State> = str
+                    .split_whitespace()
                     .map(|str| State::try_from(str).map_err(|_| ()))
                     .collect::<Result<_, _>>()?;
                 self.accepted_state(res);
@@ -249,7 +250,6 @@ pub mod builder {
             self.code = code;
             Ok(self)
         }
-
     }
 }
 
@@ -336,7 +336,7 @@ pub mod graph_compose {
         pub name: String,
         pub init_state: State,
         pub assign_vertex_to_builder: Vec<TuringMachineBuilder>,
-        pub assign_edge_to_state: HashMap<(usize, usize), State>,
+        pub assign_edge_to_state: Vec<((usize, usize), State)>,
         pub acceptable: Vec<Vec<State>>,
     }
     // TODO 終了状態の名前を指定できた方がよい。
@@ -368,7 +368,9 @@ pub mod graph_compose {
         for ((i1, i2), state) in &assign_edge_to_state {
             let num_vertex = assign_vertex_to_builder.len();
             if num_vertex <= *i1 || num_vertex <= *i2 {
-                return Err(format!("edge's index out...num: {num_vertex}, edge: {i1} {i2} {state}"));
+                return Err(format!(
+                    "edge's index out...num: {num_vertex}, edge: {i1} {i2} {state}"
+                ));
             }
         }
 
@@ -392,7 +394,6 @@ pub mod graph_compose {
             .collect();
 
         let code = {
-
             // initial_state から builder[0] の initial state への移動
             let mut code: Vec<CodeEntry> = all_sign
                 .iter()
@@ -448,27 +449,27 @@ pub mod graph_compose {
 
             // accepted state として認められているものだけ名前を付け替えるように状態を変更する
 
-            let iter = acceptable.iter().enumerate().flat_map(|(index, v)|{
-                all_sign
-                    .iter()
-                    .flat_map(move |sign|{
-                        v.iter().map(move |state|{
-                            CodeEntry::from_tuple(
-                                sign.clone(),
-                                format_name(index, state.clone()),
-                                sign.clone(),
-                                state.clone(),
+            let iter = acceptable.iter().enumerate().flat_map(|(index, v)| {
+                all_sign.iter().flat_map(move |sign| {
+                    v.iter().map(move |state| {
+                        CodeEntry::from_tuple(
+                            sign.clone(),
+                            format_name(index, state.clone()),
+                            sign.clone(),
+                            state.clone(),
                             Direction::Constant,
-                            )
-                        })
+                        )
                     })
+                })
             });
             code.extend(iter);
 
             code
         };
 
-        builder.accepted_state(acceptable.into_iter().flatten()).code_new(code);
+        builder
+            .accepted_state(acceptable.into_iter().flatten())
+            .code_new(code);
         Ok(builder)
     }
 }
