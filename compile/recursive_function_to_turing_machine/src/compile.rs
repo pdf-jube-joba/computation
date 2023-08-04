@@ -68,10 +68,16 @@ fn state(str: &str) -> State {
     State::try_from(str).unwrap()
 }
 
+// 最後の edge の番号 = n
 fn accept_end_only(n: usize) -> Vec<Vec<State>> {
-    let mut v = vec![vec![]; n-1];
+    let mut v = vec![vec![]; n];
     v.push(vec![state("end")]);
     v
+}
+
+// 最後の edge の番号 = n
+fn series_edge_end_only(n: usize) -> HashMap<(usize, usize), State> {
+    (0..n).map(|i| ((i, i+1), state("end"))).collect()
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {
@@ -103,8 +109,8 @@ pub fn move_rights(n: usize) -> TuringMachineBuilder {
         name: format!("moveR_{n}"),
         init_state: state("start"),
         assign_vertex_to_builder: vec![move_right(); n],
-        assign_edge_to_state: (0..n-1).map(|i| ((i, i+1), state("end"))).collect(),
-        acceptable: accept_end_only(n),
+        assign_edge_to_state: series_edge_end_only(n-1),
+        acceptable: accept_end_only(n-1),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -120,22 +126,15 @@ pub fn move_lefts(n: usize) -> TuringMachineBuilder {
         name: format!("moveL_{n}"),
         init_state: state("start"),
         assign_vertex_to_builder: vec![move_left(); n],
-        assign_edge_to_state: (0..n-1).map(|i| ((i, i+1), state("end"))).collect(),
-        acceptable: accept_end_only(n),
+        assign_edge_to_state: series_edge_end_only(n-1),
+        acceptable: accept_end_only(n-1),
     };
     naive_builder_composition(graph).unwrap()
 }
 
 pub fn bor1orbar() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("bor1").unwrap();
-    builder
-        .init_state(state("start"))
-        .accepted_state(vec![state("end")])
-        .code_new(vec![
-            " , start,  , endB, C",
-            "1, start, 1, end1, C",
-            "-, start, -, endbar, C",
-        ].into_iter().map(|str| str.try_into().unwrap()).collect());
+    builder.from_source(include_str!("bor1orbar.txt")).unwrap();
     builder
 }
 
@@ -146,6 +145,8 @@ pub fn putb() -> TuringMachineBuilder {
         .accepted_state(vec![state("end")])
         .code_new(vec![
             "-, start,  , end, C",
+            " , start,  , end, C",
+            "1, start,  , end, C",
         ].into_iter().map(|str| str.try_into().unwrap()).collect());
     builder
 }
@@ -157,6 +158,8 @@ pub fn put1() -> TuringMachineBuilder {
         .accepted_state(vec![state("end")])
         .code_new(vec![
             "-, start, 1, end, C",
+            " , start, 1, end, C",
+            "1, start, 1, end, C",
         ].into_iter().map(|str| str.try_into().unwrap()).collect());
     builder
 }
@@ -186,18 +189,26 @@ pub fn right_one() -> TuringMachineBuilder {
     builder
 }
 
+pub fn left_one() -> TuringMachineBuilder {
+    let mut builder = TuringMachineBuilder::new("leftone").unwrap();
+    builder
+        .init_state(state("start"))
+        .accepted_state(vec![state("end")])
+        .code_new(vec![
+            " , start,  , end, L",
+            "1, start, 1, end, L",
+            "-, start, -, end, L",
+        ].into_iter().map(|str| str.try_into().unwrap()).collect());
+    builder
+}
+
 fn pre_copy() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "pre_procedure_copy".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![move_right(), right_one(), putbar(), move_left(), move_left()],
-        assign_edge_to_state: vec![
-            ((0,1), state("end")),
-            ((1,2), state("end")),
-            ((2,3), state("end")),
-            ((3,4), state("end")),
-        ].into_iter().collect(),
-        acceptable: vec![vec![], vec![], vec![], vec![], vec![state("end")]],
+        assign_edge_to_state: series_edge_end_only(4),
+        acceptable: accept_end_only(4),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -207,17 +218,8 @@ fn copy_this_b() -> TuringMachineBuilder {
         name: "copy_this_b".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![putbar(), move_right(), move_right(), putb(), right_one(), putbar(), move_left(), move_left(), putb()],
-        assign_edge_to_state: vec![
-            ((0,1), state("end")),
-            ((1,2), state("end")),
-            ((2,3), state("end")),
-            ((3,4), state("end")),
-            ((4,5), state("end")),
-            ((5,6), state("end")),
-            ((6,7), state("end")),
-            ((7,8), state("end")),
-        ].into_iter().collect(),
-        acceptable: accept_end_only(9),
+        assign_edge_to_state: series_edge_end_only(8),
+        acceptable: accept_end_only(8),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -227,17 +229,8 @@ fn copy_this_1() -> TuringMachineBuilder {
         name: "copy_this_1".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![putbar(), move_right(), move_right(), put1(), right_one(), putbar(), move_left(), move_left(), put1()],
-        assign_edge_to_state: vec![
-            ((0,1), state("end")),
-            ((1,2), state("end")),
-            ((2,3), state("end")),
-            ((3,4), state("end")),
-            ((4,5), state("end")),
-            ((5,6), state("end")),
-            ((6,7), state("end")),
-            ((7,8), state("end")),
-        ].into_iter().collect(),
-        acceptable: accept_end_only(9),
+        assign_edge_to_state: series_edge_end_only(8),
+        acceptable: accept_end_only(8),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -257,7 +250,7 @@ pub fn copy() -> TuringMachineBuilder {
             ((4,5), state("end")),
             ((5,2), state("end")),
         ].into_iter().collect(),
-        acceptable: accept_end_only(7),
+        acceptable: accept_end_only(6),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -283,8 +276,8 @@ fn pre_put_rotate(n: usize) -> TuringMachineBuilder {
         name: "pre_put".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![move_rights(n), right_one(), putbar(), move_lefts(n+1)],
-        assign_edge_to_state: (0..3).map(|i| ((i, i+1), state("end"))).collect(),
-        acceptable: accept_end_only(4),
+        assign_edge_to_state: series_edge_end_only(3),
+        acceptable: accept_end_only(3),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -295,8 +288,8 @@ fn pre_move_this_1(n :usize) -> TuringMachineBuilder {
         name: "pre_move_this_1".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![putbar(), move_rights(n+1), put1(), right_one(), putbar(), move_lefts(n+1), putb()],
-        assign_edge_to_state: vec![].into_iter().collect(),
-        acceptable: accept_end_only(7),
+        assign_edge_to_state: series_edge_end_only(6),
+        acceptable: accept_end_only(6),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -304,15 +297,16 @@ fn pre_move_this_1(n :usize) -> TuringMachineBuilder {
 // -...B...-p_2-...-p_n-...- を -...B...-p_2-...-p_n-...1- にする
 fn pre_move_this_b(n :usize) -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
-        name: "pre_move_this_1".to_string(),
+        name: "pre_move_this_b".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![putbar(), move_rights(n+1), putb(), right_one(), putbar(), move_lefts(n+1), putb()],
-        assign_edge_to_state: vec![].into_iter().collect(),
-        acceptable: accept_end_only(7),
+        assign_edge_to_state: series_edge_end_only(6),
+        acceptable: accept_end_only(6),
     };
     naive_builder_composition(graph).unwrap()
 }
 
+// -p_1-p_2-...-p_n- を -Bs-p_2-...p_n-p_1- にする
 fn pre_move_this_tuple(n: usize) -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: format!("pre_move_this_tuple_{n}"),
@@ -328,7 +322,133 @@ fn pre_move_this_tuple(n: usize) -> TuringMachineBuilder {
             ((4,5), state("end")),
             ((5,2), state("end")),
         ].into_iter().collect(),
-        acceptable: accept_end_only(7),
+        acceptable: accept_end_only(6),
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
+// --p- を -p-- にする
+fn pre_remove_empty_case() -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: "remove_empty_case".to_owned(),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            move_rights(2), left_one(), bor1orbar(), // 0,1,2
+            putbar(), left_one(), bor1orbar(), put1(), put1(), put1(), // 3, 4, 5, 6, 7, 8
+            putbar(), left_one(), bor1orbar(), putb(), putb(), putb(), // 9,10,11,12,13,14
+            id(), //15
+            left_one(), id() //16,17
+        ],
+        assign_edge_to_state: vec![
+            (( 0, 1), state("end")),
+            (( 1, 2), state("end")),
+
+            (( 2, 3), state("end1")),
+            (( 2, 9), state("endB")),
+            (( 2,15), state("endbar")),
+            
+            (( 3, 4), state("end")),
+
+            (( 4, 5), state("end")),
+            (( 5, 6), state("end1")),
+            (( 5, 7), state("endB")),
+            (( 5, 8), state("endbar")),
+            (( 6, 4), state("end")),
+            (( 7,10), state("end")),
+            (( 8,16), state("end")),
+            
+            (( 9,10), state("end")),
+
+            ((10,11), state("end")),
+            ((11,12), state("end1")),
+            ((11,13), state("endB")),
+            ((11,14), state("endbar")),
+            ((12, 4), state("end")),
+            ((13,10), state("end")),
+            ((14,16), state("end")),
+
+            ((15,16), state("end")),
+            ((16,17), state("end"))
+        ].into_iter().collect(),
+        acceptable: accept_end_only(17),
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
+fn catch_left_1_in_bar() -> TuringMachineBuilder {
+    let mut builder = TuringMachineBuilder::new("catch_left_1_in_bar").unwrap();
+    builder.init_state(state("start"))
+        .accepted_state(vec![state("end")])
+        .code_new(vec![
+            " , start,  , start, L",
+            "1, start, 1, end, C",
+        ].into_iter().map(|str| str.try_into().unwrap()).collect());
+    builder
+}
+
+fn is_empty() -> TuringMachineBuilder {
+    let mut builder = TuringMachineBuilder::new("is_empty").unwrap();
+    builder.from_source(include_str!("is_empty.txt")).unwrap();
+    builder
+}
+
+fn pre_remove_one_pre() -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: "pre_remove_one_pre".to_string(),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            move_right(),
+            left_one(), bor1orbar(), putbar(), pre_remove_empty_case(),
+            pre_remove_empty_case(),
+        ],
+        assign_edge_to_state: vec![
+            ((0,1), state("end")),
+            ((1,2), state("end")),
+            ((2,3), state("endB")),
+            ((3,4), state("end")),
+            ((4,1), state("end")),
+            ((2,5), state("endbar")),
+        ].into_iter().collect(),
+        acceptable: accept_end_only(5),
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
+fn pre_remove_one() -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: "remove_one".to_string(),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            move_right(), left_one(), bor1orbar(),
+            putbar(), pre_remove_empty_case(), move_left(),
+            pre_remove_empty_case(), catch_left_1_in_bar(), right_one(), putbar()
+        ],
+        assign_edge_to_state: vec![
+            ((0, 1), state("end")),
+            ((1, 2), state("end")),
+            ((2, 3), state("endB")),
+            ((2, 6), state("endbar")),
+
+            ((3, 4), state("end")),
+            ((4, 5), state("end")),
+            ((5, 0), state("end")),
+
+            ((6, 7), state("end")),
+            ((7, 8), state("end")),
+            ((8, 9), state("end")),
+        ].into_iter().collect(),
+        acceptable: accept_end_only(9),
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
+fn pre_remove_first(n: usize) -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: format!("pre_remove_this_tuple_{n}"),
+        init_state: state("start"),
+        assign_vertex_to_builder: unimplemented!(),
+        assign_edge_to_state: unimplemented!(),
+        acceptable: unimplemented!(),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -359,7 +479,7 @@ mod test {
         manipulation::graph_compose::{naive_builder_composition, GraphOfBuilder},
     };
 
-    use super::{move_left, move_right, num_tape, succ_builder, zero_builder, bor1orbar, id, put1, putb, putbar, pre_copy, copy_this_b, copy_this_1, copy, pre_move_this_tuple, pre_put_rotate, pre_move_this_1, pre_move_this_b, move_rights};
+    use super::{move_left, move_right, num_tape, succ_builder, zero_builder, bor1orbar, id, put1, putb, putbar, pre_copy, copy_this_b, copy_this_1, copy, pre_move_this_tuple, pre_put_rotate, pre_move_this_1, pre_move_this_b, move_rights, pre_remove_empty_case, pre_remove_one, pre_remove_one_pre};
     use super::state;
 
     fn sign(str: &str) -> Sign {
@@ -379,15 +499,6 @@ mod test {
             }
         }
     }
-    // #[test]
-    // fn view_tape() {
-    //     let tape = TapeAsVec {
-    //         left: vec![],
-    //         head: sign("-"),
-    //         right: vec_sign(vec!["a", "b", "-"]),
-    //     };
-    //     eprintln!("{tape}");
-    // }
 
     #[test]
     fn builder_safe() {
@@ -410,6 +521,7 @@ mod test {
         let _ = pre_move_this_1(2);
         let _ = pre_move_this_b(2);
         let _ = pre_move_this_tuple(2);
+        let _ = pre_remove_empty_case();
     }
 
     #[test]
@@ -573,12 +685,111 @@ mod test {
             }, TapeAsVec {
                 left: vec![],
                 head: sign("-"),
-                right: vec_sign(vec!["", "1", "-", "-", "", "1", "-"]),
+                right: vec_sign(vec!["",  "", "-", "-", "", "1", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1", "-",  "", "1", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["",  "", "",  "", "-",  "", "1", "-", "", "1", "", "1", "-"]),
             }),
         ];
         for (input, expect) in tests {
             let mut machine = pre.input(input).build().unwrap();
             view_step(&mut machine, 300);
+            assert!(machine.is_accepted());
+            assert_eq!(machine.now_tape(), expect);
+        }
+    }
+    #[test]
+    fn pre_remove_empty_case_test() {
+        let mut pre = pre_remove_empty_case();
+        let tests = vec![
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec![ "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "", "1", "", "1", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "-"]),
+            }),
+        ];
+        for (input, expect) in tests {
+            let mut machine = pre.input(input).build().unwrap();
+            view_step(&mut machine, 500);
+            assert!(machine.is_accepted());
+            assert_eq!(machine.now_tape(), expect);
+        }
+    }
+    #[test]
+    fn pre_remove_one_pre_test() {
+        let mut pre = pre_remove_one_pre();
+        let tests = vec![
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec![ "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "", "1", "", "1", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "-", "-"]),
+            }),
+        ];
+        for (input, expect) in tests {
+            let mut machine = pre.input(input).build().unwrap();
+            view_step(&mut machine, 500);
+            assert!(machine.is_accepted());
+            assert_eq!(machine.now_tape(), expect);
+        }
+    }
+    #[test]
+    fn pre_remove_one_test() {
+        let mut pre = pre_remove_one();
+        let tests = vec![
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec![ "-", "-"]),
+            }),
+            (TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "", "1", "", "1", "-"]),
+            }, TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["", "1", "", "1",  "", "-"]),
+            }),
+        ];
+        for (input, expect) in tests {
+            let mut machine = pre.input(input).build().unwrap();
+            view_step(&mut machine, 500);
             assert!(machine.is_accepted());
             assert_eq!(machine.now_tape(), expect);
         }
