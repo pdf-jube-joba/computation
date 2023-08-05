@@ -1,10 +1,6 @@
-use turing_machine::{
-    machine::*,
-    manipulation::code,
-    manipulation::{
-        builder::{self, TuringMachineBuilder},
-        graph_compose::{naive_builder_composition, GraphOfBuilder},
-    },
+use turing_machine::manipulation::{
+    builder::TuringMachineBuilder,
+    graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
 use super::*;

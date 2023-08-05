@@ -1,9 +1,6 @@
-use turing_machine::{
-    machine::*,
-    manipulation::{
-        builder::TuringMachineBuilder,
-        graph_compose::{naive_builder_composition, GraphOfBuilder},
-    },
+use turing_machine::manipulation::{
+    builder::TuringMachineBuilder,
+    graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
 use super::*;
@@ -127,7 +124,7 @@ mod tests {
     fn builder_safe() {
         let _ = copy_aux_pre();
         let _ = copy_aux_this_1();
-        let _ = copy_aux_this_1();    
+        let _ = copy_aux_this_1();
         let _ = copy();
         let _ = n_times_copy(0);
         let _ = n_times_copy(1);
@@ -143,19 +140,11 @@ mod tests {
             acceptable: vec![vec![], vec![State::try_from("end").unwrap()]],
         };
         let mut builder = naive_builder_composition(graph).unwrap();
-        // eprintln!("code:");
-        for entry in builder.get_code() {
-            // eprintln!("    {:?}", entry);
-        }
-        // eprintln!("init: {:?}", builder.get_init_state());
-        // eprintln!("accp: {:?}", builder.get_accepted_state());
         builder.input(num_tape::write(vec![1, 0].into()));
 
         let mut machine = builder.build().unwrap();
-        // eprintln!("start: {} {:?}", machine.now_state(), machine.now_tape());
         for _ in 0..50 {
             let _ = machine.step(1);
-            // eprintln!("next : {} {:?}", machine.now_state(), machine.now_tape());
             if machine.is_terminate() {
                 break;
             }

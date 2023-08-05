@@ -1,10 +1,6 @@
-use turing_machine::{
-    machine::*,
-    manipulation::code,
-    manipulation::{
-        builder::{self, TuringMachineBuilder},
-        graph_compose::{naive_builder_composition, GraphOfBuilder},
-    },
+use turing_machine::manipulation::{
+    builder::TuringMachineBuilder,
+    graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
 use super::*;
@@ -167,7 +163,7 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
     naive_builder_composition(graph).unwrap()
 }
 
-fn expand_aux_shift_R() -> TuringMachineBuilder {
+fn expand_aux_shift_right() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "shift_R".to_string(),
         init_state: state("start"),
@@ -275,13 +271,13 @@ fn expand_aux_concat() -> TuringMachineBuilder {
 
 // -b(x)p- を -1-b(x-1)p-...-b(1)p-p- にする
 // ただし、展開後は -b(1)p[-]p- の位置にセットする。
-fn expand_aux_pre() -> TuringMachineBuilder {
+fn expand() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
-        name: "expand_pre".to_string(),
+        name: "expand".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            expand_aux_shift_R(),
-            expand_aux_shift_R(),
+            expand_aux_shift_right(),
+            expand_aux_shift_right(),
             right_one(),
             put1(),
             right_one(),
@@ -315,18 +311,7 @@ fn expand_aux_pre() -> TuringMachineBuilder {
     naive_builder_composition(graph).unwrap()
 }
 
-fn expand() -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: "expand".to_string(),
-        init_state: state("start"),
-        assign_vertex_to_builder: vec![],
-        assign_edge_to_state: unimplemented!(),
-        acceptable: unimplemented!(),
-    };
-    naive_builder_composition(graph).unwrap()
-}
-
-fn primitive_recursion(
+pub fn primitive_recursion(
     zero_case: TuringMachineBuilder,
     succ_case: TuringMachineBuilder,
 ) -> TuringMachineBuilder {
@@ -338,24 +323,41 @@ fn primitive_recursion(
         ),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            zero_case, // 0
+            expand(), // 0
+            zero_case,
             is_left_sig(),
             move_left(),
             rotate::rotate(2),
             expand_aux_concat(),
-            succ_case, // 5
-            id(),      //6
+            succ_case,
+            id(), // 7
         ],
         assign_edge_to_state: vec![
             ((0, 1), state("end")),
-            ((1, 6), state("endT")),
-            ((1, 2), state("endF")),
-            ((2, 3), state("end")),
+            ((1, 2), state("end")),
+            ((2, 7), state("endT")),
+            ((2, 3), state("endF")),
             ((3, 4), state("end")),
             ((4, 5), state("end")),
-            ((5, 1), state("end")),
+            ((5, 6), state("end")),
+            ((6, 2), state("end")),
         ],
-        acceptable: accept_end_only(6),
+        acceptable: accept_end_only(7),
     };
     naive_builder_composition(graph).unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn builder_safe() {
+        let _ = is_first_of_tuple_zero();
+        let _ = is_left_sig();
+        let _ = expand_aux_shrink();
+        let _ = expand_aux_shift_right();
+        let _ = expand_aux_shrink();
+        let _ = expand();
+    }
 }

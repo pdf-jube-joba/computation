@@ -1,7 +1,4 @@
-use turing_machine::{
-    machine::*,
-    manipulation::builder::TuringMachineBuilder,
-};
+use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 
 pub mod num_tape {
     use recursive_function::machine::{Number, NumberTuple};
@@ -74,33 +71,6 @@ fn series_edge_end_only(n: usize) -> Vec<((usize, usize), State)> {
     (0..n).map(|i| ((i, i + 1), state("end"))).collect()
 }
 
-fn sign(str: &str) -> Sign {
-    Sign::try_from(str).unwrap()
-}
-fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
-    vec.into_iter().map(|str| sign(str)).collect()
-}
-fn builder_test(
-    builder: &mut TuringMachineBuilder,
-    step: usize,
-    tests: Vec<(TapeAsVec, TapeAsVec)>,
-) {
-    eprintln!("test start");
-    for (input, result) in tests {
-        let mut machine = builder.input(input).build().unwrap();
-        eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
-        for _ in 0..step {
-            let _ = machine.step(1);
-            eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
-            if machine.is_terminate() {
-                break;
-            }
-        }
-        assert!(machine.is_accepted());
-        assert!(machine.now_tape().eq(&result));
-    }
-}
-
 pub mod basic;
 use basic::*;
 
@@ -122,6 +92,38 @@ pub fn succ_builder() -> TuringMachineBuilder {
 
 pub mod composition;
 pub mod primitive_recursion;
+
+#[cfg(test)]
+fn sign(str: &str) -> Sign {
+    Sign::try_from(str).unwrap()
+}
+
+#[cfg(test)]
+fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
+    vec.into_iter().map(|str| sign(str)).collect()
+}
+
+#[cfg(test)]
+fn builder_test(
+    builder: &mut TuringMachineBuilder,
+    step: usize,
+    tests: Vec<(TapeAsVec, TapeAsVec)>,
+) {
+    eprintln!("test start");
+    for (input, result) in tests {
+        let mut machine = builder.input(input).build().unwrap();
+        eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
+        for _ in 0..step {
+            let _ = machine.step(1);
+            eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        assert!(machine.is_accepted());
+        assert!(machine.now_tape().eq(&result));
+    }
+}
 
 #[cfg(test)]
 mod tests {

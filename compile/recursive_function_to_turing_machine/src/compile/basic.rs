@@ -254,5 +254,5 @@ mod tests {
             ),
         ];
         builder_test(&mut builder, 500, tests);
-}
+    }
 }
