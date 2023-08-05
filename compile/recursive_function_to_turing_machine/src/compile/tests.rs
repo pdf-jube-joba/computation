@@ -7,7 +7,7 @@ use turing_machine::{
     },
 };
 
-use super::state;
+use super::{state, expand_aux_shift_R};
 use super::{
     annihilate, bor1orbar, composition, copy, n_times_copy, copy_aux_this_1, copy_aux_this_b, id, move_left,
     move_right, move_rights, num_tape, copy_aux_pre, pre_move_this_1, pre_move_this_b,
@@ -70,6 +70,7 @@ fn builder_safe() {
     let _ = remove_first_aux_remove_one();
     let _ = remove_first_aux_remove_one();
     let _ = rotate(3);
+    let _ = expand_aux_shift_R();
 }
 
 #[test]
@@ -499,4 +500,24 @@ fn composition_test() {
         },
     )];
     builder_test(&mut builder, 2000, tests);
+}
+
+#[test]
+fn expand_aux_shift_R_test() {
+    let mut builder = expand_aux_shift_R();
+    let tests = vec![
+        (
+            TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-"]),
+            },
+            TapeAsVec {
+                left: vec![],
+                head: sign("-"),
+                right: vec_sign(vec!["-", "-"]),
+            },
+        )
+    ];
+    builder_test(&mut builder, 100, tests);
 }
