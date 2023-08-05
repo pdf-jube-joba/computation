@@ -202,6 +202,58 @@ pub fn annihilate() -> TuringMachineBuilder {
     naive_builder_composition(graph).unwrap()
 }
 
+pub fn concat() -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: "concat".to_string(),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            move_rights(2),
+            putb(),
+            left_one(),
+            bor1orbar(),
+            putbar(), // 4
+            left_one(),
+            bor1orbar(),
+            put1(),
+            put1(),
+            put1(),
+            putbar(), // 10
+            left_one(),
+            bor1orbar(),
+            putb(),
+            putb(),
+            putb(),
+            id(),
+        ],
+        assign_edge_to_state: vec![
+            ((0, 1), state("end")),
+            ((1, 2), state("end")),
+            ((2, 3), state("end")),
+            ((3, 4), state("end1")),
+            ((3, 11), state("endb")),
+            ((3, 16), state("endbar")),
+            ((4, 5), state("end")),
+            ((5, 6), state("end")),
+            ((6, 7), state("endb")),
+            ((6, 8), state("end1")),
+            ((6, 9), state("endbar")),
+            ((7, 5), state("end")),
+            ((8, 11), state("end")),
+            ((9, 16), state("end")),
+            ((10, 11), state("end")),
+            ((11, 12), state("end")),
+            ((12, 13), state("endb")),
+            ((12, 14), state("end1")),
+            ((12, 15), state("endbar")),
+            ((13, 5), state("end")),
+            ((14, 11), state("end")),
+            ((15, 16), state("end")),
+        ],
+        acceptable: accept_end_only(16),
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
 pub mod copy;
 pub mod rotate;
 
@@ -223,6 +275,7 @@ mod tests {
         let _ = right_one();
         let _ = left_one();
         let _ = annihilate();
+        let _ = concat();
     }
     #[test]
     fn annihilate_test() {

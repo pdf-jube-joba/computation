@@ -92,6 +92,7 @@ pub fn succ_builder() -> TuringMachineBuilder {
 
 pub mod composition;
 pub mod primitive_recursion;
+pub mod mu_recursion;
 
 #[cfg(test)]
 fn sign(str: &str) -> Sign {
@@ -122,6 +123,28 @@ fn builder_test(
         }
         assert!(machine.is_accepted());
         assert!(machine.now_tape().eq(&result));
+    }
+}
+
+#[cfg(test)]
+fn builder_test_predicate(
+    builder: &mut TuringMachineBuilder,
+    step: usize,
+    tests: Vec<(TapeAsVec, State)>,   
+) {
+    eprintln!("test start");
+    for (input, result) in tests {
+        let mut machine = builder.input(input).build().unwrap();
+        eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
+        for _ in 0..step {
+            let _ = machine.step(1);
+            eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        assert!(machine.is_accepted());
+        assert_eq!(*machine.now_state(), result);
     }
 }
 

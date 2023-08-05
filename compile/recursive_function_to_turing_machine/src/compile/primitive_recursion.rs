@@ -5,8 +5,9 @@ use turing_machine::manipulation::{
 
 use super::*;
 
-// 名前の通り -bp- の形になっているか == -bb...になっているかを判定する。
-fn is_first_of_tuple_zero() -> TuringMachineBuilder {
+// 名前の通り -b0p- や -- の形になっているか、 つまり -bb... や -- になっているかを判定する。
+// ということは -b1...でなければよい？
+fn is_tuple_zero() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "is_first_of_tuple_zero".to_string(),
         init_state: state("start"),
@@ -20,25 +21,30 @@ fn is_first_of_tuple_zero() -> TuringMachineBuilder {
             left_one(),
             left_one(), //7
             left_one(),
-            id_end("endT"),
-            id_end("endF"),
+            left_one(),
+            id_end("endF"), // 10
+            id_end("endT"), // 11
         ],
         assign_edge_to_state: vec![
             ((0, 1), state("end")),
             ((1, 2), state("end1")),
-            ((1, 2), state("endbar")),
+            ((1, 9), state("endbar")),
+            ((1, 3), state("endB")),
+
             ((2, 9), state("end")),
-            ((1, 3), state("endb")),
+            ((9,11), state("end")),
+
             ((3, 4), state("end")),
-            ((4, 5), state("endbar")),
             ((4, 5), state("end1")),
-            ((4, 7), state("endb")),
+            ((4, 7), state("endbar")),
+            ((4, 7), state("endB")),
             ((5, 6), state("end")),
-            ((6, 9), state("end")),
+            ((6, 10), state("end")),
             ((7, 8), state("end")),
-            ((8, 10), state("end")),
+            ((8, 11), state("end")),
         ],
         acceptable: vec![
+            vec![],
             vec![],
             vec![],
             vec![],
@@ -81,7 +87,7 @@ fn is_left_sig() -> TuringMachineBuilder {
             ((2, 9), state("end")),
             ((1, 3), state("end1")),
             ((3, 4), state("end")),
-            ((4, 5), state("endb")),
+            ((4, 5), state("endB")),
             ((4, 5), state("end1")),
             ((4, 7), state("endbar")),
             ((5, 6), state("end")),
@@ -110,25 +116,28 @@ fn is_left_sig() -> TuringMachineBuilder {
 // -- や -bp- はエラー
 fn expand_aux_shrink() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
-        name: "shift_R".to_string(),
+        name: "shrink".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
             move_right(),
             putb(),
             left_one(),
             bor1orbar(),
+
             putbar(), // 4
             left_one(),
             bor1orbar(),
             putb(),
             putb(),
-            putb(),
+            putbar(),
+
             putbar(), // 10
             left_one(),
             bor1orbar(),
             put1(),
             put1(),
-            put1(),
+            putbar(),
+
             right_one(), // 16
             putb(),
             left_one(),
@@ -139,33 +148,88 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             ((2, 3), state("end")),
             ((3, 4), state("endB")),
             ((3, 10), state("end1")),
-            ((4, 5), state("end")),
+
+            ((4, 5), state("end")), // b-case
             ((5, 6), state("end")),
-            ((6, 7), state("endb")),
+            ((6, 7), state("endB")),
             ((6, 8), state("end1")),
             ((6, 9), state("endbar")),
             ((7, 5), state("end")),
             ((8, 11), state("end")),
             ((9, 16), state("end")),
-            ((10, 11), state("end")),
+
+            ((10, 11), state("end")), // 1-case
             ((11, 12), state("end")),
-            ((12, 13), state("endb")),
+            ((12, 13), state("endB")),
             ((12, 14), state("end1")),
             ((12, 15), state("endbar")),
             ((13, 5), state("end")),
-            ((14, 9), state("end")),
+            ((14, 11), state("end")),
             ((15, 16), state("end")),
+
             ((16, 17), state("end")),
             ((17, 18), state("end")),
         ],
-        acceptable: accept_end_only(17),
+        acceptable: accept_end_only(18),
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
+// -bp- を -p- にする
+fn expand_aux_remove_zero() -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: "shrink".to_string(),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            move_right(),
+            putb(),
+            left_one(),
+            bor1orbar(),
+
+            putbar(), // 4
+            left_one(),
+            bor1orbar(),
+            putb(),
+            putb(),
+
+            putbar(), // 9
+            left_one(),
+            bor1orbar(),
+            put1(),
+            put1(),
+
+            id(),
+        ],
+        assign_edge_to_state: vec![
+            ((0, 1), state("end")),
+            ((1, 2), state("end")),
+            ((2, 3), state("end")),
+            ((3, 4), state("endB")),
+            ((3, 9), state("end1")),
+
+            ((4, 5), state("end")),
+            ((5, 6), state("end")),
+            ((6, 7), state("endB")),
+            ((6, 8), state("end1")),
+            ((6,14), state("endbar")),
+            ((7, 5), state("end")),
+            ((8,10), state("end")),
+
+            (( 9,10), state("end")),
+            ((10,11), state("end")),
+            ((11,12), state("endB")),
+            ((11,13), state("end1")),
+            ((12, 5), state("end")),
+            ((13,10), state("end")),
+        ],
+        acceptable: accept_end_only(14),
     };
     naive_builder_composition(graph).unwrap()
 }
 
 fn expand_aux_shift_right() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
-        name: "shift_R".to_string(),
+        name: "shift_right".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
             right_one(),
@@ -194,7 +258,7 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
             ((1, 14), state("endbar")),
             ((2, 3), state("end")),
             ((3, 4), state("end")),
-            ((4, 5), state("endb")),
+            ((4, 5), state("endB")),
             ((4, 6), state("end1")),
             ((4, 7), state("endbar")),
             ((5, 3), state("end")),
@@ -202,7 +266,7 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
             ((7, 15), state("end")),
             ((8, 9), state("end")),
             ((9, 10), state("end")),
-            ((10, 11), state("endb")),
+            ((10, 11), state("endB")),
             ((10, 12), state("end1")),
             ((10, 13), state("endbar")),
             ((11, 3), state("end")),
@@ -217,58 +281,6 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
     naive_builder_composition(graph).unwrap()
 }
 
-fn expand_aux_concat() -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: "concat".to_string(),
-        init_state: state("start"),
-        assign_vertex_to_builder: vec![
-            move_rights(2),
-            putb(),
-            left_one(),
-            bor1orbar(),
-            putbar(), // 4
-            left_one(),
-            bor1orbar(),
-            put1(),
-            put1(),
-            put1(),
-            putbar(), // 10
-            left_one(),
-            bor1orbar(),
-            putb(),
-            putb(),
-            putb(),
-            id(),
-        ],
-        assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 3), state("end")),
-            ((3, 4), state("end1")),
-            ((3, 11), state("endb")),
-            ((3, 16), state("endbar")),
-            ((4, 5), state("end")),
-            ((5, 6), state("end")),
-            ((6, 7), state("endb")),
-            ((6, 8), state("end1")),
-            ((6, 9), state("endbar")),
-            ((7, 5), state("end")),
-            ((8, 11), state("end")),
-            ((9, 16), state("end")),
-            ((10, 11), state("end")),
-            ((11, 12), state("end")),
-            ((12, 13), state("endb")),
-            ((12, 14), state("end1")),
-            ((12, 15), state("endbar")),
-            ((13, 5), state("end")),
-            ((14, 11), state("end")),
-            ((15, 16), state("end")),
-        ],
-        acceptable: accept_end_only(16),
-    };
-    naive_builder_composition(graph).unwrap()
-}
-
 // -b(x)p- を -1-b(x-1)p-...-b(1)p-p- にする
 // ただし、展開後は -b(1)p[-]p- の位置にセットする。
 fn expand() -> TuringMachineBuilder {
@@ -277,36 +289,32 @@ fn expand() -> TuringMachineBuilder {
         init_state: state("start"),
         assign_vertex_to_builder: vec![
             expand_aux_shift_right(),
-            expand_aux_shift_right(),
             right_one(),
+            expand_aux_shift_right(),
             put1(),
             right_one(),
+
+            is_tuple_zero(), // 5 
+            expand_aux_shrink(),
             copy::copy(),
             move_right(),
-            expand_aux_shrink(),
-            is_first_of_tuple_zero(),
-            expand_aux_shrink(),
-            move_left(),
-            is_left_sig(),
-            id(),
+
+            expand_aux_remove_zero(), //9
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 3), state("end")),
-            ((3, 4), state("end")),
-            ((4, 5), state("end")),
-            ((5, 6), state("end")),
-            ((6, 7), state("end")),
-            ((7, 8), state("end")),
-            ((8, 5), state("endF")),
-            ((8, 9), state("endT")),
-            ((9, 10), state("end")),
-            ((10, 11), state("end")),
-            ((11, 10), state("endF")),
-            ((11, 12), state("endT")),
+            (( 0, 1), state("end")),
+            (( 1, 2), state("end")),
+            (( 2, 3), state("end")),
+            (( 3, 4), state("end")),
+            (( 4, 5), state("end")),
+
+            (( 5, 9), state("endT")),
+            (( 5, 6), state("endF")),
+            (( 6, 7), state("end")),
+            (( 7, 8), state("end")),
+            (( 8, 5), state("end")),
         ],
-        acceptable: accept_end_only(12),
+        acceptable: accept_end_only(9),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -328,7 +336,7 @@ pub fn primitive_recursion(
             is_left_sig(),
             move_left(),
             rotate::rotate(2),
-            expand_aux_concat(),
+            concat(),
             succ_case,
             id(), // 7
         ],
@@ -353,11 +361,234 @@ mod tests {
 
     #[test]
     fn builder_safe() {
-        let _ = is_first_of_tuple_zero();
+        let _ = is_tuple_zero();
         let _ = is_left_sig();
         let _ = expand_aux_shrink();
         let _ = expand_aux_shift_right();
         let _ = expand_aux_shrink();
         let _ = expand();
+    }
+    #[test]
+    fn is_first_test() {
+        let mut builder = is_tuple_zero();
+        let tests = vec![
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["-"]),
+                },
+                state("endT")
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "-"]),
+                },
+                state("endT")
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
+                },
+                state("endF")
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "", "1", "-"]),
+                },
+                state("endT")
+            ),
+        ];
+        builder_test_predicate(&mut builder, 100, tests);
+    }
+    #[test]
+    fn is_left_sig_test() {
+        let mut builder = is_left_sig();
+        let tests = vec![
+            (
+                TapeAsVec {
+                    left: vec_sign(vec!["-"]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["-"]),
+                },
+                state("endF")
+            ),
+            (
+                TapeAsVec {
+                    left: vec_sign(vec!["1", "", "-"]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "", "1", "-"]),
+                },
+                state("endF")
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
+                },
+                state("endF")
+            ),
+            (
+                TapeAsVec {
+                    left: vec_sign(vec!["1", "-"]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "", "1", "-"]),
+                },
+                state("endT")
+            ),
+        ];
+        builder_test_predicate(&mut builder, 100, tests);
+    }
+    #[test]
+    fn expand_aux_shrink_test() {
+        let mut builder = expand_aux_shrink();
+        let tests = vec![
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "1", "-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "-"]),
+                }
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["" , "1", "", "1", "-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["" , "", "1", "-"]),
+                }
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "1", "", "1", "-"]),
+                }
+            ),
+        ];
+        builder_test(&mut builder, 100, tests);
+    }    
+    #[test]
+    fn expand_aux_remove_zero_test() {
+        let mut builder = expand_aux_remove_zero();
+        let tests = vec![
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["-"]),
+                }
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "" , "1", "", "1", "-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["" , "1", "", "1", "-"]),
+                }
+            ),
+        ];
+        builder_test(&mut builder, 100, tests);
+    }
+    #[test]
+    fn expand_aux_shift_right_test() {
+        let mut builder = expand_aux_shift_right();
+        let tests = vec![
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["-", "-"]),
+                }
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["" , "", "1", "-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["-", "" , "", "1", "-"]),
+                }
+            ),
+        ];
+        builder_test(&mut builder, 100, tests);
+    }
+    #[test]
+    fn expand_test() {
+        let mut builder = expand();
+        let tests = vec![
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "-"]),
+                },
+                TapeAsVec {
+                    left: vec_sign(vec!["1", "-"]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["-"]),
+                }
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["" , "1", "1", "", "1", "-"]),
+                },
+                (vec!["-", "1", "-", "", "1", "", "1", "-", "", "", "1", "-", "", "1", "-"], 11).try_into().unwrap()
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["" , "1", "1", "1", "", "1", "-"]),
+                },
+                (vec![
+                    "-", "1", "-",
+                    "", "1", "1", "", "1", "-",
+                    "", "1", "", "1", "-",
+                    "", "", "1", "-",
+                    "", "1", "-"], 17).try_into().unwrap()
+            ),
+        ];
+        builder_test(&mut builder, 1000, tests);
     }
 }

@@ -128,7 +128,11 @@ impl TryFrom<(Vec<&str>, usize)> for TapeAsVec {
             .map(|str| Sign::try_from(str))
             .collect::<Result<_, _>>()?;
         Ok(TapeAsVec {
-            left: signs[..value.1].to_owned(),
+            left: {
+                let mut v = signs[..value.1].to_owned();
+                v.reverse();
+                v
+            },
             head: signs[value.1].to_owned(),
             right: signs[value.1 + 1..].to_owned(),
         })
