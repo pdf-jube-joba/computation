@@ -1015,9 +1015,41 @@ fn expand() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "expand".to_string(),
         init_state: state("start"),
-        assign_vertex_to_builder: unimplemented!(),
+        assign_vertex_to_builder: vec![
+
+        ],
         assign_edge_to_state: unimplemented!(),
         acceptable: unimplemented!()
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
+fn primitive_recursion(
+    zero_case: TuringMachineBuilder,
+    succ_case: TuringMachineBuilder,
+) -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: format!("primitive_recursion_{}_{}", zero_case.get_name(), succ_builder().get_name()),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            zero_case, // 0
+            is_left_sig(),
+            move_left(),
+            rotate(2),
+            expand_aux_concat(),
+            succ_case, // 5
+            id(), //6
+        ],
+        assign_edge_to_state: vec![
+            (( 0, 1), state("end")),
+            (( 1, 6), state("endT")),
+            (( 1, 2), state("endF")),
+            (( 2, 3), state("end")),
+            (( 3, 4), state("end")),
+            (( 4, 5), state("end")),
+            (( 5, 1), state("end")),
+        ],
+        acceptable: accept_end_only(6),
     };
     naive_builder_composition(graph).unwrap()
 }
