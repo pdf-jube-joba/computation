@@ -269,6 +269,7 @@ mod tests {
 
             for _ in 0..500 {
                 let _ = machine.step(1);
+                eprintln!("{}\n    {}", machine.now_state(), machine.now_tape());
                 if machine.is_terminate() {
                     break;
                 }
