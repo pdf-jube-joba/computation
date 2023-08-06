@@ -1,3 +1,4 @@
+use recursive_function::machine::RecursiveFunctions;
 use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 
 pub mod num_tape {
@@ -97,8 +98,46 @@ pub fn succ_builder() -> TuringMachineBuilder {
 pub mod projection;
 
 pub mod composition;
-pub mod primitive_recursion;
 pub mod mu_recursion;
+pub mod primitive_recursion;
+
+pub fn compile(recursive_function: RecursiveFunctions) -> TuringMachineBuilder {
+    match recursive_function {
+        RecursiveFunctions::ZeroConstant => zero_builder(),
+        RecursiveFunctions::Successor => succ_builder(),
+        RecursiveFunctions::Projection(proj) => {
+            projection::projection(proj.parameter_length(), proj.projection_num())
+        }
+        RecursiveFunctions::Composition(composition) => {
+            let recursive_function::machine::Composition {
+                parameter_length: _,
+                outer_func,
+                inner_func,
+            } = composition;
+            let outer_builder = compile(*outer_func.to_owned());
+            let inner_builders: Vec<TuringMachineBuilder> = inner_func
+                .to_owned()
+                .into_iter()
+                .map(|func| compile(func))
+                .collect();
+            composition::composition(inner_builders, outer_builder)
+        }
+        RecursiveFunctions::PrimitiveRecursion(prim) => {
+            let recursive_function::machine::PrimitiveRecursion {
+                zero_func,
+                succ_func,
+            } = prim;
+            primitive_recursion::primitive_recursion(
+                compile(*zero_func.to_owned()),
+                compile(*succ_func.to_owned()),
+            )
+        }
+        RecursiveFunctions::MuOperator(muop) => {
+            let recursive_function::machine::MuOperator { mu_func } = muop;
+            mu_recursion::mu_recursion(compile(*mu_func.to_owned()))
+        }
+    }
+}
 
 #[cfg(test)]
 fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
@@ -131,7 +170,7 @@ fn builder_test(
 fn builder_test_predicate(
     builder: &mut TuringMachineBuilder,
     step: usize,
-    tests: Vec<(TapeAsVec, State)>,   
+    tests: Vec<(TapeAsVec, State)>,
 ) {
     eprintln!("test start");
     for (input, result) in tests {

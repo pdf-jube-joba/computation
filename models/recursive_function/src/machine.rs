@@ -112,22 +112,31 @@ pub struct Projection {
     projection_num: usize,
 }
 
+impl Projection {
+    pub fn parameter_length(&self) -> usize {
+        self.parameter_length
+    }
+    pub fn projection_num(&self) -> usize {
+        self.projection_num
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Composition {
-    parameter_length: usize,
-    outer_func: Box<RecursiveFunctions>,
-    inner_func: Box<Vec<RecursiveFunctions>>,
+    pub parameter_length: usize,
+    pub outer_func: Box<RecursiveFunctions>,
+    pub inner_func: Box<Vec<RecursiveFunctions>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct PrimitiveRecursion {
-    zero_func: Box<RecursiveFunctions>,
-    succ_func: Box<RecursiveFunctions>,
+    pub zero_func: Box<RecursiveFunctions>,
+    pub succ_func: Box<RecursiveFunctions>,
 }
 
 #[derive(Clone, Debug)]
 pub struct MuOperator {
-    mu_func: Box<RecursiveFunctions>,
+    pub mu_func: Box<RecursiveFunctions>,
 }
 
 #[derive(Clone, Debug)]
