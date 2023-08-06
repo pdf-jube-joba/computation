@@ -243,18 +243,38 @@ mod tests {
     #[test]
     fn composition_test() {
         let mut builder = composition::composition(vec![zero_builder()], succ_builder());
-        let tests = vec![(
-            TapeAsVec {
-                left: vec![],
-                head: sign("-"),
-                right: vec_sign(vec!["-"]),
-            },
-            TapeAsVec {
-                left: vec![],
-                head: sign("-"),
-                right: vec_sign(vec!["", "1", "-"]),
-            },
-        )];
-        builder_test(&mut builder, 2000, tests);
+        let mut input: TapeAsVec = num_tape::write(vec![].into());
+        builder.input(input);
+
+        let mut machine = builder.build().unwrap();
+
+        loop {
+            let _ = machine.step(1);
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![1].into()));
+    }
+    #[test]
+    fn primitive_recursion() {
+        let mut builder = primitive_recursion::primitive_recursion(
+            zero_builder(),
+            composition::composition(vec![projection::projection(2, 0)], succ_builder()),
+        );
+        for i in 0..5 {
+            let input = num_tape::write(vec![i].into());
+            let mut machine = builder.input(input).build().unwrap();
+
+            for _ in 0..500 {
+                let _ = machine.step(1);
+                if machine.is_terminate() {
+                    break;
+                }
+            }
+            let result = num_tape::read_right_one(machine.now_tape());
+            assert_eq!(result, Ok(vec![i].into()));
+        }
     }
 }
