@@ -55,6 +55,10 @@ pub mod num_tape {
     }
 }
 
+fn sign(str: &str) -> Sign {
+    Sign::try_from(str).unwrap()
+}
+
 fn state(str: &str) -> State {
     State::try_from(str).unwrap()
 }
@@ -90,14 +94,11 @@ pub fn succ_builder() -> TuringMachineBuilder {
     builder
 }
 
+pub mod projection;
+
 pub mod composition;
 pub mod primitive_recursion;
 pub mod mu_recursion;
-
-#[cfg(test)]
-fn sign(str: &str) -> Sign {
-    Sign::try_from(str).unwrap()
-}
 
 #[cfg(test)]
 fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {

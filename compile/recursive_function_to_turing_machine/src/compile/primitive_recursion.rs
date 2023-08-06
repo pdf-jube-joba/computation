@@ -5,62 +5,6 @@ use turing_machine::manipulation::{
 
 use super::*;
 
-// 名前の通り -b0p- や -- の形になっているか、 つまり -bb... や -- になっているかを判定する。
-// ということは -b1...でなければよい？
-fn is_tuple_zero() -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: "is_first_of_tuple_zero".to_string(),
-        init_state: state("start"),
-        assign_vertex_to_builder: vec![
-            right_one(), // 0
-            bor1orbar(),
-            left_one(),
-            right_one(),
-            bor1orbar(),
-            left_one(), //5
-            left_one(),
-            left_one(), //7
-            left_one(),
-            left_one(),
-            id_end("endF"), // 10
-            id_end("endT"), // 11
-        ],
-        assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end1")),
-            ((1, 9), state("endbar")),
-            ((1, 3), state("endB")),
-
-            ((2, 9), state("end")),
-            ((9,11), state("end")),
-
-            ((3, 4), state("end")),
-            ((4, 5), state("end1")),
-            ((4, 7), state("endbar")),
-            ((4, 7), state("endB")),
-            ((5, 6), state("end")),
-            ((6, 10), state("end")),
-            ((7, 8), state("end")),
-            ((8, 11), state("end")),
-        ],
-        acceptable: vec![
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![state("endF")],
-            vec![state("endT")],
-        ],
-    };
-    naive_builder_composition(graph).unwrap()
-}
-
 // -1-はタプルとしては現れないのでそれをシグネチャとし、判定する
 // -1-が左にあると T そうじゃないと F を返す
 fn is_left_sig() -> TuringMachineBuilder {
@@ -361,51 +305,11 @@ mod tests {
 
     #[test]
     fn builder_safe() {
-        let _ = is_tuple_zero();
         let _ = is_left_sig();
         let _ = expand_aux_shrink();
         let _ = expand_aux_shift_right();
         let _ = expand_aux_shrink();
         let _ = expand();
-    }
-    #[test]
-    fn is_first_test() {
-        let mut builder = is_tuple_zero();
-        let tests = vec![
-            (
-                TapeAsVec {
-                    left: vec![],
-                    head: sign("-"),
-                    right: vec_sign(vec!["-"]),
-                },
-                state("endT")
-            ),
-            (
-                TapeAsVec {
-                    left: vec![],
-                    head: sign("-"),
-                    right: vec_sign(vec!["", "-"]),
-                },
-                state("endT")
-            ),
-            (
-                TapeAsVec {
-                    left: vec![],
-                    head: sign("-"),
-                    right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
-                },
-                state("endF")
-            ),
-            (
-                TapeAsVec {
-                    left: vec![],
-                    head: sign("-"),
-                    right: vec_sign(vec!["", "", "1", "-"]),
-                },
-                state("endT")
-            ),
-        ];
-        builder_test_predicate(&mut builder, 100, tests);
     }
     #[test]
     fn is_left_sig_test() {
