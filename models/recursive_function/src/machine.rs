@@ -205,10 +205,10 @@ impl RecursiveFunctions {
         if zero_func.parameter_length() + 2 != succ_func.parameter_length() {
             return Err(());
         } else {
-            return Ok((Self::PrimitiveRecursion(PrimitiveRecursion {
+            return Ok(Self::PrimitiveRecursion(PrimitiveRecursion {
                 zero_func: Box::new(zero_func),
                 succ_func: Box::new(succ_func),
-            })));
+            }));
         }
     }
     pub fn muoperator(func: RecursiveFunctions) -> Result<RecursiveFunctions, ()> {
@@ -261,7 +261,7 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
             let num = proj.projection_num;
             NaturalFunction {
                 parameter_length: func.parameter_length(),
-                func: Box::new(move |NumberTuple(vec)| vec[num].clone()),
+                func: Box::new(move |tuple| tuple.index(num).unwrap().clone()),
             }
         }
         RecursiveFunctions::Composition(composition) => {
@@ -272,10 +272,10 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
             } = composition;
             let outer_func = interpreter(&outer_func);
             let inner_funcs = inner_func.iter().map(interpreter).collect::<Vec<_>>();
-            let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
+            let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |tuple| {
                 let result_vec: Vec<Number> = inner_funcs
                     .iter()
-                    .map(|func| func.unchecked_subst(vector.clone()))
+                    .map(|func| func.unchecked_subst(tuple.clone()))
                     .collect();
                 outer_func.unchecked_subst(NumberTuple(result_vec))
             });
@@ -336,8 +336,8 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
 
 #[cfg(test)]
 mod tests {
-    use super::{interpreter, PrimitiveRecursion, RecursiveFunctions};
-    use super::{Number, NumberTuple};
+    use super::{interpreter, RecursiveFunctions};
+    use super::Number;
 
     #[test]
     fn zero_call() {

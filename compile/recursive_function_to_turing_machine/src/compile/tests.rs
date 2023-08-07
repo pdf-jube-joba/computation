@@ -62,7 +62,7 @@ fn succ_zero() {
 #[test]
 fn projection_test() {
     let mut builder = projection::projection(2, 0);
-    let input: TapeAsVec = num_tape::write(vec![1,2].into());
+    let input: TapeAsVec = num_tape::write(vec![1, 2].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -74,12 +74,12 @@ fn projection_test() {
             break;
         }
     }
-    
+
     let result = num_tape::read_right_one(machine.now_tape());
     assert_eq!(result, Ok(vec![1].into()));
 
     let mut builder = projection::projection(3, 0);
-    let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -91,12 +91,12 @@ fn projection_test() {
             break;
         }
     }
-    
+
     let result = num_tape::read_right_one(machine.now_tape());
     assert_eq!(result, Ok(vec![1].into()));
 
     let mut builder = projection::projection(3, 1);
-    let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -108,12 +108,12 @@ fn projection_test() {
             break;
         }
     }
-    
+
     let result = num_tape::read_right_one(machine.now_tape());
     assert_eq!(result, Ok(vec![2].into()));
 
     let mut builder = projection::projection(3, 2);
-    let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -125,7 +125,7 @@ fn projection_test() {
             break;
         }
     }
-    
+
     let result = num_tape::read_right_one(machine.now_tape());
     assert_eq!(result, Ok(vec![3].into()));
 }
@@ -153,9 +153,9 @@ fn composition_test() {
             projection::projection(3, 1),
             projection::projection(3, 0),
         ],
-        projection(3, 0)
+        projection(3, 0),
     );
-    let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -214,8 +214,11 @@ fn add() -> RecursiveFunctions {
         RecursiveFunctions::composition(
             3,
             vec![RecursiveFunctions::projection(3, 0).unwrap()],
-            RecursiveFunctions::succ()).unwrap()
-    ).unwrap()
+            RecursiveFunctions::succ(),
+        )
+        .unwrap(),
+    )
+    .unwrap()
 }
 
 fn any_to_zero() -> RecursiveFunctions {
@@ -223,13 +226,19 @@ fn any_to_zero() -> RecursiveFunctions {
 }
 
 fn mul() -> RecursiveFunctions {
-    RecursiveFunctions::primitive_recursion(any_to_zero(),
-    
-        RecursiveFunctions::composition(3, 
-            vec![RecursiveFunctions::projection(3, 0).unwrap(), RecursiveFunctions::projection(3, 2).unwrap()],
-            add()
-            ).unwrap()
-        ).unwrap()
+    RecursiveFunctions::primitive_recursion(
+        any_to_zero(),
+        RecursiveFunctions::composition(
+            3,
+            vec![
+                RecursiveFunctions::projection(3, 0).unwrap(),
+                RecursiveFunctions::projection(3, 2).unwrap(),
+            ],
+            add(),
+        )
+        .unwrap(),
+    )
+    .unwrap()
 }
 
 fn pred() -> RecursiveFunctions {
@@ -286,12 +295,12 @@ fn func_test(fun: &RecursiveFunctions, tests: Vec<(NumberTuple, NumberTuple)>) {
 #[test]
 fn compile_test_add() {
     let tests: Vec<(NumberTuple, NumberTuple)> = vec![
-        (vec![0,0].into(), vec![0].into()),
-        (vec![0,1].into(), vec![1].into()),
-        (vec![0,2].into(), vec![2].into()),
-        (vec![1,0].into(), vec![1].into()),
-        (vec![1,1].into(), vec![2].into()),
-        (vec![1,2].into(), vec![3].into()),
+        (vec![0, 0].into(), vec![0].into()),
+        (vec![0, 1].into(), vec![1].into()),
+        (vec![0, 2].into(), vec![2].into()),
+        (vec![1, 0].into(), vec![1].into()),
+        (vec![1, 1].into(), vec![2].into()),
+        (vec![1, 2].into(), vec![3].into()),
     ];
 
     func_test(&add(), tests);
@@ -311,15 +320,15 @@ fn compile_test_any_to_zero() {
 #[test]
 fn compile_test_mul() {
     let tests: Vec<(NumberTuple, NumberTuple)> = vec![
-        (vec![0,0].into(), vec![0].into()),
-        (vec![0,1].into(), vec![0].into()),
-        (vec![0,2].into(), vec![0].into()),
-        (vec![1,0].into(), vec![0].into()),
-        (vec![1,1].into(), vec![1].into()),
-        (vec![1,2].into(), vec![2].into()),
-        (vec![2,0].into(), vec![0].into()),
-        (vec![2,1].into(), vec![2].into()),
-        (vec![2,2].into(), vec![4].into()),
+        (vec![0, 0].into(), vec![0].into()),
+        (vec![0, 1].into(), vec![0].into()),
+        (vec![0, 2].into(), vec![0].into()),
+        (vec![1, 0].into(), vec![0].into()),
+        (vec![1, 1].into(), vec![1].into()),
+        (vec![1, 2].into(), vec![2].into()),
+        (vec![2, 0].into(), vec![0].into()),
+        (vec![2, 1].into(), vec![2].into()),
+        (vec![2, 2].into(), vec![4].into()),
     ];
 
     func_test(&mul(), tests);

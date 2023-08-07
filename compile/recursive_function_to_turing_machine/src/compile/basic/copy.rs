@@ -98,24 +98,24 @@ pub fn copy() -> TuringMachineBuilder {
 pub fn n_times_iter(n: usize) -> TuringMachineBuilder {
     if n == 0 {
         annihilate()
-    }  else if n == 1 {
+    } else if n == 1 {
         id()
     } else {
         let graph = GraphOfBuilder {
             name: format!("copy_{n}"),
             init_state: state("start"),
             assign_vertex_to_builder: vec![
-                vec![vec![copy(), move_right()]; n-1]
+                vec![vec![copy(), move_right()]; n - 1]
                     .into_iter()
                     .flatten()
                     .collect::<Vec<TuringMachineBuilder>>(),
-                vec![move_lefts(n-1)],
+                vec![move_lefts(n - 1)],
             ]
             .into_iter()
             .flatten()
             .collect(),
-            assign_edge_to_state: series_edge_end_only(2 * (n-1)),
-            acceptable: accept_end_only(2 * (n-1)),
+            assign_edge_to_state: series_edge_end_only(2 * (n - 1)),
+            acceptable: accept_end_only(2 * (n - 1)),
         };
         naive_builder_composition(graph).unwrap()
     }

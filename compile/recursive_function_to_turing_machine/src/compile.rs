@@ -188,6 +188,5 @@ fn builder_test_predicate(
     }
 }
 
-
 #[cfg(test)]
 mod tests;

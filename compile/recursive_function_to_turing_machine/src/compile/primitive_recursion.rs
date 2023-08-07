@@ -67,21 +67,18 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             putb(),
             left_one(),
             bor1orbar(),
-
             putbar(), // 4
             left_one(),
             bor1orbar(),
             putb(),
             putb(),
             putbar(),
-
             putbar(), // 10
             left_one(),
             bor1orbar(),
             put1(),
             put1(),
             putbar(),
-
             right_one(), // 16
             putb(),
             left_one(),
@@ -92,7 +89,6 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             ((2, 3), state("end")),
             ((3, 4), state("endB")),
             ((3, 10), state("end1")),
-
             ((4, 5), state("end")), // b-case
             ((5, 6), state("end")),
             ((6, 7), state("endB")),
@@ -101,7 +97,6 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             ((7, 5), state("end")),
             ((8, 11), state("end")),
             ((9, 16), state("end")),
-
             ((10, 11), state("end")), // 1-case
             ((11, 12), state("end")),
             ((12, 13), state("endB")),
@@ -110,7 +105,6 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             ((13, 5), state("end")),
             ((14, 11), state("end")),
             ((15, 16), state("end")),
-
             ((16, 17), state("end")),
             ((17, 18), state("end")),
         ],
@@ -129,19 +123,16 @@ fn expand_aux_remove_zero() -> TuringMachineBuilder {
             putb(),
             left_one(),
             bor1orbar(),
-
             putbar(), // 4
             left_one(),
             bor1orbar(),
             putb(),
             putb(),
-
             putbar(), // 9
             left_one(),
             bor1orbar(),
             put1(),
             put1(),
-
             id(),
         ],
         assign_edge_to_state: vec![
@@ -150,21 +141,19 @@ fn expand_aux_remove_zero() -> TuringMachineBuilder {
             ((2, 3), state("end")),
             ((3, 4), state("endB")),
             ((3, 9), state("end1")),
-
             ((4, 5), state("end")),
             ((5, 6), state("end")),
             ((6, 7), state("endB")),
             ((6, 8), state("end1")),
-            ((6,14), state("endbar")),
+            ((6, 14), state("endbar")),
             ((7, 5), state("end")),
-            ((8,10), state("end")),
-
-            (( 9,10), state("end")),
-            ((10,11), state("end")),
-            ((11,12), state("endB")),
-            ((11,13), state("end1")),
+            ((8, 10), state("end")),
+            ((9, 10), state("end")),
+            ((10, 11), state("end")),
+            ((11, 12), state("endB")),
+            ((11, 13), state("end1")),
             ((12, 5), state("end")),
-            ((13,10), state("end")),
+            ((13, 10), state("end")),
         ],
         acceptable: accept_end_only(14),
     };
@@ -237,26 +226,23 @@ fn expand() -> TuringMachineBuilder {
             expand_aux_shift_right(),
             put1(),
             right_one(),
-
-            is_tuple_zero(), // 5 
+            is_tuple_zero(), // 5
             expand_aux_shrink(),
             copy::copy(),
             move_right(),
-
             expand_aux_remove_zero(), //9
         ],
         assign_edge_to_state: vec![
-            (( 0, 1), state("end")),
-            (( 1, 2), state("end")),
-            (( 2, 3), state("end")),
-            (( 3, 4), state("end")),
-            (( 4, 5), state("end")),
-
-            (( 5, 9), state("endT")),
-            (( 5, 6), state("endF")),
-            (( 6, 7), state("end")),
-            (( 7, 8), state("end")),
-            (( 8, 5), state("end")),
+            ((0, 1), state("end")),
+            ((1, 2), state("end")),
+            ((2, 3), state("end")),
+            ((3, 4), state("end")),
+            ((4, 5), state("end")),
+            ((5, 9), state("endT")),
+            ((5, 6), state("endF")),
+            ((6, 7), state("end")),
+            ((7, 8), state("end")),
+            ((8, 5), state("end")),
         ],
         acceptable: accept_end_only(9),
     };
@@ -344,7 +330,7 @@ mod tests {
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
                 },
-                state("endF")
+                state("endF"),
             ),
             (
                 TapeAsVec {
@@ -352,7 +338,7 @@ mod tests {
                     head: sign("-"),
                     right: vec_sign(vec!["", "", "1", "-"]),
                 },
-                state("endF")
+                state("endF"),
             ),
             (
                 TapeAsVec {
@@ -360,7 +346,7 @@ mod tests {
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
                 },
-                state("endF")
+                state("endF"),
             ),
             (
                 TapeAsVec {
@@ -368,7 +354,7 @@ mod tests {
                     head: sign("-"),
                     right: vec_sign(vec!["", "", "1", "-"]),
                 },
-                state("endT")
+                state("endT"),
             ),
         ];
         builder_test_predicate(&mut builder, 100, tests);
@@ -387,19 +373,19 @@ mod tests {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "-"]),
-                }
+                },
             ),
             (
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["" , "1", "", "1", "-"]),
+                    right: vec_sign(vec!["", "1", "", "1", "-"]),
                 },
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["" , "", "1", "-"]),
-                }
+                    right: vec_sign(vec!["", "", "1", "-"]),
+                },
             ),
             (
                 TapeAsVec {
@@ -411,11 +397,11 @@ mod tests {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "", "1", "-"]),
-                }
+                },
             ),
         ];
         builder_test(&mut builder, 100, tests);
-    }    
+    }
     #[test]
     fn expand_aux_remove_zero_test() {
         let mut builder = expand_aux_remove_zero();
@@ -430,19 +416,19 @@ mod tests {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
-                }
+                },
             ),
             (
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["", "" , "1", "", "1", "-"]),
+                    right: vec_sign(vec!["", "", "1", "", "1", "-"]),
                 },
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["" , "1", "", "1", "-"]),
-                }
+                    right: vec_sign(vec!["", "1", "", "1", "-"]),
+                },
             ),
         ];
         builder_test(&mut builder, 100, tests);
@@ -461,19 +447,19 @@ mod tests {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-", "-"]),
-                }
+                },
             ),
             (
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["" , "", "1", "-"]),
+                    right: vec_sign(vec!["", "", "1", "-"]),
                 },
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["-", "" , "", "1", "-"]),
-                }
+                    right: vec_sign(vec!["-", "", "", "1", "-"]),
+                },
             ),
         ];
         builder_test(&mut builder, 100, tests);
@@ -492,28 +478,38 @@ mod tests {
                     left: vec_sign(vec!["1", "-"]),
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
-                }
+                },
             ),
             (
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["" , "1", "1", "", "1", "-"]),
+                    right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
                 },
-                (vec!["-", "1", "-", "", "1", "", "1", "-", "", "", "1", "-", "", "1", "-"], 11).try_into().unwrap()
+                (
+                    vec![
+                        "-", "1", "-", "", "1", "", "1", "-", "", "", "1", "-", "", "1", "-",
+                    ],
+                    11,
+                )
+                    .try_into()
+                    .unwrap(),
             ),
             (
                 TapeAsVec {
                     left: vec![],
                     head: sign("-"),
-                    right: vec_sign(vec!["" , "1", "1", "1", "", "1", "-"]),
+                    right: vec_sign(vec!["", "1", "1", "1", "", "1", "-"]),
                 },
-                (vec![
-                    "-", "1", "-",
-                    "", "1", "1", "", "1", "-",
-                    "", "1", "", "1", "-",
-                    "", "", "1", "-",
-                    "", "1", "-"], 17).try_into().unwrap()
+                (
+                    vec![
+                        "-", "1", "-", "", "1", "1", "", "1", "-", "", "1", "", "1", "-", "", "",
+                        "1", "-", "", "1", "-",
+                    ],
+                    17,
+                )
+                    .try_into()
+                    .unwrap(),
             ),
         ];
         builder_test(&mut builder, 1000, tests);
@@ -532,7 +528,7 @@ mod tests {
                     left: vec_sign(vec![]),
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
-                }
+                },
             ),
             (
                 TapeAsVec {
@@ -544,7 +540,7 @@ mod tests {
                     left: vec_sign(vec![]),
                     head: sign("-"),
                     right: vec_sign(vec!["", "-"]),
-                }
+                },
             ),
             (
                 TapeAsVec {
@@ -556,7 +552,7 @@ mod tests {
                     left: vec_sign(vec![]),
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "1", "", "-"]),
-                }
+                },
             ),
         ];
         builder_test(&mut builder, 100, tests);
