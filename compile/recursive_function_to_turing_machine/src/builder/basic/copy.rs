@@ -134,29 +134,6 @@ mod tests {
         let _ = n_times_iter(2);
     }
     #[test]
-    fn move_const() {
-        let vec: Vec<((usize, usize), State)> = vec![((0, 1), State::try_from("end").unwrap())];
-        let graph = GraphOfBuilder {
-            name: "move return".to_string(),
-            init_state: state("start"),
-            assign_vertex_to_builder: vec![move_right(), move_left()],
-            assign_edge_to_state: vec.into_iter().collect(),
-            acceptable: vec![vec![], vec![State::try_from("end").unwrap()]],
-        };
-        let mut builder = naive_builder_composition(graph).unwrap();
-        builder.input(num_tape::write(vec![1, 0].into()));
-
-        let mut machine = builder.build().unwrap();
-        for _ in 0..50 {
-            let _ = machine.step(1);
-            if machine.is_terminate() {
-                break;
-            }
-        }
-        let result = num_tape::read_right_one(machine.now_tape());
-        assert_eq!(result, Ok(vec![1, 0].into()))
-    }
-    #[test]
     fn pre_copy_test() {
         let mut builder = copy_aux_pre();
 

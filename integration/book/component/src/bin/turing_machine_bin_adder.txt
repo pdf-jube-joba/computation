@@ -7,4 +7,4 @@
 
 -, add_0, -, end, C
 -, add_1, 1, write, L
- , write, -, end, L
+ , write, -, end, C

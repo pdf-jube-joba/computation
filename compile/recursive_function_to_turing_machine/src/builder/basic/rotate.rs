@@ -66,7 +66,7 @@ pub fn rotate_back(n: usize) -> TuringMachineBuilder {
             move_lefts(n + 1),
             move_rights(n + 1), //4
             left_one(),
-            bor1orbar(), // 6
+            bor1orbar(),       // 6
             move_lefts(n + 1), // 7
             shift_right_to_lefts(sign(""), n + 1),
             putbar(),

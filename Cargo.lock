@@ -46,6 +46,7 @@ name = "component"
 version = "0.1.0"
 dependencies = [
  "gloo",
+ "recursive_function_to_turing_machine",
  "turing_machine",
  "turing_machine_view",
  "yew",

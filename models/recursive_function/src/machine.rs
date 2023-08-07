@@ -336,8 +336,8 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
 
 #[cfg(test)]
 mod tests {
-    use super::{interpreter, RecursiveFunctions};
     use super::Number;
+    use super::{interpreter, RecursiveFunctions};
 
     #[test]
     fn zero_call() {

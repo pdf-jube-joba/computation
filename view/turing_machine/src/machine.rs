@@ -301,7 +301,7 @@ impl Component for UnConnectedMachineView {
                 let _ = self.machine.step(step);
             }
             UnConnectedMachineMsg::Toggle => {
-                let _ = self.tick_active != self.tick_active;
+                self.tick_active = !self.tick_active;
             }
             UnConnectedMachineMsg::Tick => {
                 if self.tick_active {
