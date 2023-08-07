@@ -29,6 +29,7 @@ fn main() {
         element_1,
         UnConnectedMachineProp {
             builder: bin_adder(" - 1 1 0 0 1 |-|"),
+            toggle_interval: 1000,
         },
     )
     .render();

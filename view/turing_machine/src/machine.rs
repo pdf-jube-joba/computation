@@ -1,7 +1,7 @@
 use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 // use crate::manipulation::TuringMachineBuilder;
 use gloo::timers::callback::Interval;
-use std::fmt::Display;
+use std::{fmt::Display, iter::repeat};
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
@@ -47,13 +47,13 @@ pub fn tape_view(TapeProps { tape }: &TapeProps) -> Html {
         {"tape"} <br/>
             <div class={classes!("tape")}>
             <div class={classes!("tape-left")}> {
-                for tape.left.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
+                for tape.left.iter().chain(repeat(&Sign::blank())).take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
             } </div>
             <div class={classes!("tape-head")}>
                 <SignBox sign={tape.head.clone()}/>
             </div>
             <div class={classes!("tape-right")}> {
-                for tape.right.iter().take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
+                for tape.right.iter().chain(repeat(&Sign::blank())).take(10).map(|sign| html!{<SignBox sign={sign.clone()}/>})
             } </div>
             </div>
         </>
@@ -267,15 +267,16 @@ pub enum UnConnectedMachineMsg {
 #[derive(Clone, PartialEq, Properties)]
 pub struct UnConnectedMachineProp {
     pub builder: TuringMachineBuilder,
+    pub toggle_interval: usize,
 }
 
 impl Component for UnConnectedMachineView {
     type Message = UnConnectedMachineMsg;
     type Properties = UnConnectedMachineProp;
     fn create(ctx: &Context<Self>) -> Self {
-        let UnConnectedMachineProp { builder } = ctx.props();
+        let UnConnectedMachineProp { builder, toggle_interval } = ctx.props();
         let callback = ctx.link().callback(|_| UnConnectedMachineMsg::Tick);
-        let interval = Interval::new(200, move || callback.emit(()));
+        let interval = Interval::new(u32::try_from(*toggle_interval).unwrap(), move || callback.emit(()));
         Self {
             machine: builder.build().unwrap(),
             tick_active: false,
@@ -300,7 +301,7 @@ impl Component for UnConnectedMachineView {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             UnConnectedMachineMsg::Reset => {
-                let UnConnectedMachineProp { builder } = ctx.props();
+                let UnConnectedMachineProp { builder, toggle_interval } = ctx.props();
                 self.machine = builder.build().unwrap();
             }
             UnConnectedMachineMsg::Step(step) => {

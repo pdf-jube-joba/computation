@@ -14,7 +14,10 @@ fn main() {
 
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
             element,
-            UnConnectedMachineProp { builder },
+            UnConnectedMachineProp { 
+                builder,
+                toggle_interval: 200,
+            },
         )
         .render();
     }
@@ -29,7 +32,10 @@ fn main() {
 
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
             element,
-            UnConnectedMachineProp { builder },
+            UnConnectedMachineProp {
+                builder,
+                toggle_interval: 200,
+            },
         )
         .render();
     }
@@ -47,7 +53,10 @@ fn main() {
         target_element.append_child(&element).unwrap();
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
             element,
-            UnConnectedMachineProp { builder },
+            UnConnectedMachineProp {
+                builder,
+                toggle_interval: 200,
+            },
         )
         .render();
     }
