@@ -193,7 +193,7 @@ pub fn shift_left_to_right_fill(x: Sign) -> TuringMachineBuilder {
     builder
 }
 
-// -xX1-...-Xn[-] を [x]X1-...-Xnx- にする
+// -yX1-...-Xn[-] を [y]X1-...-Xnx- にする
 pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new(&format!("shift_left_to_rights^{x}_{n}")).unwrap();
     builder.init_state(state("start")).accepted_state(vec![state("end")])
@@ -237,7 +237,7 @@ pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
 
 // [-]X-y を -xX[y] にする
 pub fn shift_right_to_left_fill(x: Sign) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new(&format!("shift_left_to_right_fill")).unwrap();
+    let mut builder = TuringMachineBuilder::new(&format!("shift_right_to_left_fill")).unwrap();
     builder.init_state(state("start")).accepted_state(vec![state("end")])
         .code_new(vec![
             "-, start, -, putx, R",
@@ -338,48 +338,13 @@ pub fn concat() -> TuringMachineBuilder {
         init_state: state("start"),
         assign_vertex_to_builder: vec![
             move_rights(2),
+            shift_left_to_right_fill(sign("-")),
+            move_rights(2),
             putb(),
-            left_one(),
-            bor1orbar(), // 3
-            putbar(), // 4
-            left_one(),
-            bor1orbar(),
-            put1(),
-            put1(),
-            put1(),
-            putbar(), // 10
-            left_one(), // 11
-            bor1orbar(),
-            putb(),
-            putb(),
-            putb(), 
-            move_left(), // 16
+            move_lefts(2), // 16
         ],
-        assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 3), state("end")),
-            ((3, 4), state("end1")),
-            ((3, 11), state("endB")),
-            ((3, 16), state("endbar")),
-            ((4, 5), state("end")),
-            ((5, 6), state("end")),
-            ((6, 7), state("end1")),
-            ((6, 8), state("endB")),
-            ((6, 9), state("endbar")),
-            ((7, 5), state("end")),
-            ((8, 11), state("end")),
-            ((9, 16), state("end")),
-            ((10, 11), state("end")),
-            ((11, 12), state("end")),
-            ((12, 13), state("end1")),
-            ((12, 14), state("endB")),
-            ((12, 15), state("endbar")),
-            ((13, 5), state("end")),
-            ((14, 11), state("end")),
-            ((15, 16), state("end")),
-        ],
-        acceptable: accept_end_only(16),
+        assign_edge_to_state: series_edge_end_only(4),
+        acceptable: accept_end_only(4),
     };
     naive_builder_composition(graph).unwrap()
 }
@@ -491,6 +456,18 @@ mod tests {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "-"]),
+                },
+            ),
+            (
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "-", "", "-"]),
+                },
+                TapeAsVec {
+                    left: vec![],
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "", "-"]),
                 },
             ),
             (

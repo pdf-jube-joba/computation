@@ -263,6 +263,29 @@ fn expand() -> TuringMachineBuilder {
     naive_builder_composition(graph).unwrap()
 }
 
+// -1[-]p- を [-]p- にする
+fn format() -> TuringMachineBuilder {
+    let graph = GraphOfBuilder {
+        name: "format".to_string(),
+        init_state: state("start"),
+        assign_vertex_to_builder: vec![
+            move_right(),
+            shift_left_to_right_fill(sign("-")),
+            putbar(),
+            move_rights(2),
+            putb(),
+            left_one(),
+            shift_left_to_right_fill(sign("-")),
+            move_rights(2),
+            putb(),
+            move_lefts(2),
+        ],
+        assign_edge_to_state: series_edge_end_only(9),
+        acceptable: accept_end_only(9),
+    };
+    naive_builder_composition(graph).unwrap()
+}
+
 pub fn primitive_recursion(
     zero_case: TuringMachineBuilder,
     succ_case: TuringMachineBuilder,
@@ -282,7 +305,7 @@ pub fn primitive_recursion(
             rotate::rotate(2),
             concat(),
             succ_case,
-            id(), // 7
+            format(), // 7
         ],
         assign_edge_to_state: vec![
             ((0, 1), state("end")),
@@ -494,5 +517,48 @@ mod tests {
             ),
         ];
         builder_test(&mut builder, 1000, tests);
+    }
+    #[test]
+    fn format_test() {
+        let mut builder = format();
+        let tests = vec![
+            (
+                TapeAsVec {
+                    left: vec_sign(vec!["1", "-"]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["-"]),
+                },
+                TapeAsVec {
+                    left: vec_sign(vec![]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["-"]),
+                }
+            ),
+            (
+                TapeAsVec {
+                    left: vec_sign(vec!["1", "-"]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "-"]),
+                },
+                TapeAsVec {
+                    left: vec_sign(vec![]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "-"]),
+                }
+            ),
+            (
+                TapeAsVec {
+                    left: vec_sign(vec!["1", "-"]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "1", "1", "", "-"]),
+                },
+                TapeAsVec {
+                    left: vec_sign(vec![]),
+                    head: sign("-"),
+                    right: vec_sign(vec!["", "1", "1", "", "-"]),
+                }
+            ),
+        ];
+        builder_test(&mut builder, 100, tests);
     }
 }

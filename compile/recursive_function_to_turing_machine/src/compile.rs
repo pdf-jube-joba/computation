@@ -190,8 +190,17 @@ fn builder_test_predicate(
 
 #[cfg(test)]
 mod tests {
+    use crate::compile::projection::projection;
+
     use super::*;
     use recursive_function::machine::NumberTuple;
+
+    fn print_process(machine: &TuringMachineSet) {
+        let state_str = machine.now_state().to_string();
+        if state_str.contains("start") || state_str.contains("end") {
+            eprintln!("{}\n   {}", machine.now_state(), machine.now_tape());
+        }
+    }
 
     #[test]
     fn tuple_read_write() {
@@ -216,6 +225,7 @@ mod tests {
         let mut machine = zero_builder.build().unwrap();
         loop {
             let _ = machine.step(1);
+            print_process(&machine);
             if machine.is_terminate() {
                 break;
             }
@@ -232,6 +242,7 @@ mod tests {
             let mut machine = succ_builder.build().unwrap();
             loop {
                 let _ = machine.step(1);
+                print_process(&machine);
                 if machine.is_terminate() {
                     break;
                 }
@@ -241,9 +252,79 @@ mod tests {
         }
     }
     #[test]
+    fn projection_test() {
+        let mut builder = projection::projection(2, 0);
+        let input: TapeAsVec = num_tape::write(vec![1,2].into());
+        builder.input(input);
+
+        let mut machine = builder.build().unwrap();
+
+        loop {
+            let _ = machine.step(1);
+            print_process(&machine);
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![1].into()));
+
+        let mut builder = projection::projection(3, 0);
+        let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+        builder.input(input);
+
+        let mut machine = builder.build().unwrap();
+
+        loop {
+            let _ = machine.step(1);
+            print_process(&machine);
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![1].into()));
+
+        let mut builder = projection::projection(3, 1);
+        let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+        builder.input(input);
+
+        let mut machine = builder.build().unwrap();
+
+        loop {
+            let _ = machine.step(1);
+            print_process(&machine);
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![2].into()));
+
+        let mut builder = projection::projection(3, 2);
+        let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+        builder.input(input);
+
+        let mut machine = builder.build().unwrap();
+
+        loop {
+            let _ = machine.step(1);
+            print_process(&machine);
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![3].into()));
+    }
+    #[test]
     fn composition_test() {
         let mut builder = composition::composition(vec![zero_builder()], succ_builder());
-        let mut input: TapeAsVec = num_tape::write(vec![].into());
+        let input: TapeAsVec = num_tape::write(vec![].into());
         builder.input(input);
 
         let mut machine = builder.build().unwrap();
@@ -251,14 +332,39 @@ mod tests {
         loop {
             let _ = machine.step(1);
             if machine.is_terminate() {
+                print_process(&machine);
                 break;
             }
         }
         let result = num_tape::read_right_one(machine.now_tape());
         assert_eq!(result, Ok(vec![1].into()));
+
+        let mut builder = composition::composition(
+            vec![
+                projection::projection(3, 2),
+                projection::projection(3, 1),
+                projection::projection(3, 0),
+            ],
+            projection(3, 0)
+        );
+        let input: TapeAsVec = num_tape::write(vec![1,2,3].into());
+        builder.input(input);
+
+        let mut machine = builder.build().unwrap();
+        print_process(&machine);
+
+        loop {
+            let _ = machine.step(1);
+            print_process(&machine);
+            if machine.is_terminate() {
+                break;
+            }
+        }
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![3].into()));
     }
     #[test]
-    fn primitive_recursion() {
+    fn primitive_recursion_test() {
         let mut builder = primitive_recursion::primitive_recursion(
             zero_builder(),
             composition::composition(vec![projection::projection(2, 0)], succ_builder()),
@@ -267,7 +373,7 @@ mod tests {
             let input = num_tape::write(vec![i].into());
             let mut machine = builder.input(input).build().unwrap();
 
-            for _ in 0..500 {
+            loop {
                 let _ = machine.step(1);
                 eprintln!("{}\n    {}", machine.now_state(), machine.now_tape());
                 if machine.is_terminate() {
@@ -277,5 +383,22 @@ mod tests {
             let result = num_tape::read_right_one(machine.now_tape());
             assert_eq!(result, Ok(vec![i].into()));
         }
+    }
+    #[test]
+    fn mu_recursion_test() {
+        let mut builder = mu_recursion::mu_recursion(id());
+        let input = num_tape::write(vec![].into());
+        let mut machine = builder.input(input).build().unwrap();
+
+        loop {
+            let _ = machine.step(1);
+            eprintln!("{}\n    {}", machine.now_state(), machine.now_tape());
+            if machine.is_terminate() {
+                break;
+            }
+        }
+
+        let result = num_tape::read_right_one(machine.now_tape());
+        assert_eq!(result, Ok(vec![0].into()));
     }
 }
