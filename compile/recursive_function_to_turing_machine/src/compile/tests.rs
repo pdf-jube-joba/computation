@@ -1,6 +1,7 @@
 use crate::compile::projection::projection;
 
-use super::*;
+use crate::auxiliary::{basic, copy, rotate};
+use crate::compile::*;
 use recursive_function::machine::NumberTuple;
 
 fn print_process(machine: &TuringMachineSet) {
@@ -193,7 +194,7 @@ fn primitive_recursion_test() {
 }
 #[test]
 fn mu_recursion_test() {
-    let mut builder = mu_recursion::mu_recursion(super::basic::id());
+    let mut builder = mu_recursion::mu_recursion(basic::id());
     let input = num_tape::write(vec![].into());
     let mut machine = builder.input(input).build().unwrap();
 

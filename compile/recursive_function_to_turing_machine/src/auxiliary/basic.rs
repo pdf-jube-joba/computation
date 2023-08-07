@@ -6,7 +6,7 @@ use turing_machine::{
     },
 };
 
-use super::*;
+use crate::*;
 
 pub fn id() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("id").unwrap();
@@ -424,9 +424,6 @@ pub fn is_tuple_zero() -> TuringMachineBuilder {
     };
     naive_builder_composition(graph).unwrap()
 }
-
-pub mod copy;
-pub mod rotate;
 
 #[cfg(test)]
 mod tests {

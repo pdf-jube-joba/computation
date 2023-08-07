@@ -3,7 +3,8 @@ use turing_machine::manipulation::{
     graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
-use super::*;
+use crate::auxiliary::{basic, copy, rotate};
+use crate::*;
 
 // [b]1...1b を bb...b[b] にする
 fn flat_1_till_end() -> TuringMachineBuilder {
@@ -119,18 +120,18 @@ pub fn projection(n: usize, i: usize) -> TuringMachineBuilder {
         name: format!("projection_{n}_{i}"),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            vec![right_one()],
+            vec![basic::right_one()],
             vec![flat_1_till_end(); i],
             vec![move_1_till_end()],
             vec![flat_1_till_end(); n - i - 1],
             vec![
                 shrink_bar_right_till_1_or_bar(),
-                move_left(),
+                basic::move_left(),
                 move_1_left_in_bar(),
                 shrink_bar_right_till_1_or_bar(),
-                move_left(),
+                basic::move_left(),
                 format(),
-                move_left(),
+                basic::move_left(),
             ],
         ]
         .into_iter()

@@ -15,5 +15,6 @@
 }
 
 .sign-box {
+    font-family: monospace;
     border: 2px solid #FF0000;
 }

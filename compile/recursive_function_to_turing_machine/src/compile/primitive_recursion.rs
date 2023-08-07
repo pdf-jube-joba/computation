@@ -3,7 +3,8 @@ use turing_machine::manipulation::{
     graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
-use super::*;
+use crate::auxiliary::{basic, copy, rotate};
+use crate::*;
 
 // -1-はタプルとしては現れないのでそれをシグネチャとし、判定する
 // -1-が左にあると T そうじゃないと F を返す
@@ -12,17 +13,17 @@ fn is_left_sig() -> TuringMachineBuilder {
         name: "is_left_sig".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            left_one(), // 0
-            bor1orbar(),
-            right_one(),
-            left_one(),
-            bor1orbar(),
-            right_one(), //5
-            right_one(),
-            right_one(), //7
-            right_one(),
-            id_end("endF"),
-            id_end("endT"),
+            basic::left_one(), // 0
+            basic::bor1orbar(),
+            basic::right_one(),
+            basic::left_one(),
+            basic::bor1orbar(),
+            basic::right_one(), //5
+            basic::right_one(),
+            basic::right_one(), //7
+            basic::right_one(),
+            basic::id_end("endF"),
+            basic::id_end("endT"),
         ],
         assign_edge_to_state: vec![
             ((0, 1), state("end")),
@@ -63,25 +64,25 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
         name: "shrink".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            move_right(),
-            putb(),
-            left_one(),
-            bor1orbar(),
-            putbar(), // 4
-            left_one(),
-            bor1orbar(),
-            putb(),
-            putb(),
-            putbar(),
-            putbar(), // 10
-            left_one(),
-            bor1orbar(),
-            put1(),
-            put1(),
-            putbar(),
-            right_one(), // 16
-            putb(),
-            left_one(),
+            basic::move_right(),
+            basic::putb(),
+            basic::left_one(),
+            basic::bor1orbar(),
+            basic::putbar(), // 4
+            basic::left_one(),
+            basic::bor1orbar(),
+            basic::putb(),
+            basic::putb(),
+            basic::putbar(),
+            basic::putbar(), // 10
+            basic::left_one(),
+            basic::bor1orbar(),
+            basic::put1(),
+            basic::put1(),
+            basic::putbar(),
+            basic::right_one(), // 16
+            basic::putb(),
+            basic::left_one(),
         ],
         assign_edge_to_state: vec![
             ((0, 1), state("end")),
@@ -119,21 +120,21 @@ fn expand_aux_remove_zero() -> TuringMachineBuilder {
         name: "shrink".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            move_right(),
-            putb(),
-            left_one(),
-            bor1orbar(),
-            putbar(), // 4
-            left_one(),
-            bor1orbar(),
-            putb(),
-            putb(),
-            putbar(), // 9
-            left_one(),
-            bor1orbar(),
-            put1(),
-            put1(),
-            id(),
+            basic::move_right(),
+            basic::putb(),
+            basic::left_one(),
+            basic::bor1orbar(),
+            basic::putbar(), // 4
+            basic::left_one(),
+            basic::bor1orbar(),
+            basic::putb(),
+            basic::putb(),
+            basic::putbar(), // 9
+            basic::left_one(),
+            basic::bor1orbar(),
+            basic::put1(),
+            basic::put1(),
+            basic::id(),
         ],
         assign_edge_to_state: vec![
             ((0, 1), state("end")),
@@ -165,24 +166,24 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
         name: "shift_right".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            right_one(),
-            bor1orbar(),
-            putbar(),
-            right_one(),
-            bor1orbar(),
-            putb(),
-            putb(),
-            putb(),
-            putbar(),
-            right_one(),
-            bor1orbar(),
-            put1(),
-            put1(),
-            put1(),
-            putbar(),
-            right_one(),
-            putbar(),
-            move_lefts(2),
+            basic::right_one(),
+            basic::bor1orbar(),
+            basic::putbar(),
+            basic::right_one(),
+            basic::bor1orbar(),
+            basic::putb(),
+            basic::putb(),
+            basic::putb(),
+            basic::putbar(),
+            basic::right_one(),
+            basic::bor1orbar(),
+            basic::put1(),
+            basic::put1(),
+            basic::put1(),
+            basic::putbar(),
+            basic::right_one(),
+            basic::putbar(),
+            basic::move_lefts(2),
         ],
         assign_edge_to_state: vec![
             ((0, 1), state("end")),
@@ -222,14 +223,14 @@ fn expand() -> TuringMachineBuilder {
         init_state: state("start"),
         assign_vertex_to_builder: vec![
             expand_aux_shift_right(),
-            right_one(),
+            basic::right_one(),
             expand_aux_shift_right(),
-            put1(),
-            right_one(),
-            is_tuple_zero(), // 5
+            basic::put1(),
+            basic::right_one(),
+            basic::is_tuple_zero(), // 5
             expand_aux_shrink(),
             copy::copy(),
-            move_right(),
+            basic::move_right(),
             expand_aux_remove_zero(), //9
         ],
         assign_edge_to_state: vec![
@@ -255,16 +256,16 @@ fn format() -> TuringMachineBuilder {
         name: "format".to_string(),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            move_right(),
-            shift_left_to_right_fill(sign("-")),
-            putbar(),
-            move_rights(2),
-            putb(),
-            left_one(),
-            shift_left_to_right_fill(sign("-")),
-            move_rights(2),
-            putb(),
-            move_lefts(2),
+            basic::move_right(),
+            basic::shift_left_to_right_fill(sign("-")),
+            basic::putbar(),
+            basic::move_rights(2),
+            basic::putb(),
+            basic::left_one(),
+            basic::shift_left_to_right_fill(sign("-")),
+            basic::move_rights(2),
+            basic::putb(),
+            basic::move_lefts(2),
         ],
         assign_edge_to_state: series_edge_end_only(9),
         acceptable: accept_end_only(9),
@@ -287,9 +288,9 @@ pub fn primitive_recursion(
             expand(), // 0
             zero_case,
             is_left_sig(),
-            move_left(),
+            basic::move_left(),
             rotate::rotate(2),
-            concat(),
+            basic::concat(),
             succ_case,
             format(), // 7
         ],

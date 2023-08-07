@@ -3,7 +3,8 @@ use turing_machine::manipulation::{
     graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
-use super::*;
+use super::basic::*;
+use crate::*;
 
 // [-]X1-...-Xn- を [x]X2-...-Xn-X1- にする
 pub fn rotate(n: usize) -> TuringMachineBuilder {

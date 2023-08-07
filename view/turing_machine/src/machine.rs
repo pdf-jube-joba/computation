@@ -12,8 +12,14 @@ struct SignBoxProps {
 
 #[function_component(SignBox)]
 fn sign_box_view(SignBoxProps { sign }: &SignBoxProps) -> Html {
-    html! {
-        <span class={classes!("sign-box")}> {sign} </span>
+    if *sign == Sign::blank() {
+        html!{
+            <span class={classes!("sign-box")}> {"_"} </span>   
+        }
+    } else {
+        html! {
+            <span class={classes!("sign-box")}> {sign} </span>
+        }
     }
 }
 
@@ -269,7 +275,7 @@ impl Component for UnConnectedMachineView {
     fn create(ctx: &Context<Self>) -> Self {
         let UnConnectedMachineProp { builder } = ctx.props();
         let callback = ctx.link().callback(|_| UnConnectedMachineMsg::Tick);
-        let interval = Interval::new(1000, move || callback.emit(()));
+        let interval = Interval::new(200, move || callback.emit(()));
         Self {
             machine: builder.build().unwrap(),
             tick_active: false,

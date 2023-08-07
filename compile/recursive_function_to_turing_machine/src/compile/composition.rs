@@ -1,25 +1,26 @@
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
     graph_compose::{naive_builder_composition, GraphOfBuilder},
-};
+}; 
 
-use super::*;
+use crate::auxiliary::{basic, copy, rotate};
+use crate::*;
 
 // -p_1-...-p_n- を -p_1p_2...p_n- にする
 fn format(n: usize) -> TuringMachineBuilder {
     if n == 0 || n == 1 {
-        return id();
+        return basic::id();
     }
     let graph = GraphOfBuilder {
         name: format!("format_{n}"),
         init_state: state("start"),
         assign_vertex_to_builder: vec![
-            vec![move_rights(n - 2)],
-            vec![vec![concat(), move_left()]; n - 2]
+            vec![basic::move_rights(n - 2)],
+            vec![vec![basic::concat(), basic::move_left()]; n - 2]
                 .into_iter()
                 .flatten()
                 .collect(),
-            vec![concat()],
+            vec![basic::concat()],
         ]
         .into_iter()
         .flatten()
@@ -46,9 +47,9 @@ pub fn composition(
                 .enumerate()
                 .map(|(i, builder)| {
                     vec![
-                        move_rights(num - 1),
+                        basic::move_rights(num - 1),
                         builder,
-                        move_lefts(num - 1),
+                        basic::move_lefts(num - 1),
                         if i != num - 1 {
                             rotate::rotate(num)
                         } else {

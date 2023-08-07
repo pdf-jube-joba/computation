@@ -3,7 +3,8 @@ use turing_machine::manipulation::{
     graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
-use super::*;
+use super::basic::*;
+use crate::*;
 
 fn copy_aux_pre() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {

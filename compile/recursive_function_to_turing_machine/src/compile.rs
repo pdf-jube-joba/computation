@@ -1,4 +1,3 @@
-use super::builder::*;
 use recursive_function::machine::RecursiveFunctions;
 use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 
@@ -56,6 +55,28 @@ pub mod num_tape {
         read_one(iter.collect())
     }
 }
+
+
+pub fn zero_builder() -> TuringMachineBuilder {
+    let mut builder = TuringMachineBuilder::new("zero_builder").unwrap();
+    builder
+        .from_source(include_str!("zero_builder.txt"))
+        .unwrap();
+    builder
+}
+
+pub fn succ_builder() -> TuringMachineBuilder {
+    let mut builder = TuringMachineBuilder::new("succ_adder").unwrap();
+    builder
+        .from_source(include_str!("succ_builder.txt"))
+        .unwrap();
+    builder
+}
+
+pub mod projection;
+pub mod composition;
+pub mod primitive_recursion;
+pub mod mu_recursion;
 
 pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder {
     match recursive_function {

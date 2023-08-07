@@ -9,7 +9,7 @@ fn main() {
         target_element.append_child(&element).unwrap();
 
         let input = recursive_function_to_turing_machine::compile::num_tape::write(vec![].into());
-        let mut builder = recursive_function_to_turing_machine::builder::zero_builder();
+        let mut builder = recursive_function_to_turing_machine::compile::zero_builder();
         builder.input(input);
 
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
@@ -24,7 +24,7 @@ fn main() {
         target_element.append_child(&element).unwrap();
 
         let input = recursive_function_to_turing_machine::compile::num_tape::write(vec![3].into());
-        let mut builder = recursive_function_to_turing_machine::builder::succ_builder();
+        let mut builder = recursive_function_to_turing_machine::compile::succ_builder();
         builder.input(input);
 
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
@@ -41,7 +41,7 @@ fn main() {
         let input =
             recursive_function_to_turing_machine::compile::num_tape::write(vec![3, 1, 2].into());
         let mut builder =
-            recursive_function_to_turing_machine::builder::projection::projection(3, 1);
+            recursive_function_to_turing_machine::compile::projection::projection(3, 1);
         builder.input(input);
 
         target_element.append_child(&element).unwrap();
