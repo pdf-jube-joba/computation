@@ -7,10 +7,7 @@ use super::*;
 
 // -p_1-...-p_n- を -p_1p_2...p_n- にする
 fn format(n: usize) -> TuringMachineBuilder {
-    if n == 0 {
-        panic!("0 is invalid arg");
-    }
-    if n == 1 {
+    if n == 0 || n == 1 {
         return id();
     }
     let graph = GraphOfBuilder {
@@ -42,24 +39,20 @@ pub fn composition(
                 .into_iter()
                 .enumerate()
                 .map(|(i, builder)| {
-                    if i == 0 {
                         vec![
                             move_rights(num - 1),
                             builder,
                             move_lefts(num - 1),
+                            if i != num - 1 {
+                                rotate::rotate(num)
+                            } else {
+                                format(num)
+                            }
                         ]
-                    } else {
-                        vec![
-                            rotate::rotate(num),
-                            move_rights(num - 1),
-                            builder,
-                            move_lefts(num - 1),
-                        ]
-                    }
                 })
                 .flatten()
                 .collect(),
-            vec![format(num), outer_builder],
+            vec![outer_builder],
         ]
         .into_iter()
         .flatten()

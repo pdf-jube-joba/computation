@@ -150,7 +150,7 @@ pub enum RecursiveFunctions {
 }
 
 impl RecursiveFunctions {
-    fn parameter_length(&self) -> usize {
+    pub fn parameter_length(&self) -> usize {
         match self {
             RecursiveFunctions::ZeroConstant => 0,
             RecursiveFunctions::Successor => 1,
@@ -162,13 +162,13 @@ impl RecursiveFunctions {
             RecursiveFunctions::MuOperator(ref muop) => &muop.mu_func.parameter_length() - 1,
         }
     }
-    fn zero() -> RecursiveFunctions {
+    pub fn zero() -> RecursiveFunctions {
         Self::ZeroConstant
     }
-    fn succ() -> RecursiveFunctions {
+    pub fn succ() -> RecursiveFunctions {
         Self::Successor
     }
-    fn projection(len: usize, num: usize) -> Result<RecursiveFunctions, ()> {
+    pub fn projection(len: usize, num: usize) -> Result<RecursiveFunctions, ()> {
         if len <= num {
             return Err(());
         } else {
@@ -178,7 +178,7 @@ impl RecursiveFunctions {
             }))
         }
     }
-    fn composition(
+    pub fn composition(
         parameter_length: usize,
         inner_funcs: Vec<RecursiveFunctions>,
         outer_func: RecursiveFunctions,
@@ -198,7 +198,7 @@ impl RecursiveFunctions {
             }));
         }
     }
-    fn primitive_recursion(
+    pub fn primitive_recursion(
         zero_func: RecursiveFunctions,
         succ_func: RecursiveFunctions,
     ) -> Result<RecursiveFunctions, ()> {
@@ -211,7 +211,7 @@ impl RecursiveFunctions {
             })));
         }
     }
-    fn muoperator(func: RecursiveFunctions) -> Result<RecursiveFunctions, ()> {
+    pub fn muoperator(func: RecursiveFunctions) -> Result<RecursiveFunctions, ()> {
         if func.parameter_length() == 0 {
             return Err(());
         } else {
