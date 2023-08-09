@@ -2,6 +2,7 @@
 members = [
   "models/turing_machine",
   "view/turing_machine",
+  "models/lambda_calculus",
   "models/countermachine",
   "models/recursive_function",
   "integration/turing_machine",
