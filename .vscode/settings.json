@@ -2,5 +2,6 @@
     "rust-analyzer.linkedProjects": [
         "./models/turing_machine/Cargo.toml",
         "./compile/recursive_function_to_turing_machine/Cargo.toml",
-    ]
+    ],
+    "rust-analyzer.showUnlinkedFileNotification": false
 }
