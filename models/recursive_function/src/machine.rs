@@ -2,13 +2,13 @@
 pub struct Number(usize);
 
 impl Number {
-    fn is_zero(&self) -> bool {
+    pub fn is_zero(&self) -> bool {
         self.0 == 0
     }
-    fn succ(self) -> Self {
+    pub fn succ(self) -> Self {
         Number(self.0 + 1)
     }
-    fn pred(self) -> Self {
+    pub fn pred(self) -> Self {
         Number(self.0 - 1)
     }
 }
