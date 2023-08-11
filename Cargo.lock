@@ -376,6 +376,10 @@ name = "lambda_calculus"
 version = "0.1.0"
 
 [[package]]
+name = "lambda_calculus_view"
+version = "0.1.0"
+
+[[package]]
 name = "libc"
 version = "0.2.139"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -538,6 +542,14 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
  "yew",
+]
+
+[[package]]
+name = "recursive_function_to_lambda_calculus"
+version = "0.1.0"
+dependencies = [
+ "lambda_calculus",
+ "recursive_function",
 ]
 
 [[package]]

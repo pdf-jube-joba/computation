@@ -200,6 +200,50 @@ pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
     }
 }
 
+pub fn list_up_reduce(term: LambdaTerm) -> Vec<LambdaTerm> {
+    match term {
+        LambdaTerm::Variable(_) => vec![],
+        LambdaTerm::Abstraction(var, term) => {
+            list_up_reduce(*term).into_iter().map(|term|{
+                LambdaTerm::Abstraction(var.clone(), Box::new(term))
+            }).collect()
+        },
+        LambdaTerm::Application(term1, term2) => {
+            let mut from_redux: Vec<LambdaTerm> = match term1.as_ref().clone() {
+                LambdaTerm::Abstraction(var, term3) => {
+                    vec![subst(*term3, var, *term2.clone())]
+                },
+                _ => vec![],
+            };
+            from_redux.extend(list_up_reduce(*term1.clone()).into_iter().map(|term| 
+                LambdaTerm::Application(Box::new(term), Box::new(*term2.clone()))
+            ));
+            from_redux.extend(list_up_reduce(*term2.clone()).into_iter().map(|term| 
+                LambdaTerm::Application(Box::new(*term1.clone()), Box::new(term))
+            ));
+            from_redux
+        }
+    }
+}
+
+pub fn is_normal(term: LambdaTerm) -> bool {
+    match term {
+        LambdaTerm::Variable(_) => false,
+        LambdaTerm::Abstraction(_, term) => is_normal(*term),
+        _ => false,
+    }
+}
+
+pub fn left_most_reduction(term: LambdaTerm, step: usize) -> LambdaTerm {
+    if step == 0 {
+        return term;
+    } else {
+        let v = list_up_reduce(term);
+        let t = v[0].clone();
+        left_most_reduction(t, step - 1)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,68 +251,68 @@ mod tests {
     #[test]
     fn alpha_eq_test() {
         let tests = vec![
-            // (LambdaTerm::var(0), LambdaTerm::var(0), true),
-            // (LambdaTerm::var(0), LambdaTerm::var(1), false),
-            // (
-            //     LambdaTerm::abs(0, LambdaTerm::var(0)),
-            //     LambdaTerm::abs(1, LambdaTerm::var(1)),
-            //     true
-            // ),
-            // (
-            //     LambdaTerm::abs(0, LambdaTerm::app(
-            //         LambdaTerm::var(0),
-            //         LambdaTerm::var(1)
-            //     )),
-            //     LambdaTerm::abs(2, LambdaTerm::app(
-            //         LambdaTerm::var(2),
-            //         LambdaTerm::var(1)
-            //     )),
-            //     true
-            // ),
-            // (
-            //     LambdaTerm::abs(0, LambdaTerm::app(
-            //         LambdaTerm::var(0),
-            //         LambdaTerm::var(0)
-            //     )),
-            //     LambdaTerm::abs(2, LambdaTerm::app(
-            //         LambdaTerm::var(2),
-            //         LambdaTerm::var(1)
-            //     )),
-            //     false
-            // ),
-            // (
-            //     LambdaTerm::abs(0, LambdaTerm::abs(
-            //         1,
-            //         LambdaTerm::var(0)
-            //     )),
-            //     LambdaTerm::abs(0, LambdaTerm::abs(
-            //         1,
-            //         LambdaTerm::var(1)
-            //     )),
-            //     false
-            // ),
-            // (
-            //     LambdaTerm::abs(0, LambdaTerm::abs(
-            //         0,
-            //         LambdaTerm::var(0)
-            //     )),
-            //     LambdaTerm::abs(0, LambdaTerm::abs(
-            //         1,
-            //         LambdaTerm::var(1)
-            //     )),
-            //     true
-            // ),
-            // (
-            //     LambdaTerm::app(
-            //         LambdaTerm::abs(0, LambdaTerm::var(0)),
-            //         LambdaTerm::abs(1, LambdaTerm::var(1))
-            //     ),
-            //     LambdaTerm::app(
-            //         LambdaTerm::abs(1, LambdaTerm::var(1)),
-            //         LambdaTerm::abs(1, LambdaTerm::var(1))
-            //     ),
-            //     true
-            // ),
+            (LambdaTerm::var(0), LambdaTerm::var(0), true),
+            (LambdaTerm::var(0), LambdaTerm::var(1), false),
+            (
+                LambdaTerm::abs(0, LambdaTerm::var(0)),
+                LambdaTerm::abs(1, LambdaTerm::var(1)),
+                true
+            ),
+            (
+                LambdaTerm::abs(0, LambdaTerm::app(
+                    LambdaTerm::var(0),
+                    LambdaTerm::var(1)
+                )),
+                LambdaTerm::abs(2, LambdaTerm::app(
+                    LambdaTerm::var(2),
+                    LambdaTerm::var(1)
+                )),
+                true
+            ),
+            (
+                LambdaTerm::abs(0, LambdaTerm::app(
+                    LambdaTerm::var(0),
+                    LambdaTerm::var(0)
+                )),
+                LambdaTerm::abs(2, LambdaTerm::app(
+                    LambdaTerm::var(2),
+                    LambdaTerm::var(1)
+                )),
+                false
+            ),
+            (
+                LambdaTerm::abs(0, LambdaTerm::abs(
+                    1,
+                    LambdaTerm::var(0)
+                )),
+                LambdaTerm::abs(0, LambdaTerm::abs(
+                    1,
+                    LambdaTerm::var(1)
+                )),
+                false
+            ),
+            (
+                LambdaTerm::abs(0, LambdaTerm::abs(
+                    0,
+                    LambdaTerm::var(0)
+                )),
+                LambdaTerm::abs(0, LambdaTerm::abs(
+                    1,
+                    LambdaTerm::var(1)
+                )),
+                true
+            ),
+            (
+                LambdaTerm::app(
+                    LambdaTerm::abs(0, LambdaTerm::var(0)),
+                    LambdaTerm::abs(1, LambdaTerm::var(1))
+                ),
+                LambdaTerm::app(
+                    LambdaTerm::abs(1, LambdaTerm::var(1)),
+                    LambdaTerm::abs(1, LambdaTerm::var(1))
+                ),
+                true
+            ),
             (
                 LambdaTerm::app(
                     LambdaTerm::abs(0, LambdaTerm::var(0)),
