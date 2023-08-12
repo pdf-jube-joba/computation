@@ -56,7 +56,6 @@ pub mod num_tape {
     }
 }
 
-
 pub fn zero_builder() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("zero_builder").unwrap();
     builder
@@ -73,10 +72,10 @@ pub fn succ_builder() -> TuringMachineBuilder {
     builder
 }
 
-pub mod projection;
 pub mod composition;
-pub mod primitive_recursion;
 pub mod mu_recursion;
+pub mod primitive_recursion;
+pub mod projection;
 
 pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder {
     match recursive_function {

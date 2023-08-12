@@ -1,6 +1,6 @@
-use turing_machine_view::machine::*;
-use recursive_function::{*, machine::RecursiveFunctions};
+use recursive_function::{machine::RecursiveFunctions, *};
 use recursive_function_to_turing_machine::*;
+use turing_machine_view::machine::*;
 
 fn add() -> RecursiveFunctions {
     RecursiveFunctions::primitive_recursion(
@@ -47,19 +47,22 @@ fn main() {
         let element = document.create_element("div").unwrap();
         target_element.append_child(&element).unwrap();
 
-        let mut builder = compile::compile(&RecursiveFunctions::composition(
-            3,
-            vec![RecursiveFunctions::projection(3, 0).unwrap()],
-            RecursiveFunctions::succ()
-        ).unwrap());
-        let input = compile::num_tape::write(vec![1,2,3].into());
+        let mut builder = compile::compile(
+            &RecursiveFunctions::composition(
+                3,
+                vec![RecursiveFunctions::projection(3, 0).unwrap()],
+                RecursiveFunctions::succ(),
+            )
+            .unwrap(),
+        );
+        let input = compile::num_tape::write(vec![1, 2, 3].into());
         builder.input(input);
 
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
             element,
             UnConnectedMachineProp {
                 builder,
-                toggle_interval: 100, 
+                toggle_interval: 100,
             },
         )
         .render();
@@ -70,15 +73,16 @@ fn main() {
         target_element.append_child(&element).unwrap();
 
         let mut builder = compile::compile(&add());
-        let input = recursive_function_to_turing_machine::compile::num_tape::write(vec![3, 1].into());
+        let input =
+            recursive_function_to_turing_machine::compile::num_tape::write(vec![3, 1].into());
         builder.input(input);
 
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
             element,
-            UnConnectedMachineProp { 
+            UnConnectedMachineProp {
                 builder,
                 toggle_interval: 100,
-        },
+            },
         )
         .render();
     }
@@ -88,8 +92,7 @@ fn main() {
         target_element.append_child(&element).unwrap();
 
         let mut builder = compile::compile(&zero_from_mul());
-        let input =
-            recursive_function_to_turing_machine::compile::num_tape::write(vec![3].into());
+        let input = recursive_function_to_turing_machine::compile::num_tape::write(vec![3].into());
         builder.input(input);
 
         target_element.append_child(&element).unwrap();
@@ -98,7 +101,7 @@ fn main() {
             UnConnectedMachineProp {
                 builder,
                 toggle_interval: 100,
-            }
+            },
         )
         .render();
     }

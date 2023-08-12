@@ -13,8 +13,8 @@ struct SignBoxProps {
 #[function_component(SignBox)]
 fn sign_box_view(SignBoxProps { sign }: &SignBoxProps) -> Html {
     if *sign == Sign::blank() {
-        html!{
-            <span class={classes!("sign-box")}> {"_"} </span>   
+        html! {
+            <span class={classes!("sign-box")}> {"_"} </span>
         }
     } else {
         html! {
@@ -274,9 +274,14 @@ impl Component for UnConnectedMachineView {
     type Message = UnConnectedMachineMsg;
     type Properties = UnConnectedMachineProp;
     fn create(ctx: &Context<Self>) -> Self {
-        let UnConnectedMachineProp { builder, toggle_interval } = ctx.props();
+        let UnConnectedMachineProp {
+            builder,
+            toggle_interval,
+        } = ctx.props();
         let callback = ctx.link().callback(|_| UnConnectedMachineMsg::Tick);
-        let interval = Interval::new(u32::try_from(*toggle_interval).unwrap(), move || callback.emit(()));
+        let interval = Interval::new(u32::try_from(*toggle_interval).unwrap(), move || {
+            callback.emit(())
+        });
         Self {
             machine: builder.build().unwrap(),
             tick_active: false,
@@ -301,7 +306,10 @@ impl Component for UnConnectedMachineView {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             UnConnectedMachineMsg::Reset => {
-                let UnConnectedMachineProp { builder, toggle_interval } = ctx.props();
+                let UnConnectedMachineProp {
+                    builder,
+                    toggle_interval,
+                } = ctx.props();
                 self.machine = builder.build().unwrap();
             }
             UnConnectedMachineMsg::Step(step) => {

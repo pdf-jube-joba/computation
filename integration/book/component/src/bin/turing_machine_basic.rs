@@ -14,7 +14,7 @@ fn main() {
 
         let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
             element,
-            UnConnectedMachineProp { 
+            UnConnectedMachineProp {
                 builder,
                 toggle_interval: 200,
             },

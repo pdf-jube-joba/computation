@@ -85,6 +85,5 @@ fn builder_test_predicate(
     }
 }
 
-
 pub mod auxiliary;
 pub mod compile;
