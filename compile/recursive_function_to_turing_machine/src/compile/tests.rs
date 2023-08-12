@@ -1,6 +1,8 @@
+use turing_machine::machine::*;
+
 use crate::compile::projection::projection;
 
-use crate::auxiliary::{basic, copy, rotate};
+use crate::auxiliary::basic;
 use crate::compile::*;
 use recursive_function::machine::NumberTuple;
 

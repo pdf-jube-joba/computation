@@ -1,4 +1,4 @@
-use recursive_function::{machine::RecursiveFunctions, *};
+use recursive_function::machine::RecursiveFunctions;
 use recursive_function_to_turing_machine::*;
 use turing_machine_view::machine::*;
 

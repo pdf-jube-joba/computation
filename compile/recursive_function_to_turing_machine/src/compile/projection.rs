@@ -3,7 +3,7 @@ use turing_machine::manipulation::{
     graph_compose::{naive_builder_composition, GraphOfBuilder},
 };
 
-use crate::auxiliary::{basic, copy, rotate};
+use crate::auxiliary::basic;
 use crate::*;
 
 // [b]1...1b を bb...b[b] にする

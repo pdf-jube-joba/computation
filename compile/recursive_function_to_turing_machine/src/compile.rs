@@ -1,5 +1,5 @@
 use recursive_function::machine::RecursiveFunctions;
-use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
+use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
     use recursive_function::machine::{Number, NumberTuple};
