@@ -2,10 +2,11 @@
 members = [
   "models/turing_machine",
   "view/turing_machine",
+  "models/recursive_function",
   "models/lambda_calculus",
   "view/lambda_calculus",
+  "models/while-minus-lang",
   "models/countermachine",
-  "models/recursive_function",
   "integration/turing_machine",
   "integration/book/component",
   "compile/recursive_function_to_turing_machine",

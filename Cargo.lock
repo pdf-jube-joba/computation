@@ -837,6 +837,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "while-minus-lang"
+version = "0.1.0"
+
+[[package]]
 name = "windows-sys"
 version = "0.45.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
