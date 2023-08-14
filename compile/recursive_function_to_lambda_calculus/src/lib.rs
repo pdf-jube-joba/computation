@@ -119,21 +119,18 @@ pub fn proj(n: usize, i: usize) -> Result<LambdaTerm, ()> {
 
 pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> LambdaTerm {
     let mut v = vec![outer];
-    v.extend(
-        inner.into_iter().map(|term| {
-            fold_left({
-                let mut v2 = vec![term];
-                v2.extend((0..n).map(LambdaTerm::var));
-                v2
-            })
+    v.extend(inner.into_iter().map(|term| {
+        fold_left({
+            let mut v2 = vec![term];
+            v2.extend((0..n).map(LambdaTerm::var));
+            v2
         })
-    );
+    }));
     let fold = fold_left(v);
     take_n_abs((0..n).collect(), fold)
 }
 
 pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm {
-
     // is_zero 0
     let is_zero = LambdaTerm::app(is_zero(), LambdaTerm::var(0));
 
@@ -148,7 +145,7 @@ pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm
     let g = fold_left({
         let pred_0 = LambdaTerm::app(pred(), LambdaTerm::var(0));
         let p = {
-            let mut v = vec![LambdaTerm::var(n+1), pred_0.clone()];
+            let mut v = vec![LambdaTerm::var(n + 1), pred_0.clone()];
             v.extend((1..=n).map(LambdaTerm::var));
             fold_left(v)
         };
@@ -160,38 +157,54 @@ pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm
 
     // Y (\n+1 1...n. if_lambda is_zero f g) =>
     // n+1 <=> H として H x0 x1 ... xn = if_lambda is_zero f g
-    LambdaTerm::app(y_combinator(), take_n_abs({
-        let mut v = vec![n+1];
-        v.extend(1..=n);
-        v
-    }, fix))
+    LambdaTerm::app(
+        y_combinator(),
+        take_n_abs(
+            {
+                let mut v = vec![n + 1];
+                v.extend(1..=n);
+                v
+            },
+            fix,
+        ),
+    )
 }
 
 pub fn mu_recursion(n: usize, f: LambdaTerm) -> LambdaTerm {
-    let is_zero = take_n_abs((0..=n).collect(), fold_left({
-        let mut v = vec![f];
-        v.extend((0..=n).map(LambdaTerm::var));
-        v
-    }));
+    let is_zero = take_n_abs(
+        (0..=n).collect(),
+        fold_left({
+            let mut v = vec![f];
+            v.extend((0..=n).map(LambdaTerm::var));
+            v
+        }),
+    );
     let rec = fold_left({
-        let mut v = vec![LambdaTerm::var(n+1), LambdaTerm::app(succ(), LambdaTerm::var(0))];
+        let mut v = vec![
+            LambdaTerm::var(n + 1),
+            LambdaTerm::app(succ(), LambdaTerm::var(0)),
+        ];
         v.extend((1..=n).map(LambdaTerm::var));
         v
     });
     let fix = if_lambda(is_zero, LambdaTerm::var(0), rec);
-    LambdaTerm::app(y_combinator(), take_n_abs({
-        let mut v = vec![n+1];
-        v.extend(0..=n);
-        v
-    },
-        fix
-    ))
+    LambdaTerm::app(
+        y_combinator(),
+        take_n_abs(
+            {
+                let mut v = vec![n + 1];
+                v.extend(0..=n);
+                v
+            },
+            fix,
+        ),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use lambda_calculus::{
-        machine::{is_normal, left_most_reduction, alpha_eq},
+        machine::{alpha_eq, is_normal, left_most_reduction},
         manipulation::parse,
     };
 

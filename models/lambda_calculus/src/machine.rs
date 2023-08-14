@@ -276,42 +276,42 @@ pub fn left_most_reduction_step(term: LambdaTerm, step: usize) -> LambdaTerm {
 }
 
 pub mod utils {
-    use super::LambdaTerm;
     use super::alpha_eq;
+    use super::LambdaTerm;
 
     pub fn true_lambda() -> LambdaTerm {
         LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(0)))
     }
-    
+
     pub fn false_lambda() -> LambdaTerm {
         LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(1)))
     }
-    
+
     pub fn is_true(term: LambdaTerm) -> bool {
         let l = true_lambda();
         alpha_eq(&l, &term)
     }
-    
+
     pub fn is_false(term: LambdaTerm) -> bool {
         let l = false_lambda();
         alpha_eq(&l, &term)
     }
-    
+
     pub fn if_lambda(l: LambdaTerm, m: LambdaTerm, n: LambdaTerm) -> LambdaTerm {
         LambdaTerm::app(LambdaTerm::app(l, m), n)
     }
-    
+
     pub fn pair(m: LambdaTerm, n: LambdaTerm) -> LambdaTerm {
         LambdaTerm::abs(
             0,
             LambdaTerm::app(LambdaTerm::app(LambdaTerm::var(0), m), n),
         )
     }
-    
+
     pub fn first() -> LambdaTerm {
         LambdaTerm::abs(0, LambdaTerm::app(LambdaTerm::var(0), true_lambda()))
     }
-    
+
     pub fn second() -> LambdaTerm {
         LambdaTerm::abs(0, LambdaTerm::app(LambdaTerm::var(0), false_lambda()))
     }
@@ -331,16 +331,25 @@ pub mod utils {
     }
 
     pub fn y_combinator() -> LambdaTerm {
-        LambdaTerm::abs(0, LambdaTerm::app(
-            LambdaTerm::abs(1, LambdaTerm::app(
-                LambdaTerm::var(0),
-                LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(1))
-            )),
-            LambdaTerm::abs(1, LambdaTerm::app(
-                LambdaTerm::var(0),
-                LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(1))
-            ))
-        ))
+        LambdaTerm::abs(
+            0,
+            LambdaTerm::app(
+                LambdaTerm::abs(
+                    1,
+                    LambdaTerm::app(
+                        LambdaTerm::var(0),
+                        LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(1)),
+                    ),
+                ),
+                LambdaTerm::abs(
+                    1,
+                    LambdaTerm::app(
+                        LambdaTerm::var(0),
+                        LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(1)),
+                    ),
+                ),
+            ),
+        )
     }
 }
 

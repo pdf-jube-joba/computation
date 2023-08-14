@@ -1,5 +1,5 @@
 [package]
-name = "countermachine"
+name = "counter_machine_view"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,8 @@ edition = "2021"
 
 [dependencies]
 gloo = "0.8.0"
+wasm-bindgen = "0.2.84"
+web-sys = "0.3.61"
 yew = { version = "0.20.0", features = ["csr"] }
+
+counter_machine = { path = "../../models/counter_machine" }

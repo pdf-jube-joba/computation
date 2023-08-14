@@ -1,40 +1,47 @@
 use std::{collections::HashMap, fmt::Display};
 
-use yew::{html, Component, Properties};
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct RegisterIndex(usize);
+pub struct RegisterIndex(usize);
 
 #[derive(Debug, Clone)]
-struct Number(usize);
+pub struct Number(usize);
+
 impl Number {
-    fn inc(self) -> Self {
+    pub fn inc(self) -> Self {
         Number(self.0 + 1)
     }
-    fn dec(self) -> Self {
+    pub fn dec(self) -> Self {
         if self.0 != 0 {
             Number(self.0 - 1)
         } else {
             Number(0)
         }
     }
-    fn clr() -> Self {
+    pub fn clr() -> Self {
         Number(0)
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct ProgramIndex(usize);
+pub struct ProgramIndex(usize);
+
 impl ProgramIndex {
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         self.0 += 1;
     }
-    fn goto(&mut self, index: ProgramIndex) {
+    pub fn goto(&mut self, _index: ProgramIndex) {
         todo!()
     }
 }
 
-enum Operation {
+impl From<usize> for ProgramIndex {
+    fn from(value: usize) -> Self {
+        ProgramIndex(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Operation {
     Inc(RegisterIndex),
     Dec(RegisterIndex),
     Clr(RegisterIndex),
@@ -55,17 +62,18 @@ impl Display for Operation {
     }
 }
 
-struct Code(Vec<Operation>);
+pub struct Code(Vec<Operation>);
 
-struct Registers(HashMap<RegisterIndex, Number>);
+pub struct Registers(HashMap<RegisterIndex, Number>);
+
 impl Registers {
-    fn get(&self, index: &RegisterIndex) -> Number {
+    pub fn get(&self, index: &RegisterIndex) -> Number {
         match self.0.get(index) {
             Some(num) => num.clone(),
             None => Number(0),
         }
     }
-    fn set(&mut self, index: RegisterIndex, num: Number) {
+    pub fn set(&mut self, index: RegisterIndex, num: Number) {
         match self.0.get_mut(&index) {
             Some(target) => {
                 *target = num;
@@ -77,17 +85,20 @@ impl Registers {
     }
 }
 
-struct CounterMachine {
-    code: Code,
-    program_counter: ProgramIndex,
-    registers: Registers,
+pub struct CounterMachine {
+    pub code: Code,
+    pub program_counter: ProgramIndex,
+    pub registers: Registers,
 }
 
 impl CounterMachine {
-    fn is_terminate(&self) -> bool {
+    pub fn code_as_vec(&self) -> Vec<Operation> {
+        self.code.0.clone()
+    }
+    pub fn is_terminate(&self) -> bool {
         self.code.0.len() <= self.program_counter.0
     }
-    fn step(&mut self) {
+    pub fn step(&mut self) {
         if !self.is_terminate() {
             let operation = &self.code.0[self.program_counter.0];
             match operation {
@@ -103,61 +114,6 @@ impl CounterMachine {
                 }
                 _ => todo!(),
             }
-        }
-    }
-}
-
-#[derive(Default)]
-struct CounterMachineView {
-    machine: Option<CounterMachine>,
-}
-
-#[derive(Debug, Default, Clone, PartialEq, Properties)]
-struct CounterMachineProp {}
-
-struct CounterMachineMsg {}
-
-impl Component for CounterMachineView {
-    type Message = CounterMachineMsg;
-    type Properties = CounterMachineProp;
-    fn create(ctx: &yew::Context<Self>) -> Self {
-        Self::default()
-    }
-    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let html1 = if let Some(machine) = &self.machine {
-            let code_html: yew::Html = (&machine.code.0)
-                .into_iter()
-                .enumerate()
-                .map(|(i, s)| {
-                    let v = if machine.program_counter == ProgramIndex(i) {
-                        "selected"
-                    } else {
-                        "not selected"
-                    };
-                    html! {
-                    <>
-                        <div class={v}>
-                            {s}
-                        </div> <br/>
-                    </>}
-                })
-                .collect();
-            html! {
-                <>
-                    {"machine"}
-                    {code_html}
-                </>
-            }
-        } else {
-            html! {
-                <>
-                    {"not found"}
-                </>
-            }
-        };
-
-        html! {
-            {html1}
         }
     }
 }

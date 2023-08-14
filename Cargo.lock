@@ -64,10 +64,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "countermachine"
+name = "counter_machine"
 version = "0.1.0"
 dependencies = [
+ "yew",
+]
+
+[[package]]
+name = "counter_machine_view"
+version = "0.1.0"
+dependencies = [
+ "counter_machine",
  "gloo",
+ "wasm-bindgen",
+ "web-sys",
  "yew",
 ]
 

@@ -1,5 +1,5 @@
 [package]
-name = "turing_machine"
+name = "counter_machine"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 yew = { version = "0.20.0", features = ["csr"] }
+
