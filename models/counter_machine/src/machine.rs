@@ -45,6 +45,7 @@ pub enum Operation {
     Inc(RegisterIndex),
     Dec(RegisterIndex),
     Clr(RegisterIndex),
+    Copy(RegisterIndex),
     Ifz(RegisterIndex, ProgramIndex),
 }
 
@@ -54,10 +55,10 @@ impl Display for Operation {
             Self::Inc(index) => write!(f, "INC register:{}", index.0),
             Self::Dec(index) => write!(f, "DEC register:{}", index.0),
             Self::Clr(index) => write!(f, "CLR register:{}", index.0),
+            Self::Copy(index) => write!(f, "CPY register:{}", index.0),
             Self::Ifz(r_index, p_index) => {
                 write!(f, "IFZ register:{} program:{}", r_index.0, p_index.0)
             }
-            _ => todo!(),
         }
     }
 }

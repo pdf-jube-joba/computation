@@ -9,7 +9,3 @@ READMD.md という名前なのは、 typo ではなく、mdbook がビルド時
 
 以下はyew用のコンポネントのテスト
 <component id="counter_example">
-
-## TODO
-- [ ] 参考にした文献を列挙する。
-- [ ] 万能チューリングマシンを、できたら構成する
