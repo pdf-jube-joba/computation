@@ -215,8 +215,8 @@ mod tests {
         for i in 0..10 {
             let mut lam = number_to_lambda_term(i.into());
             loop {
-                eprintln!("{} {}", is_normal(lam.clone()), lam.to_string());
-                if is_normal(lam.clone()) {
+                eprintln!("{} {}", is_normal(&lam), lam.to_string());
+                if is_normal(&lam) {
                     break;
                 }
                 lam = left_most_reduction(lam);
@@ -231,8 +231,8 @@ mod tests {
         let zero = number_to_lambda_term(0.into());
         let mut lam = LambdaTerm::app(is_zero(), zero);
         loop {
-            eprintln!("{} {}", is_normal(lam.clone()), lam.to_string());
-            if is_normal(lam.clone()) {
+            eprintln!("{} {}", is_normal(&lam), lam.to_string());
+            if is_normal(&lam) {
                 break;
             }
             lam = left_most_reduction(lam);
@@ -242,8 +242,8 @@ mod tests {
         let one = number_to_lambda_term(1.into());
         let mut lam = LambdaTerm::app(is_zero(), one);
         loop {
-            eprintln!("{} {}", is_normal(lam.clone()), lam.to_string());
-            if is_normal(lam.clone()) {
+            eprintln!("{} {}", is_normal(&lam), lam.to_string());
+            if is_normal(&lam) {
                 break;
             }
             lam = left_most_reduction(lam);
@@ -253,8 +253,8 @@ mod tests {
         let two = number_to_lambda_term(2.into());
         let mut lam = LambdaTerm::app(is_zero(), two);
         loop {
-            eprintln!("{} {}", is_normal(lam.clone()), lam.to_string());
-            if is_normal(lam.clone()) {
+            eprintln!("{} {}", is_normal(&lam), lam.to_string());
+            if is_normal(&lam) {
                 break;
             }
             lam = left_most_reduction(lam);

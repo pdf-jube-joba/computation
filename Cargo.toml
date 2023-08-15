@@ -8,8 +8,9 @@ members = [
   "models/while-minus-lang",
   "models/counter_machine",
   "view/counter_machine",
-  "integration/turing_machine",
   "integration/book/component",
+  "integration/turing_machine",
+  "integration/lambda_calculus",
   "compile/recursive_function_to_turing_machine",
   "compile/recursive_function_to_lambda_calculus",
 ]

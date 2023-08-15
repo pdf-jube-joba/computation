@@ -384,10 +384,30 @@ dependencies = [
 [[package]]
 name = "lambda_calculus"
 version = "0.1.0"
+dependencies = [
+ "yew",
+]
+
+[[package]]
+name = "lambda_calculus_app"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "turing_machine",
+ "turing_machine_view",
+ "yew",
+]
 
 [[package]]
 name = "lambda_calculus_view"
 version = "0.1.0"
+dependencies = [
+ "gloo",
+ "lambda_calculus",
+ "wasm-bindgen",
+ "web-sys",
+ "yew",
+]
 
 [[package]]
 name = "libc"

@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Var(usize);
@@ -222,44 +223,64 @@ pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
     }
 }
 
-pub fn list_up_reduce(term: LambdaTerm) -> Vec<LambdaTerm> {
+pub fn is_beta_redux(term: &LambdaTerm) -> bool {
     match term {
-        LambdaTerm::Variable(_) => vec![],
-        LambdaTerm::Abstraction(var, term) => list_up_reduce(*term)
-            .into_iter()
-            .map(|term| LambdaTerm::Abstraction(var.clone(), Box::new(term)))
-            .collect(),
+        LambdaTerm::Application(term, _) => match term.as_ref() {
+            LambdaTerm::Abstraction(_, _) => true,
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+pub fn is_normal(term: &LambdaTerm) -> bool {
+    if is_beta_redux(term) {
+        return false;
+    }
+    match term {
+        LambdaTerm::Variable(_) => true,
+        LambdaTerm::Abstraction(_, term) => is_normal(term.as_ref()),
         LambdaTerm::Application(term1, term2) => {
-            let mut from_redux: Vec<LambdaTerm> = match term1.as_ref().clone() {
-                LambdaTerm::Abstraction(var, term3) => {
-                    vec![subst(*term3, var, *term2.clone())]
-                }
-                _ => vec![],
-            };
-            from_redux.extend(
-                list_up_reduce(*term1.clone())
-                    .into_iter()
-                    .map(|term| LambdaTerm::Application(Box::new(term), Box::new(*term2.clone()))),
-            );
-            from_redux.extend(
-                list_up_reduce(*term2.clone())
-                    .into_iter()
-                    .map(|term| LambdaTerm::Application(Box::new(*term1.clone()), Box::new(term))),
-            );
-            from_redux
+            is_normal(term1.as_ref()) && is_normal(term2.as_ref())
         }
     }
 }
 
-pub fn is_normal(term: LambdaTerm) -> bool {
+pub fn unchecked_beta_redux_reduce(term: LambdaTerm) -> LambdaTerm {
     match term {
-        LambdaTerm::Variable(_) => true,
-        LambdaTerm::Abstraction(_, term) => is_normal(*term),
-        LambdaTerm::Application(term1, term2) => match *term1.clone() {
-            LambdaTerm::Abstraction(_, _) => false,
-            _ => is_normal(*term1) && is_normal(*term2),
+        LambdaTerm::Application(term, term2) => match *term {
+            LambdaTerm::Abstraction(var, term1) => subst(*term1, var, *term2),
+            _ => unreachable!(),
         },
+        _ => unreachable!(),
     }
+}
+
+pub fn list_up_reduce(term: LambdaTerm) -> Vec<LambdaTerm> {
+    let mut vec = Vec::new();
+    if is_beta_redux(&term) {
+        vec.push(unchecked_beta_redux_reduce(term.clone()))
+    }
+    match term {
+        LambdaTerm::Variable(_) => {},
+        LambdaTerm::Abstraction(var, term) => {
+            vec.extend(list_up_reduce(*term)
+                .into_iter()
+                .map(|term| LambdaTerm::Abstraction(var.clone(), Box::new(term)))
+            );
+        }
+        LambdaTerm::Application(term1, term2) => {
+            vec.extend(list_up_reduce(*term1.clone())
+                .into_iter()
+                .map(|term| LambdaTerm::Application(Box::new(term), Box::new(*term2.clone())))
+            );
+            vec.extend(list_up_reduce(*term2)
+                .into_iter()
+                .map(|term| LambdaTerm::Application(Box::new(*term1.clone()), Box::new(term)))
+            );
+        }
+    }
+    vec
 }
 
 pub fn left_most_reduction(term: LambdaTerm) -> LambdaTerm {
