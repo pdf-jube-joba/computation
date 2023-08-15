@@ -393,8 +393,8 @@ name = "lambda_calculus_app"
 version = "0.1.0"
 dependencies = [
  "gloo",
- "turing_machine",
- "turing_machine_view",
+ "lambda_calculus",
+ "lambda_calculus_view",
  "yew",
 ]
 

@@ -308,7 +308,7 @@ impl Component for UnConnectedMachineView {
             UnConnectedMachineMsg::Reset => {
                 let UnConnectedMachineProp {
                     builder,
-                    toggle_interval,
+                    toggle_interval: _,
                 } = ctx.props();
                 self.machine = builder.build().unwrap();
             }

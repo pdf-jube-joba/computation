@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 gloo = "0.8.0"
 yew = { version = "0.20.0", features = ["csr"] }
-turing_machine = { path = "../../models/turing_machine" }
-turing_machine_view = { path = "../../view/turing_machine" }
+lambda_calculus = { path = "../../models/lambda_calculus" }
+lambda_calculus_view = { path = "../../view/lambda_calculus" }
