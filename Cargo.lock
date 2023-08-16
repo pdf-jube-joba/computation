@@ -46,6 +46,8 @@ name = "component"
 version = "0.1.0"
 dependencies = [
  "gloo",
+ "lambda_calculus",
+ "lambda_calculus_view",
  "recursive_function",
  "recursive_function_to_turing_machine",
  "turing_machine",

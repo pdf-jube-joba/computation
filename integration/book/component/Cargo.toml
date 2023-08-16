@@ -9,6 +9,8 @@ edition = "2021"
 gloo = "0.8.0"
 yew = { version = "0.20.0", features = ["csr"] }
 turing_machine = { path = "../../../models/turing_machine" }
+turing_machine_view = { path = "../../../view/turing_machine" }
 recursive_function = { path = "../../../models/recursive_function" }
 recursive_function_to_turing_machine = { path = "../../../compile/recursive_function_to_turing_machine" }
-turing_machine_view = { path = "../../../view/turing_machine" }
+lambda_calculus = { path = "../../../models/lambda_calculus" }
+lambda_calculus_view = { path = "../../../view/lambda_calculus" }
