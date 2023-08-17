@@ -18,3 +18,15 @@
     font-family: monospace;
     border: 2px solid #FF0000;
 }
+
+#turing_machine_playground {
+    display: flex;
+}
+
+.control {
+    width: 500px;
+}
+
+.machine {
+    width: 500px;
+}

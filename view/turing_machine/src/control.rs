@@ -3,8 +3,6 @@ use yew::html::Scope;
 use yew::prelude::*;
 use yew::Properties;
 
-use turing_machine::machine::State;
-use turing_machine::manipulation;
 use turing_machine::manipulation::builder::TuringMachineBuilder;
 use turing_machine::manipulation::tape::string_split_by_line_interpretation;
 
@@ -12,10 +10,8 @@ use super::machine::*;
 
 #[derive(Default)]
 pub struct ControlView {
-    code: String,
+    source_code: String,
     tape: String,
-    initial_state: String,
-    accepted_state: String,
     machine: Option<Scope<TuringMachineView>>,
     event_log: Vec<String>,
 }
@@ -34,8 +30,6 @@ pub enum ControlMsg {
     EventLog(String),
     OnInputCode(String),
     OnInputTape(String),
-    OnInputInitialState(String),
-    OnInputAcceptedState(String),
     Load,
 }
 
@@ -55,32 +49,17 @@ impl Component for ControlView {
         }
         let oninput_code = ctx.link().callback(|e| ControlMsg::OnInputCode(to(e)));
         let oninput_tape = ctx.link().callback(|e| ControlMsg::OnInputTape(to(e)));
-        let oninput_initial_state = ctx
-            .link()
-            .callback(|e| ControlMsg::OnInputInitialState(to(e)));
-        let oninput_accepted_state = ctx
-            .link()
-            .callback(|e| ControlMsg::OnInputAcceptedState(to(e)));
-
         html! {
             <div class="control">
             {"control"} <br/>
             <>
                 <div class="box">
-                    {"initial state"}
-                    <textarea oninput={oninput_initial_state}/>
-                </div>
-                <div class="box">
-                    {"accepted state"}
-                    <textarea oninput={oninput_accepted_state}/>
+                    {"code"}
+                    <textarea row="10" oninput={oninput_code}/>
                 </div>
                 <div class="box">
                 {"tape"}
-                <textarea rows="3" oninput={oninput_tape}/>
-                </div>
-                <div class="box">
-                    {"code"}
-                    <textarea oninput={oninput_code}/>
+                    <textarea rows="3" oninput={oninput_tape}/>
                 </div>
                 <div class="box">
                     {"event"} <br/>
@@ -106,16 +85,10 @@ impl Component for ControlView {
                 self.event_log.push(str);
             }
             ControlMsg::OnInputCode(code) => {
-                self.code = code;
+                self.source_code = code;
             }
             ControlMsg::OnInputTape(tape) => {
                 self.tape = tape;
-            }
-            ControlMsg::OnInputInitialState(state) => {
-                self.initial_state = state;
-            }
-            ControlMsg::OnInputAcceptedState(state) => {
-                self.accepted_state = state;
             }
             ControlMsg::Load => 'comp: {
                 let Some(ref mut scope) = self.machine else {
@@ -123,32 +96,19 @@ impl Component for ControlView {
                     break 'comp;
                 };
                 fn handle(
-                    init_state: &str,
-                    accepted_state: &str,
                     code: &str,
                     tape: &str,
                 ) -> Result<TuringMachineBuilder, String> {
                     let interpretation = string_split_by_line_interpretation();
                     let mut builder = TuringMachineBuilder::new("user").unwrap();
-                    let code = manipulation::code::parse_code(code)?;
                     builder
-                        .init_state(State::try_from(init_state.as_ref())?)
-                        .accepted_state({
-                            let vec: Vec<State> = accepted_state
-                                .split_whitespace()
-                                .map(State::try_from)
-                                .collect::<Result<_, _>>()?;
-                            vec
-                        })
-                        .code_new(code);
-                    builder.input((interpretation.write())(tape.to_string()).unwrap());
+                        .from_source(code).map_err(|_| "builder error".to_string())?;
+                    builder.input((interpretation.write())(tape.to_string())?);
                     Ok::<TuringMachineBuilder, String>(builder)
                 }
                 let builder = {
                     match handle(
-                        &self.initial_state,
-                        &self.accepted_state,
-                        &self.code,
+                        &self.source_code,
                         &self.tape,
                     ) {
                         Ok(builder) => builder,
