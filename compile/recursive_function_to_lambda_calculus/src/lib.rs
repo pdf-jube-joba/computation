@@ -110,7 +110,7 @@ pub fn succ() -> LambdaTerm {
 
 // \x1,,,xn.xi
 pub fn proj(n: usize, i: usize) -> Result<LambdaTerm, ()> {
-    if i <= n {
+    if n < i {
         Err(())
     } else {
         Ok(take_n_abs((0..n).collect(), LambdaTerm::var(i)))

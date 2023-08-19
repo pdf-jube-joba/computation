@@ -3,6 +3,7 @@ members = [
   "models/turing_machine",
   "view/turing_machine",
   "models/recursive_function",
+  "view/recursive_function",
   "models/lambda_calculus",
   "view/lambda_calculus",
   "models/while-minus-lang",
