@@ -1,4 +1,4 @@
-use counter_machine::{machine::CounterMachine, *};
+use counter_machine::machine::CounterMachine;
 use yew::{html, Component, Properties};
 
 #[derive(Default)]

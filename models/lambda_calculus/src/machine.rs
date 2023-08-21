@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Var(usize);
