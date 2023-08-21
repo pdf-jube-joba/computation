@@ -126,5 +126,10 @@ mod tests {
         let func_data_from: Vec<FunctionData> = serde_json::from_value(json).unwrap();
         assert_eq!(func_data, func_data_from)
     }
+    #[test]
+    fn json_test_3() {
+        let func_str = r#"[{"name":"main","function":"Succ"}]"#;
+        let _ = parse(func_str).unwrap();
+    }
 }
 

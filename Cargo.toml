@@ -12,6 +12,7 @@ members = [
   "integration/book/component",
   "integration/turing_machine",
   "integration/lambda_calculus",
+  "integration/recursive_function",
   "compile/recursive_function_to_turing_machine",
   "compile/recursive_function_to_lambda_calculus",
 ]

@@ -575,6 +575,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "recursive_function_app"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "recursive_function_view",
+ "yew",
+]
+
+[[package]]
 name = "recursive_function_to_lambda_calculus"
 version = "0.1.0"
 dependencies = [

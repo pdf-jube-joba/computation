@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Number(usize);
 
@@ -59,6 +61,12 @@ impl From<Vec<usize>> for NumberTuple {
     }
 }
 
+impl From<Number> for NumberTuple {
+    fn from(value: Number) -> Self {
+        NumberTuple(vec![value])
+    }
+}
+
 impl TryFrom<String> for NumberTuple {
     type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -106,7 +114,7 @@ impl Into<Vec<usize>> for NumberTuple {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Projection {
     parameter_length: usize,
     projection_num: usize,
@@ -121,25 +129,25 @@ impl Projection {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Composition {
     pub parameter_length: usize,
     pub outer_func: Box<RecursiveFunctions>,
     pub inner_func: Box<Vec<RecursiveFunctions>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PrimitiveRecursion {
     pub zero_func: Box<RecursiveFunctions>,
     pub succ_func: Box<RecursiveFunctions>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MuOperator {
     pub mu_func: Box<RecursiveFunctions>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RecursiveFunctions {
     ZeroConstant,
     Successor,
@@ -219,6 +227,32 @@ impl RecursiveFunctions {
                 mu_func: Box::new(func),
             }));
         }
+    }
+}
+
+impl Display for RecursiveFunctions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            RecursiveFunctions::ZeroConstant => "zero-const".to_string(),
+            RecursiveFunctions::Successor => "successor".to_string(),
+            RecursiveFunctions::Projection(Projection { parameter_length, projection_num }) => {
+                format!("proj {parameter_length} {projection_num}")
+            }
+            RecursiveFunctions::Composition(Composition { parameter_length: _, outer_func, inner_func }) => {
+                let inner: String = inner_func
+                    .iter()
+                    .map(|func| format!("{{{func}}}"))
+                    .reduce(|str1, str2| str1 + &str2).unwrap_or("no function".to_string());
+                format!("composition {{{outer_func}}} {}", inner)
+            }
+            RecursiveFunctions::PrimitiveRecursion(PrimitiveRecursion { zero_func, succ_func }) => {
+                format!("primitive recursion {} {}", zero_func, succ_func)
+            }
+            RecursiveFunctions::MuOperator(MuOperator { mu_func }) => {
+                format!("mu operator {mu_func}")
+            }
+        };
+        write!(f, "{str}")
     }
 }
 
