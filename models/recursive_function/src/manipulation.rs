@@ -86,6 +86,8 @@ pub fn parse(str: &str) -> Result<machine::RecursiveFunctions, ()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::machine::{interpreter, Number};
+
     use super::*;
     #[test]
     fn json_test() {
@@ -130,6 +132,42 @@ mod tests {
     fn json_test_3() {
         let func_str = r#"[{"name":"main","function":"Succ"}]"#;
         let _ = parse(func_str).unwrap();
+        let func_str = r#"
+[
+    {
+        "name": "(x,y,z) -> succ x",
+        "function": {
+            "Comp": {
+                "length": 3,
+                "inner": [
+                    {"Proj": {"length": 3, "number": 0}}
+                ],
+                "outer": "Succ"
+            }
+        }
+    },
+    {
+        "name": "id",
+        "function": {
+            "Proj": {
+                "length": 1,
+                "number": 0
+            }
+        }
+    },
+    {
+        "name": "main",
+        "function": {
+            "Prim": {
+                "zero": {"Exist": "id"},
+                "succ": {"Exist": "(x,y,z) -> succ x"}
+            }
+        }
+    }
+]"#;
+    let func = parse(func_str).unwrap();
+    let res = interpreter(&func).unchecked_subst(vec![1,2].into());
+    assert_eq!(Number::from(3), res)
     }
 }
 
