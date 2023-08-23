@@ -49,6 +49,7 @@ dependencies = [
  "lambda_calculus",
  "lambda_calculus_view",
  "recursive_function",
+ "recursive_function_to_lambda_calculus",
  "recursive_function_to_turing_machine",
  "recursive_function_view",
  "turing_machine",

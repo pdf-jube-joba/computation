@@ -10,7 +10,7 @@ pub struct CodeView {
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct CodeProps {
-    on_input_code: Callback<RecursiveFunctions>,
+    pub on_input_code: Callback<RecursiveFunctions>,
 }
 
 pub enum CodeMsg {

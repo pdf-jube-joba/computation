@@ -252,3 +252,9 @@
 
 あとは再帰関数との対応をしっかり与えればよいが、ここまでやれば自明なのでいいか。
 こうして再帰関数がラムダ計算で計算可能であることが分かった。
+
+## playground
+
+以下では再帰関数を書くと対応したラムダ式を作る。
+
+<component id="recursive_function_to_lambda_calculus_playground">

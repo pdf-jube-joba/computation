@@ -5,6 +5,12 @@
 - [x] 最後にチューリングマシンを試す部分を作る。
 - [x] ラムダ計算で例を出す。
 - [x] ラムダ計算で Church encoding と computability について触れる。
+- [x] 再帰関数のコンパイル部分の playground 作る。
+    - [x] ラムダ計算
+    - [x] Turing machine
+
+# 全体
+- [ ] view について書き方を統一する。
 
 # recursive function
 - [x] 再帰関数を定めるための文法とパーサーを作る。
@@ -21,6 +27,9 @@
     - [x] ベータ簡約についても同様。
 - [x] yew の Properties を導入する。
 - [ ] テスト書く。
+- [ ] パース部分をもっと楽に書けるようにする
+    - [ ] 名前付き
+    - [ ] 不動点による定義
 
 # counter machine
 - [ ] todo 全部消す

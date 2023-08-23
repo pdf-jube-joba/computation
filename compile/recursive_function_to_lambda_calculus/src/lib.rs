@@ -1,5 +1,5 @@
 use lambda_calculus::machine::{utils::*, LambdaTerm};
-use recursive_function::machine::Number;
+use recursive_function::machine::{Number, RecursiveFunctions, Composition};
 
 pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
     fn term(num: Number) -> LambdaTerm {
@@ -109,7 +109,7 @@ pub fn succ() -> LambdaTerm {
 }
 
 // \x1,,,xn.xi
-pub fn proj(n: usize, i: usize) -> Result<LambdaTerm, ()> {
+pub fn projection(n: usize, i: usize) -> Result<LambdaTerm, ()> {
     if n < i {
         Err(())
     } else {
@@ -117,6 +117,7 @@ pub fn proj(n: usize, i: usize) -> Result<LambdaTerm, ()> {
     }
 }
 
+// \x1,,,xn. outer (inner x1,,,xn) ,,, (inner x1,,,xn)
 pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> LambdaTerm {
     let mut v = vec![outer];
     v.extend(inner.into_iter().map(|term| {
@@ -130,19 +131,20 @@ pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> Lambd
     take_n_abs((0..n).collect(), fold)
 }
 
+// THIS = \x0,,,xn. if (iszero x0) (f x1,,,xn) (g (THIS (pred x0) x1,,,xn) (pred x0) x1,,,xn)
 pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm {
     // is_zero 0
     let is_zero = LambdaTerm::app(is_zero(), LambdaTerm::var(0));
 
     // f x1 ... xn
-    let f = fold_left({
+    let f_new = fold_left({
         let mut v = vec![f];
         v.extend((1..=n).map(LambdaTerm::var));
         v
     });
 
     // g (n+1 (pred 0) 1 ... n) (pred 0) 1 ... n
-    let g = fold_left({
+    let g_new = fold_left({
         let pred_0 = LambdaTerm::app(pred(), LambdaTerm::var(0));
         let p = {
             let mut v = vec![LambdaTerm::var(n + 1), pred_0.clone()];
@@ -153,7 +155,7 @@ pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm
         t.extend((1..=n).map(LambdaTerm::var));
         t
     });
-    let fix = if_lambda(is_zero, f, g);
+    let fix = if_lambda(is_zero, f_new, g_new);
 
     // Y (\n+1 1...n. if_lambda is_zero f g) =>
     // n+1 <=> H として H x0 x1 ... xn = if_lambda is_zero f g
@@ -162,7 +164,7 @@ pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm
         take_n_abs(
             {
                 let mut v = vec![n + 1];
-                v.extend(1..=n);
+                v.extend(0..=n);
                 v
             },
             fix,
@@ -199,6 +201,36 @@ pub fn mu_recursion(n: usize, f: LambdaTerm) -> LambdaTerm {
             fix,
         ),
     )
+}
+
+pub fn compile(func: &RecursiveFunctions) -> LambdaTerm {
+    match func {
+        RecursiveFunctions::ZeroConstant => number_to_lambda_term(0.into()),
+        RecursiveFunctions::Successor => succ(),
+        RecursiveFunctions::Projection(proj) => {
+            projection(proj.parameter_length(), proj.projection_num()).unwrap()
+        }
+        RecursiveFunctions::Composition(comp) => {
+            composition(
+                comp.parameter_length,
+                comp.inner_func.iter().map(compile).collect(),
+                compile(comp.outer_func.as_ref())
+            )
+        }
+        RecursiveFunctions::PrimitiveRecursion(prim) => {
+            primitive_recursion(
+                prim.zero_func.parameter_length() + 1,
+                compile(prim.zero_func.as_ref()),
+                compile(prim.succ_func.as_ref())
+            )
+        }
+        RecursiveFunctions::MuOperator(muop) => {
+            mu_recursion(
+                muop.mu_func.parameter_length(),
+                compile(muop.mu_func.as_ref())
+            )
+        }
+    }
 }
 
 #[cfg(test)]
@@ -264,27 +296,27 @@ mod tests {
 
     #[test]
     fn proj_test() {
-        let pj = proj(2, 0).unwrap();
+        let pj = projection(2, 0).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.0").unwrap();
         eprintln!("{}", pj.to_string());
         assert!(alpha_eq(&pj, &expect));
 
-        let pj = proj(2, 1).unwrap();
+        let pj = projection(2, 1).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.1").unwrap();
         eprintln!("{}", pj.to_string());
         assert!(alpha_eq(&pj, &expect));
 
-        let pj = proj(3, 0).unwrap();
+        let pj = projection(3, 0).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.\\2.0").unwrap();
         eprintln!("{}", pj.to_string());
         assert!(alpha_eq(&pj, &expect));
 
-        let pj = proj(3, 1).unwrap();
+        let pj = projection(3, 1).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.\\2.1").unwrap();
         eprintln!("{}", pj.to_string());
         assert!(alpha_eq(&pj, &expect));
 
-        let pj = proj(3, 2).unwrap();
+        let pj = projection(3, 2).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.\\2.2").unwrap();
         eprintln!("{}", pj.to_string());
         assert!(alpha_eq(&pj, &expect));
