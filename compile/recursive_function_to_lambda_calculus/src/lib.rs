@@ -1,5 +1,5 @@
 use lambda_calculus::machine::{utils::*, LambdaTerm};
-use recursive_function::machine::{Number, RecursiveFunctions, Composition};
+use recursive_function::machine::{Number, RecursiveFunctions};
 
 pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
     fn term(num: Number) -> LambdaTerm {
@@ -210,26 +210,20 @@ pub fn compile(func: &RecursiveFunctions) -> LambdaTerm {
         RecursiveFunctions::Projection(proj) => {
             projection(proj.parameter_length(), proj.projection_num()).unwrap()
         }
-        RecursiveFunctions::Composition(comp) => {
-            composition(
-                comp.parameter_length,
-                comp.inner_func.iter().map(compile).collect(),
-                compile(comp.outer_func.as_ref())
-            )
-        }
-        RecursiveFunctions::PrimitiveRecursion(prim) => {
-            primitive_recursion(
-                prim.zero_func.parameter_length() + 1,
-                compile(prim.zero_func.as_ref()),
-                compile(prim.succ_func.as_ref())
-            )
-        }
-        RecursiveFunctions::MuOperator(muop) => {
-            mu_recursion(
-                muop.mu_func.parameter_length(),
-                compile(muop.mu_func.as_ref())
-            )
-        }
+        RecursiveFunctions::Composition(comp) => composition(
+            comp.parameter_length,
+            comp.inner_func.iter().map(compile).collect(),
+            compile(comp.outer_func.as_ref()),
+        ),
+        RecursiveFunctions::PrimitiveRecursion(prim) => primitive_recursion(
+            prim.zero_func.parameter_length() + 1,
+            compile(prim.zero_func.as_ref()),
+            compile(prim.succ_func.as_ref()),
+        ),
+        RecursiveFunctions::MuOperator(muop) => mu_recursion(
+            muop.mu_func.parameter_length(),
+            compile(muop.mu_func.as_ref()),
+        ),
     }
 }
 

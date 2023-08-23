@@ -13,6 +13,7 @@
 
 # 全体
 - [ ] view について書き方を統一する。
+- [ ] yew で Propoerties を derive するときに警告が出るのを、なんとかする（ cargo check ではエラーが出ない？）
 
 # recursive function
 - [x] 再帰関数を定めるための文法とパーサーを作る。

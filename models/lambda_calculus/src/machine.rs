@@ -261,21 +261,24 @@ pub fn list_up_reduce(term: LambdaTerm) -> Vec<LambdaTerm> {
         vec.push(unchecked_beta_redux_reduce(term.clone()))
     }
     match term {
-        LambdaTerm::Variable(_) => {},
+        LambdaTerm::Variable(_) => {}
         LambdaTerm::Abstraction(var, term) => {
-            vec.extend(list_up_reduce(*term)
-                .into_iter()
-                .map(|term| LambdaTerm::Abstraction(var.clone(), Box::new(term)))
+            vec.extend(
+                list_up_reduce(*term)
+                    .into_iter()
+                    .map(|term| LambdaTerm::Abstraction(var.clone(), Box::new(term))),
             );
         }
         LambdaTerm::Application(term1, term2) => {
-            vec.extend(list_up_reduce(*term1.clone())
-                .into_iter()
-                .map(|term| LambdaTerm::Application(Box::new(term), Box::new(*term2.clone())))
+            vec.extend(
+                list_up_reduce(*term1.clone())
+                    .into_iter()
+                    .map(|term| LambdaTerm::Application(Box::new(term), Box::new(*term2.clone()))),
             );
-            vec.extend(list_up_reduce(*term2)
-                .into_iter()
-                .map(|term| LambdaTerm::Application(Box::new(*term1.clone()), Box::new(term)))
+            vec.extend(
+                list_up_reduce(*term2)
+                    .into_iter()
+                    .map(|term| LambdaTerm::Application(Box::new(*term1.clone()), Box::new(term))),
             );
         }
     }

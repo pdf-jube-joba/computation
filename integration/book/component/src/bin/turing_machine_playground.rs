@@ -5,7 +5,9 @@ use turing_machine_view::{
 
 fn main() {
     let document = gloo::utils::document();
-    let element = document.get_element_by_id("turing_machine_playground").unwrap();
+    let element = document
+        .get_element_by_id("turing_machine_playground")
+        .unwrap();
 
     let control_element = document.create_element("div").unwrap();
     element.append_child(&control_element).unwrap();

@@ -1,7 +1,7 @@
-use yew::prelude::*;
-use web_sys::HtmlInputElement;
-use wasm_bindgen::prelude::*;
 use lambda_calculus::{machine::*, manipulation};
+use wasm_bindgen::prelude::*;
+use web_sys::HtmlInputElement;
+use yew::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 struct VarBoxProps {
@@ -10,7 +10,7 @@ struct VarBoxProps {
 
 #[function_component(VarBox)]
 fn var_box_view(VarBoxProps { var }: &VarBoxProps) -> Html {
-    html!{
+    html! {
         var.to_string()
     }
 }
@@ -33,8 +33,8 @@ impl Component for InputParseOnelineView {
     type Message = InputParseOnelineMsg;
     type Properties = InputParseOnelineProps;
     fn create(_ctx: &Context<Self>) -> Self {
-        InputParseOnelineView { 
-            parse_result: Err(())
+        InputParseOnelineView {
+            parse_result: Err(()),
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -48,7 +48,7 @@ impl Component for InputParseOnelineView {
         } else {
             "no term found".to_owned()
         };
-        html!{
+        html! {
             <>
             <input onchange={onchange_input}/> {"result"} {parse_result} <br/>
             <button onclick={ctx.link().callback(|_| InputParseOnelineMsg::Ok)}> {"ok"} </button>
@@ -60,7 +60,7 @@ impl Component for InputParseOnelineView {
             InputParseOnelineMsg::Change(str) => {
                 self.parse_result = manipulation::parse::parse_lambda(&str);
                 true
-            },
+            }
             InputParseOnelineMsg::Ok => {
                 web_sys::console::log_1(&JsValue::from_str("hello"));
                 if let Ok(term) = &self.parse_result {
@@ -73,16 +73,14 @@ impl Component for InputParseOnelineView {
     }
 }
 
-struct ReduceHistoryView {
-}
+struct ReduceHistoryView {}
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 struct ReduceHistoryProps {
     vec: Vec<LambdaTerm>,
 }
 
-enum ReduceHistoryMsg {
-}
+enum ReduceHistoryMsg {}
 
 impl Component for ReduceHistoryView {
     type Message = ReduceHistoryMsg;
@@ -92,15 +90,14 @@ impl Component for ReduceHistoryView {
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
         let ReduceHistoryProps { vec } = ctx.props();
-        html!{
+        html! {
             <>
             {for vec.iter().map(|term| html!{<> {term.to_string()} <br/> </>}) }
             </>
         }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-        }
+        match msg {}
     }
 }
 
@@ -110,8 +107,7 @@ pub struct LambdaCalculusView {
 }
 
 #[derive(Debug, Clone, PartialEq, Properties, Default)]
-pub struct LambdaCalculusProps {
-}
+pub struct LambdaCalculusProps {}
 
 pub enum LambdaCalculusMsg {
     Change(LambdaTerm),
@@ -122,18 +118,21 @@ impl Component for LambdaCalculusView {
     type Message = LambdaCalculusMsg;
     type Properties = LambdaCalculusProps;
     fn create(_ctx: &Context<Self>) -> Self {
-        Self { term: None, history: vec![] }
+        Self {
+            term: None,
+            history: vec![],
+        }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
         let callback = ctx.link().callback(|term| LambdaCalculusMsg::Change(term));
-        let term_html = html!{<>{
+        let term_html = html! {<>{
             if let Some(ref term) = self.term {
-                html!{ <> {term.to_string()} {"is_normal:"} {is_normal(term)} </> } 
+                html!{ <> {term.to_string()} {"is_normal:"} {is_normal(term)} </> }
             } else {
                 html!{ <> {"no term found"} </>}
             }
         }</>};
-        html!{
+        html! {
             <>
                 <InputParseOnelineView input_term_call={callback}/> <br/>
                 {term_html} <br/>

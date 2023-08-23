@@ -235,17 +235,28 @@ impl Display for RecursiveFunctions {
         let str = match self {
             RecursiveFunctions::ZeroConstant => "zero-const".to_string(),
             RecursiveFunctions::Successor => "successor".to_string(),
-            RecursiveFunctions::Projection(Projection { parameter_length, projection_num }) => {
+            RecursiveFunctions::Projection(Projection {
+                parameter_length,
+                projection_num,
+            }) => {
                 format!("proj {parameter_length} {projection_num}")
             }
-            RecursiveFunctions::Composition(Composition { parameter_length: _, outer_func, inner_func }) => {
+            RecursiveFunctions::Composition(Composition {
+                parameter_length: _,
+                outer_func,
+                inner_func,
+            }) => {
                 let inner: String = inner_func
                     .iter()
                     .map(|func| format!("{{{func}}}"))
-                    .reduce(|str1, str2| str1 + &str2).unwrap_or("no function".to_string());
+                    .reduce(|str1, str2| str1 + &str2)
+                    .unwrap_or("no function".to_string());
                 format!("composition {{{outer_func}}} {}", inner)
             }
-            RecursiveFunctions::PrimitiveRecursion(PrimitiveRecursion { zero_func, succ_func }) => {
+            RecursiveFunctions::PrimitiveRecursion(PrimitiveRecursion {
+                zero_func,
+                succ_func,
+            }) => {
                 format!("primitive recursion {} {}", zero_func, succ_func)
             }
             RecursiveFunctions::MuOperator(MuOperator { mu_func }) => {

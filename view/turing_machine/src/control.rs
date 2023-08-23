@@ -95,22 +95,17 @@ impl Component for ControlView {
                     self.send_this_log("no machine found");
                     break 'comp;
                 };
-                fn handle(
-                    code: &str,
-                    tape: &str,
-                ) -> Result<TuringMachineBuilder, String> {
+                fn handle(code: &str, tape: &str) -> Result<TuringMachineBuilder, String> {
                     let interpretation = string_split_by_line_interpretation();
                     let mut builder = TuringMachineBuilder::new("user").unwrap();
                     builder
-                        .from_source(code).map_err(|_| "builder error".to_string())?;
+                        .from_source(code)
+                        .map_err(|_| "builder error".to_string())?;
                     builder.input((interpretation.write())(tape.to_string())?);
                     Ok::<TuringMachineBuilder, String>(builder)
                 }
                 let builder = {
-                    match handle(
-                        &self.source_code,
-                        &self.tape,
-                    ) {
+                    match handle(&self.source_code, &self.tape) {
                         Ok(builder) => builder,
                         Err(err) => {
                             self.send_this_log(format!("failed on build {err}"));

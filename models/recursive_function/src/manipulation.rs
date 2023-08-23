@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::machine::{self, RecursiveFunctions};
 
@@ -10,14 +10,12 @@ pub struct Proj {
     number: usize,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Comp {
     length: usize,
     inner: Box<Vec<Function>>,
     outer: Box<Function>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Prim {
@@ -41,15 +39,23 @@ pub enum Function {
     Exist(String),
 }
 
-fn convert(func: Function, map: &HashMap<String, RecursiveFunctions>) -> Result<RecursiveFunctions, ()> {
+fn convert(
+    func: Function,
+    map: &HashMap<String, RecursiveFunctions>,
+) -> Result<RecursiveFunctions, ()> {
     match func {
         Function::Zero => Ok(RecursiveFunctions::zero()),
         Function::Succ => Ok(RecursiveFunctions::succ()),
-        Function::Proj(Proj { length, number }) => {
-            RecursiveFunctions::projection(length, number)
-        }
-        Function::Comp(Comp { length, inner, outer }) => {
-            let inner = inner.into_iter().map(|func| convert(func, map)).collect::<Result<_, _>>();
+        Function::Proj(Proj { length, number }) => RecursiveFunctions::projection(length, number),
+        Function::Comp(Comp {
+            length,
+            inner,
+            outer,
+        }) => {
+            let inner = inner
+                .into_iter()
+                .map(|func| convert(func, map))
+                .collect::<Result<_, _>>();
             let outer = convert(*outer, map);
             RecursiveFunctions::composition(length, inner?, outer?)
         }
@@ -62,9 +68,7 @@ fn convert(func: Function, map: &HashMap<String, RecursiveFunctions>) -> Result<
             let muop = convert(*muop, map);
             RecursiveFunctions::muoperator(muop?)
         }
-        Function::Exist(string) => {
-            map.get(&string).cloned().ok_or(())
-        }
+        Function::Exist(string) => map.get(&string).cloned().ok_or(()),
     }
 }
 
@@ -77,7 +81,7 @@ pub struct FunctionData {
 pub fn parse(str: &str) -> Result<machine::RecursiveFunctions, ()> {
     let funcs_data: Vec<FunctionData> = serde_json::from_str(str).map_err(|_| ())?;
     let mut map: HashMap<String, RecursiveFunctions> = HashMap::new();
-    for FunctionData {name, function } in funcs_data {
+    for FunctionData { name, function } in funcs_data {
         let func = convert(function, &map)?;
         map.insert(name, func);
     }
@@ -94,24 +98,36 @@ mod tests {
         let stru = Function::Zero;
         let json = serde_json::to_string(&stru).unwrap();
         println!("{json}");
-        
+
         let stru = Function::Succ;
         let json = serde_json::to_string(&stru).unwrap();
         println!("{json}");
 
-        let stru = Function::Proj(Proj { length: 3, number: 0 });
+        let stru = Function::Proj(Proj {
+            length: 3,
+            number: 0,
+        });
         let json = serde_json::to_string(&stru).unwrap();
         println!("{json}");
 
-        let stru = Function::Comp(Comp { length: 1, inner: Box::new(vec![Function::Zero]), outer: Box::new(Function::Zero) });
+        let stru = Function::Comp(Comp {
+            length: 1,
+            inner: Box::new(vec![Function::Zero]),
+            outer: Box::new(Function::Zero),
+        });
         let json = serde_json::to_string(&stru).unwrap();
         println!("{json}");
 
-        let stru = Function::Prim(Prim { zero: Box::new(Function::Zero), succ: Box::new(Function::Zero) });
+        let stru = Function::Prim(Prim {
+            zero: Box::new(Function::Zero),
+            succ: Box::new(Function::Zero),
+        });
         let json = serde_json::to_string(&stru).unwrap();
         println!("{json}");
 
-        let stru = Function::Muop(Muop { muop: Box::new(Function::Zero) });
+        let stru = Function::Muop(Muop {
+            muop: Box::new(Function::Zero),
+        });
         let json = serde_json::to_string(&stru).unwrap();
         println!("{json}");
 
@@ -121,7 +137,10 @@ mod tests {
     }
     #[test]
     fn json_test_2() {
-        let func_data: Vec<FunctionData> = vec![FunctionData { name: "add1".to_string(), function: Function::Succ }];
+        let func_data: Vec<FunctionData> = vec![FunctionData {
+            name: "add1".to_string(),
+            function: Function::Succ,
+        }];
         let str = serde_json::to_string(&func_data).unwrap();
         println!("{str}");
         let json: serde_json::Value = serde_json::from_str(&str).unwrap();
@@ -165,9 +184,8 @@ mod tests {
         }
     }
 ]"#;
-    let func = parse(func_str).unwrap();
-    let res = interpreter(&func).unchecked_subst(vec![1,2].into());
-    assert_eq!(Number::from(3), res)
+        let func = parse(func_str).unwrap();
+        let res = interpreter(&func).unchecked_subst(vec![1, 2].into());
+        assert_eq!(Number::from(3), res)
     }
 }
-
