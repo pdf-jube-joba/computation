@@ -34,6 +34,9 @@ pub struct Environment {
 }
 
 impl Environment {
+    pub fn new() -> Self {
+        Environment { env: HashMap::new() }
+    }
     pub fn get(&self, var: &Var) -> &Number {
         let Environment { env } = &self;
         if let Some(num) = env.get(var) {
@@ -81,4 +84,14 @@ pub fn eval_lang(prog: WhileLanguage, mut env: Environment) -> Environment {
         env = eval_statement(statement, env);
     }
     env
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn eval_test() {
+        let env: Environment = Environment::new();
+    }
 }

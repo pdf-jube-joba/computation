@@ -12,6 +12,7 @@
     - [x] Turing machine
 
 # 全体
+- [ ] どうせ自然数はすごい使うので、統一する
 - [ ] view について書き方を統一する。
 - [ ] yew で Propoerties を derive するときに警告が出るのを、なんとかする（ cargo check ではエラーが出ない？）
 
@@ -33,6 +34,8 @@
 - [ ] パース部分をもっと楽に書けるようにする
     - [ ] 名前付き
     - [ ] 不動点による定義
+
+# while-minus-lang
 
 # counter machine
 - [ ] todo 全部消す

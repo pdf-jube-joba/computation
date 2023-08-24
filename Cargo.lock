@@ -900,8 +900,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "while-minus-lang"
+name = "while_minus_lang"
 version = "0.1.0"
+
+[[package]]
+name = "while_minus_lang_view"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "wasm-bindgen",
+ "web-sys",
+ "while_minus_lang",
+ "yew",
+]
 
 [[package]]
 name = "windows-sys"
