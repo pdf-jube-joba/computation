@@ -178,7 +178,7 @@ impl ProgramProcess {
         let ProgramProcess { prog, index, env } = self;
         let flatted: FlatWhileLanguage = prog.into();
         let vec = (&flatted.statements).clone();
-        vec[0]
+        vec.rem
     }
 }
 
