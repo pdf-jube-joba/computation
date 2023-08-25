@@ -36,6 +36,7 @@
     - [ ] 不動点による定義
 
 # while-minus-lang
+- [ ] eval を実行している行を指定した実行状況を作る。
 
 # counter machine
 - [ ] todo 全部消す
