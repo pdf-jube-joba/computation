@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "utils",
   "models/turing_machine",
   "view/turing_machine",
   "models/recursive_function",
