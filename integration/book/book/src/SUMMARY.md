@@ -11,3 +11,5 @@
         - [万能チューリングマシン](./models_of_computation/Turing_machine/Universal_Turing_machine.md)
     - [ラムダ計算](./models_of_computation/Lambda_calculus.md)
     - [While(minus) 言語](./models_of_computation/While_minus_lang.md)
+    - [レジスターマシン](./models_of_computation/Counter_machine.md)
+    - [Turing tarpid](./models_of_computation/Other_models_of_computation.md)
