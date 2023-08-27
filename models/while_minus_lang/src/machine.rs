@@ -2,7 +2,20 @@ use std::{collections::HashMap, fmt::Display};
 use utils::number::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Var(pub usize);
+pub struct Var(usize);
+
+impl From<usize> for Var {
+    fn from(value: usize) -> Self {
+        Var(value)
+    }
+}
+
+impl TryFrom<&str> for Var {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(Var(value.parse().map_err(|_| ())?))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Environment {
@@ -56,7 +69,7 @@ impl From<Vec<(Var, Number)>> for Environment {
     }
 }
 
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum InstructionCommand {
     InitVariable(Var),
     IncVariable(Var),
@@ -83,12 +96,12 @@ impl InstructionCommand {
     }
 }
 
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum ControlCommand {
     WhileNotZero(Var, Vec<WhileStatement>),
 }
 
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum WhileStatement {
     Inst(InstructionCommand),
     Cont(ControlCommand),
@@ -157,7 +170,7 @@ pub fn eval_statement(statement: &WhileStatement, mut env: Environment) -> Envir
     }
 }
 
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct WhileLanguage {
     statements: Vec<WhileStatement>,
 }
@@ -176,13 +189,13 @@ pub fn eval(prog: &WhileLanguage, mut env: Environment) -> Environment {
     env
 }
 
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum FlatControlCommand {
     WhileNotZero(Var),
     EndWhile,
 }
 
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum FlatWhileStatement {
     Inst(InstructionCommand),
     Cont(FlatControlCommand),
@@ -209,7 +222,7 @@ impl FlatWhileStatement {
     }
 }
 
-#[derive(Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct FlatWhileLanguage {
     statements: Vec<FlatWhileStatement>,
 }
@@ -248,6 +261,67 @@ impl From<&WhileLanguage> for FlatWhileLanguage {
                 .flat_map(|statement| flattening(statement))
                 .collect(),
         }
+    }
+}
+
+impl From<Vec<FlatWhileStatement>> for FlatWhileLanguage {
+    fn from(value: Vec<FlatWhileStatement>) -> Self {
+        FlatWhileLanguage { statements: value }
+    }
+}
+
+fn try_into(vec: &[FlatWhileStatement]) -> Result<Vec<WhileStatement>, ()> {
+    eprintln!("{vec:?}");
+    let mut now = 0;
+    let mut statements = vec![];
+    while now < vec.len() {
+        let maybe: Result<WhileStatement, ()> = match &vec[now] {
+            FlatWhileStatement::Inst(inst) => {
+                Ok(WhileStatement::Inst(inst.clone()))
+            }
+            FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(var)) => 'a: {
+                let mut find_end = now + 1;
+                let mut stack = 1;
+                while find_end < vec.len() {
+                    match vec[find_end] {
+                        FlatWhileStatement::Inst(_) => {},
+                        FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) => {
+                            stack += 1;
+                        }
+                        FlatWhileStatement::Cont(FlatControlCommand::EndWhile) => {
+                            stack -= 1;
+                        }
+                    }
+                    if stack == 0 {
+                        let while_inner = &vec[now+1..find_end];
+                        let vec = try_into(while_inner);
+                        let statement = vec.map(|vec| WhileStatement::while_not_zero(var.clone(), vec));
+                        now = find_end;
+                        break 'a statement;
+                    }
+                    find_end += 1;
+                }
+                return Err(());
+            }
+            FlatWhileStatement::Cont(FlatControlCommand::EndWhile) => {
+                return Err(());
+            }
+        };
+        if let Ok(statement) = maybe {
+            statements.push(statement);
+            now += 1;
+        } else {
+            return Err(())
+        }
+    }
+    Ok(statements.into())
+}
+
+impl TryInto<WhileLanguage> for FlatWhileLanguage {
+    type Error = ();
+    fn try_into(self) -> Result<WhileLanguage, Self::Error> {
+        let statement = try_into(&self.statements);
+        Ok(WhileLanguage { statements: statement? })
     }
 }
 
@@ -378,5 +452,48 @@ mod tests {
             (Var(1), Number(5)),
         ].into();
         assert_eq!(env_exp, env_res);
+    }
+    #[test]
+    fn flat_to_lang_test() {
+        let flat_lang: FlatWhileLanguage = vec![].into();
+        let expected: WhileLanguage = vec![].into();
+        assert_eq!(flat_lang.try_into(), Ok(expected));
+
+        let flat_lang: FlatWhileLanguage = vec![
+            FlatWhileStatement::inc(Var(0)),
+        ].into();
+        let expected: WhileLanguage = vec![
+            WhileStatement::inc(Var(0))
+        ].into();
+        assert_eq!(flat_lang.try_into(), Ok(expected));
+
+        let flat_lang: FlatWhileLanguage = vec![
+            FlatWhileStatement::while_not_zero(Var(0)),
+            FlatWhileStatement::while_end(),
+        ].into();
+        let expected: WhileLanguage = vec![
+            WhileStatement::while_not_zero(Var(0), vec![
+            ])
+        ].into();
+        assert_eq!(flat_lang.try_into(), Ok(expected));
+
+        let flat_lang: FlatWhileLanguage = vec![
+            FlatWhileStatement::while_not_zero(Var(0)),
+            FlatWhileStatement::inc(Var(0)),
+            FlatWhileStatement::while_not_zero(Var(0)),
+            FlatWhileStatement::while_end(),
+            FlatWhileStatement::inc(Var(0)),
+            FlatWhileStatement::while_end(),
+        ].into();
+        let expected: WhileLanguage = vec![
+            WhileStatement::while_not_zero(Var(0), vec![
+                WhileStatement::inc(Var(0)),
+                WhileStatement::while_not_zero(Var(0), vec![
+
+                ]),
+                WhileStatement::inc(Var(0)),
+            ])
+        ].into();
+        assert_eq!(flat_lang.try_into(), Ok(expected));
     }
 }
