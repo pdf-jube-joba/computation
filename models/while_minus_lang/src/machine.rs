@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 use utils::number::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Var(usize);
 
 impl From<usize> for Var {
@@ -39,6 +39,11 @@ impl Environment {
     pub fn write(&mut self, var: &Var, num: Number) {
         let Environment { env } = self;
         env.insert(var.clone(), num);
+    }
+    pub fn all_written_var(&self) -> Vec<Var> {
+        let mut vec: Vec<Var> = self.env.keys().into_iter().cloned().collect();
+        vec.sort();
+        vec
     }
 }
 
@@ -222,9 +227,53 @@ impl FlatWhileStatement {
     }
 }
 
+impl Display for FlatWhileStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str: String = match self {
+            FlatWhileStatement::Inst(inst) => match inst {
+                InstructionCommand::InitVariable(var) => {
+                    format!("init {var:?} \n")
+                }
+                InstructionCommand::IncVariable(var) => {
+                    format!("inc {var:?} \n")
+                }
+                InstructionCommand::DecVariable(var) => {
+                    format!("dec {var:?} \n")
+                }
+                InstructionCommand::CopyVariable(var1, var2) => {
+                    format!("copy {var1:?} {var2:?} \n")
+                }
+            },
+            FlatWhileStatement::Cont(cont) => {
+                match cont {
+                    FlatControlCommand::WhileNotZero(var) => {
+                        format!("while-is-not-zero {var:?} \n")
+                    }
+                    FlatControlCommand::EndWhile => {
+                        "end".to_string()
+                    }
+                }
+            }
+        };
+        write!(f, "{str}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct FlatWhileLanguage {
     statements: Vec<FlatWhileStatement>,
+}
+
+impl FlatWhileLanguage {
+    pub fn to_vec(&self) -> Vec<FlatWhileStatement> {
+        self.statements.clone()
+    }
+}
+
+impl Into<Vec<FlatWhileStatement>> for FlatWhileLanguage {
+    fn into(self) -> Vec<FlatWhileStatement> {
+        self.statements
+    }
 }
 
 fn flattening(vec: &WhileStatement) -> Vec<FlatWhileStatement> {
@@ -325,6 +374,7 @@ impl TryInto<WhileLanguage> for FlatWhileLanguage {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ProgramProcess {
     prog: FlatWhileLanguage,
     index: usize,
@@ -332,53 +382,72 @@ pub struct ProgramProcess {
 }
 
 impl ProgramProcess {
+    pub fn new(prog: FlatWhileLanguage, env: Environment) -> Self {
+        ProgramProcess { prog, index: 0, env }
+    }
+    pub fn now_index(&self) -> usize {
+        self.index
+    }
+    pub fn env(&self) -> Environment {
+        self.env.clone()
+    }
+    pub fn code(&self) -> FlatWhileLanguage {
+        self.prog.clone()
+    }
+    pub fn is_terminate(&self) -> bool {
+        self.index == self.prog.to_vec().len()
+    }
     fn now_statement(&self) -> FlatWhileStatement {
         let ProgramProcess { prog, index, env: _ } = self;
         let mut vec = (&prog.statements).clone();
         vec.remove(*index)
     }
-}
-
-pub fn step(program_process: &mut ProgramProcess) {
-    let now_statement = program_process.now_statement();
-    match now_statement {
-        FlatWhileStatement::Inst(inst) => {
-            inst.eval(&mut program_process.env);
+    pub fn step(&mut self) {
+        if self.is_terminate() {
+            return;
         }
-        FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(var)) => {
-            if program_process.env.get(&var).is_zero() {
+        let now_statement = self.now_statement();
+        match now_statement {
+            FlatWhileStatement::Inst(inst) => {
+                inst.eval(&mut self.env);
+                self.index += 1;
+            }
+            FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(var)) => {
+                if self.env.get(&var).is_zero() {
+                    let mut stack = 1;
+                    loop {
+                        self.index += 1;
+                        let statement = self.now_statement();
+                        if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) = statement
+                        {
+                            stack += 1;
+                        }
+                        if let FlatWhileStatement::Cont(FlatControlCommand::EndWhile) = statement {
+                            stack -= 1;
+                        }
+                        if stack == 0 {
+                            break;
+                        }
+                    }
+                    self.index += 1;
+                } else {
+                    self.index += 1;
+                }
+            }
+            FlatWhileStatement::Cont(FlatControlCommand::EndWhile) => {
                 let mut stack = 1;
                 loop {
-                    program_process.index += 1;
-                    let statement = program_process.now_statement();
-                    if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) = statement
-                    {
-                        stack += 1;
+                    self.index -= 1;
+                    let statement = self.now_statement();
+                    if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) = statement {
+                        stack -= 1;
                     }
                     if let FlatWhileStatement::Cont(FlatControlCommand::EndWhile) = statement {
-                        stack -= 1;
+                        stack += 1;
                     }
                     if stack == 0 {
                         break;
                     }
-                }
-            } else {
-                program_process.index += 1;
-            }
-        }
-        FlatWhileStatement::Cont(FlatControlCommand::EndWhile) => {
-            let mut stack = 1;
-            loop {
-                program_process.index -= 1;
-                let statement = program_process.now_statement();
-                if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) = statement {
-                    stack -= 1;
-                }
-                if let FlatWhileStatement::Cont(FlatControlCommand::EndWhile) = statement {
-                    stack += 1;
-                }
-                if stack == 0 {
-                    break;
                 }
             }
         }

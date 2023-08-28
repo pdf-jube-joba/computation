@@ -915,6 +915,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "while_minus_lang_app"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "while_minus_lang",
+ "while_minus_lang_view",
+ "yew",
+]
+
+[[package]]
 name = "while_minus_lang_view"
 version = "0.1.0"
 dependencies = [

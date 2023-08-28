@@ -15,6 +15,7 @@ members = [
   "integration/turing_machine",
   "integration/lambda_calculus",
   "integration/recursive_function",
+  "integration/while_minus_lang",
   "compile/recursive_function_to_turing_machine",
   "compile/recursive_function_to_lambda_calculus",
   "compile/recursive_function_to_while_minus_lang",
