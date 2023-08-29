@@ -122,4 +122,4 @@ while minus はこれで全てである、と言いたいところだが、こ�
 
 作ったのは以下になる
 
-<component id="recursive_function_to_while_minus_lang_playground">
+<component id="recursive_function_to_while_minus_lang">

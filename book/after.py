@@ -14,6 +14,15 @@ import subprocess
 import shutil
 import re
 
+def write_index_html_with_name(index_html, file_name):
+    index_html.write("<!DOCTYPE html><html>\n")
+    index_html.write("<head></head><body>\n")
+    file_name_1 = os.path.split(file_name)[1]
+    file_name_noext = os.path.splitext(file_name_1)[0]
+    tag = "<link data-trunk rel=\"rust\" data-bin=\"" + file_name_noext + "\" data-type=\"main\"/>\n"
+    index_html.write(tag)
+    index_html.write("</body></html>\n")
+
 # この python の実行中のディレクトリを python のある場所に設定する。
 root_path = os.path.dirname(os.path.abspath(__file__))
 book_path = os.path.join(root_path, "book")
@@ -30,43 +39,51 @@ subprocess.run(["mdbook", "build"])
 print("[INFO] mdbook build completed")
 
 # 各 component のビルド成果物を取得する。
+print("[INFO] trunk building")
+
 ## カレントディレクトリを book/component にする
 os.chdir(comp_path)
+## component 以下の dir を列挙する
+for directory in os.listdir(comp_path):
 
-## book/component/src/bin にある名前を全て得て、確認する。
-print("[INFO] trunk building")
-target_reg = os.path.join(comp_path, "*/src/bin/*.rs")
-files = glob.glob(target_reg)
-print("[INFO] files list:")
-for file_name in files:
-    print("-", file_name)
+    abs_path = os.path.join(comp_path, directory)
+    print("[INFO] directory", abs_path)
 
-## book/component/index.html を上で得た各ファイルごとに書き換え、trunkでビルドする。
-index_html_name = os.path.join(comp_path, "index.html")
-for file_name in files:
-    print("[INFO] processing:", file_name)
-    # index.html ファイルを上書きモードで開く。
-    with open(index_html_name, mode='w') as index_html:
-        # trunk 用に index.html を書く
-        index_html.write("<!DOCTYPE html><html>\n")
-        index_html.write("<head></head><body>\n")
+    os.chdir(abs_path)
 
-        file_name_1 = os.path.split(file_name)[1]
-        file_name_noext = os.path.splitext(file_name_1)[0]
-        tag = "<link data-trunk rel=\"rust\" data-bin=\"" + file_name_noext + "\" data-type=\"main\"/>\n"
-        index_html.write(tag)
+    ## directory/ にある名前を全て得て、確認する。
+    target_reg = os.path.join(abs_path, "src/bin/*.rs")
+    files = glob.glob(target_reg)
+    print("[INFO] files list:")
+    for file_name in files:
+        print("-", file_name)
 
-        index_html.write("</body></html>\n")
-    
-    # trunk でビルドを行い得られたファイルを book/out/book に移動する
-    os.chdir(comp_path)
-    subprocess.run(["trunk", "build"])
-    for file_name in glob.glob(os.path.join(out_path, "dist/*")):
-        # index.html だけは除く。
-        if os.path.split(file_name)[1] == "index.html":
-            continue
-        print("[INFO] copying file:", file_name)
-        shutil.copy(file_name, out_book_path)
+    ## directory/index.html を上で得た各ファイルごとに書き換え、trunkでビルドする。
+    index_html_name = os.path.join(abs_path, "index.html")
+    for file_name in files:
+        print("[INFO] processing:", file_name)
+        # index.html ファイルを上書きモードで開く。
+        with open(index_html_name, mode='w') as index_html:
+            # trunk 用に index.html を書く
+            index_html.write("<!DOCTYPE html><html>\n")
+            index_html.write("<head></head><body>\n")
+
+            file_name_1 = os.path.split(file_name)[1]
+            file_name_noext = os.path.splitext(file_name_1)[0]
+            tag = "<link data-trunk rel=\"rust\" data-bin=\"" + file_name_noext + "\" data-type=\"main\"/>\n"
+            index_html.write(tag)
+
+            index_html.write("</body></html>\n")
+        
+        # trunk でビルドを行い得られたファイルを book/out/book に移動する
+        os.chdir(abs_path)
+        subprocess.run(["trunk", "build"])
+        for file_name in glob.glob(os.path.join(out_path, "dist/*")):
+            # index.html だけは除く。
+            if os.path.split(file_name)[1] == "index.html":
+                continue
+            print("[INFO] copying file:", file_name)
+            shutil.copy(file_name, out_book_path)
 print("[INFO] trunk build completed")
 
 # 得られたhtmlファイルに対して、wasm や js のロードを行うための変更を与える。
