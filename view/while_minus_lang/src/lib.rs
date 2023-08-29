@@ -1,8 +1,11 @@
+use wasm_bindgen::JsValue;
+use web_sys::HtmlInputElement;
+use while_minus_lang::machine::WhileLanguage;
 use while_minus_lang::machine::{
     Environment, FlatWhileLanguage, FlatWhileStatement, ProgramProcess,
 };
 use yew::prelude::*;
-use yew::Properties;
+use yew::{callback, html, Callback, Component, Properties};
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct FlatWhileStatementProps {
@@ -190,6 +193,142 @@ impl Component for UnConnectedMachineView {
                 self.prog.step();
                 true
             }
+        }
+    }
+}
+
+pub struct WhileLangView {
+    prog: Option<ProgramProcess>,
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct WhileLangProps {}
+
+#[derive(Clone)]
+pub enum WhileLangMsg {
+    Change(WhileLanguage, Environment),
+    Step(usize),
+}
+
+impl Component for WhileLangView {
+    type Message = WhileLangMsg;
+    type Properties = WhileLangProps;
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self { prog: None }
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let on_step = ctx.link().callback(|step| WhileLangMsg::Step(step));
+        let on_reset = yew::callback::Callback::noop();
+        let html = if let Some(ref prog) = self.prog {
+            html! {
+                <MachineView on_reset={on_reset} on_step={on_step} prog={prog.clone()}/>
+            }
+        } else {
+            html! {"none"}
+        };
+        html! {
+            {html}
+        }
+    }
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            WhileLangMsg::Step(_) => {
+                self.prog.as_mut().map(|process| process.step());
+                true
+            }
+            WhileLangMsg::Change(prog, env) => {
+                self.prog = Some(ProgramProcess::new((&prog).into(), env));
+                true
+            }
+        }
+    }
+}
+
+pub struct CodeView {
+    code: Result<WhileLanguage, ()>,
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct CodeProps {
+    pub on_input_code: Callback<WhileLanguage>,
+}
+
+pub enum CodeMsg {
+    Change(String),
+}
+
+impl Component for CodeView {
+    type Message = CodeMsg;
+    type Properties = CodeProps;
+    fn create(_ctx: &yew::Context<Self>) -> Self {
+        Self { code: Err(()) }
+    }
+    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
+        let CodeProps { on_input_code } = ctx.props().clone();
+        let onchange_input = ctx.link().callback(|e: Event| {
+            let value: HtmlInputElement = e.target_unchecked_into();
+            let str = value.value();
+            CodeMsg::Change(str)
+        });
+        let callback = on_input_code.clone();
+        let onclick = if let Ok(function) = self.code.clone() {
+            callback::Callback::from(move |_| callback.emit(function.clone()))
+        } else {
+            callback::Callback::noop()
+        };
+        html! {
+            <>
+            {"code"}
+            <textarea rows={3} onchange={onchange_input}/>
+            <button onclick={onclick}> {"load"}</button>
+            </>
+        }
+    }
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            CodeMsg::Change(string) => {
+                self.code = while_minus_lang::manipulation::parse(&string);
+                true
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WhileLangControlView {
+    prog: Option<WhileLanguage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct WhileLangControlProps {}
+
+pub enum WhileLangControlMsg {
+    SetFunction(WhileLanguage),
+}
+
+impl Component for WhileLangControlView {
+    type Message = WhileLangControlMsg;
+    type Properties = WhileLangControlProps;
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self::default()
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let callback: Callback<WhileLanguage> = ctx
+            .link()
+            .callback(|func| WhileLangControlMsg::SetFunction(func));
+        let html = if let Some(prog) = self.prog.clone() {
+            let flat_prog: FlatWhileLanguage = (&prog).into();
+            html! {
+                <UnConnectedMachineView init_prog={flat_prog} init_env={Environment::new()} />
+            }
+        } else {
+            html! { "none" }
+        };
+        html! {
+            <>
+            <CodeView on_input_code={callback} /> <br/>
+            {html}
+            </>
         }
     }
 }

@@ -388,7 +388,7 @@ impl Into<Vec<FlatWhileStatement>> for FlatWhileLanguage {
     }
 }
 
-fn flattening(vec: &WhileStatement) -> Vec<FlatWhileStatement> {
+pub fn flattening(vec: &WhileStatement) -> Vec<FlatWhileStatement> {
     match vec {
         WhileStatement::Inst(inst) => {
             vec![FlatWhileStatement::Inst(inst.clone())]

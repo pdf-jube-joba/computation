@@ -11,7 +11,7 @@ members = [
   "view/while_minus_lang",
   "models/counter_machine",
   "view/counter_machine",
-  "book/models_of_computation",
+  "book/component/models_of_computation",
   "integration/turing_machine",
   "integration/lambda_calculus",
   "integration/recursive_function",

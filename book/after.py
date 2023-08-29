@@ -35,8 +35,8 @@ os.chdir(comp_path)
 
 ## book/component/src/bin にある名前を全て得て、確認する。
 print("[INFO] trunk building")
-target_dir = os.path.join(comp_path, "src/bin/*.rs")
-files = glob.glob(target_dir)
+target_reg = os.path.join(comp_path, "*/src/bin/*.rs")
+files = glob.glob(target_reg)
 print("[INFO] files list:")
 for file_name in files:
     print("-", file_name)

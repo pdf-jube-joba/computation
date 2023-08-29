@@ -28,7 +28,7 @@ while プログラムは次のように動作する。
 
 具体例は以下。
 
-<component id="while_minus_lang">
+<component id="while_minus_lang_example">
 
 ## 定義
 変数の集合 \(\Lambda\) を固定しておく。
@@ -121,3 +121,5 @@ while minus はこれで全てである、と言いたいところだが、こ�
 あとは変数の総入れ替えを考えればよい？
 
 作ったのは以下になる
+
+<component id="recursive_function_to_while_minus_lang_playground">
