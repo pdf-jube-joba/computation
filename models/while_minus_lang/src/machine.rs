@@ -4,6 +4,10 @@ use utils::number::*;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Var(usize);
 
+pub fn new_var(vars: Vec<Var>) -> Var {
+    vars.into_iter().max().unwrap_or(0.into())
+}
+
 impl From<usize> for Var {
     fn from(value: usize) -> Self {
         Var(value)
@@ -82,6 +86,14 @@ pub enum InstructionCommand {
     CopyVariable(Var, Var),
 }
 
+fn change_var(var: Var, map: &HashMap<Var, Var>) -> Var {
+    if let Some(var_new) = map.get(&var) {
+        var_new.clone()
+    } else {
+        var
+    }
+}
+
 impl InstructionCommand {
     pub fn eval(&self, env: &mut Environment) {
         match self {
@@ -96,6 +108,38 @@ impl InstructionCommand {
             }
             InstructionCommand::CopyVariable(var1, var2) => {
                 env.write(var1, env.get(&var2).clone());
+            }
+        }
+    }
+    pub fn changed_var(&self) -> Var {
+        match self {
+            InstructionCommand::InitVariable(var) => var.clone(),
+            InstructionCommand::IncVariable(var) => var.clone(),
+            InstructionCommand::DecVariable(var) => var.clone(),
+            InstructionCommand::CopyVariable(var1, _var2) => var1.clone(),
+        }
+    }
+    pub fn used_var(&self) -> Vec<Var> {
+        match self {
+            InstructionCommand::InitVariable(var) => vec![var.clone()],
+            InstructionCommand::IncVariable(var) => vec![var.clone()],
+            InstructionCommand::DecVariable(var) => vec![var.clone()],
+            InstructionCommand::CopyVariable(var1, var2) => vec![var1.clone(), var2.clone()],
+        }
+    }
+    pub fn change_var(self, map: &HashMap<Var, Var>) -> Self {
+        match self {
+            InstructionCommand::InitVariable(var) => {
+                InstructionCommand::InitVariable(change_var(var, &map))
+            }
+            InstructionCommand::IncVariable(var) => {
+                InstructionCommand::IncVariable(change_var(var, map))
+            }
+            InstructionCommand::DecVariable(var) => {
+                InstructionCommand::DecVariable(change_var(var, map))
+            }
+            InstructionCommand::CopyVariable(var1, var2) => {
+                InstructionCommand::CopyVariable(change_var(var1, map), change_var(var2, map))
             }
         }
     }
@@ -127,6 +171,38 @@ impl WhileStatement {
     }
     pub fn while_not_zero(var: Var, vec: Vec<WhileStatement>) -> WhileStatement {
         WhileStatement::Cont(ControlCommand::WhileNotZero(var, vec))
+    }
+    pub fn used_var(&self) -> Vec<Var> {
+        match self {
+            WhileStatement::Inst(inst) => inst.used_var(),
+            WhileStatement::Cont(ControlCommand::WhileNotZero(_var, statements)) => statements
+                .iter()
+                .flat_map(|statement| statement.used_var())
+                .collect(),
+        }
+    }
+    pub fn changed_var(&self) -> Vec<Var> {
+        match self {
+            WhileStatement::Inst(inst) => vec![inst.changed_var()],
+            WhileStatement::Cont(ControlCommand::WhileNotZero(_var, statements)) => statements
+                .iter()
+                .flat_map(|statement| statement.changed_var())
+                .collect(),
+        }
+    }
+    pub fn change_var(&self, map: &HashMap<Var, Var>) -> WhileStatement {
+        match self {
+            WhileStatement::Inst(inst) => WhileStatement::Inst(inst.clone().change_var(map)),
+            WhileStatement::Cont(ControlCommand::WhileNotZero(var, statements)) => {
+                WhileStatement::Cont(ControlCommand::WhileNotZero(
+                    change_var(var.clone(), map),
+                    statements
+                        .into_iter()
+                        .map(|statement| statement.change_var(map))
+                        .collect(),
+                ))
+            }
+        }
     }
 }
 
@@ -180,9 +256,31 @@ pub struct WhileLanguage {
     statements: Vec<WhileStatement>,
 }
 
+impl WhileLanguage {
+    pub fn changed_var(&self) -> Vec<Var> {
+        (&self.statements)
+            .iter()
+            .flat_map(|statement| statement.changed_var())
+            .collect()
+    }
+    pub fn change_var(&self, map: &HashMap<Var, Var>) -> WhileLanguage {
+        (&self.statements)
+            .iter()
+            .map(|statement| statement.change_var(map))
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
 impl From<Vec<WhileStatement>> for WhileLanguage {
     fn from(value: Vec<WhileStatement>) -> Self {
         WhileLanguage { statements: value }
+    }
+}
+
+impl Into<Vec<WhileStatement>> for WhileLanguage {
+    fn into(self) -> Vec<WhileStatement> {
+        self.statements
     }
 }
 
@@ -263,6 +361,24 @@ pub struct FlatWhileLanguage {
 impl FlatWhileLanguage {
     pub fn to_vec(&self) -> Vec<FlatWhileStatement> {
         self.statements.clone()
+    }
+    pub fn change_var(&self, map: &HashMap<Var, Var>) -> FlatWhileLanguage {
+        let vec = self.to_vec();
+        vec.into_iter()
+            .map(|statement| match statement {
+                FlatWhileStatement::Inst(inst) => FlatWhileStatement::Inst(inst.change_var(map)),
+                FlatWhileStatement::Cont(command) => {
+                    let command = match command {
+                        FlatControlCommand::WhileNotZero(var) => {
+                            FlatControlCommand::WhileNotZero(change_var(var, map))
+                        }
+                        FlatControlCommand::EndWhile => FlatControlCommand::EndWhile,
+                    };
+                    FlatWhileStatement::Cont(command)
+                }
+            })
+            .collect::<Vec<_>>()
+            .into()
     }
 }
 

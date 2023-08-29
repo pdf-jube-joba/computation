@@ -604,6 +604,10 @@ dependencies = [
 [[package]]
 name = "recursive_function_to_while_minus_lang"
 version = "0.1.0"
+dependencies = [
+ "recursive_function",
+ "while_minus_lang",
+]
 
 [[package]]
 name = "recursive_function_view"
