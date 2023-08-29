@@ -42,22 +42,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "component"
-version = "0.1.0"
-dependencies = [
- "gloo",
- "lambda_calculus",
- "lambda_calculus_view",
- "recursive_function",
- "recursive_function_to_lambda_calculus",
- "recursive_function_to_turing_machine",
- "recursive_function_view",
- "turing_machine",
- "turing_machine_view",
- "yew",
-]
-
-[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -433,6 +417,22 @@ name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
+
+[[package]]
+name = "models_of_computation_component"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "lambda_calculus",
+ "lambda_calculus_view",
+ "recursive_function",
+ "recursive_function_to_lambda_calculus",
+ "recursive_function_to_turing_machine",
+ "recursive_function_view",
+ "turing_machine",
+ "turing_machine_view",
+ "yew",
+]
 
 [[package]]
 name = "num_cpus"
