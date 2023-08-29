@@ -32,14 +32,14 @@ impl NumberTuple {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-pub    fn split(self) -> Result<(Number, NumberTuple), ()> {
+    pub fn split(self) -> Result<(Number, NumberTuple), ()> {
         if self.0.len() == 0 {
             Err(())
         } else {
             Ok((self.0[0].clone(), NumberTuple(self.0[1..].to_owned())))
         }
     }
-   pub fn index(&self, index: usize) -> Result<&Number, ()> {
+    pub fn index(&self, index: usize) -> Result<&Number, ()> {
         if self.len() <= index {
             Err(())
         } else {
@@ -54,7 +54,7 @@ pub fn concat_head(num: Number, NumberTuple(tuple): NumberTuple) -> NumberTuple 
 }
 
 impl From<Vec<usize>> for NumberTuple {
-     fn from(value: Vec<usize>) -> Self {
+    fn from(value: Vec<usize>) -> Self {
         NumberTuple(value.into_iter().map(Number::from).collect())
     }
 }

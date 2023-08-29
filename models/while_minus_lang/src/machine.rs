@@ -244,16 +244,12 @@ impl Display for FlatWhileStatement {
                     format!("copy {var1:?} {var2:?} \n")
                 }
             },
-            FlatWhileStatement::Cont(cont) => {
-                match cont {
-                    FlatControlCommand::WhileNotZero(var) => {
-                        format!("while-is-not-zero {var:?} \n")
-                    }
-                    FlatControlCommand::EndWhile => {
-                        "end".to_string()
-                    }
+            FlatWhileStatement::Cont(cont) => match cont {
+                FlatControlCommand::WhileNotZero(var) => {
+                    format!("while-is-not-zero {var:?} \n")
                 }
-            }
+                FlatControlCommand::EndWhile => "end".to_string(),
+            },
         };
         write!(f, "{str}")
     }
@@ -325,15 +321,13 @@ fn try_into(vec: &[FlatWhileStatement]) -> Result<Vec<WhileStatement>, ()> {
     let mut statements = vec![];
     while now < vec.len() {
         let maybe: Result<WhileStatement, ()> = match &vec[now] {
-            FlatWhileStatement::Inst(inst) => {
-                Ok(WhileStatement::Inst(inst.clone()))
-            }
+            FlatWhileStatement::Inst(inst) => Ok(WhileStatement::Inst(inst.clone())),
             FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(var)) => 'a: {
                 let mut find_end = now + 1;
                 let mut stack = 1;
                 while find_end < vec.len() {
                     match vec[find_end] {
-                        FlatWhileStatement::Inst(_) => {},
+                        FlatWhileStatement::Inst(_) => {}
                         FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) => {
                             stack += 1;
                         }
@@ -342,9 +336,10 @@ fn try_into(vec: &[FlatWhileStatement]) -> Result<Vec<WhileStatement>, ()> {
                         }
                     }
                     if stack == 0 {
-                        let while_inner = &vec[now+1..find_end];
+                        let while_inner = &vec[now + 1..find_end];
                         let vec = try_into(while_inner);
-                        let statement = vec.map(|vec| WhileStatement::while_not_zero(var.clone(), vec));
+                        let statement =
+                            vec.map(|vec| WhileStatement::while_not_zero(var.clone(), vec));
                         now = find_end;
                         break 'a statement;
                     }
@@ -360,7 +355,7 @@ fn try_into(vec: &[FlatWhileStatement]) -> Result<Vec<WhileStatement>, ()> {
             statements.push(statement);
             now += 1;
         } else {
-            return Err(())
+            return Err(());
         }
     }
     Ok(statements.into())
@@ -370,7 +365,9 @@ impl TryInto<WhileLanguage> for FlatWhileLanguage {
     type Error = ();
     fn try_into(self) -> Result<WhileLanguage, Self::Error> {
         let statement = try_into(&self.statements);
-        Ok(WhileLanguage { statements: statement? })
+        Ok(WhileLanguage {
+            statements: statement?,
+        })
     }
 }
 
@@ -383,7 +380,11 @@ pub struct ProgramProcess {
 
 impl ProgramProcess {
     pub fn new(prog: FlatWhileLanguage, env: Environment) -> Self {
-        ProgramProcess { prog, index: 0, env }
+        ProgramProcess {
+            prog,
+            index: 0,
+            env,
+        }
     }
     pub fn now_index(&self) -> usize {
         self.index
@@ -398,7 +399,11 @@ impl ProgramProcess {
         self.index == self.prog.to_vec().len()
     }
     fn now_statement(&self) -> FlatWhileStatement {
-        let ProgramProcess { prog, index, env: _ } = self;
+        let ProgramProcess {
+            prog,
+            index,
+            env: _,
+        } = self;
         let mut vec = (&prog.statements).clone();
         vec.remove(*index)
     }
@@ -418,7 +423,8 @@ impl ProgramProcess {
                     loop {
                         self.index += 1;
                         let statement = self.now_statement();
-                        if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) = statement
+                        if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) =
+                            statement
                         {
                             stack += 1;
                         }
@@ -439,7 +445,8 @@ impl ProgramProcess {
                 loop {
                     self.index -= 1;
                     let statement = self.now_statement();
-                    if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) = statement {
+                    if let FlatWhileStatement::Cont(FlatControlCommand::WhileNotZero(_)) = statement
+                    {
                         stack -= 1;
                     }
                     if let FlatWhileStatement::Cont(FlatControlCommand::EndWhile) = statement {
@@ -509,17 +516,14 @@ mod tests {
             WhileStatement::inc(Var(0)),
             WhileStatement::inc(Var(0)),
             WhileStatement::inc(Var(0)),
-            WhileStatement::while_not_zero(Var(0), vec![
-                WhileStatement::dec(Var(0)),
-                WhileStatement::inc(Var(1)),
-            ]),
+            WhileStatement::while_not_zero(
+                Var(0),
+                vec![WhileStatement::dec(Var(0)), WhileStatement::inc(Var(1))],
+            ),
         ]
         .into();
         let env_res = eval(&prog, env.clone());
-        let env_exp: Environment = vec![
-            (Var(0), Number(0)),
-            (Var(1), Number(5)),
-        ].into();
+        let env_exp: Environment = vec![(Var(0), Number(0)), (Var(1), Number(5))].into();
         assert_eq!(env_exp, env_res);
     }
     #[test]
@@ -528,22 +532,16 @@ mod tests {
         let expected: WhileLanguage = vec![].into();
         assert_eq!(flat_lang.try_into(), Ok(expected));
 
-        let flat_lang: FlatWhileLanguage = vec![
-            FlatWhileStatement::inc(Var(0)),
-        ].into();
-        let expected: WhileLanguage = vec![
-            WhileStatement::inc(Var(0))
-        ].into();
+        let flat_lang: FlatWhileLanguage = vec![FlatWhileStatement::inc(Var(0))].into();
+        let expected: WhileLanguage = vec![WhileStatement::inc(Var(0))].into();
         assert_eq!(flat_lang.try_into(), Ok(expected));
 
         let flat_lang: FlatWhileLanguage = vec![
             FlatWhileStatement::while_not_zero(Var(0)),
             FlatWhileStatement::while_end(),
-        ].into();
-        let expected: WhileLanguage = vec![
-            WhileStatement::while_not_zero(Var(0), vec![
-            ])
-        ].into();
+        ]
+        .into();
+        let expected: WhileLanguage = vec![WhileStatement::while_not_zero(Var(0), vec![])].into();
         assert_eq!(flat_lang.try_into(), Ok(expected));
 
         let flat_lang: FlatWhileLanguage = vec![
@@ -553,16 +551,17 @@ mod tests {
             FlatWhileStatement::while_end(),
             FlatWhileStatement::inc(Var(0)),
             FlatWhileStatement::while_end(),
-        ].into();
-        let expected: WhileLanguage = vec![
-            WhileStatement::while_not_zero(Var(0), vec![
+        ]
+        .into();
+        let expected: WhileLanguage = vec![WhileStatement::while_not_zero(
+            Var(0),
+            vec![
                 WhileStatement::inc(Var(0)),
-                WhileStatement::while_not_zero(Var(0), vec![
-
-                ]),
+                WhileStatement::while_not_zero(Var(0), vec![]),
                 WhileStatement::inc(Var(0)),
-            ])
-        ].into();
+            ],
+        )]
+        .into();
         assert_eq!(flat_lang.try_into(), Ok(expected));
     }
 }
