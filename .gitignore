@@ -3,3 +3,4 @@ integration/book/out/
 index.html
 *.wasm
 *.js
+out/
