@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "mdbook-trunk-build",
   "utils",
   "models/turing_machine",
   "view/turing_machine",
