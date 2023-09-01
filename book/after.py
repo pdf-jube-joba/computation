@@ -98,9 +98,10 @@ def file_str(file_name):
 
 ## ヘッドに追記する文字列を精製する関数
 def load_head_html(name):
-    head_load1 = '<link rel="preload" href="/' + name + '_bg.wasm" as="fetch" type="application/wasm" crossorigin="">'
-    head_load2 = '<link rel="modulepreload" href="/'+ name + '.js">'
-    return head_load1 + "\n" + head_load2 + "\n"
+    # head_load1 = '<link rel="preload" href="/' + name + '_bg.wasm" as="fetch" type="application/wasm" crossorigin="">'
+    # head_load2 = '<link rel="modulepreload" href="/'+ name + '.js">'
+    # return head_load1 + "\n" + head_load2 + "\n"
+    return ""
 
 def load_body_html(name):
     body_load = '<script type="module">import init from \'/' + name + '.js\';init(\'/' + name + '_bg.wasm\');</script>'

@@ -1,4 +1,4 @@
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, Command};
 use mdbook::book::Book;
 use mdbook::errors::Error;
 use mdbook::preprocess::{CmdPreprocessor, Preprocessor, PreprocessorContext};
@@ -20,24 +20,27 @@ pub fn make_app() -> Command {
 fn main() {
     let matches = make_app().get_matches();
 
+    let preprocessor = preprocessor::Preprocessor::new(
+
+    );
+
     if let Some(sub_args) = matches.subcommand_matches("supports") {
         let renderer = sub_args
             .get_one::<String>("renderer")
             .expect("Required argument");
         // this preprocessor supports only html
-        if renderer != "html" {
+        if preprocessor.supports_renderer(&renderer) {
             process::exit(0);
         } else {
             process::exit(1);
         }
-    } else if let Err(e) = handle_preprocessing() {
+    } else if let Err(e) = handle_preprocessing(&preprocessor) {
         eprintln!("{}", e);
         process::exit(1);
     }
 }
 
-fn handle_preprocessing() -> Result<(), Error> {
-    let preprocessor = preprocessor::Nop;
+fn handle_preprocessing(preprocessor: &dyn Preprocessor) -> Result<(), Error> {
     let (ctx, book) = CmdPreprocessor::parse_input(io::stdin())?;
 
     let processed_book = preprocessor.run(&ctx, book)?;

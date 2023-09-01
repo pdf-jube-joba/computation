@@ -13,5 +13,10 @@ after = ["links"]
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 
+[preprocessor.trunk-build]
+component-dir = "../component/"
+trunk-out-dir = "../out/dist"
+book-out-dir = "../out/book"
+
 [output.html]
 additional-css = ["css/turing_machine.css"]
