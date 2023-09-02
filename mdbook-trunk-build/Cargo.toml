@@ -6,8 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.75"
 clap = "4.4.1"
+env_logger = "0.10.0"
 glob = "0.3.1"
+log = "0.4.20"
 mdbook = "0.4.34"
 regex = "1.9.4"
 scraper = "0.17.1"

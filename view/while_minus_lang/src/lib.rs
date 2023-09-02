@@ -1,4 +1,3 @@
-use wasm_bindgen::JsValue;
 use web_sys::HtmlInputElement;
 use while_minus_lang::machine::WhileLanguage;
 use while_minus_lang::machine::{

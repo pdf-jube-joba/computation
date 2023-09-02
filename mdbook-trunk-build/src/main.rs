@@ -18,6 +18,10 @@ pub fn make_app() -> Command {
 }
 
 fn main() {
+    env_logger::builder()
+        .target(env_logger::Target::Stderr)
+        .init();
+
     let matches = make_app().get_matches();
 
     let preprocessor = preprocessor::Preprocessor::new(
