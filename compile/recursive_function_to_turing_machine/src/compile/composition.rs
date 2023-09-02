@@ -1,6 +1,6 @@
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
-    graph_compose::{naive_builder_composition, GraphOfBuilder},
+    graph_compose::{builder_composition, GraphOfBuilder},
 };
 
 use crate::auxiliary::{basic, copy, rotate};
@@ -28,7 +28,7 @@ fn format(n: usize) -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(2 * n - 3),
         acceptable: accept_end_only(2 * n - 3),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 pub fn composition(
@@ -67,7 +67,7 @@ pub fn composition(
         assign_edge_to_state: series_edge_end_only(4 * num + 1),
         acceptable: accept_end_only(4 * num + 1),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 #[cfg(test)]

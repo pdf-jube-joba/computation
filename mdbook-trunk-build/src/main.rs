@@ -24,9 +24,7 @@ fn main() {
 
     let matches = make_app().get_matches();
 
-    let preprocessor = preprocessor::Preprocessor::new(
-
-    );
+    let preprocessor = preprocessor::Preprocessor::new();
 
     if let Some(sub_args) = matches.subcommand_matches("supports") {
         let renderer = sub_args

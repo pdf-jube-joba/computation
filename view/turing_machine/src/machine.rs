@@ -195,7 +195,7 @@ impl Component for ControlStepView {
             move |_| props.callback_step_usr.clone().emit(step_number)
         };
         let onclick_toggle = props.callback_toggle_autostep.clone();
-        let now_parse_result = if let Ok(u) = self.now_input_step.clone() {
+        let now_parse_result = if let Ok(u) = self.now_input_step {
             html! {u}
         } else {
             html! {"parse error"}
@@ -283,7 +283,7 @@ impl Component for UnConnectedMachineView {
             callback.emit(())
         });
         Self {
-            machine: builder.build().unwrap(),
+            machine: builder.build().map_err(|_| ()).unwrap(),
             tick_active: false,
             tick_interval: interval,
         }
@@ -293,7 +293,7 @@ impl Component for UnConnectedMachineView {
             <div class="machine">
                 {"machine"} <br/>
                 <MachineView
-                    callback_step_usr={ctx.link().callback(|u| UnConnectedMachineMsg::Step(u))}
+                    callback_step_usr={ctx.link().callback(UnConnectedMachineMsg::Step)}
                     callback_toggle_autostep={ctx.link().callback(|_| UnConnectedMachineMsg::Toggle)}
                     now_toggle_state={self.tick_active}
                     machine={(self.machine).clone()}
@@ -310,7 +310,7 @@ impl Component for UnConnectedMachineView {
                     builder,
                     toggle_interval: _,
                 } = ctx.props();
-                self.machine = builder.build().unwrap();
+                self.machine = builder.build().map_err(|_| ()).unwrap();
             }
             UnConnectedMachineMsg::Step(step) => {
                 let _ = self.machine.step(step);
@@ -346,7 +346,7 @@ impl TuringMachineView {
 }
 
 pub enum TuringMachineMsg {
-    LoadFromMachine(TuringMachineSet),
+    LoadFromMachine(Box<TuringMachineSet>),
     Step(usize),
     SetEventLog(Callback<String>),
     SetMachineOnTerminate(Callback<TapeAsVec>),
@@ -416,7 +416,7 @@ impl Component for TuringMachineView {
                 self.callback_on_log = Some(callback);
             }
             TuringMachineMsg::LoadFromMachine(machine) => {
-                self.machine = Some(machine);
+                self.machine = Some(*machine);
                 self.send_log("machine setted".to_string());
             }
             TuringMachineMsg::TickToggle => {

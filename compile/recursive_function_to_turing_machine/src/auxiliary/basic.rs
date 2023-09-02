@@ -2,7 +2,7 @@ use turing_machine::{
     machine::*,
     manipulation::{
         builder::TuringMachineBuilder,
-        graph_compose::{naive_builder_composition, GraphOfBuilder},
+        graph_compose::{builder_composition, GraphOfBuilder},
     },
 };
 
@@ -49,7 +49,7 @@ pub fn move_rights(n: usize) -> TuringMachineBuilder {
             assign_edge_to_state: series_edge_end_only(n - 1),
             acceptable: accept_end_only(n - 1),
         };
-        naive_builder_composition(graph).unwrap()
+        builder_composition(graph).unwrap()
     }
 }
 
@@ -70,7 +70,7 @@ pub fn move_lefts(n: usize) -> TuringMachineBuilder {
             assign_edge_to_state: series_edge_end_only(n - 1),
             acceptable: accept_end_only(n - 1),
         };
-        naive_builder_composition(graph).unwrap()
+        builder_composition(graph).unwrap()
     }
 }
 
@@ -351,7 +351,7 @@ pub fn annihilate() -> TuringMachineBuilder {
         .collect(),
         acceptable: accept_end_only(7),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 pub fn concat() -> TuringMachineBuilder {
@@ -368,7 +368,7 @@ pub fn concat() -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(4),
         acceptable: accept_end_only(4),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // 名前の通り -b0p- や -- の形になっているか、 つまり -- や -bb... や -b-... になっているかを判定する。
@@ -422,7 +422,7 @@ pub fn is_tuple_zero() -> TuringMachineBuilder {
             vec![state("endT")],
         ],
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 #[cfg(test)]

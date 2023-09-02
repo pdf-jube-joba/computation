@@ -10,15 +10,19 @@ pub enum Direction {
     Left,
 }
 
+pub enum DirectionParseError {
+    Error,
+}
+
 impl TryFrom<&str> for Direction {
-    type Error = String;
+    type Error = DirectionParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.trim();
         match value {
             "R" => Ok(Direction::Right),
             "L" => Ok(Direction::Left),
             "C" => Ok(Direction::Constant),
-            _ => Err("direction: fail".to_string()),
+            _ => Err(DirectionParseError::Error),
         }
     }
 }
@@ -31,7 +35,7 @@ pub struct Sign(String);
 
 impl Sign {
     pub fn blank() -> Sign {
-        Sign::try_from("").unwrap()
+        Sign("".to_owned())
     }
 }
 
@@ -41,24 +45,22 @@ impl Display for Sign {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum SignParseError {
+    Error,
+}
+
 // 「両端以外に空白を含むか、 "," を含む文字列」以外は記号として扱う。
 // ただし、両端の空白は無視するものとする。
 impl TryFrom<&str> for Sign {
-    type Error = String;
+    type Error = SignParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.trim();
         if value.contains(|char: char| char.is_whitespace() || char == ',') {
-            return Err(format!("error on parse sign: input...\"{value}\""));
+            return Err(SignParseError::Error);
         }
         Ok(Sign(value.to_string()))
     }
-}
-
-pub fn parse_str_to_signs<T>(str: &str) -> Result<T, String>
-where
-    T: std::iter::FromIterator<Sign>,
-{
-    str.split_whitespace().map(Sign::try_from).collect()
 }
 
 // 左右無限のテープ
@@ -96,14 +98,8 @@ impl TapeAsVec {
 impl PartialEq for TapeAsVec {
     fn eq(&self, other: &Self) -> bool {
         fn same_except_last_blanks(vec1: &[Sign], vec2: &[Sign]) -> bool {
-            let iter1 = vec1
-                .iter()
-                .rev()
-                .skip_while(|sign| **sign == Sign::blank());
-            let iter2 = vec2
-                .iter()
-                .rev()
-                .skip_while(|sign| **sign == Sign::blank());
+            let iter1 = vec1.iter().rev().skip_while(|sign| **sign == Sign::blank());
+            let iter2 = vec2.iter().rev().skip_while(|sign| **sign == Sign::blank());
             iter1.eq(iter2)
         }
         let TapeAsVec {
@@ -118,18 +114,33 @@ impl PartialEq for TapeAsVec {
         } = other;
         same_except_last_blanks(left1, left2)
             && head1 == head2
-            && same_except_last_blanks(right1, right2)   
+            && same_except_last_blanks(right1, right2)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum TapeParseError {
+    Error,
+    LineTooFew,
+}
+
+impl From<SignParseError> for TapeParseError {
+    fn from(value: SignParseError) -> Self {
+        match value {
+            SignParseError::Error => TapeParseError::Error,
+        }
     }
 }
 
 impl TryFrom<(Vec<&str>, usize)> for TapeAsVec {
-    type Error = String;
+    type Error = TapeParseError;
     fn try_from(value: (Vec<&str>, usize)) -> Result<Self, Self::Error> {
         let signs: Vec<Sign> = value
             .0
             .into_iter()
             .map(Sign::try_from)
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_, _>>()
+            .map_err(|_| TapeParseError::Error)?;
         Ok(TapeAsVec {
             left: {
                 let mut v = signs[..value.1].to_owned();
@@ -152,12 +163,21 @@ impl From<TapeAsVec> for Tape {
     }
 }
 
+pub fn parse_str_to_signs<T>(str: &str) -> Result<T, SignParseError>
+where
+    T: std::iter::FromIterator<Sign>,
+{
+    str.split_whitespace()
+        .map(Sign::try_from)
+        .collect::<Result<_, _>>()
+}
+
 impl TryFrom<&str> for TapeAsVec {
-    type Error = String;
+    type Error = TapeParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let v: Vec<&str> = value.lines().collect();
         if v.len() < 3 {
-            return Err("tape: argument is too few".to_owned());
+            return Err(TapeParseError::LineTooFew);
         }
         let left: Vec<Sign> = parse_str_to_signs(v[0])?;
         let head: Sign = v[1].try_into()?;
@@ -166,33 +186,15 @@ impl TryFrom<&str> for TapeAsVec {
     }
 }
 
-impl TryFrom<String> for TapeAsVec {
-    type Error = String;
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let v: Vec<&str> = value.lines().collect();
-        if v.len() < 3 {
-            return Err("tape: argument is too few".to_owned());
-        }
-        let left: Vec<Sign> = parse_str_to_signs(v[0])?;
-        let head: Sign = v[1].try_into()?;
-        let right: Vec<Sign> = parse_str_to_signs(v[2])?;
-        Ok(Self { left, head, right })
-    }
-}
-
-impl From<TapeAsVec> for String {
-    fn from(value: TapeAsVec) -> Self {
-        let f = |v: Vec<Sign>| {
-            v.iter()
-                .map(|Sign(sign)| sign.to_owned())
-                .collect::<String>()
-        };
-        format!(
-            "l: {} \nh: {}\n r: {}",
-            f(value.left),
-            value.head,
-            f(value.right)
-        )
+impl TryFrom<(&str, &str, &str)> for TapeAsVec {
+    type Error = TapeParseError;
+    fn try_from(value: (&str, &str, &str)) -> Result<Self, Self::Error> {
+        let (left, head, right) = value;
+        Ok(Self {
+            left: parse_str_to_signs(left)?,
+            head: head.try_into()?,
+            right: parse_str_to_signs(right)?,
+        })
     }
 }
 
@@ -207,7 +209,7 @@ impl Display for TapeAsVec {
                 str.push_str(&format!("{sign}"));
             }
         });
-        str.push_str(&format!("[{}]", head.to_string()));
+        str.push_str(&format!("[{head}]",));
         right.iter().for_each(|sign| {
             if *sign == Sign::blank() {
                 str.push(' ');
@@ -275,17 +277,24 @@ impl Display for Tape {
 // テープの記号と同じ
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct State(String);
+
 impl Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum StateParseError {
+    Error,
+}
+
 impl TryFrom<&str> for State {
-    type Error = String;
+    type Error = StateParseError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.trim();
         if value.contains(|char: char| char.is_whitespace() || char == ',') {
-            return Err(format!("whitespace contained input:{value}"));
+            return Err(StateParseError::Error);
         }
         Ok(State(value.to_string()))
     }
@@ -329,15 +338,48 @@ impl CodeEntry {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum ParseCodeEntryError {
+    ControlCharContained,
+    TooFewArgumentOnLine,
+    SignParseError,
+    StateParseError,
+    DirectionParseError,
+}
+
+impl From<SignParseError> for ParseCodeEntryError {
+    fn from(value: SignParseError) -> Self {
+        match value {
+            SignParseError::Error => ParseCodeEntryError::SignParseError,
+        }
+    }
+}
+
+impl From<StateParseError> for ParseCodeEntryError {
+    fn from(value: StateParseError) -> Self {
+        match value {
+            StateParseError::Error => ParseCodeEntryError::SignParseError,
+        }
+    }
+}
+
+impl From<DirectionParseError> for ParseCodeEntryError {
+    fn from(value: DirectionParseError) -> Self {
+        match value {
+            DirectionParseError::Error => ParseCodeEntryError::DirectionParseError,
+        }
+    }
+}
+
 impl TryFrom<&str> for CodeEntry {
-    type Error = String;
+    type Error = ParseCodeEntryError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value.contains(|char: char| char.is_control()) {
-            return Err("code-entry: some control char contained".to_string());
+            return Err(ParseCodeEntryError::ControlCharContained);
         };
         let v: Vec<&str> = value.split(',').collect();
         if v.len() < 5 {
-            return Err("code-entry: argument is too few".to_string());
+            return Err(ParseCodeEntryError::TooFewArgumentOnLine);
         }
         let code_key: CodeKey = CodeKey(v[0].try_into()?, v[1].try_into()?);
         let code_value: CodeValue = CodeValue(v[2].try_into()?, v[3].try_into()?, v[4].try_into()?);
@@ -371,7 +413,7 @@ impl Code {
 }
 
 impl TryFrom<&str> for Code {
-    type Error = String;
+    type Error = (ParseCodeEntryError, usize);
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let mut code = Code::default();
         for (index, str) in value.lines().enumerate() {
@@ -380,7 +422,7 @@ impl TryFrom<&str> for Code {
                     code.add(entry);
                 }
                 Err(err) => {
-                    return Err(format!("{} at line {}", err, index));
+                    return Err((err, index));
                 }
             }
         }
@@ -409,18 +451,23 @@ pub struct TuringMachine {
     code: Vec<CodeEntry>,
 }
 
+#[derive(Debug, Clone)]
+pub enum TuringMachineError {
+    CodeContainsAcceptedState,
+}
+
 impl TuringMachine {
     pub fn new(
         init_state: State,
         accepted_state: impl IntoIterator<Item = State>,
         code: impl IntoIterator<Item = CodeEntry>,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, TuringMachineError> {
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
         let code: Vec<CodeEntry> = code
             .into_iter()
             .map(|entry| {
                 if accepted_state.contains(&entry.key_state()) {
-                    Err(())
+                    Err(TuringMachineError::CodeContainsAcceptedState)
                 } else {
                     Ok(entry)
                 }
@@ -441,7 +488,6 @@ impl TuringMachine {
     pub fn code(&self) -> &Vec<CodeEntry> {
         &self.code
     }
-    // return possible sign
     pub fn signs(&self) -> Vec<Sign> {
         self.code
             .iter()
@@ -523,13 +569,13 @@ impl TuringMachineSet {
     pub fn is_accepted(&self) -> bool {
         self.accepted_state.contains(&self.machine_state.state)
     }
-    pub fn next_step(&self) -> Result<CodeEntry, ()> {
+    pub fn next_step(&self) -> Option<CodeEntry> {
         if self.is_terminate() {
-            return Err(());
+            return None;
         }
         let key = self.now_key();
         let value = self.machine_code.code().get(&key).unwrap().clone();
-        Ok(CodeEntry(key, value))
+        Some(CodeEntry(key, value))
     }
     fn one_step(&mut self) {
         if !self.is_terminate() {

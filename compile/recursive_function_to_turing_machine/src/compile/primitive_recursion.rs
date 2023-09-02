@@ -1,6 +1,6 @@
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
-    graph_compose::{naive_builder_composition, GraphOfBuilder},
+    graph_compose::{builder_composition, GraphOfBuilder},
 };
 
 use crate::auxiliary::{basic, copy, rotate};
@@ -54,7 +54,7 @@ fn is_left_sig() -> TuringMachineBuilder {
             vec![state("endT")],
         ],
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // -b(x)p- を -b(x-1)p- にする
@@ -111,7 +111,7 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(18),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // -bp- を -p- にする
@@ -158,7 +158,7 @@ fn expand_aux_remove_zero() -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(14),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 fn expand_aux_shift_right() -> TuringMachineBuilder {
@@ -212,7 +212,7 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(17),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // -b(x)p- を -1-b(x-1)p-...-b(1)p-p- にする
@@ -247,7 +247,7 @@ fn expand() -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(9),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // -1[-]p- を [-]p- にする
@@ -270,7 +270,7 @@ fn format() -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(9),
         acceptable: accept_end_only(9),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 pub fn primitive_recursion(
@@ -306,7 +306,7 @@ pub fn primitive_recursion(
         ],
         acceptable: accept_end_only(7),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 #[cfg(test)]

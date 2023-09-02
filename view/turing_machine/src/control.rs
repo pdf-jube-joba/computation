@@ -115,11 +115,11 @@ impl Component for ControlView {
                 };
                 match builder.build() {
                     Ok(machine) => {
-                        scope.send_message(TuringMachineMsg::LoadFromMachine(machine));
+                        scope.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
                         self.send_this_log("success");
                     }
                     Err(err) => {
-                        self.send_this_log(format!("failed on {err}"));
+                        self.send_this_log(format!("failed on {err:?}"));
                     }
                 }
             }

@@ -1,4 +1,9 @@
-use std::{path::PathBuf, process::{Command, Stdio}, fmt::Display, io::Write};
+use std::{
+    fmt::Display,
+    io::Write,
+    path::PathBuf,
+    process::{Command, Stdio},
+};
 
 use mdbook::{BookItem, Config};
 // use scraper::Html;
@@ -23,8 +28,7 @@ impl Display for Needed {
     }
 }
 
-impl std::error::Error for Needed {
-}
+impl std::error::Error for Needed {}
 
 impl mdbook::preprocess::Preprocessor for Preprocessor {
     fn name(&self) -> &str {
@@ -35,8 +39,12 @@ impl mdbook::preprocess::Preprocessor for Preprocessor {
         renderer != "not-supported"
     }
 
-    fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book, mdbook::errors::Error> {
-        book.for_each_mut(|item|{
+    fn run(
+        &self,
+        ctx: &PreprocessorContext,
+        mut book: Book,
+    ) -> Result<Book, mdbook::errors::Error> {
+        book.for_each_mut(|item| {
             if let BookItem::Chapter(chapter) = item {
                 chapter.content = replace_component(&chapter.content);
             }
@@ -50,7 +58,8 @@ impl mdbook::preprocess::Preprocessor for Preprocessor {
 
 // build anything in component/*/src/bin/*.rs
 fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
-    let table = config.get("preprocessor.trunk-build")
+    let table = config
+        .get("preprocessor.trunk-build")
         .ok_or(anyhow!("not found [preprocessor.trunk-build] field"))?
         .as_table()
         .ok_or(anyhow!("not found table under [preprocessor.trunk-build]"))?;
@@ -60,9 +69,11 @@ fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
     };
 
     let relpath_to_abspath_from_table = |str: &str| -> Result<PathBuf, anyhow::Error> {
-        let relative_dir = table.get(str)
+        let relative_dir = table
+            .get(str)
             .ok_or(anyhow!("failed to get key [trunk-out-dir] in table"))?
-            .as_str().unwrap(); // path is written in toml file so it must succeed
+            .as_str()
+            .unwrap(); // path is written in toml file so it must succeed
         let mut path_buf = PathBuf::from(&book_src_directory);
         path_buf.extend(&PathBuf::from(relative_dir));
         path_buf.canonicalize().map_err(|err| err.into())
@@ -72,7 +83,13 @@ fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
     let book_out_dir = relpath_to_abspath_from_table("book-out-dir")?;
     let component_dir = relpath_to_abspath_from_table("component-dir")?;
 
-    log::info!("reading enviroment succeed: {:?} {:?} {:?} {:?}", book_src_directory, trunk_dist_dir, book_out_dir, component_dir);
+    log::info!(
+        "reading enviroment succeed: {:?} {:?} {:?} {:?}",
+        book_src_directory,
+        trunk_dist_dir,
+        book_out_dir,
+        component_dir
+    );
 
     for entry in std::fs::read_dir(component_dir)? {
         let target_dir = entry?.path();
@@ -81,7 +98,11 @@ fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn handle_trunk_build_mv(target_dir: PathBuf, trunk_dist_dir: &PathBuf, book_out_dir: &PathBuf) -> Result<(), anyhow::Error> {
+fn handle_trunk_build_mv(
+    target_dir: PathBuf,
+    trunk_dist_dir: &PathBuf,
+    book_out_dir: &PathBuf,
+) -> Result<(), anyhow::Error> {
     log::info!("trunk build directory: {:?}", target_dir);
 
     std::env::set_current_dir(target_dir.clone())?;
@@ -93,7 +114,8 @@ fn handle_trunk_build_mv(target_dir: PathBuf, trunk_dist_dir: &PathBuf, book_out
     };
 
     let mut build_command = Command::new("trunk");
-    build_command.arg("build")
+    build_command
+        .arg("build")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
@@ -101,7 +123,8 @@ fn handle_trunk_build_mv(target_dir: PathBuf, trunk_dist_dir: &PathBuf, book_out
         if let Ok(file_name) = entry {
             log::info!("target_file: {:?}", file_name);
 
-            let file_stem = file_name.file_stem()
+            let file_stem = file_name
+                .file_stem()
                 .ok_or(anyhow!("failed to get file_stem :{file_name:?}"))?
                 .to_str()
                 .ok_or(anyhow!("failed to convert OsStr to str"))?;
@@ -130,11 +153,12 @@ fn handle_trunk_build_mv(target_dir: PathBuf, trunk_dist_dir: &PathBuf, book_out
                     log::info!("mv file:{:?}", file_name);
                     let mut mv_command = Command::new("mv");
                     mv_command
-                    .args([
-                        format!("{}", file_name.as_path().display()),
-                        format!("{}/", book_out_dir.as_path().display()),
-                    ])
-                    .spawn()?.wait()?;                
+                        .args([
+                            format!("{}", file_name.as_path().display()),
+                            format!("{}/", book_out_dir.as_path().display()),
+                        ])
+                        .spawn()?
+                        .wait()?;
                 }
             }
         }
@@ -144,12 +168,14 @@ fn handle_trunk_build_mv(target_dir: PathBuf, trunk_dist_dir: &PathBuf, book_out
 
 // trunk need a index.html so generate
 fn trunk_build_html(name: &str) -> String {
-    format!(r#"
+    format!(
+        r#"
     <!DOCTYPE html><html>
     <head></head><body>
     <link data-trunk rel="rust" data-bin="{name}" data-type="main"/>
     </body></html>
-    "#)
+    "#
+    )
 }
 
 // take a entire string
@@ -167,7 +193,7 @@ mod tests {
 
     #[test]
     fn reg_test() {
-        let mut str="rec <component id=\"hello\"> rec".to_string();
+        let mut str = "rec <component id=\"hello\"> rec".to_string();
         // assert!(re.captures_iter(&str).into_iter().next().is_some());
         let res = replace_component(&mut str);
         eprintln!("{}", res);

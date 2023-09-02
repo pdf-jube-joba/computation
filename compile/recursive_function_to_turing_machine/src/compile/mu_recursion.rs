@@ -1,6 +1,6 @@
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
-    graph_compose::{naive_builder_composition, GraphOfBuilder},
+    graph_compose::{builder_composition, GraphOfBuilder},
 };
 
 use crate::auxiliary::{basic, copy, rotate};
@@ -20,7 +20,7 @@ fn start_0() -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(4),
         acceptable: accept_end_only(4),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // [-]p-bx- を -p-bx[-]bxp- にする
@@ -46,7 +46,7 @@ fn setting() -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(12),
         acceptable: accept_end_only(12),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // -p-bx[-]X- => [-]p-b{x+1}-
@@ -79,7 +79,7 @@ fn increment() -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(8),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // -p-bx[-]X- X=0 => [-]bx-
@@ -120,7 +120,7 @@ fn remove() -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(11),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 pub fn mu_recursion(builder: TuringMachineBuilder) -> TuringMachineBuilder {
@@ -145,7 +145,7 @@ pub fn mu_recursion(builder: TuringMachineBuilder) -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(5),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 #[cfg(test)]

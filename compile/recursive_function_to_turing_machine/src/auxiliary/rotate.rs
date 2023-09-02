@@ -1,6 +1,6 @@
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
-    graph_compose::{naive_builder_composition, GraphOfBuilder},
+    graph_compose::{builder_composition, GraphOfBuilder},
 };
 
 use super::basic::*;
@@ -52,7 +52,7 @@ pub fn rotate(n: usize) -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(16),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // [-]X1-...-Xn- を [-]Xn-X1-...-X{n-1}- にする
@@ -99,7 +99,7 @@ pub fn rotate_back(n: usize) -> TuringMachineBuilder {
         ],
         acceptable: accept_end_only(15),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 #[cfg(test)]

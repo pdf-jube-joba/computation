@@ -11,7 +11,9 @@ fn main() {
 
     let machine_element = document.create_element("div").unwrap();
     element.append_child(&machine_element).unwrap();
-    let machine_handle = yew::Renderer::<WhileLangView>::with_root_and_props(machine_element, WhileLangProps {}).render();
+    let machine_handle =
+        yew::Renderer::<WhileLangView>::with_root_and_props(machine_element, WhileLangProps {})
+            .render();
 
     let control_element = document.create_element("div").unwrap();
     element.append_child(&control_element).unwrap();

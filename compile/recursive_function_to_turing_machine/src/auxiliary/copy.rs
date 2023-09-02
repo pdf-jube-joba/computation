@@ -1,6 +1,6 @@
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
-    graph_compose::{naive_builder_composition, GraphOfBuilder},
+    graph_compose::{builder_composition, GraphOfBuilder},
 };
 
 use super::basic::*;
@@ -20,7 +20,7 @@ fn copy_aux_pre() -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(4),
         acceptable: accept_end_only(4),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 fn copy_aux_this_b() -> TuringMachineBuilder {
@@ -41,7 +41,7 @@ fn copy_aux_this_b() -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(8),
         acceptable: accept_end_only(8),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 fn copy_aux_this_1() -> TuringMachineBuilder {
@@ -62,7 +62,7 @@ fn copy_aux_this_1() -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(8),
         acceptable: accept_end_only(8),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // [-]p- を [-]p-p- にする
@@ -91,7 +91,7 @@ pub fn copy() -> TuringMachineBuilder {
         .collect(),
         acceptable: accept_end_only(5),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 // -p- を -p_1-...-p_n- ただし p_i = p にする
@@ -118,7 +118,7 @@ pub fn n_times_iter(n: usize) -> TuringMachineBuilder {
             assign_edge_to_state: series_edge_end_only(2 * (n - 1)),
             acceptable: accept_end_only(2 * (n - 1)),
         };
-        naive_builder_composition(graph).unwrap()
+        builder_composition(graph).unwrap()
     }
 }
 #[cfg(test)]

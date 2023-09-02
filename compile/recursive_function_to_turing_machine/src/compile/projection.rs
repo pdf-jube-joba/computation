@@ -1,6 +1,6 @@
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
-    graph_compose::{naive_builder_composition, GraphOfBuilder},
+    graph_compose::{builder_composition, GraphOfBuilder},
 };
 
 use crate::auxiliary::basic;
@@ -140,7 +140,7 @@ pub fn projection(n: usize, i: usize) -> TuringMachineBuilder {
         assign_edge_to_state: series_edge_end_only(n + 7),
         acceptable: accept_end_only(n + 7),
     };
-    naive_builder_composition(graph).unwrap()
+    builder_composition(graph).unwrap()
 }
 
 #[cfg(test)]
