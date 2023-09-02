@@ -72,7 +72,7 @@ pub struct Tape {
 }
 
 // テープを簡単に見たり作ったりするための構造体
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone)]
 pub struct TapeAsVec {
     pub left: Vec<Sign>,
     pub head: Sign,
@@ -91,14 +91,17 @@ impl TapeAsVec {
             right: right.into_iter().collect(),
         }
     }
-    pub fn eq(&self, tape2: &TapeAsVec) -> bool {
+}
+
+impl PartialEq for TapeAsVec {
+    fn eq(&self, other: &Self) -> bool {
         fn same_except_last_blanks(vec1: &[Sign], vec2: &[Sign]) -> bool {
             let iter1 = vec1
-                .into_iter()
+                .iter()
                 .rev()
                 .skip_while(|sign| **sign == Sign::blank());
             let iter2 = vec2
-                .into_iter()
+                .iter()
                 .rev()
                 .skip_while(|sign| **sign == Sign::blank());
             iter1.eq(iter2)
@@ -112,10 +115,10 @@ impl TapeAsVec {
             left: left2,
             head: head2,
             right: right2,
-        } = tape2;
-        same_except_last_blanks(&left1, &left2)
+        } = other;
+        same_except_last_blanks(left1, left2)
             && head1 == head2
-            && same_except_last_blanks(&right1, &right2)
+            && same_except_last_blanks(right1, right2)   
     }
 }
 
@@ -125,7 +128,7 @@ impl TryFrom<(Vec<&str>, usize)> for TapeAsVec {
         let signs: Vec<Sign> = value
             .0
             .into_iter()
-            .map(|str| Sign::try_from(str))
+            .map(Sign::try_from)
             .collect::<Result<_, _>>()?;
         Ok(TapeAsVec {
             left: {
@@ -199,7 +202,7 @@ impl Display for TapeAsVec {
         let mut str = String::new();
         left.iter().rev().for_each(|sign| {
             if *sign == Sign::blank() {
-                str.push_str(" ");
+                str.push(' ');
             } else {
                 str.push_str(&format!("{sign}"));
             }
@@ -207,7 +210,7 @@ impl Display for TapeAsVec {
         str.push_str(&format!("[{}]", head.to_string()));
         right.iter().for_each(|sign| {
             if *sign == Sign::blank() {
-                str.push_str(" ");
+                str.push(' ');
             } else {
                 str.push_str(&format!("{sign}"));
             }
