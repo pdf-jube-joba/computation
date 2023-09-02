@@ -19,7 +19,7 @@ fn main() {
         recursive_function_view::CodeProps {
             on_input_code: Callback::from(move |func| {
                 let machine = compile(&func).build().unwrap();
-                machine_handle.send_message(TuringMachineMsg::LoadFromMachine(machine));
+                machine_handle.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
             }),
         },
     )
