@@ -2,24 +2,21 @@
 [workspace]
 resolver = "2"
 members = [
-  "mdbook-trunk-build",
   "utils",
-  "models/turing_machine",
-  "view/turing_machine",
-  "models/recursive_function",
-  "view/recursive_function",
-  "models/lambda_calculus",
-  "view/lambda_calculus",
-  "models/while_minus_lang",
-  "view/while_minus_lang",
-  "models/counter_machine",
-  "view/counter_machine",
-  "book/component/models_of_computation",
-  "integration/turing_machine",
-  "integration/lambda_calculus",
-  "integration/recursive_function",
-  "integration/while_minus_lang",
-  "compile/recursive_function_to_turing_machine",
-  "compile/recursive_function_to_lambda_calculus",
-  "compile/recursive_function_to_while_minus_lang",
+  "mdbook-trunk-build",
+  "models/*",
+  "view/*",
+  "integration/*",
+  "compile/*",
+  "book/component/*",
 ]
+
+exclude = [
+  "*/dist",
+]
+
+[workspace.dependencies]
+yew = { version = "0.20.0", features = ["csr"] }
+gloo = "0.8.0"
+wasm-bindgen = "0.2.84"
+web-sys = "0.3.61"

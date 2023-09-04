@@ -1,5 +1,5 @@
 [package]
-name = "lambda_calculus"
+name = "logic_circuits_to_machine"
 version = "0.1.0"
 edition = "2021"
 

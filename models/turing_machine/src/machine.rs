@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
-use yew::Properties;
 
 // テープの動く方向を表す。
 #[derive(Debug, Clone, PartialEq)]
@@ -66,7 +65,7 @@ impl TryFrom<&str> for Sign {
 // 左右無限のテープ
 // ヘッド部分の読み書きと左右への移動のみが許される
 // これの中身を読みたい場合はコストを払って、TapeAsVec を使う
-#[derive(Debug, Default, Clone, PartialEq, Properties, Hash, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
 pub struct Tape {
     left: VecDeque<Sign>,
     head: Sign,
@@ -387,7 +386,7 @@ impl TryFrom<&str> for CodeEntry {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Properties)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Code {
     hash: HashMap<CodeKey, CodeValue>,
 }
