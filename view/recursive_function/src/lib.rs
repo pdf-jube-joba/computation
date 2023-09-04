@@ -1,11 +1,13 @@
-use recursive_function::machine::{NumberTuple, RecursiveFunctions};
+use recursive_function::machine::RecursiveFunctions;
+use utils::number::*;
+
 use wasm_bindgen::JsValue;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew::{callback, html, Callback, Component, Properties};
 
 pub struct CodeView {
-    code: Result<RecursiveFunctions, ()>,
+    code: Result<RecursiveFunctions, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -21,7 +23,9 @@ impl Component for CodeView {
     type Message = CodeMsg;
     type Properties = CodeProps;
     fn create(_ctx: &yew::Context<Self>) -> Self {
-        Self { code: Err(()) }
+        Self {
+            code: Err("not setted".to_string()),
+        }
     }
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let CodeProps { on_input_code } = ctx.props().clone();
@@ -56,7 +60,7 @@ impl Component for CodeView {
 
 pub struct FunctionView {
     input: Result<NumberTuple, String>,
-    output: Result<NumberTuple, ()>,
+    output: Option<Number>,
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -67,7 +71,7 @@ pub struct FunctionProps {
 pub enum FunctionMsg {
     InputChange(String),
     Compute,
-    ComputeEnd(Result<NumberTuple, ()>),
+    ComputeEnd(Option<Number>),
 }
 
 impl Component for FunctionView {
@@ -76,7 +80,7 @@ impl Component for FunctionView {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             input: Err("no".into()),
-            output: Err(()),
+            output: None,
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -95,7 +99,7 @@ impl Component for FunctionView {
                 </div>
                 <button onclick={ctx.link().callback(|_| FunctionMsg::Compute)}> {"compute"} </button>
                 {
-                    if let Ok(function) = self.output.clone() {format!("{function:?}")} else {
+                    if let Some(function) = self.output.clone() {format!("{function:?}")} else {
                         "none".to_string()
                     }
                 }
@@ -112,10 +116,8 @@ impl Component for FunctionView {
                 if let Ok(input) = self.input.clone() {
                     web_sys::console::log_1(&JsValue::from_str("hello"));
                     let FunctionProps { rec_function } = ctx.props();
-                    let function = recursive_function::machine::interpreter(&rec_function);
-                    let res: Result<NumberTuple, _> =
-                        function.checked_subst(input).map(|num| num.into());
-                    self.output = res;
+                    let function = recursive_function::machine::interpreter(rec_function);
+                    self.output = function.checked_subst(input);
                     true
                 } else {
                     false
@@ -148,9 +150,8 @@ impl Component for FunctionControlView {
         Self { function: None }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let callback: Callback<RecursiveFunctions> = ctx
-            .link()
-            .callback(|func| FunctionControlMsg::SetFunction(func));
+        let callback: Callback<RecursiveFunctions> =
+            ctx.link().callback(FunctionControlMsg::SetFunction);
         html! {
             <>
             <CodeView on_input_code={callback} /> <br/>

@@ -2,8 +2,8 @@ use recursive_function::machine::RecursiveFunctions;
 use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
-    use recursive_function::machine::{Number, NumberTuple};
     use turing_machine::machine::{Sign, TapeAsVec};
+    use utils::number::*;
 
     fn partition() -> Sign {
         Sign::try_from("-").unwrap()
@@ -27,7 +27,7 @@ pub mod num_tape {
                 vec
             })
             .collect();
-        signs.extend_from_slice(&vec![partition()]);
+        signs.extend_from_slice(&[partition()]);
         TapeAsVec {
             left: vec![],
             head: partition(),
@@ -35,17 +35,17 @@ pub mod num_tape {
         }
     }
 
-    fn read_one(signs: Vec<Sign>) -> Result<NumberTuple, ()> {
+    fn read_one(signs: Vec<Sign>) -> Option<NumberTuple> {
         let v = signs
             .split(|char| *char == Sign::blank())
             .map(|vec| vec.len())
             .skip(1);
-        Ok(v.collect::<Vec<_>>().into())
+        Some(v.collect::<Vec<_>>().into())
     }
 
-    pub fn read_right_one(tape: TapeAsVec) -> Result<NumberTuple, ()> {
+    pub fn read_right_one(tape: TapeAsVec) -> Option<NumberTuple> {
         if tape.head != partition() {
-            return Err(());
+            return None;
         }
         let iter = tape
             .right
@@ -92,8 +92,8 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
             } = composition;
             let outer_builder = compile(outer_func.as_ref());
             let inner_builders: Vec<TuringMachineBuilder> = inner_func
-                .to_owned()
-                .into_iter()
+                .iter()
+                .cloned()
                 .map(|func| compile(&func))
                 .collect();
             composition::composition(inner_builders, outer_builder)

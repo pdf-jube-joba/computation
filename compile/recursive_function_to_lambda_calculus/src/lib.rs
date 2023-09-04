@@ -1,5 +1,6 @@
 use lambda_calculus::machine::{utils::*, LambdaTerm};
-use recursive_function::machine::{Number, RecursiveFunctions};
+use recursive_function::machine::RecursiveFunctions;
+use utils::number::*;
 
 pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
     fn term(num: Number) -> LambdaTerm {
@@ -12,41 +13,42 @@ pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
     LambdaTerm::abs(0, LambdaTerm::abs(1, term(num)))
 }
 
-pub fn lambda_term_to_number(term: LambdaTerm) -> Result<Number, ()> {
-    if let LambdaTerm::Abstraction(var1, term) = term {
+pub fn lambda_term_to_number(term: LambdaTerm) -> Option<Number> {
+    let (var1, var2, term) = if let LambdaTerm::Abstraction(var1, term) = term {
         if let LambdaTerm::Abstraction(var2, term) = *term {
-            let mut iter_term = *term;
-            for i in 0.. {
-                match &iter_term {
-                    LambdaTerm::Variable(ref var) => {
-                        if *var == var2 {
-                            return Ok(i.into());
-                        } else {
-                            return Err(());
-                        }
-                    }
-                    LambdaTerm::Application(ref var, ref term2) => {
-                        if let LambdaTerm::Variable(v) = *var.clone() {
-                            if v == var1 {
-                                iter_term = *term2.to_owned();
-                                continue;
-                            }
-                        } else {
-                            return Err(());
-                        }
-                    }
-                    _ => {
-                        return Err(());
-                    }
-                }
-            }
-            unreachable!()
+            (var1, var2, term)
         } else {
-            return Err(());
+            return None;
         }
     } else {
-        return Err(());
+        return None;
+    };
+    let mut iter_term = *term;
+    for i in 0.. {
+        match &iter_term {
+            LambdaTerm::Variable(var) => {
+                if *var == var2 {
+                    return Some(i.into());
+                } else {
+                    return None;
+                }
+            }
+            LambdaTerm::Application(var, term2) => {
+                if let LambdaTerm::Variable(v) = *var.clone() {
+                    if v == var1 {
+                        iter_term = *term2.to_owned();
+                        continue;
+                    }
+                } else {
+                    return None;
+                }
+            }
+            _ => {
+                return None;
+            }
+        }
     }
+    unreachable!()
 }
 
 // \xyz.x(\pq.q(py))(\v.z)(\v.v) = \xyz.xMNL
@@ -109,11 +111,11 @@ pub fn succ() -> LambdaTerm {
 }
 
 // \x1,,,xn.xi
-pub fn projection(n: usize, i: usize) -> Result<LambdaTerm, ()> {
+pub fn projection(n: usize, i: usize) -> Option<LambdaTerm> {
     if n < i {
-        Err(())
+        None
     } else {
-        Ok(take_n_abs((0..n).collect(), LambdaTerm::var(i)))
+        Some(take_n_abs((0..n).collect(), LambdaTerm::var(i)))
     }
 }
 
@@ -248,7 +250,7 @@ mod tests {
                 lam = left_most_reduction(lam);
             }
             let res = lambda_term_to_number(lam);
-            assert_eq!(res, Ok(i.into()))
+            assert_eq!(res, Some(i.into()))
         }
     }
 

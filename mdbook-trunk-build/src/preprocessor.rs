@@ -1,7 +1,7 @@
 use std::{
     fmt::Display,
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 
@@ -100,8 +100,8 @@ fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
 
 fn handle_trunk_build_mv(
     target_dir: PathBuf,
-    trunk_dist_dir: &PathBuf,
-    book_out_dir: &PathBuf,
+    trunk_dist_dir: &Path,
+    book_out_dir: &Path,
 ) -> Result<(), anyhow::Error> {
     log::info!("trunk build directory: {:?}", target_dir);
 
@@ -120,47 +120,46 @@ fn handle_trunk_build_mv(
         .stderr(Stdio::piped());
 
     for entry in glob::glob(&format!("{}", glob_target_file.as_path().display()))? {
-        if let Ok(file_name) = entry {
-            log::info!("target_file: {:?}", file_name);
+        let file_name = entry?;
+        // if let Ok(file_name) = entry {
+        log::info!("target_file: {:?}", file_name);
 
-            let file_stem = file_name
-                .file_stem()
-                .ok_or(anyhow!("failed to get file_stem :{file_name:?}"))?
-                .to_str()
-                .ok_or(anyhow!("failed to convert OsStr to str"))?;
+        let file_stem = file_name
+            .file_stem()
+            .ok_or(anyhow!("failed to get file_stem :{file_name:?}"))?
+            .to_str()
+            .ok_or(anyhow!("failed to convert OsStr to str"))?;
 
-            log::info!("write index_html");
-            let mut index_html_file = std::fs::File::create("./index.html")?;
-            index_html_file.write_all(trunk_build_html(file_stem).as_bytes())?;
+        log::info!("write index_html");
+        let mut index_html_file = std::fs::File::create("./index.html")?;
+        index_html_file.write_all(trunk_build_html(file_stem).as_bytes())?;
 
-            log::info!("invoke trunk build");
-            if build_command.spawn()?.wait()?.success() {
-                log::info!("build succeed");
-            } else {
-                log::info!("build failed");
-                return Err(anyhow!("build failed"));
-            }
+        log::info!("invoke trunk build");
+        if build_command.spawn()?.wait()?.success() {
+            log::info!("build succeed");
+        } else {
+            log::info!("build failed");
+            return Err(anyhow!("build failed"));
+        }
 
-            let target_files = {
-                let mut path_buf: PathBuf = PathBuf::from(trunk_dist_dir.clone());
-                path_buf.push(format!("{file_stem}*"));
-                path_buf
-            };
+        let target_files = {
+            let mut path_buf: PathBuf = trunk_dist_dir.to_path_buf();
+            path_buf.push(format!("{file_stem}*"));
+            path_buf
+        };
 
-            log::info!("move generated file");
-            for entry in glob::glob(&format!("{}", target_files.as_path().display()))? {
-                if let Ok(file_name) = entry {
-                    log::info!("mv file:{:?}", file_name);
-                    let mut mv_command = Command::new("mv");
-                    mv_command
-                        .args([
-                            format!("{}", file_name.as_path().display()),
-                            format!("{}/", book_out_dir.as_path().display()),
-                        ])
-                        .spawn()?
-                        .wait()?;
-                }
-            }
+        log::info!("move generated file");
+        for entry in glob::glob(&format!("{}", target_files.as_path().display()))? {
+            let file_name = entry?;
+            log::info!("mv file:{:?}", file_name);
+            let mut mv_command = Command::new("mv");
+            mv_command
+                .args([
+                    format!("{}", file_name.as_path().display()),
+                    format!("{}/", book_out_dir.to_path_buf().display()),
+                ])
+                .spawn()?
+                .wait()?;
         }
     }
     Ok(())
@@ -181,9 +180,10 @@ fn trunk_build_html(name: &str) -> String {
 // take a entire string
 fn replace_component(str: &str) -> String {
     let regex = regex::Regex::new(r#"<component\s*id\s*=\s*"(\w+)""#).unwrap();
-    let res = regex.replace_all(str, {
-        format!(r#"<script type="module">import init from '/$0.js';init('/$0_bg.wasm');</script>\n<div id="$0"></div>"#)
-    });
+    let res = regex.replace_all(
+        str,
+        r#"<script type="module">import init from '/$0.js';init('/$0_bg.wasm');</script>\n<div id="$0"></div>"#,
+    );
     res.into_owned()
 }
 
@@ -193,9 +193,9 @@ mod tests {
 
     #[test]
     fn reg_test() {
-        let mut str = "rec <component id=\"hello\"> rec".to_string();
+        let str = "rec <component id=\"hello\"> rec".to_string();
         // assert!(re.captures_iter(&str).into_iter().next().is_some());
-        let res = replace_component(&mut str);
+        let res = replace_component(&str);
         eprintln!("{}", res);
     }
 }

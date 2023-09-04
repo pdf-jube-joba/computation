@@ -45,7 +45,7 @@ pub fn composition(
             inner_builder
                 .into_iter()
                 .enumerate()
-                .map(|(i, builder)| {
+                .flat_map(|(i, builder)| {
                     vec![
                         basic::move_rights(num - 1),
                         builder,
@@ -57,7 +57,6 @@ pub fn composition(
                         },
                     ]
                 })
-                .flatten()
                 .collect(),
             vec![outer_builder],
         ]

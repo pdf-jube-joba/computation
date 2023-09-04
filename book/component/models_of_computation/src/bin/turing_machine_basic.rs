@@ -8,7 +8,9 @@ fn main() {
         let element = document.create_element("div").unwrap();
         target_element.append_child(&element).unwrap();
 
-        let input = recursive_function_to_turing_machine::compile::num_tape::write(vec![].into());
+        let input = recursive_function_to_turing_machine::compile::num_tape::write(
+            Vec::<usize>::new().into(),
+        );
         let mut builder = recursive_function_to_turing_machine::compile::zero_builder();
         builder.input(input);
 

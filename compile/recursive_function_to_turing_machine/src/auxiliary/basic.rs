@@ -172,7 +172,7 @@ pub fn left_one() -> TuringMachineBuilder {
 
 // y-X[-] を [y]Xx- にする
 pub fn shift_left_to_right_fill(x: Sign) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new(&format!("shift_left_to_right_fill")).unwrap();
+    let mut builder = TuringMachineBuilder::new("shift_left_to_right_fill").unwrap();
     builder
         .init_state(state("start"))
         .accepted_state(vec![state("end")])
@@ -211,7 +211,7 @@ pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
                     format!("-, put_x, {x}, put^2_bar, L"),
                 ],
                 (1..n)
-                    .map(|i| {
+                    .flat_map(|i| {
                         vec![
                             format!(" , put^{i}_b,  , put^{i}_b, L"),
                             format!("1, put^{i}_b,  , put^{i}_1, L"),
@@ -224,7 +224,6 @@ pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
                             format!("-, put^{i}_bar, -, put^{}_bar, L", i + 1),
                         ]
                     })
-                    .flatten()
                     .collect(),
                 vec![
                     format!(" , put^{n}_b,  , put^{n}_b, L"),
@@ -248,7 +247,7 @@ pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
 
 // [-]X-y を -xX[y] にする
 pub fn shift_right_to_left_fill(x: Sign) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new(&format!("shift_right_to_left_fill")).unwrap();
+    let mut builder = TuringMachineBuilder::new("shift_right_to_left_fill").unwrap();
     builder
         .init_state(state("start"))
         .accepted_state(vec![state("end")])
@@ -287,7 +286,7 @@ pub fn shift_right_to_lefts(x: Sign, n: usize) -> TuringMachineBuilder {
                     format!("-, put_x, {x}, put^2_bar, R"),
                 ],
                 (1..n)
-                    .map(|i| {
+                    .flat_map(|i| {
                         vec![
                             format!(" , put^{i}_b,  , put^{i}_b, R"),
                             format!("1, put^{i}_b,  , put^{i}_1, R"),
@@ -300,7 +299,6 @@ pub fn shift_right_to_lefts(x: Sign, n: usize) -> TuringMachineBuilder {
                             format!("-, put^{i}_bar, -, put^{}_bar, R", i + 1),
                         ]
                     })
-                    .flatten()
                     .collect(),
                 vec![
                     format!(" , put^{n}_b,  , put^{n}_b, R"),

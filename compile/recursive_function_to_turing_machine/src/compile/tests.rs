@@ -1,10 +1,10 @@
 use turing_machine::machine::*;
+use utils::number::*;
 
 use crate::compile::projection::projection;
 
 use crate::auxiliary::basic;
 use crate::compile::*;
-use recursive_function::machine::NumberTuple;
 
 fn print_process(machine: &TuringMachineSet) {
     let state_str = machine.now_state().to_string();
@@ -18,10 +18,10 @@ fn tuple_read_write() {
     fn assert_equal(tuple: NumberTuple) {
         let tape = num_tape::write(tuple.clone());
         let result = num_tape::read_right_one(tape);
-        assert_eq!(Ok(tuple), result)
+        assert_eq!(Some(tuple), result)
     }
 
-    assert_equal(vec![].into());
+    assert_equal(Vec::<usize>::new().into());
     assert_equal(vec![0].into());
     assert_equal(vec![1].into());
     assert_equal(vec![2].into());
@@ -32,7 +32,7 @@ fn tuple_read_write() {
 
 fn test_zero() {
     let mut zero_builder = zero_builder();
-    zero_builder.input(num_tape::write(vec![].into()));
+    zero_builder.input(num_tape::write(Vec::<usize>::new().into()));
     let mut machine = zero_builder.build().unwrap();
     loop {
         let _ = machine.step(1);
@@ -42,7 +42,7 @@ fn test_zero() {
         }
     }
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![0].into()));
+    assert_eq!(result, Some(vec![0].into()));
 }
 #[test]
 fn succ_zero() {
@@ -59,7 +59,7 @@ fn succ_zero() {
             }
         }
         let result = num_tape::read_right_one(machine.now_tape());
-        assert_eq!(result, Ok(vec![i + 1].into()))
+        assert_eq!(result, Some(vec![i + 1].into()))
     }
 }
 #[test]
@@ -79,7 +79,7 @@ fn projection_test() {
     }
 
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![1].into()));
+    assert_eq!(result, Some(vec![1].into()));
 
     let mut builder = projection::projection(3, 0);
     let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
@@ -96,7 +96,7 @@ fn projection_test() {
     }
 
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![1].into()));
+    assert_eq!(result, Some(vec![1].into()));
 
     let mut builder = projection::projection(3, 1);
     let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
@@ -113,7 +113,7 @@ fn projection_test() {
     }
 
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![2].into()));
+    assert_eq!(result, Some(vec![2].into()));
 
     let mut builder = projection::projection(3, 2);
     let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
@@ -130,12 +130,12 @@ fn projection_test() {
     }
 
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![3].into()));
+    assert_eq!(result, Some(vec![3].into()));
 }
 #[test]
 fn composition_test() {
     let mut builder = composition::composition(vec![zero_builder()], succ_builder());
-    let input: TapeAsVec = num_tape::write(vec![].into());
+    let input: TapeAsVec = num_tape::write(Vec::<usize>::new().into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -148,7 +148,7 @@ fn composition_test() {
         }
     }
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![1].into()));
+    assert_eq!(result, Some(vec![1].into()));
 
     let mut builder = composition::composition(
         vec![
@@ -172,7 +172,7 @@ fn composition_test() {
         }
     }
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![3].into()));
+    assert_eq!(result, Some(vec![3].into()));
 }
 #[test]
 fn primitive_recursion_test() {
@@ -191,13 +191,13 @@ fn primitive_recursion_test() {
             }
         }
         let result = num_tape::read_right_one(machine.now_tape());
-        assert_eq!(result, Ok(vec![i].into()));
+        assert_eq!(result, Some(vec![i].into()));
     }
 }
 #[test]
 fn mu_recursion_test() {
     let mut builder = mu_recursion::mu_recursion(basic::id());
-    let input = num_tape::write(vec![].into());
+    let input = num_tape::write(Vec::<usize>::new().into());
     let mut machine = builder.input(input).build().unwrap();
 
     loop {
@@ -208,7 +208,7 @@ fn mu_recursion_test() {
     }
 
     let result = num_tape::read_right_one(machine.now_tape());
-    assert_eq!(result, Ok(vec![0].into()));
+    assert_eq!(result, Some(vec![0].into()));
 }
 
 fn add() -> RecursiveFunctions {
@@ -274,7 +274,7 @@ fn zero_from_mul() -> RecursiveFunctions {
 }
 
 fn func_test(fun: &RecursiveFunctions, tests: Vec<(NumberTuple, NumberTuple)>) {
-    let mut builder = compile(&fun);
+    let mut builder = compile(fun);
     for (input, expect) in tests {
         let mut machine = builder.input(num_tape::write(input)).build().unwrap();
         let mut loop_num = 0;
@@ -283,7 +283,7 @@ fn func_test(fun: &RecursiveFunctions, tests: Vec<(NumberTuple, NumberTuple)>) {
             if machine.is_accepted() {
                 break;
             }
-            loop_num = loop_num + 1;
+            loop_num += 1;
             if loop_num > 1000 && loop_num % 100 == 0 {
                 eprint!("{loop_num}:");
                 print_process(&machine);

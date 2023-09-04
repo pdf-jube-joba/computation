@@ -21,7 +21,7 @@ impl TryFrom<&str> for Var {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Environment {
     env: HashMap<Var, Number>,
 }
@@ -35,7 +35,7 @@ impl Environment {
     pub fn get(&self, var: &Var) -> &Number {
         let Environment { env } = &self;
         if let Some(num) = env.get(var) {
-            &num
+            num
         } else {
             &Number(0)
         }
@@ -45,7 +45,7 @@ impl Environment {
         env.insert(var.clone(), num);
     }
     pub fn all_written_var(&self) -> Vec<Var> {
-        let mut vec: Vec<Var> = self.env.keys().into_iter().cloned().collect();
+        let mut vec: Vec<Var> = self.env.keys().cloned().collect();
         vec.sort();
         vec
     }
@@ -57,8 +57,8 @@ impl PartialEq for Environment {
         let Environment { env: env2 } = other;
         let all_written_var: Vec<Var> = {
             let mut vec: Vec<Var> = vec![];
-            vec.extend(env1.keys().into_iter().cloned());
-            vec.extend(env2.keys().into_iter().cloned());
+            vec.extend(env1.keys().cloned());
+            vec.extend(env2.keys().cloned());
             vec
         };
         for var in all_written_var {
@@ -101,13 +101,13 @@ impl InstructionCommand {
                 env.write(var, Number(0));
             }
             InstructionCommand::IncVariable(var) => {
-                env.write(var, env.get(&var).clone().succ());
+                env.write(var, env.get(var).clone().succ());
             }
             InstructionCommand::DecVariable(var) => {
-                env.write(var, env.get(&var).clone().pred());
+                env.write(var, env.get(var).clone().pred());
             }
             InstructionCommand::CopyVariable(var1, var2) => {
-                env.write(var1, env.get(&var2).clone());
+                env.write(var1, env.get(var2).clone());
             }
         }
     }
@@ -130,7 +130,7 @@ impl InstructionCommand {
     pub fn change_var(self, map: &HashMap<Var, Var>) -> Self {
         match self {
             InstructionCommand::InitVariable(var) => {
-                InstructionCommand::InitVariable(change_var(var, &map))
+                InstructionCommand::InitVariable(change_var(var, map))
             }
             InstructionCommand::IncVariable(var) => {
                 InstructionCommand::IncVariable(change_var(var, map))
@@ -197,7 +197,7 @@ impl WhileStatement {
                 WhileStatement::Cont(ControlCommand::WhileNotZero(
                     change_var(var.clone(), map),
                     statements
-                        .into_iter()
+                        .iter()
                         .map(|statement| statement.change_var(map))
                         .collect(),
                 ))
@@ -258,13 +258,13 @@ pub struct WhileLanguage {
 
 impl WhileLanguage {
     pub fn changed_var(&self) -> Vec<Var> {
-        (&self.statements)
+        (self.statements)
             .iter()
             .flat_map(|statement| statement.changed_var())
             .collect()
     }
     pub fn change_var(&self, map: &HashMap<Var, Var>) -> WhileLanguage {
-        (&self.statements)
+        (self.statements)
             .iter()
             .map(|statement| statement.change_var(map))
             .collect::<Vec<_>>()
@@ -278,9 +278,9 @@ impl From<Vec<WhileStatement>> for WhileLanguage {
     }
 }
 
-impl Into<Vec<WhileStatement>> for WhileLanguage {
-    fn into(self) -> Vec<WhileStatement> {
-        self.statements
+impl From<WhileLanguage> for Vec<WhileStatement> {
+    fn from(value: WhileLanguage) -> Self {
+        value.statements
     }
 }
 
@@ -382,9 +382,9 @@ impl FlatWhileLanguage {
     }
 }
 
-impl Into<Vec<FlatWhileStatement>> for FlatWhileLanguage {
-    fn into(self) -> Vec<FlatWhileStatement> {
-        self.statements
+impl From<FlatWhileLanguage> for Vec<FlatWhileStatement> {
+    fn from(value: FlatWhileLanguage) -> Self {
+        value.statements
     }
 }
 
@@ -408,7 +408,7 @@ pub fn flattening(vec: &WhileStatement) -> Vec<FlatWhileStatement> {
 impl From<&WhileStatement> for FlatWhileLanguage {
     fn from(value: &WhileStatement) -> Self {
         FlatWhileLanguage {
-            statements: flattening(&value),
+            statements: flattening(value),
         }
     }
 }
@@ -416,11 +416,7 @@ impl From<&WhileStatement> for FlatWhileLanguage {
 impl From<&WhileLanguage> for FlatWhileLanguage {
     fn from(value: &WhileLanguage) -> Self {
         FlatWhileLanguage {
-            statements: value
-                .statements
-                .iter()
-                .flat_map(|statement| flattening(statement))
-                .collect(),
+            statements: value.statements.iter().flat_map(flattening).collect(),
         }
     }
 }
@@ -474,7 +470,7 @@ fn try_into(vec: &[FlatWhileStatement]) -> Result<Vec<WhileStatement>, ()> {
             return Err(());
         }
     }
-    Ok(statements.into())
+    Ok(statements)
 }
 
 impl TryInto<WhileLanguage> for FlatWhileLanguage {
@@ -520,7 +516,7 @@ impl ProgramProcess {
             index,
             env: _,
         } = self;
-        let mut vec = (&prog.statements).clone();
+        let mut vec = (prog.statements).clone();
         vec.remove(*index)
     }
     pub fn step(&mut self) {

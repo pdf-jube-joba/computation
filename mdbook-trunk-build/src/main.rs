@@ -31,7 +31,7 @@ fn main() {
             .get_one::<String>("renderer")
             .expect("Required argument");
         // this preprocessor supports only html
-        if preprocessor.supports_renderer(&renderer) {
+        if preprocessor.supports_renderer(renderer) {
             process::exit(0);
         } else {
             process::exit(1);

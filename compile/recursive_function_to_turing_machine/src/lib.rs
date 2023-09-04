@@ -22,7 +22,7 @@ fn series_edge_end_only(n: usize) -> Vec<((usize, usize), State)> {
 
 #[cfg(test)]
 fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
-    vec.into_iter().map(|str| sign(str)).collect()
+    vec.into_iter().map(sign).collect()
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {

@@ -19,9 +19,9 @@ impl From<usize> for Number {
     }
 }
 
-impl Into<usize> for Number {
-    fn into(self) -> usize {
-        self.0
+impl From<Number> for usize {
+    fn from(value: Number) -> Self {
+        value.0
     }
 }
 
@@ -32,18 +32,21 @@ impl NumberTuple {
     pub fn len(&self) -> usize {
         self.0.len()
     }
-    pub fn split(self) -> Result<(Number, NumberTuple), ()> {
-        if self.0.len() == 0 {
-            Err(())
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    pub fn split(self) -> Option<(Number, NumberTuple)> {
+        if self.is_empty() {
+            None
         } else {
-            Ok((self.0[0].clone(), NumberTuple(self.0[1..].to_owned())))
+            Some((self.0[0].clone(), NumberTuple(self.0[1..].to_owned())))
         }
     }
-    pub fn index(&self, index: usize) -> Result<&Number, ()> {
+    pub fn index(&self, index: usize) -> Option<&Number> {
         if self.len() <= index {
-            Err(())
+            None
         } else {
-            Ok(&self.0[index])
+            Some(&self.0[index])
         }
     }
 }
@@ -56,6 +59,12 @@ pub fn concat_head(num: Number, NumberTuple(tuple): NumberTuple) -> NumberTuple 
 impl From<Vec<usize>> for NumberTuple {
     fn from(value: Vec<usize>) -> Self {
         NumberTuple(value.into_iter().map(Number::from).collect())
+    }
+}
+
+impl From<Vec<Number>> for NumberTuple {
+    fn from(value: Vec<Number>) -> Self {
+        NumberTuple(value)
     }
 }
 
@@ -85,11 +94,11 @@ impl TryFrom<String> for NumberTuple {
     }
 }
 
-impl Into<String> for NumberTuple {
-    fn into(self) -> String {
+impl From<NumberTuple> for String {
+    fn from(value: NumberTuple) -> Self {
         let mut s = String::new();
         s.push('(');
-        for (i, Number(num)) in self.0.iter().enumerate() {
+        for (i, Number(num)) in value.0.iter().enumerate() {
             if i != 0 {
                 s.push(',');
             }
@@ -100,14 +109,14 @@ impl Into<String> for NumberTuple {
     }
 }
 
-impl Into<Vec<Number>> for NumberTuple {
-    fn into(self) -> Vec<Number> {
-        self.0
+impl From<NumberTuple> for Vec<Number> {
+    fn from(value: NumberTuple) -> Self {
+        value.0
     }
 }
 
-impl Into<Vec<usize>> for NumberTuple {
-    fn into(self) -> Vec<usize> {
-        self.0.into_iter().map(|num| num.into()).collect()
+impl From<NumberTuple> for Vec<usize> {
+    fn from(value: NumberTuple) -> Self {
+        value.0.into_iter().map(|num| num.into()).collect()
     }
 }

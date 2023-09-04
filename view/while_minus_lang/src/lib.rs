@@ -102,13 +102,11 @@ fn control_view(props: &ControlProps) -> Html {
     let ControlProps { on_reset, on_step } = props;
     let on_step = {
         let on_step = on_step.clone();
-        let on_step = move |_| on_step.emit(1);
-        on_step
+        move |_| on_step.emit(1)
     };
     let on_reset = {
         let on_reset = on_reset.clone();
-        let on_reset = move |_| on_reset.emit(());
-        on_reset
+        move |_| on_reset.emit(())
     };
     html! {
         <>
@@ -168,9 +166,7 @@ impl Component for UnConnectedMachineView {
         Self { prog }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let on_step = ctx
-            .link()
-            .callback(|step| UnConnectedMachineMsg::Step(step));
+        let on_step = ctx.link().callback(UnConnectedMachineMsg::Step);
         let on_reset = ctx.link().callback(|_| UnConnectedMachineMsg::Reset);
         html! {
             <>
@@ -216,7 +212,7 @@ impl Component for WhileLangView {
         Self { prog: None }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let on_step = ctx.link().callback(|step| WhileLangMsg::Step(step));
+        let on_step = ctx.link().callback(WhileLangMsg::Step);
         let on_reset = yew::callback::Callback::noop();
         let html = if let Some(ref prog) = self.prog {
             html! {
@@ -232,7 +228,9 @@ impl Component for WhileLangView {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             WhileLangMsg::Step(_) => {
-                self.prog.as_mut().map(|process| process.step());
+                if let Some(process) = self.prog.as_mut() {
+                    process.step()
+                };
                 true
             }
             WhileLangMsg::Change(prog, env) => {
@@ -243,8 +241,9 @@ impl Component for WhileLangView {
     }
 }
 
+#[derive(Default)]
 pub struct CodeView {
-    code: Result<WhileLanguage, ()>,
+    code: Option<WhileLanguage>,
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -260,7 +259,7 @@ impl Component for CodeView {
     type Message = CodeMsg;
     type Properties = CodeProps;
     fn create(_ctx: &yew::Context<Self>) -> Self {
-        Self { code: Err(()) }
+        Self::default()
     }
     fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
         let CodeProps { on_input_code } = ctx.props().clone();
@@ -270,7 +269,7 @@ impl Component for CodeView {
             CodeMsg::Change(str)
         });
         let callback = on_input_code.clone();
-        let onclick = if let Ok(function) = self.code.clone() {
+        let onclick = if let Some(function) = self.code.clone() {
             callback::Callback::from(move |_| callback.emit(function.clone()))
         } else {
             callback::Callback::noop()
@@ -312,9 +311,8 @@ impl Component for WhileLangControlView {
         Self::default()
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let callback: Callback<WhileLanguage> = ctx
-            .link()
-            .callback(|func| WhileLangControlMsg::SetFunction(func));
+        let callback: Callback<WhileLanguage> =
+            ctx.link().callback(WhileLangControlMsg::SetFunction);
         let html = if let Some(prog) = self.prog.clone() {
             let flat_prog: FlatWhileLanguage = (&prog).into();
             html! {

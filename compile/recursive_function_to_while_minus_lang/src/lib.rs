@@ -126,10 +126,7 @@ pub fn compile(func: &RecursiveFunctions) -> WhileLanguage {
         RecursiveFunctions::Composition(comp) => composition(
             comp.parameter_length,
             compile(comp.outer_func.as_ref()),
-            (comp.inner_func.as_ref())
-                .into_iter()
-                .map(compile)
-                .collect(),
+            (comp.inner_func.as_ref()).iter().map(compile).collect(),
         ),
         RecursiveFunctions::PrimitiveRecursion(prim) => {
             let n = &prim.zero_func.parameter_length() + 1;
@@ -148,7 +145,6 @@ pub fn compile(func: &RecursiveFunctions) -> WhileLanguage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     #[test]
     fn add() {
         // let func = RecursiveFunctions::

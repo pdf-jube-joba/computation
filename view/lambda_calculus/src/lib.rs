@@ -15,8 +15,9 @@ fn var_box_view(VarBoxProps { var }: &VarBoxProps) -> Html {
     }
 }
 
+#[derive(Default)]
 pub struct InputParseOnelineView {
-    parse_result: Result<LambdaTerm, ()>,
+    parse_result: Option<LambdaTerm>,
 }
 
 pub enum InputParseOnelineMsg {
@@ -33,9 +34,7 @@ impl Component for InputParseOnelineView {
     type Message = InputParseOnelineMsg;
     type Properties = InputParseOnelineProps;
     fn create(_ctx: &Context<Self>) -> Self {
-        InputParseOnelineView {
-            parse_result: Err(()),
-        }
+        Self::default()
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
         let onchange_input = ctx.link().callback(|e: Event| {
@@ -43,7 +42,7 @@ impl Component for InputParseOnelineView {
             let str = value.value();
             InputParseOnelineMsg::Change(str)
         });
-        let parse_result = if let Ok(term) = &self.parse_result {
+        let parse_result = if let Some(term) = &self.parse_result {
             term.to_string()
         } else {
             "no term found".to_owned()
@@ -63,7 +62,7 @@ impl Component for InputParseOnelineView {
             }
             InputParseOnelineMsg::Ok => {
                 web_sys::console::log_1(&JsValue::from_str("hello"));
-                if let Ok(term) = &self.parse_result {
+                if let Some(term) = &self.parse_result {
                     let InputParseOnelineProps { input_term_call } = ctx.props();
                     input_term_call.emit(term.clone());
                 }
@@ -124,7 +123,7 @@ impl Component for LambdaCalculusView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let callback = ctx.link().callback(|term| LambdaCalculusMsg::Change(term));
+        let callback = ctx.link().callback(LambdaCalculusMsg::Change);
         let term_html = html! {<>{
             if let Some(ref term) = self.term {
                 html!{ <> {term.to_string()} {"is_normal:"} {is_normal(term)} </> }

@@ -165,8 +165,8 @@ fn alpha_eq_rec(
             alpha_eq_rec(term1, term2, &new_corr1, &new_corr2, new_var.next_new())
         }
         (LambdaTerm::Application(term11, term12), LambdaTerm::Application(term21, term22)) => {
-            alpha_eq_rec(&term11, &term21, corr1, corr2, new_var.clone())
-                && alpha_eq_rec(&term12, &term22, corr1, corr2, new_var)
+            alpha_eq_rec(term11, term21, corr1, corr2, new_var.clone())
+                && alpha_eq_rec(term12, term22, corr1, corr2, new_var)
         }
         _ => false,
     }
@@ -224,10 +224,9 @@ pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
 
 pub fn is_beta_redux(term: &LambdaTerm) -> bool {
     match term {
-        LambdaTerm::Application(term, _) => match term.as_ref() {
-            LambdaTerm::Abstraction(_, _) => true,
-            _ => false,
-        },
+        LambdaTerm::Application(term, _) => {
+            matches!(term.as_ref(), LambdaTerm::Abstraction(_, _))
+        }
         _ => false,
     }
 }
@@ -341,16 +340,14 @@ pub mod utils {
 
     pub fn take_n_abs(list: Vec<usize>, term: LambdaTerm) -> LambdaTerm {
         if let Some((head, tail)) = list.split_first() {
-            LambdaTerm::abs(head.clone(), take_n_abs(tail.to_owned(), term))
+            LambdaTerm::abs(*head, take_n_abs(tail.to_owned(), term))
         } else {
             term
         }
     }
 
     pub fn fold_left(list: Vec<LambdaTerm>) -> LambdaTerm {
-        list.into_iter()
-            .reduce(|term1, term2| LambdaTerm::app(term1, term2))
-            .unwrap()
+        list.into_iter().reduce(LambdaTerm::app).unwrap()
     }
 
     pub fn y_combinator() -> LambdaTerm {

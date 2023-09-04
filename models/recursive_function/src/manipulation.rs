@@ -13,7 +13,7 @@ pub struct Proj {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Comp {
     length: usize,
-    inner: Box<Vec<Function>>,
+    inner: Vec<Function>,
     outer: Box<Function>,
 }
 
@@ -42,7 +42,7 @@ pub enum Function {
 fn convert(
     func: Function,
     map: &HashMap<String, RecursiveFunctions>,
-) -> Result<RecursiveFunctions, ()> {
+) -> Result<RecursiveFunctions, String> {
     match func {
         Function::Zero => Ok(RecursiveFunctions::zero()),
         Function::Succ => Ok(RecursiveFunctions::succ()),
@@ -68,7 +68,10 @@ fn convert(
             let muop = convert(*muop, map);
             RecursiveFunctions::muoperator(muop?)
         }
-        Function::Exist(string) => map.get(&string).cloned().ok_or(()),
+        Function::Exist(string) => map
+            .get(&string)
+            .cloned()
+            .ok_or_else(|| format!("not found function name: {string}")),
     }
 }
 
@@ -78,19 +81,23 @@ pub struct FunctionData {
     function: Function,
 }
 
-pub fn parse(str: &str) -> Result<machine::RecursiveFunctions, ()> {
-    let funcs_data: Vec<FunctionData> = serde_json::from_str(str).map_err(|_| ())?;
+pub fn parse(str: &str) -> Result<machine::RecursiveFunctions, String> {
+    let funcs_data: Vec<FunctionData> =
+        serde_json::from_str(str).map_err(|err| format!("{err:?}"))?;
     let mut map: HashMap<String, RecursiveFunctions> = HashMap::new();
     for FunctionData { name, function } in funcs_data {
         let func = convert(function, &map)?;
         map.insert(name, func);
     }
-    map.get("main").cloned().ok_or(())
+    map.get("main")
+        .cloned()
+        .ok_or("main is not found".to_string())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::machine::{interpreter, Number};
+    use crate::machine::interpreter;
+    use utils::number::Number;
 
     use super::*;
     #[test]
@@ -112,7 +119,7 @@ mod tests {
 
         let stru = Function::Comp(Comp {
             length: 1,
-            inner: Box::new(vec![Function::Zero]),
+            inner: vec![Function::Zero],
             outer: Box::new(Function::Zero),
         });
         let json = serde_json::to_string(&stru).unwrap();

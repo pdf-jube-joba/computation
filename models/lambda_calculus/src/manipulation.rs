@@ -3,9 +3,9 @@ pub mod parse {
 
     use crate::machine::LambdaTerm;
 
-    pub fn brackets(str: &str, start: usize) -> Result<usize, ()> {
+    pub fn brackets(str: &str, start: usize) -> Option<usize> {
         if str.len() <= start {
-            return Err(());
+            return None;
         }
         let mut stack = Vec::new();
 
@@ -13,15 +13,13 @@ pub mod parse {
             if character == '(' {
                 stack.push(index);
             } else if character == ')' {
-                if stack.pop().is_none() {
-                    return Err(());
-                };
+                stack.pop()?;
                 if stack.is_empty() {
-                    return Ok(start + index);
+                    return Some(start + index);
                 }
             }
         }
-        return Err(());
+        None
     }
 
     // Some(index) = index -> index <= self.str.len()
@@ -79,34 +77,29 @@ pub mod parse {
         }
     }
 
-    pub fn parse_lambda(str: &str) -> Result<LambdaTerm, ()> {
-        let first_char = if let Some(index) = str.chars().nth(0) {
-            index
-        } else {
-            return Err(());
-        };
+    pub fn parse_lambda(str: &str) -> Option<LambdaTerm> {
+        let first_char = str.chars().next()?;
         if first_char == '\\' {
             if let Some(index) = str.find('.') {
-                let var: usize = str[1..index].parse::<usize>().map_err(|_| ())?;
+                let var: usize = str[1..index].parse::<usize>().ok()?;
                 let term = parse_lambda(&str[index + 1..])?;
-                Ok(LambdaTerm::abs(var, term))
+                Some(LambdaTerm::abs(var, term))
             } else {
-                Err(())
+                None
             }
         } else {
-            let term: Option<LambdaTerm> = SplitWhiteBracket::new(str.trim())
+            SplitWhiteBracket::new(str.trim())
                 .map(|range| {
                     if !str[range.clone()].contains(|char: char| char == '(' || char == ')') {
-                        let u = str[range].parse().map_err(|_| ());
-                        Ok(LambdaTerm::var(u?))
+                        let u: usize = str[range].parse().ok()?;
+                        Some(LambdaTerm::var(u))
                     } else {
                         parse_lambda(&str[range.start + 1..range.end - 1])
                     }
                 })
-                .collect::<Result<Vec<LambdaTerm>, ()>>()?
+                .collect::<Option<Vec<LambdaTerm>>>()?
                 .into_iter()
-                .reduce(LambdaTerm::app);
-            term.ok_or_else(|| ())
+                .reduce(LambdaTerm::app)
         }
     }
 
@@ -115,13 +108,13 @@ pub mod parse {
         #[test]
         fn curly_test() {
             let tests = vec![
-                ("()", 0, Ok(1)),
-                (")", 0, Err(())),
-                ("(", 0, Err(())),
-                ("(())", 0, Ok(3)),
-                ("(()())", 0, Ok(5)),
-                ("(()())", 1, Ok(2)),
-                ("(()())", 3, Ok(4)),
+                ("()", 0, Some(1)),
+                (")", 0, None),
+                ("(", 0, None),
+                ("(())", 0, Some(3)),
+                ("(()())", 0, Some(5)),
+                ("(()())", 1, Some(2)),
+                ("(()())", 3, Some(4)),
             ];
 
             for (str, index, expect) in tests {
@@ -183,37 +176,37 @@ pub mod parse {
         #[test]
         fn parse_test() {
             let tests = vec![
-                ("0", Ok(LambdaTerm::var(0))),
-                ("1", Ok(LambdaTerm::var(1))),
-                ("\\0.0", Ok(LambdaTerm::abs(0, LambdaTerm::var(0)))),
+                ("0", Some(LambdaTerm::var(0))),
+                ("1", Some(LambdaTerm::var(1))),
+                ("\\0.0", Some(LambdaTerm::abs(0, LambdaTerm::var(0)))),
                 (
                     "\\0.\\1.0",
-                    Ok(LambdaTerm::abs(
+                    Some(LambdaTerm::abs(
                         0,
                         LambdaTerm::abs(1, LambdaTerm::Variable(0.into())),
                     )),
                 ),
                 (
                     "0 1",
-                    Ok(LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::var(1))),
+                    Some(LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::var(1))),
                 ),
                 (
                     "(0 1) 2",
-                    Ok(LambdaTerm::app(
+                    Some(LambdaTerm::app(
                         LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::var(1)),
                         LambdaTerm::var(2),
                     )),
                 ),
                 (
                     "\\0.1 2",
-                    Ok(LambdaTerm::abs(
+                    Some(LambdaTerm::abs(
                         0,
                         LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(2)),
                     )),
                 ),
                 (
                     "\\0.(1 2)",
-                    Ok(LambdaTerm::abs(
+                    Some(LambdaTerm::abs(
                         0,
                         LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(2)),
                     )),
