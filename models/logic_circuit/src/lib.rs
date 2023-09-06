@@ -271,8 +271,8 @@ impl CircuitProcess {
 #[derive(Debug, Clone)]
 pub struct ExtensibleLogicCircuit {
     initial_part: LogicCircuit,
-    initial_part_input_len: Range<EdgeNumbering>,
-    initial_part_output_len: Range<EdgeNumbering>,
+    initial_part_input_len: Number,
+    initial_part_output_len: Number,
     extension_part: LogicCircuit,
     extension_part_pre_input_len: Number,
     extension_part_pre_output_len: Number,
@@ -282,6 +282,7 @@ pub struct ExtensibleLogicCircuit {
 
 pub enum ExtensibleLogicCircuitError {
     InitialParInputLabelIndexout,
+    ExtensionPartInputLabelIndexout,
 }
 
 impl ExtensibleLogicCircuit {
@@ -295,19 +296,46 @@ impl ExtensibleLogicCircuit {
         extension_part_post_input_len: Number,
         extension_part_post_output_len: Number,
     ) -> Result<ExtensibleLogicCircuit, ExtensibleLogicCircuitError> {
-        if initial_part.input_label_len < initial_part_input_len {
+        if initial_part_input_len > initial_part.input_label_len {
             return Err(ExtensibleLogicCircuitError::InitialParInputLabelIndexout);
         }
-        if initial_part.output_label_len < initial_part_output_len {
+        if initial_part.output_label_len > initial_part_output_len {
             return Err(ExtensibleLogicCircuitError::InitialParInputLabelIndexout);
         }
-        // if extension_part.input_label_len <
-        unimplemented!()
+        if !(extension_part_pre_input_len <= extension_part_post_input_len
+            && extension_part_post_input_len <= extension_part.input_label_len)
+        {
+            return Err(ExtensibleLogicCircuitError::ExtensionPartInputLabelIndexout);
+        }
+        if !(extension_part_pre_output_len <= extension_part_post_output_len
+            && extension_part_post_output_len <= extension_part.output_label_len)
+        {
+            return Err(ExtensibleLogicCircuitError::ExtensionPartInputLabelIndexout);
+        }
+        Ok(Self {
+            initial_part,
+            initial_part_input_len,
+            initial_part_output_len,
+            extension_part,
+            extension_part_pre_input_len,
+            extension_part_pre_output_len,
+            extension_part_post_input_len,
+            extension_part_post_output_len,
+        })
     }
 }
 
 pub struct ExtensibleCircuitProcess {
     circuit: ExtensibleLogicCircuit,
-    initial_part_state: CircuitState,
-    extension_parts_states: Vec<CircuitState>,
+    initial_parts_state: CircuitState,
+    extension_part_states: Vec<CircuitState>,
+}
+
+impl ExtensibleCircuitProcess {
+    pub fn new(
+        circuit: ExtensibleLogicCircuit,
+        initial_part_state: CircuitState,
+    ) -> Result<ExtensibleCircuitProcess, String> {
+        unimplemented!()
+    }
 }
