@@ -1,3 +1,5 @@
+use std::ops::{Add, AddAssign};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Number(pub usize);
 
@@ -22,6 +24,19 @@ impl From<usize> for Number {
 impl From<Number> for usize {
     fn from(value: Number) -> Self {
         value.0
+    }
+}
+
+impl Add for Number {
+    type Output = Number;
+    fn add(self, rhs: Self) -> Self::Output {
+        Number(self.0 + rhs.0)
+    }
+}
+
+impl AddAssign for Number {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0
     }
 }
 
