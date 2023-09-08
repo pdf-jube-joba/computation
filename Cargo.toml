@@ -3,7 +3,7 @@
 resolver = "2"
 members = [
   "utils",
-  "mdbook-trunk-build",
+  "mdbook/*",
   "models/*",
   "view/*",
   "integration/*",

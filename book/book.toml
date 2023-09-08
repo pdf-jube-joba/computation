@@ -13,12 +13,15 @@ after = ["links"]
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 
-[preprocessor.trunk-build]
+[preprocessor.trunk-build-preprocessor]
+component-name = "component"
+book-out-dir = "./out/book"
+
+[output.trunk-build-renderer]
 component-dir = "./component/"
 trunk-out-dir = "./out/dist"
-temp-out-dir = "./js"
+component-out-dir = "./out/book/html/component"
 book-out-dir = "./out/book"
 
 [output.html]
 additional-css = ["css/turing_machine.css"]
-additional-js = ["js/counter_example.js", "js/counter_example_bg.wasm"]

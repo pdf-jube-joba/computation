@@ -8,7 +8,7 @@ use std::process;
 mod preprocessor;
 
 pub fn make_app() -> Command {
-    Command::new("mdbook-trunk-build")
+    Command::new("mdbook-trunk-build-preprocessor")
         .about("A mdbook preprocessor for embedding wasm component")
         .subcommand(
             Command::new("supports")

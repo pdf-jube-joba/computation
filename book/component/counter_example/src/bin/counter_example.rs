@@ -20,7 +20,7 @@ fn App() -> Html {
 }
 
 fn main() {
-    // let document = gloo::utils::document();
-    // let target_element = document.get_element_by_id("counter_example").unwrap();
-    yew::Renderer::<App>::new().render();
+    let document = gloo::utils::document();
+    let target_element = document.get_element_by_id("counter_example").unwrap();
+    yew::Renderer::<App>::with_root(target_element).render();
 }

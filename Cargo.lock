@@ -1188,7 +1188,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "mdbook-trunk-build"
+name = "mdbook-trunk-build-preprocessor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger",
+ "glob",
+ "log",
+ "mdbook",
+ "pathdiff",
+ "regex",
+ "serde_json",
+]
+
+[[package]]
+name = "mdbook-trunk-build-renderer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
