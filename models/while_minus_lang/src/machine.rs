@@ -73,7 +73,7 @@ impl PartialEq for Environment {
 impl From<Vec<(Var, Number)>> for Environment {
     fn from(value: Vec<(Var, Number)>) -> Self {
         Environment {
-            env: HashMap::from_iter(value.into_iter()),
+            env: HashMap::from_iter(value),
         }
     }
 }
@@ -240,7 +240,7 @@ pub fn eval_statement(statement: &WhileStatement, mut env: Environment) -> Envir
         }
         WhileStatement::Cont(cont) => match cont {
             ControlCommand::WhileNotZero(var, statements) => {
-                while !(*env.get(var) == Number(0)) {
+                while *env.get(var) != Number(0) {
                     for statement in statements {
                         env = eval_statement(statement, env);
                     }

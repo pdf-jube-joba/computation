@@ -52,7 +52,7 @@ impl LambdaTerm {
             }
             LambdaTerm::Application(term1, term2) => {
                 let mut set: HashSet<Var> = term1.free_variable();
-                set.extend(term2.free_variable().into_iter());
+                set.extend(term2.free_variable());
                 set
             }
         }
@@ -64,7 +64,7 @@ impl LambdaTerm {
             LambdaTerm::Abstraction(var, _) => vec![var.clone()].into_iter().collect(),
             LambdaTerm::Application(term1, term2) => {
                 let mut set: HashSet<Var> = term1.bounded_variable();
-                set.extend(term2.bounded_variable().into_iter());
+                set.extend(term2.bounded_variable());
                 set
             }
         }
@@ -175,10 +175,10 @@ fn alpha_eq_rec(
 pub fn alpha_eq(term1: &LambdaTerm, term2: &LambdaTerm) -> bool {
     let new_var = {
         let mut set = HashSet::new();
-        set.extend(term1.free_variable().into_iter());
-        set.extend(term1.bounded_variable().into_iter());
-        set.extend(term2.free_variable().into_iter());
-        set.extend(term2.bounded_variable().into_iter());
+        set.extend(term1.free_variable());
+        set.extend(term1.bounded_variable());
+        set.extend(term2.free_variable());
+        set.extend(term2.bounded_variable());
         new_var(&set)
     };
     alpha_eq_rec(term1, term2, &HashMap::new(), &HashMap::new(), new_var)
@@ -201,8 +201,8 @@ pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
             } else {
                 let new_var = {
                     let mut set = HashSet::new();
-                    set.extend(term1.free_variable().into_iter());
-                    set.extend(term2.free_variable().into_iter());
+                    set.extend(term1.free_variable());
+                    set.extend(term2.free_variable());
                     new_var(&set)
                 };
                 LambdaTerm::Abstraction(

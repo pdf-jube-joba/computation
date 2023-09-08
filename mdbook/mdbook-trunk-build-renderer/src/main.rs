@@ -26,14 +26,12 @@ fn run() -> Result<(), anyhow::Error> {
     let ctx = RenderContext::from_json(&mut stdin).unwrap();
     let config = handle_config(&ctx.config)?;
     handle_trunk(config)
-
 }
 
 struct RendererConfig {
     component_dir: PathBuf,
     trunk_out_dir: PathBuf,
     component_out_dir: PathBuf,
-    book_out_dir: PathBuf,
 }
 
 fn handle_config(config: &Config) -> Result<RendererConfig, anyhow::Error> {
@@ -85,21 +83,18 @@ fn handle_config(config: &Config) -> Result<RendererConfig, anyhow::Error> {
 
     let component_dir = relpath_to_abspath_from_table("component-dir")?;
     let trunk_out_dir = relpath_to_abspath_from_table("trunk-out-dir")?;
-    let book_out_dir = relpath_to_abspath_from_table("book-out-dir")?;
     let component_out_dir = relpath_to_abspath_from_table("component-out-dir")?;
 
     log::info!(
-        "reading enviroment succeed: \n component_dir {:?} \n component_out_dir {:?} \n trunk_out_dir {:?} \n book_out_dir {:?} \n",
+        "reading enviroment succeed: \n component_dir {:?} \n component_out_dir {:?} \n trunk_out_dir {:?} \n ",
         component_dir,
         component_out_dir,
         trunk_out_dir,
-        book_out_dir,
     );
     Ok(RendererConfig {
         component_dir,
         trunk_out_dir,
         component_out_dir,
-        book_out_dir,
     })
 }
 
@@ -108,8 +103,7 @@ fn handle_trunk(config: RendererConfig) -> Result<(), anyhow::Error> {
     let RendererConfig {
         trunk_out_dir,
         component_out_dir,
-        component_dir,
-        book_out_dir: _,
+        component_dir
     } = config;
 
     for entry in std::fs::read_dir(component_dir)? {
@@ -165,10 +159,7 @@ fn handle_one_file(
 
     log::info!("invoke trunk build");
     let mut build_command = Command::new("trunk");
-    let result = build_command
-        .arg("build")
-        .spawn()?
-        .wait()?;
+    let result = build_command.arg("build").spawn()?.wait()?;
     if result.success() {
         log::info!("build succeed");
     } else {

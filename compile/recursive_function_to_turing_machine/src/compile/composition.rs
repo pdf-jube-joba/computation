@@ -36,7 +36,6 @@ pub fn composition(
     outer_builder: TuringMachineBuilder,
 ) -> TuringMachineBuilder {
     let num = inner_builder.len();
-    if num == 0 {}
     let graph = GraphOfBuilder {
         name: "compose".to_string(),
         init_state: state("start"),

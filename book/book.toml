@@ -21,7 +21,6 @@ book-out-dir = "./out/book"
 component-dir = "./component/"
 trunk-out-dir = "./out/dist"
 component-out-dir = "./out/book/html/component"
-book-out-dir = "./out/book"
 
 [output.html]
 additional-css = ["css/turing_machine.css"]
