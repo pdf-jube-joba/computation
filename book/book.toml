@@ -6,7 +6,7 @@ src = "src"
 title = "computations"
 
 [build]
-build-dir = "../out/book"
+build-dir = "./out/book"
 
 [preprocessor.katex]
 after = ["links"]
@@ -14,9 +14,11 @@ inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 
 [preprocessor.trunk-build]
-component-dir = "../component/"
-trunk-out-dir = "../out/dist"
-book-out-dir = "../out/book"
+component-dir = "./component/"
+trunk-out-dir = "./out/dist"
+temp-out-dir = "./js"
+book-out-dir = "./out/book"
 
 [output.html]
 additional-css = ["css/turing_machine.css"]
+additional-js = ["js/counter_example.js", "js/counter_example_bg.wasm"]

@@ -44,26 +44,39 @@ impl mdbook::preprocess::Preprocessor for Preprocessor {
         ctx: &PreprocessorContext,
         mut book: Book,
     ) -> Result<Book, mdbook::errors::Error> {
+        let config = get_config(&ctx.config)?;
+
         book.for_each_mut(|item| {
             if let BookItem::Chapter(chapter) = item {
-                chapter.content = replace_component(&chapter.content);
+                chapter.content = replace_component(
+                    &chapter.content,
+                );
             }
         });
 
-        handle_trunk_build(&ctx.config)?;
+        handle_trunk_build(config)?;
         log::info!("trunk build ended");
         Ok(book)
     }
 }
 
-// build anything in component/*/src/bin/*.rs
-fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
+struct PreprocessorConfig {
+    book_src_dir: PathBuf,
+    trunk_dist_dir: PathBuf,
+    book_out_dir: PathBuf,
+    component_dir: PathBuf,
+    temp_out_dir: PathBuf,
+    // temp_rel_to_book: PathBuf,
+}
+
+// get a config
+fn get_config(config: &Config) -> Result<PreprocessorConfig, anyhow::Error> {
     let table = config
         .get("preprocessor.trunk-build")
         .ok_or(anyhow!("not found [preprocessor.trunk-build] field"))?
         .as_table()
         .ok_or(anyhow!("not found table under [preprocessor.trunk-build]"))?;
-    let book_src_directory: PathBuf = {
+    let book_src_dir: PathBuf = {
         let cur = std::env::current_dir()?;
         cur.canonicalize()?
     };
@@ -74,7 +87,7 @@ fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
             .ok_or(anyhow!("failed to get key [trunk-out-dir] in table"))?
             .as_str()
             .unwrap(); // path is written in toml file so it must succeed
-        let mut path_buf = PathBuf::from(&book_src_directory);
+        let mut path_buf = PathBuf::from(&book_src_dir);
         path_buf.extend(&PathBuf::from(relative_dir));
         path_buf.canonicalize().map_err(|err| err.into())
     };
@@ -82,18 +95,43 @@ fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
     let trunk_dist_dir = relpath_to_abspath_from_table("trunk-out-dir")?;
     let book_out_dir = relpath_to_abspath_from_table("book-out-dir")?;
     let component_dir = relpath_to_abspath_from_table("component-dir")?;
+    let temp_out_dir = relpath_to_abspath_from_table("temp-out-dir")?;
+    // let temp_rel_to_book = pathdiff::diff_paths(book_out_dir.clone(), temp_out_dir.clone())
+        // .ok_or(anyhow!("fail on getting relative path"))?;
 
     log::info!(
-        "reading enviroment succeed: {:?} {:?} {:?} {:?}",
-        book_src_directory,
+        "reading enviroment succeed: \n book_src_directory {:?} \n trunk_dist_dir {:?} \n book_out_dir {:?} \n component_dir {:?} \n temp_out_dir {:?}",
+        book_src_dir,
         trunk_dist_dir,
         book_out_dir,
-        component_dir
+        component_dir,
+        temp_out_dir,
+        // temp_rel_to_book,
     );
+    Ok(PreprocessorConfig {
+        book_src_dir,
+        trunk_dist_dir,
+        book_out_dir,
+        component_dir,
+        temp_out_dir,
+        // temp_rel_to_book,
+    })
+}
+
+// build anything in component/*/src/bin/*.rs
+fn handle_trunk_build(config: PreprocessorConfig) -> Result<(), anyhow::Error> {
+    let PreprocessorConfig {
+        book_src_dir,
+        trunk_dist_dir,
+        book_out_dir,
+        component_dir,
+        temp_out_dir,
+        // temp_rel_to_book,
+    } = config;
 
     for entry in std::fs::read_dir(component_dir)? {
         let target_dir = entry?.path();
-        handle_trunk_build_mv(target_dir, &trunk_dist_dir, &book_out_dir)?;
+        handle_trunk_build_mv(target_dir, &trunk_dist_dir, &temp_out_dir)?;
     }
     Ok(())
 }
@@ -101,7 +139,7 @@ fn handle_trunk_build(config: &Config) -> Result<(), anyhow::Error> {
 fn handle_trunk_build_mv(
     target_dir: PathBuf,
     trunk_dist_dir: &Path,
-    book_out_dir: &Path,
+    temp_out_dir: &Path,
 ) -> Result<(), anyhow::Error> {
     log::info!("trunk build directory: {:?}", target_dir);
 
@@ -151,12 +189,12 @@ fn handle_trunk_build_mv(
         log::info!("move generated file");
         for entry in glob::glob(&format!("{}", target_files.as_path().display()))? {
             let file_name = entry?;
-            log::info!("mv file:{:?}", file_name);
-            let mut mv_command = Command::new("mv");
+            log::info!("cp file:{:?}", file_name);
+            let mut mv_command = Command::new("cp");
             mv_command
                 .args([
                     format!("{}", file_name.as_path().display()),
-                    format!("{}/", book_out_dir.to_path_buf().display()),
+                    format!("{}/", temp_out_dir.to_path_buf().display()),
                 ])
                 .spawn()?
                 .wait()?;
@@ -179,10 +217,12 @@ fn trunk_build_html(name: &str) -> String {
 
 // take a entire string
 fn replace_component(str: &str) -> String {
-    let regex = regex::Regex::new(r#"<component\s*id\s*=\s*"(\w+)""#).unwrap();
+    let regex = regex::Regex::new(r#"<component\s*id\s*=\s*"(?<id>\w+)">"#).unwrap();
     let res = regex.replace_all(
         str,
-        r#"<script type="module">import init from '/$0.js';init('/$0_bg.wasm');</script>\n<div id="$0"></div>"#,
+        // hard code where js and wasm located
+        r#"<script type="module">import init from '/js/$id.js';init('/js/${id}_bg.wasm');</script>
+        <div id="$id"></div>"#,
     );
     res.into_owned()
 }

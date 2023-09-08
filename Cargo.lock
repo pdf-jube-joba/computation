@@ -299,6 +299,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
 
 [[package]]
+name = "counter_example"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "wasm-bindgen",
+ "web-sys",
+ "yew",
+]
+
+[[package]]
 name = "counter_machine"
 version = "0.1.0"
 
@@ -1187,6 +1197,7 @@ dependencies = [
  "glob",
  "log",
  "mdbook",
+ "pathdiff",
  "regex",
  "serde_json",
 ]
@@ -1248,6 +1259,8 @@ dependencies = [
  "recursive_function_view",
  "turing_machine",
  "turing_machine_view",
+ "wasm-bindgen",
+ "web-sys",
  "while_minus_lang",
  "while_minus_lang_view",
  "yew",
@@ -1364,6 +1377,12 @@ dependencies = [
  "smallvec",
  "windows-targets",
 ]
+
+[[package]]
+name = "pathdiff"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 
 [[package]]
 name = "percent-encoding"
