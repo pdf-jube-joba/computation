@@ -376,30 +376,3 @@ impl ExtensibleLogicCircuit {
         })
     }
 }
-
-// pub enum CompositionError {
-//     InvalidPostPre,
-// }
-
-// pub fn composition(ext1: ExtensibleLogicCircuit, ext2: ExtensibleLogicCircuit) -> Result<ExtensibleLogicCircuit,    CompositionError> {
-//     let EdgeAssign { pre: pre1_in, keep: keep1_in, post: post1_in } = ext1.input_conn_num;
-//     let EdgeAssign { pre: pre1_out, keep: keep1_out, post: post1_out } = ext1.output_conn_num;
-//     let EdgeAssign { pre: pre2_in, keep: keep2_in, post: post2_in } = ext2.input_conn_num;
-//     let EdgeAssign { pre: pre2_out, keep: keep2_out, post: post2_out } = ext2.output_conn_num;
-//     if
-//     todo!()
-// }
-
-// pub struct ExtensibleCircuitProcess {
-//     initial_part: ExtensibleLogicCircuit,
-//     iterate_part: ExtensibleLogicCircuit,
-// }
-
-// impl ExtensibleCircuitProcess {
-//     pub fn new(
-//         circuit: ExtensibleLogicCircuit,
-//         initial_part_state: CircuitState,
-//     ) -> Result<ExtensibleCircuitProcess, String> {
-//         unimplemented!()
-//     }
-// }
