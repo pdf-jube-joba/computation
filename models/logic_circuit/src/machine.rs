@@ -181,7 +181,7 @@ impl LogicCircuit {
             edges,
             in_edges,
             labeling,
-            edgenumbering_appered: edgenumbering_appered.into_iter().map(|(k, v)| k).collect(),
+            edgenumbering_appered: edgenumbering_appered.into_keys().collect(),
         })
     }
     pub fn appered_edge(&self) -> HashSet<EdgeNumbering> {
