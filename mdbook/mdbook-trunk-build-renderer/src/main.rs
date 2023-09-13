@@ -103,7 +103,7 @@ fn handle_trunk(config: RendererConfig) -> Result<(), anyhow::Error> {
     let RendererConfig {
         trunk_out_dir,
         component_out_dir,
-        component_dir
+        component_dir,
     } = config;
 
     for entry in std::fs::read_dir(component_dir)? {

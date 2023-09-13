@@ -53,7 +53,6 @@ fn handle_preprocessing(preprocessor: &dyn Preprocessor) -> Result<(), Error> {
     Ok(())
 }
 
-
 #[derive(Debug, Default)]
 pub struct MdPreprocessor {}
 
@@ -138,4 +137,3 @@ mod tests {
         eprintln!("{}", res);
     }
 }
-
