@@ -10,10 +10,13 @@ pub enum LogicLabel {
     And,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InOutNumbering(String);
+
 #[derive(Debug, Clone)]
 pub enum InOutLabel {
-    Input(Number),
-    Output(Number),
+    Input(InOutNumbering),
+    Output(InOutNumbering),
 }
 
 #[derive(Debug, Clone)]
@@ -76,131 +79,6 @@ impl Bool {
 pub struct EdgeNumbering(String);
 
 #[derive(Debug, Clone)]
-pub struct LogicCircuit {
-    input_label_len: Number,
-    output_label_len: Number,
-    edges: HashSet<(EdgeNumbering, EdgeNumbering)>,
-    in_edges: HashMap<EdgeNumbering, HashSet<EdgeNumbering>>,
-    labeling: HashMap<EdgeNumbering, Label>,
-    edgenumbering_appered: HashSet<EdgeNumbering>,
-}
-
-#[derive(Debug, Clone)]
-pub enum LogicCircuitError {
-    EdgeIsOutofRange,
-    LabelIsOutofRage,
-    InValidLabel(EdgeNumbering, Label),
-    LabelLacked(EdgeNumbering),
-    LackOfMiddleInputNumber(Number),
-    LackOfMiddleOutputNumber(Number),
-}
-
-impl LogicCircuit {
-    pub fn new(
-        edges: HashSet<(EdgeNumbering, EdgeNumbering)>,
-        labeling: HashMap<EdgeNumbering, Label>,
-    ) -> Result<LogicCircuit, LogicCircuitError> {
-        let mut input_label_appered = vec![];
-        let mut output_label_appered = vec![];
-        let mut edgenumbering_appered = HashMap::<EdgeNumbering, bool>::new();
-        let mut in_edges: HashMap<EdgeNumbering, HashSet<_>> = HashMap::new();
-        let mut out_edge_number: HashMap<EdgeNumbering, Number> = HashMap::new();
-        for (num1, num2) in edges.iter() {
-            if let Some(num) = out_edge_number.get_mut(num1) {
-                *num += 1.into();
-            } else {
-                out_edge_number.insert(num1.clone(), 0.into());
-            }
-            if let Some(set) = in_edges.get_mut(num2) {
-                set.insert(num1.clone());
-            } else {
-                in_edges.insert(num1.clone(), HashSet::new());
-            }
-            edgenumbering_appered.insert(num1.clone(), false);
-            edgenumbering_appered.insert(num2.clone(), false);
-        }
-
-        for (edgenum, label) in labeling.iter() {
-            let edge_in_num = in_edges
-                .get(edgenum)
-                .ok_or(LogicCircuitError::InValidLabel(
-                    edgenum.clone(),
-                    label.clone(),
-                ))?
-                .clone()
-                .len()
-                .into();
-            let edge_out_num = out_edge_number
-                .get(edgenum)
-                .ok_or(LogicCircuitError::InValidLabel(
-                    edgenum.clone(),
-                    label.clone(),
-                ))?
-                .clone();
-            if !label.is_valid_inout_number(edge_in_num, edge_out_num) {
-                return Err(LogicCircuitError::InValidLabel(
-                    edgenum.clone(),
-                    label.clone(),
-                ));
-            }
-            edgenumbering_appered.insert(edgenum.clone(), true);
-            match label {
-                Label::InOut(InOutLabel::Input(num)) => {
-                    input_label_appered.push(num.clone());
-                }
-                Label::InOut(InOutLabel::Output(num)) => {
-                    output_label_appered.push(num.clone());
-                }
-                _ => {}
-            }
-        }
-
-        for (k, v) in edgenumbering_appered.iter() {
-            if !*v {
-                return Err(LogicCircuitError::LabelLacked(k.clone()));
-            }
-        }
-
-        input_label_appered.sort();
-        for (index, num) in input_label_appered.iter().enumerate() {
-            if Number(index) != *num {
-                return Err(LogicCircuitError::LackOfMiddleInputNumber(index.into()));
-            }
-        }
-
-        output_label_appered.sort();
-        for (index, num) in output_label_appered.iter().enumerate() {
-            if Number(index) != *num {
-                return Err(LogicCircuitError::LackOfMiddleOutputNumber(index.into()));
-            }
-        }
-
-        Ok(LogicCircuit {
-            input_label_len: input_label_appered.len().into(),
-            output_label_len: output_label_appered.len().into(),
-            edges,
-            in_edges,
-            labeling,
-            edgenumbering_appered: edgenumbering_appered.into_keys().collect(),
-        })
-    }
-    pub fn appered_edge(&self) -> HashSet<EdgeNumbering> {
-        self.edgenumbering_appered.clone()
-    }
-    pub fn get_label(&self, index: &EdgeNumbering) -> &Label {
-        self.labeling.get(index).unwrap()
-    }
-    pub fn get_in_edges(&self, index: &EdgeNumbering) -> Vec<EdgeNumbering> {
-        self.in_edges
-            .get(index)
-            .cloned()
-            .unwrap()
-            .into_iter()
-            .collect()
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct CircuitState {
     state: HashMap<EdgeNumbering, Bool>,
 }
@@ -220,159 +98,133 @@ impl CircuitState {
     }
 }
 
-pub struct CircuitProcess {
-    circuit: LogicCircuit,
-    state: CircuitState,
-}
-
-pub enum CircuitStateError {
-    Error,
-}
-
-impl CircuitProcess {
-    pub fn new(
-        circuit: LogicCircuit,
-        init_state: CircuitState,
-    ) -> Result<CircuitProcess, CircuitStateError> {
-        if circuit.appered_edge() != init_state.appered() {
-            return Err(CircuitStateError::Error);
-        }
-        Ok(Self {
-            circuit,
-            state: init_state,
-        })
-    }
-    pub fn step(&mut self) {
-        let mut new_state = HashMap::<EdgeNumbering, Bool>::new();
-        for index in self.circuit.appered_edge() {
-            let label = self.circuit.get_label(&index);
-            let in_vertexes: Vec<_> = self.circuit.get_in_edges(&index);
-            match label {
-                Label::Logic(LogicLabel::Not) => {
-                    let input_num: EdgeNumbering = in_vertexes[0].clone();
-                    let input: Bool = self.state.get_index(&input_num).unwrap();
-                    new_state.insert(index, input.neg());
-                }
-                Label::Logic(LogicLabel::And) => {
-                    let input_num1: EdgeNumbering = in_vertexes[0].clone();
-                    let input_num2: EdgeNumbering = in_vertexes[1].clone();
-                    let input1: Bool = self.state.get_index(&input_num1).unwrap();
-                    let input2: Bool = self.state.get_index(&input_num2).unwrap();
-                    new_state.insert(index, input1.and(input2));
-                }
-                Label::Logic(LogicLabel::Or) => {
-                    let input_num1: EdgeNumbering = in_vertexes[0].clone();
-                    let input_num2: EdgeNumbering = in_vertexes[1].clone();
-                    let input1: Bool = self.state.get_index(&input_num1).unwrap();
-                    let input2: Bool = self.state.get_index(&input_num2).unwrap();
-                    new_state.insert(index, input1.or(input2));
-                }
-                Label::InOut(InOutLabel::Input(_)) => {}
-                Label::InOut(InOutLabel::Output(_)) => {
-                    let input_num: EdgeNumbering = in_vertexes[0].clone();
-                    let input: Bool = self.state.get_index(&input_num).unwrap();
-                    new_state.insert(index, input.clone());
-                }
-                Label::Control(ControlLabel::Branch) => {
-                    let input_num: EdgeNumbering = in_vertexes[0].clone();
-                    let input: Bool = self.state.get_index(&input_num).unwrap();
-                    new_state.insert(index, input.clone());
-                }
-            }
-        }
-        self.state = new_state.into();
-    }
+#[derive(Debug, Clone)]
+pub struct FiniteLogicCircuit {
+    in_edges: HashMap<EdgeNumbering, HashSet<EdgeNumbering>>,
+    label_and_initial_state: HashMap<EdgeNumbering, (Label, Option<Bool>)>,
 }
 
 #[derive(Debug, Clone)]
-pub struct InOutLackedCircuitState {
-    state: Vec<Option<Bool>>,
+pub enum LogicCircuitError {
+    InValidLabelAndInOutNum(EdgeNumbering, Label),
+    InValidLabelAndInitState(EdgeNumbering),
+    LabelLacked(EdgeNumbering),
+}
+
+impl FiniteLogicCircuit {
+    pub fn new(
+        edges: HashSet<(EdgeNumbering, EdgeNumbering)>,
+        label_and_initial_state: HashMap<EdgeNumbering, (Label, Option<Bool>)>,
+    ) -> Result<FiniteLogicCircuit, LogicCircuitError> {
+        let mut edge_appered = HashMap::<EdgeNumbering, bool>::new();
+        let mut in_edges: HashMap<EdgeNumbering, HashSet<_>> = HashMap::new();
+        let mut out_edge_number: HashMap<EdgeNumbering, Number> = HashMap::new();
+        for (num1, num2) in edges.iter() {
+            if let Some(num) = out_edge_number.get_mut(num1) {
+                *num += 1.into();
+            } else {
+                out_edge_number.insert(num1.clone(), 0.into());
+            }
+            if let Some(set) = in_edges.get_mut(num2) {
+                set.insert(num1.clone());
+            } else {
+                in_edges.insert(num1.clone(), HashSet::new());
+            }
+            edge_appered.insert(num1.clone(), false);
+            edge_appered.insert(num2.clone(), false);
+        }
+
+        for (edgenum, (label, state)) in label_and_initial_state.iter() {
+            let edge_in_num = in_edges
+                .get(edgenum)
+                .ok_or(LogicCircuitError::InValidLabelAndInOutNum(
+                    edgenum.clone(),
+                    label.clone(),
+                ))?
+                .clone()
+                .len()
+                .into();
+            let edge_out_num = out_edge_number
+                .get(edgenum)
+                .ok_or(LogicCircuitError::InValidLabelAndInOutNum(
+                    edgenum.clone(),
+                    label.clone(),
+                ))?
+                .clone();
+            if !label.is_valid_inout_number(edge_in_num, edge_out_num) {
+                return Err(LogicCircuitError::InValidLabelAndInOutNum(
+                    edgenum.clone(),
+                    label.clone(),
+                ));
+            }
+            edge_appered.insert(edgenum.clone(), true);
+            match (label, state) {
+                (Label::InOut(InOutLabel::Input(_)), None)
+                | (Label::InOut(InOutLabel::Output(_)), None) 
+                | (_, Some(_)) => {
+                }
+                _ => {
+                    return Err(LogicCircuitError::InValidLabelAndInitState(edgenum.clone()))
+                }
+            }
+        }
+
+        for (k, v) in edge_appered.iter() {
+            if !*v {
+                return Err(LogicCircuitError::LabelLacked(k.clone()));
+            }
+        }
+
+        Ok(FiniteLogicCircuit {
+            in_edges,
+            label_and_initial_state,
+        })
+    }
+    pub fn appered_edge(&self) -> HashSet<EdgeNumbering> {
+        self.label_and_initial_state.keys().cloned().collect()
+    }
+    pub fn get_label(&self, index: &EdgeNumbering) -> Option<&Label> {
+        self.label_and_initial_state.get(index).map(|(v, _)| v)
+    }
+    pub fn get_in_edges(&self, index: &EdgeNumbering) -> Vec<EdgeNumbering> {
+        self.in_edges
+            .get(index)
+            .cloned()
+            .unwrap()
+            .into_iter()
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct EdgeAssign {
-    max_len: Number,
-    assign: Vec<Vec<Number>>,
+    in_out_1: HashSet<(EdgeNumbering, EdgeNumbering)>,
 }
 
-impl EdgeAssign {
-    pub fn new(max_len: Number, assign: Vec<Vec<Number>>) -> Option<EdgeAssign> {
-        let assign_len = assign.len();
-        let mut sets: HashSet<_> = HashSet::new();
-        for i in 0..assign_len {
-            sets.extend(&assign[i]);
-            for j in i + 1..assign_len {
-                if assign[i].iter().any(|elm| assign[j].contains(elm)) {
-                    return None;
-                }
-            }
-        }
-        for i in 0..max_len.clone().into() {
-            if !sets.contains::<Number>(&i.into()) {
-                return None;
-            }
-        }
-        Some(Self { max_len, assign })
-    }
-    pub fn max_len(&self) -> Number {
-        self.max_len.clone()
-    }
+#[derive(Debug, Clone)]
+pub struct Composition {
+    left: ExtensibleLogicCircuit,
+    left_to_right: EdgeAssign,
+    right_to_left: EdgeAssign,
+    right: ExtensibleLogicCircuit,
+}
+
+#[derive(Debug, Clone)]
+pub struct Iteration {
+    iter: ExtensibleLogicCircuit,
+    pre_to_post: EdgeAssign,
+    post_to_pre: EdgeAssign,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExtensibleLogicCircuitKind {
+    FiniteCircuit(Box<FiniteLogicCircuit>),
+    Composition(Box<Composition>),
+    Iteration(Box<Iteration>),
 }
 
 #[derive(Debug, Clone)]
 pub struct ExtensibleLogicCircuit {
-    logic_circuit: LogicCircuit,
-    input_assign: EdgeAssign,
-    output_assign: EdgeAssign,
-    initial_state: InOutLackedCircuitState,
-}
-
-pub enum ExtensibleLogicCircuitError {
-    InputLabelIndexout,
-    OutputLabelIndexout,
-    LengthOfStateIsDiff,
-    LabelAndInitStateDiff,
-}
-
-impl ExtensibleLogicCircuit {
-    pub fn new(
-        logic_circuit: LogicCircuit,
-        input_assign: EdgeAssign,
-        output_assign: EdgeAssign,
-        initial_state: InOutLackedCircuitState,
-    ) -> Result<ExtensibleLogicCircuit, ExtensibleLogicCircuitError> {
-        if logic_circuit.input_label_len != input_assign.max_len() {
-            return Err(ExtensibleLogicCircuitError::InputLabelIndexout);
-        }
-        if logic_circuit.output_label_len != output_assign.max_len() {
-            return Err(ExtensibleLogicCircuitError::OutputLabelIndexout);
-        }
-
-        let iter1 = &logic_circuit.labeling;
-        let iter2 = &initial_state.state;
-
-        if iter1.len() != iter2.len() {
-            return Err(ExtensibleLogicCircuitError::LengthOfStateIsDiff);
-        }
-
-        for ((_, label), maybe_bool) in iter1.iter().zip(iter2) {
-            match (label, maybe_bool) {
-                (Label::InOut(_), None)
-                | (Label::Logic(_), Some(_))
-                | (Label::Control(_), Some(_)) => {
-                    continue;
-                }
-                _ => {
-                    return Err(ExtensibleLogicCircuitError::LabelAndInitStateDiff);
-                }
-            }
-        }
-
-        Ok(Self {
-            logic_circuit,
-            input_assign,
-            output_assign,
-            initial_state,
-        })
-    }
+    name: String,
+    circuit: ExtensibleLogicCircuitKind,
 }
