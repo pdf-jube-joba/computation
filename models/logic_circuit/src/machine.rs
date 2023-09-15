@@ -194,6 +194,14 @@ impl FiniteLogicCircuit {
             .into_iter()
             .collect()
     }
+    pub fn get_initial_state(&self, index: &EdgeNumbering) -> Option<Bool> {
+        let op = self.label_and_initial_state.get(index).map(|(label, bool)| bool.clone());
+        if let Some(Some(bool)) = op {
+            Some(bool)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -227,4 +235,43 @@ pub enum ExtensibleLogicCircuitKind {
 pub struct ExtensibleLogicCircuit {
     name: String,
     circuit: ExtensibleLogicCircuitKind,
+}
+
+#[derive(Debug, Clone)]
+pub struct FiniteLogicCircuitState {
+    state: HashMap<EdgeNumbering, Bool>,
+}
+
+pub struct CompositionState {
+    left_state: HashMap<EdgeNumbering, Bool>,
+    right_state: HashMap<EdgeNumbering, Bool>,
+}
+
+pub struct IterationState {
+    iter_state: Vec<HashMap<EdgeNumbering, Bool>>,
+}
+
+pub enum ExtensibleLogicCircuitState {
+    FiniteCircuit(FiniteLogicCircuitState),
+    Composition(CompositionState),
+    Iteration(IterationState),
+}
+
+pub struct CircuitProcess {
+    circuit: ExtensibleLogicCircuit,
+    state: ExtensibleLogicCircuitState,
+}
+
+impl CircuitProcess {
+    pub fn from_circuit_and_input(
+        ExtensibleLogicCircuit { name, circuit }: ExtensibleLogicCircuit,
+        input: HashMap<InOutNumbering, Bool>,
+    ) -> Self {
+        match circuit {
+            ExtensibleLogicCircuitKind::FiniteCircuit(fin) => {
+                let fin_state = *fin.
+            }
+        }
+        unimplemented!()
+    }
 }
