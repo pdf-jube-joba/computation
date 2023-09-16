@@ -1,248 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::Neg;
-
 use utils::number::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum LogicLabel {
-    Not,
-    Or,
-    And,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum InOutLabel {
-    Input,
-    Output,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ControlLabel {
-    Branch,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Label {
-    Logic(LogicLabel),
-    InOut(InOutLabel),
-    Control(ControlLabel),
-}
-
-impl Label {
-    pub fn not() -> Self {
-        Label::Logic(LogicLabel::Not)
-    }
-    pub fn and() -> Self {
-        Label::Logic(LogicLabel::And)
-    }
-    pub fn or() -> Self {
-        Label::Logic(LogicLabel::Or)
-    }
-    pub fn branch() -> Self {
-        Label::Control(ControlLabel::Branch)
-    }
-    pub fn input() -> Self {
-        Label::InOut(InOutLabel::Input)
-    }
-    pub fn output() -> Self {
-        Label::InOut(InOutLabel::Output)
-    }
-    pub fn is_valid_inout_number(&self, input_num: Number, output_num: Number) -> bool {
-        match self {
-            Label::Logic(LogicLabel::Not) => input_num == 1.into() && output_num == 1.into(),
-            Label::Logic(LogicLabel::And) => input_num == 2.into() && output_num == 1.into(),
-            Label::Logic(LogicLabel::Or) => input_num == 2.into() && output_num == 1.into(),
-            Label::InOut(InOutLabel::Input) => input_num == 0.into() && output_num == 1.into(),
-            Label::InOut(InOutLabel::Output) => input_num == 1.into() && output_num == 0.into(),
-            Label::Control(ControlLabel::Branch) => input_num == 1.into(),
-        }
-    }
-    pub fn next(&self, vec: Vec<Bool>) -> Option<Bool> {
-        match self {
-            Label::Logic(LogicLabel::Not) => {
-                if vec.len() == 1 {
-                    Some(vec[0].clone().neg())
-                } else {
-                    None
-                }
-            }
-            Label::Logic(LogicLabel::And) => {
-                if vec.len() == 2 {
-                    Some({
-                        let b1 = vec[0].clone();
-                        let b2 = vec[1].clone();
-                        b1.and(b2)
-                    })
-                } else {
-                    None
-                }
-            }
-            Label::Logic(LogicLabel::Or) => {
-                if vec.len() == 2 {
-                    Some({
-                        let b1 = vec[0].clone();
-                        let b2 = vec[1].clone();
-                        b1.or(b2)
-                    })
-                } else {
-                    None
-                }
-            }
-            Label::Control(ControlLabel::Branch) => {
-                if vec.len() == 1 {
-                    Some(vec[0].clone())
-                } else {
-                    None
-                }
-            }
-            Label::InOut(InOutLabel::Input) => None,
-            Label::InOut(InOutLabel::Output) => {
-                if vec.len() == 1 {
-                    Some(vec[0].clone())
-                } else {
-                    None
-                }
-            }
-        }
-    }
-    pub fn is_inlabel(&self) -> bool {
-        matches!(self, Label::InOut(InOutLabel::Input))
-    }
-    pub fn is_outlabel(&self) -> bool {
-        matches!(self, Label::InOut(InOutLabel::Output))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Bool {
-    True,
-    False,
-}
-
-impl Neg for Bool {
-    type Output = Bool;
-    fn neg(self) -> Self::Output {
-        match self {
-            Bool::True => Bool::False,
-            Bool::False => Bool::True,
-        }
-    }
-}
-
-impl Bool {
-    pub fn and(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::True, Bool::True) => Bool::True,
-            _ => Bool::False,
-        }
-    }
-    pub fn or(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::False, Bool::False) => Bool::False,
-            _ => Bool::True,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VertexNumbering(String);
-
-impl From<&str> for VertexNumbering {
-    fn from(value: &str) -> Self {
-        VertexNumbering(value.to_owned())
-    }
-}
-
-impl From<String> for VertexNumbering {
-    fn from(value: String) -> Self {
-        VertexNumbering(value)
-    }
-}
-
-impl From<&VertexNumbering> for String {
-    fn from(value: &VertexNumbering) -> Self {
-        value.0.to_owned()
-    }
-}
-
-impl ToString for VertexNumbering {
-    fn to_string(&self) -> String {
-        self.0.to_owned()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct CircuitState {
-    state: HashMap<VertexNumbering, Bool>,
-}
-
-impl<T> From<T> for CircuitState
-where
-    T: IntoIterator<Item = (VertexNumbering, Bool)>,
-{
-    fn from(value: T) -> Self {
-        Self {
-            state: value.into_iter().collect(),
-        }
-    }
-}
-
-impl CircuitState {
-    fn appered(&self) -> HashSet<VertexNumbering> {
-        self.state.keys().cloned().collect()
-    }
-    fn get_index(&self, index: &VertexNumbering) -> Option<Bool> {
-        self.state.get(index).cloned()
-    }
-    fn get_mut_index(&mut self, index: &VertexNumbering) -> Option<&mut Bool> {
-        self.state.get_mut(index)
-    }
-    fn update_with_input_state(&mut self, input: InputState) -> Option<()> {
-        for (v, b) in input.0 {
-            self.state.insert(v, b);
-        }
-        Some(())
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct InputState(HashMap<VertexNumbering, Bool>);
-
-impl InputState {
-    pub fn appered(&self) -> HashSet<VertexNumbering> {
-        self.0.keys().cloned().collect()
-    }
-    pub fn insert(&mut self, index: VertexNumbering, bool: Bool) {
-        self.0.insert(index, bool);
-    }
-    pub fn get_index(&self, index: &VertexNumbering) -> Option<Bool> {
-        self.0.get(index).cloned()
-    }
-    pub fn get_mut_index(&mut self, index: &VertexNumbering) -> Option<&mut Bool> {
-        self.0.get_mut(index)
-    }
-    pub fn extend(&mut self, other: InputState) {
-        self.0.extend(other.0);
-    }
-}
-
-impl<T> From<T> for InputState
-where
-    T: IntoIterator<Item = (VertexNumbering, Bool)>,
-{
-    fn from(value: T) -> Self {
-        InputState(value.into_iter().collect())
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct OutputState(HashMap<VertexNumbering, Bool>);
-
-impl OutputState {
-    pub fn appered(&self) -> HashSet<VertexNumbering> {
-        self.0.keys().cloned().collect()
-    }
-}
+pub mod circuit_components;
+use circuit_components::*;
 
 #[derive(Debug, Clone)]
 pub struct FiniteLogicCircuit {
@@ -462,13 +222,13 @@ impl FiniteCircuitProcess {
     pub fn output_from_label(&self, outputlabel: VertexNumbering) -> Option<Bool> {
         self.state.get_index(&outputlabel)
     }
-    pub fn output(&self) -> HashMap<VertexNumbering, Bool> {
+    pub fn output(&self) -> OutputState {
         self.circuit
             .appered_vertex_with_label()
             .into_iter()
             .filter_map(|(v, l)| if l.is_outlabel() { Some(v) } else { None })
             .map(|v| (v.clone(), self.state.get_index(&v).unwrap()))
-            .collect()
+            .into()
     }
     pub fn next(&mut self) {
         let mut next_state = HashMap::new();
@@ -503,27 +263,48 @@ pub struct CompositionCircuitProcess {
     right: CircuitProcess,
 }
 
+const LEFT_START: &str = "left-";
+const RIGHT_START: &str = "right-";
+
 pub fn left_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumbering> {
     let left_start = "left-";
-    if vertex.0.starts_with(left_start) {
-        Some(vertex.0.split_at(left_start.len()).1.into())
+    if vertex.to_string().starts_with(left_start) {
+        Some(vertex.to_string().split_at(left_start.len()).1.into())
     } else {
         None
     }
 }
 
+pub fn name_to_left_name(vertex: &VertexNumbering) -> VertexNumbering {
+    format!("left-{}", vertex.to_string()).into()
+}
+
 pub fn right_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumbering> {
     let right_start = "right-";
-    if vertex.0.starts_with(right_start) {
-        Some(vertex.0.split_at(right_start.len()).1.into())
+    if vertex.to_string().starts_with(right_start) {
+        Some(vertex.to_string().split_at(right_start.len()).1.into())
     } else {
         None
     }
+}
+
+pub fn name_to_right_name(vertex: &VertexNumbering) -> VertexNumbering {
+    format!("right-{}", vertex.to_string()).into()
 }
 
 impl CompositionCircuitProcess {
     pub fn new() -> Self {
         unimplemented!()
+    }
+    pub fn output(&self) -> OutputState {
+        let mut map = HashMap::new();
+        for (vertex, bool) in self.left.output().iterate() {
+            map.insert(name_to_left_name(&vertex), bool);
+        }
+        for (vertex, bool) in self.right.output().iterate() {
+            map.insert(name_to_right_name(&vertex), bool);
+        }
+        map.into()
     }
     pub fn output_of_vertex(&self, output_vertex: &VertexNumbering) -> Option<Bool> {
         if let Some(l_v) = left_name_conv_to_name(output_vertex) {
@@ -538,7 +319,7 @@ impl CompositionCircuitProcess {
         let left_input_state: InputState = {
             let mut left_input_state: InputState = input_state
                 .clone()
-                .0
+                .iterate()
                 .into_iter()
                 .flat_map(|(v, b)| left_name_conv_to_name(&v).map(|v| (v, b)))
                 .into();
@@ -559,7 +340,7 @@ impl CompositionCircuitProcess {
         let right_input_state: InputState = {
             let mut right_input_state: InputState = input_state
                 .clone()
-                .0
+                .iterate()
                 .into_iter()
                 .flat_map(|(v, b)| right_name_conv_to_name(&v).map(|v| (v, b)))
                 .into();
@@ -589,7 +370,8 @@ pub struct IterationCircuitProcess {
 }
 
 pub fn iter_name_conv_to_name(v: &VertexNumbering) -> Option<(Number, VertexNumbering)> {
-    let v: Vec<_> = v.0.split('-').collect();
+    let str = v.to_string();
+    let v: Vec<_> = str.split('-').collect();
     if v.len() != 2 {
         return None;
     }
@@ -598,9 +380,30 @@ pub fn iter_name_conv_to_name(v: &VertexNumbering) -> Option<(Number, VertexNumb
     Some((num, vertex))
 }
 
+pub fn name_to_iter_name(n: Number, v: &VertexNumbering) -> VertexNumbering {
+    format!("{}-{}", n.to_string(), v.to_string()).into()
+}
+
 impl IterationCircuitProcess {
     pub fn new() {
         unimplemented!()
+    }
+    pub fn output(&self) -> OutputState {
+        let mut map = HashMap::new();
+        for (num, output) in self
+            .process
+            .iter()
+            .map(|process| process.output())
+            .enumerate()
+        {
+            map.extend(
+                output
+                    .iterate()
+                    .iter()
+                    .map(|(vertex, bool)| (name_to_iter_name(num.into(), vertex), bool.clone())),
+            );
+        }
+        map.into()
     }
     pub fn output_of_vertex(&self, output_vertex: &VertexNumbering) -> Option<Bool> {
         let (num, vertex) = iter_name_conv_to_name(output_vertex)?;
@@ -627,15 +430,36 @@ impl IterationCircuitProcess {
 
             let mut new_input_states: Vec<InputState> = vec![HashMap::new().into(); max];
 
-            for (num, vertex, bool) in input_state.0.iter().flat_map(|(v, b)| {
-                iter_name_conv_to_name(v).map(|(num, vertex)| (num, vertex, b.clone()))
+            for (num, vertex, bool) in input_state.iterate().into_iter().flat_map(|(v, b)| {
+                iter_name_conv_to_name(&v).map(|(num, vertex)| (num, vertex, b.clone()))
             }) {
                 new_input_states[num.0].insert(vertex, bool);
             }
 
+            for (num, process) in self.process.iter().enumerate() {
+                if 0 < num {
+                    for (v1, v2) in self.post_to_pre.in_out.iter() {
+                        let bool = if let Some(bool) = process.output_of_vertex(v1) {
+                            bool
+                        } else {
+                            Bool::False
+                        };
+                        new_input_states[num - 1].insert(v2.clone(), bool);
+                    }
+                }
+                for (v1, v2) in self.pre_to_post.in_out.iter() {
+                    let bool = if let Some(bool) = process.output_of_vertex(v1) {
+                        bool
+                    } else {
+                        Bool::False
+                    };
+                    new_input_states[num + 1].insert(v2.clone(), bool);
+                }
+            }
+
             new_input_states
         };
-        None
+        unimplemented!()
     }
 }
 
@@ -646,6 +470,12 @@ pub enum CircuitProcess {
 }
 
 impl CircuitProcess {
+    pub fn output(&self) -> OutputState {
+        match self {
+            CircuitProcess::Finite(process) => process.output(),
+            _ => unimplemented!(),
+        }
+    }
     pub fn output_of_vertex(&self, output_vertex: &VertexNumbering) -> Option<Bool> {
         unimplemented!()
     }

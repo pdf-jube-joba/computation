@@ -27,6 +27,12 @@ impl From<Number> for usize {
     }
 }
 
+impl ToString for Number {
+    fn to_string(&self) -> String {
+        self.0.to_string()
+    }
+}
+
 impl Add for Number {
     type Output = Number;
     fn add(self, rhs: Self) -> Self::Output {
