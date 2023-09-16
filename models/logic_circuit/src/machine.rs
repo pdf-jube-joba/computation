@@ -1,188 +1,12 @@
+use core::prelude::v1;
 use std::collections::{HashMap, HashSet};
 use utils::number::*;
 
 pub mod circuit_components;
 use circuit_components::*;
 
-#[derive(Debug, Clone)]
-pub struct FiniteLogicCircuit {
-    in_edges: HashMap<VertexNumbering, HashSet<VertexNumbering>>,
-    label_and_initial_state: HashMap<VertexNumbering, (Label, Option<Bool>)>,
-}
-
-#[derive(Debug, Clone)]
-pub enum LogicCircuitError {
-    InValidLabelAndInOutNum(VertexNumbering, Label),
-    InValidLabelAndInitState(VertexNumbering),
-    LabelLacked(VertexNumbering),
-}
-
-impl FiniteLogicCircuit {
-    pub fn new(
-        edges: HashSet<(VertexNumbering, VertexNumbering)>,
-        label_and_initial_state: HashMap<VertexNumbering, (Label, Option<Bool>)>,
-    ) -> Result<FiniteLogicCircuit, LogicCircuitError> {
-        // 計算量やばいけどめんどくさい
-        let mut all_vertex = HashSet::<VertexNumbering>::new();
-        edges.iter().for_each(|(v1, v2)| {
-            all_vertex.extend(vec![v1.clone(), v2.clone()]);
-        });
-        label_and_initial_state.keys().for_each(|v| {
-            all_vertex.insert(v.clone());
-        });
-
-        let mut edge_appered: HashMap<VertexNumbering, bool> =
-            all_vertex.iter().map(|v| (v.clone(), false)).collect();
-        let mut in_edges: HashMap<VertexNumbering, HashSet<_>> = all_vertex
-            .iter()
-            .map(|v| (v.clone(), HashSet::new()))
-            .collect();
-        let mut out_edge_number: HashMap<VertexNumbering, Number> =
-            all_vertex.iter().map(|v| (v.clone(), 0.into())).collect();
-        for (num1, num2) in edges.iter() {
-            let num = out_edge_number.get_mut(num1).unwrap();
-            *num += 1.into();
-            let in_set = in_edges.get_mut(num2).unwrap();
-            in_set.insert(num1.clone());
-            edge_appered.insert(num1.clone(), false);
-            edge_appered.insert(num2.clone(), false);
-        }
-
-        for (edgenum, (label, state)) in label_and_initial_state.iter() {
-            let edge_in_num = in_edges
-                .get(edgenum)
-                .ok_or(LogicCircuitError::InValidLabelAndInOutNum(
-                    edgenum.clone(),
-                    label.clone(),
-                ))?
-                .clone()
-                .len()
-                .into();
-            let edge_out_num = out_edge_number
-                .get(edgenum)
-                .ok_or(LogicCircuitError::InValidLabelAndInOutNum(
-                    edgenum.clone(),
-                    label.clone(),
-                ))?
-                .clone();
-            if !label.is_valid_inout_number(edge_in_num, edge_out_num) {
-                return Err(LogicCircuitError::InValidLabelAndInOutNum(
-                    edgenum.clone(),
-                    label.clone(),
-                ));
-            }
-            edge_appered.insert(edgenum.clone(), true);
-            match (label, state) {
-                (Label::InOut(InOutLabel::Input), None)
-                | (Label::InOut(InOutLabel::Output), None)
-                | (_, Some(_)) => {}
-                _ => return Err(LogicCircuitError::InValidLabelAndInitState(edgenum.clone())),
-            }
-        }
-
-        for (k, v) in edge_appered.iter() {
-            if !*v {
-                return Err(LogicCircuitError::LabelLacked(k.clone()));
-            }
-        }
-
-        Ok(FiniteLogicCircuit {
-            in_edges,
-            label_and_initial_state,
-        })
-    }
-    pub fn appered_vertex(&self) -> HashSet<VertexNumbering> {
-        self.label_and_initial_state.keys().cloned().collect()
-    }
-    pub fn appered_vertex_with_label(&self) -> HashSet<(VertexNumbering, Label)> {
-        self.label_and_initial_state
-            .iter()
-            .map(|(v, (l, _))| (v.clone(), l.clone()))
-            .collect()
-    }
-    pub fn get_label(&self, index: &VertexNumbering) -> Option<&Label> {
-        self.label_and_initial_state.get(index).map(|(v, _)| v)
-    }
-    pub fn get_in_edges(&self, index: &VertexNumbering) -> Vec<VertexNumbering> {
-        self.in_edges
-            .get(index)
-            .cloned()
-            .unwrap()
-            .into_iter()
-            .collect()
-    }
-    pub fn get_initial_state(&self, index: &VertexNumbering) -> Option<Bool> {
-        let op = self
-            .label_and_initial_state
-            .get(index)
-            .map(|(label, bool)| bool.clone());
-        if let Some(Some(bool)) = op {
-            Some(bool)
-        } else {
-            None
-        }
-    }
-    pub fn get_edge_from_label(&self, label: &Label) -> Option<VertexNumbering> {
-        self.label_and_initial_state
-            .iter()
-            .find_map(|(edgenum, (label_edge, _))| {
-                if *label == *label_edge {
-                    Some(edgenum.clone())
-                } else {
-                    None
-                }
-            })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EdgeAssign {
-    in_out: HashSet<(VertexNumbering, VertexNumbering)>,
-}
-
-impl EdgeAssign {
-    fn new<T>(value: T) -> Self
-    where
-        T: IntoIterator<Item = (VertexNumbering, VertexNumbering)>,
-    {
-        EdgeAssign {
-            in_out: value.into_iter().collect(),
-        }
-    }
-    fn get_out_from_in(&self, v: VertexNumbering) -> HashSet<VertexNumbering> {
-        self.in_out
-            .iter()
-            .flat_map(|(v1, v2)| if *v2 == v { Some(v1.clone()) } else { None })
-            .collect()
-    }
-}
-
-// この論理回路の InOut(str) には外側からは
-// InOut(format!("left-{str}")) や InOut(format!("right-{str}")) でアクセスする。
-#[derive(Debug, Clone)]
-pub struct CompositionCircuit {
-    left: ExtensibleLogicCircuit,
-    left_to_right: EdgeAssign,
-    right_to_left: EdgeAssign,
-    right: ExtensibleLogicCircuit,
-}
-
-// この論理回路の InOut(str) には外側からは
-// InOut(format!("{n}-{str}")) でアクセスする。
-// ただし n は初期から何番目かを指定する整数
-#[derive(Debug, Clone)]
-pub struct IterationCircuit {
-    iter: ExtensibleLogicCircuit,
-    pre_to_post: EdgeAssign,
-    post_to_pre: EdgeAssign,
-}
-
-#[derive(Debug, Clone)]
-pub enum ExtensibleLogicCircuit {
-    FiniteCircuit(Box<FiniteLogicCircuit>),
-    Composition(Box<CompositionCircuit>),
-    Iteration(Box<IterationCircuit>),
-}
+pub mod logic_circuit;
+use logic_circuit::*;
 
 pub struct FiniteCircuitProcess {
     circuit: FiniteLogicCircuit,
@@ -195,7 +19,7 @@ impl FiniteCircuitProcess {
         input_state: InputState,
     ) -> Option<Self> {
         let mut state = HashMap::new();
-        for (v, (l, s)) in circuit.label_and_initial_state.iter() {
+        for (v, l, s) in circuit.iterate_as_set() {
             if let Some(b) = s {
                 state.insert(v.clone(), b.clone());
             } else if l.is_inlabel() {
@@ -267,29 +91,27 @@ const LEFT_START: &str = "left-";
 const RIGHT_START: &str = "right-";
 
 pub fn left_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumbering> {
-    let left_start = "left-";
-    if vertex.to_string().starts_with(left_start) {
-        Some(vertex.to_string().split_at(left_start.len()).1.into())
+    if vertex.to_string().starts_with(LEFT_START) {
+        Some(vertex.to_string().split_at(LEFT_START.len()).1.into())
     } else {
         None
     }
 }
 
 pub fn name_to_left_name(vertex: &VertexNumbering) -> VertexNumbering {
-    format!("left-{}", vertex.to_string()).into()
+    format!("{LEFT_START}{}", vertex.to_string()).into()
 }
 
 pub fn right_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumbering> {
-    let right_start = "right-";
-    if vertex.to_string().starts_with(right_start) {
-        Some(vertex.to_string().split_at(right_start.len()).1.into())
+    if vertex.to_string().starts_with(RIGHT_START) {
+        Some(vertex.to_string().split_at(RIGHT_START.len()).1.into())
     } else {
         None
     }
 }
 
 pub fn name_to_right_name(vertex: &VertexNumbering) -> VertexNumbering {
-    format!("right-{}", vertex.to_string()).into()
+    format!("{RIGHT_START}{}", vertex.to_string()).into()
 }
 
 impl CompositionCircuitProcess {
@@ -325,12 +147,16 @@ impl CompositionCircuitProcess {
                 .into();
             let left_input_from_right: InputState = {
                 self.right_to_left
-                    .in_out
-                    .iter()
-                    .map(|(l_v, r_v)| {
-                        let from_r_v: Bool = self.left.output_of_vertex(&r_v).unwrap();
-                        (l_v.clone(), from_r_v)
-                    })
+                    .iterate()
+                    .map(
+                        |Edge {
+                             from: r_v,
+                             into: l_v,
+                         }| {
+                            let b: Bool = self.left.output_of_vertex(&r_v).unwrap();
+                            (l_v.clone(), b)
+                        },
+                    )
                     .into()
             };
             left_input_state.extend(left_input_from_right);
@@ -346,12 +172,16 @@ impl CompositionCircuitProcess {
                 .into();
             let right_input_from_left: InputState = {
                 self.left_to_right
-                    .in_out
-                    .iter()
-                    .map(|(r_v, l_v)| {
-                        let from_r_v: Bool = self.right.output_of_vertex(&r_v).unwrap();
-                        (l_v.clone(), from_r_v)
-                    })
+                    .iterate()
+                    .map(
+                        |Edge {
+                             from: l_v,
+                             into: r_v,
+                         }| {
+                            let from_r_v: Bool = self.right.output_of_vertex(&r_v).unwrap();
+                            (l_v.clone(), from_r_v)
+                        },
+                    )
                     .into()
             };
             right_input_state.extend(right_input_from_left);
@@ -438,7 +268,7 @@ impl IterationCircuitProcess {
 
             for (num, process) in self.process.iter().enumerate() {
                 if 0 < num {
-                    for (v1, v2) in self.post_to_pre.in_out.iter() {
+                    for Edge { from: v1, into: v2 } in self.post_to_pre.iterate() {
                         let bool = if let Some(bool) = process.output_of_vertex(v1) {
                             bool
                         } else {
@@ -447,7 +277,7 @@ impl IterationCircuitProcess {
                         new_input_states[num - 1].insert(v2.clone(), bool);
                     }
                 }
-                for (v1, v2) in self.pre_to_post.in_out.iter() {
+                for Edge { from: v1, into: v2 } in self.pre_to_post.iterate() {
                     let bool = if let Some(bool) = process.output_of_vertex(v1) {
                         bool
                     } else {
