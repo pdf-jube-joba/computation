@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Number(pub usize);
 
 impl Number {
