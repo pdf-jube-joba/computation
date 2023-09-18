@@ -192,6 +192,21 @@ pub struct CompositionCircuit {
     right: ExtensibleLogicCircuit,
 }
 
+impl CompositionCircuit {
+    pub fn left(&self) -> ExtensibleLogicCircuit {
+        self.left.clone()
+    }
+    pub fn right(&self) -> ExtensibleLogicCircuit {
+        self.right.clone()
+    }
+    pub fn left_to_right_edge(&self) -> EdgeAssign {
+        self.left_to_right.clone()
+    }
+    pub fn right_to_left_edge(&self) -> EdgeAssign {
+        self.right_to_left.clone()
+    }
+}
+
 // この論理回路の InOut(str) には外側からは
 // InOut(format!("{n}-{str}")) でアクセスする。
 // ただし n は初期から何番目かを指定する整数
@@ -200,6 +215,18 @@ pub struct IterationCircuit {
     iter: ExtensibleLogicCircuit,
     pre_to_post: EdgeAssign,
     post_to_pre: EdgeAssign,
+}
+
+impl IterationCircuit {
+    pub fn iter(&self) -> ExtensibleLogicCircuit {
+        self.iter.clone()
+    }
+    pub fn pre_to_post_edge(&self) -> EdgeAssign {
+        self.pre_to_post.clone()
+    }
+    pub fn post_to_pre(&self) -> EdgeAssign {
+        self.post_to_pre.clone()
+    }
 }
 
 #[derive(Debug, Clone)]

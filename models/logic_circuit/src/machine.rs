@@ -1,4 +1,3 @@
-use core::prelude::v1;
 use std::collections::{HashMap, HashSet};
 use utils::number::*;
 
@@ -8,13 +7,14 @@ use circuit_components::*;
 pub mod logic_circuit;
 use logic_circuit::*;
 
+#[derive(Debug, Clone)]
 pub struct FiniteCircuitProcess {
     circuit: FiniteLogicCircuit,
     state: CircuitState,
 }
 
 impl FiniteCircuitProcess {
-    pub fn from_initial_state_and_input(
+    pub fn from_circuit_and_input(
         circuit: FiniteLogicCircuit,
         input_state: InputState,
     ) -> Option<Self> {
@@ -23,7 +23,7 @@ impl FiniteCircuitProcess {
             if let Some(b) = s {
                 state.insert(v.clone(), b.clone());
             } else if l.is_inlabel() {
-                let b = input_state.get_index(v)?;
+                let b = input_state.get_index(v);
                 state.insert(v.clone(), b.clone());
             } else {
                 state.insert(v.clone(), Bool::False);
@@ -34,7 +34,10 @@ impl FiniteCircuitProcess {
             state: state.into(),
         })
     }
-    pub fn new(circuit: FiniteLogicCircuit, state: CircuitState) -> Option<Self> {
+    pub fn from_circuit_and_state(
+        circuit: FiniteLogicCircuit,
+        state: CircuitState,
+    ) -> Option<Self> {
         let appered_circuit = circuit.appered_vertex();
         let appered_state = state.appered();
         if appered_circuit == appered_state {
@@ -43,8 +46,8 @@ impl FiniteCircuitProcess {
             None
         }
     }
-    pub fn output_from_label(&self, outputlabel: VertexNumbering) -> Option<Bool> {
-        self.state.get_index(&outputlabel)
+    pub fn output_of_vertex(&self, outputlabel: &VertexNumbering) -> Option<Bool> {
+        self.state.get_index(outputlabel)
     }
     pub fn output(&self) -> OutputState {
         self.circuit
@@ -74,12 +77,9 @@ impl FiniteCircuitProcess {
         }
         self.state = next_state.into();
     }
-    pub fn next_with_input(&mut self, input_state: InputState) -> Option<()> {
-        self.state.update_with_input_state(input_state);
-        Some(())
-    }
 }
 
+#[derive(Debug, Clone)]
 pub struct CompositionCircuitProcess {
     left: CircuitProcess,
     left_to_right: EdgeAssign,
@@ -87,36 +87,57 @@ pub struct CompositionCircuitProcess {
     right: CircuitProcess,
 }
 
-const LEFT_START: &str = "left-";
-const RIGHT_START: &str = "right-";
-
-pub fn left_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumbering> {
-    if vertex.to_string().starts_with(LEFT_START) {
-        Some(vertex.to_string().split_at(LEFT_START.len()).1.into())
-    } else {
-        None
-    }
-}
-
-pub fn name_to_left_name(vertex: &VertexNumbering) -> VertexNumbering {
-    format!("{LEFT_START}{}", vertex.to_string()).into()
-}
-
-pub fn right_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumbering> {
-    if vertex.to_string().starts_with(RIGHT_START) {
-        Some(vertex.to_string().split_at(RIGHT_START.len()).1.into())
-    } else {
-        None
-    }
-}
-
-pub fn name_to_right_name(vertex: &VertexNumbering) -> VertexNumbering {
-    format!("{RIGHT_START}{}", vertex.to_string()).into()
-}
-
 impl CompositionCircuitProcess {
-    pub fn new() -> Self {
-        unimplemented!()
+    pub fn from_circuit(circuit: CompositionCircuit) -> Option<Self> {
+        Some(Self {
+            left: CircuitProcess::from_circuit(circuit.left())?,
+            left_to_right: circuit.left_to_right_edge(),
+            right_to_left: circuit.right_to_left_edge(),
+            right: CircuitProcess::from_circuit(circuit.right())?,
+        })
+    }
+    pub fn set_input(&mut self, input_state: &InputState) {
+        let left_input_state: InputState = {
+            let mut left_input_state: InputState = input_state.retrieve_left();
+            let left_input_from_right: InputState = {
+                self.right_to_left
+                    .iterate()
+                    .map(
+                        |Edge {
+                             from: r_v,
+                             into: l_v,
+                         }| {
+                            let b: Bool = self.left.output_of_vertex(r_v).unwrap();
+                            (l_v.clone(), b)
+                        },
+                    )
+                    .into()
+            };
+            left_input_state.extend(left_input_from_right);
+            left_input_state
+        };
+
+        let right_input_state: InputState = {
+            let mut right_input_state: InputState = input_state.retrieve_right();
+            let right_input_from_left: InputState = {
+                self.left_to_right
+                    .iterate()
+                    .map(
+                        |Edge {
+                             from: l_v,
+                             into: r_v,
+                         }| {
+                            let from_r_v: Bool = self.right.output_of_vertex(&r_v).unwrap();
+                            (l_v.clone(), from_r_v)
+                        },
+                    )
+                    .into()
+            };
+            right_input_state.extend(right_input_from_left);
+            right_input_state
+        };
+        self.left.set_input(left_input_state);
+        self.right.set_input(right_input_state);   
     }
     pub fn output(&self) -> OutputState {
         let mut map = HashMap::new();
@@ -137,86 +158,77 @@ impl CompositionCircuitProcess {
             None
         }
     }
-    pub fn next_with_input(&mut self, input_state: InputState) -> Option<()> {
-        let left_input_state: InputState = {
-            let mut left_input_state: InputState = input_state
-                .clone()
-                .iterate()
-                .into_iter()
-                .flat_map(|(v, b)| left_name_conv_to_name(&v).map(|v| (v, b)))
-                .into();
-            let left_input_from_right: InputState = {
-                self.right_to_left
-                    .iterate()
-                    .map(
-                        |Edge {
-                             from: r_v,
-                             into: l_v,
-                         }| {
-                            let b: Bool = self.left.output_of_vertex(&r_v).unwrap();
-                            (l_v.clone(), b)
-                        },
-                    )
-                    .into()
-            };
-            left_input_state.extend(left_input_from_right);
-            left_input_state
-        };
-
-        let right_input_state: InputState = {
-            let mut right_input_state: InputState = input_state
-                .clone()
-                .iterate()
-                .into_iter()
-                .flat_map(|(v, b)| right_name_conv_to_name(&v).map(|v| (v, b)))
-                .into();
-            let right_input_from_left: InputState = {
-                self.left_to_right
-                    .iterate()
-                    .map(
-                        |Edge {
-                             from: l_v,
-                             into: r_v,
-                         }| {
-                            let from_r_v: Bool = self.right.output_of_vertex(&r_v).unwrap();
-                            (l_v.clone(), from_r_v)
-                        },
-                    )
-                    .into()
-            };
-            right_input_state.extend(right_input_from_left);
-            right_input_state
-        };
-        self.left.next_with_input(left_input_state);
-        self.right.next_with_input(right_input_state);
-        Some(())
-    }
 }
 
+#[derive(Debug, Clone)]
 pub struct IterationCircuitProcess {
+    init_process: CircuitProcess,
     process: Vec<CircuitProcess>,
     pre_to_post: EdgeAssign,
     post_to_pre: EdgeAssign,
 }
 
-pub fn iter_name_conv_to_name(v: &VertexNumbering) -> Option<(Number, VertexNumbering)> {
-    let str = v.to_string();
-    let v: Vec<_> = str.split('-').collect();
-    if v.len() != 2 {
-        return None;
-    }
-    let num: Number = v[0].parse::<usize>().ok()?.into();
-    let vertex: VertexNumbering = v[1].into();
-    Some((num, vertex))
-}
-
-pub fn name_to_iter_name(n: Number, v: &VertexNumbering) -> VertexNumbering {
-    format!("{}-{}", n.to_string(), v.to_string()).into()
-}
-
 impl IterationCircuitProcess {
-    pub fn new() {
-        unimplemented!()
+    pub fn from_circuit(circuit: IterationCircuit) -> Option<Self> {
+        let init_process = CircuitProcess::from_circuit(circuit.iter())?;
+        Some(Self {
+            init_process,
+            process: vec![],
+            pre_to_post: circuit.pre_to_post_edge(),
+            post_to_pre: circuit.post_to_pre(),
+        })
+    }
+    pub fn set_input(&mut self, input_state: InputState) {
+        let max_need = {
+            let max_num_appered_in_input_state: Number = input_state
+                .appered()
+                .into_iter()
+                .flat_map(|v| {
+                    let (num, _) = iter_name_conv_to_name(&v)?;
+                    Some(num)
+                })
+                .max()
+                .unwrap_or_default();
+            let now_len_of_process: Number = self.process.len().into();
+            std::cmp::max(max_num_appered_in_input_state, now_len_of_process).into()
+        };
+        let input_states_for_each: Vec<InputState> = {
+            let mut new_input_states: Vec<InputState> = (0..max_need)
+                .map(|num| input_state.retrieve_iter(num.into()))
+                .collect();
+
+            for (num, process) in self.process.iter().enumerate() {
+                if 0 < num {
+                    for Edge { from: v1, into: v2 } in self.post_to_pre.iterate() {
+                        let bool = if let Some(bool) = process.output_of_vertex(v1) {
+                            bool
+                        } else {
+                            Bool::False
+                        };
+                        new_input_states[num - 1].insert(v2.clone(), bool);
+                    }
+                }
+                for Edge { from: v1, into: v2 } in self.pre_to_post.iterate() {
+                    let bool = if let Some(bool) = process.output_of_vertex(v1) {
+                        bool
+                    } else {
+                        Bool::False
+                    };
+                    new_input_states[num + 1].insert(v2.clone(), bool);
+                }
+            }
+            new_input_states
+        };
+
+        if self.process.len() < max_need {
+            let need_ext = max_need - self.process.len();
+            let init_process = self.init_process.clone();
+            self.process.extend(vec![init_process; need_ext]);
+        }
+
+        for i in 0..max_need {
+            self.process[i].set_input(input_states_for_each[i].clone());
+        }
     }
     pub fn output(&self) -> OutputState {
         let mut map = HashMap::new();
@@ -243,56 +255,9 @@ impl IterationCircuitProcess {
         let target_process: &CircuitProcess = &self.process[num.0];
         target_process.output_of_vertex(&vertex)
     }
-    pub fn next_with_input(&mut self, input_state: InputState) -> Option<Self> {
-        let input_states: Vec<InputState> = {
-            let max_num_appered_in_input_state: Number = input_state
-                .appered()
-                .into_iter()
-                .flat_map(|v| {
-                    let (num, vertex) = iter_name_conv_to_name(&v)?;
-                    Some(num)
-                })
-                .max()
-                .unwrap_or_default();
-            let now_len_of_process: Number = self.process.len().into();
-            let max: usize =
-                std::cmp::max(max_num_appered_in_input_state, now_len_of_process).into();
-
-            let mut new_input_states: Vec<InputState> = vec![HashMap::new().into(); max];
-
-            for (num, vertex, bool) in input_state.iterate().into_iter().flat_map(|(v, b)| {
-                iter_name_conv_to_name(&v).map(|(num, vertex)| (num, vertex, b.clone()))
-            }) {
-                new_input_states[num.0].insert(vertex, bool);
-            }
-
-            for (num, process) in self.process.iter().enumerate() {
-                if 0 < num {
-                    for Edge { from: v1, into: v2 } in self.post_to_pre.iterate() {
-                        let bool = if let Some(bool) = process.output_of_vertex(v1) {
-                            bool
-                        } else {
-                            Bool::False
-                        };
-                        new_input_states[num - 1].insert(v2.clone(), bool);
-                    }
-                }
-                for Edge { from: v1, into: v2 } in self.pre_to_post.iterate() {
-                    let bool = if let Some(bool) = process.output_of_vertex(v1) {
-                        bool
-                    } else {
-                        Bool::False
-                    };
-                    new_input_states[num + 1].insert(v2.clone(), bool);
-                }
-            }
-
-            new_input_states
-        };
-        unimplemented!()
-    }
 }
 
+#[derive(Debug, Clone)]
 pub enum CircuitProcess {
     Finite(FiniteCircuitProcess),
     Composition(Box<CompositionCircuitProcess>),
@@ -300,16 +265,31 @@ pub enum CircuitProcess {
 }
 
 impl CircuitProcess {
+    pub fn from_circuit(circuit: ExtensibleLogicCircuit) -> Option<Self> {
+        unimplemented!()
+    }
+    pub fn set_input(&mut self, input_state: InputState) {
+        unimplemented!()
+    }
     pub fn output(&self) -> OutputState {
         match self {
             CircuitProcess::Finite(process) => process.output(),
-            _ => unimplemented!(),
+            CircuitProcess::Composition(process_boxed) => process_boxed.output(),
+            CircuitProcess::Iteration(process_boxed) => process_boxed.output(),
         }
     }
     pub fn output_of_vertex(&self, output_vertex: &VertexNumbering) -> Option<Bool> {
-        unimplemented!()
+        match self {
+            CircuitProcess::Finite(process) => process.output_of_vertex(output_vertex),
+            CircuitProcess::Composition(process_boxed) => {
+                process_boxed.output_of_vertex(output_vertex)
+            }
+            CircuitProcess::Iteration(process_boxed) => {
+                process_boxed.output_of_vertex(output_vertex)
+            }
+        }
     }
-    pub fn next_with_input(&mut self, input_state: InputState) -> Option<Self> {
+    pub fn next(&mut self) {
         unimplemented!()
     }
 }
@@ -331,7 +311,8 @@ mod tests {
         .unwrap();
         let state: CircuitState =
             vec![("In".into(), Bool::False), ("Out".into(), Bool::True)].into();
-        let mut process: FiniteCircuitProcess = FiniteCircuitProcess::new(inout, state).unwrap();
+        let mut process: FiniteCircuitProcess =
+            FiniteCircuitProcess::from_circuit_and_state(inout, state).unwrap();
         process.next();
         process.output();
         process.next();
@@ -361,11 +342,15 @@ mod tests {
             vec![("In1".into(), Bool::True), ("In2".into(), Bool::True)].into();
 
         let mut process =
-            FiniteCircuitProcess::from_initial_state_and_input(and, and_state_1).unwrap();
+            FiniteCircuitProcess::from_circuit_and_input(and.clone(), and_state_1).unwrap();
         process.next();
         eprintln!("{:?}", process.output());
         process.next();
         eprintln!("{:?}", process.output());
-        process.next_with_input(vec![("In1".into(), Bool::False)].into());
+    }
+
+    #[test]
+    fn composition() {
+        // let comp_of_fin: CompositionCircuitProcess =
     }
 }
