@@ -89,6 +89,9 @@ impl FiniteLogicCircuit {
             label_and_initial_state,
         })
     }
+    pub fn is_appered(&self, index: &VertexNumbering) -> bool {
+        self.label_and_initial_state.keys().any(|v| *v == *index)
+    }
     pub fn appered_vertex(&self) -> HashSet<VertexNumbering> {
         self.label_and_initial_state.keys().cloned().collect()
     }
@@ -136,52 +139,6 @@ impl FiniteLogicCircuit {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Edge {
-    pub from: VertexNumbering,
-    pub into: VertexNumbering,
-}
-
-// struct to concat different circuit
-// any vertex should appered once
-#[derive(Debug, Clone)]
-pub struct EdgeAssign(HashSet<Edge>);
-
-impl EdgeAssign {
-    pub fn new<T>(value: T) -> Option<Self>
-    where
-        T: IntoIterator<Item = (VertexNumbering, VertexNumbering)>,
-    {
-        let mut appeared = HashSet::new();
-        let mut map = HashSet::new();
-        for (v1, v2) in value {
-            if appeared.contains(&v1) {
-                return None;
-            }
-            appeared.insert(v1.clone());
-            if appeared.contains(&v2) {
-                return None;
-            }
-            appeared.insert(v2.clone());
-            map.insert(Edge {
-                from: v1,
-                into: v2,
-            });
-        }
-        Some(EdgeAssign(map))
-    }
-    pub fn get_out_from_in(&self, v: VertexNumbering) -> Option<VertexNumbering> {
-        self.0
-            .iter()
-            .find_map(|Edge{ from, into }| 
-                if *into == v { Some(from.clone()) } else { None }
-            )
-    }
-    pub fn iterate(&self) -> impl Iterator<Item = &Edge> {
-        self.0.iter()
-    }
-}
-
 // この論理回路の InOut(str) には外側からは
 // InOut(format!("left-{str}")) や InOut(format!("right-{str}")) でアクセスする。
 #[derive(Debug, Clone)]
@@ -193,6 +150,14 @@ pub struct CompositionCircuit {
 }
 
 impl CompositionCircuit {
+    pub fn new(
+        left: ExtensibleLogicCircuit,
+        left_to_right: EdgeAssign,
+        right_to_left: EdgeAssign,
+        right: ExtensibleLogicCircuit,
+    ) -> Option<Self> {
+        unimplemented!()
+    }
     pub fn left(&self) -> ExtensibleLogicCircuit {
         self.left.clone()
     }
@@ -234,4 +199,22 @@ pub enum ExtensibleLogicCircuit {
     FiniteCircuit(Box<FiniteLogicCircuit>),
     Composition(Box<CompositionCircuit>),
     Iteration(Box<IterationCircuit>),
+}
+
+impl From<FiniteLogicCircuit> for ExtensibleLogicCircuit {
+    fn from(value: FiniteLogicCircuit) -> Self {
+        Self::FiniteCircuit(Box::new(value))
+    }
+}
+
+impl From<CompositionCircuit> for ExtensibleLogicCircuit {
+    fn from(value: CompositionCircuit) -> Self {
+        Self::Composition(Box::new(value))
+    }
+}
+
+impl From<IterationCircuit> for ExtensibleLogicCircuit {
+    fn from(value: IterationCircuit) -> Self {
+        Self::Iteration(Box::new(value))
+    }
 }
