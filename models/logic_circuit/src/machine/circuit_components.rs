@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
 use std::ops::Neg;
 use utils::number::*;
 
@@ -112,6 +113,20 @@ impl Label {
     }
 }
 
+impl Display for Label {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string: String = match self {
+            Label::Logic(LogicLabel::Not) => "NOT".to_string(),
+            Label::Logic(LogicLabel::And) => "AND".to_string(),
+            Label::Logic(LogicLabel::Or) => "OR".to_string(),
+            Label::Control(ControlLabel::Branch) => "BR".to_string(),
+            Label::InOut(InOutLabel::Input) => "IN".to_string(),
+            Label::InOut(InOutLabel::Output) => "OUT".to_string(),
+        };
+        write!(f, "{string}")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Bool {
     True,
@@ -143,6 +158,15 @@ impl Bool {
     }
 }
 
+impl Display for Bool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Bool::True => write!(f, "T"),
+            Bool::False => write!(f, "F"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VertexNumbering(String);
 
@@ -164,9 +188,9 @@ impl From<&VertexNumbering> for String {
     }
 }
 
-impl ToString for VertexNumbering {
-    fn to_string(&self) -> String {
-        self.0.to_owned()
+impl Display for VertexNumbering {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -182,7 +206,7 @@ pub fn left_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumberin
 }
 
 pub fn name_to_left_name(vertex: &VertexNumbering) -> VertexNumbering {
-    format!("{LEFT_START}{}", vertex.to_string()).into()
+    format!("{LEFT_START}{}", vertex).into()
 }
 
 pub fn right_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumbering> {
@@ -194,7 +218,7 @@ pub fn right_name_conv_to_name(vertex: &VertexNumbering) -> Option<VertexNumberi
 }
 
 pub fn name_to_right_name(vertex: &VertexNumbering) -> VertexNumbering {
-    format!("{RIGHT_START}{}", vertex.to_string()).into()
+    format!("{RIGHT_START}{}", vertex).into()
 }
 
 pub fn iter_name_conv_to_name(v: &VertexNumbering) -> Option<(Number, VertexNumbering)> {
@@ -209,7 +233,7 @@ pub fn iter_name_conv_to_name(v: &VertexNumbering) -> Option<(Number, VertexNumb
 }
 
 pub fn name_to_iter_name(n: Number, v: &VertexNumbering) -> VertexNumbering {
-    format!("{}-{}", n.to_string(), v.to_string()).into()
+    format!("{}-{}", n.to_string(), v).into()
 }
 
 #[derive(Debug, Clone)]
@@ -293,17 +317,17 @@ impl InputState {
     }
     pub fn retrieve_left(&self) -> InputState {
         self.0.iter().filter_map(|(v, b)|{
-            left_name_conv_to_name(&v).map(|v| (v, b.clone()))
+            left_name_conv_to_name(v).map(|v| (v, b.clone()))
         }).into()
     }
     pub fn retrieve_right(&self) -> InputState {
         self.0.iter().filter_map(|(v, b)|{
-            right_name_conv_to_name(&v).map(|v| (v, b.clone()))
+            right_name_conv_to_name(v).map(|v| (v, b.clone()))
         }).into()
     }
     pub fn retrieve_iter(&self, n: Number) -> InputState {
         self.0.iter().filter_map(|(v,b)|{
-            iter_name_conv_to_name(&v).and_then(|(num, v)|{
+            iter_name_conv_to_name(v).and_then(|(num, v)|{
                 if num == n {
                     Some((v, b.clone()))
                 } else {
@@ -445,19 +469,21 @@ impl EdgeAssign {
         })
     }
     pub fn contains_as_from(&self, index: &VertexNumbering) -> bool {
-        self.0.iter().any(|Edge { from, into }| *from == *index)
+        self.0.iter().any(|Edge { from, into: _ }| *from == *index)
     }
     pub fn contains_as_into(&self, index: &VertexNumbering) -> bool {
-        self.0.iter().any(|Edge { from, into }| *into == *index)
+        self.0.iter().any(|Edge { from: _, into }| *into == *index)
     }
 }
 
 pub fn output_to_input_with_edge_assign(output_state: OutputState, edge_assign: EdgeAssign) -> InputState {
     output_state.iterate().into_iter().filter_map(|(from_index, b)|
-        if let Some(into_index) = edge_assign.from_index_to_into_index(&from_index) {
-            Some((into_index.clone(), b))
-        } else {
-            None
-        }
+        edge_assign.from_index_to_into_index(&from_index).map(|into_index|(into_index.clone(), b))
     ).into()
+}
+
+pub fn indent(str: String) -> String {
+    str.lines().map(|str|{
+        format!("    {str}\n")
+    }).collect()
 }
