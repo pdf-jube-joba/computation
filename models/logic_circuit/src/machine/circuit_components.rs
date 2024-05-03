@@ -8,6 +8,7 @@ pub enum LogicLabel {
     Not,
     Or,
     And,
+    Cst0,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -47,11 +48,15 @@ impl Label {
     pub fn output() -> Self {
         Label::InOut(InOutLabel::Output)
     }
+    pub fn const0() -> Self {
+        Label::Logic(LogicLabel::Cst0)
+    }
     pub fn is_valid_inout_number(&self, input_num: Number, output_num: Number) -> bool {
         match self {
             Label::Logic(LogicLabel::Not) => input_num == 1.into() && output_num == 1.into(),
             Label::Logic(LogicLabel::And) => input_num == 2.into() && output_num == 1.into(),
             Label::Logic(LogicLabel::Or) => input_num == 2.into() && output_num == 1.into(),
+            Label::Logic(LogicLabel::Cst0) => input_num == 0.into() && output_num == 1.into(),
             Label::InOut(InOutLabel::Input) => input_num == 0.into() && output_num == 1.into(),
             Label::InOut(InOutLabel::Output) => input_num == 1.into() && output_num == 0.into(),
             Label::Control(ControlLabel::Branch) => input_num == 1.into(),
@@ -88,6 +93,13 @@ impl Label {
                     None
                 }
             }
+            Label::Logic(LogicLabel::Cst0) => {
+                if vec.len() == 0 {
+                    Some(Bool::False)
+                } else {
+                    None
+                }
+            }
             Label::Control(ControlLabel::Branch) => {
                 if vec.len() == 1 {
                     Some(vec[0].clone())
@@ -119,6 +131,7 @@ impl Display for Label {
             Label::Logic(LogicLabel::Not) => "NOT".to_string(),
             Label::Logic(LogicLabel::And) => "AND".to_string(),
             Label::Logic(LogicLabel::Or) => "OR".to_string(),
+            Label::Logic(LogicLabel::Cst0) => "FALSE".to_string(),
             Label::Control(ControlLabel::Branch) => "BR".to_string(),
             Label::InOut(InOutLabel::Input) => "IN".to_string(),
             Label::InOut(InOutLabel::Output) => "OUT".to_string(),
@@ -285,13 +298,16 @@ impl InputState {
         self.0.insert(index, bool);
     }
     pub fn appered_as_true(&self) -> HashSet<VertexNumbering> {
-        self.0.iter().filter_map(|(v, b)|{
-            if *b == Bool::True {
-                Some(v.clone())
-            } else {
-                None
-            }
-        }).collect()
+        self.0
+            .iter()
+            .filter_map(|(v, b)| {
+                if *b == Bool::True {
+                    Some(v.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
     pub fn get_index(&self, index: &VertexNumbering) -> Bool {
         if let Some(bool) = self.0.get(index) {
@@ -301,13 +317,16 @@ impl InputState {
         }
     }
     pub fn get_rid(self, edge_assign: EdgeAssign) -> InputState {
-        self.0.into_iter().filter_map(|(v, b)|{
-            if edge_assign.contains_as_into(&v) {
-                Some((v, b))
-            } else {
-                None
-            }
-        }).into()
+        self.0
+            .into_iter()
+            .filter_map(|(v, b)| {
+                if edge_assign.contains_as_into(&v) {
+                    Some((v, b))
+                } else {
+                    None
+                }
+            })
+            .into()
     }
     pub fn extend(&mut self, other: InputState) {
         self.0.extend(other.0);
@@ -316,47 +335,55 @@ impl InputState {
         self.0
     }
     pub fn retrieve_left(&self) -> InputState {
-        self.0.iter().filter_map(|(v, b)|{
-            left_name_conv_to_name(v).map(|v| (v, b.clone()))
-        }).into()
+        self.0
+            .iter()
+            .filter_map(|(v, b)| left_name_conv_to_name(v).map(|v| (v, b.clone())))
+            .into()
     }
     pub fn retrieve_right(&self) -> InputState {
-        self.0.iter().filter_map(|(v, b)|{
-            right_name_conv_to_name(v).map(|v| (v, b.clone()))
-        }).into()
+        self.0
+            .iter()
+            .filter_map(|(v, b)| right_name_conv_to_name(v).map(|v| (v, b.clone())))
+            .into()
     }
     pub fn retrieve_iter(&self, n: Number) -> InputState {
-        self.0.iter().filter_map(|(v,b)|{
-            iter_name_conv_to_name(v).and_then(|(num, v)|{
-                if num == n {
-                    Some((v, b.clone()))
-                } else {
-                    None
-                }
+        self.0
+            .iter()
+            .filter_map(|(v, b)| {
+                iter_name_conv_to_name(v).and_then(|(num, v)| {
+                    if num == n {
+                        Some((v, b.clone()))
+                    } else {
+                        None
+                    }
+                })
             })
-        }).into()
+            .into()
     }
     pub fn retrieve_iter_vec(&self) -> Vec<InputState> {
         let mut map: HashMap<Number, HashSet<(VertexNumbering, Bool)>> = HashMap::new();
         let mut max_app = 0;
-        self.0.iter().for_each(|(v, b)|{
+        self.0.iter().for_each(|(v, b)| {
             if let Some((n, v)) = iter_name_conv_to_name(v) {
                 max_app = std::cmp::max(max_app, n.0);
                 if let Some(set) = map.get_mut(&n) {
                     set.insert((v, b.clone()));
                 } else {
-                    let has: HashSet<(VertexNumbering, Bool)> = vec![(v,b.clone())].into_iter().collect();
+                    let has: HashSet<(VertexNumbering, Bool)> =
+                        vec![(v, b.clone())].into_iter().collect();
                     map.insert(n, has);
                 }
             }
         });
-        (0..=max_app).map(|i|{
-            if let Some(set) = map.remove(&i.into()) {
-                set.into()
-            } else {
-                InputState(HashMap::new())
-            }
-        }).collect()
+        (0..=max_app)
+            .map(|i| {
+                if let Some(set) = map.remove(&i.into()) {
+                    set.into()
+                } else {
+                    InputState(HashMap::new())
+                }
+            })
+            .collect()
     }
 }
 
@@ -374,13 +401,16 @@ pub struct OutputState(HashMap<VertexNumbering, Bool>);
 
 impl OutputState {
     pub fn appered_as_true(&self) -> HashSet<VertexNumbering> {
-        self.0.iter().filter_map(|(v, b)|{
-            if *b == Bool::True {
-                Some(v.clone())
-            } else {
-                None
-            }
-        }).collect()
+        self.0
+            .iter()
+            .filter_map(|(v, b)| {
+                if *b == Bool::True {
+                    Some(v.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
     pub fn appered(&self) -> HashSet<VertexNumbering> {
         self.0.keys().cloned().collect()
@@ -414,7 +444,10 @@ pub struct Edge {
 
 impl From<(VertexNumbering, VertexNumbering)> for Edge {
     fn from(value: (VertexNumbering, VertexNumbering)) -> Self {
-        Self { from: value.0, into: value.1 }
+        Self {
+            from: value.0,
+            into: value.1,
+        }
     }
 }
 
@@ -439,28 +472,26 @@ impl EdgeAssign {
                 return None;
             }
             appeared.insert(v2.clone());
-            map.insert(Edge {
-                from: v1,
-                into: v2,
-            });
+            map.insert(Edge { from: v1, into: v2 });
         }
         Some(EdgeAssign(map))
     }
     pub fn get_out_from_in(&self, v: VertexNumbering) -> Option<VertexNumbering> {
         self.0
             .iter()
-            .find_map(|Edge{ from, into }| 
-                if *into == v { Some(from.clone()) } else { None }
-            )
+            .find_map(|Edge { from, into }| if *into == v { Some(from.clone()) } else { None })
     }
     pub fn iterate(&self) -> impl Iterator<Item = &Edge> {
         self.0.iter()
     }
     pub fn iterate_over_v(&self) -> impl Iterator<Item = (&VertexNumbering, &VertexNumbering)> {
-        self.0.iter().map(|Edge { from, into }|(from, into))
+        self.0.iter().map(|Edge { from, into }| (from, into))
     }
-    pub fn from_index_to_into_index(&self, from_index: &VertexNumbering) -> Option<&VertexNumbering> {
-        self.0.iter().find_map(|Edge { from, into }|{
+    pub fn from_index_to_into_index(
+        &self,
+        from_index: &VertexNumbering,
+    ) -> Option<&VertexNumbering> {
+        self.0.iter().find_map(|Edge { from, into }| {
             if *from == *from_index {
                 Some(into)
             } else {
@@ -476,14 +507,21 @@ impl EdgeAssign {
     }
 }
 
-pub fn output_to_input_with_edge_assign(output_state: OutputState, edge_assign: EdgeAssign) -> InputState {
-    output_state.iterate().into_iter().filter_map(|(from_index, b)|
-        edge_assign.from_index_to_into_index(&from_index).map(|into_index|(into_index.clone(), b))
-    ).into()
+pub fn output_to_input_with_edge_assign(
+    output_state: OutputState,
+    edge_assign: EdgeAssign,
+) -> InputState {
+    output_state
+        .iterate()
+        .into_iter()
+        .filter_map(|(from_index, b)| {
+            edge_assign
+                .from_index_to_into_index(&from_index)
+                .map(|into_index| (into_index.clone(), b))
+        })
+        .into()
 }
 
 pub fn indent(str: String) -> String {
-    str.lines().map(|str|{
-        format!("    {str}\n")
-    }).collect()
+    str.lines().map(|str| format!("    {str}\n")).collect()
 }
