@@ -1,6 +1,8 @@
+use anyhow::anyhow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::ops::Neg;
+use std::str::FromStr;
 use utils::number::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -50,6 +52,17 @@ impl Label {
     }
     pub fn const0() -> Self {
         Label::Logic(LogicLabel::Cst0)
+    }
+    pub fn input_num(&self) -> Number {
+        match self {
+            Label::Logic(LogicLabel::Not) => 1.into(),
+            Label::Logic(LogicLabel::And) => 2.into(),
+            Label::Logic(LogicLabel::Or) => 2.into(),
+            Label::Logic(LogicLabel::Cst0) => 0.into(),
+            Label::InOut(InOutLabel::Input) => 0.into(),
+            Label::InOut(InOutLabel::Output) => 1.into(),
+            Label::Control(ControlLabel::Branch) => 1.into(),
+        }
     }
     pub fn is_valid_inout_number(&self, input_num: Number, output_num: Number) -> bool {
         match self {
@@ -167,6 +180,17 @@ impl Bool {
         match (self, other) {
             (Bool::False, Bool::False) => Bool::False,
             _ => Bool::True,
+        }
+    }
+}
+
+impl FromStr for Bool {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "T" => Ok(Bool::True),
+            "F" => Ok(Bool::False),
+            _ => Err(anyhow!("a")),
         }
     }
 }

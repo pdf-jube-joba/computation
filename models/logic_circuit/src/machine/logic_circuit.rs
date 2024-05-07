@@ -6,12 +6,6 @@ use std::{
 use utils::number::*;
 
 #[derive(Debug, Clone)]
-pub struct FiniteLogicCircuit {
-    in_edges: HashMap<VertexNumbering, HashSet<VertexNumbering>>,
-    label_and_initial_state: HashMap<VertexNumbering, (Label, Option<Bool>)>,
-}
-
-#[derive(Debug, Clone)]
 pub enum LogicCircuitError {
     InValidLabelAndInOutNum(VertexNumbering, Label),
     InValidLabelAndInitState(VertexNumbering),
@@ -19,6 +13,12 @@ pub enum LogicCircuitError {
     EdgeAssignIsOutofIndex(VertexNumbering),
     EdgeAssignInvalid(VertexNumbering),
     EdgeAssignIsConflict,
+}
+
+#[derive(Debug, Clone)]
+pub struct FiniteLogicCircuit {
+    in_edges: HashMap<VertexNumbering, HashSet<VertexNumbering>>,
+    label_and_initial_state: HashMap<VertexNumbering, (Label, Option<Bool>)>,
 }
 
 impl FiniteLogicCircuit {
@@ -33,7 +33,8 @@ impl FiniteLogicCircuit {
         // 計算量やばいけどめんどくさい
 
         let edges: HashSet<(VertexNumbering, VertexNumbering)> = edges.into_iter().collect();
-        let label_and_initial_state: HashMap<VertexNumbering, (Label, Option<Bool>)> = label_and_initial_state.into_iter().collect();
+        let label_and_initial_state: HashMap<VertexNumbering, (Label, Option<Bool>)> =
+            label_and_initial_state.into_iter().collect();
 
         let mut all_vertex = HashSet::<VertexNumbering>::new();
         edges.iter().for_each(|(v1, v2)| {

@@ -422,7 +422,7 @@ mod tests {
             vec![
                 ("In".into(), (Label::input(), None)),
                 ("Out".into(), (Label::output(), None)),
-            ]
+            ],
         )
         .unwrap();
         let mut process: FiniteCircuitProcess = FiniteCircuitProcess::from(inout.clone());
@@ -452,7 +452,7 @@ mod tests {
                 ("In2".into(), (Label::input(), None)),
                 ("And".into(), (Label::and(), Some(Bool::False))),
                 ("Out".into(), (Label::output(), None)),
-            ]
+            ],
         )
         .unwrap();
         let and_circuit: ExtensibleLogicCircuit = ExtensibleLogicCircuit::from(and);
@@ -480,7 +480,7 @@ mod tests {
                 ("In2".into(), (Label::input(), None)),
                 ("And".into(), (Label::and(), Some(Bool::False))),
                 ("Out".into(), (Label::output(), None)),
-            ]
+            ],
         )
         .unwrap();
 
@@ -489,7 +489,7 @@ mod tests {
             vec![
                 ("In".into(), (Label::input(), None)),
                 ("Out".into(), (Label::output(), None)),
-            ]
+            ],
         )
         .unwrap();
 
@@ -528,32 +528,30 @@ mod tests {
                 ("and".into(), "O2".into()),
                 ("I2".into(), "not".into()),
                 ("not".into(), "and".into()),
-            ], 
+            ],
             vec![
-                ("I1".into(),  (Label::input(), None)),
-                ("I2".into(),  (Label::input(), None)),
-                ("O1".into(),  (Label::output(), None)),
-                ("O2".into(),  (Label::output(), None)),
-                ("B".into(),   (Label::branch(), Some(Bool::False))),
+                ("I1".into(), (Label::input(), None)),
+                ("I2".into(), (Label::input(), None)),
+                ("O1".into(), (Label::output(), None)),
+                ("O2".into(), (Label::output(), None)),
+                ("B".into(), (Label::branch(), Some(Bool::False))),
                 ("and".into(), (Label::and(), Some(Bool::False))),
                 ("not".into(), (Label::not(), Some(Bool::True))),
-            ]
-        ).unwrap().into();
-        let pre_to_post: EdgeAssign = EdgeAssign::new(vec![
-            ("O1".into(), "I1".into()),
-        ]).unwrap();
-        let post_to_pre: EdgeAssign = EdgeAssign::new(vec![
-            ("O2".into(), "I2".into()),
-        ]).unwrap();
-        let circuit: ExtensibleLogicCircuit = IterationCircuit::new(iter, pre_to_post, post_to_pre).unwrap().into();
+            ],
+        )
+        .unwrap()
+        .into();
+        let pre_to_post: EdgeAssign = EdgeAssign::new(vec![("O1".into(), "I1".into())]).unwrap();
+        let post_to_pre: EdgeAssign = EdgeAssign::new(vec![("O2".into(), "I2".into())]).unwrap();
+        let circuit: ExtensibleLogicCircuit = IterationCircuit::new(iter, pre_to_post, post_to_pre)
+            .unwrap()
+            .into();
 
         let mut process: CircuitProcess = circuit.into();
         eprintln!("{process}");
         process.next();
 
-        let input: InputState = vec![
-            ("0-I1".into(), Bool::True),
-        ].into();
+        let input: InputState = vec![("0-I1".into(), Bool::True)].into();
         process.set_input(input).unwrap();
         eprintln!("{process}");
 
@@ -574,6 +572,5 @@ mod tests {
 
         let output = process.output();
         assert_eq!(output.get_index(&"0-I2".into()), Bool::False);
-
     }
 }
