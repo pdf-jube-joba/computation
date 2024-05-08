@@ -1,9 +1,169 @@
 use super::circuit_components::*;
 use std::{
+    clone,
     collections::{HashMap, HashSet},
     fmt::Display,
+    ops::Neg,
 };
 use utils::number::*;
+
+type InPin = String;
+type OtPin = String;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Gate {
+    Not {
+        state: Bool,
+        input: Bool,
+    },
+    And {
+        state: Bool,
+        input0: Bool,
+        input1: Bool,
+    },
+    Or {
+        state: Bool,
+        input0: Bool,
+        input1: Bool,
+    },
+    Cst0 {},
+    Br {
+        state: Bool,
+        input: Bool,
+    },
+}
+
+impl Gate {
+    fn new_not(state: Bool) -> Self {
+        Gate::Not {
+            state,
+            input: Bool::False,
+        }
+    }
+    fn state(&self) -> &Bool {
+        match self {
+            Gate::Not { state, input } => state,
+            _ => unreachable!(),
+        }
+    }
+    fn getmut_input(&mut self, input_name: &str) -> Option<&mut Bool> {
+        match (self, input_name) {
+            (Gate::Not { state, input }, "IN") => Some(input),
+            _ => None,
+        }
+    }
+    fn get_output(&self, output_name: &str) -> Option<&Bool> {
+        match (self, output_name) {
+            (Gate::Not { state, input }, "OUT") => Some(input),
+            _ => None,
+        }
+    }
+    fn next(&mut self) {
+        match self {
+            Gate::Not { state, input } => {
+                *state = input.neg();
+            }
+            _ => {}
+        }
+    }
+}
+
+pub struct Path(Vec<String>);
+
+impl Path {
+    pub fn from_str(path: String) -> Self {
+        Path(path.split(".").map(|s| s.to_string()).collect())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+
+enum LoC {
+    Gate {
+        name: String,
+        gate: Gate,
+    },
+    FinGraph {
+        name: String,
+        set_of_lc: HashMap<String, LoC>,
+        edges: HashSet<((String, String), (String, String))>,
+    },
+    Iter {
+        name: String,
+        lc_init: Box<LoC>,
+        lc_extended: Vec<LoC>,
+        next_edges: HashSet<(String, String)>,
+        prev_edges: HashSet<(String, String)>,
+    },
+}
+
+impl LoC {
+    fn new_gate(name: String, gate: Gate) -> Self {
+        LoC::Gate { name, gate }
+    }
+    fn new_fingraph(
+        name: String,
+        set_of_lc: Vec<(String, LoC)>,
+        edges: Vec<((String, String), (String, String))>,
+    ) -> Self {
+        todo!()
+    }
+    fn name(&self) -> String {
+        match self {
+            LoC::Gate { name, gate } => name.clone(),
+            LoC::FinGraph {
+                name,
+                set_of_lc,
+                edges,
+            } => name.clone(),
+            LoC::Iter {
+                name,
+                lc_init,
+                lc_extended,
+                next_edges,
+                prev_edges,
+            } => name.clone(),
+        }
+    }
+    fn new_iter() -> Self {
+        todo!()
+    }
+    fn peek_lc_in_this(&self, name_loc: &str) -> Option<&LoC> {
+        match self {
+            LoC::Gate { name, gate } => None,
+            LoC::FinGraph {
+                name,
+                set_of_lc,
+                edges,
+            } => set_of_lc
+                .iter()
+                .find_map(|(s, lc)| if name_loc == s { Some(lc) } else { None }),
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
+    fn peek_gate_from_path(&self, path: &[&str]) -> Option<&Gate> {
+        if path.is_empty() {
+            match self {
+                LoC::Gate { name, gate } => Some(gate),
+                _ => None,
+            }
+        } else {
+            let lc = self.peek_lc_in_this(path[0])?;
+            lc.peek_gate_from_path(&path[1..])
+        }
+    }
+    fn getmut_this_input(&mut self, input_name: &str) -> Option<&mut Bool> {
+        todo!()
+    }
+    fn get_this_output(&self, output_name: &str) -> Option<&Bool> {
+        todo!()
+    }
+    fn next(&mut self) {
+        todo!()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum LogicCircuitError {

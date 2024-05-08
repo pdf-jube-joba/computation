@@ -5,6 +5,57 @@ use std::ops::Neg;
 use std::str::FromStr;
 use utils::number::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Bool {
+    True,
+    False,
+}
+
+impl Neg for Bool {
+    type Output = Bool;
+    fn neg(self) -> Self::Output {
+        match self {
+            Bool::True => Bool::False,
+            Bool::False => Bool::True,
+        }
+    }
+}
+
+impl Bool {
+    pub fn and(self, other: Self) -> Self {
+        match (self, other) {
+            (Bool::True, Bool::True) => Bool::True,
+            _ => Bool::False,
+        }
+    }
+    pub fn or(self, other: Self) -> Self {
+        match (self, other) {
+            (Bool::False, Bool::False) => Bool::False,
+            _ => Bool::True,
+        }
+    }
+}
+
+impl FromStr for Bool {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "T" => Ok(Bool::True),
+            "F" => Ok(Bool::False),
+            _ => Err(anyhow!("a")),
+        }
+    }
+}
+
+impl Display for Bool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Bool::True => write!(f, "T"),
+            Bool::False => write!(f, "F"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum LogicLabel {
     Not,
@@ -150,57 +201,6 @@ impl Display for Label {
             Label::InOut(InOutLabel::Output) => "OUT".to_string(),
         };
         write!(f, "{string}")
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Bool {
-    True,
-    False,
-}
-
-impl Neg for Bool {
-    type Output = Bool;
-    fn neg(self) -> Self::Output {
-        match self {
-            Bool::True => Bool::False,
-            Bool::False => Bool::True,
-        }
-    }
-}
-
-impl Bool {
-    pub fn and(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::True, Bool::True) => Bool::True,
-            _ => Bool::False,
-        }
-    }
-    pub fn or(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::False, Bool::False) => Bool::False,
-            _ => Bool::True,
-        }
-    }
-}
-
-impl FromStr for Bool {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "T" => Ok(Bool::True),
-            "F" => Ok(Bool::False),
-            _ => Err(anyhow!("a")),
-        }
-    }
-}
-
-impl Display for Bool {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Bool::True => write!(f, "T"),
-            Bool::False => write!(f, "F"),
-        }
     }
 }
 
