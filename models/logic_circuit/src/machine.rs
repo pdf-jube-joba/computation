@@ -63,7 +63,7 @@ type InPin = String;
 type OtPin = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Gate {
+pub enum Gate {
     Cst {
         state: Bool,
     },
@@ -240,12 +240,30 @@ impl Gate {
             _ => {}
         }
     }
+    fn name(&self) -> String {
+        match self {
+            Gate::Not { state, input } => "not".to_owned(),
+            Gate::And {
+                state,
+                input0,
+                input1,
+            } => "and".to_owned(),
+            Gate::Or {
+                state,
+                input0,
+                input1,
+            } => "or ".to_owned(),
+            Gate::Cst { state } => format!("cst{state}"),
+            Gate::Br { state, input } => "br ".to_owned(),
+            Gate::End { input } => "end".to_owned(),
+        }
+    }
 }
 
 type Name = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct FinGraph {
+pub struct FinGraph {
     name: String,
     lcs: HashMap<Name, LoC>,
     edges: HashSet<((Name, OtPin), (Name, InPin))>,
@@ -343,7 +361,7 @@ impl FinGraph {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Iter {
+pub struct Iter {
     name: String,
     lc_init: Box<LoC>,
     lc_extended: Vec<LoC>,
@@ -433,7 +451,7 @@ pub enum LoC {
 }
 
 type Path = Vec<Either<Name, Number>>;
-fn into_inpin_path(str: &str) -> (Path, InPin) {
+fn into_inpin_path(str: &str) -> Path {
     let mut p: Vec<_> = str
         .split(".")
         .map(|s| match s.parse::<usize>() {
@@ -441,12 +459,7 @@ fn into_inpin_path(str: &str) -> (Path, InPin) {
             Err(_) => Either::Left(s.to_string()),
         })
         .collect();
-    let i = p.pop().unwrap();
-    let i = match i {
-        Either::Left(i) => i,
-        Either::Right(i) => format!("{i:?}"),
-    };
-    (p, i)
+    p
 }
 
 impl LoC {
@@ -481,6 +494,36 @@ impl LoC {
     }
     pub fn end() -> LoC {
         LoC::Gate(Gate::End { input: Bool::F })
+    }
+    pub fn new_graph(
+        name: String,
+        lcs: Vec<(Name, LoC)>,
+        edges: Vec<((Name, OtPin), (Name, InPin))>,
+        input: Vec<(InPin, (Name, InPin))>,
+        output: Vec<(OtPin, (Name, OtPin))>,
+    ) -> Result<Self> {
+        Ok(LoC::FinGraph(FinGraph::new(
+            name, lcs, edges, input, output,
+        )?))
+    }
+    pub fn new_iter(
+        name: String,
+        lc: LoC,
+        next_edges: Vec<(OtPin, InPin)>,
+        prev_edges: Vec<(OtPin, InPin)>,
+        input: Vec<(InPin, InPin)>,
+        otput: Vec<(OtPin, OtPin)>,
+    ) -> Result<Self> {
+        Ok(LoC::Iter(Iter::new(
+            name, lc, next_edges, prev_edges, input, otput,
+        )?))
+    }
+    pub fn name(&self) -> String {
+        match self {
+            LoC::Gate(gate) => gate.name(),
+            LoC::FinGraph(fingraph) => fingraph.name.to_owned(),
+            LoC::Iter(iter) => iter.name.to_owned(),
+        }
     }
     pub fn get_input(&self, inpin: InPin) -> Option<&Bool> {
         match self {
@@ -553,6 +596,87 @@ impl LoC {
     }
 }
 
+pub fn print_format(lc: &LoC) {
+    fn print_format(lc: &LoC) -> Vec<String> {
+        match lc {
+            LoC::Gate(gate) => {
+                // match gate {
+                //     Gate::Cst { state } => vec![format!("cst {state} in:/")],
+                //     Gate::Not { state, input } => vec![format!("not {state} in:{input}")],
+                //     Gate::End { input } => vec![format!("end / in:{input}")],
+                //     Gate::Br { state, input } => vec![format!("bra {state} in:{input}")],
+                //     Gate::And {
+                //         state,
+                //         input0,
+                //         input1,
+                //     } => vec![format!("and {state} in:{input0} {input1}")],
+                //     Gate::Or {
+                //         state,
+                //         input0,
+                //         input1,
+                //     } => vec![format!("or  {state} in:{input0} {input1}")],
+                // },
+                vec![]
+            }
+            LoC::FinGraph(fingraph) => {
+                let FinGraph {
+                    name,
+                    lcs,
+                    edges,
+                    input,
+                    output,
+                } = fingraph;
+                let mut lines = vec![];
+                lines.push(format!("fingraph:{name}"));
+                let mut l_in = "i...".to_string();
+                l_in.extend(input.iter().map(|(i, (n0, i0))| {
+                    format!("{i}={n0}.{i0}:{}, ", fingraph.get_input(i.clone()).unwrap())
+                }));
+                lines.push(l_in);
+
+                let mut l_ot = "o...".to_string();
+                l_ot.extend(output.iter().map(|(o, (n0, o0))| {
+                    format!(
+                        "{o}={n0}.{o0}:{}, ",
+                        fingraph.get_output(o.clone()).unwrap()
+                    )
+                }));
+                lines.push(l_ot);
+                let edges = {
+                    let mut new_edges: HashMap<_, Vec<(InPin, (Name, OtPin))>> = HashMap::new();
+                    for ((n0, o0), (n1, i1)) in edges.iter() {
+                        new_edges.entry(n1).or_default();
+                        let io = new_edges.get_mut(n1).unwrap();
+                        io.push((i1.to_string(), (n0.to_string(), o0.to_string())));
+                    }
+                    new_edges
+                };
+                for (name, lc) in lcs.iter() {
+                    let ins = edges.get(name).map_or("not found".to_string(), |l| {
+                        l.iter()
+                            .map(|(i, (n, o))| {
+                                format!("{i}={n}.{o}:{}, ", lc.get_input(i.clone()).unwrap())
+                            })
+                            .collect()
+                    });
+                    lines.push(format!("  {name}, {}, {ins}", lc.name()));
+                    for s in print_format(lc) {
+                        let s = format!("  {s}");
+                        lines.push(s);
+                    }
+                }
+                lines
+            }
+            LoC::Iter(iter) => {
+                vec![]
+            }
+        }
+    }
+    for l in print_format(lc) {
+        eprintln!("{l}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -567,7 +691,7 @@ mod tests {
     }
     #[test]
     fn rsratch() {
-        let rs = FinGraph::new(
+        let rs = LoC::new_graph(
             "RS".to_string(),
             vec![
                 ("O0".to_string(), LoC::orgate(Bool::T)),
@@ -601,25 +725,30 @@ mod tests {
         );
         let mut rs = rs.unwrap();
 
-        let r = rs.get_input("R".to_string()).unwrap();
-        let s = rs.get_input("S".to_string()).unwrap();
-        eprintln!("{r} {s}");
-        let q = rs.get_output("Q".to_string()).unwrap();
-        let nq = rs.get_output("nQ".to_string()).unwrap();
-        eprintln!("{q} {nq}");
+        print_format(&rs);
+
+        let t = |lc: &mut LoC| loop {
+            let lc_prev = lc.clone();
+            lc.next();
+            if lc_prev == *lc {
+                break;
+            }
+            print_format(lc);
+        };
 
         let rsp = rs.clone();
         rs.next();
         assert_eq!(rsp, rs);
 
-        let r = rs.get_input("R".to_string()).unwrap();
-        let s = rs.get_input("S".to_string()).unwrap();
-        eprintln!("{r} {s}");
-        let q = rs.get_output("Q".to_string()).unwrap();
-        let nq = rs.get_output("nQ".to_string()).unwrap();
-        eprintln!("{q} {nq}");
-
         let r = rs.getmut_input("R".to_string()).unwrap();
         *r = Bool::T;
+        t(&mut rs);
+        println!("---");
+
+        let r = rs.getmut_input("R".to_string()).unwrap();
+        *r = Bool::F;
+        let r = rs.getmut_input("S".to_string()).unwrap();
+        *r = Bool::T;
+        t(&mut rs);
     }
 }
