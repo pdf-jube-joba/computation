@@ -59,8 +59,45 @@ impl Display for Bool {
     }
 }
 
-type InPin = String;
-type OtPin = String;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InPin(String);
+impl From<String> for InPin {
+    fn from(value: String) -> Self {
+        InPin(value)
+    }
+}
+
+impl From<&str> for InPin {
+    fn from(value: &str) -> Self {
+        InPin(value.to_string())
+    }
+}
+
+impl Display for InPin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct OtPin(String);
+impl From<String> for OtPin {
+    fn from(value: String) -> Self {
+        OtPin(value)
+    }
+}
+
+impl From<&str> for OtPin {
+    fn from(value: &str) -> Self {
+        OtPin(value.to_string())
+    }
+}
+
+impl Display for OtPin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Gate {
@@ -109,8 +146,8 @@ impl Gate {
             } => state,
         }
     }
-    fn get_input(&self, input_name: InPin) -> Option<&Bool> {
-        match (self, input_name.as_str()) {
+    fn get_input(&self, input_name: &InPin) -> Option<&Bool> {
+        match (self, input_name.0.as_str()) {
             (Gate::Not { state, input }, "IN") => Some(input),
             (Gate::Br { state, input }, "IN") => Some(input),
             (Gate::End { input }, "IN") => Some(input),
@@ -149,8 +186,8 @@ impl Gate {
             _ => None,
         }
     }
-    fn getmut_input(&mut self, input_name: InPin) -> Option<&mut Bool> {
-        match (self, input_name.as_str()) {
+    fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
+        match (self, inpin.0.as_str()) {
             (Gate::Not { state, input }, "IN") => Some(input),
             (Gate::Br { state, input }, "IN") => Some(input),
             (Gate::End { input }, "IN") => Some(input),
@@ -189,8 +226,8 @@ impl Gate {
             _ => None,
         }
     }
-    fn get_output(&self, output_name: &OtPin) -> Option<&Bool> {
-        match (self, output_name.as_str()) {
+    fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
+        match (self, otpin.0.as_str()) {
             (Gate::Not { state, input }, "OUT") => Some(state),
             (Gate::Cst { state }, "OUT") => Some(state),
             (Gate::Br { state, input }, "OUT0") => Some(state),
@@ -260,7 +297,26 @@ impl Gate {
     }
 }
 
-type Name = String;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Name(String);
+
+impl From<String> for Name {
+    fn from(value: String) -> Self {
+        Name(value)
+    }
+}
+
+impl From<&str> for Name {
+    fn from(value: &str) -> Self {
+        Name(value.to_string())
+    }
+}
+
+impl Display for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinGraph {
@@ -279,15 +335,15 @@ impl FinGraph {
         input: Vec<(InPin, (Name, InPin))>,
         output: Vec<(OtPin, (Name, OtPin))>,
     ) -> Result<Self> {
-        let mut lcs: HashMap<Name, LoC> = lcs.into_iter().collect();
-        let mut new_edges: HashSet<((Name, InPin), (Name, OtPin))> = HashSet::new();
+        let mut lcs: HashMap<Name, LoC> = lcs.into_iter().map(|(a, b)| (a.clone(), b)).collect();
+        let mut new_edges: HashSet<((Name, OtPin), (Name, InPin))> = HashSet::new();
         let mut new_input = HashMap::new();
         let mut new_output = HashMap::new();
         for ((n0, o), (n1, i)) in edges {
             let Some(n0_lc) = lcs.get(&n0) else {
                 bail!("fail {name} not found name {n0}")
             };
-            let Some(&ob) = n0_lc.get_output(o.clone()) else {
+            let Some(&ob) = n0_lc.get_output(&o) else {
                 bail!("fail {name} not found outpin {o} in {n0}")
             };
 
@@ -295,17 +351,17 @@ impl FinGraph {
                 bail!("fail {name} not found name {n1}")
             };
 
-            let Some(ib) = n1_lc.getmut_input(i.clone()) else {
+            let Some(ib) = n1_lc.getmut_input(&i) else {
                 bail!("fail {name} not found inpin {i} in {n1}")
             };
             *ib = ob;
-            new_edges.insert(((n0, o), (n1, i)));
+            new_edges.insert(((n0.clone(), o.clone()), (n1.clone(), i.clone())));
         }
         for (i, (n, i0)) in input {
             let Some(nlc) = lcs.get(&n) else {
                 bail!("fail {name} not found {n}")
             };
-            if nlc.get_input(i0.clone()).is_none() {
+            if nlc.get_input(&i0).is_none() {
                 bail!("fail {name} not found inpin {i0} in {n}")
             }
             new_input.insert(i, (n, i0));
@@ -314,7 +370,7 @@ impl FinGraph {
             let Some(nlc) = lcs.get(&n) else {
                 bail!("fail {name} not found {n}")
             };
-            if nlc.get_output(o0.clone()).is_none() {
+            if nlc.get_output(&o0).is_none() {
                 bail!("fail {name} not found inpin {o0} in {n}")
             }
             new_output.insert(o, (n, o0));
@@ -323,38 +379,44 @@ impl FinGraph {
             name,
             lcs,
             edges: new_edges,
-            input: new_input,
-            output: new_output,
+            input: new_input
+                .into_iter()
+                .map(|(a, (b, c))| (a.clone(), (b.clone(), c.clone())))
+                .collect(),
+            output: new_output
+                .into_iter()
+                .map(|(a, (b, c))| (a.clone(), (b.clone(), c.clone())))
+                .collect(),
         })
     }
-    fn get_input(&self, inpin: InPin) -> Option<&Bool> {
-        let (name, inpin) = self.input.get(&inpin)?;
+    fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
+        let (name, inpin) = self.input.get(inpin)?;
         let lc = self.lcs.get(name)?;
-        lc.get_input(inpin.to_string())
+        lc.get_input(inpin)
     }
-    fn getmut_input(&mut self, inpin: InPin) -> Option<&mut Bool> {
-        let (name, inpin) = self.input.get(&inpin)?;
+    fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
+        let (name, inpin) = self.input.get(inpin)?;
         let lc = self.lcs.get_mut(name)?;
-        lc.getmut_input(inpin.to_string())
+        lc.getmut_input(inpin)
     }
-    fn get_output(&self, otpin: OtPin) -> Option<&Bool> {
-        let (name, otpin) = self.output.get(&otpin)?;
+    fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
+        let (name, otpin) = self.output.get(otpin)?;
         let lc = self.lcs.get(name)?;
-        lc.get_output(otpin.to_string())
+        lc.get_output(otpin)
     }
-    fn getmut_lc(&mut self, name: Name) -> Option<&mut LoC> {
-        self.lcs.get_mut(&name)
+    fn getmut_lc(&mut self, name: &Name) -> Option<&mut LoC> {
+        self.lcs.get_mut(name)
     }
-    fn get_lc(&self, name: Name) -> Option<&LoC> {
-        self.lcs.get(&name)
+    fn get_lc(&self, name: &Name) -> Option<&LoC> {
+        self.lcs.get(name)
     }
     fn next(&mut self) {
         for lc in self.lcs.values_mut() {
             lc.next();
         }
         for ((n0, o), (n1, i)) in self.edges.clone() {
-            let lco = *self.get_lc(n0).unwrap().get_output(o).unwrap();
-            let lci = self.getmut_lc(n1).unwrap().getmut_input(i).unwrap();
+            let lco = *self.get_lc(&n0).unwrap().get_output(&o).unwrap();
+            let lci = self.getmut_lc(&n1).unwrap().getmut_input(&i).unwrap();
             *lci = lco;
         }
     }
@@ -390,16 +452,16 @@ impl Iter {
             otput: otput.into_iter().collect(),
         })
     }
-    fn get_input(&self, inpin: InPin) -> Option<&Bool> {
-        let inpin = self.input.get(&inpin)?.to_owned();
+    fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
+        let inpin = self.input.get(inpin)?;
         self.lc_extended[0].get_input(inpin)
     }
-    fn getmut_input(&mut self, inpin: InPin) -> Option<&mut Bool> {
-        let inpin = self.input.get_mut(&inpin)?.to_owned();
+    fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
+        let inpin = self.input.get_mut(inpin)?;
         self.lc_extended[0].getmut_input(inpin)
     }
-    fn get_otput(&self, otpin: OtPin) -> Option<&Bool> {
-        let otpin = self.otput.get(&otpin)?.to_owned();
+    fn get_otput(&self, otpin: &OtPin) -> Option<&Bool> {
+        let otpin = self.otput.get(otpin)?;
         self.lc_extended[0].get_output(otpin)
     }
     fn getmut_lc(&mut self, n: Number) -> Option<&mut LoC> {
@@ -420,8 +482,8 @@ impl Iter {
         let mut b = true;
         for (o, i) in self.next_edges.iter() {
             for l in 0..n {
-                let o = *self.lc_extended[l].get_output(o.clone()).unwrap();
-                let i = self.lc_extended[l + 1].getmut_input(i.clone()).unwrap();
+                let o = *self.lc_extended[l].get_output(o).unwrap();
+                let i = self.lc_extended[l + 1].getmut_input(i).unwrap();
                 *i = o;
                 if l == n - 1 && o == Bool::T {
                     b = false;
@@ -435,8 +497,8 @@ impl Iter {
         // prev との整合性
         for (o, i) in self.prev_edges.iter() {
             for l in 1..n {
-                let o = *self.lc_extended[l].get_output(o.clone()).unwrap();
-                let i = self.lc_extended[l - 1].getmut_input(i.clone()).unwrap();
+                let o = *self.lc_extended[l].get_output(o).unwrap();
+                let i = self.lc_extended[l - 1].getmut_input(i).unwrap();
                 *i = o;
             }
         }
@@ -456,7 +518,7 @@ fn into_inpin_path(str: &str) -> Path {
         .split(".")
         .map(|s| match s.parse::<usize>() {
             Ok(n) => Either::Right(n.into()),
-            Err(_) => Either::Left(s.to_string()),
+            Err(_) => Either::Left(s.into()),
         })
         .collect();
     p
@@ -525,36 +587,36 @@ impl LoC {
             LoC::Iter(iter) => iter.name.to_owned(),
         }
     }
-    pub fn get_input(&self, inpin: InPin) -> Option<&Bool> {
+    pub fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
         match self {
             LoC::Gate(gate) => gate.get_input(inpin),
             LoC::FinGraph(fingraph) => fingraph.get_input(inpin),
             LoC::Iter(iter) => iter.get_input(inpin),
         }
     }
-    pub fn getmut_input(&mut self, inpin: InPin) -> Option<&mut Bool> {
+    pub fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
         match self {
             LoC::Gate(gate) => gate.getmut_input(inpin),
             LoC::FinGraph(fingraph) => fingraph.getmut_input(inpin),
             LoC::Iter(iter) => iter.getmut_input(inpin),
         }
     }
-    pub fn get_output(&self, otpin: OtPin) -> Option<&Bool> {
+    pub fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
         match self {
-            LoC::Gate(gate) => gate.get_output(&otpin),
+            LoC::Gate(gate) => gate.get_output(otpin),
             LoC::FinGraph(fingraph) => fingraph.get_output(otpin),
             LoC::Iter(iter) => iter.get_otput(otpin),
         }
     }
-    pub fn getmut_lc_from_path(&mut self, path: Path) -> Option<&mut LoC> {
+    pub fn getmut_lc_from_path(&mut self, path: &Path) -> Option<&mut LoC> {
         let mut lc = self;
         for name in path {
             match (lc, name) {
                 (LoC::FinGraph(fingraph), Either::Left(name)) => {
-                    lc = fingraph.getmut_lc(name)?;
+                    lc = fingraph.getmut_lc(&name)?;
                 }
                 (LoC::Iter(iter), Either::Right(num)) => {
-                    lc = iter.getmut_lc(num)?;
+                    lc = iter.getmut_lc(num.clone())?;
                 }
                 _ => {
                     return None;
@@ -563,15 +625,15 @@ impl LoC {
         }
         Some(lc)
     }
-    pub fn get_lc_from_path(&self, path: Path) -> Option<&LoC> {
+    pub fn get_lc_from_path(&self, path: &Path) -> Option<&LoC> {
         let mut lc = self;
         for name in path {
             match (lc, name) {
                 (LoC::FinGraph(fingraph), Either::Left(name)) => {
-                    lc = fingraph.get_lc(name)?;
+                    lc = fingraph.get_lc(&name)?;
                 }
                 (LoC::Iter(iter), Either::Right(num)) => {
-                    lc = iter.get_lc(num)?;
+                    lc = iter.get_lc(num.clone())?;
                 }
                 _ => {
                     return None;
@@ -580,7 +642,7 @@ impl LoC {
         }
         Some(lc)
     }
-    pub fn get_state_of_gate_from_path(&self, path: Path) -> Option<&Bool> {
+    pub fn get_state_of_gate_from_path(&self, path: &Path) -> Option<&Bool> {
         let lc = self.get_lc_from_path(path)?;
         let LoC::Gate(gate) = lc else {
             return None;
@@ -630,16 +692,13 @@ pub fn print_format(lc: &LoC) {
                 lines.push(format!("fingraph:{name}"));
                 let mut l_in = "i...".to_string();
                 l_in.extend(input.iter().map(|(i, (n0, i0))| {
-                    format!("{i}={n0}.{i0}:{}, ", fingraph.get_input(i.clone()).unwrap())
+                    format!("{i}={n0}.{i0}:{}, ", fingraph.get_input(i).unwrap())
                 }));
                 lines.push(l_in);
 
                 let mut l_ot = "o...".to_string();
                 l_ot.extend(output.iter().map(|(o, (n0, o0))| {
-                    format!(
-                        "{o}={n0}.{o0}:{}, ",
-                        fingraph.get_output(o.clone()).unwrap()
-                    )
+                    format!("{o}={n0}.{o0}:{}, ", fingraph.get_output(o).unwrap())
                 }));
                 lines.push(l_ot);
                 let edges = {
@@ -647,7 +706,7 @@ pub fn print_format(lc: &LoC) {
                     for ((n0, o0), (n1, i1)) in edges.iter() {
                         new_edges.entry(n1).or_default();
                         let io = new_edges.get_mut(n1).unwrap();
-                        io.push((i1.to_string(), (n0.to_string(), o0.to_string())));
+                        io.push((i1.clone(), (n0.clone(), o0.clone())));
                     }
                     new_edges
                 };
@@ -655,7 +714,7 @@ pub fn print_format(lc: &LoC) {
                     let ins = edges.get(name).map_or("not found".to_string(), |l| {
                         l.iter()
                             .map(|(i, (n, o))| {
-                                format!("{i}={n}.{o}:{}, ", lc.get_input(i.clone()).unwrap())
+                                format!("{i}={n}.{o}:{}, ", lc.get_input(i).unwrap())
                             })
                             .collect()
                     });
@@ -692,36 +751,31 @@ mod tests {
     #[test]
     fn rsratch() {
         let rs = LoC::new_graph(
-            "RS".to_string(),
+            "RS".into(),
             vec![
-                ("O0".to_string(), LoC::orgate(Bool::T)),
-                ("N0".to_string(), LoC::notgate(Bool::F)),
-                ("B0".to_string(), LoC::brgate(Bool::F)),
-                ("O1".to_string(), LoC::orgate(Bool::F)),
-                ("N1".to_string(), LoC::notgate(Bool::T)),
-                ("B1".to_string(), LoC::brgate(Bool::T)),
+                ("O0".into(), LoC::orgate(Bool::T)),
+                ("N0".into(), LoC::notgate(Bool::F)),
+                ("B0".into(), LoC::brgate(Bool::F)),
+                ("O1".into(), LoC::orgate(Bool::F)),
+                ("N1".into(), LoC::notgate(Bool::T)),
+                ("B1".into(), LoC::brgate(Bool::T)),
             ],
             vec![
-                (("O0", "OUT"), ("N0", "IN")),
-                (("O1", "OUT"), ("N1", "IN")),
-                (("N0", "OUT"), ("B0", "IN")),
-                (("N1", "OUT"), ("B1", "IN")),
-                (("B0", "OUT1"), ("O1", "IN1")),
-                (("B1", "OUT1"), ("O0", "IN1")),
-            ]
-            .into_iter()
-            .map(|((n0, o), (n1, i))| {
-                ((n0.to_owned(), o.to_owned()), (n1.to_owned(), i.to_owned()))
-            })
-            .collect::<Vec<_>>(),
-            vec![("R", ("O0", "IN0")), ("S", ("O1", "IN0"))]
-                .into_iter()
-                .map(|(i, (n0, i0))| (i.to_owned(), (n0.to_owned(), i0.to_owned())))
-                .collect::<Vec<_>>(),
-            vec![("Q", ("B0", "OUT0")), ("nQ", ("B1", "OUT0"))]
-                .into_iter()
-                .map(|(o, (n0, o0))| (o.to_owned(), (n0.to_owned(), o0.to_owned())))
-                .collect::<Vec<_>>(),
+                (("O0".into(), "OUT".into()), ("N0".into(), "IN".into())),
+                (("O1".into(), "OUT".into()), ("N1".into(), "IN".into())),
+                (("N0".into(), "OUT".into()), ("B0".into(), "IN".into())),
+                (("N1".into(), "OUT".into()), ("B1".into(), "IN".into())),
+                (("B0".into(), "OUT1".into()), ("O1".into(), "IN1".into())),
+                (("B1".into(), "OUT1".into()), ("O0".into(), "IN1".into())),
+            ],
+            vec![
+                ("R".into(), ("O0".into(), "IN0".into())),
+                ("S".into(), ("O1".into(), "IN0".into())),
+            ],
+            vec![
+                ("Q".into(), ("B0".into(), "OUT0".into())),
+                ("nQ".into(), ("B1".into(), "OUT0".into())),
+            ],
         );
         let mut rs = rs.unwrap();
 
@@ -740,15 +794,17 @@ mod tests {
         rs.next();
         assert_eq!(rsp, rs);
 
-        let r = rs.getmut_input("R".to_string()).unwrap();
+        let r = rs.getmut_input(&"R".into()).unwrap();
         *r = Bool::T;
         t(&mut rs);
         println!("---");
 
-        let r = rs.getmut_input("R".to_string()).unwrap();
+        let r = rs.getmut_input(&"R".into()).unwrap();
         *r = Bool::F;
-        let r = rs.getmut_input("S".to_string()).unwrap();
+        let r = rs.getmut_input(&"S".into()).unwrap();
         *r = Bool::T;
         t(&mut rs);
     }
+    #[test]
+    fn inf_dff() {}
 }
