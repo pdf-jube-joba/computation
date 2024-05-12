@@ -727,7 +727,9 @@ pub fn print_format(lc: &LoC) {
                 lines
             }
             LoC::Iter(iter) => {
-                vec![]
+                let Iter { name, lc_init, lc_extended, next_edges, prev_edges, input, otput } = iter;
+                let mut lines = vec![];
+                lines
             }
         }
     }

@@ -1,50 +1,114 @@
-// use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
-// use crate::machine::{circuit_components::*, logic_circuit::*};
-// use anyhow::{bail, Result};
-// use either::Either;
+use crate::machine::*;
+use anyhow::{bail, Result};
+use either::Either;
+use pest::Parser;
 
-// fn parse_one(code: &str) -> Result<ExtensibleLogicCircuit> {
-//     let mut gates: HashMap<
-//         String,
-//         (
-//             Either<(Label, Option<Bool>), ExtensibleLogicCircuit>,
-//             Vec<String>,
-//         ),
-//     > = HashMap::new();
-//     for l in code.lines() {
-//         let l: Vec<_> = l.split_whitespace().collect();
-//         let name = l[0].to_string();
-//         let gate: Either<(Label, Option<Bool>), ExtensibleLogicCircuit> = match l[1] {
-//             "IN" if l.len() == 2 => Either::Left((Label::InOut(InOutLabel::Input), None)),
-//             "OUT" if l.len() == 2 => Either::Left((Label::InOut(InOutLabel::Output), None)),
-//             "BR" if l.len() == 4 => {
-//                 Either::Left((Label::Control(ControlLabel::Branch), Some(l[2].parse()?)))
-//             }
-//             "NOT" if l.len() == 4 => {
-//                 Either::Left((Label::Logic(LogicLabel::Not), Some(l[2].parse()?)))
-//             }
-//             "OR" if l.len() == 5 => {
-//                 Either::Left((Label::Logic(LogicLabel::Not), Some(l[2].parse()?)))
-//             }
-//             "AND" if l.len() == 5 => {
-//                 Either::Left((Label::Logic(LogicLabel::Not), Some(l[2].parse()?)))
-//             }
-//             "C0" if l.len() == 3 => {
-//                 Either::Left((Label::Logic(LogicLabel::Not), Some(l[2].parse()?)))
-//             }
-//             _ => {
-//                 let l = parse_iter(code)?;
-//                 Either::Right(l)
-//             }
-//         };
-//         let froms = l[3..].iter().map(|s| s.to_string()).collect();
-//         gates.insert(name, (gate, froms));
-//     }
-    
-//     todo!()
-// }
+#[derive(pest_derive::Parser)]
+#[grammar = "logic_circuit.pest"]
+struct Ps;
 
-// fn parse_iter(code: &str) -> Result<ExtensibleLogicCircuit> {
-//     todo!()
-// }
+fn parse(code: &str) -> Result<LoC> {
+    let lcs = Ps::parse(Rule::lcs, code)?;
+    let mut maps: HashMap<String, LoC> = HashMap::new();
+    for lc in lcs {
+        // A pair is a combination of the rule which matched and a span of input
+        match lc.as_rule() {
+            Rule::fingraph => {
+                let mut cont = lc.into_inner();
+                let name: Name = {
+                    let name = cont.next().unwrap();
+                    assert_eq!(name.as_rule(), Rule::name);
+                    name.as_str().into()
+                };
+                let indesc: Vec<(InPin, (Name, InPin))> = {
+                    let indesc = cont.next().unwrap();
+                    assert_eq!(indesc.as_rule(), Rule::in_desc);
+                    let mut v = vec![];
+                    for i in indesc.into_inner() {
+                        assert_eq!(i.as_rule(), Rule::inout_connect);
+                        let mut i = i.into_inner();
+                        let (v0, v1, v2) = (
+                            i.next().unwrap().as_str().into(),
+                            i.next().unwrap().as_str().into(),
+                            i.next().unwrap().as_str().into(),
+                        );
+                        v.push((v0, (v1, v2)));
+                    }
+                    eprintln!("{v:?}");
+                    v
+                };
+                let otdesc: Vec<(OtPin, (Name, OtPin))> = {
+                    let otdesc = cont.next().unwrap();
+                    assert_eq!(otdesc.as_rule(), Rule::out_desc);
+                    let mut v = vec![];
+                    for i in otdesc.into_inner() {
+                        assert_eq!(i.as_rule(), Rule::inout_connect);
+                        let mut i = i.into_inner();
+                        let (v0, v1, v2) = (
+                            i.next().unwrap().as_str().into(),
+                            i.next().unwrap().as_str().into(),
+                            i.next().unwrap().as_str().into(),
+                        );
+                        v.push((v0, (v1, v2)));
+                    }
+                    eprintln!("{v:?}");
+                    v
+                };
+                let lc_descs: Vec<(Name, Name, Vec<(InPin, (Name, OtPin))>)> = cont
+                    .map(|p| {
+                        assert_eq!(p.as_rule(), Rule::lc_desc);
+                        let mut cont = p.into_inner();
+                        let name: Name = {
+                            let name = cont.next().unwrap();
+                            assert_eq!(name.as_rule(), Rule::name);
+                            name.as_str().into()
+                        };
+                        let usename: Name = {
+                            let name = cont.next().unwrap();
+                            assert_eq!(name.as_rule(), Rule::name);
+                            name.as_str().into()
+                        };
+                        let v = {
+                            let mut v = vec![];
+                            for i in cont {
+                                assert_eq!(i.as_rule(), Rule::inout_connect);
+                                let mut i = i.into_inner();
+                                let (v0, v1, v2) = (
+                                    i.next().unwrap().as_str().into(),
+                                    i.next().unwrap().as_str().into(),
+                                    i.next().unwrap().as_str().into(),
+                                );
+                                v.push((v0, (v1, v2)));
+                            }
+                            eprintln!("{v:?}");
+                            v
+                        };
+                        (name, usename, v)
+                    })
+                    .collect();
+            }
+            Rule::iterator => {
+                let name = lc.into_inner().next().unwrap();
+                eprintln!("{:?}", name.as_rule());
+            }
+            _ => unreachable!(),
+        }
+    }
+    bail!("hello")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn f() {
+        let s = "graph: DFF {
+            in {A=b.c, d=g.f }
+            out {a=b.c}
+            hello, DFF, I=O.I
+          }";
+        let c = parse(s);
+    }
+}

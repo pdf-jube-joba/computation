@@ -1,0 +1,18 @@
+WHITESPACE = _{ " " | "\n" }
+
+alpha = { 'a'..'z' | 'A'..'Z' }
+digit = { '0'..'9' }
+name = @{ (alpha | digit)+ }
+
+inout_connect = { name ~ "=" ~ name ~ "." ~ name}
+in_desc = {"in" ~ "{" ~ (","* ~ inout_connect)* ~ "}" }
+out_desc = {"out" ~ "{" ~ (","* ~ inout_connect)* ~ "}" }
+
+lc_desc = { name ~ "," ~ name ~ "," ~ (","* ~ inout_connect)* }
+fingraph = { "graph:" ~ name ~ "{" ~ in_desc ~ out_desc ~ lc_desc+ ~ "}"}
+
+next_conn = { "next:" ~ name ~ "=" ~ name }
+prev_conn = { "prev:" ~ name ~ "=" ~ name }
+iterator = { "iter:" ~ name ~ "{" ~ name ~ in_desc ~ out_desc ~ next_conn ~ prev_conn ~ "}" }
+
+lcs = _{ (fingraph | iterator)* }

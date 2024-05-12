@@ -9,3 +9,5 @@ edition = "2021"
 utils = { path = "../../utils" }
 anyhow = { workspace = true }
 either = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
