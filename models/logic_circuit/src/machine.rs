@@ -320,7 +320,7 @@ impl Display for Name {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinGraph {
-    name: String,
+    name: Name,
     lcs: HashMap<Name, LoC>,
     edges: HashSet<((Name, OtPin), (Name, InPin))>,
     input: HashMap<InPin, (Name, InPin)>,
@@ -329,7 +329,7 @@ pub struct FinGraph {
 
 impl FinGraph {
     fn new(
-        name: String,
+        name: Name,
         lcs: Vec<(Name, LoC)>,
         edges: Vec<((Name, OtPin), (Name, InPin))>,
         input: Vec<(InPin, (Name, InPin))>,
@@ -376,7 +376,7 @@ impl FinGraph {
             new_output.insert(o, (n, o0));
         }
         Ok(Self {
-            name,
+            name: name.into(),
             lcs,
             edges: new_edges,
             input: new_input
@@ -424,7 +424,7 @@ impl FinGraph {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Iter {
-    name: String,
+    name: Name,
     lc_init: Box<LoC>,
     lc_extended: Vec<LoC>,
     next_edges: HashSet<(OtPin, InPin)>,
@@ -435,7 +435,7 @@ pub struct Iter {
 
 impl Iter {
     fn new(
-        name: String,
+        name: Name,
         lc: LoC,
         next_edges: Vec<(OtPin, InPin)>,
         prev_edges: Vec<(OtPin, InPin)>,
@@ -443,7 +443,7 @@ impl Iter {
         otput: Vec<(OtPin, OtPin)>,
     ) -> Result<Self> {
         Ok(Self {
-            name,
+            name: name.into(),
             lc_init: Box::new(lc.clone()),
             lc_extended: vec![lc],
             next_edges: next_edges.into_iter().collect(),
@@ -558,7 +558,7 @@ impl LoC {
         LoC::Gate(Gate::End { input: Bool::F })
     }
     pub fn new_graph(
-        name: String,
+        name: Name,
         lcs: Vec<(Name, LoC)>,
         edges: Vec<((Name, OtPin), (Name, InPin))>,
         input: Vec<(InPin, (Name, InPin))>,
@@ -569,7 +569,7 @@ impl LoC {
         )?))
     }
     pub fn new_iter(
-        name: String,
+        name: Name,
         lc: LoC,
         next_edges: Vec<(OtPin, InPin)>,
         prev_edges: Vec<(OtPin, InPin)>,
@@ -583,8 +583,8 @@ impl LoC {
     pub fn name(&self) -> String {
         match self {
             LoC::Gate(gate) => gate.name(),
-            LoC::FinGraph(fingraph) => fingraph.name.to_owned(),
-            LoC::Iter(iter) => iter.name.to_owned(),
+            LoC::FinGraph(fingraph) => fingraph.name.to_string(),
+            LoC::Iter(iter) => iter.name.to_string(),
         }
     }
     pub fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
@@ -662,22 +662,6 @@ pub fn print_format(lc: &LoC) {
     fn print_format(lc: &LoC) -> Vec<String> {
         match lc {
             LoC::Gate(gate) => {
-                // match gate {
-                //     Gate::Cst { state } => vec![format!("cst {state} in:/")],
-                //     Gate::Not { state, input } => vec![format!("not {state} in:{input}")],
-                //     Gate::End { input } => vec![format!("end / in:{input}")],
-                //     Gate::Br { state, input } => vec![format!("bra {state} in:{input}")],
-                //     Gate::And {
-                //         state,
-                //         input0,
-                //         input1,
-                //     } => vec![format!("and {state} in:{input0} {input1}")],
-                //     Gate::Or {
-                //         state,
-                //         input0,
-                //         input1,
-                //     } => vec![format!("or  {state} in:{input0} {input1}")],
-                // },
                 vec![]
             }
             LoC::FinGraph(fingraph) => {
@@ -690,6 +674,7 @@ pub fn print_format(lc: &LoC) {
                 } = fingraph;
                 let mut lines = vec![];
                 lines.push(format!("fingraph:{name}"));
+
                 let mut l_in = "i...".to_string();
                 l_in.extend(input.iter().map(|(i, (n0, i0))| {
                     format!("{i}={n0}.{i0}:{}, ", fingraph.get_input(i).unwrap())
@@ -727,8 +712,34 @@ pub fn print_format(lc: &LoC) {
                 lines
             }
             LoC::Iter(iter) => {
-                let Iter { name, lc_init, lc_extended, next_edges, prev_edges, input, otput } = iter;
+                let Iter {
+                    name,
+                    lc_init,
+                    lc_extended,
+                    next_edges,
+                    prev_edges,
+                    input,
+                    otput,
+                } = iter;
                 let mut lines = vec![];
+                lines.push(format!("iterator:{name}"));
+
+                let mut l_in = "i...".to_string();
+                l_in.extend(
+                    input
+                        .iter()
+                        .map(|(i, i0)| format!("{i}={i0}:{}, ", iter.get_input(i).unwrap())),
+                );
+                lines.push(l_in);
+
+                let mut o_in = "o...".to_string();
+                o_in.extend(
+                    otput
+                        .iter()
+                        .map(|(o, o0)| format!("{o}={o0}:{}, ", iter.get_otput(o).unwrap())),
+                );
+                lines.push(o_in);
+
                 lines
             }
         }
