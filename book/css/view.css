@@ -1,0 +1,11 @@
+.view {
+    display: flex;
+}
+
+.control {
+    width: 500px;
+}
+
+.machine {
+    width: 500px;
+}

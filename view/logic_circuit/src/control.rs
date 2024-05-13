@@ -67,7 +67,9 @@ impl Component for ControlView {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             ControlMsg::SetTargetMachineView(scope) => {
-                // let callback = ctx.link().callback(|log|)
+                let callback = ctx.link().callback(|log| ControlMsg::EventLog(log));
+                scope.send_message(MachineMsg::SetEventLog(callback));
+                self.machine = Some(scope);
             }
             ControlMsg::EventLog(log) => {
                 self.event_log.push(log);

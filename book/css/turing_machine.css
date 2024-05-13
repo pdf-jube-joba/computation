@@ -23,10 +23,6 @@
     display: flex;
 }
 
-.control {
-    width: 500px;
-}
-
-.machine {
-    width: 500px;
+#logic_circuits_playground {
+    display: flex;
 }

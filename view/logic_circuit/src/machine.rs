@@ -266,7 +266,10 @@ impl Component for MachineView {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let Some(machine) = &self.machine else {
             return html! {
-                "not found"
+                <>
+                {"machine"} <br/>
+                {"not found"}
+                </>
             };
         };
         let callback_step_usr = ctx.link().callback(MachineMsg::Step);

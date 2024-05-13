@@ -8,6 +8,7 @@ fn main() {
     let element = document
         .get_element_by_id("turing_machine_playground")
         .unwrap();
+    element.set_attribute("class", "view").unwrap();
 
     let control_element = document.create_element("div").unwrap();
     element.append_child(&control_element).unwrap();
