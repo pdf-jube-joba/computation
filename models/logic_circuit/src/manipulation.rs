@@ -26,12 +26,11 @@ fn init_maps() -> HashMap<Name, LoC> {
     maps
 }
 
-fn parse(code: &str) -> Result<LoC> {
+pub fn parse(code: &str) -> Result<LoC> {
     let lcs = Ps::parse(Rule::lcs, code)?;
     // maps(k) = v => v.name == k
     let mut maps: HashMap<Name, LoC> = init_maps();
     for lc in lcs {
-        eprintln!("he");
         match lc.as_rule() {
             Rule::fingraph => {
                 let FingraphParse {

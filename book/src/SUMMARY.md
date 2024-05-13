@@ -15,3 +15,4 @@
     - [その他の計算モデルの例](./models_of_computation/Other_models_of_computation.md)
 - [論理回路から抽象機械へ](logic_circuits_to_machine.md)
     - [論理回路](./logic_circuits_to_machine/Logic_circuit.md)
+    - [playground](./logic_circuits_to_machine/play_groud.md)

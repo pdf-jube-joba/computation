@@ -6,3 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+yew = { workspace = true }
+gloo = { workspace = true }
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true }
+anyhow = { workspace = true }
+logic_circuit_view = { path = "../../../view/logic_circuit" }

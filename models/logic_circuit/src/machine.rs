@@ -1,5 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use either::Either;
+use pest::pratt_parser::Op;
 use std::str::FromStr;
 use std::{
     collections::{HashMap, HashSet},
@@ -128,7 +129,7 @@ pub enum Gate {
 }
 
 impl Gate {
-    fn state(&self) -> &Bool {
+    pub fn state(&self) -> &Bool {
         match self {
             Gate::Cst { state } => state,
             Gate::Not { state, input } => state,
@@ -146,7 +147,7 @@ impl Gate {
             } => state,
         }
     }
-    fn get_input(&self, input_name: &InPin) -> Option<&Bool> {
+    pub fn get_input(&self, input_name: &InPin) -> Option<&Bool> {
         match (self, input_name.0.as_str()) {
             (Gate::Not { state, input }, "IN") => Some(input),
             (Gate::Br { state, input }, "IN") => Some(input),
@@ -226,7 +227,7 @@ impl Gate {
             _ => None,
         }
     }
-    fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
+    pub fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
         match (self, otpin.0.as_str()) {
             (Gate::Not { state, input }, "OUT") => Some(state),
             (Gate::Cst { state }, "OUT") => Some(state),
@@ -277,7 +278,7 @@ impl Gate {
             _ => {}
         }
     }
-    fn name(&self) -> String {
+    pub fn name(&self) -> String {
         match self {
             Gate::Not { state, input } => "not".to_owned(),
             Gate::And {
@@ -320,11 +321,11 @@ impl Display for Name {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinGraph {
-    name: Name,
-    lcs: HashMap<Name, LoC>,
-    edges: HashSet<((Name, OtPin), (Name, InPin))>,
-    input: HashMap<InPin, (Name, InPin)>,
-    output: HashMap<OtPin, (Name, OtPin)>,
+    pub name: Name,
+    pub lcs: HashMap<Name, LoC>,
+    pub edges: HashSet<((Name, OtPin), (Name, InPin))>,
+    pub input: HashMap<InPin, (Name, InPin)>,
+    pub output: HashMap<OtPin, (Name, OtPin)>,
 }
 
 impl FinGraph {
@@ -389,7 +390,7 @@ impl FinGraph {
                 .collect(),
         })
     }
-    fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
+    pub fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
         let (name, inpin) = self.input.get(inpin)?;
         let lc = self.lcs.get(name)?;
         lc.get_input(inpin)
@@ -399,15 +400,15 @@ impl FinGraph {
         let lc = self.lcs.get_mut(name)?;
         lc.getmut_input(inpin)
     }
-    fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
+    pub fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
         let (name, otpin) = self.output.get(otpin)?;
         let lc = self.lcs.get(name)?;
         lc.get_output(otpin)
     }
-    fn getmut_lc(&mut self, name: &Name) -> Option<&mut LoC> {
+    pub fn getmut_lc(&mut self, name: &Name) -> Option<&mut LoC> {
         self.lcs.get_mut(name)
     }
-    fn get_lc(&self, name: &Name) -> Option<&LoC> {
+    pub fn get_lc(&self, name: &Name) -> Option<&LoC> {
         self.lcs.get(name)
     }
     fn next(&mut self) {
@@ -420,17 +421,29 @@ impl FinGraph {
             *lci = lco;
         }
     }
+    pub fn get_lc_inouts(&self, name: &Name) -> Option<(&LoC, Vec<(InPin, (Name, OtPin), Bool)>)> {
+        let lc = self.lcs.get(name)?;
+        let mut inout = vec![];
+        for ((n0, o0), (n1, i1)) in self.edges.iter() {
+            if n1 == name {
+                let lc = self.get_lc(name).unwrap();
+                let b = *lc.get_input(i1).unwrap();
+                inout.push((i1.clone(), (n0.clone(), o0.clone()), b));
+            }
+        }
+        Some((lc, inout))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Iter {
-    name: Name,
-    lc_init: Box<LoC>,
-    lc_extended: Vec<LoC>,
-    next_edges: HashSet<(OtPin, InPin)>,
-    prev_edges: HashSet<(OtPin, InPin)>,
-    input: HashMap<InPin, InPin>,
-    otput: HashMap<OtPin, OtPin>,
+    pub name: Name,
+    pub lc_init: Box<LoC>,
+    pub lc_extended: Vec<LoC>,
+    pub next_edges: HashSet<(OtPin, InPin)>,
+    pub prev_edges: HashSet<(OtPin, InPin)>,
+    pub input: HashMap<InPin, InPin>,
+    pub otput: HashMap<OtPin, OtPin>,
 }
 
 impl Iter {
@@ -654,6 +667,15 @@ impl LoC {
             LoC::Gate(gate) => gate.next(),
             LoC::FinGraph(fingraph) => fingraph.next(),
             LoC::Iter(iter) => iter.next(),
+        }
+    }
+    pub fn get_all_input_name(&self) -> Vec<InPin> {
+        match self {
+            LoC::Gate(gate) => {
+                todo!()
+            }
+            LoC::FinGraph(fingraph) => fingraph.input.keys().cloned().collect(),
+            LoC::Iter(iter) => iter.input.keys().cloned().collect(),
         }
     }
 }
