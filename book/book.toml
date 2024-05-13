@@ -24,6 +24,7 @@ component-out-dir = "./out/book/html/component"
 
 [output.html]
 additional-css = [
-    "css/turing_machine.css",
     "css/view.css",
+    "css/models_of_computation.css",
+    "css/logic_circuit.css"
 ]

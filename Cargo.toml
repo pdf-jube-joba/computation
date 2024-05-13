@@ -9,6 +9,7 @@ members = [
   "integration/*",
   "compile/*",
   "book/component/*",
+  "test_view",
 ]
 
 exclude = [

@@ -6,7 +6,6 @@ use yew::prelude::*;
 use logic_circuit::machine::{Bool, FinGraph, InPin, LoC, Name};
 
 #[derive(Debug, Clone, PartialEq, Eq, Properties)]
-
 pub struct StateProps {
     state: Bool,
     rep: String,

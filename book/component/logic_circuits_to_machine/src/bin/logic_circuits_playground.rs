@@ -16,8 +16,6 @@ fn main() {
     element.append_child(&machine_element).unwrap();
     let machine_handle = yew::Renderer::<machine::MachineView>::with_root(machine_element).render();
 
-    eprintln!("hello world");
-
     control_handle.send_message(control::ControlMsg::SetTargetMachineView(
         machine_handle.clone(),
     ));
