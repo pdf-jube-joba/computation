@@ -1,9 +1,7 @@
-use gloo::timers::callback::Interval;
-use std::{collections::HashMap, fmt::Display, iter::repeat, ops::Neg};
-use web_sys::HtmlInputElement;
+use std::ops::Neg;
 use yew::prelude::*;
 
-use logic_circuit::machine::{Bool, FinGraph, InPin, LoC, Name};
+use logic_circuit::machine::{Bool, FinGraph, InPin, LoC};
 
 #[derive(Debug, Clone, PartialEq, Eq, Properties)]
 pub struct StateProps {
@@ -35,7 +33,7 @@ pub fn fingraph_view(FinGraphProps { fingraph, detail }: &FinGraphProps) -> Html
     let FinGraph {
         name,
         lcs,
-        edges,
+        edges: _,
         input,
         output,
     } = fingraph;
@@ -56,14 +54,14 @@ pub fn fingraph_view(FinGraphProps { fingraph, detail }: &FinGraphProps) -> Html
             } <br/>
             {if *detail {
                 html!{
-                    {for lcs.iter().map(|(name, lc)|{
+                    {for lcs.iter().map(|(name, _)|{
                         let (lc, inout) = fingraph.get_lc_inouts(name).unwrap();
                         html!{
                             <>
                             <span>
                                 {name} {" "}
                                 {lc.name()} {" "}
-                                {for inout.iter().map(|(i, (n, o), s)| {
+                                {for inout.iter().map(|(i, (_, o), s)| {
                                     let name = format!("{i}={name}.{o} ");
                                     html!{
                                         <StateView state = {*s} rep = {name}/>
@@ -92,10 +90,10 @@ pub struct IteratorProps {
 fn iterator_view(IteratorProps { iterator, detail }: &IteratorProps) -> Html {
     let logic_circuit::machine::Iter {
         name,
-        lc_init,
+        lc_init: _,
         lc_extended,
-        next_edges,
-        prev_edges,
+        next_edges: _,
+        prev_edges: _,
         input,
         otput,
     } = iterator;
@@ -144,7 +142,7 @@ pub fn loc_view(LoCProps { lc, detail }: &LoCProps) -> Html {
         }
         LoC::FinGraph(fingraph) => {
             html! {
-                <FinGraphView fingraph={fingraph.clone()} detail={detail}/>
+                <FinGraphView fingraph={fingraph.as_ref().clone()} detail={detail}/>
             }
         }
         LoC::Iter(iter) => {
@@ -176,7 +174,7 @@ impl Component for InputSetView {
     fn create(ctx: &Context<Self>) -> Self {
         let InputSetProps {
             input_anames,
-            on_set,
+            on_set: _,
         } = ctx.props();
         let inputs = input_anames
             .iter()
@@ -204,7 +202,7 @@ impl Component for InputSetView {
         let (_, b) = self.inputs.get_mut(i).unwrap();
         *b = b.neg();
         let InputSetProps {
-            input_anames,
+            input_anames: _,
             on_set,
         } = ctx.props();
         on_set.emit(self.inputs.clone());
@@ -215,14 +213,6 @@ impl Component for InputSetView {
 pub struct MachineView {
     machine: Option<LoC>,
     callback_on_log: Option<Callback<String>>,
-}
-
-impl MachineView {
-    fn send_log(&mut self, str: String) {
-        if let Some(ref callback) = self.callback_on_log {
-            callback.emit(str);
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -239,7 +229,7 @@ pub struct MachineProps {}
 impl Component for MachineView {
     type Message = MachineMsg;
     type Properties = MachineProps;
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             machine: None,
             callback_on_log: None,
@@ -255,7 +245,7 @@ impl Component for MachineView {
             };
         };
         let callback_step = ctx.link().callback(MachineMsg::Step);
-        let on_set_inputs = ctx.link().callback(|v| MachineMsg::SetInput(v));
+        let on_set_inputs = ctx.link().callback(MachineMsg::SetInput);
         let all_input_name = machine.get_all_input_name();
         html! {
             <div class ="machine"> <br/>
@@ -265,7 +255,7 @@ impl Component for MachineView {
             </div>
         }
     }
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             MachineMsg::LoadFromMachine(loc) => {
                 self.machine = Some(*loc);

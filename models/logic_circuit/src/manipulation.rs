@@ -1,8 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::machine::*;
 use anyhow::{bail, Ok, Result};
-use either::Either;
 use pest::{iterators::Pair, Parser};
 
 #[derive(pest_derive::Parser)]
@@ -22,7 +21,9 @@ pub fn init_maps() -> HashMap<Name, LoC> {
     maps.insert("CST-F".into(), LoC::cstgate(Bool::F));
     maps.insert("BR-T".into(), LoC::brgate(Bool::T));
     maps.insert("BR-F".into(), LoC::brgate(Bool::F));
-    maps.insert("END".into(), LoC::end());
+    maps.insert("END".into(), LoC::endgate());
+    maps.insert("DLY-T".into(), LoC::delaygate(Bool::T));
+    maps.insert("DLY-F".into(), LoC::delaygate(Bool::F));
     maps
 }
 
@@ -36,7 +37,7 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
                     inpin,
                     otpin,
                     lcs,
-                } = fingraph_parse(lc.as_str(), maps);
+                } = fingraph_parse(lc.as_str());
                 let mut v = vec![];
                 let mut e = vec![];
                 for (lcname, usename, inout) in lcs {
@@ -59,11 +60,12 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
                     otpin,
                     next,
                     prev,
-                } = iter_parse(lc.as_str(), maps);
+                } = iter_parse(lc.as_str());
                 let Some(initlc) = maps.get(&name) else {
                     bail!("not found name {initlc}");
                 };
-                let iterlc = LoC::new_iter(name, initlc.clone(), next, prev, inpin, otpin);
+                let iterlc = LoC::new_iter(name.clone(), initlc.clone(), next, prev, inpin, otpin)?;
+                maps.insert(name, iterlc);
             }
             _ => unreachable!(),
         }
@@ -88,7 +90,7 @@ struct FingraphParse {
     lcs: Vec<(Name, Name, Vec<(InPin, (Name, OtPin))>)>,
 }
 
-fn fingraph_parse<'a>(code: &'a str, map: &mut HashMap<Name, LoC>) -> FingraphParse {
+fn fingraph_parse<'a>(code: &'a str) -> FingraphParse {
     let lc = Ps::parse(Rule::fingraph, code).unwrap();
     let mut l = lc.into_iter().next().unwrap().into_inner();
     let conn_graph_parse = |p: Pair<'a, Rule>| -> (&'a str, &'a str, &'a str) {
@@ -163,7 +165,7 @@ struct IterParse {
     next: Vec<(OtPin, InPin)>,
     prev: Vec<(OtPin, InPin)>,
 }
-fn iter_parse<'a>(code: &'a str, map: &mut HashMap<Name, LoC>) -> IterParse {
+fn iter_parse<'a>(code: &'a str) -> IterParse {
     let conn_iter_parse = |p: Pair<'a, Rule>| -> (&'a str, &'a str) {
         assert_eq!(p.as_rule(), Rule::conn_iter);
         let mut v = p.into_inner();
@@ -251,6 +253,6 @@ mod tests {
             out {a=b.c}
             A, AND-T,
           }";
-        let c = parse_main(s).unwrap();
+        let _c = parse_main(s).unwrap();
     }
 }

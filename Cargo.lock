@@ -2076,15 +2076,6 @@ dependencies = [
 [[package]]
 name = "test_view"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "gloo",
- "logic_circuit_view",
- "utils",
- "wasm-bindgen",
- "web-sys",
- "yew",
-]
 
 [[package]]
 name = "thiserror"

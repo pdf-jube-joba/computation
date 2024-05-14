@@ -22,7 +22,7 @@ pub struct CodeProps {
 impl Component for CodeView {
     type Message = CodeMsg;
     type Properties = CodeProps;
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self::default()
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -71,10 +71,10 @@ pub struct EventLogProps {}
 impl Component for EventLogView {
     type Message = EventLogMsg;
     type Properties = EventLogProps;
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self::default()
     }
-    fn view(&self, ctx: &Context<Self>) -> Html {
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <>
             {"eventlog"} <br/>
@@ -84,7 +84,7 @@ impl Component for EventLogView {
             </>
         }
     }
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         let EventLogMsg::Log(log) = msg;
         self.log.push(log);
         true
@@ -94,6 +94,7 @@ impl Component for EventLogView {
 #[derive(Debug)]
 pub struct ControlStepView {
     now_auto: bool,
+    #[allow(dead_code)]
     interval: Interval,
     now_input_step: usize,
 }

@@ -46,7 +46,7 @@ impl FromStr for Bool {
         match s {
             "T" => Ok(Bool::T),
             "F" => Ok(Bool::F),
-            _ => Err(anyhow!("a")),
+            _ => Err(anyhow!("fail to parse {s}")),
         }
     }
 }
@@ -123,6 +123,10 @@ pub enum Gate {
         state: Bool,
         input: Bool,
     },
+    Delay {
+        input: Bool,
+        state: Bool,
+    },
     End {
         input: Bool,
     },
@@ -132,124 +136,128 @@ impl Gate {
     pub fn state(&self) -> &Bool {
         match self {
             Gate::Cst { state } => state,
-            Gate::Not { state, input } => state,
-            Gate::Br { state, input } => state,
+            Gate::Not { state, input: _ } => state,
+            Gate::Br { state, input: _ } => state,
             Gate::End { input } => input,
             Gate::And {
                 state,
-                input0,
-                input1,
+                input0: _,
+                input1: _,
             } => state,
             Gate::Or {
                 state,
-                input0,
-                input1,
+                input0: _,
+                input1: _,
             } => state,
+            Gate::Delay { input: _, state } => state,
         }
     }
     pub fn get_input(&self, input_name: &InPin) -> Option<&Bool> {
         match (self, input_name.0.as_str()) {
-            (Gate::Not { state, input }, "IN") => Some(input),
-            (Gate::Br { state, input }, "IN") => Some(input),
+            (Gate::Not { state: _, input }, "IN") => Some(input),
+            (Gate::Br { state: _, input }, "IN") => Some(input),
             (Gate::End { input }, "IN") => Some(input),
             (
                 Gate::And {
-                    state,
+                    state: _,
                     input0,
-                    input1,
+                    input1: _,
                 },
                 "IN0",
             ) => Some(input0),
             (
                 Gate::And {
-                    state,
-                    input0,
+                    state: _,
+                    input0: _,
                     input1,
                 },
                 "IN1",
             ) => Some(input1),
             (
                 Gate::Or {
-                    state,
+                    state: _,
                     input0,
-                    input1,
+                    input1: _,
                 },
                 "IN0",
             ) => Some(input0),
             (
                 Gate::Or {
-                    state,
-                    input0,
+                    state: _,
+                    input0: _,
                     input1,
                 },
                 "IN1",
             ) => Some(input1),
+            (Gate::Delay { input, state: _ }, "IN") => Some(input),
             _ => None,
         }
     }
     fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
         match (self, inpin.0.as_str()) {
-            (Gate::Not { state, input }, "IN") => Some(input),
-            (Gate::Br { state, input }, "IN") => Some(input),
+            (Gate::Not { state: _, input }, "IN") => Some(input),
+            (Gate::Br { state: _, input }, "IN") => Some(input),
             (Gate::End { input }, "IN") => Some(input),
             (
                 Gate::And {
-                    state,
+                    state: _,
                     input0,
-                    input1,
+                    input1: _,
                 },
                 "IN0",
             ) => Some(input0),
             (
                 Gate::And {
-                    state,
-                    input0,
+                    state: _,
+                    input0: _,
                     input1,
                 },
                 "IN1",
             ) => Some(input1),
             (
                 Gate::Or {
-                    state,
+                    state: _,
                     input0,
-                    input1,
+                    input1: _,
                 },
                 "IN0",
             ) => Some(input0),
             (
                 Gate::Or {
-                    state,
-                    input0,
+                    state: _,
+                    input0: _,
                     input1,
                 },
                 "IN1",
             ) => Some(input1),
+            (Gate::Delay { input, state: _ }, "IN") => Some(input),
             _ => None,
         }
     }
     pub fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
         match (self, otpin.0.as_str()) {
-            (Gate::Not { state, input }, "OUT") => Some(state),
+            (Gate::Not { state, input: _ }, "OUT") => Some(state),
             (Gate::Cst { state }, "OUT") => Some(state),
-            (Gate::Br { state, input }, "OUT0") => Some(state),
-            (Gate::Br { state, input }, "OUT1") => Some(state),
-            (Gate::End { input }, _) => None,
+            (Gate::Br { state, input: _ }, "OUT0") => Some(state),
+            (Gate::Br { state, input: _ }, "OUT1") => Some(state),
+            (Gate::End { input: _ }, _) => None,
             (
                 Gate::And {
                     state,
-                    input0,
-                    input1,
+                    input0: _,
+                    input1: _,
                 },
                 "OUT",
             ) => Some(state),
             (
                 Gate::Or {
                     state,
-                    input0,
-                    input1,
+                    input0: _,
+                    input1: _,
                 },
                 "OUT",
             ) => Some(state),
+            (Gate::Delay { input: _, state }, "OUT") => Some(state),
             _ => None,
         }
     }
@@ -259,6 +267,9 @@ impl Gate {
                 *state = input.neg();
             }
             Gate::Br { state, input } => {
+                *state = *input;
+            }
+            Gate::Delay { input, state } => {
                 *state = *input;
             }
             Gate::And {
@@ -280,34 +291,37 @@ impl Gate {
     }
     pub fn name(&self) -> String {
         match self {
-            Gate::Not { state, input } => "not".to_owned(),
+            Gate::Not { state: _, input: _ } => "not".to_owned(),
             Gate::And {
-                state,
-                input0,
-                input1,
+                state: _,
+                input0: _,
+                input1: _,
             } => "and".to_owned(),
             Gate::Or {
-                state,
-                input0,
-                input1,
+                state: _,
+                input0: _,
+                input1: _,
             } => "or ".to_owned(),
             Gate::Cst { state } => format!("cst{state}"),
-            Gate::Br { state, input } => "br ".to_owned(),
-            Gate::End { input } => "end".to_owned(),
+            Gate::Br { state: _, input: _ } => "br ".to_owned(),
+            Gate::End { input: _ } => "end".to_owned(),
+            Gate::Delay { input: _, state: _ } => "dly".to_owned(),
         }
     }
     pub fn get_all_input_name(&self) -> Vec<InPin> {
         match self {
-            Gate::Not { state, input } | Gate::Br { state, input } => vec!["IN".into()],
+            Gate::Not { state: _, input: _ }
+            | Gate::Br { state: _, input: _ }
+            | Gate::Delay { input: _, state: _ } => vec!["IN".into()],
             Gate::And {
-                state,
-                input0,
-                input1,
+                state: _,
+                input0: _,
+                input1: _,
             }
             | Gate::Or {
-                state,
-                input0,
-                input1,
+                state: _,
+                input0: _,
+                input1: _,
             } => vec!["IN0".into(), "IN1".into()],
             _ => vec![],
         }
@@ -393,7 +407,7 @@ impl FinGraph {
             new_output.insert(o, (n, o0));
         }
         Ok(Self {
-            name: name.into(),
+            name,
             lcs,
             edges: new_edges,
             input: new_input
@@ -472,7 +486,7 @@ impl Iter {
         otput: Vec<(OtPin, OtPin)>,
     ) -> Result<Self> {
         Ok(Self {
-            name: name.into(),
+            name,
             lc_init: Box::new(lc.clone()),
             lc_extended: vec![lc],
             next_edges: next_edges.into_iter().collect(),
@@ -537,14 +551,14 @@ impl Iter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoC {
     Gate(Gate),
-    FinGraph(FinGraph),
+    FinGraph(Box<FinGraph>),
     Iter(Iter),
 }
 
 type Path = Vec<Either<Name, Number>>;
-fn into_inpin_path(str: &str) -> Path {
-    let mut p: Vec<_> = str
-        .split(".")
+pub fn into_inpin_path(str: &str) -> Path {
+    let p: Vec<_> = str
+        .split('.')
         .map(|s| match s.parse::<usize>() {
             Ok(n) => Either::Right(n.into()),
             Err(_) => Either::Left(s.into()),
@@ -583,8 +597,14 @@ impl LoC {
             input: Bool::F,
         })
     }
-    pub fn end() -> LoC {
+    pub fn endgate() -> LoC {
         LoC::Gate(Gate::End { input: Bool::F })
+    }
+    pub fn delaygate(b: Bool) -> LoC {
+        LoC::Gate(Gate::Delay {
+            input: Bool::F,
+            state: b,
+        })
     }
     pub fn new_graph(
         name: Name,
@@ -593,9 +613,9 @@ impl LoC {
         input: Vec<(InPin, (Name, InPin))>,
         output: Vec<(OtPin, (Name, OtPin))>,
     ) -> Result<Self> {
-        Ok(LoC::FinGraph(FinGraph::new(
+        Ok(LoC::FinGraph(Box::new(FinGraph::new(
             name, lcs, edges, input, output,
-        )?))
+        )?)))
     }
     pub fn new_iter(
         name: Name,
@@ -642,7 +662,7 @@ impl LoC {
         for name in path {
             match (lc, name) {
                 (LoC::FinGraph(fingraph), Either::Left(name)) => {
-                    lc = fingraph.getmut_lc(&name)?;
+                    lc = fingraph.getmut_lc(name)?;
                 }
                 (LoC::Iter(iter), Either::Right(num)) => {
                     lc = iter.getmut_lc(num.clone())?;
@@ -659,7 +679,7 @@ impl LoC {
         for name in path {
             match (lc, name) {
                 (LoC::FinGraph(fingraph), Either::Left(name)) => {
-                    lc = fingraph.get_lc(&name)?;
+                    lc = fingraph.get_lc(name)?;
                 }
                 (LoC::Iter(iter), Either::Right(num)) => {
                     lc = iter.get_lc(num.clone())?;
@@ -707,7 +727,7 @@ pub fn print_format(lc: &LoC) {
                     edges,
                     input,
                     output,
-                } = fingraph;
+                } = fingraph.as_ref();
                 let mut lines = vec![];
                 lines.push(format!("fingraph:{name}"));
 
