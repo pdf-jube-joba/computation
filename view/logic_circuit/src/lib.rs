@@ -10,7 +10,6 @@ use utils::view::*;
 use logic_circuit::machine::LoC;
 use logic_circuit::manipulation;
 
-pub mod control;
 pub mod machine;
 
 pub fn playground(element: Element) {

@@ -1,6 +1,3 @@
-use logic_circuit_view::{control, machine};
-use logic_circuits_to_machine::*;
-
 fn main() {
     let document = gloo::utils::document();
     let element = document
