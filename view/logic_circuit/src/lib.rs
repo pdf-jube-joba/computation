@@ -21,7 +21,7 @@ pub fn playground(element: Element) {
 
     machine_handle.send_message(MachineMsg::SetEventLog(event_log_callback.clone()));
 
-    let on_load = Callback::from(move |code: String| match manipulation::parse(&code) {
+    let on_load = Callback::from(move |code: String| match manipulation::parse_main(&code) {
         Ok(lc) => {
             load_machine_callback.emit(lc);
         }

@@ -10,7 +10,7 @@ use pest::{iterators::Pair, Parser};
 struct Ps;
 
 // contains fundamental gate
-fn init_maps() -> HashMap<Name, LoC> {
+pub fn init_maps() -> HashMap<Name, LoC> {
     let mut maps = HashMap::new();
     maps.insert("NOT-T".into(), LoC::notgate(Bool::T));
     maps.insert("NOT-F".into(), LoC::notgate(Bool::F));
@@ -26,10 +26,8 @@ fn init_maps() -> HashMap<Name, LoC> {
     maps
 }
 
-pub fn parse(code: &str) -> Result<LoC> {
+pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
     let lcs = Ps::parse(Rule::lcs, code)?;
-    // maps(k) = v => v.name == k
-    let mut maps: HashMap<Name, LoC> = init_maps();
     for lc in lcs {
         match lc.as_rule() {
             Rule::fingraph => {
@@ -38,7 +36,7 @@ pub fn parse(code: &str) -> Result<LoC> {
                     inpin,
                     otpin,
                     lcs,
-                } = fingraph_parse(lc.as_str(), &mut maps);
+                } = fingraph_parse(lc.as_str(), maps);
                 let mut v = vec![];
                 let mut e = vec![];
                 for (lcname, usename, inout) in lcs {
@@ -61,7 +59,7 @@ pub fn parse(code: &str) -> Result<LoC> {
                     otpin,
                     next,
                     prev,
-                } = iter_parse(lc.as_str(), &mut maps);
+                } = iter_parse(lc.as_str(), maps);
                 let Some(initlc) = maps.get(&name) else {
                     bail!("not found name {initlc}");
                 };
@@ -70,6 +68,12 @@ pub fn parse(code: &str) -> Result<LoC> {
             _ => unreachable!(),
         }
     }
+    Ok(())
+}
+
+pub fn parse_main(code: &str) -> Result<LoC> {
+    let mut maps: HashMap<Name, LoC> = init_maps();
+    parse(code, &mut maps)?;
     match maps.get(&"main".into()) {
         Some(lc) => Ok(lc.clone()),
         None => bail!("not found main"),
@@ -247,6 +251,6 @@ mod tests {
             out {a=b.c}
             A, AND-T,
           }";
-        let c = parse(s).unwrap();
+        let c = parse_main(s).unwrap();
     }
 }
