@@ -481,7 +481,7 @@ impl Iter {
             otput: otput.into_iter().collect(),
         })
     }
-    fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
+    pub fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
         let inpin = self.input.get(inpin)?;
         self.lc_extended[0].get_input(inpin)
     }
@@ -489,11 +489,11 @@ impl Iter {
         let inpin = self.input.get_mut(inpin)?;
         self.lc_extended[0].getmut_input(inpin)
     }
-    fn get_otput(&self, otpin: &OtPin) -> Option<&Bool> {
+    pub fn get_otput(&self, otpin: &OtPin) -> Option<&Bool> {
         let otpin = self.otput.get(otpin)?;
         self.lc_extended[0].get_output(otpin)
     }
-    fn getmut_lc(&mut self, n: Number) -> Option<&mut LoC> {
+    pub fn getmut_lc(&mut self, n: Number) -> Option<&mut LoC> {
         let n: usize = n.into();
         self.lc_extended.get_mut(n)
     }

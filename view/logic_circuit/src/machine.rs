@@ -17,26 +17,122 @@ pub fn state_view(StateProps { state, rep }: &StateProps) -> Html {
         Bool::T => "stateT",
         Bool::F => "stateF",
     };
-    html! {<>
-        <div class={state_class}>
+    html! {
+        <span class={state_class}>
             {rep}
+        </span>
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct FinGraphProps {
+    fingraph: FinGraph,
+    detail: bool,
+}
+
+#[function_component(FinGraphView)]
+pub fn fingraph_view(FinGraphProps { fingraph, detail }: &FinGraphProps) -> Html {
+    let FinGraph {
+        name,
+        lcs,
+        edges,
+        input,
+        output,
+    } = fingraph;
+    html! {
+        <div class="graph">
+            {name} <br/>
+            {for input.iter().map(|(i, (name, i0))|{
+                let s = format!("{i}={name}.{i0} ");
+                html!{
+                    <StateView state = {*fingraph.get_input(i).unwrap()} rep = {s}/>
+                }})
+            } <br/>
+            {for output.iter().map(|(o, (name, o0))|{
+                let s = format!("{o}={name}.{o0} ");
+                html!{
+                    <StateView state = {*fingraph.get_output(o).unwrap()} rep = {s}/>
+                }})
+            } <br/>
+            {if *detail {
+                html!{
+                    {for lcs.iter().map(|(name, lc)|{
+                        let (lc, inout) = fingraph.get_lc_inouts(name).unwrap();
+                        html!{
+                            <>
+                            <span>
+                                {name} {" "}
+                                {lc.name()} {" "}
+                                {for inout.iter().map(|(i, (n, o), s)| {
+                                    let name = format!("{i}={name}.{o} ");
+                                    html!{
+                                        <StateView state = {*s} rep = {name}/>
+                                    }
+                                })}
+                            </span>
+                            <br/>
+                            </>
+                        }
+                    })}
+                }
+            } else {
+                html!{}
+            }}
         </div>
-    </>}
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct IteratorProps {
+    iterator: logic_circuit::machine::Iter,
+    detail: bool,
+}
+
+#[function_component(IteratorView)]
+fn iterator_view(IteratorProps { iterator, detail }: &IteratorProps) -> Html {
+    let logic_circuit::machine::Iter {
+        name,
+        lc_init,
+        lc_extended,
+        next_edges,
+        prev_edges,
+        input,
+        otput,
+    } = iterator;
+    html! {
+        <div class="iterator">
+            {name} <br/>
+            {for input.iter().map(|(i, i0)|{
+                let s = format!("{i}={i0} ");
+                html!{
+                    <StateView state = {*iterator.get_input(i).unwrap()} rep = {s}/>
+                }})
+            } <br/>
+            {for otput.iter().map(|(o, o0)|{
+                let s = format!("{o}={o0} ");
+                html!{
+                    <StateView state= {*iterator.get_otput(o).unwrap()} rep = {s}/>
+                }
+            })} <br/>
+            {if *detail {
+                html!{for lc_extended.iter().map(|lc| html!{
+                    <LoCView lc={lc.clone()} detail={detail}/>
+                })}
+            } else {
+                html!{}
+            }}
+        </div>
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Properties)]
 pub struct LoCProps {
     pub lc: LoC,
-    // pub open_close_name: HashMap<Name, bool>,
+    pub detail: bool,
 }
 
 #[function_component(LoCView)]
-pub fn loc_view(
-    LoCProps {
-        lc,
-        // open_close_name,
-    }: &LoCProps,
-) -> Html {
+pub fn loc_view(LoCProps { lc, detail }: &LoCProps) -> Html {
     match lc {
         LoC::Gate(gate) => {
             html! {
@@ -47,57 +143,14 @@ pub fn loc_view(
             }
         }
         LoC::FinGraph(fingraph) => {
-            let FinGraph {
-                name,
-                lcs,
-                edges,
-                input,
-                output,
-            } = fingraph;
-            // let Some(b) = open_close_name.get(name) else {
-            //     return html! {"not found"};
-            // };
             html! {
-                <div class="graph">
-                    {name}
-                    {for input.iter().map(|(i, (name, i0))|{
-                        let s = format!("{i}={name}.{i0}");
-                        html!{
-                            <> <StateView state = {*fingraph.get_input(i).unwrap()} rep = {s}/> <br/> </>
-                        }})
-                    }
-                    {for output.iter().map(|(o, (name, o0))|{
-                        let s = format!("{o}={name}.{o0}");
-                        html!{
-                            <> <StateView state = {*fingraph.get_output(o).unwrap()} rep = {s}/> <br/> </>
-                        }})
-                    }
-                    {if true {
-                        html!{
-                            {for lcs.iter().map(|(name, lc)|{
-                                let (lc, inout) = fingraph.get_lc_inouts(name).unwrap();
-                                html!{
-                                    <>
-                                        {name}
-                                        {lc.name()}
-                                        {for inout.iter().map(|(i, (n, o), s)| {
-                                            let name = format!("{i}={name}.{o}");
-                                            html!{
-                                                <StateView state = {*s} rep = {name}/>
-                                            }
-                                        })}
-                                    </>
-                                }
-                            })}
-                        }
-                    } else {
-                        html!{}
-                    }}
-                </div>
+                <FinGraphView fingraph={fingraph.clone()} detail={detail}/>
             }
         }
         LoC::Iter(iter) => {
-            todo!()
+            html! {
+                <IteratorView iterator={iter.clone()} detail={detail}/>
+            }
         }
     }
 }
@@ -208,7 +261,7 @@ impl Component for MachineView {
             <div class ="machine"> <br/>
                 <utils::view::ControlStepView on_step={callback_step}/>
                 <InputSetView input_anames={all_input_name} on_set={on_set_inputs}/>
-                <LoCView lc = {machine.clone()}/>
+                <LoCView lc = {machine.clone()} detail={true}/>
             </div>
         }
     }
