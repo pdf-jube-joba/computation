@@ -6,17 +6,5 @@ fn main() {
     let element = document
         .get_element_by_id("logic_circuits_playground")
         .unwrap();
-
-    let control_element = document.create_element("div").unwrap();
-    element.append_child(&control_element).unwrap();
-
-    let control_handle = yew::Renderer::<control::ControlView>::with_root(control_element).render();
-
-    let machine_element = document.create_element("div").unwrap();
-    element.append_child(&machine_element).unwrap();
-    let machine_handle = yew::Renderer::<machine::MachineView>::with_root(machine_element).render();
-
-    control_handle.send_message(control::ControlMsg::SetTargetMachineView(
-        machine_handle.clone(),
-    ));
+    logic_circuit_view::playground(element);
 }

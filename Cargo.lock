@@ -1140,6 +1140,7 @@ dependencies = [
  "anyhow",
  "gloo",
  "logic_circuit",
+ "utils",
  "wasm-bindgen",
  "web-sys",
  "yew",

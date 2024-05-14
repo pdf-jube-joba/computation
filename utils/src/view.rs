@@ -15,7 +15,7 @@ pub enum CodeMsg {
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct CodeProps {
-    on_load: Callback<String>,
+    pub on_load: Callback<String>,
 }
 
 impl Component for CodeView {
@@ -57,19 +57,36 @@ impl Component for CodeView {
     }
 }
 
+// #[derive(Debug, Clone, PartialEq, Properties)]
+// pub struct EventLogProps {
+//     pub log: Vec<String>,
+// }
+
+// #[function_component(EventLogView)]
+// pub fn event_log_view(EventLogProps { log }: &EventLogProps) -> Html {
+//     html! {
+//         <>
+//         {"eventlog"} <br/>
+//         {
+//             for log.iter().rev().take(10).map(|s: &String| html!{<> {s.as_str()} <br/> </>})
+//         }
+//         </>
+//     }
+// }
+
+// このやり方だとうまくいかない。
+// 別のところで html!{ <EventLogView /> } としても
+// この eventlog に send_message をするやり方はシンプルなものがなかった。
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct EventLogView {
     log: Vec<String>,
 }
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum EventLogMsg {
     Log(String),
 }
-
 #[derive(Debug, Default, Clone, PartialEq, Properties)]
 pub struct EventLogProps {}
-
 impl Component for EventLogView {
     type Message = EventLogMsg;
     type Properties = EventLogProps;
@@ -93,7 +110,6 @@ impl Component for EventLogView {
     }
 }
 
-
 // #[derive(Debug, Clone, PartialEq)]
 // pub struct ControlStepView {
 //     now_input_step: Result<usize, ()>,
@@ -109,6 +125,6 @@ impl Component for EventLogView {
 //     type Message = ControlStepMsg;
 //     type Properties = ControlStepProps;
 //     fn create(ctx: &Context<Self>) -> Self {
-        
+
 //     }
 // }
