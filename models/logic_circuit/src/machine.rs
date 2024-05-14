@@ -296,6 +296,22 @@ impl Gate {
             Gate::End { input } => "end".to_owned(),
         }
     }
+    pub fn get_all_input_name(&self) -> Vec<InPin> {
+        match self {
+            Gate::Not { state, input } | Gate::Br { state, input } => vec!["IN".into()],
+            Gate::And {
+                state,
+                input0,
+                input1,
+            }
+            | Gate::Or {
+                state,
+                input0,
+                input1,
+            } => vec!["IN0".into(), "IN1".into()],
+            _ => vec![],
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -671,9 +687,7 @@ impl LoC {
     }
     pub fn get_all_input_name(&self) -> Vec<InPin> {
         match self {
-            LoC::Gate(gate) => {
-                todo!()
-            }
+            LoC::Gate(gate) => gate.get_all_input_name(),
             LoC::FinGraph(fingraph) => fingraph.input.keys().cloned().collect(),
             LoC::Iter(iter) => iter.input.keys().cloned().collect(),
         }
@@ -813,6 +827,9 @@ mod tests {
             ],
         );
         let mut rs = rs.unwrap();
+
+        let a = rs.get_all_input_name();
+        assert_eq!(a, vec!["R".into(), "S".into()]);
 
         print_format(&rs);
 

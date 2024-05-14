@@ -2080,6 +2080,7 @@ dependencies = [
  "anyhow",
  "gloo",
  "logic_circuit_view",
+ "utils",
  "wasm-bindgen",
  "web-sys",
  "yew",

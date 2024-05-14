@@ -1,3 +1,4 @@
+use gloo::timers::callback::Interval;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew::Properties;
@@ -35,7 +36,7 @@ impl Component for CodeView {
             <div class="code">
             {"code"} <br/>
             <div class="box">
-                <textarea row="30" oninput={oninput}/>
+                <textarea row={30} oninput={oninput}/>
             </div>
             <div class="box">
                 <button onclick={load_callback}> {"load"} </button>
@@ -57,26 +58,6 @@ impl Component for CodeView {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq, Properties)]
-// pub struct EventLogProps {
-//     pub log: Vec<String>,
-// }
-
-// #[function_component(EventLogView)]
-// pub fn event_log_view(EventLogProps { log }: &EventLogProps) -> Html {
-//     html! {
-//         <>
-//         {"eventlog"} <br/>
-//         {
-//             for log.iter().rev().take(10).map(|s: &String| html!{<> {s.as_str()} <br/> </>})
-//         }
-//         </>
-//     }
-// }
-
-// このやり方だとうまくいかない。
-// 別のところで html!{ <EventLogView /> } としても
-// この eventlog に send_message をするやり方はシンプルなものがなかった。
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct EventLogView {
     log: Vec<String>,
@@ -110,21 +91,73 @@ impl Component for EventLogView {
     }
 }
 
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct ControlStepView {
-//     now_input_step: Result<usize, ()>,
-// }
+#[derive(Debug)]
+pub struct ControlStepView {
+    now_auto: bool,
+    interval: Interval,
+    now_input_step: usize,
+}
 
-// #[derive(Debug, Clone, PartialEq)]
-// pub struct ControlStepMsg {}
+#[derive(Debug, Clone, PartialEq)]
+pub enum ControlStepMsg {
+    Toggle,
+    Tick,
+    Change(usize),
+    Step,
+}
 
-// #[derive(Debug, Clone, PartialEq, Properties)]
-// pub struct ControlStepProps {}
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct ControlStepProps {
+    pub on_step: Callback<usize>,
+}
 
-// impl Component for ControlStepView {
-//     type Message = ControlStepMsg;
-//     type Properties = ControlStepProps;
-//     fn create(ctx: &Context<Self>) -> Self {
-
-//     }
-// }
+impl Component for ControlStepView {
+    type Message = ControlStepMsg;
+    type Properties = ControlStepProps;
+    fn create(ctx: &Context<Self>) -> Self {
+        let callback = ctx.link().callback(|_| ControlStepMsg::Tick);
+        let interval = Interval::new(1000, move || callback.emit(()));
+        Self {
+            now_input_step: 1,
+            interval,
+            now_auto: false,
+        }
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let onchange = ctx.link().callback(|e: Event| {
+            let value: HtmlInputElement = e.target_unchecked_into();
+            let str = value.value();
+            let step: usize = str.parse().unwrap_or(1);
+            ControlStepMsg::Change(step)
+        });
+        let onclick_input = ctx.link().callback(|_| ControlStepMsg::Step);
+        let onclick_toggle = ctx.link().callback(|_| ControlStepMsg::Toggle);
+        html! {
+            <>
+                <input onchange={onchange}/>
+                <button onclick={onclick_input}> {"step"} </button>
+                <button onclick={onclick_toggle}> {"toggle auto step"} {if self.now_auto {"on"} else {"off"}} </button>
+            </>
+        }
+    }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let ControlStepProps { on_step } = ctx.props();
+        match msg {
+            ControlStepMsg::Change(step) => {
+                self.now_input_step = step;
+            }
+            ControlStepMsg::Tick => {
+                if self.now_auto {
+                    on_step.emit(self.now_input_step);
+                }
+            }
+            ControlStepMsg::Toggle => {
+                self.now_auto = !self.now_auto;
+            }
+            ControlStepMsg::Step => {
+                on_step.emit(self.now_input_step);
+            }
+        }
+        true
+    }
+}
