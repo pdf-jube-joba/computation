@@ -1,18 +1,47 @@
-graph: RS-ratch {
-    in {R=O0.IN0, S=O1.IN0}
-    out {Q=B0.OUT0, nQ=B1.OUT0}
-    O0, OR-T, IN1=B1.OUT1,
-    N0, NOT-F, IN=O0.OUT,
-    B0, BR-F, IN=N0.OUT,
-    O1, OR-F, IN1=B0.OUT1,
-    N1, NOT-T, IN=O1.OUT,
-    B1, BR-T, IN=N1.OUT,
-}
-
 graph: one-shot {
     in {I=B.IN}
     out {O=A.OUT}
-    B, BR-F,
-    N, NOT-T, IN=B.OUT0,
-    A, AND-F, IN0=B.OUT1, IN1=N.OUT,
+    B, BR-F {}
+    N, NOT-T {}
+    A, AND-F {IN0=B.OUT1, IN1=N.OUT}
+}
+
+graph: tick-add1 {
+    in {I=B.IN}
+    out {O=O.OUT}
+    B, BR-F {}
+    D, DLY-F {IN=B.OUT0}
+    O, OR-F {IN0=B.OUT1, IN1=D.OUT}
+}
+
+graph: RS-ratch {
+    in {R=E0.I, S=E1.I}
+    out {Q=B0.OUT0, nQ=B1.OUT0}
+    E0, one-shot {}
+    T01, tick-add1 {I=E0.O}
+    T02, tick-add1 {I=T02.O}
+    O0, OR-T  {IN0=T02.O, IN1=B1.OUT1}
+    N0, NOT-F {IN=O0.OUT }
+    B0, BR-F  {IN=N0.OUT }
+    E1, one-shot {}
+    T11, tick-add1 {I=E1.O}
+    T12, tick-add1 {I=T12.O}
+    O1, OR-F  {IN0=T12.O, IN1=B0.OUT1 }
+    N1, NOT-T {IN=O1.OUT }
+    B1, BR-T  {IN=N1.OUT }
+}
+
+graph: DFF {
+    in {CK=E.I, D=B2.IN}
+    out {Q=R.Q, nQ=R.nQ}
+    E, one-shot {}
+    B, BR-F {IN=E.O}
+    B2, BR-F {}
+    D11, DLY-F {IN=B2.OUT0} 
+    D12, DLY-F {IN=D11.OUT}
+    D2, DLY-F {IN=B2.OUT1}
+    N2, NOT-T {IN=D2.OUT}
+    A1, AND-F {IN0=B.OUT0, IN1=D12.OUT}
+    A2, AND-F {IN0=B.OUT1, IN1=N2.OUT}
+    R, RS-ratch {R=A1.OUT, S=A2.OUT}
 }

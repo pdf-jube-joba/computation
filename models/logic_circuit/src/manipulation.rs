@@ -30,6 +30,7 @@ pub fn init_maps() -> HashMap<Name, LoC> {
 pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
     let lcs = Ps::parse(Rule::lcs, code)?;
     for lc in lcs {
+        eprintln!("11");
         match lc.as_rule() {
             Rule::fingraph => {
                 let FingraphParse {
@@ -38,6 +39,7 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
                     otpin,
                     lcs,
                 } = fingraph_parse(lc.as_str());
+                eprintln!("{name}");
                 let mut v = vec![];
                 let mut e = vec![];
                 for (lcname, usename, inout) in lcs {
@@ -61,13 +63,16 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
                     next,
                     prev,
                 } = iter_parse(lc.as_str());
+                eprintln!("{name}");
                 let Some(initlc) = maps.get(&name) else {
                     bail!("not found name {initlc}");
                 };
                 let iterlc = LoC::new_iter(name.clone(), initlc.clone(), next, prev, inpin, otpin)?;
                 maps.insert(name, iterlc);
             }
-            _ => unreachable!(),
+            _ => {
+                assert_eq!(lc.as_str(), "");
+            }
         }
     }
     Ok(())

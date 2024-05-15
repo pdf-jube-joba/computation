@@ -18,6 +18,7 @@ mod tests {
     #[test]
     fn call() {
         let examples = examples();
+        examples.get(&"DFF".into()).unwrap();
         for (n, l) in examples {
             println!("{n}")
         }

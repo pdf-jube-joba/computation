@@ -1,3 +1,4 @@
+use logic_circuit::machine::LoC;
 use machine::MachineMsg;
 use web_sys::Element;
 use web_sys::HtmlInputElement;
@@ -32,4 +33,9 @@ pub fn playground(element: Element) {
         utils::view::CodeProps { on_load },
     )
     .render();
+}
+
+pub fn set_machine(element: Element, lc: LoC) {
+    let machine_handle = yew::Renderer::<machine::MachineView>::with_root(element).render();
+    machine_handle.send_message(MachineMsg::LoadFromMachine(Box::new(lc)));
 }
