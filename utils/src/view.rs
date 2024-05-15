@@ -94,6 +94,8 @@ impl Component for EventLogView {
 #[derive(Debug)]
 pub struct ControlStepView {
     now_auto: bool,
+    now_secs: u32,
+    total_step: usize,
     #[allow(dead_code)]
     interval: Interval,
     now_input_step: usize,
@@ -103,7 +105,8 @@ pub struct ControlStepView {
 pub enum ControlStepMsg {
     Toggle,
     Tick,
-    Change(usize),
+    ChangeSecs(u32),
+    ChangeStep(usize),
     Step,
 }
 
@@ -120,36 +123,46 @@ impl Component for ControlStepView {
         let interval = Interval::new(1000, move || callback.emit(()));
         Self {
             now_input_step: 1,
+            now_secs: 1000,
             interval,
+            total_step: 0,
             now_auto: false,
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let onchange = ctx.link().callback(|e: Event| {
+        let onchange_step = ctx.link().callback(|e: Event| {
             let value: HtmlInputElement = e.target_unchecked_into();
             let str = value.value();
-            let step: usize = str.parse().unwrap_or(1);
-            ControlStepMsg::Change(step)
+            let step: usize = str.parse().unwrap_or(1000);
+            ControlStepMsg::ChangeStep(step)
+        });
+        let onchange_secs = ctx.link().callback(|e: Event| {
+            let value: HtmlInputElement = e.target_unchecked_into();
+            let str = value.value();
+            let step: u32 = str.parse().unwrap_or(1);
+            ControlStepMsg::ChangeSecs(step)
         });
         let onclick_input = ctx.link().callback(|_| ControlStepMsg::Step);
         let onclick_toggle = ctx.link().callback(|_| ControlStepMsg::Toggle);
         html! {
             <>
-                <input onchange={onchange}/>
-                <button onclick={onclick_input}> {"step"} </button>
-                <button onclick={onclick_toggle}> {"toggle auto step"} {if self.now_auto {"on"} else {"off"}} </button>
+                <input onchange={onchange_step}/>
+                <button onclick={onclick_input}> {{self.now_input_step}} {"step"} </button>
+                <input onchange={onchange_secs}/>
+                <button onclick={onclick_toggle}> {"auto step:"} {{if self.now_auto {"on"} else {"off"}}} {"per"} {self.now_secs} </button>
             </>
         }
     }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         let ControlStepProps { on_step } = ctx.props();
         match msg {
-            ControlStepMsg::Change(step) => {
+            ControlStepMsg::ChangeStep(step) => {
                 self.now_input_step = step;
             }
             ControlStepMsg::Tick => {
                 if self.now_auto {
                     on_step.emit(self.now_input_step);
+                    // self.total_step += self.now_input_step;
                 }
             }
             ControlStepMsg::Toggle => {
@@ -157,6 +170,13 @@ impl Component for ControlStepView {
             }
             ControlStepMsg::Step => {
                 on_step.emit(self.now_input_step);
+                // self.total_step += self.now_input_step;
+            }
+            ControlStepMsg::ChangeSecs(secs) => {
+                self.now_secs = secs;
+                let callback = ctx.link().callback(|_| ControlStepMsg::Tick);
+                let interval = Interval::new(secs, move || callback.emit(()));
+                self.interval = interval;
             }
         }
         true
