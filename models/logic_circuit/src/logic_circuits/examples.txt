@@ -16,7 +16,7 @@ graph: tick-add1 {
     O, OR-F {IN0=B.OUT1, IN1=D.OUT}
 }
 
-graph: RS-ratch {
+graph: RS-latch {
     in {R=E0.I, S=E1.I}
     out {Q=B0.OUT0, nQ=B1.OUT0}
 
@@ -56,5 +56,27 @@ graph: DFF {
     N2, NOT-T {IN=D2.OUT}
     A1, AND-F {IN0=B.OUT0, IN1=D12.OUT}
     A2, AND-F {IN0=B.OUT1, IN1=N2.OUT}
-    R, RS-ratch {R=A1.OUT, S=A2.OUT}
+    R, RS-latch {R=A2.OUT, S=A1.OUT}
+}
+
+graph: XOR {
+    in {IN0=B0.IN IN1=B1.IN}
+    out {OUT=O.OUT}
+    B0, BR-F {}
+    B1, BR-F {}
+    D0, DLY-F {IN=B0.OUT0}
+    N1, NOT-T {IN=B1.OUT0}
+    A0, AND-F {IN0=D0.OUT IN1=N1.OUT}
+    N0, NOT-T {IN=B0.OUT1}
+    D1, DLY-F {IN=B1.OUT1}
+    A1, AND-T {IN0=N0.OUT IN1=D1.OUT}
+    O, OR-T {IN0=A0.OUT IN1=A1.OUT}
+}
+graph: ADDR {
+    in {I0=B0.IN I1=B1.IN}
+    out {S=X.OUT C=A.OUT}
+    B0, BR-F {}
+    B1, BR-F {}
+    X, XOR {IN0=B0.OUT0 IN1=B1.OUT0}
+    A, AND-F {IN0=B0.OUT1 IN1=B1.OUT1}
 }
