@@ -72,6 +72,7 @@ graph: XOR {
     A1, AND-T {IN0=N0.OUT IN1=D1.OUT}
     O, OR-T {IN0=A0.OUT IN1=A1.OUT}
 }
+
 graph: ADDR {
     in {I0=B0.IN I1=B1.IN}
     out {S=X.OUT C=A.OUT}

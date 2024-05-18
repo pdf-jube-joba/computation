@@ -7,12 +7,24 @@ pub struct RegisterIndex(Number);
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgramIndex(Number);
 
+impl From<Number> for ProgramIndex {
+    fn from(value: Number) -> Self {
+        ProgramIndex(value)
+    }
+}
+
 impl ProgramIndex {
     pub fn next(&mut self) {
         self.0 += 1;
     }
     pub fn is_eq_number(&self, num: Number) -> bool {
         self.0 == num
+    }
+}
+
+impl From<Number> for RegisterIndex {
+    fn from(value: Number) -> Self {
+        RegisterIndex(value)
     }
 }
 
@@ -40,7 +52,7 @@ impl Display for Operation {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Code(Vec<Operation>);
+pub struct Code(pub Vec<Operation>);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Registers(HashMap<RegisterIndex, Number>);

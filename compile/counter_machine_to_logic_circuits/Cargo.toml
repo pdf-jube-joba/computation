@@ -1,5 +1,5 @@
 [package]
-name = "counter_machine"
+name = "counter_machine_to_logic_circuits"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 utils = { path = "../../utils" }
-pest = { workspace = true }
-pest_derive = { workspace = true }
-anyhow = { workspace = true }
+logic_circuit = { path = "../../models/logic_circuit" }
+counter_machine = { path = "../../models/counter_machine" }

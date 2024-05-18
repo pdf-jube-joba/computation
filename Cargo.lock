@@ -312,7 +312,18 @@ dependencies = [
 name = "counter_machine"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "pest",
+ "pest_derive",
+ "utils",
+]
+
+[[package]]
+name = "counter_machine_to_logic_circuits"
+version = "0.1.0"
+dependencies = [
+ "counter_machine",
+ "logic_circuit",
  "utils",
 ]
 
