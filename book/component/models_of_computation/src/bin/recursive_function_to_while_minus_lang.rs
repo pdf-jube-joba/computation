@@ -1,4 +1,5 @@
 use recursive_function_to_while_minus_lang::compile;
+use utils::view::*;
 use while_minus_lang::machine::Environment;
 use while_minus_lang_view::*;
 use yew::Callback;
@@ -15,16 +16,24 @@ fn main() {
         yew::Renderer::<WhileLangView>::with_root_and_props(machine_element, WhileLangProps {})
             .render();
 
+    let eventlog_handle = yew::Renderer::<EventLogView>::with_root(element.clone()).render();
+    let event_log_callback = eventlog_handle.callback(|log| EventLogMsg::Log(log));
+
+    let on_load = Callback::from(
+        move |code: String| match recursive_function::manipulation::parse(&code) {
+            Ok(fnc) => {
+                let prog = compile(&fnc);
+                machine_handle.send_message(WhileLangMsg::Change(prog, Environment::new()));
+            }
+            Err(err) => event_log_callback.emit(err),
+        },
+    );
+
     let control_element = document.create_element("div").unwrap();
     element.append_child(&control_element).unwrap();
-    let _control_handle = yew::Renderer::<recursive_function_view::CodeView>::with_root_and_props(
+    let _control_handle = yew::Renderer::<utils::view::CodeView>::with_root_and_props(
         control_element,
-        recursive_function_view::CodeProps {
-            on_input_code: Callback::from(move |func| {
-                let prog = compile(&func);
-                machine_handle.send_message(WhileLangMsg::Change(prog, Environment::new()))
-            }),
-        },
+        utils::view::CodeProps { on_load },
     )
     .render();
 }

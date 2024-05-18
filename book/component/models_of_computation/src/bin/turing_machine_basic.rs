@@ -13,15 +13,10 @@ fn main() {
         );
         let mut builder = recursive_function_to_turing_machine::compile::zero_builder();
         builder.input(input);
+        let machine = builder.build().unwrap();
 
-        let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-            element,
-            UnConnectedMachineProp {
-                builder,
-                toggle_interval: 200,
-            },
-        )
-        .render();
+        let machine_handle = yew::Renderer::<TuringMachineView>::with_root(element).render();
+        machine_handle.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
     }
 
     {
@@ -31,15 +26,10 @@ fn main() {
         let input = recursive_function_to_turing_machine::compile::num_tape::write(vec![3].into());
         let mut builder = recursive_function_to_turing_machine::compile::succ_builder();
         builder.input(input);
+        let machine = builder.build().unwrap();
 
-        let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-            element,
-            UnConnectedMachineProp {
-                builder,
-                toggle_interval: 200,
-            },
-        )
-        .render();
+        let machine_handle = yew::Renderer::<TuringMachineView>::with_root(element).render();
+        machine_handle.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
     }
 
     {
@@ -51,15 +41,9 @@ fn main() {
         let mut builder =
             recursive_function_to_turing_machine::compile::projection::projection(3, 1);
         builder.input(input);
+        let machine = builder.build().unwrap();
 
-        target_element.append_child(&element).unwrap();
-        let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-            element,
-            UnConnectedMachineProp {
-                builder,
-                toggle_interval: 200,
-            },
-        )
-        .render();
+        let machine_handle = yew::Renderer::<TuringMachineView>::with_root(element).render();
+        machine_handle.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
     }
 }

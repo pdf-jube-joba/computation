@@ -1,82 +1,31 @@
 use recursive_function::machine::RecursiveFunctions;
-use utils::number::*;
+use recursive_function::manipulation;
+use utils::{number::*, view::*};
 
 use wasm_bindgen::JsValue;
-use web_sys::HtmlInputElement;
+use web_sys::{Element, HtmlInputElement};
 use yew::prelude::*;
 use yew::{callback, html, Callback, Component, Properties};
 
-pub struct CodeView {
-    code: Result<RecursiveFunctions, String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Properties)]
-pub struct CodeProps {
-    pub on_input_code: Callback<RecursiveFunctions>,
-}
-
-pub enum CodeMsg {
-    Change(String),
-}
-
-impl Component for CodeView {
-    type Message = CodeMsg;
-    type Properties = CodeProps;
-    fn create(_ctx: &yew::Context<Self>) -> Self {
-        Self {
-            code: Err("not setted".to_string()),
-        }
-    }
-    fn view(&self, ctx: &yew::Context<Self>) -> yew::Html {
-        let CodeProps { on_input_code } = ctx.props().clone();
-        let onchange_input = ctx.link().callback(|e: Event| {
-            let value: HtmlInputElement = e.target_unchecked_into();
-            let str = value.value();
-            CodeMsg::Change(str)
-        });
-        let callback = on_input_code.clone();
-        let onclick = if let Ok(function) = self.code.clone() {
-            callback::Callback::from(move |_| callback.emit(function.clone()))
-        } else {
-            callback::Callback::noop()
-        };
-        html! {
-            <>
-            {"code"}
-            <textarea rows={3} onchange={onchange_input}/>
-            <button onclick={onclick}> {"load"}</button>
-            </>
-        }
-    }
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            CodeMsg::Change(string) => {
-                self.code = recursive_function::manipulation::parse(&string);
-                true
-            }
-        }
-    }
-}
-
-pub struct FunctionView {
+pub struct InputOutputView {
     input: Result<NumberTuple, String>,
     output: Option<Number>,
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
-pub struct FunctionProps {
+pub struct InputOutputProps {
     rec_function: RecursiveFunctions,
 }
 
-pub enum FunctionMsg {
+pub enum InputOutputMsg {
     InputChange(String),
     Compute,
     ComputeEnd(Option<Number>),
 }
 
-impl Component for FunctionView {
-    type Message = FunctionMsg;
-    type Properties = FunctionProps;
+impl Component for InputOutputView {
+    type Message = InputOutputMsg;
+    type Properties = InputOutputProps;
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             input: Err("no".into()),
@@ -84,22 +33,17 @@ impl Component for FunctionView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let FunctionProps { rec_function } = ctx.props();
         let input_function = ctx.link().callback(|e: InputEvent| {
             let value: HtmlInputElement = e.target_unchecked_into();
             let str = value.value();
-            FunctionMsg::InputChange(str)
+            InputOutputMsg::InputChange(str)
         });
         html! {
             <>
                 <input oninput={input_function}/> {format!("{:?}", self.input)}
-                <div>
-                {"function"} <br/>
-                {rec_function.clone()}
-                </div>
-                <button onclick={ctx.link().callback(|_| FunctionMsg::Compute)}> {"compute"} </button>
+                <button onclick={ctx.link().callback(|_| InputOutputMsg::Compute)}> {"compute"} </button>
                 {
-                    if let Some(function) = self.output.clone() {format!("{function:?}")} else {
+                    if let Some(result) = self.output.clone() {format!("{result:?}")} else {
                         "none".to_string()
                     }
                 }
@@ -108,14 +52,14 @@ impl Component for FunctionView {
     }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            FunctionMsg::InputChange(string) => {
+            InputOutputMsg::InputChange(string) => {
                 self.input = NumberTuple::try_from(string.clone());
                 true
             }
-            FunctionMsg::Compute => {
+            InputOutputMsg::Compute => {
                 if let Ok(input) = self.input.clone() {
                     web_sys::console::log_1(&JsValue::from_str("hello"));
-                    let FunctionProps { rec_function } = ctx.props();
+                    let InputOutputProps { rec_function } = ctx.props();
                     let function = recursive_function::machine::interpreter(rec_function);
                     self.output = function.checked_subst(input);
                     true
@@ -123,7 +67,7 @@ impl Component for FunctionView {
                     false
                 }
             }
-            FunctionMsg::ComputeEnd(result) => {
+            InputOutputMsg::ComputeEnd(result) => {
                 self.output = result;
                 true
             }
@@ -136,11 +80,11 @@ pub struct FunctionControlView {
     function: Option<RecursiveFunctions>,
 }
 
-#[derive(Debug, Clone, PartialEq, Properties)]
+#[derive(Debug, Default, Clone, PartialEq, Properties)]
 pub struct FunctionControlProps {}
 
 pub enum FunctionControlMsg {
-    SetFunction(RecursiveFunctions),
+    LoadFunction(RecursiveFunctions),
 }
 
 impl Component for FunctionControlView {
@@ -150,14 +94,14 @@ impl Component for FunctionControlView {
         Self { function: None }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let callback: Callback<RecursiveFunctions> =
-            ctx.link().callback(FunctionControlMsg::SetFunction);
         html! {
             <>
-            <CodeView on_input_code={callback} /> <br/>
             {
-                if let Some(function) = self.function.clone() {
-                    html!{<FunctionView rec_function={function}/>}
+                if let Some(function) = &self.function {
+                    html!{<>
+                        <InputOutputView rec_function={function.clone()}/>
+                        {function.clone()}
+                    </>}
                 } else {
                     html!{{"no function found"}}
                 }
@@ -167,10 +111,35 @@ impl Component for FunctionControlView {
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            FunctionControlMsg::SetFunction(function) => {
+            FunctionControlMsg::LoadFunction(function) => {
                 self.function = Some(function);
                 true
             }
         }
     }
+}
+
+fn playground(element: Element) {
+    let machine_handle = yew::Renderer::<FunctionControlView>::with_root(element.clone()).render();
+    let load_machine_callback =
+        machine_handle.callback(|fnc| FunctionControlMsg::LoadFunction(fnc));
+
+    let eventlog_handle = yew::Renderer::<EventLogView>::with_root(element.clone()).render();
+    let event_log_callback = eventlog_handle.callback(|log| EventLogMsg::Log(log));
+
+    let on_load = Callback::from(move |code: String| match manipulation::parse(&code) {
+        Ok(fnc) => load_machine_callback.emit(fnc),
+        Err(err) => event_log_callback.emit(err),
+    });
+
+    let code_handle = yew::Renderer::<utils::view::CodeView>::with_root_and_props(
+        element,
+        utils::view::CodeProps { on_load },
+    )
+    .render();
+}
+
+fn set_machine(element: Element, fnc: RecursiveFunctions) {
+    let machine_handle = yew::Renderer::<FunctionControlView>::with_root(element).render();
+    machine_handle.send_message(FunctionControlMsg::LoadFunction(fnc));
 }

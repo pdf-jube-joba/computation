@@ -2,7 +2,6 @@ use turing_machine::{
     machine::*,
     manipulation::{builder::TuringMachineBuilder, tape::string_split_by_bar_interpretation, *},
 };
-use turing_machine_view::machine::*;
 
 fn bin_adder(str: &str) -> TuringMachineBuilder {
     let interpretation = string_split_by_bar_interpretation();
@@ -23,25 +22,9 @@ fn main() {
         .get_element_by_id("turing_machine_example2")
         .unwrap();
 
-    let element_1 = document.create_element("div").unwrap();
-    target_element.append_child(&element_1).unwrap();
-    let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-        element_1,
-        UnConnectedMachineProp {
-            builder: bin_adder(" - 1 1 0 0 1 |-|"),
-            toggle_interval: 1000,
-        },
-    )
-    .render();
+    let machine = bin_adder(" - 1 1 0 0 1 |-|").build().unwrap();
+    turing_machine_view::set_machine(target_element.clone(), machine);
 
-    let element_2 = document.create_element("div").unwrap();
-    target_element.append_child(&element_2).unwrap();
-    let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-        element_2,
-        UnConnectedMachineProp {
-            builder: bin_adder(" - 1 1 |-|"),
-            toggle_interval: 1000,
-        },
-    )
-    .render();
+    let machine = bin_adder(" - 1 1 |-|").build().unwrap();
+    turing_machine_view::set_machine(target_element, machine);
 }

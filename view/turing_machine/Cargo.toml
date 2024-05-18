@@ -10,5 +10,6 @@ yew = { workspace = true }
 gloo = { workspace = true }
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
+utils = { path = "../../utils" }
 
 turing_machine = { path = "../../models/turing_machine" }

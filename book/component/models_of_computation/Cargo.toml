@@ -11,6 +11,8 @@ gloo = { workspace = true }
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 
+utils = { path = "../../../utils"}
+
 recursive_function = { path = "../../../models/recursive_function" }
 recursive_function_view = { path = "../../../view/recursive_function" }
 turing_machine = { path = "../../../models/turing_machine" }

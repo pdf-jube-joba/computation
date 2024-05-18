@@ -1309,6 +1309,7 @@ dependencies = [
  "recursive_function_view",
  "turing_machine",
  "turing_machine_view",
+ "utils",
  "wasm-bindgen",
  "web-sys",
  "while_minus_lang",
@@ -2290,6 +2291,7 @@ version = "0.1.0"
 dependencies = [
  "gloo",
  "turing_machine",
+ "utils",
  "wasm-bindgen",
  "web-sys",
  "yew",

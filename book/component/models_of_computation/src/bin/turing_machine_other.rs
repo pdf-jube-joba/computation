@@ -58,14 +58,10 @@ fn main() {
         let input = compile::num_tape::write(vec![1, 2, 3].into());
         builder.input(input);
 
-        let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-            element,
-            UnConnectedMachineProp {
-                builder,
-                toggle_interval: 100,
-            },
-        )
-        .render();
+        let machine = builder.build().unwrap();
+
+        let machine_handle = yew::Renderer::<TuringMachineView>::with_root(element).render();
+        machine_handle.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
     }
 
     {
@@ -77,14 +73,10 @@ fn main() {
             recursive_function_to_turing_machine::compile::num_tape::write(vec![3, 1].into());
         builder.input(input);
 
-        let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-            element,
-            UnConnectedMachineProp {
-                builder,
-                toggle_interval: 100,
-            },
-        )
-        .render();
+        let machine = builder.build().unwrap();
+
+        let machine_handle = yew::Renderer::<TuringMachineView>::with_root(element).render();
+        machine_handle.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
     }
 
     {
@@ -95,14 +87,9 @@ fn main() {
         let input = recursive_function_to_turing_machine::compile::num_tape::write(vec![3].into());
         builder.input(input);
 
-        target_element.append_child(&element).unwrap();
-        let _ = yew::Renderer::<UnConnectedMachineView>::with_root_and_props(
-            element,
-            UnConnectedMachineProp {
-                builder,
-                toggle_interval: 100,
-            },
-        )
-        .render();
+        let machine = builder.build().unwrap();
+
+        let machine_handle = yew::Renderer::<TuringMachineView>::with_root(element).render();
+        machine_handle.send_message(TuringMachineMsg::LoadFromMachine(Box::new(machine)));
     }
 }

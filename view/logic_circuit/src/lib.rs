@@ -28,7 +28,7 @@ pub fn playground(element: Element) {
         }
         Err(err) => event_log_callback.emit(format!("{err:?}")),
     });
-    let code_handle = yew::Renderer::<utils::view::CodeView>::with_root_and_props(
+    let _code_handle = yew::Renderer::<utils::view::CodeView>::with_root_and_props(
         element,
         utils::view::CodeProps { on_load },
     )
