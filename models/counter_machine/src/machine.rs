@@ -1,42 +1,18 @@
 use std::{collections::HashMap, fmt::Display};
+use utils::number::Number;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RegisterIndex(usize);
-
-#[derive(Debug, Clone)]
-pub struct Number(usize);
-
-impl Number {
-    pub fn inc(self) -> Self {
-        Number(self.0 + 1)
-    }
-    pub fn dec(self) -> Self {
-        if self.0 != 0 {
-            Number(self.0 - 1)
-        } else {
-            Number(0)
-        }
-    }
-    pub fn clr() -> Self {
-        Number(0)
-    }
-}
+pub struct RegisterIndex(Number);
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ProgramIndex(usize);
+pub struct ProgramIndex(Number);
 
 impl ProgramIndex {
     pub fn next(&mut self) {
         self.0 += 1;
     }
-    pub fn goto(&mut self, _index: ProgramIndex) {
-        todo!()
-    }
-}
-
-impl From<usize> for ProgramIndex {
-    fn from(value: usize) -> Self {
-        ProgramIndex(value)
+    pub fn is_eq_number(&self, num: Number) -> bool {
+        self.0 == num
     }
 }
 
@@ -45,7 +21,7 @@ pub enum Operation {
     Inc(RegisterIndex),
     Dec(RegisterIndex),
     Clr(RegisterIndex),
-    Copy(RegisterIndex),
+    Copy(RegisterIndex, RegisterIndex),
     Ifz(RegisterIndex, ProgramIndex),
 }
 
@@ -55,7 +31,7 @@ impl Display for Operation {
             Self::Inc(index) => write!(f, "INC register:{}", index.0),
             Self::Dec(index) => write!(f, "DEC register:{}", index.0),
             Self::Clr(index) => write!(f, "CLR register:{}", index.0),
-            Self::Copy(index) => write!(f, "CPY register:{}", index.0),
+            Self::Copy(index0, index1) => write!(f, "CPY register:{} {}", index0.0, index1.0),
             Self::Ifz(r_index, p_index) => {
                 write!(f, "IFZ register:{} program:{}", r_index.0, p_index.0)
             }
@@ -63,8 +39,10 @@ impl Display for Operation {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Code(Vec<Operation>);
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Registers(HashMap<RegisterIndex, Number>);
 
 impl Registers {
@@ -86,6 +64,7 @@ impl Registers {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct CounterMachine {
     pub code: Code,
     pub program_counter: ProgramIndex,
@@ -97,23 +76,38 @@ impl CounterMachine {
         self.code.0.clone()
     }
     pub fn is_terminate(&self) -> bool {
-        self.code.0.len() <= self.program_counter.0
+        self.code.0.len() <= self.program_counter.0.clone().into()
     }
     pub fn step(&mut self) {
         if !self.is_terminate() {
-            let operation = &self.code.0[self.program_counter.0];
+            let pc: usize = self.program_counter.0.clone().into();
+            let operation = &self.code.0[pc];
             match operation {
                 Operation::Inc(index) => {
                     let num = self.registers.get(index);
-                    self.registers.set(index.clone(), num.inc());
+                    self.registers.set(index.clone(), num + 1);
                     self.program_counter.next();
                 }
                 Operation::Dec(index) => {
                     let num = self.registers.get(index);
-                    self.registers.set(index.clone(), num.dec());
+                    self.registers.set(index.clone(), num - 1);
                     self.program_counter.next();
                 }
-                _ => todo!(),
+                Operation::Clr(index) => {
+                    self.registers.set(index.clone(), 0.into());
+                    self.program_counter.next();
+                }
+                Operation::Copy(index0, index1) => {
+                    let n = self.registers.get(index0);
+                    self.registers.set(index1.clone(), n);
+                }
+                Operation::Ifz(register, index) => {
+                    if self.registers.get(register) == 0.into() {
+                        self.program_counter = index.clone();
+                    } else {
+                        self.program_counter.next();
+                    }
+                }
             }
         }
     }

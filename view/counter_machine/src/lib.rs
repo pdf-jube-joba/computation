@@ -23,14 +23,14 @@ impl Component for CounterMachineView {
                 .into_iter()
                 .enumerate()
                 .map(|(i, s)| {
-                    let v = if machine.program_counter == i.into() {
+                    let select_class = if machine.program_counter.is_eq_number(i.into()) {
                         "selected"
                     } else {
                         "not selected"
                     };
                     html! {
                     <>
-                        <div class={v}>
+                        <div class={select_class}>
                             {s}
                         </div> <br/>
                     </>}

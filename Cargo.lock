@@ -311,6 +311,9 @@ dependencies = [
 [[package]]
 name = "counter_machine"
 version = "0.1.0"
+dependencies = [
+ "utils",
+]
 
 [[package]]
 name = "counter_machine_view"
