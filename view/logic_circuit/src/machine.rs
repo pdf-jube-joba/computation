@@ -114,7 +114,7 @@ fn iterator_view(IteratorProps { iterator, detail }: &IteratorProps) -> Html {
             })} <br/>
             {if *detail {
                 html!{for lc_extended.iter().map(|lc| html!{
-                    <LoCView lc={lc.clone()} detail={detail}/>
+                    <LoCView lc={lc.clone()}/>
                 })}
             } else {
                 html!{}
@@ -123,33 +123,61 @@ fn iterator_view(IteratorProps { iterator, detail }: &IteratorProps) -> Html {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Properties)]
-pub struct LoCProps {
-    pub lc: LoC,
+pub struct LoCView {
     pub detail: bool,
 }
 
-#[function_component(LoCView)]
-pub fn loc_view(LoCProps { lc, detail }: &LoCProps) -> Html {
-    match lc {
-        LoC::Gate(gate) => {
-            html! {
-                <div class="gate">
-                    {gate.name()}
-                    <StateView state = {*gate.state()} rep = {"state"}/>
-                </div>
+pub enum LoCMsg {
+    ToggleDetail,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Properties)]
+pub struct LoCProps {
+    pub lc: LoC,
+}
+
+impl Component for LoCView {
+    type Message = LoCMsg;
+    type Properties = LoCProps;
+    fn create(ctx: &Context<Self>) -> Self {
+        Self { detail: false }
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let detail = self.detail;
+        let LoCProps { lc } = ctx.props();
+
+        let html = html! {
+            html!{
+                <>
+                <button onclick={ctx.link().callback(|_| LoCMsg::ToggleDetail)}> {"detail"} </button>
+                </>
+            }
+        };
+        match lc {
+            LoC::Gate(gate) => {
+                html! {}
+            }
+            LoC::FinGraph(fingraph) => {
+                html! {
+                    <>
+                    {html}
+                    <FinGraphView fingraph={fingraph.as_ref().clone()} detail={detail}/>
+                    </>
+                }
+            }
+            LoC::Iter(iter) => {
+                html! {
+                    <>
+                    {html}
+                    <IteratorView iterator={iter.clone()} detail={detail}/>
+                    </>
+                }
             }
         }
-        LoC::FinGraph(fingraph) => {
-            html! {
-                <FinGraphView fingraph={fingraph.as_ref().clone()} detail={detail}/>
-            }
-        }
-        LoC::Iter(iter) => {
-            html! {
-                <IteratorView iterator={iter.clone()} detail={detail}/>
-            }
-        }
+    }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        self.detail = !self.detail;
+        true
     }
 }
 
@@ -251,7 +279,7 @@ impl Component for MachineView {
             <div class ="machine"> <br/>
                 <utils::view::ControlStepView on_step={callback_step}/>
                 <InputSetView input_anames={all_input_name} on_set={on_set_inputs}/>
-                <LoCView lc = {machine.clone()} detail={true}/>
+                <LoCView lc = {machine.clone()}/>
             </div>
         }
     }

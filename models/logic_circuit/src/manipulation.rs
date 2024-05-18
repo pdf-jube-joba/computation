@@ -30,7 +30,6 @@ pub fn init_maps() -> HashMap<Name, LoC> {
 pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
     let lcs = Ps::parse(Rule::lcs, code)?;
     for lc in lcs {
-        eprintln!("11");
         match lc.as_rule() {
             Rule::fingraph => {
                 let FingraphParse {
@@ -64,7 +63,7 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
                     prev,
                 } = iter_parse(lc.as_str());
                 eprintln!("{name}");
-                let Some(initlc) = maps.get(&name) else {
+                let Some(initlc) = maps.get(&initlc) else {
                     bail!("not found name {initlc}");
                 };
                 let iterlc = LoC::new_iter(name.clone(), initlc.clone(), next, prev, inpin, otpin)?;
@@ -170,6 +169,7 @@ struct IterParse {
     next: Vec<(OtPin, InPin)>,
     prev: Vec<(OtPin, InPin)>,
 }
+
 fn iter_parse<'a>(code: &'a str) -> IterParse {
     let conn_iter_parse = |p: Pair<'a, Rule>| -> (&'a str, &'a str) {
         assert_eq!(p.as_rule(), Rule::conn_iter);
@@ -216,7 +216,7 @@ fn iter_parse<'a>(code: &'a str) -> IterParse {
     };
     let next: Vec<(OtPin, InPin)> = {
         let otpin = l.next().unwrap();
-        assert_eq!(otpin.as_rule(), Rule::ot_iter);
+        assert_eq!(otpin.as_rule(), Rule::next_iter);
         otpin
             .into_inner()
             .map(|p| {
@@ -228,7 +228,7 @@ fn iter_parse<'a>(code: &'a str) -> IterParse {
     };
     let prev: Vec<(OtPin, InPin)> = {
         let otpin = l.next().unwrap();
-        assert_eq!(otpin.as_rule(), Rule::ot_iter);
+        assert_eq!(otpin.as_rule(), Rule::prev_iter);
         otpin
             .into_inner()
             .map(|p| {

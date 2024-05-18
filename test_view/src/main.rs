@@ -1,9 +1,23 @@
+use logic_circuit::machine::LoC;
+
 fn main() {
     let document = gloo::utils::document();
-    let element = document
-        .get_element_by_id("m")
-        .unwrap();
-    let examples = logic_circuit::example::examples();
-    let lc = examples.get(&"DFF".into()).unwrap().clone();
+    let element = document.get_element_by_id("m").unwrap();
+    let lc = lc();
     logic_circuit_view::set_machine(element, lc);
+}
+
+fn lc() -> LoC {
+    let code = include_str!("lc.txt");
+    let maps = logic_circuit::example::examples();
+    maps.get(&"RS-latch".into()).unwrap().clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn t() {
+        let lc = lc();
+    }
 }

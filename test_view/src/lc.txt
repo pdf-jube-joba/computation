@@ -1,0 +1,7 @@
+iter: a {
+    RS-latch
+    in {R=R S=S}
+    out {}
+    next {Q=R nQ=S}
+    prev {}
+}
