@@ -2082,6 +2082,11 @@ dependencies = [
 [[package]]
 name = "test_view"
 version = "0.1.0"
+dependencies = [
+ "gloo",
+ "logic_circuit",
+ "logic_circuit_view",
+]
 
 [[package]]
 name = "thiserror"

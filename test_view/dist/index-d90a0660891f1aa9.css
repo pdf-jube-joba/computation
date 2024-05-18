@@ -1,0 +1,11 @@
+.stateT {
+    color: red;
+}
+
+.stateF {
+    color: aqua;
+}
+
+#m {
+    display: flex;
+}
