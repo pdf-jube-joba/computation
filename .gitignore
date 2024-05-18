@@ -4,4 +4,3 @@ index.html
 *.wasm
 *.js
 out/
-test_view/
