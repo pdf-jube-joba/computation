@@ -77,6 +77,15 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
     Ok(())
 }
 
+pub fn parse_main_with_maps(code: &str, init_maps: &HashMap<Name, LoC>) -> Result<LoC> {
+    let mut maps = init_maps.clone();
+    parse(code, &mut maps)?;
+    match maps.get(&"main".into()) {
+        Some(lc) => Ok(lc.clone()),
+        None => bail!("not found main"),
+    }
+}
+
 pub fn parse_main(code: &str) -> Result<LoC> {
     let mut maps: HashMap<Name, LoC> = init_maps();
     parse(code, &mut maps)?;

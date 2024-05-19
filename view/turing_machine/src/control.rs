@@ -55,7 +55,7 @@ impl Component for ControlView {
             <>
                 <div class="box">
                     {"code"}
-                    <textarea row="10" oninput={oninput_code}/>
+                    <textarea rows="10" oninput={oninput_code}/>
                 </div>
                 <div class="box">
                 {"tape"}

@@ -264,22 +264,27 @@ impl Component for MachineView {
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let Some(machine) = &self.machine else {
-            return html! {
-                <>
-                {"machine"} <br/>
-                {"not found"}
-                </>
-            };
+        let html = {
+            match &self.machine {
+                None => html! {<> {"not found"} </>},
+                Some(machine) => {
+                    let callback_step = ctx.link().callback(MachineMsg::Step);
+                    let on_set_inputs = ctx.link().callback(MachineMsg::SetInput);
+                    let all_input_name = machine.get_all_input_name();
+                    html! {
+                        <>
+                            <utils::view::ControlStepView on_step={callback_step}/>
+                            <InputSetView input_anames={all_input_name} on_set={on_set_inputs}/>
+                            <LoCView lc = {machine.clone()}/>
+                        </>
+                    }
+                }
+            }
         };
-        let callback_step = ctx.link().callback(MachineMsg::Step);
-        let on_set_inputs = ctx.link().callback(MachineMsg::SetInput);
-        let all_input_name = machine.get_all_input_name();
         html! {
-            <div class ="machine"> <br/>
-                <utils::view::ControlStepView on_step={callback_step}/>
-                <InputSetView input_anames={all_input_name} on_set={on_set_inputs}/>
-                <LoCView lc = {machine.clone()}/>
+            <div class="machine">
+            {"machine"} <br/>
+            {html}
             </div>
         }
     }

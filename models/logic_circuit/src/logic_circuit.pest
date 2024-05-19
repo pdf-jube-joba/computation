@@ -16,4 +16,4 @@ next_iter = { "next" ~ "{" ~  (","* ~ conn_iter)* ~ "}" }
 prev_iter = { "prev" ~ "{" ~  (","* ~ conn_iter)* ~ "}" }
 iterator = { "iter:" ~ name ~ "{" ~ name ~ in_iter ~ ot_iter ~ next_iter ~ prev_iter ~ "}" }
 
-lcs = _{ (fingraph | iterator)+ ~ EOI }
+lcs = _{ (fingraph | iterator)* ~ EOI }

@@ -1,0 +1,12 @@
+[package]
+name = "counter_machine_app"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+logic_circuit = { path = "../../models/logic_circuit" }
+logic_circuit_view = { path = "../../view/logic_circuit" }
+
+gloo = { workspace = true }

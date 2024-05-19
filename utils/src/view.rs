@@ -36,7 +36,7 @@ impl Component for CodeView {
             <div class="code">
             {"code"} <br/>
             <div class="box">
-                <textarea row={30} oninput={oninput}/>
+                <textarea rows={30} cols={50} oninput={oninput}/>
             </div>
             <div class="box">
                 <button onclick={load_callback}> {"load"} </button>
@@ -76,12 +76,12 @@ impl Component for EventLogView {
     }
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <>
+            <div class="log">
             {"eventlog"} <br/>
             {
                 for self.log.iter().rev().take(10).map(|s| html!{<> {s} <br/> </>})
             }
-            </>
+            </div>
         }
     }
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
