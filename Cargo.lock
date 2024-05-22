@@ -319,15 +319,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter_machine_app"
-version = "0.1.0"
-dependencies = [
- "gloo",
- "logic_circuit",
- "logic_circuit_view",
-]
-
-[[package]]
 name = "counter_machine_to_logic_circuits"
 version = "0.1.0"
 dependencies = [
@@ -1155,6 +1146,15 @@ dependencies = [
  "pest",
  "pest_derive",
  "utils",
+]
+
+[[package]]
+name = "logic_circuit_app"
+version = "0.1.0"
+dependencies = [
+ "gloo",
+ "logic_circuit",
+ "logic_circuit_view",
 ]
 
 [[package]]

@@ -1,0 +1,40 @@
+graph: main {
+  in  {ENDN=Eor.IN0 REDP=Rbr.IN OUTN=Oor.IN0 INCP=Ibr1.IN CLRP=Cbr1.IN}
+  out {ENDP=Eor.OUT REDN=Rc.OUT OUTP=Oor.OUT INCN=Ic.OUT CLRN=Cc.OUT}
+  FFi, DFF   {}
+
+  bQ1, BR-F  {IN=FFi.Q}
+  bQ2, BR-F  {IN=bQ1.OUT1}
+  bQ3, BR-F  {IN=bQ2.OUT0}
+  bQ4, BR-F  {IN=bQ3.OUT1}
+  bQ5, BR-F  {IN=bQ2.OUT1}
+  bQ6, BR-F  {IN=bQ4.OUT1}
+
+  Eor, OR-F  {IN1=RE.OUT}
+
+  Rbr, BR-F  {}
+  R1,  BR-F  {IN=Rbr.OUT1}
+  RA,  AND-F {IN1=R1.OUT0 IN0=bQ3.OUT0}
+  RE,  OR-F  {IN0=RA.OUT IN1=IE.OUT}
+  Rc,  AND-F {IN0=Rbr.OUT1 IN1=bQ4.OUT0}
+  
+  OR1, OR-F  {IN1=R1.OUT1}
+  Oor, OR-F  {IN1=OR1.OUT}
+
+  Ibr1,BR-F  {}
+  Ibr2,BR-F  {IN=Ibr1.OUT0}
+  Ic,  AND-F {IN0=Ibr2.OUT0 IN1=bQ6.OUT0}
+  I1,  BR-F  {IN=Ibr1.OUT1}
+  INt, NOT-T {IN=bQ5.OUT0}
+  IA,  AND-F {IN0=INt.OUT IN1=Ibr2.OUT1}
+  IE,  OR-F  {IN0=IA.OUT IN1=CA.OUT}
+  
+  Cbr1,BR-F  {}
+  Cbr2,BR-F  {IN=Cbr1.OUT0}
+  Cc,  AND-F {IN0=Cbr2.OUT0 IN1=bQ6.OUT1}
+  CNt, NOT-T {IN=bQ5.OUT1}
+  CA,  AND-F {IN0=CNt.OUT IN1=Cbr2.OUT1}
+  
+  D1,  DLY-F {IN=I1.OUT0}
+  DCK, OR-F  {IN0=I1.OUT1 IN1=Cbr1.OUT1}
+}
