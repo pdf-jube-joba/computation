@@ -1,7 +1,7 @@
 use std::ops::Neg;
 use yew::prelude::*;
 
-use logic_circuit::machine::{Bool, FinGraph, InPin, LoC};
+use logic_circuit::machine::{Bool, FinGraph, Gate, InPin, LoC};
 
 #[derive(Debug, Clone, PartialEq, Eq, Properties)]
 pub struct StateProps {
@@ -20,6 +20,20 @@ pub fn state_view(StateProps { state, rep }: &StateProps) -> Html {
             {rep}
         </span>
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ori {
+    U,
+    D,
+    L,
+    R,
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct GateProps {
+    gate: Gate,
+    ori: Ori,
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
