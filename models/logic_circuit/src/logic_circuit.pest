@@ -3,17 +3,20 @@ WHITESPACE = _{ " " | "\n" }
 symbol = { "-" | "_" }
 name = @{ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
 
-conn_graph = { name ~ "=" ~ name ~ "." ~ name}
-in_graph = { "in"  ~ "{" ~ (","* ~ conn_graph)* ~ "}" }
-ot_graph = { "out" ~ "{" ~ (","* ~ conn_graph)* ~ "}" }
-lc_graph = { name ~ "," ~ name ~ "{" ~  (","* ~ conn_graph)* ~ "}" }
+in_graph = { "in"  ~ "{" ~ (name ~ ","*)* ~ "}" }
+
+otpin_graph = {name ~ "=" ~ name ~ "." ~ name }
+ot_graph = { "out" ~ "{" ~ (otpin_graph ~ ","*)* ~ "}" }
+
+pin = @{(name ~ "." ~ name) | name}
+conn_graph = { name ~ "=" ~ pin}
+lc_graph = { name ~ "," ~ name ~ "{" ~  (conn_graph ~ ",")* ~ "}" }
+
 fingraph = { "graph:" ~ name ~ "{" ~ in_graph ~ ot_graph ~ lc_graph+ ~ "}"}
 
 conn_iter = { name ~ "=" ~ name }
-in_iter = { "in"  ~ "{" ~ (","* ~ conn_iter)* ~ "}" }
-ot_iter = { "out" ~ "{" ~ (","* ~ conn_iter)* ~ "}" }
 next_iter = { "next" ~ "{" ~  (","* ~ conn_iter)* ~ "}" }
 prev_iter = { "prev" ~ "{" ~  (","* ~ conn_iter)* ~ "}" }
-iterator = { "iter:" ~ name ~ "{" ~ name ~ in_iter ~ ot_iter ~ next_iter ~ prev_iter ~ "}" }
+iterator = { "iter:" ~ name ~ "{" ~ name ~ "," ~ next_iter ~ prev_iter ~ "}" }
 
 lcs = _{ (fingraph | iterator)* ~ EOI }
