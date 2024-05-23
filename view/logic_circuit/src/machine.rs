@@ -36,6 +36,15 @@ pub struct GateProps {
     ori: Ori,
 }
 
+#[function_component(GateView)]
+fn gate_view(GateProps { gate, ori }: &GateProps) -> Html {
+    html!{
+        <div class="gate" >
+
+        </div>
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct FinGraphProps {
     fingraph: FinGraph,
