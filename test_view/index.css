@@ -6,6 +6,11 @@
     color: aqua;
 }
 
+.gate {
+    position: absolute;
+    border: 2pt #666;
+}
+
 #m {
     display: flex;
 }
