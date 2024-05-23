@@ -8,9 +8,9 @@ in_graph = { "in"  ~ "{" ~ (name ~ ","*)* ~ "}" }
 otpin_graph = {name ~ "=" ~ name ~ "." ~ name }
 ot_graph = { "out" ~ "{" ~ (otpin_graph ~ ","*)* ~ "}" }
 
-pin = @{(name ~ "." ~ name) | name}
+pin = {(name ~ "." ~ name) | name}
 conn_graph = { name ~ "=" ~ pin}
-lc_graph = { name ~ "," ~ name ~ "{" ~  (conn_graph ~ ",")* ~ "}" }
+lc_graph = { name ~ "," ~ name ~ "{" ~  (conn_graph ~ ","*)* ~ "}" }
 
 fingraph = { "graph:" ~ name ~ "{" ~ in_graph ~ ot_graph ~ lc_graph+ ~ "}"}
 

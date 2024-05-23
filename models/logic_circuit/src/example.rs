@@ -19,7 +19,7 @@ mod tests {
     fn call() {
         let examples = examples();
         examples.get(&"DFF".into()).unwrap();
-        for (n, l) in examples {
+        for (n, _) in examples {
             println!("{n}")
         }
     }

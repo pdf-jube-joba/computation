@@ -123,12 +123,29 @@ struct FingraphParse {
 
 fn conn_graph_parse(p: Pair<'_, Rule>) -> Pin {
     assert_eq!(p.as_rule(), Rule::conn_graph);
-    todo!()
+    let mut l = p.into_inner();
+    let i = l.next().unwrap().as_str().into();
+    let e = {
+        let e = l.next().unwrap();
+        assert_eq!(e.as_rule(), Rule::pin);
+        let mut e = e.into_inner();
+        let first = e.next().unwrap();
+        let second = e.next();
+        match second {
+            Some(i) => Either::Left((first.as_str().into(), i.as_str().into())),
+            None => Either::Right(first.as_str().into()),
+        }
+    };
+    (i, e)
 }
 
 fn otpin_graph_parse(p: Pair<'_, Rule>) -> (OtPin, (Name, OtPin)) {
     assert_eq!(p.as_rule(), Rule::otpin_graph);
-    todo!()
+    let mut l = p.into_inner();
+    let o = l.next().unwrap();
+    let n0 = l.next().unwrap();
+    let o0 = l.next().unwrap();
+    (o.as_str().into(), (n0.as_str().into(), o0.as_str().into()))
 }
 
 fn fingraph_parse(code: &str) -> FingraphParse {

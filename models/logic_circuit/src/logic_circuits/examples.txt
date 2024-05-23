@@ -1,26 +1,26 @@
 graph: one-shot {
-    in {I=B.IN}
+    in {I}
     out {O=A.OUT}
 
-    B, BR-F {}
+    B, BR-F {IN=I}
     N, NOT-T {IN=B.OUT0}
     A, AND-F {IN0=B.OUT1, IN1=N.OUT}
 }
 
 graph: tick-add1 {
-    in {I=B.IN}
+    in {I}
     out {O=O.OUT}
 
-    B, BR-F {}
+    B, BR-F {IN=I}
     D, DLY-F {IN=B.OUT0}
     O, OR-F {IN0=B.OUT1, IN1=D.OUT}
 }
 
 graph: RS-latch {
-    in {R=E0.I, S=E1.I}
+    in {R, S}
     out {Q=B0.OUT0, nQ=B1.OUT0}
 
-    E0, one-shot {}
+    E0, one-shot {I=R}
     T01, tick-add1 {I=E0.O}
     T02, tick-add1 {I=T01.O}
     T03, tick-add1 {I=T02.O}
@@ -31,7 +31,7 @@ graph: RS-latch {
     N0, NOT-F {IN=O0.OUT }
     B0, BR-F  {IN=N0.OUT }
 
-    E1, one-shot {}
+    E1, one-shot {I=S}
     T11, tick-add1 {I=E1.O}
     T12, tick-add1 {I=T11.O}
     T13, tick-add1 {I=T12.O}
@@ -44,12 +44,12 @@ graph: RS-latch {
 }
 
 graph: DFF {
-    in {CK=E.I, D=B2.IN}
+    in {CK, D}
     out {Q=R.Q, nQ=R.nQ}
 
-    E, one-shot {}
+    E, one-shot {I=CK}
     B, BR-F {IN=E.O}
-    B2, BR-F {}
+    B2, BR-F {IN=D}
     D11, DLY-F {IN=B2.OUT0} 
     D12, DLY-F {IN=D11.OUT}
     D2, DLY-F {IN=B2.OUT1}
@@ -60,10 +60,10 @@ graph: DFF {
 }
 
 graph: XOR {
-    in {IN0=B0.IN IN1=B1.IN}
+    in {IN0 IN1}
     out {OUT=O.OUT}
-    B0, BR-F {}
-    B1, BR-F {}
+    B0, BR-F {IN=IN0}
+    B1, BR-F {IN=IN1}
     D0, DLY-F {IN=B0.OUT0}
     N1, NOT-T {IN=B1.OUT0}
     A0, AND-F {IN0=D0.OUT IN1=N1.OUT}
@@ -74,10 +74,10 @@ graph: XOR {
 }
 
 graph: ADDR {
-    in {I0=B0.IN I1=B1.IN}
+    in {I0 I1}
     out {S=X.OUT C=A.OUT}
-    B0, BR-F {}
-    B1, BR-F {}
+    B0, BR-F {IN=I0}
+    B1, BR-F {IN=I1}
     X, XOR {IN0=B0.OUT0 IN1=B1.OUT0}
     A, AND-F {IN0=B0.OUT1 IN1=B1.OUT1}
 }
