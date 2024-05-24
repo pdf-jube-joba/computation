@@ -22,34 +22,6 @@ pub fn state_view(StateProps { state, rep }: &StateProps) -> Html {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Ori {
-    U,
-    D,
-    L,
-    R,
-}
-
-type Pos = (usize, usize);
-
-#[derive(Debug, Clone, PartialEq, Properties)]
-pub struct GateProps {
-    gate: Gate,
-    ori: Ori,
-    pos: Pos,
-}
-
-#[function_component(GateView)]
-fn gate_view(GateProps { gate, ori, pos }: &GateProps) -> Html {
-    html! {
-        <div class="gate" top={pos.0.to_string()} left={pos.1.to_string()}>
-            {gate.name()}
-        </div>
-    }
-}
-
-type Path = Vec<(usize, usize)>;
-
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct FinGraphProps {
     fingraph: FinGraph,
@@ -366,5 +338,107 @@ impl Component for MachineView {
             }
         }
         true
+    }
+}
+
+pub mod visual_lc {
+    use std::fmt::Display;
+
+    use web_sys::Element;
+
+    use super::*;
+    type Path = Vec<(usize, usize)>;
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum Ori {
+        U,
+        D,
+        L,
+        R,
+    }
+
+    impl Display for Ori {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let s = match self {
+                Ori::D => "D",
+                Ori::L => "L",
+                Ori::U => "U",
+                Ori::R => "R",
+            };
+            write!(f, "{}", s)
+        }
+    }
+
+    type Pos = (usize, usize);
+
+    #[derive(Debug, Clone, PartialEq, Properties)]
+    struct LCProps {
+        lc: LoC,
+        ori: Ori,
+        pos: Pos,
+    }
+
+    #[function_component(LCView)]
+    fn lc_view(LCProps { lc, ori, pos }: &LCProps) -> Html {
+        let input: Vec<_> = lc
+            .get_inpins()
+            .into_iter()
+            .map(|i| (i.clone(), lc.get_input(&i).unwrap()))
+            .collect();
+        let otput: Vec<_> = lc
+            .get_otpins()
+            .into_iter()
+            .map(|o| (o.clone(), lc.get_output(&o).unwrap()))
+            .collect();
+        html! {
+            <div class="lc" position={"relative"} top={pos.0.to_string()} left={pos.1.to_string()} class={format!("rot{ori:?}")}>
+                {lc.get_name()}
+                <div class="inputs"> {for input.into_iter().map(|(i, s)|{
+                    html!{<> <StateView state={*s} rep={i.to_string()}/> <br/> </>}
+                })}  </div>
+                <div class="outputs"> {for otput.into_iter().map(|(o, s)|{
+                    html!{<> <StateView state={*s} rep={o.to_string()}/> <br/> </>}
+                })} </div>
+            </div>
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Properties)]
+    struct ActLoCProps {
+        fingraph: FinGraph,
+        pos_lc: Vec<(Name, Ori, Pos)>,
+        paths: Vec<Path>,
+    }
+
+    #[function_component(ActLoCView)]
+    fn actlc_view(
+        ActLoCProps {
+            fingraph,
+            pos_lc,
+            paths,
+        }: &ActLoCProps,
+    ) -> Html {
+        todo!()
+    }
+
+    #[derive(Debug)]
+    struct App {}
+
+    impl Component for App {
+        type Message = ();
+        type Properties = ();
+        fn create(ctx: &Context<Self>) -> Self {
+            todo!()
+        }
+        fn view(&self, ctx: &Context<Self>) -> Html {
+            todo!()
+        }
+        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+            todo!()
+        }
+    }
+
+    pub fn app(element: Element) {
+        yew::Renderer::<App>::with_root(element).render();
     }
 }
