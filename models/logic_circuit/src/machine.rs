@@ -497,6 +497,22 @@ impl FinGraph {
     pub fn get_otpins(&self) -> Vec<OtPin> {
         self.otput.iter().map(|(o, _)| o.clone()).collect()
     }
+    pub fn edges(&self) -> &Vec<((Name, OtPin), (Name, InPin))> {
+        &self.edges
+    }
+    pub fn get_lc_inpins(&self, name: &Name) -> Vec<(InPin, Name, OtPin, Bool)> {
+        self.edges
+            .iter()
+            .filter_map(|((no, o), (ni, i))| {
+                if name == ni {
+                    let s = self.get_input(i).unwrap();
+                    Some((i.clone(), no.clone(), o.clone(), *s))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Iter {
@@ -574,6 +590,9 @@ impl Iter {
     fn get_lc(&self, n: Number) -> Option<&LoC> {
         let n: usize = n.into();
         self.lc_extended.get(n)
+    }
+    pub fn get_lcs(&self) -> &Vec<LoC> {
+        &self.lc_extended
     }
     fn next(&mut self) {
         for l in &mut self.lc_extended {
@@ -691,6 +710,13 @@ impl LoC {
         prev_edges: Vec<(OtPin, InPin)>,
     ) -> Result<Self> {
         Ok(LoC::Iter(name, Iter::new(lc, next_edges, prev_edges)?))
+    }
+    pub fn get_name(&self) -> Name {
+        match self {
+            LoC::Gate(gate) => gate.name().into(),
+            LoC::FinGraph(name, _) => name.clone(),
+            LoC::Iter(name, _) => name.clone(),
+        }
     }
     pub fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
         match self {
