@@ -341,104 +341,168 @@ impl Component for MachineView {
     }
 }
 
-pub mod visual_lc {
-    use std::fmt::Display;
-
+pub mod svg_lc {
+    use super::*;
+    use std::{collections::HashMap, fmt::Display};
+    use utils::view::svg::*;
     use web_sys::Element;
 
-    use super::*;
-    type Path = Vec<(usize, usize)>;
+    const BOOL_T_COL: &str = "red";
+    const BOOL_F_COL: &str = "blue";
 
-    #[derive(Debug, Clone, PartialEq)]
-    pub enum Ori {
-        U,
-        D,
-        L,
-        R,
+    const WIDTH_LC: usize = 50;
+    const PIN_LEN: usize = 10;
+    const PIN_RAD: usize = 5;
+
+    #[derive(Debug, Clone, PartialEq, Properties)]
+    struct LoCProps {
+        loc: LoC,
+        ori: Ori,
+        pos: Pos, // center of loc
     }
 
-    impl Display for Ori {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let s = match self {
-                Ori::D => "D",
-                Ori::L => "L",
-                Ori::U => "U",
-                Ori::R => "R",
-            };
-            write!(f, "{}", s)
+    fn rot(mut diff: Diff, ori: Ori) -> Diff {
+        match ori {
+            Ori::U => diff,
+            Ori::D => Diff(-diff.0, -diff.1),
+            Ori::L => {
+                diff.rot_counterclockwise();
+                diff
+            }
+            Ori::R => {
+                diff.rot_clockwise();
+                diff
+            }
         }
     }
 
-    type Pos = (usize, usize);
-
-    #[derive(Debug, Clone, PartialEq, Properties)]
-    struct LCProps {
-        lc: LoC,
-        ori: Ori,
-        pos: Pos,
+    fn input_pos(pos: Pos, len_of_input: usize, num: usize, ori: Ori) -> Pos {
+        let diff = Diff(WIDTH_LC as isize, (PIN_LEN * len_of_input) as isize);
+        let diff_i = Diff(0, (PIN_LEN * num + PIN_RAD) as isize);
+        pos - rot(diff / 2, ori) + rot(diff_i / 2, ori)
     }
 
-    #[function_component(LCView)]
-    fn lc_view(LCProps { lc, ori, pos }: &LCProps) -> Html {
-        let input: Vec<_> = lc
+    fn otput_pos(pos: Pos, len_of_otput: usize, num: usize, ori: Ori) -> Pos {
+        let diff = Diff(-(WIDTH_LC as isize), (PIN_LEN * len_of_otput) as isize);
+        let diff_i = Diff(0, (PIN_LEN * num + PIN_RAD) as isize);
+        pos - rot(diff / 2, ori) + rot(diff_i / 2, ori)
+    }
+
+    #[function_component(LoCView)]
+    fn lc_view(LoCProps { loc, ori, pos }: &LoCProps) -> Html {
+        let input: Vec<_> = loc
             .get_inpins()
             .into_iter()
-            .map(|i| (i.clone(), lc.get_input(&i).unwrap()))
+            .map(|i| (i.clone(), loc.get_input(&i).unwrap()))
             .collect();
-        let otput: Vec<_> = lc
+        let otput: Vec<_> = loc
             .get_otpins()
             .into_iter()
-            .map(|o| (o.clone(), lc.get_output(&o).unwrap()))
+            .map(|o| (o.clone(), loc.get_output(&o).unwrap()))
             .collect();
+        let m = std::cmp::max(input.len(), otput.len());
+        let diff = Diff(WIDTH_LC as isize, (PIN_LEN * m) as isize);
+
         html! {
-            <div class="lc" position={"relative"} top={pos.0.to_string()} left={pos.1.to_string()} class={format!("rot{ori:?}")}>
-                {lc.get_name()}
-                <div class="inputs"> {for input.into_iter().map(|(i, s)|{
-                    html!{<> <StateView state={*s} rep={i.to_string()}/> <br/> </>}
-                })}  </div>
-                <div class="outputs"> {for otput.into_iter().map(|(o, s)|{
-                    html!{<> <StateView state={*s} rep={o.to_string()}/> <br/> </>}
-                })} </div>
-            </div>
+            <>
+                <RectView pos={*pos - rot(diff / 2, *ori)} diff={rot(diff, *ori)} col={"lightgray".to_string()} border={"black".to_string()}/>
+                {for input.iter().enumerate().map(|(i, (inpin, state))|{
+                    html!{
+                        <>
+                        <CircleView pos={input_pos(*pos, m, i, *ori)} rad={PIN_RAD} col={if **state == Bool::T {BOOL_T_COL.to_string()} else {BOOL_F_COL.to_string()}} border="black"/>
+                        <TextView pos={input_pos(*pos, m, i, *ori)} text={inpin.to_string()}/>
+                        </>
+                    }
+                })}
+                {for otput.iter().enumerate().map(|(i, (otpin, state))|{
+                    html!{
+                        <>
+                        <CircleView pos={otput_pos(*pos, m, i, *ori)} rad={PIN_RAD} col={if **state == Bool::T {BOOL_T_COL.to_string()} else {BOOL_F_COL.to_string()}} border="black"/>
+                        <TextView pos={otput_pos(*pos, m, i, *ori)} text={otpin.to_string()}/>
+                        </>
+                    }
+                })}
+            </>
         }
     }
 
     #[derive(Debug, Clone, PartialEq, Properties)]
-    struct ActLoCProps {
-        fingraph: FinGraph,
-        pos_lc: Vec<(Name, Ori, Pos)>,
-        paths: Vec<Path>,
+    pub struct ActLoCProps {
+        pub fingraph: FinGraph,
+        pub pos_lc: HashMap<Name, (Ori, Pos)>,
     }
 
     #[function_component(ActLoCView)]
-    fn actlc_view(
-        ActLoCProps {
-            fingraph,
-            pos_lc,
-            paths,
-        }: &ActLoCProps,
-    ) -> Html {
-        todo!()
+    pub fn actlc_view(ActLoCProps { fingraph, pos_lc }: &ActLoCProps) -> Html {
+        html! {
+            <svg width="800" height="500" viewBox="0 0 800 500">
+            {for pos_lc.iter().map(|(name, (ori, pos))|{
+                let loc = fingraph.get_lc(name).unwrap();
+                html!{
+                    <LoCView loc={loc.clone()} ori={*ori} pos={*pos}/>
+                }
+            })}
+            {for fingraph.edges().iter().map(|((no, o), (ni, i))|{
+                let loc_o = fingraph.get_lc(no).unwrap();
+                let (ori_o, pos_o) = pos_lc.get(no).unwrap();
+                let otpins = loc_o.get_otpins();
+                let num_o = otpins.iter().position(|otpin| o == otpin).unwrap();
+                let pos_o = otput_pos(*pos_o, otpins.len(), num_o, *ori_o);
+
+                let loc_i = fingraph.get_lc(ni).unwrap();
+                let (ori_i, pos_i) = pos_lc.get(ni).unwrap();
+                let inpins = loc_i.get_inpins();
+                let num_i = loc_i.get_inpins().iter().position(|inpin| i == inpin).unwrap();
+                let pos_i = input_pos(*pos_i, inpins.len(), num_i, *ori_i);
+
+                let state = *loc_i.get_input(i).unwrap();
+
+                html!{
+                    <PolyLineView vec={vec![pos_o, pos_i]} col={if state == Bool::T {BOOL_T_COL} else {BOOL_F_COL}}/>
+                }
+            })}
+            </svg>
+        }
     }
 
-    #[derive(Debug)]
-    struct App {}
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct FingraphMachine {
+        pub fingraph: FinGraph,
+        pub pos_lc: HashMap<Name, (Ori, Pos)>,
+    }
 
-    impl Component for App {
-        type Message = ();
-        type Properties = ();
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum FingraphMachineMsg {
+        Step(usize),
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Properties)]
+    struct FingraphMachineProps {}
+
+    impl Component for FingraphMachine {
+        type Message = FingraphMachineMsg;
+        type Properties = FingraphMachineProps;
         fn create(ctx: &Context<Self>) -> Self {
             todo!()
         }
         fn view(&self, ctx: &Context<Self>) -> Html {
-            todo!()
+            let on_step = ctx.link().callback(FingraphMachineMsg::Step);
+            html! {
+                <>
+                <ActLoCView fingraph={self.fingraph.clone()} pos_lc={self.pos_lc.clone()}/>
+                <utils::view::ControlStepView {on_step}/>
+                </>
+            }
         }
         fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-            todo!()
+            match msg {
+                FingraphMachineMsg::Step(step) => {
+                    for _ in 0..step {
+                        self.fingraph.next();
+                    }
+                    true
+                }
+            }
         }
-    }
-
-    pub fn app(element: Element) {
-        yew::Renderer::<App>::with_root(element).render();
     }
 }

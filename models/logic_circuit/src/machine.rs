@@ -256,7 +256,7 @@ impl Gate {
             _ => None,
         }
     }
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         match self {
             Gate::Not { state, input } => {
                 *state = input.neg();
@@ -477,7 +477,7 @@ impl FinGraph {
         let (_, lc) = self.lcs.iter().find(|(n, _)| name == n)?;
         Some(lc)
     }
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         for (_, lc) in &mut self.lcs {
             lc.next();
         }
@@ -594,7 +594,7 @@ impl Iter {
     pub fn get_lcs(&self) -> &Vec<LoC> {
         &self.lc_extended
     }
-    fn next(&mut self) {
+    pub fn next(&mut self) {
         for l in &mut self.lc_extended {
             l.next();
         }

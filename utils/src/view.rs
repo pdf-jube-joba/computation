@@ -95,6 +95,7 @@ impl Component for EventLogView {
 pub struct ControlStepView {
     now_auto: bool,
     now_secs: u32,
+    #[allow(dead_code)]
     total_step: usize,
     #[allow(dead_code)]
     interval: Interval,
@@ -180,5 +181,172 @@ impl Component for ControlStepView {
             }
         }
         true
+    }
+}
+
+pub mod svg {
+    use std::{
+        fmt::Display,
+        ops::{Add, Div, Sub},
+    };
+    use yew::prelude::*;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct Pos(pub usize, pub usize);
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct Diff(pub isize, pub isize);
+
+    impl Diff {
+        pub fn rot_counterclockwise(&mut self) {
+            *self = Diff(-self.1, self.0);
+        }
+        pub fn rot_clockwise(&mut self) {
+            *self = Diff(self.1, -self.0);
+        }
+    }
+
+    impl Add<Diff> for Diff {
+        type Output = Diff;
+        fn add(self, rhs: Diff) -> Self::Output {
+            Diff(self.0 + rhs.0, self.1 + rhs.1)
+        }
+    }
+
+    impl Div<usize> for Diff {
+        type Output = Diff;
+        fn div(self, rhs: usize) -> Self::Output {
+            Diff(self.0 / (rhs as isize), self.1 / (rhs as isize))
+        }
+    }
+
+    impl Add<Diff> for Pos {
+        type Output = Pos;
+        fn add(self, rhs: Diff) -> Self::Output {
+            let x = if rhs.0.is_positive() {
+                self.0 + rhs.0 as usize
+            } else {
+                self.0 - (-rhs.0 as usize)
+            };
+            let y = if rhs.1.is_positive() {
+                self.1 + rhs.1 as usize
+            } else {
+                self.1 - (-rhs.1 as usize)
+            };
+            Pos(x, y)
+        }
+    }
+
+    impl Sub<Pos> for Pos {
+        type Output = Diff;
+        fn sub(self, rhs: Self) -> Self::Output {
+            Diff(
+                self.0 as isize - rhs.0 as isize,
+                self.1 as isize - rhs.1 as isize,
+            )
+        }
+    }
+
+    impl Sub<Diff> for Pos {
+        type Output = Pos;
+        fn sub(self, rhs: Diff) -> Self::Output {
+            Pos(
+                (self.0 as isize - rhs.0) as usize,
+                (self.1 as isize - rhs.1) as usize,
+            )
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Ori {
+        U,
+        R,
+        D,
+        L,
+    }
+
+    impl Display for Ori {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let s = match self {
+                Ori::D => "D",
+                Ori::L => "L",
+                Ori::U => "U",
+                Ori::R => "R",
+            };
+            write!(f, "{}", s)
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Properties, Hash)]
+    pub struct RectProps {
+        pub pos: Pos,
+        pub diff: Diff,
+        pub col: String,
+        pub border: String,
+    }
+
+    #[function_component(RectView)]
+    pub fn rect_view(
+        RectProps {
+            pos,
+            diff,
+            col,
+            border,
+        }: &RectProps,
+    ) -> Html {
+        html! {
+            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()}/>
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Properties, Hash)]
+    pub struct CircleProps {
+        pub pos: Pos,
+        pub rad: usize,
+        pub col: String,
+        pub border: String,
+    }
+
+    #[function_component(CircleView)]
+    pub fn circle_view(
+        CircleProps {
+            pos,
+            rad,
+            col,
+            border,
+        }: &CircleProps,
+    ) -> Html {
+        html! {
+            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} col={col.to_string()} stroke={border.to_string()}/>
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Properties, Hash)]
+    pub struct TextProps {
+        pub pos: Pos,
+        pub text: String,
+    }
+
+    #[function_component(TextView)]
+    pub fn text_view(TextProps { pos, text }: &TextProps) -> Html {
+        html! {
+            <text x={pos.0.to_string()} y={pos.1.to_string()}> {text} </text>
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Properties, Hash)]
+    pub struct PolyLineProps {
+        pub vec: Vec<Pos>,
+        pub col: String,
+    }
+
+    #[function_component(PolyLineView)]
+    pub fn path_view(PolyLineProps { vec, col }: &PolyLineProps) -> Html {
+        let s = vec.iter().fold(String::new(), |string, vi| {
+            format!("{string} {}, {},", vi.0, vi.1)
+        });
+        html! {
+            <polyline points={s} fill="none" stroke={col.to_string()}/>
+        }
     }
 }
