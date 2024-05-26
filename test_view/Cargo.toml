@@ -9,4 +9,7 @@ edition = "2021"
 logic_circuit = { path = "../models/logic_circuit" }
 logic_circuit_view = { path = "../view/logic_circuit" }
 
+utils = { path = "../utils"}
+
 gloo = { workspace = true }
+yew = { workspace = true }

@@ -1,7 +1,12 @@
 use gloo::timers::callback::Interval;
+use wasm_bindgen::JsValue;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew::Properties;
+
+pub fn log<T: AsRef<str>>(str: T) {
+    web_sys::console::log_1(&JsValue::from_str(str.as_ref()))
+}
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct CodeView {
@@ -194,6 +199,12 @@ pub mod svg {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Pos(pub usize, pub usize);
 
+    impl Pos {
+        pub fn abs_diff(&self, other: &Pos) -> usize {
+            self.0.abs_diff(other.0).pow(2) + self.1.abs_diff(other.1).pow(1)
+        }
+    }
+
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct Diff(pub isize, pub isize);
 
@@ -317,7 +328,7 @@ pub mod svg {
         }: &CircleProps,
     ) -> Html {
         html! {
-            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} col={col.to_string()} stroke={border.to_string()}/>
+            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} fill={col.to_string()} stroke={border.to_string()}/>
         }
     }
 

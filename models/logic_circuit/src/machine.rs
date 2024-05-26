@@ -303,41 +303,47 @@ impl Gate {
             Gate::Delay { input: _, state: _ } => "dly".to_owned(),
         }
     }
-    pub fn get_inpins(&self) -> Vec<InPin> {
+    pub fn get_inpins(&self) -> Vec<(InPin, Bool)> {
         match self {
-            Gate::Not { state: _, input: _ }
-            | Gate::Br { state: _, input: _ }
-            | Gate::Delay { input: _, state: _ }
-            | Gate::End { input: _ } => vec!["IN".into()],
+            Gate::Not { state: _, input }
+            | Gate::Br { state: _, input }
+            | Gate::Delay { input, state: _ }
+            | Gate::End { input } => vec![("IN".into(), input.clone())],
             Gate::And {
                 state: _,
-                input0: _,
-                input1: _,
+                input0,
+                input1,
             }
             | Gate::Or {
                 state: _,
-                input0: _,
-                input1: _,
-            } => vec!["IN0".into(), "IN1".into()],
+                input0,
+                input1,
+            } => vec![
+                ("IN0".into(), input0.clone()),
+                ("IN1".into(), input1.clone()),
+            ],
             Gate::Cst { state: _ } => vec![],
         }
     }
-    pub fn get_otpins(&self) -> Vec<OtPin> {
+    pub fn get_otpins(&self) -> Vec<(OtPin, Bool)> {
         match self {
-            Gate::Not { state: _, input: _ }
-            | Gate::Delay { input: _, state: _ }
+            Gate::Not { state, input: _ }
+            | Gate::Delay { input: _, state }
             | Gate::And {
-                state: _,
+                state,
                 input0: _,
                 input1: _,
             }
             | Gate::Or {
-                state: _,
+                state,
                 input0: _,
                 input1: _,
             }
-            | Gate::Cst { state: _ } => vec!["OUT".into()],
-            Gate::Br { state: _, input: _ } => vec!["OUT0".into(), "OUT1".into()],
+            | Gate::Cst { state } => vec![("OUT".into(), state.clone())],
+            Gate::Br { state, input: _ } => vec![
+                ("OUT0".into(), state.clone()),
+                ("OUT1".into(), state.clone()),
+            ],
             Gate::End { input: _ } => vec![],
         }
     }
@@ -384,10 +390,10 @@ impl FinGraph {
 
         for (n, lc) in lcs.iter() {
             let inpins = unused_inpins.entry(n.clone()).or_default();
-            inpins.extend(lc.get_inpins().iter().map(|i| (i.clone(), true)));
+            inpins.extend(lc.get_inpins().iter().map(|i| (i.0.clone(), true)));
 
             let otpins = unused_otpins.entry(n.clone()).or_default();
-            otpins.extend(lc.get_otpins().iter().map(|o| (o.clone(), true)));
+            otpins.extend(lc.get_otpins().iter().map(|o| (o.0.clone(), true)));
         }
 
         let mut check_used_name_and_inpin = |(name, inpin): &(Name, InPin)| -> Result<()> {
@@ -464,10 +470,10 @@ impl FinGraph {
         let (_, lc) = self.lcs.iter_mut().find(|(name2, _)| name2 == name)?;
         lc.getmut_input(inpin)
     }
-    pub fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
+    pub fn get_otput(&self, otpin: &OtPin) -> Option<&Bool> {
         let (_, (name, otpin)) = self.otput.iter().find(|(i, _)| i == otpin)?;
         let (_, lc) = self.lcs.iter().find(|(name2, _)| name2 == name)?;
-        lc.get_output(otpin)
+        lc.get_otput(otpin)
     }
     pub fn getmut_lc(&mut self, name: &Name) -> Option<&mut LoC> {
         let (_, lc) = self.lcs.iter_mut().find(|(n, _)| name == n)?;
@@ -483,7 +489,7 @@ impl FinGraph {
         }
         // lc 同士の整合性
         for ((n0, o), (n1, i)) in self.edges.clone() {
-            let lco = *self.get_lc(&n0).unwrap().get_output(&o).unwrap();
+            let lco = *self.get_lc(&n0).unwrap().get_otput(&o).unwrap();
             let lci = self.getmut_lc(&n1).unwrap().getmut_input(&i).unwrap();
             *lci = lco;
         }
@@ -491,11 +497,17 @@ impl FinGraph {
     pub fn get_lc_names(&self) -> Vec<Name> {
         self.lcs.iter().map(|(n, _)| n.clone()).collect()
     }
-    pub fn get_inpins(&self) -> Vec<InPin> {
-        self.input.iter().map(|(i, _)| i.clone()).collect()
+    pub fn get_inpins(&self) -> Vec<(InPin, Bool)> {
+        self.input
+            .iter()
+            .map(|i| (i.0.clone(), *self.get_input(&i.0).unwrap()))
+            .collect()
     }
-    pub fn get_otpins(&self) -> Vec<OtPin> {
-        self.otput.iter().map(|(o, _)| o.clone()).collect()
+    pub fn get_otpins(&self) -> Vec<(OtPin, Bool)> {
+        self.otput
+            .iter()
+            .map(|o| (o.0.clone(), *self.get_otput(&o.0).unwrap()))
+            .collect()
     }
     pub fn edges(&self) -> &Vec<((Name, OtPin), (Name, InPin))> {
         &self.edges
@@ -543,9 +555,9 @@ impl Iter {
         prev_edges: Vec<(OtPin, InPin)>,
     ) -> Result<Self> {
         let mut unused_inpin: Vec<(InPin, bool)> =
-            lc.get_inpins().into_iter().map(|i| (i, true)).collect();
+            lc.get_inpins().into_iter().map(|i| (i.0, true)).collect();
         let mut unused_otpin: Vec<(OtPin, bool)> =
-            lc.get_otpins().into_iter().map(|o| (o, true)).collect();
+            lc.get_otpins().into_iter().map(|o| (o.0, true)).collect();
         for (otpin, inpin) in next_edges.iter() {
             let Some((_, b)) = unused_otpin.iter_mut().find(|(o, _)| o == otpin) else {
                 bail!("not found otpin: {otpin}");
@@ -584,16 +596,16 @@ impl Iter {
         })
     }
     pub fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
-        let inpin = self.get_inpins().into_iter().find(|i| i == inpin)?;
-        self.lc_extended[0].get_input(&inpin)
+        let inpin = self.get_inpins().into_iter().find(|i| i.0 == *inpin)?;
+        self.lc_extended[0].get_input(&inpin.0)
     }
     pub fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
-        let inpin = self.get_inpins().into_iter().find(|i| i == inpin)?;
-        self.lc_extended[0].getmut_input(&inpin)
+        let inpin = self.get_inpins().into_iter().find(|i| i.0 == *inpin)?;
+        self.lc_extended[0].getmut_input(&inpin.0)
     }
     pub fn get_otput(&self, otpin: &OtPin) -> Option<&Bool> {
-        let otpin = self.get_otpins().into_iter().find(|o| o == otpin)?;
-        self.lc_extended[0].get_output(&otpin)
+        let otpin = self.get_otpins().into_iter().find(|o| o.0 == *otpin)?;
+        self.lc_extended[0].get_otput(&otpin.0)
     }
     pub fn getmut_lc(&mut self, n: Number) -> Option<&mut LoC> {
         let n: usize = n.into();
@@ -616,7 +628,7 @@ impl Iter {
         let mut b = true;
         for (o, i) in self.next_edges.iter() {
             for l in 0..n {
-                let o = *self.lc_extended[l].get_output(o).unwrap();
+                let o = *self.lc_extended[l].get_otput(o).unwrap();
                 let i = self.lc_extended[l + 1].getmut_input(i).unwrap();
                 *i = o;
                 if l == n - 1 && o == Bool::T {
@@ -631,17 +643,23 @@ impl Iter {
         // prev との整合性
         for (o, i) in self.prev_edges.iter() {
             for l in 1..n {
-                let o = *self.lc_extended[l].get_output(o).unwrap();
+                let o = *self.lc_extended[l].get_otput(o).unwrap();
                 let i = self.lc_extended[l - 1].getmut_input(i).unwrap();
                 *i = o;
             }
         }
     }
-    pub fn get_inpins(&self) -> Vec<InPin> {
-        self.next_edges.iter().map(|(_, i)| i.clone()).collect()
+    pub fn get_inpins(&self) -> Vec<(InPin, Bool)> {
+        self.next_edges
+            .iter()
+            .map(|(_, i)| (i.clone(), *self.get_input(&i).unwrap()))
+            .collect()
     }
-    pub fn get_otpins(&self) -> Vec<OtPin> {
-        self.prev_edges.iter().map(|(o, _)| o.clone()).collect()
+    pub fn get_otpins(&self) -> Vec<(OtPin, Bool)> {
+        self.prev_edges
+            .iter()
+            .map(|(o, _)| (o.clone(), *self.get_otput(&o).unwrap()))
+            .collect()
     }
 }
 
@@ -744,10 +762,10 @@ impl LoC {
             LoC::Iter(_, iter) => iter.getmut_input(inpin),
         }
     }
-    pub fn get_output(&self, otpin: &OtPin) -> Option<&Bool> {
+    pub fn get_otput(&self, otpin: &OtPin) -> Option<&Bool> {
         match self {
             LoC::Gate(gate) => gate.get_output(otpin),
-            LoC::FinGraph(_, fingraph) => fingraph.get_output(otpin),
+            LoC::FinGraph(_, fingraph) => fingraph.get_otput(otpin),
             LoC::Iter(_, iter) => iter.get_otput(otpin),
         }
     }
@@ -799,18 +817,24 @@ impl LoC {
             LoC::Iter(_, iter) => iter.next(),
         }
     }
-    pub fn get_inpins(&self) -> Vec<InPin> {
+    pub fn get_inpins(&self) -> Vec<(InPin, Bool)> {
         match self {
             LoC::Gate(gate) => gate.get_inpins(),
             LoC::FinGraph(_, fingraph) => fingraph.get_inpins(),
             LoC::Iter(_, iter) => iter.get_inpins(),
         }
     }
-    pub fn get_otpins(&self) -> Vec<OtPin> {
+    pub fn get_otpins(&self) -> Vec<(OtPin, Bool)> {
         match self {
             LoC::Gate(gate) => gate.get_otpins(),
             LoC::FinGraph(_, fingraph) => fingraph.get_otpins(),
             LoC::Iter(_, iter) => iter.get_otpins(),
+        }
+    }
+    pub fn take_fingraph(self) -> Option<FinGraph> {
+        match self {
+            LoC::FinGraph(name, fingraph) => Some(*fingraph),
+            _ => None,
         }
     }
 }
@@ -859,7 +883,7 @@ mod tests {
         let mut rs = rs.unwrap();
 
         let a = rs.get_inpins();
-        assert_eq!(a, vec!["R".into(), "S".into()]);
+        assert_eq!(a, vec![("R".into(), Bool::F), ("S".into(), Bool::F)]);
 
         let t = |lc: &mut LoC| loop {
             let lc_prev = lc.clone();

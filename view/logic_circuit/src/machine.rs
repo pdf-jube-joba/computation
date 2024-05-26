@@ -40,16 +40,8 @@ pub fn fingraph_view(FinGraphProps { fingraph, detail }: &FinGraphProps) -> Html
             (n.clone(), name, inout)
         })
         .collect();
-    let input: Vec<_> = fingraph
-        .get_inpins()
-        .into_iter()
-        .map(|i| (i.clone(), *fingraph.get_input(&i).unwrap()))
-        .collect();
-    let otput: Vec<_> = fingraph
-        .get_otpins()
-        .into_iter()
-        .map(|o| (o.clone(), *fingraph.get_output(&o).unwrap()))
-        .collect();
+    let input: Vec<_> = fingraph.get_inpins();
+    let otput: Vec<_> = fingraph.get_otpins();
     html! {
         <div class="graph">
             {for input.into_iter().map(|(i, s)|{
@@ -99,25 +91,8 @@ pub struct IteratorProps {
 
 #[function_component(IteratorView)]
 fn iterator_view(IteratorProps { iterator, detail }: &IteratorProps) -> Html {
-    // let logic_circuit::machine::Iter {
-    //     name,
-    //     lc_init: _,
-    //     lc_extended,
-    //     next_edges: _,
-    //     prev_edges: _,
-    //     input,
-    //     otput,
-    // } = iterator;
-    let input: Vec<_> = iterator
-        .get_inpins()
-        .into_iter()
-        .map(|i| (i.clone(), iterator.get_input(&i).unwrap()))
-        .collect();
-    let otput: Vec<_> = iterator
-        .get_otpins()
-        .into_iter()
-        .map(|o| (o.clone(), iterator.get_otput(&o).unwrap()))
-        .collect();
+    let input: Vec<_> = iterator.get_inpins();
+    let otput: Vec<_> = iterator.get_otpins();
     html! {
         <div class="iterator">
             {for input.iter().map(|(i, i0)|{
@@ -290,7 +265,11 @@ impl Component for MachineView {
                 Some(machine) => {
                     let callback_step = ctx.link().callback(MachineMsg::Step);
                     let on_set_inputs = ctx.link().callback(MachineMsg::SetInput);
-                    let all_input_name = machine.get_inpins();
+                    let all_input_name = machine
+                        .get_inpins()
+                        .into_iter()
+                        .map(|v| v.0)
+                        .collect::<Vec<_>>();
                     html! {
                         <>
                             <utils::view::ControlStepView on_step={callback_step}/>
@@ -343,6 +322,7 @@ impl Component for MachineView {
 
 pub mod svg_lc {
     use super::*;
+    use anyhow::{bail, Result};
     use std::{collections::HashMap, fmt::Display};
     use utils::view::svg::*;
     use web_sys::Element;
@@ -351,8 +331,12 @@ pub mod svg_lc {
     const BOOL_F_COL: &str = "blue";
 
     const WIDTH_LC: usize = 50;
-    const PIN_LEN: usize = 10;
-    const PIN_RAD: usize = 5;
+    const PIN_LEN: usize = 25;
+    const PIN_RAD: usize = 10;
+
+    const IN_LINE: usize = 50;
+    const OT_LINE: usize = 750;
+    const UP_LINE: usize = 100;
 
     #[derive(Debug, Clone, PartialEq, Eq, Properties)]
     struct InPinProps {
@@ -407,7 +391,7 @@ pub mod svg_lc {
         }
 
         fn otput_pos(&self, otpin: &OtPin) -> Option<Pos> {
-            let diff = Diff(WIDTH_LC as isize, (PIN_LEN * self.otputs.len()) as isize);
+            let diff = Diff(-(WIDTH_LC as isize), (PIN_LEN * self.otputs.len()) as isize);
             let diff_i = Diff(
                 0,
                 (PIN_LEN * self.otputs.iter().position(|o| o.0 == *otpin)? + PIN_RAD) as isize,
@@ -474,16 +458,8 @@ pub mod svg_lc {
             let loc = self.fingraph.get_lc(name)?;
             let (ori, pos) = self.poslc.get(&name).unwrap();
             Some(LoCProps {
-                inputs: loc
-                    .get_inpins()
-                    .into_iter()
-                    .map(|i| (i.clone(), *loc.get_input(&i).unwrap()))
-                    .collect(),
-                otputs: loc
-                    .get_otpins()
-                    .into_iter()
-                    .map(|o| (o.clone(), *loc.get_output(&o).unwrap()))
-                    .collect(),
+                inputs: loc.get_inpins(),
+                otputs: loc.get_otpins(),
                 ori: *ori,
                 pos: *pos,
             })
@@ -514,76 +490,85 @@ pub mod svg_lc {
             })
             .collect();
 
-        let inpin_edge: Vec<(Pos, Pos, Bool)> = actlocprops
+        let inpin_edge: Vec<(InPin, Pos, Pos, Bool)> = actlocprops
             .fingraph
             .get_inpins()
             .into_iter()
             .enumerate()
-            .map(|(k, i)| {
+            .map(|(k, (i, state))| {
                 let (n, inpin) = actlocprops
                     .fingraph
                     .get_inpin_to_lc_inpin(&i)
                     .unwrap()
                     .clone();
                 let loc_props = actlocprops.get_lc_props(&n).unwrap();
-                let state = loc_props
-                    .inputs
-                    .iter()
-                    .find(|(i, _)| *i == inpin)
-                    .unwrap()
-                    .1;
                 (
-                    Pos(0, k * PIN_LEN + PIN_RAD),
+                    i,
+                    Pos(IN_LINE, k * PIN_LEN + UP_LINE),
                     loc_props.input_pos(&inpin).unwrap(),
                     state,
                 )
             })
             .collect();
 
-        let otpin_edge: Vec<(Pos, Pos, Bool)> = actlocprops
+        let otpin_edge: Vec<(OtPin, Pos, Pos, Bool)> = actlocprops
             .fingraph
             .get_otpins()
             .into_iter()
             .enumerate()
-            .map(|(k, o)| {
+            .map(|(k, (o, state))| {
                 let (n, otpin) = actlocprops
                     .fingraph
                     .get_otpin_to_lc_otpin(&o)
                     .unwrap()
                     .clone();
                 let loc_props = actlocprops.get_lc_props(&n).unwrap();
-                let state = loc_props
-                    .otputs
-                    .iter()
-                    .find(|(o, _)| *o == otpin)
-                    .unwrap()
-                    .1;
                 (
-                    Pos(800, k * PIN_LEN + PIN_RAD),
+                    o,
+                    Pos(OT_LINE, k * PIN_LEN + UP_LINE),
                     loc_props.otput_pos(&otpin).unwrap(),
                     state,
                 )
             })
             .collect();
+
+        let inpins = actlocprops.fingraph.get_inpins();
+        let callback = actlocprops.on_inpin_clicks.clone();
+        let onclick = Callback::from(move |e: MouseEvent| {
+            let pos: Pos = Pos(e.client_x() as usize, e.client_y() as usize);
+            utils::view::log(format!("{pos:?}"));
+            for k in 0..inpins.len() {
+                let dist = pos.abs_diff(&Pos(IN_LINE, k * PIN_LEN + UP_LINE));
+                utils::view::log(format!("{dist}"));
+                if dist <= PIN_RAD.pow(2) {
+                    utils::view::log(format!("{k}"));
+                    callback.emit(inpins[k].0.clone());
+                }
+            }
+        });
         html! {
-            <svg width="800" height="500" viewBox="0 0 800 500">
+            <svg width="800" height="500" viewBox="0 0 800 500" {onclick}>
             {for actlocprops.poslc.iter().map(|(name, (ori, pos))|{
                 let loc = actlocprops.fingraph.get_lc(name).unwrap();
-                let inputs: Vec<_> = loc.get_inpins().into_iter().map(|i|(i.clone(), *loc.get_input(&i).unwrap())).collect();
-                let otputs: Vec<_> = loc.get_otpins().into_iter().map(|o|(o.clone(), *loc.get_output(&o).unwrap())).collect();
                 html!{
-                    <LoCView {inputs} {otputs} ori={*ori} pos={*pos}/>
+                    <LoCView inputs={loc.get_inpins()} otputs={loc.get_otpins()} ori={*ori} pos={*pos}/>
                 }
             })}
-            {for inpin_edge.into_iter().map(|(pos_i, pos_ni, state)|{
+            {for inpin_edge.into_iter().map(|(inpin, pos_i, pos_ni, state)|{
                 html!{
+                    <>
+                    <InPinView pos={pos_i.clone()} {inpin} {state}/>
                     <PolyLineView vec={vec![pos_i, pos_ni]} col={if state == Bool::T {BOOL_T_COL} else {BOOL_F_COL}}/>
+                    </>
                 }
             })
             }
-            {for otpin_edge.into_iter().map(|(pos_o, pos_no, state)|{
+            {for otpin_edge.into_iter().map(|(otpin, pos_o, pos_no, state)|{
                 html!{
+                    <>
+                    <OtPinView pos={pos_o.clone()} {otpin} {state}/>
                     <PolyLineView vec={vec![pos_no, pos_o]} col={if state == Bool::T {BOOL_T_COL} else {BOOL_F_COL}}/>
+                    </>
                 }
             })}
             {for graph_edge.into_iter().map(|(pos_o, pos_i, state)|{
@@ -597,21 +582,36 @@ pub mod svg_lc {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    struct FingraphMachine {
+    pub struct FingraphMachine {
         pub fingraph: FinGraph,
         pub pos_lc: HashMap<Name, (Ori, Pos)>,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    enum FingraphMachineMsg {
+    pub enum FingraphMachineMsg {
         Step(usize),
         ToggleIn(InPin),
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Properties)]
     pub struct FingraphMachineProps {
-        pub init_fingraph: FinGraph,
-        pub init_pos_lc: Vec<(Name, (Ori, Pos))>,
+        init_fingraph: FinGraph,
+        init_pos_lc: Vec<(Name, (Ori, Pos))>,
+    }
+
+    impl FingraphMachineProps {
+        pub fn new(init_fingraph: FinGraph, init_pos_lc: Vec<(Name, (Ori, Pos))>) -> Result<Self> {
+            let names = init_fingraph.get_lc_names();
+            for name in names {
+                if init_pos_lc.iter().all(|(n, _)| n != &name) {
+                    bail!("not found {name} in init_pos_lc");
+                }
+            }
+            Ok(Self {
+                init_fingraph,
+                init_pos_lc,
+            })
+        }
     }
 
     impl Component for FingraphMachine {

@@ -2106,6 +2106,8 @@ dependencies = [
  "gloo",
  "logic_circuit",
  "logic_circuit_view",
+ "utils",
+ "yew",
 ]
 
 [[package]]
