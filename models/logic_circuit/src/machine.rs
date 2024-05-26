@@ -459,7 +459,7 @@ impl FinGraph {
         let (_, lc) = self.lcs.iter().find(|(name2, _)| name2 == name)?;
         lc.get_input(inpin)
     }
-    fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
+    pub fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
         let (_, (name, inpin)) = self.input.iter_mut().find(|(i, _)| i == inpin)?;
         let (_, lc) = self.lcs.iter_mut().find(|(name2, _)| name2 == name)?;
         lc.getmut_input(inpin)
@@ -499,6 +499,18 @@ impl FinGraph {
     }
     pub fn edges(&self) -> &Vec<((Name, OtPin), (Name, InPin))> {
         &self.edges
+    }
+    pub fn get_inpin_to_lc_inpin(&self, inpin: &InPin) -> Option<(Name, InPin)> {
+        self.input
+            .iter()
+            .find(|(i, _)| i == inpin)
+            .map(|v| v.1.clone())
+    }
+    pub fn get_otpin_to_lc_otpin(&self, otpin: &OtPin) -> Option<(Name, OtPin)> {
+        self.otput
+            .iter()
+            .find(|(o, _)| o == otpin)
+            .map(|v| v.1.clone())
     }
     pub fn get_lc_inpins(&self, name: &Name) -> Vec<(InPin, Name, OtPin, Bool)> {
         self.edges
@@ -575,7 +587,7 @@ impl Iter {
         let inpin = self.get_inpins().into_iter().find(|i| i == inpin)?;
         self.lc_extended[0].get_input(&inpin)
     }
-    fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
+    pub fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
         let inpin = self.get_inpins().into_iter().find(|i| i == inpin)?;
         self.lc_extended[0].getmut_input(&inpin)
     }
