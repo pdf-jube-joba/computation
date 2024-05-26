@@ -189,6 +189,55 @@ impl Component for ControlStepView {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct InputText {
+    text: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InputTextMsg {
+    Change(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct InputTextProps {
+    pub description: String,
+    pub on_push_load_button: Callback<String>,
+}
+
+impl Component for InputText {
+    type Message = InputTextMsg;
+    type Properties = InputTextProps;
+    fn create(ctx: &Context<Self>) -> Self {
+        Self {
+            text: String::new(),
+        }
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let onchange = ctx.link().callback(|e: Event| {
+            let value: HtmlInputElement = e.target_unchecked_into();
+            let string = value.value();
+            InputTextMsg::Change(string)
+        });
+        let InputTextProps {
+            description,
+            on_push_load_button,
+        } = ctx.props();
+        let callback = on_push_load_button.clone();
+        let text = self.text.clone();
+        let onclick = Callback::from(move |_| {
+            callback.emit(text.clone());
+        });
+        html! {
+            <>
+            {description}
+            <input {onchange}/>
+            <button {onclick}/>
+            </>
+        }
+    }
+}
+
 pub mod svg {
     use std::{
         fmt::Display,

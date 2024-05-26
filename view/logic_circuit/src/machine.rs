@@ -323,6 +323,7 @@ impl Component for MachineView {
 pub mod svg_lc {
     use super::*;
     use anyhow::{bail, Result};
+    use either::Either;
     use std::{collections::HashMap, fmt::Display};
     use utils::view::svg::*;
     use web_sys::Element;
@@ -337,6 +338,9 @@ pub mod svg_lc {
     const IN_LINE: usize = 50;
     const OT_LINE: usize = 750;
     const UP_LINE: usize = 100;
+
+    const COMP_LINE: usize = 400;
+    const COMP_LEN: usize = 100;
 
     #[derive(Debug, Clone, PartialEq, Eq, Properties)]
     struct InPinProps {
@@ -651,6 +655,159 @@ pub mod svg_lc {
                     true
                 }
             }
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct GraphicEditor {
+        inpins: Vec<InPin>,
+        otpins: Vec<OtPin>,
+        component: Vec<(Name, Pos, Ori)>,
+        select: Option<Either::<(usize, Diff), ()>>,
+    }
+
+    impl GraphicEditor {
+        fn point_lc(&self, pos: Pos) -> Option<usize> {
+            todo!()
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum GraphicEditorMsg {
+        AddInpin(InPin),
+        DeleteInPin(InPin),
+        AddOtPin(OtPin),
+        DeleteOtPin(OtPin),
+
+        SelectCopy(usize, Diff),
+        SelectMove(usize, Diff),
+        SelectInPins(Either<InPin, (usize, InPin)>),
+        SelectOtPins(Either<OtPin, (usize, OtPin)>),
+        UnSelect,
+        Update(Pos),
+
+        TestOp,
+        Save,
+        None,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Properties)]
+    struct GraphicEditorProps {
+        logic_circuits_components: Vec<LoC>,
+    }
+
+    impl Component for GraphicEditor {
+        type Message = GraphicEditorMsg;
+        type Properties = GraphicEditorProps;
+        fn create(ctx: &Context<Self>) -> Self {
+            Self {
+                inpins: vec![],
+                otpins: vec![],
+                component: vec![],
+                select: None,
+            }
+        }
+        fn view(&self, ctx: &Context<Self>) -> Html {
+            let GraphicEditor {
+                inpins,
+                otpins,
+                component,
+                select,
+            } = self;
+            let GraphicEditorProps {
+                logic_circuits_components,
+            } = ctx.props();
+
+            let load = ctx.link().callback(|_| GraphicEditorMsg::TestOp);
+            let add_inpins = ctx
+                .link()
+                .callback(|s: String| GraphicEditorMsg::AddInpin(s.into()));
+
+            let remove_inpins = ctx
+                .link()
+                .callback(|s: String| GraphicEditorMsg::DeleteInPin(s.into()));
+
+            let add_otpins = ctx
+                .link()
+                .callback(|s: String| GraphicEditorMsg::AddOtPin(s.into()));
+
+            let remove_otpins = ctx
+                .link()
+                .callback(|s: String| GraphicEditorMsg::DeleteOtPin(s.into()));
+
+            let save = ctx.link().callback(|_| GraphicEditorMsg::Save);
+
+            // let onmousedown: Callback<MouseEvent> = ctx.link().callback(|e: MouseEvent|{
+            //     log("mousedown");
+            //     e.prevent_default();
+            //     let pt: (usize, usize) = (e.client_x() as usize, e.client_y() as usize);
+            //     match point(&state, pt) {
+            //         Some(Either::Left(left)) => Msg::SelectCopy(left.0, left.1),
+            //         Some(Either::Right(right)) => Msg::SelectMove(right.0, right.1),
+            //         None => Msg::Nothing,
+            //     }
+            // });
+
+            html! {
+                <>
+                <svg width="800" height="500" viewBox="0 0 800 500">
+                    {for component.iter().map(|(name, pos, ori)|{
+                        let loc = logic_circuits_components.iter().find(|loc| loc.get_name() == *name).unwrap();
+                        let inputs = loc.get_inpins();
+                        let otputs = loc.get_otpins();
+                        html!{
+                            <LoCView {inputs} {otputs} pos={*pos} ori={*ori}/>
+                        }
+                    })}
+                    {for inpins.iter().enumerate().map(|(k, inpin)|{
+                        let pos = Pos(IN_LINE, k * PIN_LEN + UP_LINE);
+                        html!{
+                            <InPinView inpin={inpin.clone()} {pos} state={Bool::F}/>
+                        }
+                    })}
+                    {for otpins.iter().enumerate().map(|(k, otpin)|{
+                        let pos = Pos(OT_LINE, k * PIN_LEN + UP_LINE);
+                        html!{
+                            <OtPinView otpin={otpin.clone()} {pos} state={Bool::F}/>
+                        }
+                    })}
+                    {for logic_circuits_components.iter().enumerate().map(|(k, loc)|{
+                        let inputs = loc.get_inpins();
+                        let otputs = loc.get_otpins();
+                        let pos = Pos(k * COMP_LEN, COMP_LINE);
+                        html!{
+                            <LoCView {inputs} {otputs} {pos} ori={Ori::U} />
+                        }
+                    })}
+                </svg>
+                <button onclick={load}> {"test"} </button>
+                <utils::view::InputText description={"add inpins".to_string()} on_push_load_button={add_inpins}/>
+                <utils::view::InputText description={"remove inpins".to_string()} on_push_load_button={remove_inpins}/>
+                <utils::view::InputText description={"add otpins".to_string()} on_push_load_button={add_otpins}/>
+                <utils::view::InputText description={"remove otpins".to_string()} on_push_load_button={remove_otpins}/>
+                <button onclick={save}> {"save"} </button>
+                </>
+            }
+        }
+        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+            match msg {
+                GraphicEditorMsg::AddInpin(inpin) => {
+                    if self.inpins.iter().any(|i| *i == inpin) {
+                        return false;
+                    }
+                    self.inpins.push(inpin);
+                }
+                GraphicEditorMsg::AddOtPin(otpin) => {
+                    if self.otpins.iter().any(|o| *o == otpin) {
+                        return false;
+                    }
+                    self.otpins.push(otpin);
+                }
+                _ => {
+                    unimplemented!()
+                }
+            }
+            true
         }
     }
 }

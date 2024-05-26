@@ -1162,6 +1162,7 @@ name = "logic_circuit_view"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "either",
  "gloo",
  "logic_circuit",
  "utils",

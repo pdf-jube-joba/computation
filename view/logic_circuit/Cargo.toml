@@ -11,6 +11,7 @@ gloo = { workspace = true }
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 anyhow = { workspace = true }
+either = { workspace = true }
 
 utils = { path = "../../utils" }
 logic_circuit = { path = "../../models/logic_circuit" }
