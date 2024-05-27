@@ -208,7 +208,7 @@ pub struct InputTextProps {
 impl Component for InputText {
     type Message = InputTextMsg;
     type Properties = InputTextProps;
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             text: String::new(),
         }
@@ -337,12 +337,13 @@ pub mod svg {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq, Properties, Hash)]
+    #[derive(Debug, Clone, PartialEq, Properties)]
     pub struct RectProps {
         pub pos: Pos,
         pub diff: Diff,
         pub col: String,
         pub border: String,
+        pub onmousedown: Callback<MouseEvent>,
     }
 
     #[function_component(RectView)]
@@ -352,19 +353,21 @@ pub mod svg {
             diff,
             col,
             border,
+            onmousedown,
         }: &RectProps,
     ) -> Html {
         html! {
-            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()}/>
+            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown}/>
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq, Properties, Hash)]
+    #[derive(Debug, Clone, PartialEq, Properties)]
     pub struct CircleProps {
         pub pos: Pos,
         pub rad: usize,
         pub col: String,
         pub border: String,
+        pub onmousedown: Callback<MouseEvent>,
     }
 
     #[function_component(CircleView)]
@@ -374,10 +377,11 @@ pub mod svg {
             rad,
             col,
             border,
+            onmousedown,
         }: &CircleProps,
     ) -> Html {
         html! {
-            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} fill={col.to_string()} stroke={border.to_string()}/>
+            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown}/>
         }
     }
 

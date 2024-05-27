@@ -342,35 +342,53 @@ pub mod svg_lc {
     const COMP_LINE: usize = 400;
     const COMP_LEN: usize = 100;
 
-    #[derive(Debug, Clone, PartialEq, Eq, Properties)]
+    #[derive(Debug, Clone, PartialEq, Properties)]
     struct InPinProps {
         pos: Pos,
         state: Bool,
         inpin: InPin,
+        onmousedown: Callback<()>,
     }
 
     #[function_component(InPinView)]
-    fn inpin_view(InPinProps { pos, state, inpin }: &InPinProps) -> Html {
+    fn inpin_view(
+        InPinProps {
+            pos,
+            state,
+            inpin,
+            onmousedown,
+        }: &InPinProps,
+    ) -> Html {
+        let onmousedown = onmousedown.clone();
         html! {
             <>
-            <CircleView pos={pos.clone()} rad={PIN_RAD} col={if *state == Bool::T {BOOL_T_COL.to_string()} else {BOOL_F_COL.to_string()}} border="black"/>
+            <CircleView pos={pos.clone()} rad={PIN_RAD} col={if *state == Bool::T {BOOL_T_COL.to_string()} else {BOOL_F_COL.to_string()}} border="black" onmousedown={Callback::from(move |_|{onmousedown.emit(())})}/>
             <TextView pos={pos.clone()} text={inpin.to_string()}/>
             </>
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq, Properties)]
+    #[derive(Debug, Clone, PartialEq, Properties)]
     struct OtPinProps {
         pos: Pos,
         state: Bool,
         otpin: OtPin,
+        onmousedown: Callback<()>,
     }
 
     #[function_component(OtPinView)]
-    fn inpin_view(OtPinProps { pos, state, otpin }: &OtPinProps) -> Html {
+    fn inpin_view(
+        OtPinProps {
+            pos,
+            state,
+            otpin,
+            onmousedown,
+        }: &OtPinProps,
+    ) -> Html {
+        let onmousedown = onmousedown.clone();
         html! {
             <>
-            <CircleView pos={pos.clone()} rad={PIN_RAD} col={if *state == Bool::T {BOOL_T_COL.to_string()} else {BOOL_F_COL.to_string()}} border="black"/>
+            <CircleView pos={pos.clone()} rad={PIN_RAD} col={if *state == Bool::T {BOOL_T_COL.to_string()} else {BOOL_F_COL.to_string()}} border="black" onmousedown={Callback::from(move |_| onmousedown.emit(()))}/>
             <TextView pos={pos.clone()} text={otpin.to_string()}/>
             </>
         }
@@ -382,6 +400,9 @@ pub mod svg_lc {
         otputs: Vec<(OtPin, Bool)>,
         ori: Ori,
         pos: Pos, // center of loc
+        onmousedownlc: Callback<Diff>,
+        onmousedowninpin: Callback<InPin>,
+        onmousedownotpin: Callback<OtPin>,
     }
 
     impl LoCProps {
@@ -433,17 +454,40 @@ pub mod svg_lc {
 
     #[function_component(LoCView)]
     fn lc_view(locprops: &LoCProps) -> Html {
+        let LoCProps {
+            inputs,
+            otputs,
+            ori,
+            pos,
+            onmousedownlc,
+            onmousedowninpin,
+            onmousedownotpin,
+        } = locprops.clone();
+        let onmousedownlc = Callback::from(move |e: MouseEvent| {
+            let diff = Diff(e.client_x() as isize, e.client_y() as isize);
+            onmousedownlc.emit(diff)
+        });
         html! {
             <>
-                <RectView pos={locprops.rect_lu()} diff={locprops.rect_diff()} col={"lightgray".to_string()} border={"black".to_string()}/>
-                {for locprops.inputs.iter().map(|(inpin, state)|{
+                <RectView pos={locprops.rect_lu()} diff={locprops.rect_diff()} col={"lightgray".to_string()} border={"black".to_string()} onmousedown={onmousedownlc}/>
+                {for inputs.into_iter().map(|(inpin, state)|{
+                    let onmousedown = onmousedowninpin.clone();
+                    let i = inpin.clone();
+                    let onmousedown = Callback::from(move |_|{
+                        onmousedown.emit(i.clone())
+                    });
                     html!{
-                        <InPinView pos={locprops.input_pos(&inpin).unwrap()} state={*state} inpin={inpin.clone()}/>
+                        <InPinView pos={locprops.input_pos(&inpin).unwrap()} {state} inpin={inpin.clone()} {onmousedown}/>
                     }
                 })}
-                {for locprops.otputs.iter().map(|(otpin, state)|{
+                {for otputs.into_iter().map(|(otpin, state)|{
+                    let onmousedown = onmousedownotpin.clone();
+                    let o = otpin.clone();
+                    let onmousedown = Callback::from(move |_|{
+                        onmousedown.emit(o.clone())
+                    });
                     html!{
-                        <OtPinView pos={locprops.otput_pos(&otpin).unwrap()} state={*state} otpin={otpin.clone()}/>
+                        <OtPinView pos={locprops.otput_pos(&otpin).unwrap()} {state} otpin={otpin.clone()} {onmousedown}/>
                     }
                 })}
             </>
@@ -466,6 +510,9 @@ pub mod svg_lc {
                 otputs: loc.get_otpins(),
                 ori: *ori,
                 pos: *pos,
+                onmousedownlc: Callback::noop(),
+                onmousedowninpin: Callback::noop(),
+                onmousedownotpin: Callback::noop(),
             })
         }
     }
@@ -552,16 +599,16 @@ pub mod svg_lc {
         });
         html! {
             <svg width="800" height="500" viewBox="0 0 800 500" {onclick}>
-            {for actlocprops.poslc.iter().map(|(name, (ori, pos))|{
-                let loc = actlocprops.fingraph.get_lc(name).unwrap();
+            {for actlocprops.poslc.keys().map(|name|{
+                let LoCProps { inputs, otputs, ori, pos, onmousedownlc, onmousedowninpin, onmousedownotpin } = actlocprops.get_lc_props(name).unwrap();
                 html!{
-                    <LoCView inputs={loc.get_inpins()} otputs={loc.get_otpins()} ori={*ori} pos={*pos}/>
+                    <LoCView {inputs} {otputs} {ori} {pos} {onmousedownlc} {onmousedowninpin} {onmousedownotpin}/>
                 }
             })}
             {for inpin_edge.into_iter().map(|(inpin, pos_i, pos_ni, state)|{
                 html!{
                     <>
-                    <InPinView pos={pos_i.clone()} {inpin} {state}/>
+                    <InPinView pos={pos_i} {inpin} {state} onmousedown={Callback::noop()}/>
                     <PolyLineView vec={vec![pos_i, pos_ni]} col={if state == Bool::T {BOOL_T_COL} else {BOOL_F_COL}}/>
                     </>
                 }
@@ -570,7 +617,7 @@ pub mod svg_lc {
             {for otpin_edge.into_iter().map(|(otpin, pos_o, pos_no, state)|{
                 html!{
                     <>
-                    <OtPinView pos={pos_o.clone()} {otpin} {state}/>
+                    <OtPinView pos={pos_o} {otpin} {state} onmousedown={Callback::noop()}/>
                     <PolyLineView vec={vec![pos_no, pos_o]} col={if state == Bool::T {BOOL_T_COL} else {BOOL_F_COL}}/>
                     </>
                 }
@@ -658,22 +705,28 @@ pub mod svg_lc {
         }
     }
 
+    type PinVariant = Either<Either<InPin, (usize, InPin)>, Either<OtPin, (usize, OtPin)>>;
+
     #[derive(Debug, Clone, PartialEq, Eq)]
-    struct GraphicEditor {
+    enum State {
+        None,
+        MoveLC(usize, Diff),
+        MovePIN(PinVariant),
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct GraphicEditor {
         inpins: Vec<InPin>,
         otpins: Vec<OtPin>,
-        component: Vec<(Name, Pos, Ori)>,
-        select: Option<Either::<(usize, Diff), ()>>,
-    }
-
-    impl GraphicEditor {
-        fn point_lc(&self, pos: Pos) -> Option<usize> {
-            todo!()
-        }
+        component: Vec<(usize, Pos, Ori)>,
+        edges: Vec<((usize, OtPin), (usize, InPin))>,
+        inputs: Vec<(InPin, (usize, InPin))>,
+        otputs: Vec<(OtPin, (usize, OtPin))>,
+        state: State,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    enum GraphicEditorMsg {
+    pub enum GraphicEditorMsg {
         AddInpin(InPin),
         DeleteInPin(InPin),
         AddOtPin(OtPin),
@@ -681,19 +734,18 @@ pub mod svg_lc {
 
         SelectCopy(usize, Diff),
         SelectMove(usize, Diff),
-        SelectInPins(Either<InPin, (usize, InPin)>),
-        SelectOtPins(Either<OtPin, (usize, OtPin)>),
+        SelectPin(PinVariant),
         UnSelect,
         Update(Pos),
 
-        TestOp,
+        GoToTest,
         Save,
         None,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Properties)]
-    struct GraphicEditorProps {
-        logic_circuits_components: Vec<LoC>,
+    pub struct GraphicEditorProps {
+        pub logic_circuits_components: Vec<LoC>,
     }
 
     impl Component for GraphicEditor {
@@ -704,7 +756,10 @@ pub mod svg_lc {
                 inpins: vec![],
                 otpins: vec![],
                 component: vec![],
-                select: None,
+                edges: vec![],
+                inputs: vec![],
+                otputs: vec![],
+                state: State::None,
             }
         }
         fn view(&self, ctx: &Context<Self>) -> Html {
@@ -712,13 +767,16 @@ pub mod svg_lc {
                 inpins,
                 otpins,
                 component,
-                select,
-            } = self;
+                edges,
+                inputs,
+                otputs,
+                state,
+            } = self.clone();
             let GraphicEditorProps {
                 logic_circuits_components,
             } = ctx.props();
 
-            let load = ctx.link().callback(|_| GraphicEditorMsg::TestOp);
+            let load = ctx.link().callback(|_| GraphicEditorMsg::GoToTest);
             let add_inpins = ctx
                 .link()
                 .callback(|s: String| GraphicEditorMsg::AddInpin(s.into()));
@@ -737,46 +795,64 @@ pub mod svg_lc {
 
             let save = ctx.link().callback(|_| GraphicEditorMsg::Save);
 
-            // let onmousedown: Callback<MouseEvent> = ctx.link().callback(|e: MouseEvent|{
-            //     log("mousedown");
-            //     e.prevent_default();
-            //     let pt: (usize, usize) = (e.client_x() as usize, e.client_y() as usize);
-            //     match point(&state, pt) {
-            //         Some(Either::Left(left)) => Msg::SelectCopy(left.0, left.1),
-            //         Some(Either::Right(right)) => Msg::SelectMove(right.0, right.1),
-            //         None => Msg::Nothing,
-            //     }
-            // });
+            let onmousemove = ctx.link().callback(|e: MouseEvent| {
+                let pos = Pos(e.client_x() as usize, e.client_y() as usize);
+                GraphicEditorMsg::Update(pos)
+            });
+
+            let onmouseuporleave = ctx
+                .link()
+                .callback(|e: MouseEvent| GraphicEditorMsg::UnSelect);
 
             html! {
                 <>
-                <svg width="800" height="500" viewBox="0 0 800 500">
-                    {for component.iter().map(|(name, pos, ori)|{
-                        let loc = logic_circuits_components.iter().find(|loc| loc.get_name() == *name).unwrap();
+                <svg width="800" height="500" viewBox="0 0 800 500" {onmousemove} onmouseup={onmouseuporleave.clone()} onmouseleave={onmouseuporleave}>
+                    {for component.into_iter().enumerate().map(|(k, (num, pos, ori))|{
+                        let loc = &logic_circuits_components[num];
                         let inputs = loc.get_inpins();
                         let otputs = loc.get_otpins();
+                        let onmousedownlc = ctx.link().callback(move |diff: Diff|{
+                            GraphicEditorMsg::SelectMove(k, diff)
+                        });
+                        let onmousedowninpin = ctx.link().callback(move |inpin: InPin|{
+                            GraphicEditorMsg::SelectPin(Either::Left(Either::Right((k, inpin))))
+                        });
+                        let onmousedownotpin = ctx.link().callback(move |otpin: OtPin|{
+                            GraphicEditorMsg::SelectPin(Either::Right(Either::Right((k, otpin))))
+                        });
                         html!{
-                            <LoCView {inputs} {otputs} pos={*pos} ori={*ori}/>
+                            <LoCView {inputs} {otputs} pos={pos} ori={ori} {onmousedownlc} {onmousedowninpin} {onmousedownotpin}/>
                         }
                     })}
-                    {for inpins.iter().enumerate().map(|(k, inpin)|{
+                    {for inpins.into_iter().enumerate().map(|(k, inpin)|{
                         let pos = Pos(IN_LINE, k * PIN_LEN + UP_LINE);
+                        let i = inpin.clone();
+                        let onmousedown = ctx.link().callback(move |_|{
+                            GraphicEditorMsg::SelectPin(Either::Left(Either::Left(i.clone())))
+                        });
                         html!{
-                            <InPinView inpin={inpin.clone()} {pos} state={Bool::F}/>
+                            <InPinView inpin={inpin.clone()} {pos} state={Bool::F} {onmousedown}/>
                         }
                     })}
-                    {for otpins.iter().enumerate().map(|(k, otpin)|{
+                    {for otpins.into_iter().enumerate().map(|(k, otpin)|{
                         let pos = Pos(OT_LINE, k * PIN_LEN + UP_LINE);
+                        let o = otpin.clone();
+                        let onmousedown = ctx.link().callback(move |_|{
+                            GraphicEditorMsg::SelectPin(Either::Right(Either::Left(o.clone())))
+                        });
                         html!{
-                            <OtPinView otpin={otpin.clone()} {pos} state={Bool::F}/>
+                            <OtPinView otpin={otpin.clone()} {pos} state={Bool::F} {onmousedown}/>
                         }
                     })}
-                    {for logic_circuits_components.iter().enumerate().map(|(k, loc)|{
+                    {for logic_circuits_components.clone().into_iter().enumerate().map(|(k, loc)|{
                         let inputs = loc.get_inpins();
                         let otputs = loc.get_otpins();
                         let pos = Pos(k * COMP_LEN, COMP_LINE);
+                        let onmousedownlc = ctx.link().callback(move |diff: Diff|{
+                            GraphicEditorMsg::SelectCopy(k, diff)
+                        });
                         html!{
-                            <LoCView {inputs} {otputs} {pos} ori={Ori::U} />
+                            <LoCView {inputs} {otputs} {pos} ori={Ori::U} {onmousedownlc} onmousedowninpin={Callback::noop()} onmousedownotpin={Callback::noop()}/>
                         }
                     })}
                 </svg>
@@ -802,6 +878,148 @@ pub mod svg_lc {
                         return false;
                     }
                     self.otpins.push(otpin);
+                }
+                GraphicEditorMsg::DeleteInPin(inpin) => {
+                    self.inpins.retain(|i| *i != inpin);
+                }
+                GraphicEditorMsg::DeleteOtPin(otpin) => {
+                    self.otpins.retain(|o| *o != otpin);
+                }
+                GraphicEditorMsg::SelectCopy(k, diff) => {
+                    let pos = Pos(k * COMP_LEN, COMP_LINE);
+                    self.component.push((k, pos, Ori::U));
+                    self.state = State::MoveLC(self.component.len() - 1, diff);
+                }
+                GraphicEditorMsg::SelectMove(k, diff) => {
+                    self.state = State::MoveLC(k, diff);
+                }
+                GraphicEditorMsg::Update(pos) => match &self.state {
+                    State::None => {
+                        return false;
+                    }
+                    State::MoveLC(k, diff) => {
+                        self.component[*k].1 = pos - *diff;
+                    }
+                    State::MovePIN(_) => {
+                        return false;
+                    }
+                },
+                GraphicEditorMsg::UnSelect => match &self.state {
+                    State::None => {
+                        return false;
+                    }
+                    State::MoveLC(_, _) => {
+                        self.state = State::None;
+                    }
+                    State::MovePIN(_) => {
+                        self.state = State::None;
+                    }
+                },
+                GraphicEditorMsg::SelectPin(pin) => {
+                    match &pin {
+                        Either::Left(Either::Left(inpin)) => {
+                            if let Some(pos) = self.inputs.iter().position(|(i, _)| i == inpin) {
+                                self.inputs.remove(pos);
+                            }
+                        }
+                        Either::Right(Either::Left(otpin)) => {
+                            if let Some(pos) = self.otputs.iter().position(|(o, _)| o == otpin) {
+                                self.otputs.remove(pos);
+                            }
+                        }
+                        Either::Left(Either::Right(name_inpin)) => {
+                            if let Some(pos) =
+                                self.inputs.iter().position(|(_, ni)| ni == name_inpin)
+                            {
+                                self.inputs.remove(pos);
+                            }
+                            if let Some(pos) =
+                                self.edges.iter().position(|(no, ni)| ni == name_inpin)
+                            {
+                                self.inputs.remove(pos);
+                            }
+                        }
+                        Either::Right(Either::Right(name_otpin)) => {
+                            if let Some(pos) =
+                                self.otputs.iter().position(|(_, no)| no == name_otpin)
+                            {
+                                self.otputs.remove(pos);
+                            }
+                            if let Some(pos) =
+                                self.edges.iter().position(|(no, ni)| no == name_otpin)
+                            {
+                                self.otputs.remove(pos);
+                            }
+                        }
+                    }
+                    match self.state.clone() {
+                        State::None | State::MoveLC(_, _) => {
+                            self.state = State::MovePIN(pin);
+                            return true;
+                        }
+                        State::MovePIN(pin2) => {
+                            let b = match &pin2 {
+                                Either::Left(Either::Left(inpin2))
+                                    if self.inputs.iter().any(|(i, _)| i == inpin2) =>
+                                {
+                                    true
+                                }
+                                Either::Right(Either::Left(otpin2))
+                                    if self.otputs.iter().any(|(o, _)| o == otpin2) =>
+                                {
+                                    true
+                                }
+                                Either::Left(Either::Right(name_inpin2))
+                                    if self.edges.iter().any(|(no, ni)| name_inpin2 == ni) =>
+                                {
+                                    true
+                                }
+                                Either::Right(Either::Right(name_otpin2))
+                                    if self.edges.iter().any(|(no, ni)| no == name_otpin2) =>
+                                {
+                                    true
+                                }
+                                _ => false,
+                            };
+                            if b {
+                                self.state = State::None;
+                                return true;
+                            }
+                            match (pin, pin2) {
+                                (
+                                    Either::Left(Either::Left(inpin1)),
+                                    Either::Left(Either::Right(k_inpin2)),
+                                )
+                                | (
+                                    Either::Left(Either::Right(k_inpin2)),
+                                    Either::Left(Either::Left(inpin1)),
+                                ) => {
+                                    self.inputs.push((inpin1, k_inpin2));
+                                }
+                                (
+                                    Either::Right(Either::Left(otpin1)),
+                                    Either::Right(Either::Right(k_otpin2)),
+                                )
+                                | (
+                                    Either::Right(Either::Right(k_otpin2)),
+                                    Either::Right(Either::Left(otpin1)),
+                                ) => {
+                                    self.otputs.push((otpin1, k_otpin2));
+                                }
+                                (
+                                    Either::Left(Either::Right(k_inpin)),
+                                    Either::Right(Either::Right(k_otpin)),
+                                )
+                                | (
+                                    Either::Right(Either::Right(k_otpin)),
+                                    Either::Left(Either::Right(k_inpin)),
+                                ) => {
+                                    self.edges.push((k_otpin, k_inpin));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                 }
                 _ => {
                     unimplemented!()
