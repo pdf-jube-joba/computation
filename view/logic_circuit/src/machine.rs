@@ -469,7 +469,7 @@ pub mod svg_lc {
             let pos_click = Pos(e.client_x() as usize, e.client_y() as usize);
             onmousedownlc.emit(pos_click - pos)
         });
-        let onrightclick = Callback::from(move |e: MouseEvent|{
+        let onrightclick = Callback::from(move |e: MouseEvent| {
             e.prevent_default();
             onrightclick.emit(());
         });
@@ -748,13 +748,14 @@ pub mod svg_lc {
         Delte(usize),
 
         GoToTest,
-        Save,
         None,
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq, Properties)]
+    #[derive(Debug, Clone, PartialEq, Properties)]
     pub struct GraphicEditorProps {
         pub logic_circuits_components: Vec<LoC>,
+        pub on_goto_test: Callback<LoC>,
+        pub on_log: Callback<String>,
     }
 
     impl Component for GraphicEditor {
@@ -783,6 +784,8 @@ pub mod svg_lc {
             } = self.clone();
             let GraphicEditorProps {
                 logic_circuits_components,
+                on_goto_test,
+                on_log,
             } = ctx.props();
 
             let load = ctx.link().callback(|_| GraphicEditorMsg::GoToTest);
@@ -801,8 +804,6 @@ pub mod svg_lc {
             let remove_otpins = ctx
                 .link()
                 .callback(|s: String| GraphicEditorMsg::DeleteOtPin(s.into()));
-
-            let save = ctx.link().callback(|_| GraphicEditorMsg::Save);
 
             let onmousemove = ctx.link().callback(|e: MouseEvent| {
                 let pos = Pos(e.client_x() as usize, e.client_y() as usize);
@@ -933,12 +934,12 @@ pub mod svg_lc {
                 <utils::view::InputText description={"add otpins".to_string()} on_push_load_button={add_otpins}/> <br/>
                 <utils::view::InputText description={"remove inpins".to_string()} on_push_load_button={remove_inpins}/>
                 <utils::view::InputText description={"remove otpins".to_string()} on_push_load_button={remove_otpins}/>
-                <button onclick={save}> {"save"} </button>
                 </>
             }
         }
         fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-            log(format!("{msg:?} {:?}", self.state));
+            let prop = ctx.props();
+            prop.on_log.emit(format!("{msg:?} {:?}", self.state));
             match msg {
                 GraphicEditorMsg::AddInpin(inpin) => {
                     if self.inpins.iter().any(|i| *i == inpin) {
@@ -1055,12 +1056,10 @@ pub mod svg_lc {
                                 }
                                 _ => false,
                             };
-                            log(format!("{b}"));
                             if b {
                                 self.state = State::None;
                                 return true;
                             }
-                            log(format!("{pin:?} {pin2:?}"));
                             match (pin, pin2) {
                                 (
                                     Either::Left(Either::Left(inpin1)),
@@ -1094,11 +1093,53 @@ pub mod svg_lc {
                                 }
                                 _ => {}
                             }
+                            self.state = State::None;
                         }
                     }
                 }
                 GraphicEditorMsg::Delte(k) => {
                     self.component.remove(k);
+                }
+                GraphicEditorMsg::GoToTest => {
+                    let GraphicEditorProps {
+                        logic_circuits_components,
+                        on_goto_test,
+                        on_log,
+                    } = ctx.props();
+                    let lcs = self
+                        .component
+                        .iter()
+                        .map(|(k, _, _)| {
+                            (format!("{k}").into(), logic_circuits_components[*k].clone())
+                        })
+                        .collect::<Vec<_>>();
+                    let edges = self
+                        .edges
+                        .iter()
+                        .map(|((ko, o), (ki, i))| {
+                            (
+                                (format!("{ko}").into(), o.clone()),
+                                (format!("{ki}").into(), i.clone()),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    let input = self
+                        .inputs
+                        .iter()
+                        .cloned()
+                        .map(|(i, (n, inpin))| (i, (format!("{n}").into(), inpin)))
+                        .collect::<Vec<_>>();
+                    let output = self
+                        .otputs
+                        .iter()
+                        .cloned()
+                        .map(|(o, (n, otpin))| (o, (format!("{n}").into(), otpin)))
+                        .collect::<Vec<_>>();
+                    let loc = LoC::new_graph("new".into(), lcs, edges, input, output);
+                    match loc {
+                        Ok(loc) => {}
+                        Err(err) => on_log.emit(format!("{err:?}")),
+                    }
                 }
                 _ => {
                     unimplemented!()

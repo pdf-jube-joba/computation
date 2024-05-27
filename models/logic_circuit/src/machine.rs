@@ -1,10 +1,11 @@
 use anyhow::{anyhow, bail, Result};
 use either::Either;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::{collections::HashMap, fmt::Display, ops::Neg};
 use utils::number::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Bool {
     T,
     F,
@@ -55,7 +56,7 @@ impl Display for Bool {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct InPin(String);
 impl From<String> for InPin {
     fn from(value: String) -> Self {
@@ -75,7 +76,7 @@ impl Display for InPin {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct OtPin(String);
 impl From<String> for OtPin {
     fn from(value: String) -> Self {
@@ -95,7 +96,7 @@ impl Display for OtPin {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Gate {
     Cst {
         state: Bool,
@@ -349,7 +350,7 @@ impl Gate {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Name(String);
 
 impl From<String> for Name {
@@ -370,7 +371,7 @@ impl Display for Name {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FinGraph {
     pub lcs: Vec<(Name, LoC)>,
     pub edges: Vec<((Name, OtPin), (Name, InPin))>,
@@ -538,7 +539,7 @@ impl FinGraph {
             .collect()
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Iter {
     lc_init: Box<LoC>,
     lc_extended: Vec<LoC>,
@@ -663,7 +664,7 @@ impl Iter {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LoC {
     Gate(Gate),
     FinGraph(Name, Box<FinGraph>),

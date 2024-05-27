@@ -1145,6 +1145,7 @@ dependencies = [
  "either",
  "pest",
  "pest_derive",
+ "serde",
  "utils",
 ]
 
