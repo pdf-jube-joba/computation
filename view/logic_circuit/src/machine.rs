@@ -325,7 +325,7 @@ pub mod svg_lc {
     use anyhow::{bail, Result};
     use either::Either;
     use std::{collections::HashMap, fmt::Display};
-    use utils::view::svg::*;
+    use utils::view::{log, svg::*};
     use web_sys::Element;
 
     const BOOL_T_COL: &str = "red";
@@ -403,6 +403,7 @@ pub mod svg_lc {
         onmousedownlc: Callback<Diff>,
         onmousedowninpin: Callback<InPin>,
         onmousedownotpin: Callback<OtPin>,
+        onrightclick: Callback<()>,
     }
 
     impl LoCProps {
@@ -462,14 +463,19 @@ pub mod svg_lc {
             onmousedownlc,
             onmousedowninpin,
             onmousedownotpin,
+            onrightclick,
         } = locprops.clone();
         let onmousedownlc = Callback::from(move |e: MouseEvent| {
-            let diff = Diff(e.client_x() as isize, e.client_y() as isize);
-            onmousedownlc.emit(diff)
+            let pos_click = Pos(e.client_x() as usize, e.client_y() as usize);
+            onmousedownlc.emit(pos_click - pos)
+        });
+        let onrightclick = Callback::from(move |e: MouseEvent|{
+            e.prevent_default();
+            onrightclick.emit(());
         });
         html! {
             <>
-                <RectView pos={locprops.rect_lu()} diff={locprops.rect_diff()} col={"lightgray".to_string()} border={"black".to_string()} onmousedown={onmousedownlc}/>
+                <RectView pos={locprops.rect_lu()} diff={locprops.rect_diff()} col={"lightgray".to_string()} border={"black".to_string()} onmousedown={onmousedownlc} oncontextmenu={onrightclick}/>
                 {for inputs.into_iter().map(|(inpin, state)|{
                     let onmousedown = onmousedowninpin.clone();
                     let i = inpin.clone();
@@ -513,6 +519,7 @@ pub mod svg_lc {
                 onmousedownlc: Callback::noop(),
                 onmousedowninpin: Callback::noop(),
                 onmousedownotpin: Callback::noop(),
+                onrightclick: Callback::noop(),
             })
         }
     }
@@ -600,9 +607,9 @@ pub mod svg_lc {
         html! {
             <svg width="800" height="500" viewBox="0 0 800 500" {onclick}>
             {for actlocprops.poslc.keys().map(|name|{
-                let LoCProps { inputs, otputs, ori, pos, onmousedownlc, onmousedowninpin, onmousedownotpin } = actlocprops.get_lc_props(name).unwrap();
+                let LoCProps { inputs, otputs, ori, pos, onmousedownlc, onmousedowninpin, onmousedownotpin, onrightclick } = actlocprops.get_lc_props(name).unwrap();
                 html!{
-                    <LoCView {inputs} {otputs} {ori} {pos} {onmousedownlc} {onmousedowninpin} {onmousedownotpin}/>
+                    <LoCView {inputs} {otputs} {ori} {pos} {onmousedownlc} {onmousedowninpin} {onmousedownotpin} {onrightclick}/>
                 }
             })}
             {for inpin_edge.into_iter().map(|(inpin, pos_i, pos_ni, state)|{
@@ -711,7 +718,7 @@ pub mod svg_lc {
     enum State {
         None,
         MoveLC(usize, Diff),
-        MovePIN(PinVariant),
+        SelectPin(PinVariant),
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -737,6 +744,8 @@ pub mod svg_lc {
         SelectPin(PinVariant),
         UnSelect,
         Update(Pos),
+
+        Delte(usize),
 
         GoToTest,
         Save,
@@ -804,24 +813,72 @@ pub mod svg_lc {
                 .link()
                 .callback(|e: MouseEvent| GraphicEditorMsg::UnSelect);
 
+            let loc_vec = component
+                .iter()
+                .enumerate()
+                .map(|(k, (num, pos, ori))| {
+                    let loc = &logic_circuits_components[*num];
+                    let inputs = loc.get_inpins();
+                    let otputs = loc.get_otpins();
+                    let onmousedownlc = ctx
+                        .link()
+                        .callback(move |diff: Diff| GraphicEditorMsg::SelectMove(k, diff));
+                    let onmousedowninpin = ctx.link().callback(move |inpin: InPin| {
+                        GraphicEditorMsg::SelectPin(Either::Left(Either::Right((k, inpin))))
+                    });
+                    let onmousedownotpin = ctx.link().callback(move |otpin: OtPin| {
+                        GraphicEditorMsg::SelectPin(Either::Right(Either::Right((k, otpin))))
+                    });
+                    let onrightclick = ctx.link().callback(move |_| GraphicEditorMsg::Delte(k));
+                    LoCProps {
+                        inputs,
+                        otputs,
+                        pos: *pos,
+                        ori: *ori,
+                        onmousedownlc,
+                        onmousedowninpin,
+                        onmousedownotpin,
+                        onrightclick,
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            let inpins_edge = inputs
+                .iter()
+                .enumerate()
+                .map(|(l, (i, (k, i1)))| {
+                    let pos_i = Pos(IN_LINE, l * PIN_LEN + UP_LINE);
+                    let pos_i2 = loc_vec[*k].input_pos(i1).unwrap();
+                    (pos_i, pos_i2)
+                })
+                .collect::<Vec<_>>();
+
+            let otpins_edge = otputs
+                .iter()
+                .enumerate()
+                .map(|(l, (o, (k, o1)))| {
+                    let pos_o = Pos(OT_LINE, l * PIN_LEN + UP_LINE);
+                    let pos_o2 = loc_vec[*k].otput_pos(o1).unwrap();
+                    (pos_o, pos_o2)
+                })
+                .collect::<Vec<_>>();
+
+            let graph_edges = edges
+                .iter()
+                .map(|((ko, o), (ki, i))| {
+                    let pos_o = loc_vec[*ko].otput_pos(o).unwrap();
+                    let pos_i = loc_vec[*ki].input_pos(i).unwrap();
+                    (pos_o, pos_i)
+                })
+                .collect::<Vec<_>>();
+
             html! {
                 <>
                 <svg width="800" height="500" viewBox="0 0 800 500" {onmousemove} onmouseup={onmouseuporleave.clone()} onmouseleave={onmouseuporleave}>
-                    {for component.into_iter().enumerate().map(|(k, (num, pos, ori))|{
-                        let loc = &logic_circuits_components[num];
-                        let inputs = loc.get_inpins();
-                        let otputs = loc.get_otpins();
-                        let onmousedownlc = ctx.link().callback(move |diff: Diff|{
-                            GraphicEditorMsg::SelectMove(k, diff)
-                        });
-                        let onmousedowninpin = ctx.link().callback(move |inpin: InPin|{
-                            GraphicEditorMsg::SelectPin(Either::Left(Either::Right((k, inpin))))
-                        });
-                        let onmousedownotpin = ctx.link().callback(move |otpin: OtPin|{
-                            GraphicEditorMsg::SelectPin(Either::Right(Either::Right((k, otpin))))
-                        });
+                    {for loc_vec.into_iter().map(|locprop|{
+                        let LoCProps {inputs, otputs, pos, ori, onmousedownlc, onmousedowninpin, onmousedownotpin, onrightclick} = locprop;
                         html!{
-                            <LoCView {inputs} {otputs} pos={pos} ori={ori} {onmousedownlc} {onmousedowninpin} {onmousedownotpin}/>
+                            <LoCView {inputs} {otputs} pos={pos} ori={ori} {onmousedownlc} {onmousedowninpin} {onmousedownotpin} {onrightclick}/>
                         }
                     })}
                     {for inpins.into_iter().enumerate().map(|(k, inpin)|{
@@ -844,6 +901,21 @@ pub mod svg_lc {
                             <OtPinView otpin={otpin.clone()} {pos} state={Bool::F} {onmousedown}/>
                         }
                     })}
+                    {for inpins_edge.into_iter().map(|(pos_i, pos_i2)|{
+                        html!{
+                            <PolyLineView vec={vec![pos_i, pos_i2]} col={BOOL_F_COL}/>
+                        }
+                    })}
+                    {for otpins_edge.into_iter().map(|(pos_o, pos_o2)|{
+                        html!{
+                            <PolyLineView vec={vec![pos_o, pos_o2]} col={BOOL_F_COL}/>
+                        }
+                    })}
+                    {for graph_edges.into_iter().map(|(pos_o, pos_i)|{
+                        html!{
+                            <PolyLineView vec={vec![pos_o, pos_i]} col={BOOL_F_COL}/>
+                        }
+                    })}
                     {for logic_circuits_components.clone().into_iter().enumerate().map(|(k, loc)|{
                         let inputs = loc.get_inpins();
                         let otputs = loc.get_otpins();
@@ -852,20 +924,21 @@ pub mod svg_lc {
                             GraphicEditorMsg::SelectCopy(k, diff)
                         });
                         html!{
-                            <LoCView {inputs} {otputs} {pos} ori={Ori::U} {onmousedownlc} onmousedowninpin={Callback::noop()} onmousedownotpin={Callback::noop()}/>
+                            <LoCView {inputs} {otputs} {pos} ori={Ori::U} {onmousedownlc} onmousedowninpin={Callback::noop()} onmousedownotpin={Callback::noop()} onrightclick={Callback::noop()}/>
                         }
                     })}
                 </svg>
                 <button onclick={load}> {"test"} </button>
                 <utils::view::InputText description={"add inpins".to_string()} on_push_load_button={add_inpins}/>
+                <utils::view::InputText description={"add otpins".to_string()} on_push_load_button={add_otpins}/> <br/>
                 <utils::view::InputText description={"remove inpins".to_string()} on_push_load_button={remove_inpins}/>
-                <utils::view::InputText description={"add otpins".to_string()} on_push_load_button={add_otpins}/>
                 <utils::view::InputText description={"remove otpins".to_string()} on_push_load_button={remove_otpins}/>
                 <button onclick={save}> {"save"} </button>
                 </>
             }
         }
         fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+            log(format!("{msg:?} {:?}", self.state));
             match msg {
                 GraphicEditorMsg::AddInpin(inpin) => {
                     if self.inpins.iter().any(|i| *i == inpin) {
@@ -900,7 +973,7 @@ pub mod svg_lc {
                     State::MoveLC(k, diff) => {
                         self.component[*k].1 = pos - *diff;
                     }
-                    State::MovePIN(_) => {
+                    State::SelectPin(_) => {
                         return false;
                     }
                 },
@@ -911,11 +984,12 @@ pub mod svg_lc {
                     State::MoveLC(_, _) => {
                         self.state = State::None;
                     }
-                    State::MovePIN(_) => {
-                        self.state = State::None;
+                    State::SelectPin(_) => {
+                        // self.state = State::None;
                     }
                 },
                 GraphicEditorMsg::SelectPin(pin) => {
+                    // remove pin from connected
                     match &pin {
                         Either::Left(Either::Left(inpin)) => {
                             if let Some(pos) = self.inputs.iter().position(|(i, _)| i == inpin) {
@@ -934,9 +1008,9 @@ pub mod svg_lc {
                                 self.inputs.remove(pos);
                             }
                             if let Some(pos) =
-                                self.edges.iter().position(|(no, ni)| ni == name_inpin)
+                                self.edges.iter().position(|(_, ni)| ni == name_inpin)
                             {
-                                self.inputs.remove(pos);
+                                self.edges.remove(pos);
                             }
                         }
                         Either::Right(Either::Right(name_otpin)) => {
@@ -946,18 +1020,18 @@ pub mod svg_lc {
                                 self.otputs.remove(pos);
                             }
                             if let Some(pos) =
-                                self.edges.iter().position(|(no, ni)| no == name_otpin)
+                                self.edges.iter().position(|(no, _)| no == name_otpin)
                             {
-                                self.otputs.remove(pos);
+                                self.edges.remove(pos);
                             }
                         }
                     }
                     match self.state.clone() {
                         State::None | State::MoveLC(_, _) => {
-                            self.state = State::MovePIN(pin);
+                            self.state = State::SelectPin(pin);
                             return true;
                         }
-                        State::MovePIN(pin2) => {
+                        State::SelectPin(pin2) => {
                             let b = match &pin2 {
                                 Either::Left(Either::Left(inpin2))
                                     if self.inputs.iter().any(|(i, _)| i == inpin2) =>
@@ -981,10 +1055,12 @@ pub mod svg_lc {
                                 }
                                 _ => false,
                             };
+                            log(format!("{b}"));
                             if b {
                                 self.state = State::None;
                                 return true;
                             }
+                            log(format!("{pin:?} {pin2:?}"));
                             match (pin, pin2) {
                                 (
                                     Either::Left(Either::Left(inpin1)),
@@ -1020,6 +1096,9 @@ pub mod svg_lc {
                             }
                         }
                     }
+                }
+                GraphicEditorMsg::Delte(k) => {
+                    self.component.remove(k);
                 }
                 _ => {
                     unimplemented!()

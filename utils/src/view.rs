@@ -230,9 +230,8 @@ impl Component for InputText {
         });
         html! {
             <>
-            {description}
             <input {onchange}/>
-            <button {onclick}/>
+            <button {onclick}> {description} </button>
             </>
         }
     }
@@ -344,6 +343,7 @@ pub mod svg {
         pub col: String,
         pub border: String,
         pub onmousedown: Callback<MouseEvent>,
+        pub oncontextmenu: Callback<MouseEvent>,
     }
 
     #[function_component(RectView)]
@@ -354,10 +354,11 @@ pub mod svg {
             col,
             border,
             onmousedown,
+            oncontextmenu,
         }: &RectProps,
     ) -> Html {
         html! {
-            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown}/>
+            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {oncontextmenu}/>
         }
     }
 
