@@ -8,6 +8,19 @@ pub fn log<T: AsRef<str>>(str: T) {
     web_sys::console::log_1(&JsValue::from_str(str.as_ref()))
 }
 
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct ButtonProps {
+    pub on_click: Callback<MouseEvent>,
+    pub text: String,
+}
+
+#[function_component(ButtonView)]
+pub fn button_view(ButtonProps { on_click, text }: &ButtonProps) -> Html {
+    html! {
+        <button onclick={on_click}> {text} </button>
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct CodeView {
     source_code: String,
@@ -235,6 +248,14 @@ impl Component for InputText {
             </>
         }
     }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            InputTextMsg::Change(string) => {
+                self.text = string;
+                true
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -422,7 +443,7 @@ pub mod svg {
     #[function_component(PolyLineView)]
     pub fn path_view(PolyLineProps { vec, col }: &PolyLineProps) -> Html {
         let s = vec.iter().fold(String::new(), |string, vi| {
-            format!("{string} {}, {},", vi.0, vi.1)
+            format!("{string} {},{}", vi.0, vi.1)
         });
         html! {
             <polyline points={s} fill="none" stroke={col.to_string()}/>

@@ -3,322 +3,322 @@ use yew::prelude::*;
 
 use logic_circuit::machine::{Bool, FinGraph, Gate, InPin, LoC, Name, OtPin};
 
-#[derive(Debug, Clone, PartialEq, Eq, Properties)]
-pub struct StateProps {
-    state: Bool,
-    rep: String,
-}
+// #[derive(Debug, Clone, PartialEq, Eq, Properties)]
+// pub struct StateProps {
+//     state: Bool,
+//     rep: String,
+// }
 
-#[function_component(StateView)]
-pub fn state_view(StateProps { state, rep }: &StateProps) -> Html {
-    let state_class = match state {
-        Bool::T => "stateT",
-        Bool::F => "stateF",
-    };
-    html! {
-        <span class={state_class}>
-            {rep}
-        </span>
-    }
-}
+// #[function_component(StateView)]
+// pub fn state_view(StateProps { state, rep }: &StateProps) -> Html {
+//     let state_class = match state {
+//         Bool::T => "stateT",
+//         Bool::F => "stateF",
+//     };
+//     html! {
+//         <span class={state_class}>
+//             {rep}
+//         </span>
+//     }
+// }
 
-#[derive(Debug, Clone, PartialEq, Properties)]
-pub struct FinGraphProps {
-    fingraph: FinGraph,
-    detail: bool,
-}
+// #[derive(Debug, Clone, PartialEq, Properties)]
+// pub struct FinGraphProps {
+//     fingraph: FinGraph,
+//     detail: bool,
+// }
 
-#[function_component(FinGraphView)]
-pub fn fingraph_view(FinGraphProps { fingraph, detail }: &FinGraphProps) -> Html {
-    let lcs: Vec<_> = fingraph
-        .get_lc_names()
-        .into_iter()
-        .map(|n| {
-            let lc = fingraph.get_lc(&n).unwrap();
-            let name = lc.get_name();
-            let inout = fingraph.get_lc_inpins(&n);
-            (n.clone(), name, inout)
-        })
-        .collect();
-    let input: Vec<_> = fingraph.get_inpins();
-    let otput: Vec<_> = fingraph.get_otpins();
-    html! {
-        <div class="graph">
-            {for input.into_iter().map(|(i, s)|{
-                let rep = format!("[{i}]");
-                html!{
-                    <StateView state = {s} rep = {rep}/>
-                }})
-            } <br/>
-            {for otput.into_iter().map(|(o, s)|{
-                let rep = format!("[{o}]");
-                html!{
-                    <StateView state = {s} rep = {rep}/>
-                }})
-            } <br/>
-            {if *detail {
-                html!{
-                    {for lcs.iter().map(|(usename, name, inout) |{
-                        html!{
-                            <>
-                            <span>
-                                {usename} {" "}
-                                {name} {" "}
-                                {for inout.iter().map(|(i, n , o, s)| {
-                                    let rep = format!("{i}={n}.{o} ");
-                                    html!{
-                                        <StateView state = {*s} rep = {rep}/>
-                                    }
-                                })}
-                            </span>
-                            <br/>
-                            </>
-                        }
-                    })}
-                }
-            } else {
-                html!{}
-            }}
-        </div>
-    }
-}
+// #[function_component(FinGraphView)]
+// pub fn fingraph_view(FinGraphProps { fingraph, detail }: &FinGraphProps) -> Html {
+//     let lcs: Vec<_> = fingraph
+//         .get_lc_names()
+//         .into_iter()
+//         .map(|n| {
+//             let lc = fingraph.get_lc(&n).unwrap();
+//             let name = lc.get_name();
+//             let inout = fingraph.get_lc_inpins(&n);
+//             (n.clone(), name, inout)
+//         })
+//         .collect();
+//     let input: Vec<_> = fingraph.get_inpins();
+//     let otput: Vec<_> = fingraph.get_otpins();
+//     html! {
+//         <div class="graph">
+//             {for input.into_iter().map(|(i, s)|{
+//                 let rep = format!("[{i}]");
+//                 html!{
+//                     <StateView state = {s} rep = {rep}/>
+//                 }})
+//             } <br/>
+//             {for otput.into_iter().map(|(o, s)|{
+//                 let rep = format!("[{o}]");
+//                 html!{
+//                     <StateView state = {s} rep = {rep}/>
+//                 }})
+//             } <br/>
+//             {if *detail {
+//                 html!{
+//                     {for lcs.iter().map(|(usename, name, inout) |{
+//                         html!{
+//                             <>
+//                             <span>
+//                                 {usename} {" "}
+//                                 {name} {" "}
+//                                 {for inout.iter().map(|(i, n , o, s)| {
+//                                     let rep = format!("{i}={n}.{o} ");
+//                                     html!{
+//                                         <StateView state = {*s} rep = {rep}/>
+//                                     }
+//                                 })}
+//                             </span>
+//                             <br/>
+//                             </>
+//                         }
+//                     })}
+//                 }
+//             } else {
+//                 html!{}
+//             }}
+//         </div>
+//     }
+// }
 
-#[derive(Debug, Clone, PartialEq, Properties)]
-pub struct IteratorProps {
-    iterator: logic_circuit::machine::Iter,
-    detail: bool,
-}
+// #[derive(Debug, Clone, PartialEq, Properties)]
+// pub struct IteratorProps {
+//     iterator: logic_circuit::machine::Iter,
+//     detail: bool,
+// }
 
-#[function_component(IteratorView)]
-fn iterator_view(IteratorProps { iterator, detail }: &IteratorProps) -> Html {
-    let input: Vec<_> = iterator.get_inpins();
-    let otput: Vec<_> = iterator.get_otpins();
-    html! {
-        <div class="iterator">
-            {for input.iter().map(|(i, i0)|{
-                let s = format!("{i}={i0} ");
-                html!{
-                    <StateView state = {*iterator.get_input(i).unwrap()} rep = {s}/>
-                }})
-            } <br/>
-            {for otput.iter().map(|(o, o0)|{
-                let s = format!("{o}={o0} ");
-                html!{
-                    <StateView state= {*iterator.get_otput(o).unwrap()} rep = {s}/>
-                }
-            })} <br/>
-            {if *detail {
-                html!{for iterator.get_lcs().into_iter().map(|lc| html!{
-                    <LoCView lc={lc.clone()}/>
-                })}
-            } else {
-                html!{}
-            }}
-        </div>
-    }
-}
+// #[function_component(IteratorView)]
+// fn iterator_view(IteratorProps { iterator, detail }: &IteratorProps) -> Html {
+//     let input: Vec<_> = iterator.get_inpins();
+//     let otput: Vec<_> = iterator.get_otpins();
+//     html! {
+//         <div class="iterator">
+//             {for input.iter().map(|(i, i0)|{
+//                 let s = format!("{i}={i0} ");
+//                 html!{
+//                     <StateView state = {*iterator.get_input(i).unwrap()} rep = {s}/>
+//                 }})
+//             } <br/>
+//             {for otput.iter().map(|(o, o0)|{
+//                 let s = format!("{o}={o0} ");
+//                 html!{
+//                     <StateView state= {*iterator.get_otput(o).unwrap()} rep = {s}/>
+//                 }
+//             })} <br/>
+//             {if *detail {
+//                 html!{for iterator.get_lcs().into_iter().map(|lc| html!{
+//                     <LoCView lc={lc.clone()}/>
+//                 })}
+//             } else {
+//                 html!{}
+//             }}
+//         </div>
+//     }
+// }
 
-pub struct LoCView {
-    pub detail: bool,
-}
+// pub struct LoCView {
+//     pub detail: bool,
+// }
 
-pub enum LoCMsg {
-    ToggleDetail,
-}
+// pub enum LoCMsg {
+//     ToggleDetail,
+// }
 
-#[derive(Debug, Clone, PartialEq, Eq, Properties)]
-pub struct LoCProps {
-    pub lc: LoC,
-}
+// #[derive(Debug, Clone, PartialEq, Eq, Properties)]
+// pub struct LoCProps {
+//     pub lc: LoC,
+// }
 
-impl Component for LoCView {
-    type Message = LoCMsg;
-    type Properties = LoCProps;
-    fn create(ctx: &Context<Self>) -> Self {
-        Self { detail: false }
-    }
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let detail = self.detail;
-        let LoCProps { lc } = ctx.props();
+// impl Component for LoCView {
+//     type Message = LoCMsg;
+//     type Properties = LoCProps;
+//     fn create(ctx: &Context<Self>) -> Self {
+//         Self { detail: false }
+//     }
+//     fn view(&self, ctx: &Context<Self>) -> Html {
+//         let detail = self.detail;
+//         let LoCProps { lc } = ctx.props();
 
-        let html = html! {
-            html!{
-                <>
-                <button onclick={ctx.link().callback(|_| LoCMsg::ToggleDetail)}> {"detail"} </button>
-                </>
-            }
-        };
-        match lc {
-            LoC::Gate(gate) => {
-                html! {}
-            }
-            LoC::FinGraph(name, fingraph) => {
-                html! {
-                    <>
-                    {html}
-                    <FinGraphView fingraph={fingraph.as_ref().clone()} detail={detail}/>
-                    </>
-                }
-            }
-            LoC::Iter(name, iter) => {
-                html! {
-                    <>
-                    {html}
-                    <IteratorView iterator={iter.clone()} detail={detail}/>
-                    </>
-                }
-            }
-        }
-    }
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        self.detail = !self.detail;
-        true
-    }
-}
+//         let html = html! {
+//             html!{
+//                 <>
+//                 <button onclick={ctx.link().callback(|_| LoCMsg::ToggleDetail)}> {"detail"} </button>
+//                 </>
+//             }
+//         };
+//         match lc {
+//             LoC::Gate(gate) => {
+//                 html! {}
+//             }
+//             LoC::FinGraph(name, fingraph) => {
+//                 html! {
+//                     <>
+//                     {html}
+//                     <FinGraphView fingraph={fingraph.as_ref().clone()} detail={detail}/>
+//                     </>
+//                 }
+//             }
+//             LoC::Iter(name, iter) => {
+//                 html! {
+//                     <>
+//                     {html}
+//                     <IteratorView iterator={iter.clone()} detail={detail}/>
+//                     </>
+//                 }
+//             }
+//         }
+//     }
+//     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+//         self.detail = !self.detail;
+//         true
+//     }
+// }
 
-pub struct InputSetView {
-    inputs: Vec<(InPin, Bool)>,
-}
+// pub struct InputSetView {
+//     inputs: Vec<(InPin, Bool)>,
+// }
 
-#[derive(Debug)]
-pub enum InputSetMsg {
-    Rev(usize),
-}
+// #[derive(Debug)]
+// pub enum InputSetMsg {
+//     Rev(usize),
+// }
 
-#[derive(Clone, PartialEq, Properties)]
-pub struct InputSetProps {
-    input_anames: Vec<InPin>,
-    on_set: Callback<Vec<(InPin, Bool)>>,
-}
+// #[derive(Clone, PartialEq, Properties)]
+// pub struct InputSetProps {
+//     input_anames: Vec<InPin>,
+//     on_set: Callback<Vec<(InPin, Bool)>>,
+// }
 
-impl Component for InputSetView {
-    type Message = InputSetMsg;
-    type Properties = InputSetProps;
-    fn create(ctx: &Context<Self>) -> Self {
-        let InputSetProps {
-            input_anames,
-            on_set: _,
-        } = ctx.props();
-        let inputs = input_anames
-            .iter()
-            .map(|n| (n.clone(), Bool::F))
-            .collect::<Vec<_>>();
-        Self { inputs }
-    }
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        html! {<div class="box">
-            {"input edit"}
-            {
-                for self.inputs.iter().enumerate().map(|(i, (n, b))| {
-                    let callback = ctx.link().callback(move |_| InputSetMsg::Rev(i));
-                    html! {
-                        <button onclick={callback}>
-                            <StateView state={*b} rep={n.to_string()}/>
-                        </button>
-                    }
-                })
-            }
-        </div>}
-    }
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let InputSetMsg::Rev(i) = msg;
-        let (_, b) = self.inputs.get_mut(i).unwrap();
-        *b = b.neg();
-        let InputSetProps {
-            input_anames: _,
-            on_set,
-        } = ctx.props();
-        on_set.emit(self.inputs.clone());
-        true
-    }
-}
+// impl Component for InputSetView {
+//     type Message = InputSetMsg;
+//     type Properties = InputSetProps;
+//     fn create(ctx: &Context<Self>) -> Self {
+//         let InputSetProps {
+//             input_anames,
+//             on_set: _,
+//         } = ctx.props();
+//         let inputs = input_anames
+//             .iter()
+//             .map(|n| (n.clone(), Bool::F))
+//             .collect::<Vec<_>>();
+//         Self { inputs }
+//     }
+//     fn view(&self, ctx: &Context<Self>) -> Html {
+//         html! {<div class="box">
+//             {"input edit"}
+//             {
+//                 for self.inputs.iter().enumerate().map(|(i, (n, b))| {
+//                     let callback = ctx.link().callback(move |_| InputSetMsg::Rev(i));
+//                     html! {
+//                         <button onclick={callback}>
+//                             <StateView state={*b} rep={n.to_string()}/>
+//                         </button>
+//                     }
+//                 })
+//             }
+//         </div>}
+//     }
+//     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+//         let InputSetMsg::Rev(i) = msg;
+//         let (_, b) = self.inputs.get_mut(i).unwrap();
+//         *b = b.neg();
+//         let InputSetProps {
+//             input_anames: _,
+//             on_set,
+//         } = ctx.props();
+//         on_set.emit(self.inputs.clone());
+//         true
+//     }
+// }
 
-pub struct MachineView {
-    machine: Option<LoC>,
-    callback_on_log: Option<Callback<String>>,
-}
+// pub struct MachineView {
+//     machine: Option<LoC>,
+//     callback_on_log: Option<Callback<String>>,
+// }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum MachineMsg {
-    LoadFromMachine(Box<LoC>),
-    Step(usize),
-    SetEventLog(Callback<String>),
-    SetInput(Vec<(InPin, Bool)>),
-}
+// #[derive(Debug, Clone, PartialEq)]
+// pub enum MachineMsg {
+//     LoadFromMachine(Box<LoC>),
+//     Step(usize),
+//     SetEventLog(Callback<String>),
+//     SetInput(Vec<(InPin, Bool)>),
+// }
 
-#[derive(Debug, Default, Clone, PartialEq, Properties)]
-pub struct MachineProps {}
+// #[derive(Debug, Default, Clone, PartialEq, Properties)]
+// pub struct MachineProps {}
 
-impl Component for MachineView {
-    type Message = MachineMsg;
-    type Properties = MachineProps;
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self {
-            machine: None,
-            callback_on_log: None,
-        }
-    }
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let html = {
-            match &self.machine {
-                None => html! {<> {"not found"} </>},
-                Some(machine) => {
-                    let callback_step = ctx.link().callback(MachineMsg::Step);
-                    let on_set_inputs = ctx.link().callback(MachineMsg::SetInput);
-                    let all_input_name = machine
-                        .get_inpins()
-                        .into_iter()
-                        .map(|v| v.0)
-                        .collect::<Vec<_>>();
-                    html! {
-                        <>
-                            <utils::view::ControlStepView on_step={callback_step}/>
-                            <InputSetView input_anames={all_input_name} on_set={on_set_inputs}/>
-                            <LoCView lc = {machine.clone()}/>
-                        </>
-                    }
-                }
-            }
-        };
-        html! {
-            <div class="machine">
-            {"machine"} <br/>
-            {html}
-            </div>
-        }
-    }
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            MachineMsg::LoadFromMachine(loc) => {
-                self.machine = Some(*loc);
-            }
-            MachineMsg::Step(n) => {
-                let Some(machine) = &mut self.machine else {
-                    return false;
-                };
-                for _ in 0..n {
-                    machine.next()
-                }
-                if let Some(log) = &self.callback_on_log {
-                    log.emit(format!("machine: {n} step"))
-                }
-            }
-            MachineMsg::SetEventLog(callback) => {
-                self.callback_on_log = Some(callback);
-            }
-            MachineMsg::SetInput(v) => {
-                let Some(machine) = &mut self.machine else {
-                    return false;
-                };
-                for (i, b) in v {
-                    let i = machine.getmut_input(&i).unwrap();
-                    *i = b;
-                }
-            }
-        }
-        true
-    }
-}
+// impl Component for MachineView {
+//     type Message = MachineMsg;
+//     type Properties = MachineProps;
+//     fn create(_ctx: &Context<Self>) -> Self {
+//         Self {
+//             machine: None,
+//             callback_on_log: None,
+//         }
+//     }
+//     fn view(&self, ctx: &Context<Self>) -> Html {
+//         let html = {
+//             match &self.machine {
+//                 None => html! {<> {"not found"} </>},
+//                 Some(machine) => {
+//                     let callback_step = ctx.link().callback(MachineMsg::Step);
+//                     let on_set_inputs = ctx.link().callback(MachineMsg::SetInput);
+//                     let all_input_name = machine
+//                         .get_inpins()
+//                         .into_iter()
+//                         .map(|v| v.0)
+//                         .collect::<Vec<_>>();
+//                     html! {
+//                         <>
+//                             <utils::view::ControlStepView on_step={callback_step}/>
+//                             <InputSetView input_anames={all_input_name} on_set={on_set_inputs}/>
+//                             <LoCView lc = {machine.clone()}/>
+//                         </>
+//                     }
+//                 }
+//             }
+//         };
+//         html! {
+//             <div class="machine">
+//             {"machine"} <br/>
+//             {html}
+//             </div>
+//         }
+//     }
+//     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+//         match msg {
+//             MachineMsg::LoadFromMachine(loc) => {
+//                 self.machine = Some(*loc);
+//             }
+//             MachineMsg::Step(n) => {
+//                 let Some(machine) = &mut self.machine else {
+//                     return false;
+//                 };
+//                 for _ in 0..n {
+//                     machine.next()
+//                 }
+//                 if let Some(log) = &self.callback_on_log {
+//                     log.emit(format!("machine: {n} step"))
+//                 }
+//             }
+//             MachineMsg::SetEventLog(callback) => {
+//                 self.callback_on_log = Some(callback);
+//             }
+//             MachineMsg::SetInput(v) => {
+//                 let Some(machine) = &mut self.machine else {
+//                     return false;
+//                 };
+//                 for (i, b) in v {
+//                     let i = machine.getmut_input(&i).unwrap();
+//                     *i = b;
+//                 }
+//             }
+//         }
+//         true
+//     }
+// }
 
 pub mod svg_lc {
     use super::*;
@@ -401,8 +401,8 @@ pub mod svg_lc {
         ori: Ori,
         pos: Pos, // center of loc
         onmousedownlc: Callback<Diff>,
-        onmousedowninpin: Callback<InPin>,
-        onmousedownotpin: Callback<OtPin>,
+        onmousedowninpin: Callback<usize>,
+        onmousedownotpin: Callback<usize>,
         onrightclick: Callback<()>,
     }
 
@@ -416,12 +416,31 @@ pub mod svg_lc {
             Some(self.pos - rot(diff / 2, self.ori) + rot(diff_i / 2, self.ori))
         }
 
+        fn input_pos_fromnum(&self, inpinnum: &usize) -> Option<Pos> {
+            if self.inputs.len() <= *inpinnum {
+                return None;
+            }
+            let diff = Diff(WIDTH_LC as isize, (PIN_LEN * self.inputs.len()) as isize);
+            let diff_i = Diff(0, (PIN_LEN * inpinnum + PIN_RAD) as isize);
+
+            Some(self.pos - rot(diff / 2, self.ori) + rot(diff_i / 2, self.ori))
+        }
+
         fn otput_pos(&self, otpin: &OtPin) -> Option<Pos> {
             let diff = Diff(-(WIDTH_LC as isize), (PIN_LEN * self.otputs.len()) as isize);
             let diff_i = Diff(
                 0,
                 (PIN_LEN * self.otputs.iter().position(|o| o.0 == *otpin)? + PIN_RAD) as isize,
             );
+            Some(self.pos - rot(diff / 2, self.ori) + rot(diff_i / 2, self.ori))
+        }
+
+        fn otput_pos_fromnum(&self, otpinnum: &usize) -> Option<Pos> {
+            if self.otputs.len() <= *otpinnum {
+                return None;
+            }
+            let diff = Diff(-(WIDTH_LC as isize), (PIN_LEN * self.otputs.len()) as isize);
+            let diff_i = Diff(0, (PIN_LEN * otpinnum + PIN_RAD) as isize);
             Some(self.pos - rot(diff / 2, self.ori) + rot(diff_i / 2, self.ori))
         }
 
@@ -466,6 +485,7 @@ pub mod svg_lc {
             onrightclick,
         } = locprops.clone();
         let onmousedownlc = Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
             let pos_click = Pos(e.client_x() as usize, e.client_y() as usize);
             onmousedownlc.emit(pos_click - pos)
         });
@@ -476,21 +496,19 @@ pub mod svg_lc {
         html! {
             <>
                 <RectView pos={locprops.rect_lu()} diff={locprops.rect_diff()} col={"lightgray".to_string()} border={"black".to_string()} onmousedown={onmousedownlc} oncontextmenu={onrightclick}/>
-                {for inputs.into_iter().map(|(inpin, state)|{
+                {for inputs.into_iter().enumerate().map(|(k, (inpin, state))|{
                     let onmousedown = onmousedowninpin.clone();
-                    let i = inpin.clone();
                     let onmousedown = Callback::from(move |_|{
-                        onmousedown.emit(i.clone())
+                        onmousedown.emit(k)
                     });
                     html!{
                         <InPinView pos={locprops.input_pos(&inpin).unwrap()} {state} inpin={inpin.clone()} {onmousedown}/>
                     }
                 })}
-                {for otputs.into_iter().map(|(otpin, state)|{
+                {for otputs.into_iter().enumerate().map(|(k, (otpin, state))|{
                     let onmousedown = onmousedownotpin.clone();
-                    let o = otpin.clone();
                     let onmousedown = Callback::from(move |_|{
-                        onmousedown.emit(o.clone())
+                        onmousedown.emit(k)
                     });
                     html!{
                         <OtPinView pos={locprops.otput_pos(&otpin).unwrap()} {state} otpin={otpin.clone()} {onmousedown}/>
@@ -593,13 +611,11 @@ pub mod svg_lc {
         let inpins = actlocprops.fingraph.get_inpins();
         let callback = actlocprops.on_inpin_clicks.clone();
         let onclick = Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
             let pos: Pos = Pos(e.client_x() as usize, e.client_y() as usize);
-            utils::view::log(format!("{pos:?}"));
             for k in 0..inpins.len() {
                 let dist = pos.abs_diff(&Pos(IN_LINE, k * PIN_LEN + UP_LINE));
-                utils::view::log(format!("{dist}"));
                 if dist <= PIN_RAD.pow(2) {
-                    utils::view::log(format!("{k}"));
                     callback.emit(inpins[k].0.clone());
                 }
             }
@@ -712,7 +728,11 @@ pub mod svg_lc {
         }
     }
 
-    type PinVariant = Either<Either<InPin, (usize, InPin)>, Either<OtPin, (usize, OtPin)>>;
+    type InPinNum = usize;
+    type OtPinNum = usize;
+
+    type PinVariant =
+        Either<Either<InPinNum, (usize, InPinNum)>, Either<OtPinNum, (usize, OtPinNum)>>;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     enum State {
@@ -726,9 +746,9 @@ pub mod svg_lc {
         inpins: Vec<InPin>,
         otpins: Vec<OtPin>,
         component: Vec<(usize, Pos, Ori)>,
-        edges: Vec<((usize, OtPin), (usize, InPin))>,
-        inputs: Vec<(InPin, (usize, InPin))>,
-        otputs: Vec<(OtPin, (usize, OtPin))>,
+        edges: Vec<((usize, InPinNum), (usize, OtPinNum))>,
+        inputs: Vec<(InPinNum, (usize, InPinNum))>,
+        otputs: Vec<(OtPinNum, (usize, OtPinNum))>,
         state: State,
     }
 
@@ -788,7 +808,7 @@ pub mod svg_lc {
                 on_log,
             } = ctx.props();
 
-            let load = ctx.link().callback(|_| GraphicEditorMsg::GoToTest);
+            let goto_test = ctx.link().callback(|_| GraphicEditorMsg::GoToTest);
             let add_inpins = ctx
                 .link()
                 .callback(|s: String| GraphicEditorMsg::AddInpin(s.into()));
@@ -806,13 +826,15 @@ pub mod svg_lc {
                 .callback(|s: String| GraphicEditorMsg::DeleteOtPin(s.into()));
 
             let onmousemove = ctx.link().callback(|e: MouseEvent| {
+                e.prevent_default();
                 let pos = Pos(e.client_x() as usize, e.client_y() as usize);
                 GraphicEditorMsg::Update(pos)
             });
 
-            let onmouseuporleave = ctx
-                .link()
-                .callback(|e: MouseEvent| GraphicEditorMsg::UnSelect);
+            let onmouseuporleave = ctx.link().callback(|e: MouseEvent| {
+                e.prevent_default();
+                GraphicEditorMsg::UnSelect
+            });
 
             let loc_vec = component
                 .iter()
@@ -824,11 +846,11 @@ pub mod svg_lc {
                     let onmousedownlc = ctx
                         .link()
                         .callback(move |diff: Diff| GraphicEditorMsg::SelectMove(k, diff));
-                    let onmousedowninpin = ctx.link().callback(move |inpin: InPin| {
-                        GraphicEditorMsg::SelectPin(Either::Left(Either::Right((k, inpin))))
+                    let onmousedowninpin = ctx.link().callback(move |num_i: usize| {
+                        GraphicEditorMsg::SelectPin(Either::Left(Either::Right((k, num_i))))
                     });
-                    let onmousedownotpin = ctx.link().callback(move |otpin: OtPin| {
-                        GraphicEditorMsg::SelectPin(Either::Right(Either::Right((k, otpin))))
+                    let onmousedownotpin = ctx.link().callback(move |num_o: usize| {
+                        GraphicEditorMsg::SelectPin(Either::Right(Either::Right((k, num_o))))
                     });
                     let onrightclick = ctx.link().callback(move |_| GraphicEditorMsg::Delte(k));
                     LoCProps {
@@ -849,7 +871,7 @@ pub mod svg_lc {
                 .enumerate()
                 .map(|(l, (i, (k, i1)))| {
                     let pos_i = Pos(IN_LINE, l * PIN_LEN + UP_LINE);
-                    let pos_i2 = loc_vec[*k].input_pos(i1).unwrap();
+                    let pos_i2 = loc_vec[*k].input_pos_fromnum(i1).unwrap();
                     (pos_i, pos_i2)
                 })
                 .collect::<Vec<_>>();
@@ -859,7 +881,7 @@ pub mod svg_lc {
                 .enumerate()
                 .map(|(l, (o, (k, o1)))| {
                     let pos_o = Pos(OT_LINE, l * PIN_LEN + UP_LINE);
-                    let pos_o2 = loc_vec[*k].otput_pos(o1).unwrap();
+                    let pos_o2 = loc_vec[*k].otput_pos_fromnum(o1).unwrap();
                     (pos_o, pos_o2)
                 })
                 .collect::<Vec<_>>();
@@ -867,8 +889,8 @@ pub mod svg_lc {
             let graph_edges = edges
                 .iter()
                 .map(|((ko, o), (ki, i))| {
-                    let pos_o = loc_vec[*ko].otput_pos(o).unwrap();
-                    let pos_i = loc_vec[*ki].input_pos(i).unwrap();
+                    let pos_o = loc_vec[*ko].otput_pos_fromnum(o).unwrap();
+                    let pos_i = loc_vec[*ki].input_pos_fromnum(i).unwrap();
                     (pos_o, pos_i)
                 })
                 .collect::<Vec<_>>();
@@ -884,9 +906,8 @@ pub mod svg_lc {
                     })}
                     {for inpins.into_iter().enumerate().map(|(k, inpin)|{
                         let pos = Pos(IN_LINE, k * PIN_LEN + UP_LINE);
-                        let i = inpin.clone();
                         let onmousedown = ctx.link().callback(move |_|{
-                            GraphicEditorMsg::SelectPin(Either::Left(Either::Left(i.clone())))
+                            GraphicEditorMsg::SelectPin(Either::Left(Either::Left(k)))
                         });
                         html!{
                             <InPinView inpin={inpin.clone()} {pos} state={Bool::F} {onmousedown}/>
@@ -894,9 +915,8 @@ pub mod svg_lc {
                     })}
                     {for otpins.into_iter().enumerate().map(|(k, otpin)|{
                         let pos = Pos(OT_LINE, k * PIN_LEN + UP_LINE);
-                        let o = otpin.clone();
                         let onmousedown = ctx.link().callback(move |_|{
-                            GraphicEditorMsg::SelectPin(Either::Right(Either::Left(o.clone())))
+                            GraphicEditorMsg::SelectPin(Either::Right(Either::Left(k)))
                         });
                         html!{
                             <OtPinView otpin={otpin.clone()} {pos} state={Bool::F} {onmousedown}/>
@@ -928,18 +948,21 @@ pub mod svg_lc {
                             <LoCView {inputs} {otputs} {pos} ori={Ori::U} {onmousedownlc} onmousedowninpin={Callback::noop()} onmousedownotpin={Callback::noop()} onrightclick={Callback::noop()}/>
                         }
                     })}
-                </svg>
-                <button onclick={load}> {"test"} </button>
+                </svg> <br/>
                 <utils::view::InputText description={"add inpins".to_string()} on_push_load_button={add_inpins}/>
                 <utils::view::InputText description={"add otpins".to_string()} on_push_load_button={add_otpins}/> <br/>
                 <utils::view::InputText description={"remove inpins".to_string()} on_push_load_button={remove_inpins}/>
                 <utils::view::InputText description={"remove otpins".to_string()} on_push_load_button={remove_otpins}/>
+                // <button onclick={goto_test}> {"test"} </button>
+                <utils::view::ButtonView on_click={goto_test} text={"test"}/>
                 </>
             }
         }
         fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
             let prop = ctx.props();
-            prop.on_log.emit(format!("{msg:?} {:?}", self.state));
+            if !matches!(msg, GraphicEditorMsg::Update(_)) {
+                prop.on_log.emit(format!("{msg:?} {:?}", self.state));
+            }
             match msg {
                 GraphicEditorMsg::AddInpin(inpin) => {
                     if self.inpins.iter().any(|i| *i == inpin) {
@@ -1106,38 +1129,64 @@ pub mod svg_lc {
                         on_goto_test,
                         on_log,
                     } = ctx.props();
-                    let lcs = self
+                    let lcs: Vec<(Name, LoC)> = self
                         .component
                         .iter()
-                        .map(|(k, _, _)| {
-                            (format!("{k}").into(), logic_circuits_components[*k].clone())
-                        })
-                        .collect::<Vec<_>>();
-                    let edges = self
-                        .edges
-                        .iter()
-                        .map(|((ko, o), (ki, i))| {
+                        .enumerate()
+                        .map(|(k, (num, _, _))| {
                             (
-                                (format!("{ko}").into(), o.clone()),
-                                (format!("{ki}").into(), i.clone()),
+                                format!("{k}").into(),
+                                logic_circuits_components[*num].clone(),
                             )
                         })
                         .collect::<Vec<_>>();
-                    let input = self
+                    let edges: Vec<((Name, OtPin), (Name, InPin))> = self
+                        .edges
+                        .iter()
+                        .map(|((ko, o), (ki, i))| {
+                            let i: InPin = {
+                                let inpins = lcs[*ki].1.get_inpins();
+                                inpins[*i].0.clone()
+                            };
+                            let o: OtPin = {
+                                let otpins = lcs[*ko].1.get_otpins();
+                                otpins[*o].0.clone()
+                            };
+                            ((format!("{ko}").into(), o), (format!("{ki}").into(), i))
+                        })
+                        .collect::<Vec<_>>();
+                    let input: Vec<(InPin, (Name, InPin))> = self
                         .inputs
                         .iter()
                         .cloned()
-                        .map(|(i, (n, inpin))| (i, (format!("{n}").into(), inpin)))
+                        .map(|(i, (n, inpin))| {
+                            let i: InPin = self.inpins[i].clone();
+                            let inpin: InPin = {
+                                let inpins = lcs[n].1.get_inpins();
+                                inpins[inpin].0.clone()
+                            };
+                            (i, (format!("{n}").into(), inpin))
+                        })
                         .collect::<Vec<_>>();
-                    let output = self
+                    let output: Vec<(OtPin, (Name, OtPin))> = self
                         .otputs
                         .iter()
                         .cloned()
-                        .map(|(o, (n, otpin))| (o, (format!("{n}").into(), otpin)))
+                        .map(|(o, (n, otpin))| {
+                            let o: OtPin = self.otpins[o].clone();
+                            let otpin: OtPin = {
+                                let otpins = lcs[n].1.get_otpins();
+                                otpins[otpin].0.clone()
+                            };
+                            (o, (format!("{n}").into(), otpin))
+                        })
                         .collect::<Vec<_>>();
+                    utils::view::log(format!("{lcs:?} {edges:?} {input:?} {output:?}"));
                     let loc = LoC::new_graph("new".into(), lcs, edges, input, output);
                     match loc {
-                        Ok(loc) => {}
+                        Ok(loc) => {
+                            on_goto_test.emit(loc);
+                        }
                         Err(err) => on_log.emit(format!("{err:?}")),
                     }
                 }
