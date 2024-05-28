@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use logic_circuit::machine::{LoC, Name};
+use machine::svg_lc::FingraphMachineProps;
 use web_sys::Element;
 use yew::prelude::*;
 
@@ -59,6 +60,8 @@ pub fn playground_with(element: Element, maps: HashMap<Name, LoC>) {
 }
 
 pub fn set_machine(element: Element, lc: LoC) {
-    // let machine_handle = yew::Renderer::<machine::MachineView>::with_root(element).render();
+    // let machine_handle = yew::Renderer::<machine::svg_lc::FingraphMachine>::with_root_and_props(element, FingraphMachineProps {
+
+    // }).render();
     // machine_handle.send_message(MachineMsg::LoadFromMachine(Box::new(lc)));
 }
