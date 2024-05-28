@@ -521,14 +521,14 @@ pub mod svg_lc {
     #[derive(Debug, Clone, PartialEq, Properties)]
     pub struct ActLoCProps {
         pub fingraph: FinGraph,
-        pub poslc: HashMap<Name, (Ori, Pos)>,
+        pub poslc: HashMap<Name, (Pos, Ori)>,
         pub on_inpin_clicks: Callback<InPin>,
     }
 
     impl ActLoCProps {
         fn get_lc_props(&self, name: &Name) -> Option<LoCProps> {
             let loc = self.fingraph.get_lc(name)?;
-            let (ori, pos) = self.poslc.get(&name).unwrap();
+            let (pos, ori) = self.poslc.get(&name).unwrap();
             Some(LoCProps {
                 inputs: loc.get_inpins(),
                 otputs: loc.get_otpins(),
@@ -658,7 +658,6 @@ pub mod svg_lc {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct FingraphMachine {
         pub fingraph: FinGraph,
-        pub pos_lc: HashMap<Name, (Ori, Pos)>,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -670,11 +669,11 @@ pub mod svg_lc {
     #[derive(Debug, Clone, PartialEq, Eq, Properties)]
     pub struct FingraphMachineProps {
         init_fingraph: FinGraph,
-        init_pos_lc: Vec<(Name, (Ori, Pos))>,
+        init_pos_lc: Vec<(Name, (Pos, Ori))>,
     }
 
     impl FingraphMachineProps {
-        pub fn new(init_fingraph: FinGraph, init_pos_lc: Vec<(Name, (Ori, Pos))>) -> Result<Self> {
+        pub fn new(init_fingraph: FinGraph, init_pos_lc: Vec<(Name, (Pos, Ori))>) -> Result<Self> {
             let names = init_fingraph.get_lc_names();
             for name in names {
                 if init_pos_lc.iter().all(|(n, _)| n != &name) {
@@ -698,15 +697,15 @@ pub mod svg_lc {
             } = ctx.props();
             Self {
                 fingraph: init_fingraph.clone(),
-                pos_lc: init_pos_lc.iter().cloned().collect(),
             }
         }
         fn view(&self, ctx: &Context<Self>) -> Html {
             let on_step = ctx.link().callback(FingraphMachineMsg::Step);
             let on_inpin_clicks = ctx.link().callback(FingraphMachineMsg::ToggleIn);
+            let poslc = ctx.props().init_pos_lc.clone();
             html! {
                 <>
-                <ActLoCView fingraph={self.fingraph.clone()} poslc={self.pos_lc.clone()} {on_inpin_clicks}/>
+                <ActLoCView fingraph={self.fingraph.clone()} poslc={poslc.into_iter().collect::<HashMap<_,_>>()} {on_inpin_clicks}/>
                 <utils::view::ControlStepView {on_step}/>
                 </>
             }
@@ -771,24 +770,39 @@ pub mod svg_lc {
         None,
     }
 
+    type AllPositions = (
+        Vec<InPin>,
+        Vec<OtPin>,
+        Vec<(usize, Pos, Ori)>,
+        Vec<((usize, InPinNum), (usize, OtPinNum))>,
+        Vec<(InPinNum, (usize, InPinNum))>,
+        Vec<(OtPinNum, (usize, OtPinNum))>,
+    );
+
     #[derive(Debug, Clone, PartialEq, Properties)]
     pub struct GraphicEditorProps {
         pub logic_circuits_components: Vec<LoC>,
-        pub on_goto_test: Callback<LoC>,
+        pub on_goto_test: Callback<(FinGraph, Vec<(Name, (Pos, Ori))>)>,
         pub on_log: Callback<String>,
+        pub maybe_initial_locpos: Option<AllPositions>,
     }
 
     impl Component for GraphicEditor {
         type Message = GraphicEditorMsg;
         type Properties = GraphicEditorProps;
         fn create(ctx: &Context<Self>) -> Self {
+            let v = ctx.props().maybe_initial_locpos.clone();
+            let (inpins, otpins, component, edges, inputs, otputs) = match v {
+                None => (vec![], vec![], vec![], vec![], vec![], vec![]),
+                Some((a, b, c, d, e, f)) => (a, b, c, d, e, f),
+            };
             Self {
-                inpins: vec![],
+                inpins,
                 otpins: vec![],
-                component: vec![],
-                edges: vec![],
-                inputs: vec![],
-                otputs: vec![],
+                component,
+                edges,
+                inputs,
+                otputs,
                 state: State::None,
             }
         }
@@ -806,6 +820,7 @@ pub mod svg_lc {
                 logic_circuits_components,
                 on_goto_test,
                 on_log,
+                maybe_initial_locpos: _,
             } = ctx.props();
 
             let goto_test = ctx.link().callback(|_| GraphicEditorMsg::GoToTest);
@@ -997,8 +1012,8 @@ pub mod svg_lc {
                     State::MoveLC(k, diff) => {
                         self.component[*k].1 = pos - *diff;
                     }
-                    State::SelectPin(_) => {
-                        return false;
+                    State::SelectPin(pin) => {
+                        return true;
                     }
                 },
                 GraphicEditorMsg::UnSelect => match &self.state {
@@ -1009,45 +1024,25 @@ pub mod svg_lc {
                         self.state = State::None;
                     }
                     State::SelectPin(_) => {
-                        // self.state = State::None;
+                        self.state = State::None;
                     }
                 },
                 GraphicEditorMsg::SelectPin(pin) => {
-                    // remove pin from connected
+                    // remove pin from connected edges
                     match &pin {
                         Either::Left(Either::Left(inpin)) => {
-                            if let Some(pos) = self.inputs.iter().position(|(i, _)| i == inpin) {
-                                self.inputs.remove(pos);
-                            }
+                            self.inputs.retain(|(i, _)| i != inpin);
                         }
                         Either::Right(Either::Left(otpin)) => {
-                            if let Some(pos) = self.otputs.iter().position(|(o, _)| o == otpin) {
-                                self.otputs.remove(pos);
-                            }
+                            self.inputs.retain(|(o, _)| o != otpin);
                         }
                         Either::Left(Either::Right(name_inpin)) => {
-                            if let Some(pos) =
-                                self.inputs.iter().position(|(_, ni)| ni == name_inpin)
-                            {
-                                self.inputs.remove(pos);
-                            }
-                            if let Some(pos) =
-                                self.edges.iter().position(|(_, ni)| ni == name_inpin)
-                            {
-                                self.edges.remove(pos);
-                            }
+                            self.inputs.retain(|(_, ni)| ni != name_inpin);
+                            self.edges.retain(|(_, ni)| ni != name_inpin);
                         }
                         Either::Right(Either::Right(name_otpin)) => {
-                            if let Some(pos) =
-                                self.otputs.iter().position(|(_, no)| no == name_otpin)
-                            {
-                                self.otputs.remove(pos);
-                            }
-                            if let Some(pos) =
-                                self.edges.iter().position(|(no, _)| no == name_otpin)
-                            {
-                                self.edges.remove(pos);
-                            }
+                            self.otputs.retain(|(_, no)| no != name_otpin);
+                            self.edges.retain(|(no, _)| no != name_otpin);
                         }
                     }
                     match self.state.clone() {
@@ -1062,6 +1057,7 @@ pub mod svg_lc {
                                 {
                                     true
                                 }
+
                                 Either::Right(Either::Left(otpin2))
                                     if self.otputs.iter().any(|(o, _)| o == otpin2) =>
                                 {
@@ -1128,6 +1124,7 @@ pub mod svg_lc {
                         logic_circuits_components,
                         on_goto_test,
                         on_log,
+                        maybe_initial_locpos: _,
                     } = ctx.props();
                     let lcs: Vec<(Name, LoC)> = self
                         .component
@@ -1183,15 +1180,84 @@ pub mod svg_lc {
                         .collect::<Vec<_>>();
                     utils::view::log(format!("{lcs:?} {edges:?} {input:?} {output:?}"));
                     let loc = LoC::new_graph("new".into(), lcs, edges, input, output);
+                    let lcs_pos_ori: Vec<(Name, (Pos, Ori))> = self
+                        .component
+                        .iter()
+                        .map(|(n, p, o)| (format!("{n}").into(), (*p, *o)))
+                        .collect();
                     match loc {
                         Ok(loc) => {
-                            on_goto_test.emit(loc);
+                            on_goto_test.emit((loc.take_fingraph().unwrap(), lcs_pos_ori));
                         }
                         Err(err) => on_log.emit(format!("{err:?}")),
                     }
                 }
                 _ => {
                     unimplemented!()
+                }
+            }
+            true
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum PlayGroundState {
+        Test(FinGraph, Vec<(Name, (Pos, Ori))>),
+        Edit(Option<AllPositions>),
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+
+    pub struct PlayGround {
+        state: PlayGroundState,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum PlayGroundMsg {
+        GotoTest((FinGraph, Vec<(Name, (Pos, Ori))>)),
+        GotoEdit(),
+    }
+
+    #[derive(Debug, Clone, PartialEq, Properties)]
+    pub struct PlayGroudProps {
+        init_component: Vec<LoC>,
+    }
+
+    impl Component for PlayGround {
+        type Message = PlayGroundMsg;
+        type Properties = PlayGroudProps;
+        fn create(ctx: &Context<Self>) -> Self {
+            todo!()
+        }
+        fn view(&self, ctx: &Context<Self>) -> Html {
+            let logic_circuits_components = ctx.props().init_component.clone();
+            match self.state.clone() {
+                PlayGroundState::Test(init_fingraph, init_pos_lc) => {
+                    html! {
+                        <FingraphMachine {init_fingraph} {init_pos_lc}/>
+                    }
+                }
+                PlayGroundState::Edit(maybe_initial_locpos) => {
+                    let on_log = Callback::noop();
+                    let on_goto_test: Callback<(FinGraph, _)> = ctx
+                        .link()
+                        .callback(|loc: (FinGraph, Vec<_>)| PlayGroundMsg::GotoTest(loc));
+                    html! {
+                        <GraphicEditor {on_goto_test} {on_log} {logic_circuits_components} {maybe_initial_locpos}/>
+                    }
+                }
+            }
+        }
+        fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+            match msg {
+                PlayGroundMsg::GotoEdit() => {
+                    let PlayGroundState::Test(fingraph, pos) = self.state.clone() else {
+                        unreachable!("不整合")
+                    };
+                    todo!()
+                }
+                PlayGroundMsg::GotoTest((loc, poss)) => {
+                    self.state = PlayGroundState::Test(loc, poss);
                 }
             }
             true
