@@ -2108,6 +2108,8 @@ dependencies = [
  "gloo",
  "logic_circuit",
  "logic_circuit_view",
+ "serde",
+ "serde_json",
  "utils",
  "yew",
 ]
@@ -2399,6 +2401,8 @@ dependencies = [
  "anyhow",
  "either",
  "gloo",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
  "web-sys",
  "yew",

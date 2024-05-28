@@ -237,6 +237,20 @@ impl Component for InputText {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct JsonFileSaveProps {
+    pub json: serde_json::Value,
+}
+
+#[function_component(JsonFileSaveView)]
+pub fn json_file_save_view(JsonFileSaveProps { json }: &JsonFileSaveProps) -> Html {
+    let head_string = "data:text/json;charset=utf-8,";
+    let data = json.to_string();
+    html! {
+        <a href={format!("{}{}", head_string, data)} download="data.json"> {"save as json"}</a>
+    }
+}
+
 pub mod svg {
     use std::{
         fmt::Display,
