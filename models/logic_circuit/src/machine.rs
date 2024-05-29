@@ -58,6 +58,13 @@ impl Display for Bool {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct InPin(String);
+
+impl InPin {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 impl From<String> for InPin {
     fn from(value: String) -> Self {
         InPin(value)
@@ -78,6 +85,13 @@ impl Display for InPin {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct OtPin(String);
+
+impl OtPin {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 impl From<String> for OtPin {
     fn from(value: String) -> Self {
         OtPin(value)
@@ -352,6 +366,12 @@ impl Gate {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Name(String);
+
+impl Name {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
 
 impl From<String> for Name {
     fn from(value: String) -> Self {

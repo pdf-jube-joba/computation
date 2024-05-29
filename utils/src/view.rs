@@ -243,7 +243,7 @@ impl Component for InputText {
         });
         html! {
             <>
-            <input {onchange}/>
+            <input type="text" {onchange}/>
             <button {onclick}> {description} </button>
             </>
         }
@@ -275,7 +275,7 @@ pub fn json_file_save_view(JsonFileSaveProps { json_value }: &JsonFileSaveProps)
 pub mod svg {
     use std::{
         fmt::Display,
-        ops::{Add, Div, Sub},
+        ops::{Add, Div, Mul, Neg, Sub},
     };
     use yew::prelude::*;
 
@@ -307,10 +307,31 @@ pub mod svg {
         }
     }
 
+    impl Mul<usize> for Diff {
+        type Output = Diff;
+        fn mul(self, rhs: usize) -> Self::Output {
+            Diff(self.0 * (rhs as isize), self.1 * (rhs as isize))
+        }
+    }
+
     impl Div<usize> for Diff {
         type Output = Diff;
         fn div(self, rhs: usize) -> Self::Output {
             Diff(self.0 / (rhs as isize), self.1 / (rhs as isize))
+        }
+    }
+
+    impl Neg for Diff {
+        type Output = Diff;
+        fn neg(self) -> Self::Output {
+            Diff(-self.0, -self.1)
+        }
+    }
+
+    impl Sub<Diff> for Diff {
+        type Output = Diff;
+        fn sub(self, rhs: Diff) -> Self::Output {
+            Diff(self.0 - rhs.0, self.1 - rhs.1)
         }
     }
 
@@ -425,12 +446,13 @@ pub mod svg {
     pub struct TextProps {
         pub pos: Pos,
         pub text: String,
+        pub size: usize,
     }
 
     #[function_component(TextView)]
-    pub fn text_view(TextProps { pos, text }: &TextProps) -> Html {
+    pub fn text_view(TextProps { pos, text, size }: &TextProps) -> Html {
         html! {
-            <text x={pos.0.to_string()} y={pos.1.to_string()}> {text} </text>
+            <text x={pos.0.to_string()} y={pos.1.to_string()} font-size={size.to_string()}> {text} </text>
         }
     }
 
