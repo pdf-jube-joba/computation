@@ -1,3 +1,5 @@
+use anyhow::bail;
+use gloo::file::callbacks::FileReader;
 use gloo::timers::callback::Interval;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlInputElement;
@@ -272,14 +274,157 @@ pub fn json_file_save_view(JsonFileSaveProps { json_value }: &JsonFileSaveProps)
     }
 }
 
+pub enum JsonFileReadMsg {
+    Read(DragEvent),
+    LoadEnd(Result<String, anyhow::Error>),
+}
+
+#[derive(Debug, Clone, PartialEq, Properties)]
+pub struct JsonFileReadProps {
+    pub on_drop_json: Callback<serde_json::Value>,
+}
+
+mod useless {
+    use super::*;
+
+    pub fn read_json_from_file(dragevent: DragEvent) -> Result<serde_json::Value, anyhow::Error> {
+        let Some(data_transfer) = dragevent.data_transfer() else {
+            bail!("data transfer fail")
+        };
+        let Some(files) = data_transfer.files() else {
+            bail!("files fail")
+        };
+        let Some(file) = files.get(0) else {
+            bail!("file fail")
+        };
+        let reader = match web_sys::FileReaderSync::new() {
+            Ok(reader) => reader,
+            Err(err) => {
+                bail!("fail {err:?}");
+            }
+        };
+        let string = match reader.read_as_text(&file) {
+            Ok(string) => string,
+            Err(err) => {
+                bail!("fail {err:?}");
+            }
+        };
+        serde_json::from_str(&string).map_err(|e| e.into())
+    }
+
+    #[function_component(JsonFileReadView)]
+    fn json_file_read_view(JsonFileReadProps { on_drop_json }: &JsonFileReadProps) -> Html {
+        let callback = on_drop_json.clone();
+        html! {<>
+            <div id="drop-container"
+                ondrop={Callback::from(move |e: DragEvent|{
+                    e.prevent_default();
+                    match read_json_from_file(e) {
+                        Ok(json) => {
+                            callback.emit(json);
+                        }
+                        Err(err) => {log(format!("{err}"));}
+                    };
+                })}
+                ondragover={Callback::from(|event: DragEvent| {
+                    event.prevent_default();
+                })}
+                ondragenter={Callback::from(|event: DragEvent| {
+                    event.prevent_default();
+                })}
+            > <p> {"drop here"} </p> </div>
+        </>}
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct JsonFileReadView {
+    reader: Option<FileReader>,
+}
+
+impl Component for JsonFileReadView {
+    type Message = JsonFileReadMsg;
+    type Properties = JsonFileReadProps;
+    fn create(ctx: &Context<Self>) -> Self {
+        Self::default()
+    }
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        html! {
+            <>
+            <div id="drop-container"
+                ondrop={ctx.link().callback(|event: DragEvent|{
+                    event.prevent_default();
+                    JsonFileReadMsg::Read(event)
+                })}
+                ondragover={Callback::from(|event: DragEvent| {
+                    event.prevent_default();
+                })}
+                ondragenter={Callback::from(|event: DragEvent| {
+                    event.prevent_default();
+                })}
+            > <p> {"drop here"} </p> </div>
+            </>
+        }
+    }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            JsonFileReadMsg::Read(dragevent) => {
+                let read = move |event: DragEvent| -> Result<FileReader, anyhow::Error> {
+                    let Some(data_transfer) = event.data_transfer() else {
+                        bail!("data transfer fail")
+                    };
+                    let Some(files) = data_transfer.files() else {
+                        bail!("files fail")
+                    };
+                    let Some(file) = files.get(0) else {
+                        bail!("file fail")
+                    };
+                    let file: gloo::file::File = file.into();
+                    let link = ctx.link().clone();
+                    let task = gloo::file::callbacks::read_as_text(&file, move |res| {
+                        link.send_message(JsonFileReadMsg::LoadEnd(res.map_err(|e| e.into())))
+                    });
+                    Ok(task)
+                };
+                match read(dragevent) {
+                    Ok(task) => {
+                        self.reader = Some(task);
+                    }
+                    Err(err) => {
+                        log(format!("{err:?}"));
+                    }
+                }
+                true
+            }
+            JsonFileReadMsg::LoadEnd(res) => {
+                match res {
+                    Ok(string) => match serde_json::from_str(&string) {
+                        Ok(val) => {
+                            ctx.props().on_drop_json.emit(val);
+                        }
+                        Err(err) => {
+                            log(format!("{err:?}"));
+                        }
+                    },
+                    Err(err) => {
+                        log(format!("{err:?}"));
+                    }
+                }
+                true
+            }
+        }
+    }
+}
+
 pub mod svg {
+    use serde::{Deserialize, Serialize};
     use std::{
         fmt::Display,
         ops::{Add, Div, Mul, Neg, Sub},
     };
     use yew::prelude::*;
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct Pos(pub usize, pub usize);
 
     impl Pos {
@@ -288,7 +433,7 @@ pub mod svg {
         }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct Diff(pub isize, pub isize);
 
     impl Diff {
@@ -372,7 +517,7 @@ pub mod svg {
         }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub enum Ori {
         U,
         R,

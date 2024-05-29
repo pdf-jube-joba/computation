@@ -174,7 +174,7 @@ fn lc_view(locprops: &LoCProps) -> Html {
     let text_pos: Pos = pos - Diff(LOC_TEXT_SIZE as isize, 0) * (name.len() / 2);
     html! {
         <>
-            <RectView pos={locprops.rect_lu()} diff={locprops.rect_diff()} col={"lightgray".to_string()} border={"black".to_string()} onmousedown={onmousedownlc} oncontextmenu={onrightclick}/>
+            <RectView pos={locprops.rect_lu()} diff={rot(locprops.rect_diff(), ori)} col={"lightgray".to_string()} border={"black".to_string()} onmousedown={onmousedownlc} oncontextmenu={onrightclick}/>
             <TextView pos={text_pos} text={name} size={LOC_TEXT_SIZE}/>
             {for inputs.into_iter().enumerate().map(|(k, (inpin, state))|{
                 let onmousedown = onmousedowninpin.clone();
@@ -449,7 +449,7 @@ pub enum GraphicEditorMsg {
     Delete(usize),
 
     GoToTest,
-    None,
+    Load(serde_json::Value),
 }
 
 type AllPositions = (
@@ -480,7 +480,7 @@ impl Component for GraphicEditor {
         };
         Self {
             inpins,
-            otpins: vec![],
+            otpins,
             component,
             edges,
             inputs,
@@ -532,6 +532,20 @@ impl Component for GraphicEditor {
             e.prevent_default();
             GraphicEditorMsg::UnSelect
         });
+
+        let temp_json = serde_json::to_value((
+            inpins.clone(),
+            otpins.clone(),
+            component.clone(),
+            edges.clone(),
+            inputs.clone(),
+            otputs.clone(),
+        ))
+        .unwrap();
+
+        let on_drop_json = ctx
+            .link()
+            .callback(|json: serde_json::Value| GraphicEditorMsg::Load(json));
 
         let loc_vec = component
             .iter()
@@ -655,6 +669,8 @@ impl Component for GraphicEditor {
             <utils::view::InputText description={"remove otpins".to_string()} on_push_load_button={remove_otpins}/>
             // <button onclick={goto_test}> {"test"} </button>
             <utils::view::ButtonView on_click={goto_test} text={"test"}/>
+            <utils::view::JsonFileSaveView json_value={temp_json}/>
+            <utils::view::JsonFileReadView {on_drop_json}/>
             </div>
         }
     }
@@ -877,8 +893,19 @@ impl Component for GraphicEditor {
                     Err(err) => on_log.emit(format!("{err:?}")),
                 }
             }
-            _ => {
-                unimplemented!()
+            GraphicEditorMsg::Load(json) => {
+                let Ok((inpins, otpins, component, edges, inputs, otputs)): Result<
+                    AllPositions,
+                    _,
+                > = serde_json::from_value(json) else {
+                    return false;
+                };
+                self.inpins = inpins;
+                self.otpins = otpins;
+                self.component = component;
+                self.edges = edges;
+                self.inputs = inputs;
+                self.otputs = otputs;
             }
         }
         true
