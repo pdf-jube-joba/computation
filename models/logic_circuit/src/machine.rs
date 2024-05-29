@@ -504,11 +504,19 @@ impl FinGraph {
             .map(|i| (i.0.clone(), *self.get_input(&i.0).unwrap()))
             .collect()
     }
+    pub fn get_inpins_of_lc(&self, name: &Name) -> Option<Vec<(InPin, Bool)>> {
+        let lc = self.get_lc(name)?;
+        Some(lc.get_inpins())
+    }
     pub fn get_otpins(&self) -> Vec<(OtPin, Bool)> {
         self.otput
             .iter()
             .map(|o| (o.0.clone(), *self.get_otput(&o.0).unwrap()))
             .collect()
+    }
+    pub fn get_otpins_of_lc(&self, name: &Name) -> Option<Vec<(OtPin, Bool)>> {
+        let lc = self.get_lc(name)?;
+        Some(lc.get_otpins())
     }
     pub fn edges(&self) -> &Vec<((Name, OtPin), (Name, InPin))> {
         &self.edges

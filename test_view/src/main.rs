@@ -13,6 +13,7 @@ fn main() {
         on_log: Callback::from(|string| {
             utils::view::log(string);
         }),
+        maybe_initial_locpos: None,
     })
     .render();
 }

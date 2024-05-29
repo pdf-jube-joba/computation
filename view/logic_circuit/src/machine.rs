@@ -1227,14 +1227,20 @@ pub mod svg_lc {
         type Message = PlayGroundMsg;
         type Properties = PlayGroudProps;
         fn create(ctx: &Context<Self>) -> Self {
-            todo!()
+            Self {
+                state: PlayGroundState::Edit(None),
+            }
         }
         fn view(&self, ctx: &Context<Self>) -> Html {
             let logic_circuits_components = ctx.props().init_component.clone();
             match self.state.clone() {
                 PlayGroundState::Test(init_fingraph, init_pos_lc) => {
+                    let json_loc = serde_json::to_value(&init_fingraph).unwrap();
                     html! {
+                        <>
                         <FingraphMachine {init_fingraph} {init_pos_lc}/>
+                        <utils::view::JsonFileSaveView json_value={json_loc} />
+                        </>
                     }
                 }
                 PlayGroundState::Edit(maybe_initial_locpos) => {
@@ -1254,7 +1260,86 @@ pub mod svg_lc {
                     let PlayGroundState::Test(fingraph, pos) = self.state.clone() else {
                         unreachable!("不整合")
                     };
-                    todo!()
+                    let lcs = fingraph.get_lc_names();
+                    let name_to_num =
+                        |name: &Name| -> usize { lcs.iter().position(|n| n == name).unwrap() };
+                    let loc_positions: Vec<(usize, Pos, Ori)> = lcs
+                        .iter()
+                        .map(|name| {
+                            let pos_loc = pos.iter().position(|(name2, _)| name == name2).unwrap();
+                            (pos_loc, pos[pos_loc].1 .0, pos[pos_loc].1 .1)
+                        })
+                        .collect();
+                    let inpins: Vec<InPin> = fingraph
+                        .get_inpins()
+                        .into_iter()
+                        .map(|v| v.0)
+                        .collect::<Vec<_>>();
+                    let otpins: Vec<OtPin> = fingraph
+                        .get_otpins()
+                        .into_iter()
+                        .map(|v| v.0)
+                        .collect::<Vec<_>>();
+                    let loc_positions: Vec<(usize, Pos, Ori)> = lcs
+                        .iter()
+                        .map(|name| {
+                            let pos_loc = pos.iter().position(|(name2, _)| name == name2).unwrap();
+                            (pos_loc, pos[pos_loc].1 .0, pos[pos_loc].1 .1)
+                        })
+                        .collect();
+                    let edges: Vec<((usize, InPinNum), (usize, OtPinNum))> = fingraph
+                        .edges()
+                        .iter()
+                        .map(|(no, ni)| {
+                            let inpin_num = {
+                                let lc_inpins = fingraph.get_inpins_of_lc(&ni.0).unwrap();
+                                lc_inpins
+                                    .into_iter()
+                                    .position(|inpin| ni.1 == inpin.0)
+                                    .unwrap()
+                            };
+                            let otpin_num = {
+                                let lc_otpins = fingraph.get_otpins_of_lc(&no.0).unwrap();
+                                lc_otpins
+                                    .into_iter()
+                                    .position(|otpin| no.1 == otpin.0)
+                                    .unwrap()
+                            };
+                            (
+                                (name_to_num(&no.0), otpin_num),
+                                (name_to_num(&ni.0), inpin_num),
+                            )
+                        })
+                        .collect();
+                    let inputs: Vec<(InPinNum, (usize, InPinNum))> = inpins
+                        .iter()
+                        .enumerate()
+                        .map(|(k, i)| {
+                            let ni = fingraph.get_inpin_to_lc_inpin(i).unwrap();
+                            let lc_inpin_list = fingraph.get_inpins_of_lc(&ni.0).unwrap();
+                            let pos = lc_inpin_list
+                                .into_iter()
+                                .position(|inpin| inpin.0 == *i)
+                                .unwrap();
+                            (k, (name_to_num(&ni.0), pos))
+                        })
+                        .collect::<Vec<_>>();
+                    let otputs: Vec<(OtPinNum, (usize, OtPinNum))> = otpins
+                        .iter()
+                        .enumerate()
+                        .map(|(k, o)| {
+                            let no = fingraph.get_otpin_to_lc_otpin(o).unwrap();
+                            let lc_otpin_list = fingraph.get_otpins_of_lc(&no.0).unwrap();
+                            let pos = lc_otpin_list
+                                .into_iter()
+                                .position(|otpin| otpin.0 == *o)
+                                .unwrap();
+                            (k, (name_to_num(&no.0), pos))
+                        })
+                        .collect::<Vec<_>>();
+                    let allposition: AllPositions =
+                        (inpins, otpins, loc_positions, edges, inputs, otputs);
+                    self.state = PlayGroundState::Edit(Some(allposition));
                 }
                 PlayGroundMsg::GotoTest((loc, poss)) => {
                     self.state = PlayGroundState::Test(loc, poss);
