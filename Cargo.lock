@@ -1166,6 +1166,7 @@ dependencies = [
  "either",
  "gloo",
  "logic_circuit",
+ "serde",
  "serde_json",
  "utils",
  "wasm-bindgen",

@@ -525,6 +525,41 @@ pub mod svg {
         L,
     }
 
+    impl Ori {
+        pub fn rot_clockwise(&mut self) {
+            match &self {
+                Ori::U => {
+                    *self = Ori::L;
+                }
+                Ori::L => {
+                    *self = Ori::D;
+                }
+                Ori::D => {
+                    *self = Ori::R;
+                }
+                Ori::R => {
+                    *self = Ori::U;
+                }
+            }
+        }
+        pub fn rot_counterclockwise(&mut self) {
+            match &self {
+                Ori::U => {
+                    *self = Ori::R;
+                }
+                Ori::R => {
+                    *self = Ori::D;
+                }
+                Ori::D => {
+                    *self = Ori::L;
+                }
+                Ori::L => {
+                    *self = Ori::U;
+                }
+            }
+        }
+    }
+
     impl Display for Ori {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             let s = match self {
@@ -543,7 +578,9 @@ pub mod svg {
         pub diff: Diff,
         pub col: String,
         pub border: String,
+        #[prop_or_default]
         pub onmousedown: Callback<MouseEvent>,
+        #[prop_or_default]
         pub oncontextmenu: Callback<MouseEvent>,
     }
 
@@ -569,7 +606,11 @@ pub mod svg {
         pub rad: usize,
         pub col: String,
         pub border: String,
+        #[prop_or_default]
         pub onmousedown: Callback<MouseEvent>,
+        #[prop_or_default]
+        pub onmouseup: Callback<MouseEvent>,
+        
     }
 
     #[function_component(CircleView)]
