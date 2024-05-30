@@ -572,15 +572,70 @@ pub mod svg {
         }
     }
 
+    #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+    pub enum MoveMsg {
+        Select(Diff),
+        Move(Pos),
+        UnSelect,
+    }
+
+    pub struct MouseEventCallbacks {
+        pub onmousedown: Callback<MouseEvent>,
+        pub onmousemove: Callback<MouseEvent>,
+        pub onmouseup: Callback<MouseEvent>,
+        pub onmouseleave: Callback<MouseEvent>,
+    }
+
+    pub fn make_callback(pos: Pos, onmove: Callback<MoveMsg>) -> MouseEventCallbacks {
+        let onmovec = onmove.clone();
+        let onmousedown = Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            let diff = Diff(
+                e.client_x() as isize - pos.0 as isize,
+                e.client_y() as isize - pos.1 as isize,
+            );
+            onmovec.emit(MoveMsg::Select(diff))
+        });
+        let onmovec = onmove.clone();
+        let onmousemove = Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            let pos = Pos(e.client_x() as usize, e.client_y() as usize);
+            onmovec.emit(MoveMsg::Move(pos))
+        });
+        let onmovec = onmove.clone();
+        let onmouseup = Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            onmovec.emit(MoveMsg::UnSelect)
+        });
+        let onmouseleave = Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            onmove.emit(MoveMsg::UnSelect)
+        });
+        MouseEventCallbacks {
+            onmousedown,
+            onmousemove,
+            onmouseup,
+            onmouseleave,
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Properties)]
     pub struct RectProps {
         pub pos: Pos,
         pub diff: Diff,
         pub col: String,
         pub border: String,
-        #[prop_or_default]
+        #[prop_or(Callback::noop())]
         pub onmousedown: Callback<MouseEvent>,
-        #[prop_or_default]
+        #[prop_or(Callback::noop())]
+        pub onmousemove: Callback<MouseEvent>,
+        #[prop_or(Callback::noop())]
+        pub onmouseleave: Callback<MouseEvent>,
+        #[prop_or(Callback::noop())]
+        pub onmouseup: Callback<MouseEvent>,
+        #[prop_or(Callback::noop())]
+        pub onclick: Callback<MouseEvent>,
+        #[prop_or(Callback::noop())]
         pub oncontextmenu: Callback<MouseEvent>,
     }
 
@@ -592,11 +647,19 @@ pub mod svg {
             col,
             border,
             onmousedown,
+            onmousemove,
+            onmouseleave,
+            onmouseup,
+            onclick,
             oncontextmenu,
         }: &RectProps,
     ) -> Html {
+        let onmousedown = onmousedown.clone();
+        let onmouseup = onmouseup.clone();
+        let onclick = onclick.clone();
+        let oncontextmenu = oncontextmenu.clone();
         html! {
-            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {oncontextmenu}/>
+            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {onclick} {onmouseup} {onmousemove} {onmouseleave} {oncontextmenu}/>
         }
     }
 
@@ -606,11 +669,18 @@ pub mod svg {
         pub rad: usize,
         pub col: String,
         pub border: String,
-        #[prop_or_default]
+        #[prop_or(Callback::noop())]
         pub onmousedown: Callback<MouseEvent>,
-        #[prop_or_default]
+        #[prop_or(Callback::noop())]
+        pub onmousemove: Callback<MouseEvent>,
+        #[prop_or(Callback::noop())]
+        pub onmouseleave: Callback<MouseEvent>,
+        #[prop_or(Callback::noop())]
         pub onmouseup: Callback<MouseEvent>,
-        
+        #[prop_or(Callback::noop())]
+        pub onclick: Callback<MouseEvent>,
+        #[prop_or(Callback::noop())]
+        pub oncontextmenu: Callback<MouseEvent>,
     }
 
     #[function_component(CircleView)]
@@ -621,10 +691,15 @@ pub mod svg {
             col,
             border,
             onmousedown,
+            onmousemove,
+            onmouseleave,
+            onmouseup,
+            onclick,
+            oncontextmenu,
         }: &CircleProps,
     ) -> Html {
         html! {
-            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown}/>
+            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {onmouseup} {onmousemove} {onmouseleave} {onclick} {oncontextmenu}/>
         }
     }
 
