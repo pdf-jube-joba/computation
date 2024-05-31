@@ -252,14 +252,12 @@ fn lc_view(locprops: &LoCProps) -> Html {
     let diff = locprops.rect_diff();
     let text_pos: Pos = pos - Diff(LOC_TEXT_SIZE as isize, 0) * (name.len() / 2);
     let rot_clock = {
-        // let mut diff = diff;
-        // diff.refl_x();
-        // pos + diff / 2
-        pos
+        let mut diff = diff;
+        diff.refl_x();
+        pos + diff / 2
     };
     let rot_count = {
-        // pos + diff / 2
-        pos
+        pos + diff / 2
     };
     let rotate: String = format!(
         "rotate({}, {}, {})",
@@ -295,8 +293,8 @@ fn lc_view(locprops: &LoCProps) -> Html {
                     <OtPinView pos={locprops.otput_pos(&otpin).unwrap()} {state} otpin={otpin.clone()} {onclick}/>
                 }
             })}
-            // <CircleView pos={rot_clock} rad={PIN_RAD} col="white" border="black" onclick={onrotcounterclockwise} />
-            // <CircleView pos={rot_count} rad={PIN_RAD} col="white" border="black" onclick={onrotclockwise} />
+            <CircleView pos={rot_clock} rad={PIN_RAD} col="white" border="black" onclick={onrotcounterclockwise} />
+            <CircleView pos={rot_count} rad={PIN_RAD} col="white" border="black" onclick={onrotclockwise} />
             </g>
         </>
     }
