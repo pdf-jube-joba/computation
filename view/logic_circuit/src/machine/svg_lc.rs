@@ -27,7 +27,7 @@ const LOC_TEXT_SIZE: usize = 15;
 const INIT_INPIN_POS: Pos = Pos(50, 100);
 const INIT_OTPIN_POS: Pos = Pos(800, 100);
 
-const INPUTPIN_DIFF: Diff = Diff(20, 20);
+const INPUTPIN_DIFF: Diff = Diff(30, 30);
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 struct InPinProps {
@@ -180,38 +180,61 @@ struct LoCProps {
     onrotcounterclockwise: Callback<()>,
 }
 
+fn rot(mut diff: Diff, ori: Ori) -> Diff {
+    match ori {
+        Ori::U => diff,
+        Ori::D => -diff,
+        Ori::L => {
+            diff.rot_counterclockwise();
+            diff
+        }
+        Ori::R => {
+            diff.rot_clockwise();
+            diff
+        }
+    }
+}
+
 impl LoCProps {
     fn rect_diff(&self) -> Diff {
         let m = std::cmp::max(self.inputs.len(), self.otputs.len());
         Diff(WIDTH_LC as isize, (PIN_LEN * m) as isize)
     }
 
-    fn input_pos(&self, inpin: &InPin) -> Option<Pos> {
-        let k = self.inputs.iter().position(|i| &i.0 == inpin)?;
-        self.input_pos_fromnum(&k)
-    }
-
-    fn input_pos_fromnum(&self, inpinnum: &usize) -> Option<Pos> {
+    fn input_rowdiff_num(&self, inpinnum: &usize) -> Option<Diff> {
         if self.inputs.len() <= *inpinnum {
             return None;
         }
         let diff = Diff(0, PIN_LEN as isize) * *inpinnum;
-        Some(self.pos - self.rect_diff() / 2 + diff)
+        Some(-self.rect_diff() / 2 + diff)
     }
 
-    fn otput_pos(&self, otpin: &OtPin) -> Option<Pos> {
-        let k = self.otputs.iter().position(|o| &o.0 == otpin)?;
-        self.otput_pos_fromnum(&k)
+    fn input_pos_num(&self, inpinnum: &usize) -> Option<Pos> {
+        Some(self.pos + rot(self.input_rowdiff_num(inpinnum)?, self.ori))
     }
 
-    fn otput_pos_fromnum(&self, otpinnum: &usize) -> Option<Pos> {
+    fn input_pos(&self, inpin: &InPin) -> Option<Pos> {
+        let inpinnum = self.inputs.iter().position(|i| &i.0 == inpin)?;
+        Some(self.pos + rot(self.input_rowdiff_num(&inpinnum)?, self.ori))
+    }
+
+    fn otput_rowdiff_num(&self, otpinnum: &usize) -> Option<Diff> {
         if self.otputs.len() <= *otpinnum {
             return None;
         }
         let diff = Diff(0, PIN_LEN as isize) * *otpinnum;
         let mut diff_rect = self.rect_diff();
-        diff_rect.0 = -diff_rect.0;
-        Some(self.pos - diff_rect / 2 + diff)
+        diff_rect.refl_x();
+        Some(-diff_rect / 2 + diff)
+    }
+
+    fn otput_pos_num(&self, otpinnum: &usize) -> Option<Pos> {
+        Some(self.pos + rot(self.otput_rowdiff_num(otpinnum)?, self.ori))
+    }
+
+    fn otput_pos(&self, otpin: &OtPin) -> Option<Pos> {
+        let otpinnum = self.otputs.iter().position(|o| &o.0 == otpin)?;
+        Some(self.pos + rot(self.otput_rowdiff_num(&otpinnum)?, self.ori))
     }
 }
 
@@ -256,9 +279,7 @@ fn lc_view(locprops: &LoCProps) -> Html {
         diff.refl_x();
         pos + diff / 2
     };
-    let rot_count = {
-        pos + diff / 2
-    };
+    let rot_count = { pos + diff / 2 };
     let rotate: String = format!(
         "rotate({}, {}, {})",
         match ori {
@@ -281,7 +302,7 @@ fn lc_view(locprops: &LoCProps) -> Html {
                     onclick.emit(k);
                 });
                 html!{
-                    <InPinView pos={locprops.input_pos(&inpin).unwrap()} {state} inpin={inpin.clone()} {onclick}/>
+                    <InPinView pos={pos + locprops.input_rowdiff_num(&k).unwrap()} {state} inpin={inpin.clone()} {onclick}/>
                 }
             })}
             {for otputs.into_iter().enumerate().map(|(k, (otpin, state))|{
@@ -290,11 +311,11 @@ fn lc_view(locprops: &LoCProps) -> Html {
                     onclick.emit(k);
                 });
                 html!{
-                    <OtPinView pos={locprops.otput_pos(&otpin).unwrap()} {state} otpin={otpin.clone()} {onclick}/>
+                    <OtPinView pos={pos + locprops.otput_rowdiff_num(&k).unwrap()} {state} otpin={otpin.clone()} {onclick}/>
                 }
             })}
-            <CircleView pos={rot_clock} rad={PIN_RAD} col="white" border="black" onclick={onrotcounterclockwise} />
-            <CircleView pos={rot_count} rad={PIN_RAD} col="white" border="black" onclick={onrotclockwise} />
+            <CircleView pos={rot_count} rad={PIN_RAD} col="white" border="black" onclick={onrotcounterclockwise} />
+            <CircleView pos={rot_clock} rad={PIN_RAD} col="white" border="black" onclick={onrotclockwise} />
             </g>
         </>
     }
@@ -683,7 +704,7 @@ impl Component for GraphicEditor {
             .map(|k| {
                 let (i, (k, i1)) = allpositions.inputs_edge[k];
                 let pos_i = allpositions.inpins[i].clone();
-                let pos_i2 = loc_vec[k].input_pos_fromnum(&i1).unwrap();
+                let pos_i2 = loc_vec[k].input_pos_num(&i1).unwrap();
                 (pos_i, pos_i2)
             })
             .collect::<Vec<_>>();
@@ -692,7 +713,7 @@ impl Component for GraphicEditor {
             .map(|k| {
                 let (o, (k, o1)) = allpositions.otputs_edge[k];
                 let pos_o = allpositions.otpins[o].clone();
-                let pos_o2 = loc_vec[k].otput_pos_fromnum(&o1).unwrap();
+                let pos_o2 = loc_vec[k].otput_pos_num(&o1).unwrap();
                 (pos_o, pos_o2)
             })
             .collect::<Vec<_>>();
@@ -701,8 +722,8 @@ impl Component for GraphicEditor {
             .edges
             .iter()
             .map(|((ko, o), (ki, i))| {
-                let pos_o = loc_vec[*ko].otput_pos_fromnum(o).unwrap();
-                let pos_i = loc_vec[*ki].input_pos_fromnum(i).unwrap();
+                let pos_o = loc_vec[*ko].otput_pos_num(o).unwrap();
+                let pos_i = loc_vec[*ki].input_pos_num(i).unwrap();
                 (pos_o, pos_i)
             })
             .collect::<Vec<_>>();
@@ -972,6 +993,9 @@ impl Component for GraphicEditor {
                     _ => {}
                 }
                 self.state = State::None;
+            }
+            (_, State::SelectPin(_)) => {
+                return false;
             }
             (GraphicEditorMsg::GoToTest, State::None) => {
                 let GraphicEditorProps {
