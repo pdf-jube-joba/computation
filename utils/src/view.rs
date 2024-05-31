@@ -443,12 +443,25 @@ pub mod svg {
         pub fn rot_clockwise(&mut self) {
             *self = Diff(self.1, -self.0);
         }
+        pub fn refl_x(&mut self) {
+            *self = Diff(-self.0, self.1);
+        }
+        pub fn refl_y(&mut self) {
+            *self = Diff(self.0, -self.1);
+        }
     }
 
     impl Add<Diff> for Diff {
         type Output = Diff;
         fn add(self, rhs: Diff) -> Self::Output {
             Diff(self.0 + rhs.0, self.1 + rhs.1)
+        }
+    }
+
+    impl Sub<Diff> for Diff {
+        type Output = Diff;
+        fn sub(self, rhs: Diff) -> Self::Output {
+            Diff(self.0 - rhs.0, self.1 - rhs.1)
         }
     }
 
@@ -470,13 +483,6 @@ pub mod svg {
         type Output = Diff;
         fn neg(self) -> Self::Output {
             Diff(-self.0, -self.1)
-        }
-    }
-
-    impl Sub<Diff> for Diff {
-        type Output = Diff;
-        fn sub(self, rhs: Diff) -> Self::Output {
-            Diff(self.0 - rhs.0, self.1 - rhs.1)
         }
     }
 
@@ -637,6 +643,8 @@ pub mod svg {
         pub onclick: Callback<MouseEvent>,
         #[prop_or(Callback::noop())]
         pub oncontextmenu: Callback<MouseEvent>,
+        #[prop_or_default]
+        pub transparent: bool,
     }
 
     #[function_component(RectView)]
@@ -652,6 +660,7 @@ pub mod svg {
             onmouseup,
             onclick,
             oncontextmenu,
+            transparent,
         }: &RectProps,
     ) -> Html {
         let onmousedown = onmousedown.clone();
@@ -659,7 +668,7 @@ pub mod svg {
         let onclick = onclick.clone();
         let oncontextmenu = oncontextmenu.clone();
         html! {
-            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {onclick} {onmouseup} {onmousemove} {onmouseleave} {oncontextmenu}/>
+            <rect x={pos.0.to_string()} y={pos.1.to_string()} width={diff.0.to_string()} height={diff.1.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {onclick} {onmouseup} {onmousemove} {onmouseleave} {oncontextmenu} pointer-events={if *transparent {"none"} else {"auto"}}/>
         }
     }
 
@@ -681,6 +690,8 @@ pub mod svg {
         pub onclick: Callback<MouseEvent>,
         #[prop_or(Callback::noop())]
         pub oncontextmenu: Callback<MouseEvent>,
+        #[prop_or_default]
+        pub transparent: bool,
     }
 
     #[function_component(CircleView)]
@@ -696,10 +707,11 @@ pub mod svg {
             onmouseup,
             onclick,
             oncontextmenu,
+            transparent,
         }: &CircleProps,
     ) -> Html {
         html! {
-            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {onmouseup} {onmousemove} {onmouseleave} {onclick} {oncontextmenu}/>
+            <circle cx={pos.0.to_string()} cy={pos.1.to_string()} r={rad.to_string()} fill={col.to_string()} stroke={border.to_string()} {onmousedown} {onmouseup} {onmousemove} {onmouseleave} {onclick} {oncontextmenu} pointer-events={if *transparent {"none"} else {"auto"}}/>
         }
     }
 
@@ -708,12 +720,21 @@ pub mod svg {
         pub pos: Pos,
         pub text: String,
         pub size: usize,
+        #[prop_or_default]
+        pub transparent: bool,
     }
 
     #[function_component(TextView)]
-    pub fn text_view(TextProps { pos, text, size }: &TextProps) -> Html {
+    pub fn text_view(
+        TextProps {
+            pos,
+            text,
+            size,
+            transparent,
+        }: &TextProps,
+    ) -> Html {
         html! {
-            <text x={pos.0.to_string()} y={pos.1.to_string()} font-size={size.to_string()}> {text} </text>
+            <text x={pos.0.to_string()} y={pos.1.to_string()} font-size={size.to_string()} pointer-events={if *transparent {"none"} else {"auto"}}> {text} </text>
         }
     }
 
@@ -721,15 +742,23 @@ pub mod svg {
     pub struct PolyLineProps {
         pub vec: Vec<Pos>,
         pub col: String,
+        #[prop_or_default]
+        pub transparent: bool,
     }
 
     #[function_component(PolyLineView)]
-    pub fn path_view(PolyLineProps { vec, col }: &PolyLineProps) -> Html {
+    pub fn path_view(
+        PolyLineProps {
+            vec,
+            col,
+            transparent,
+        }: &PolyLineProps,
+    ) -> Html {
         let s = vec.iter().fold(String::new(), |string, vi| {
             format!("{string} {},{}", vi.0, vi.1)
         });
         html! {
-            <polyline points={s} fill="none" stroke={col.to_string()}/>
+            <polyline points={s} fill="none" stroke={col.to_string()} pointer-events={if *transparent {"none"} else {"auto"}}/>
         }
     }
 }

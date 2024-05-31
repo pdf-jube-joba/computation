@@ -55,7 +55,7 @@ fn inpin_view(props: &InPinProps) -> Html {
             border="black"
             onclick={Callback::from(move |_| onclick.emit(()))}
         />
-        <TextView pos={pos + Diff(PIN_RAD as isize , 0)} text={inpin.to_string()} size={PIN_TEXT_SIZE}/>
+        <TextView pos={pos + Diff(PIN_RAD as isize , 0)} text={inpin.to_string()} size={PIN_TEXT_SIZE} transparent={true}/>
         </>
     }
 }
@@ -86,7 +86,7 @@ fn inpin_view(props: &OtPinProps) -> Html {
             border="black"
             onclick={Callback::from(move |_| onclick.emit(()))}
         />
-        <TextView pos={pos + Diff(- ((otpin.len() * PIN_TEXT_SIZE) as isize), 0)} text={otpin.to_string()} size={PIN_TEXT_SIZE}/>
+        <TextView pos={pos + Diff(- ((otpin.len() * PIN_TEXT_SIZE) as isize), 0)} text={otpin.to_string()} size={PIN_TEXT_SIZE} transparent={true}/>
         </>
     }
 }
@@ -181,6 +181,11 @@ struct LoCProps {
 }
 
 impl LoCProps {
+    fn rect_diff(&self) -> Diff {
+        let m = std::cmp::max(self.inputs.len(), self.otputs.len());
+        Diff(WIDTH_LC as isize, (PIN_LEN * m) as isize)
+    }
+
     fn input_pos(&self, inpin: &InPin) -> Option<Pos> {
         let k = self.inputs.iter().position(|i| &i.0 == inpin)?;
         self.input_pos_fromnum(&k)
@@ -191,7 +196,7 @@ impl LoCProps {
             return None;
         }
         let diff = Diff(0, PIN_LEN as isize) * *inpinnum;
-        Some(self.pos - rot(self.rect_diff_row() / 2 - diff, self.ori))
+        Some(self.pos - self.rect_diff() / 2 + diff)
     }
 
     fn otput_pos(&self, otpin: &OtPin) -> Option<Pos> {
@@ -204,41 +209,9 @@ impl LoCProps {
             return None;
         }
         let diff = Diff(0, PIN_LEN as isize) * *otpinnum;
-        let mut diff_rect = self.rect_diff_row();
+        let mut diff_rect = self.rect_diff();
         diff_rect.0 = -diff_rect.0;
-        Some(self.pos - rot(diff_rect / 2 - diff, self.ori))
-    }
-
-    fn rect_lu(&self) -> Pos {
-        let m = std::cmp::max(self.inputs.len(), self.otputs.len());
-        let diff = Diff(WIDTH_LC as isize, (PIN_LEN * m) as isize);
-        self.pos - rot(diff / 2, self.ori)
-    }
-
-    fn rect_diff_row(&self) -> Diff {
-        let m = std::cmp::max(self.inputs.len(), self.otputs.len());
-        Diff(WIDTH_LC as isize, (PIN_LEN * m) as isize)
-    }
-
-    fn rect_diff(&self) -> Diff {
-        let m = std::cmp::max(self.inputs.len(), self.otputs.len());
-        let diff = Diff(WIDTH_LC as isize, (PIN_LEN * m) as isize);
-        rot(diff, self.ori)
-    }
-}
-
-fn rot(mut diff: Diff, ori: Ori) -> Diff {
-    match ori {
-        Ori::U => diff,
-        Ori::D => Diff(-diff.0, -diff.1),
-        Ori::L => {
-            diff.rot_counterclockwise();
-            diff
-        }
-        Ori::R => {
-            diff.rot_clockwise();
-            diff
-        }
+        Some(self.pos - diff_rect / 2 + diff)
     }
 }
 
@@ -267,12 +240,43 @@ fn lc_view(locprops: &LoCProps) -> Html {
         e.prevent_default();
         onrightclick.emit(());
     });
+    let onrotclockwise = Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+        onrotclockwise.emit(());
+    });
+    let onrotcounterclockwise = Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
+        onrotcounterclockwise.emit(());
+    });
     let name: String = format!("{name}");
+    let diff = locprops.rect_diff();
     let text_pos: Pos = pos - Diff(LOC_TEXT_SIZE as isize, 0) * (name.len() / 2);
+    let rot_clock = {
+        // let mut diff = diff;
+        // diff.refl_x();
+        // pos + diff / 2
+        pos
+    };
+    let rot_count = {
+        // pos + diff / 2
+        pos
+    };
+    let rotate: String = format!(
+        "rotate({}, {}, {})",
+        match ori {
+            Ori::U => 0,
+            Ori::D => 180,
+            Ori::R => 270,
+            Ori::L => 90,
+        },
+        pos.0,
+        pos.1
+    );
     html! {
         <>
-            <RectView pos={locprops.rect_lu()} diff={rot(locprops.rect_diff(), ori)} col={"lightgray".to_string()} border={"black".to_string()} {onmousedown} {onmousemove} {onmouseleave} {onmouseup} oncontextmenu={onrightclick}/>
-            <TextView pos={text_pos} text={name} size={LOC_TEXT_SIZE}/>
+            <g transform={rotate}>
+            <RectView pos={pos - diff / 2} {diff} col={"lightgray".to_string()} border={"black".to_string()} {onmousedown} {onmousemove} {onmouseleave} {onmouseup} oncontextmenu={onrightclick}/>
+                <TextView pos={text_pos} text={name} size={LOC_TEXT_SIZE} transparent={true}/>
             {for inputs.into_iter().enumerate().map(|(k, (inpin, state))|{
                 let onclick = onclickinpin.clone();
                 let onclick = Callback::from(move |_|{
@@ -291,8 +295,9 @@ fn lc_view(locprops: &LoCProps) -> Html {
                     <OtPinView pos={locprops.otput_pos(&otpin).unwrap()} {state} otpin={otpin.clone()} {onclick}/>
                 }
             })}
-            // <CircleView pos={locprops.rect_lu()} />
-            // <CircleView pos={locprops.rect_lu()} />
+            // <CircleView pos={rot_clock} rad={PIN_RAD} col="white" border="black" onclick={onrotcounterclockwise} />
+            // <CircleView pos={rot_count} rad={PIN_RAD} col="white" border="black" onclick={onrotclockwise} />
+            </g>
         </>
     }
 }
@@ -551,6 +556,7 @@ impl Component for FingraphMachine {
 
 type InPinNum = usize;
 type OtPinNum = usize;
+type LoCNum = usize;
 
 type PinVariant = Either<Either<InPinNum, (usize, InPinNum)>, Either<OtPinNum, (usize, OtPinNum)>>;
 
@@ -560,7 +566,7 @@ enum State {
     MoveLC(Diff),
     MoveInPin(Diff),
     MoveOtPin(Diff),
-    CopyLC(usize, Pos),
+    CopyLC(usize, Pos, Diff),
     SelectPin(PinVariant),
 }
 
@@ -569,9 +575,9 @@ pub struct AllPositions {
     inpins: Vec<(InPin, Pos)>,
     otpins: Vec<(OtPin, Pos)>,
     component: Vec<(usize, Pos, Ori)>,
-    edges: Vec<((usize, InPinNum), (usize, OtPinNum))>,
-    inputs_edge: Vec<(InPinNum, (usize, InPinNum))>,
-    otputs_edge: Vec<(OtPinNum, (usize, OtPinNum))>,
+    edges: Vec<((LoCNum, InPinNum), (LoCNum, OtPinNum))>,
+    inputs_edge: Vec<(InPinNum, (LoCNum, InPinNum))>,
+    otputs_edge: Vec<(OtPinNum, (LoCNum, OtPinNum))>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -594,7 +600,7 @@ pub enum GraphicEditorMsg {
     MoveOtput(usize, MoveMsg),
 
     SelectCopy(usize, Pos), // copy from tools
-    MoveCopy(MoveMsg),
+    MoveCopy(usize, MoveMsg),
 
     SelectPin(PinVariant), // click to connect pins
 
@@ -642,7 +648,7 @@ impl Component for GraphicEditor {
 
         let loc_vec = (0..allpositions.component.len())
             .map(|k| {
-                let (num, pos, ori) = allpositions.component[k].clone();
+                let (num, pos, ori) = allpositions.component[k];
                 let loc = &logic_circuits_components[num];
                 let inputs = loc.get_inpins();
                 let otputs = loc.get_otpins();
@@ -675,18 +681,18 @@ impl Component for GraphicEditor {
             })
             .collect::<Vec<_>>();
 
-        let inpins_edge = (0..allpositions.inpins.len())
+        let inpins_edge = (0..allpositions.inputs_edge.len())
             .map(|k| {
-                let (i, (k, i1)) = allpositions.inputs_edge[k].clone();
+                let (i, (k, i1)) = allpositions.inputs_edge[k];
                 let pos_i = allpositions.inpins[i].clone();
                 let pos_i2 = loc_vec[k].input_pos_fromnum(&i1).unwrap();
                 (pos_i, pos_i2)
             })
             .collect::<Vec<_>>();
 
-        let otpins_edge = (0..allpositions.otpins.len())
+        let otpins_edge = (0..allpositions.otputs_edge.len())
             .map(|k| {
-                let (o, (k, o1)) = allpositions.otputs_edge[k].clone();
+                let (o, (k, o1)) = allpositions.otputs_edge[k];
                 let pos_o = allpositions.otpins[o].clone();
                 let pos_o2 = loc_vec[k].otput_pos_fromnum(&o1).unwrap();
                 (pos_o, pos_o2)
@@ -703,28 +709,27 @@ impl Component for GraphicEditor {
             })
             .collect::<Vec<_>>();
 
-        let maybe_choose_copy: Html = {
-            if let State::CopyLC(k, pos) = state {
-                let loc = logic_circuits_components[k].clone();
-                let name = loc.get_name();
-                let inputs = loc.get_inpins();
-                let otputs = loc.get_otpins();
-                let onmovelc = ctx
-                    .link()
-                    .callback(|msg: MoveMsg| GraphicEditorMsg::MoveCopy(msg));
-                html! {
-                    <LoCView {pos} ori={Ori::U} {name} {inputs} {otputs} {onmovelc}/>
-                }
-            } else {
-                html! {}
-            }
-        };
-
         let width = (logic_circuits_components.len()) * COMP_LEN;
 
         html! {
             <div height="500" width="900" border="solid #000" overflow="scroll">
             <svg width={width.to_string()} height="500" viewBox={format!("0 0 {width} 500")}>
+                {
+                    for logic_circuits_components.clone().into_iter().enumerate().map(|(k, loc)|{
+                    let inputs = loc.get_inpins();
+                    let otputs = loc.get_otpins();
+                    let pos: Pos =
+                        match &self.state {
+                            State::CopyLC(k1, pos, diff) if k == *k1 => *pos - *diff,
+                            _ => Pos((k + 1) * COMP_LEN, COMP_LINE),
+                        };
+                    let onmovelc = ctx.link().callback(move |msg: MoveMsg|{
+                        GraphicEditorMsg::MoveCopy(k, msg)
+                    });
+                    html!{
+                        <LoCView name={loc.get_name()} {inputs} {otputs} {pos} ori={Ori::U} {onmovelc} />
+                    }
+                })}
                 {for loc_vec.into_iter().map(|locprop|{
                     let LoCProps { name, inputs, otputs, ori, pos, onmovelc, onclickinpin, onclickotpin, onrightclick, onrotclockwise, onrotcounterclockwise } = locprop;
                     html!{
@@ -768,21 +773,6 @@ impl Component for GraphicEditor {
                         <PolyLineView vec={vec![pos_o, pos_i]} col={colors::BOOL_F_COL}/>
                     }
                 })}
-                {for logic_circuits_components.clone().into_iter().enumerate().map(|(k, loc)|{
-                    let inputs = loc.get_inpins();
-                    let otputs = loc.get_otpins();
-                    let pos = Pos(k * COMP_LEN, COMP_LINE);
-                    let onmovelc = ctx.link().callback(move |msg: MoveMsg|{
-                        match msg {
-                            MoveMsg::Select(_) => GraphicEditorMsg::SelectCopy(k, pos),
-                            _ => GraphicEditorMsg::None,
-                        }
-                    });
-                    html!{
-                        <LoCView name={loc.get_name()} {inputs} {otputs} {pos} ori={Ori::U} {onmovelc} />
-                    }
-                })}
-                {maybe_choose_copy}
             </svg> <br/>
             <utils::view::InputText
                 description={"add inpins".to_string()}
@@ -821,8 +811,9 @@ impl Component for GraphicEditor {
         }
     }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        let prop = ctx.props();
+        log(format!("{msg:?} {:?}", self.state));
         match (msg, self.state.clone()) {
+            // pin add or remove
             (GraphicEditorMsg::AddInpin(inpin), State::None) => {
                 if self.allpositions.inpins.iter().any(|(i, _)| *i == inpin) {
                     return false;
@@ -841,14 +832,18 @@ impl Component for GraphicEditor {
             (GraphicEditorMsg::DeleteOtPin(otpin), State::None) => {
                 self.allpositions.otpins.retain(|o| o.0 != otpin);
             }
+            // do some on loc
             (GraphicEditorMsg::MoveLoC(k, MoveMsg::Select(diff)), State::None) => {
                 self.state = State::MoveLC(diff);
             }
             (GraphicEditorMsg::MoveLoC(k, MoveMsg::Move(pos)), State::MoveLC(diff)) => {
                 self.allpositions.component[k].1 = pos - diff;
             }
-            (GraphicEditorMsg::MoveLoC(k, MoveMsg::UnSelect), State::MoveLC(_)) => {
+            (GraphicEditorMsg::MoveLoC(_, MoveMsg::UnSelect), State::MoveLC(_)) => {
                 self.state = State::None;
+            }
+            (GraphicEditorMsg::MoveLoC(_, MoveMsg::Move(_) | MoveMsg::UnSelect), State::None) => {
+                return false;
             }
             (GraphicEditorMsg::RotClock(k), State::None) => {
                 self.allpositions.component[k].2.rot_clockwise();
@@ -859,16 +854,25 @@ impl Component for GraphicEditor {
             (GraphicEditorMsg::DeleteLoC(k), State::None) => {
                 self.allpositions.component.remove(k);
             }
-            (GraphicEditorMsg::SelectCopy(k, pos), State::None) => {
-                self.state = State::CopyLC(k, pos);
+            // do some on tools
+            (GraphicEditorMsg::MoveCopy(k, MoveMsg::Select(diff)), State::None) => {
+                self.state = State::CopyLC(k, Pos((k + 1) * COMP_LEN, COMP_LINE), diff);
             }
-            (GraphicEditorMsg::MoveCopy(MoveMsg::Move(pos)), State::CopyLC(k, _)) => {
-                self.state = State::CopyLC(k, pos);
+            (GraphicEditorMsg::MoveCopy(k, MoveMsg::Move(pos)), State::CopyLC(k1, _, diff))
+                if k == k1 =>
+            {
+                self.state = State::CopyLC(k, pos, diff);
             }
-            (GraphicEditorMsg::MoveCopy(MoveMsg::UnSelect), State::CopyLC(k, pos)) => {
+            (GraphicEditorMsg::MoveCopy(k, MoveMsg::UnSelect), State::CopyLC(k1, pos, diff))
+                if k == k1 =>
+            {
                 self.allpositions.component.push((k, pos, Ori::U));
                 self.state = State::None;
             }
+            (GraphicEditorMsg::MoveCopy(_, MoveMsg::Move(_) | MoveMsg::UnSelect), State::None) => {
+                return false;
+            }
+            // do some on inpin
             (GraphicEditorMsg::MoveInput(k, MoveMsg::Select(diff)), State::None) => {
                 self.state = State::MoveInPin(diff);
             }
@@ -878,14 +882,21 @@ impl Component for GraphicEditor {
             (GraphicEditorMsg::MoveInput(k, MoveMsg::UnSelect), State::MoveInPin(_)) => {
                 self.state = State::None;
             }
+            (GraphicEditorMsg::MoveInput(_, MoveMsg::Move(_) | MoveMsg::UnSelect), State::None) => {
+                return false;
+            }
+            // do some on otpin
             (GraphicEditorMsg::MoveOtput(k, MoveMsg::Select(diff)), State::None) => {
                 self.state = State::MoveOtPin(diff);
             }
             (GraphicEditorMsg::MoveOtput(k, MoveMsg::Move(pos)), State::MoveOtPin(diff)) => {
-                self.allpositions.inpins[k].1 = pos - diff;
+                self.allpositions.otpins[k].1 = pos - diff;
             }
             (GraphicEditorMsg::MoveOtput(k, MoveMsg::UnSelect), State::MoveOtPin(_)) => {
                 self.state = State::None;
+            }
+            (GraphicEditorMsg::MoveOtput(k, MoveMsg::Move(_) | MoveMsg::UnSelect), State::None) => {
+                return false;
             }
             (GraphicEditorMsg::SelectPin(pin), State::None) => {
                 // remove pin from edges
@@ -1077,6 +1088,9 @@ impl Component for GraphicEditor {
                 self.allpositions.edges = edges;
                 self.allpositions.inputs_edge = inputs_edge;
                 self.allpositions.otputs_edge = otputs_edge;
+            }
+            (GraphicEditorMsg::None, _) => {
+                return false;
             }
             (msg, state) => {
                 unreachable!("不整合 {:?}, {:?}", msg, state)
