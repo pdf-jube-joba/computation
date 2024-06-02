@@ -3,6 +3,7 @@ use logic_circuit_view::machine::svg_lc;
 
 fn main() {
     let maps = logic_circuit::example::examples()
+        .0
         .into_iter()
         .map(|i| i.1)
         .collect::<Vec<_>>();

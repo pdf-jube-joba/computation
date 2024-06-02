@@ -9,26 +9,55 @@ use pest::{iterators::Pair, Parser};
 #[grammar = "logic_circuit.pest"]
 struct Ps;
 
-// contains fundamental gate
-pub fn init_maps() -> HashMap<Name, LoC> {
-    let mut maps = HashMap::new();
-    maps.insert("NOT-T".into(), LoC::notgate(Bool::T));
-    maps.insert("NOT-F".into(), LoC::notgate(Bool::F));
-    maps.insert("AND-T".into(), LoC::andgate(Bool::T));
-    maps.insert("AND-F".into(), LoC::andgate(Bool::F));
-    maps.insert("OR-T".into(), LoC::orgate(Bool::T));
-    maps.insert("OR-F".into(), LoC::orgate(Bool::F));
-    maps.insert("CST-T".into(), LoC::cstgate(Bool::T));
-    maps.insert("CST-F".into(), LoC::cstgate(Bool::F));
-    maps.insert("BR-T".into(), LoC::brgate(Bool::T));
-    maps.insert("BR-F".into(), LoC::brgate(Bool::F));
-    maps.insert("END".into(), LoC::endgate());
-    maps.insert("DLY-T".into(), LoC::delaygate(Bool::T));
-    maps.insert("DLY-F".into(), LoC::delaygate(Bool::F));
-    maps
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct List(pub Vec<(Name, LoC)>);
+
+impl<T> From<T> for List
+where
+    T: IntoIterator<Item = (Name, LoC)>,
+{
+    fn from(value: T) -> Self {
+        List(value.into_iter().collect())
+    }
 }
 
-pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
+impl List {
+    pub fn get(&self, name: &Name) -> Option<&LoC> {
+        self.0
+            .iter()
+            .find_map(|v| if &v.0 == name { Some(&v.1) } else { None })
+    }
+    pub fn insert(&mut self, name_loc: (Name, LoC)) -> Option<()> {
+        if self.get(&name_loc.0).is_none() {
+            self.0.push(name_loc);
+            Some(())
+        } else {
+            None
+        }
+    }
+}
+
+// contains fundamental gate
+pub fn init_maps() -> List {
+    vec![
+        ("NOT-T".into(), LoC::notgate(Bool::T)),
+        ("NOT-F".into(), LoC::notgate(Bool::F)),
+        ("AND-T".into(), LoC::andgate(Bool::T)),
+        ("AND-F".into(), LoC::andgate(Bool::F)),
+        ("OR-T".into(), LoC::orgate(Bool::T)),
+        ("OR-F".into(), LoC::orgate(Bool::F)),
+        ("CST-T".into(), LoC::cstgate(Bool::T)),
+        ("CST-F".into(), LoC::cstgate(Bool::F)),
+        ("BR-T".into(), LoC::brgate(Bool::T)),
+        ("BR-F".into(), LoC::brgate(Bool::F)),
+        ("END".into(), LoC::endgate()),
+        ("DLY-T".into(), LoC::delaygate(Bool::T)),
+        ("DLY-F".into(), LoC::delaygate(Bool::F)),
+    ]
+    .into()
+}
+
+pub fn parse(code: &str, maps: &mut List) -> Result<()> {
     let lcs = Ps::parse(Rule::lcs, code)?;
     for lc in lcs {
         match lc.as_rule() {
@@ -68,7 +97,7 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
                 //     }
                 // }
                 let graphlc = LoC::new_graph(name.clone(), new_lcs, edges, inpins, otpin)?;
-                maps.insert(name, graphlc);
+                maps.insert((name, graphlc));
             }
             Rule::iterator => {
                 let IterParse {
@@ -82,7 +111,7 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
                     bail!("not found name {initlc}");
                 };
                 let iterlc = LoC::new_iter(name.clone(), initlc.clone(), next, prev)?;
-                maps.insert(name, iterlc);
+                maps.insert((name, iterlc));
             }
             _ => {
                 assert_eq!(lc.as_str(), "");
@@ -92,8 +121,7 @@ pub fn parse(code: &str, maps: &mut HashMap<Name, LoC>) -> Result<()> {
     Ok(())
 }
 
-pub fn parse_main_with_maps(code: &str, init_maps: &HashMap<Name, LoC>) -> Result<LoC> {
-    let mut maps = init_maps.clone();
+pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LoC> {
     parse(code, &mut maps)?;
     match maps.get(&"main".into()) {
         Some(lc) => Ok(lc.clone()),
@@ -102,7 +130,7 @@ pub fn parse_main_with_maps(code: &str, init_maps: &HashMap<Name, LoC>) -> Resul
 }
 
 pub fn parse_main(code: &str) -> Result<LoC> {
-    let mut maps: HashMap<Name, LoC> = init_maps();
+    let mut maps: List = init_maps();
     parse(code, &mut maps)?;
     match maps.get(&"main".into()) {
         Some(lc) => Ok(lc.clone()),
