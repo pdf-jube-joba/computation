@@ -14,12 +14,21 @@ mod colors {
     pub const BORDER: &str = "black";
 }
 
+const EDIT_WIDTH: usize = 900;
+const EDIT_HEIGHT: usize = 500;
+
+const ALL_HEIGHT: usize = EDIT_HEIGHT + COMP_LINE + 100;
+
 const WIDTH_LC: usize = 50;
 const PIN_LEN: usize = 25;
 const PIN_RAD: usize = 7;
 
-const COMP_LINE: usize = 400;
+const COMP_LINE: usize = 100;
 const COMP_LEN: usize = 100;
+
+fn k_th_comp_pos(k: usize) -> Pos {
+    Pos((k + 1) * COMP_LEN, COMP_LINE)
+}
 
 const PIN_TEXT_SIZE: usize = 8;
 const LOC_TEXT_SIZE: usize = 15;
@@ -731,8 +740,9 @@ impl Component for GraphicEditor {
         let width = (logic_circuits_components.len()) * COMP_LEN;
 
         html! {
-            <div height="500" width="900" border="solid #000" overflow="scroll">
-            <svg width={width.to_string()} height="500" viewBox={format!("0 0 {width} 500")}>
+            <>
+            <div width={EDIT_WIDTH.to_string()} height={ALL_HEIGHT.to_string()} border="solid #000" overflow="scroll">
+            <svg width={width.to_string()} height={ALL_HEIGHT.to_string()} viewBox={format!("0 0 {width} {ALL_HEIGHT}")}>
                 {
                     for logic_circuits_components.clone().into_iter().enumerate().map(|(k, loc)|{
                     let inputs = loc.get_inpins();
@@ -740,21 +750,25 @@ impl Component for GraphicEditor {
                     let pos: Pos =
                         match &self.state {
                             State::CopyLC(k1, pos, diff) if k == *k1 => *pos - *diff,
-                            _ => Pos((k + 1) * COMP_LEN, COMP_LINE),
+                            _ => k_th_comp_pos(k),
                         };
                     let onmovelc = ctx.link().callback(move |msg: MoveMsg|{
                         GraphicEditorMsg::MoveCopy(k, msg)
                     });
                     html!{
+                        <g transform={format!("translate({} {})", 0, EDIT_HEIGHT)}>
                         <LoCView name={loc.get_name()} {inputs} {otputs} {pos} ori={Ori::U} {onmovelc} />
+                        </g>
                     }
                 })}
-                {for loc_vec.into_iter().map(|locprop|{
-                    let LoCProps { name, inputs, otputs, ori, pos, onmovelc, onclickinpin, onclickotpin, onrightclick, onrotclockwise, onrotcounterclockwise } = locprop;
-                    html!{
-                        <LoCView {name} {inputs} {otputs} pos={pos} ori={ori} {onmovelc} {onclickinpin} {onclickotpin} {onrightclick} {onrotclockwise} {onrotcounterclockwise}/>
-                    }
-                })}
+                {
+                    for loc_vec.into_iter().map(|locprop|{
+                        let LoCProps { name, inputs, otputs, ori, pos, onmovelc, onclickinpin, onclickotpin, onrightclick, onrotclockwise, onrotcounterclockwise } = locprop;
+                        html!{
+                            <LoCView {name} {inputs} {otputs} pos={pos} ori={ori} {onmovelc} {onclickinpin} {onclickotpin} {onrightclick} {onrotclockwise} {onrotcounterclockwise}/>
+                        }
+                    })
+                }
                 {for allpositions.inpins.into_iter().enumerate().map(|(k, (inpin, pos))|{
                     let onclickinpin = ctx.link().callback(move |_|{
                         GraphicEditorMsg::SelectPin(Either::Left(Either::Left(k)))
@@ -792,7 +806,7 @@ impl Component for GraphicEditor {
                         <PolyLineView vec={vec![pos_o, pos_i]} col={colors::BOOL_F_COL}/>
                     }
                 })}
-            </svg> <br/>
+            </svg> </div> <br/>
             <utils::view::InputText
                 description={"add inpins".to_string()}
                 on_push_load_button={ctx
@@ -826,7 +840,7 @@ impl Component for GraphicEditor {
             <utils::view::JsonFileReadView
                 on_drop_json={ctx.link().callback(|json: serde_json::Value| GraphicEditorMsg::Load(json))}
             />
-            </div>
+            </>
         }
     }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -875,7 +889,7 @@ impl Component for GraphicEditor {
             }
             // do some on tools
             (GraphicEditorMsg::MoveCopy(k, MoveMsg::Select(diff)), State::None) => {
-                self.state = State::CopyLC(k, Pos((k + 1) * COMP_LEN, COMP_LINE), diff);
+                self.state = State::CopyLC(k, k_th_comp_pos(k), diff);
             }
             (GraphicEditorMsg::MoveCopy(k, MoveMsg::Move(pos)), State::CopyLC(k1, _, diff))
                 if k == k1 =>
