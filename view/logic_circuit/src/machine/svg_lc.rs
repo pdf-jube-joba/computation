@@ -17,6 +17,9 @@ mod colors {
 const EDIT_WIDTH: usize = 900;
 const EDIT_HEIGHT: usize = 500;
 
+const VIEW_WIDTH: usize = 900;
+const VIEW_HEIGHT: usize = 900;
+
 const ALL_HEIGHT: usize = EDIT_HEIGHT + COMP_LINE + 100;
 
 const WIDTH_LC: usize = 50;
@@ -451,8 +454,8 @@ pub fn actlc_view(actlocprops: &ActLoCProps) -> Html {
     };
 
     html! {
-        <div height="500" width="900" border="solid #000" overflow="scroll">
-        <svg width="1500" height="500" viewBox="0 0 1500 500">
+        <div width="900" height={VIEW_HEIGHT.to_string()} border="solid #000" overflow="scroll">
+        <svg width="1500" height={VIEW_HEIGHT.to_string()} viewBox={format!("0 0 {VIEW_WIDTH} {VIEW_HEIGHT}")}>
         {for actlocprops.poslc.iter().map(|(name, _)|{
             let LoCProps { name, inputs, otputs, ori, pos, onmovelc, onclickinpin, onclickotpin, onrightclick, onrotclockwise, onrotcounterclockwise } = actlocprops.get_lc_props(name).unwrap();
             html!{
