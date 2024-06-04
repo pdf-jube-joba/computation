@@ -340,7 +340,7 @@ pub struct ActLoCProps {
 }
 
 impl ActLoCProps {
-    fn new(
+    pub fn new(
         fingraph: FinGraph,
         inpins: Vec<Pos>,
         otpins: Vec<Pos>,
@@ -603,7 +603,7 @@ pub struct AllPositions {
     inpins: Vec<(InPin, Pos)>,
     otpins: Vec<(OtPin, Pos)>,
     component: Vec<(usize, Pos, Ori)>,
-    edges: Vec<((LoCNum, InPinNum), (LoCNum, OtPinNum))>,
+    edges: Vec<((LoCNum, OtPinNum), (LoCNum, InPinNum))>,
     inputs_edge: Vec<(InPinNum, (LoCNum, InPinNum))>,
     otputs_edge: Vec<(OtPinNum, (LoCNum, OtPinNum))>,
 }
@@ -644,7 +644,7 @@ pub enum GraphicEditorMsg {
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct GraphicEditorProps {
     pub logic_circuits_components: Vec<LoC>,
-    pub on_goto_test: Callback<(FinGraph, Vec<(Name, (Pos, Ori))>, Vec<Pos>, Vec<Pos>)>,
+    pub on_goto_test: Callback<AllPositions>,
     pub on_log: Callback<String>,
     pub maybe_initial_locpos: Option<AllPositions>,
 }
@@ -860,10 +860,32 @@ impl Component for GraphicEditor {
                 self.allpositions.otpins.push((otpin, INIT_OTPIN_POS));
             }
             (GraphicEditorMsg::DeleteInPin(inpin), State::None) => {
-                self.allpositions.inpins.retain(|i| i.0 != inpin);
+                let Some(inpin_num) = self
+                    .allpositions
+                    .inpins
+                    .iter()
+                    .position(|(i, _)| i == &inpin)
+                else {
+                    return false;
+                };
+                self.allpositions.inpins.remove(inpin_num);
+                self.allpositions
+                    .inputs_edge
+                    .retain(|(i, _)| i != &inpin_num);
             }
             (GraphicEditorMsg::DeleteOtPin(otpin), State::None) => {
-                self.allpositions.otpins.retain(|o| o.0 != otpin);
+                let Some(otpin_num) = self
+                    .allpositions
+                    .otpins
+                    .iter()
+                    .position(|(o, _)| o == &otpin)
+                else {
+                    return false;
+                };
+                self.allpositions.otpins.remove(otpin_num);
+                self.allpositions
+                    .otputs_edge
+                    .retain(|(o, _)| o != &otpin_num);
             }
             // do some on loc
             (GraphicEditorMsg::MoveLoC(k, MoveMsg::Select(diff)), State::None) => {
@@ -886,6 +908,11 @@ impl Component for GraphicEditor {
             }
             (GraphicEditorMsg::DeleteLoC(k), State::None) => {
                 self.allpositions.component.remove(k);
+                self.allpositions.inputs_edge.retain(|(_, (n, _))| n != &k);
+                self.allpositions.otputs_edge.retain(|(_, (n, _))| n != &k);
+                self.allpositions
+                    .edges
+                    .retain(|((n1, _), (n2, _))| n1 != &k && n2 != &k);
             }
             // do some on tools
             (GraphicEditorMsg::MoveCopy(k, MoveMsg::Select(diff)), State::None) => {
@@ -1018,93 +1045,7 @@ impl Component for GraphicEditor {
                     on_log,
                     maybe_initial_locpos: _,
                 } = ctx.props();
-                let lcs: Vec<(Name, LoC)> = self
-                    .allpositions
-                    .component
-                    .iter()
-                    .enumerate()
-                    .map(|(k, (num, _, _))| {
-                        (
-                            format!("{k}").into(),
-                            logic_circuits_components[*num].clone(),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                let edges: Vec<((Name, OtPin), (Name, InPin))> = self
-                    .allpositions
-                    .edges
-                    .iter()
-                    .map(|((ko, o), (ki, i))| {
-                        let i: InPin = {
-                            let inpins = lcs[*ki].1.get_inpins();
-                            inpins[*i].0.clone()
-                        };
-                        let o: OtPin = {
-                            let otpins = lcs[*ko].1.get_otpins();
-                            otpins[*o].0.clone()
-                        };
-                        ((format!("{ko}").into(), o), (format!("{ki}").into(), i))
-                    })
-                    .collect::<Vec<_>>();
-                let input: Vec<(InPin, (Name, InPin))> = self
-                    .allpositions
-                    .inputs_edge
-                    .iter()
-                    .cloned()
-                    .map(|(i, (n, inpin))| {
-                        let i: InPin = self.allpositions.inpins[i].0.clone();
-                        let inpin: InPin = {
-                            let inpins = lcs[n].1.get_inpins();
-                            inpins[inpin].0.clone()
-                        };
-                        (i, (format!("{n}").into(), inpin))
-                    })
-                    .collect::<Vec<_>>();
-                let otput: Vec<(OtPin, (Name, OtPin))> = self
-                    .allpositions
-                    .otputs_edge
-                    .iter()
-                    .cloned()
-                    .map(|(o, (n, otpin))| {
-                        let o: OtPin = self.allpositions.otpins[o].0.clone();
-                        let otpin: OtPin = {
-                            let otpins = lcs[n].1.get_otpins();
-                            otpins[otpin].0.clone()
-                        };
-                        (o, (format!("{n}").into(), otpin))
-                    })
-                    .collect::<Vec<_>>();
-                utils::view::log(format!("{lcs:?} {edges:?} {input:?} {otput:?}"));
-                let loc = LoC::new_graph("new".into(), lcs, edges, input, otput);
-                let lcs_pos_ori: Vec<(Name, (Pos, Ori))> = self
-                    .allpositions
-                    .component
-                    .iter()
-                    .map(|(n, p, o)| (format!("{n}").into(), (*p, *o)))
-                    .collect();
-                let inpins_pos: Vec<Pos> = self
-                    .allpositions
-                    .inpins
-                    .iter()
-                    .map(|(_, pos)| *pos)
-                    .collect();
-                let otpins_pos: Vec<Pos> = self
-                    .allpositions
-                    .otpins
-                    .iter()
-                    .map(|(_, pos)| *pos)
-                    .collect();
-                match loc {
-                    Ok(loc) => {
-                        on_goto_test.emit((
-                            loc.take_fingraph().unwrap(),
-                            lcs_pos_ori,
-                            inpins_pos,
-                            otpins_pos,
-                        ));
-                    }
-                    Err(err) => on_log.emit(format!("{err:?}")),
-                }
+                on_goto_test.emit(self.allpositions.clone());
             }
             (GraphicEditorMsg::Load(json), State::None) => {
                 let Ok(AllPositions {
@@ -1136,6 +1077,194 @@ impl Component for GraphicEditor {
     }
 }
 
+fn construct_fingraph_and_pos(
+    allpositions: &AllPositions,
+    logic_circuits_components: &Vec<LoC>,
+) -> Result<(FinGraph, Vec<(Name, (Pos, Ori))>, Vec<Pos>, Vec<Pos>)> {
+    let (lcs, lcs_pos_ori): (Vec<(Name, LoC)>, Vec<(Name, (Pos, Ori))>) = {
+        let (mut lcs, mut lcs_pos_ori) = (vec![], vec![]);
+        for (k, (num, pos, ori)) in allpositions.component.iter().cloned().enumerate() {
+            lcs.push((
+                format!("{k}").into(),
+                logic_circuits_components[num].clone(),
+            ));
+            lcs_pos_ori.push((format!("{k}").into(), (pos, ori)))
+        }
+        (lcs, lcs_pos_ori)
+    };
+    let edges: Vec<((Name, OtPin), (Name, InPin))> = allpositions
+        .edges
+        .iter()
+        .map(|((ko, o), (ki, i))| {
+            let i: InPin = {
+                let inpins = lcs[*ki].1.get_inpins();
+                inpins[*i].0.clone()
+            };
+            let o: OtPin = {
+                let otpins = lcs[*ko].1.get_otpins();
+                otpins[*o].0.clone()
+            };
+            ((format!("{ko}").into(), o), (format!("{ki}").into(), i))
+        })
+        .collect::<Vec<_>>();
+    let (input_edges, inpin_pos): (Vec<(InPin, (Name, InPin))>, Vec<Pos>) = {
+        let (mut input_edges, mut inpin_pos) = (vec![], vec![]);
+        for (inpin_num, (inpin, pos)) in allpositions.inpins.iter().cloned().enumerate() {
+            let Some(ni) = allpositions.inputs_edge.iter().find_map(|(i, ni)| {
+                if *i == inpin_num {
+                    Some(ni)
+                } else {
+                    None
+                }
+            }) else {
+                bail!("not found inpin {} in input_edges", inpin);
+            };
+            let (n, i) = {
+                let inpins_of_lc = lcs[ni.0].1.get_inpins();
+                let inpin_of_lc = inpins_of_lc[ni.1].0.clone();
+                (format!("{}", ni.0).into(), inpin_of_lc)
+            };
+            input_edges.push((inpin, (n, i)));
+            inpin_pos.push(pos);
+        }
+        (input_edges, inpin_pos)
+    };
+    let (otput_edges, otpin_pos): (Vec<(OtPin, (Name, OtPin))>, Vec<Pos>) = {
+        let (mut otput_edges, mut otpin_pos) = (vec![], vec![]);
+        for (otpin_num, (otpin, pos)) in allpositions.otpins.iter().cloned().enumerate() {
+            let Some(no) = allpositions.otputs_edge.iter().find_map(|(o, no)| {
+                if *o == otpin_num {
+                    Some(no)
+                } else {
+                    None
+                }
+            }) else {
+                bail!("not found otpin {} in otput_edges", otpin);
+            };
+            let (n, o) = {
+                let otpins_of_lc = lcs[no.0].1.get_otpins();
+                let otpin_of_lc = otpins_of_lc[no.1].0.clone();
+                (format!("{}", no.0).into(), otpin_of_lc)
+            };
+            otput_edges.push((otpin, (n, o)));
+            otpin_pos.push(pos);
+        }
+        (otput_edges, otpin_pos)
+    };
+    let fingraph = LoC::new_graph("test".into(), lcs, edges, input_edges, otput_edges)?;
+    let fingraph = fingraph.take_fingraph().unwrap();
+    Ok((fingraph, lcs_pos_ori, inpin_pos, otpin_pos))
+}
+
+fn construct_positions_from_fingraph(
+    fingraph: &FinGraph,
+    lcs_pos: Vec<(Name, (Pos, Ori))>,
+    inpin_pos: Vec<Pos>,
+    otpin_pos: Vec<Pos>,
+    logic_circuit_component: &mut Vec<LoC>,
+) -> AllPositions {
+    let lcs = fingraph.get_lc_names();
+    let name_to_num = |name: &Name| -> usize { lcs.iter().position(|n| n == name).unwrap() };
+    let inpins: Vec<(InPin, Pos)> = fingraph
+        .get_inpins()
+        .into_iter()
+        .map(|v| v.0)
+        .zip(inpin_pos)
+        .collect::<Vec<_>>();
+    let otpins: Vec<(OtPin, Pos)> = fingraph
+        .get_otpins()
+        .into_iter()
+        .map(|v| v.0)
+        .zip(otpin_pos)
+        .collect::<Vec<_>>();
+    let component: Vec<(usize, Pos, Ori)> = lcs
+        .iter()
+        .map(|name| {
+            let lc = fingraph.get_lc(name).unwrap();
+            let pos_loc = lcs_pos.iter().position(|(n, _)| n == name).unwrap();
+            let k = logic_circuit_component
+                .iter()
+                .position(|lc_tool| {
+                    if lc.get_name() == lc_tool.get_name() {
+                        lc.get_otpins() == lc_tool.get_otpins()
+                    } else {
+                        false
+                    }
+                });
+            match k {
+                Some(k) => (k, lcs_pos[pos_loc].1 .0, lcs_pos[pos_loc].1 .1),
+                None => {
+                    log("new!");
+                    logic_circuit_component.push(lc.clone());
+                    (
+                        logic_circuit_component.len() - 1,
+                        lcs_pos[pos_loc].1 .0,
+                        lcs_pos[pos_loc].1 .1,
+                    )
+                }
+            }
+        })
+        .collect();
+    let edges: Vec<((usize, OtPinNum), (usize, InPinNum))> = fingraph
+        .edges()
+        .iter()
+        .map(|(no, ni)| {
+            let inpin_num = {
+                let lc_inpins = fingraph.get_inpins_of_lc(&ni.0).unwrap();
+                lc_inpins
+                    .into_iter()
+                    .position(|inpin| ni.1 == inpin.0)
+                    .unwrap()
+            };
+            let otpin_num = {
+                let lc_otpins = fingraph.get_otpins_of_lc(&no.0).unwrap();
+                lc_otpins
+                    .into_iter()
+                    .position(|otpin| no.1 == otpin.0)
+                    .unwrap()
+            };
+            (
+                (name_to_num(&no.0), otpin_num),
+                (name_to_num(&ni.0), inpin_num),
+            )
+        })
+        .collect();
+    let inputs_edge: Vec<(InPinNum, (usize, InPinNum))> = inpins
+        .iter()
+        .enumerate()
+        .map(|(k, (i, _))| {
+            let ni = fingraph.get_inpin_to_lc_inpin(i).unwrap();
+            let lc_inpin_list = fingraph.get_inpins_of_lc(&ni.0).unwrap();
+            let pos = lc_inpin_list
+                .into_iter()
+                .position(|inpin| inpin.0 == ni.1)
+                .unwrap();
+            (k, (name_to_num(&ni.0), pos))
+        })
+        .collect::<Vec<_>>();
+    let otputs_edge: Vec<(OtPinNum, (usize, OtPinNum))> = otpins
+        .iter()
+        .enumerate()
+        .map(|(k, (o, _))| {
+            let no = fingraph.get_otpin_to_lc_otpin(o).unwrap();
+            let lc_otpin_list = fingraph.get_otpins_of_lc(&no.0).unwrap();
+            let pos = lc_otpin_list
+                .into_iter()
+                .position(|otpin| otpin.0 == no.1)
+                .unwrap();
+            (k, (name_to_num(&no.0), pos))
+        })
+        .collect::<Vec<_>>();
+    AllPositions {
+        inpins,
+        otpins,
+        component,
+        edges,
+        inputs_edge,
+        otputs_edge,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlayGroundState {
     Test(FinGraph, Vec<(Name, (Pos, Ori))>, Vec<Pos>, Vec<Pos>),
@@ -1145,12 +1274,13 @@ pub enum PlayGroundState {
 #[derive(Debug, Clone, PartialEq)]
 
 pub struct PlayGround {
+    component: Vec<LoC>,
     state: PlayGroundState,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlayGroundMsg {
-    GotoTest((FinGraph, Vec<(Name, (Pos, Ori))>, Vec<Pos>, Vec<Pos>)),
+    GotoTest(AllPositions),
     GotoEdit(),
 }
 
@@ -1163,12 +1293,14 @@ impl Component for PlayGround {
     type Message = PlayGroundMsg;
     type Properties = PlayGroudProps;
     fn create(ctx: &Context<Self>) -> Self {
+        let component = ctx.props().init_component.clone();
         Self {
+            component,
             state: PlayGroundState::Edit(None),
         }
     }
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let logic_circuits_components = ctx.props().init_component.clone();
+        let logic_circuits_components = self.component.clone();
         match self.state.clone() {
             PlayGroundState::Test(init_fingraph, init_pos_lc, init_pos_inpins, init_pos_otpins) => {
                 let json_loc = serde_json::to_value(&init_fingraph).unwrap();
@@ -1182,8 +1314,7 @@ impl Component for PlayGround {
             }
             PlayGroundState::Edit(maybe_initial_locpos) => {
                 let on_log = Callback::from(|string: String| log(string));
-                let on_goto_test: Callback<(FinGraph, _, _, _)> =
-                    ctx.link().callback(PlayGroundMsg::GotoTest);
+                let on_goto_test: Callback<_> = ctx.link().callback(PlayGroundMsg::GotoTest);
                 html! {
                     <GraphicEditor {on_goto_test} {on_log} {logic_circuits_components} {maybe_initial_locpos}/>
                 }
@@ -1193,95 +1324,31 @@ impl Component for PlayGround {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             PlayGroundMsg::GotoEdit() => {
-                let PlayGroundState::Test(fingraph, pos, inpins_pos, otpins_pos) =
+                let PlayGroundState::Test(fingraph, lcs_pos, inpin_pos, otpin_pos) =
                     self.state.clone()
                 else {
                     unreachable!("不整合")
                 };
-                let lcs = fingraph.get_lc_names();
-                let name_to_num =
-                    |name: &Name| -> usize { lcs.iter().position(|n| n == name).unwrap() };
-                let inpins: Vec<(InPin, Pos)> = fingraph
-                    .get_inpins()
-                    .into_iter()
-                    .map(|v| v.0)
-                    .zip(inpins_pos)
-                    .collect::<Vec<_>>();
-                let otpins: Vec<(OtPin, Pos)> = fingraph
-                    .get_otpins()
-                    .into_iter()
-                    .map(|v| v.0)
-                    .zip(otpins_pos)
-                    .collect::<Vec<_>>();
-                let component: Vec<(usize, Pos, Ori)> = lcs
-                    .iter()
-                    .map(|name| {
-                        let pos_loc = pos.iter().position(|(name2, _)| name == name2).unwrap();
-                        (pos_loc, pos[pos_loc].1 .0, pos[pos_loc].1 .1)
-                    })
-                    .collect();
-                let edges: Vec<((usize, InPinNum), (usize, OtPinNum))> = fingraph
-                    .edges()
-                    .iter()
-                    .map(|(no, ni)| {
-                        let inpin_num = {
-                            let lc_inpins = fingraph.get_inpins_of_lc(&ni.0).unwrap();
-                            lc_inpins
-                                .into_iter()
-                                .position(|inpin| ni.1 == inpin.0)
-                                .unwrap()
-                        };
-                        let otpin_num = {
-                            let lc_otpins = fingraph.get_otpins_of_lc(&no.0).unwrap();
-                            lc_otpins
-                                .into_iter()
-                                .position(|otpin| no.1 == otpin.0)
-                                .unwrap()
-                        };
-                        (
-                            (name_to_num(&no.0), otpin_num),
-                            (name_to_num(&ni.0), inpin_num),
-                        )
-                    })
-                    .collect();
-                let inputs_edge: Vec<(InPinNum, (usize, InPinNum))> = inpins
-                    .iter()
-                    .enumerate()
-                    .map(|(k, (i, _))| {
-                        let ni = fingraph.get_inpin_to_lc_inpin(i).unwrap();
-                        let lc_inpin_list = fingraph.get_inpins_of_lc(&ni.0).unwrap();
-                        let pos = lc_inpin_list
-                            .into_iter()
-                            .position(|inpin| inpin.0 == *i)
-                            .unwrap();
-                        (k, (name_to_num(&ni.0), pos))
-                    })
-                    .collect::<Vec<_>>();
-                let otputs_edge: Vec<(OtPinNum, (usize, OtPinNum))> = otpins
-                    .iter()
-                    .enumerate()
-                    .map(|(k, (o, _))| {
-                        let no = fingraph.get_otpin_to_lc_otpin(o).unwrap();
-                        let lc_otpin_list = fingraph.get_otpins_of_lc(&no.0).unwrap();
-                        let pos = lc_otpin_list
-                            .into_iter()
-                            .position(|otpin| otpin.0 == *o)
-                            .unwrap();
-                        (k, (name_to_num(&no.0), pos))
-                    })
-                    .collect::<Vec<_>>();
-                let allposition = AllPositions {
-                    inpins,
-                    otpins,
-                    component,
-                    edges,
-                    inputs_edge,
-                    otputs_edge,
-                };
+                let allposition = construct_positions_from_fingraph(
+                    &fingraph,
+                    lcs_pos,
+                    inpin_pos,
+                    otpin_pos,
+                    &mut self.component,
+                );
+                log(format!("{fingraph:?} {allposition:?}"));
                 self.state = PlayGroundState::Edit(Some(allposition));
             }
-            PlayGroundMsg::GotoTest((loc, pos, inputs_pos, otputs_pos)) => {
-                self.state = PlayGroundState::Test(loc, pos, inputs_pos, otputs_pos);
+            PlayGroundMsg::GotoTest(allpositions) => {
+                let res = construct_fingraph_and_pos(&allpositions, &self.component);
+                match res {
+                    Ok((loc, lcs_pos, inputs_pos, otputs_pos)) => {
+                        self.state = PlayGroundState::Test(loc, lcs_pos, inputs_pos, otputs_pos);
+                    }
+                    Err(err) => {
+                        log(format!("{err:?}"));
+                    }
+                }
             }
         }
         true

@@ -401,7 +401,7 @@ pub struct FinGraph {
 
 impl FinGraph {
     fn new(
-        lcs: Vec<(Name, LoC)>,
+        mut lcs: Vec<(Name, LoC)>,
         edges: Vec<((Name, OtPin), (Name, InPin))>,
         input: Vec<(InPin, (Name, InPin))>,
         otput: Vec<(OtPin, (Name, OtPin))>,
@@ -472,6 +472,22 @@ impl FinGraph {
             if let Some((o, _)) = v.into_iter().find(|(_, b)| *b) {
                 bail!("unused inpins in name: {n} otpin: {o}")
             }
+        }
+
+        for (no, ni) in edges.iter() {
+            let ob: Bool = *lcs
+                .iter_mut()
+                .find_map(|(n, lc)| if n == &no.0 { Some(lc) } else { None })
+                .unwrap()
+                .get_otput(&no.1)
+                .unwrap();
+            let ib: &mut Bool = lcs
+                .iter_mut()
+                .find_map(|(n, lc)| if n == &ni.0 { Some(lc) } else { None })
+                .unwrap()
+                .getmut_input(&ni.1)
+                .unwrap();
+            *ib = ob;
         }
 
         Ok(Self {
