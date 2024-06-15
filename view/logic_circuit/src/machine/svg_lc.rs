@@ -335,11 +335,11 @@ fn lc_view(locprops: &LoCProps) -> Html {
 
 #[derive(Debug, Clone, PartialEq, Properties)]
 pub struct ActLoCProps {
-    fingraph: FinGraph,
-    inpins: Vec<Pos>,
-    otpins: Vec<Pos>,
-    poslc: Vec<(Name, (Pos, Ori))>,
-    on_inpin_clicks: Callback<InPin>,
+    pub fingraph: FinGraph,
+    pub inpins: Vec<Pos>,
+    pub otpins: Vec<Pos>,
+    pub poslc: Vec<(Name, (Pos, Ori))>,
+    pub on_inpin_clicks: Callback<InPin>,
 }
 
 impl ActLoCProps {

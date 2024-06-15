@@ -13,3 +13,4 @@ web-sys = { workspace = true }
 anyhow = { workspace = true }
 logic_circuit = { path = "../../../models/logic_circuit" }
 logic_circuit_view = { path = "../../../view/logic_circuit" }
+utils = { path = "../../../utils" }
