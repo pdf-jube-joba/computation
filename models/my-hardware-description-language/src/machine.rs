@@ -236,13 +236,28 @@ fn typeable_val(
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SimpleStateModule {
     state_type: ValueType,
-    state: Value,
     input_type: ValueType,
     otput_type: ValueType,
-    comb_func: CombExpVal,
+    initial_state: Value,
+    comp: CombExpVal,
 }
 
 impl SimpleStateModule {
+    fn new() -> Self {
+        todo!()
+    }
+    fn build(&self) -> SimpleStateModuleState {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SimpleStateModuleState {
+    state: Value,
+    comb_func: CombExpVal,
+}
+
+impl SimpleStateModuleState {
     fn get_next(&self, mod_env: &Vec<CombModule>, input: Value) -> Result<(Value, Value), Error> {
         let v = eval_to_val(
             mod_env,
@@ -257,14 +272,43 @@ impl SimpleStateModule {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum GeneralModule {
     Graph(Box<GraphStateModule>),
     Iter(Box<IterStateModule>),
 }
 
-pub struct GraphStateModule {}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GeneralModuleState {
+    Graph(Box<GraphStateModuleState>),
+    Iter(Box<IterStateModuleState>),
+}
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GraphStateModule {
+    state_types_and_initial: Vec<(String, ValueType, Value)>,
+    inputs: (String, ValueType),
+    edges: CombExpVal,
+    otputs: (String, ValueType),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GraphStateModuleState {
+    names: Vec<String>,
+    states: Vec<(usize, Value)>,
+    inputs: usize,
+    edges: CombExpVal,
+    otputs: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IterStateModule {
     state_type: ValueType,
-    state: GeneralModule,
+    initial_state: Value,
+
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct IterStateModuleState {
+    state: Value,
 }
