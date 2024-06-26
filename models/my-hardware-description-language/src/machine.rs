@@ -5,7 +5,7 @@ use either::Either::{self, Left, Right};
 use utils::{bool::Bool, number::Number};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum ValueType {
+pub enum ValueType {
     Bit,
     Array(Number, Box<ValueType>),
     Strct(Vec<(String, ValueType)>),
@@ -13,11 +13,21 @@ enum ValueType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum Value {
+pub enum Value {
     Bit(Bool),
     Array(Vec<Value>),
     Strct(Vec<(String, Value)>),
     Enume(String),
+}
+
+impl Value {
+    pub fn get_field_of_value(&self, str: &str) -> Option<&Value> {
+        let Value::Strct(v) = self else {
+            return None;
+        };
+        v.iter()
+            .find_map(|(s, v)| if *s == str { Some(v) } else { None })
+    }
 }
 
 fn typable_value(value: &Value, type_expect: &ValueType) -> Result<(), Error> {
@@ -224,91 +234,155 @@ fn eval_to_val(
     }
 }
 
-fn typeable_val(
-    mod_env: &Vec<CombModule>,
-    var_env: &Vec<(String, Value)>,
-    value: &Value,
-    value_type: &ValueType,
-) -> Result<(), Error> {
-    todo!()
-}
+// fn typeable_val(
+//     mod_env: &Vec<CombModule>,
+//     var_env: &Vec<(String, Value)>,
+//     value: &Value,
+//     value_type: &ValueType,
+// ) -> Result<(), Error> {
+//     todo!()
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SimpleStateModule {
-    state_type: ValueType,
+pub struct CodeEnv {
+    code: CombExpVal,
+    mod_env: Vec<CombModule>,
+}
+
+const FIELD_IN: &str = "IN";
+const FIELD_OUT: &str = "OUT";
+
+const FIELD_SIMPLE_PREV_STATE: &str = "PREV";
+const FIELD_SIMPLE_NEXT_STATE: &str = "NEXT";
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SimpleModule {
+    state_type_and_init: (Value, ValueType),
     input_type: ValueType,
     otput_type: ValueType,
-    initial_state: Value,
     comp: CombExpVal,
 }
 
-impl SimpleStateModule {
+impl SimpleModuleState {
     fn new() -> Self {
         todo!()
     }
-    fn build(&self) -> SimpleStateModuleState {
+    fn build(&self) -> SimpleModuleState {
         todo!()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SimpleStateModuleState {
+pub struct SimpleModuleState {
     state: Value,
-    comb_func: CombExpVal,
+    comb_func: CodeEnv,
+    otput: Value,
 }
 
-impl SimpleStateModuleState {
-    fn get_next(&self, mod_env: &Vec<CombModule>, input: Value) -> Result<(Value, Value), Error> {
+impl SimpleModuleState {
+    fn next(&mut self, input: Value) -> Result<(), Error> {
         let v = eval_to_val(
-            mod_env,
+            &self.comb_func.mod_env,
             &vec![
-                ("IN".to_string(), input),
-                ("PREV".to_string(), self.state.clone()),
+                (FIELD_IN.to_string(), input),
+                (FIELD_SIMPLE_PREV_STATE.to_string(), self.state.clone()),
             ],
-            &self.comb_func,
+            &self.comb_func.code,
         )?;
-        // Ok(v)
-        todo!()
+        let Some(next) = v.get_field_of_value(FIELD_SIMPLE_NEXT_STATE) else {
+            bail!("field {FIELD_SIMPLE_NEXT_STATE} is not found");
+        };
+        let Some(out) = v.get_field_of_value(FIELD_OUT) else {
+            bail!("field {FIELD_OUT} is not found");
+        };
+        self.state = next.clone();
+        self.otput = out.clone();
+        Ok(())
+    }
+    fn now_out(&self) -> &Value {
+        &self.otput
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum GeneralModule {
-    Graph(Box<GraphStateModule>),
-    Iter(Box<IterStateModule>),
+    Simple(Box<SimpleModule>),
+    Graph(Box<GraphModule>),
+    Iter(Box<IterModule>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum GeneralModuleState {
-    Graph(Box<GraphStateModuleState>),
-    Iter(Box<IterStateModuleState>),
+    Simple(Box<SimpleModuleState>),
+    Graph(Box<GraphModuleState>),
+    Iter(Box<IterModuleState>),
+}
+
+impl GeneralModuleState {
+    fn next(&mut self, input: Value) -> Result<(), Error> {
+        todo!()
+    }
+    fn now_out(&self) -> &Value {
+        todo!()
+    }
+}
+
+const FIELD_GRAPH_NEXT_STATE: &str = "NEXT";
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GraphModule {
+    state_name_machines: Vec<(String, GeneralModule)>,
+    input_type: ValueType,
+    otput_type: ValueType,
+    comb: CombExpVal,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct GraphStateModule {
-    state_types_and_initial: Vec<(String, ValueType, Value)>,
-    inputs: (String, ValueType),
-    edges: CombExpVal,
-    otputs: (String, ValueType),
+pub struct GraphModuleState {
+    states: Vec<(String, GeneralModuleState)>,
+    comb: CodeEnv,
+    otput: Value,
+}
+
+impl GraphModuleState {
+    fn next(&mut self, input: Value) -> Result<(), Error> {
+        // let mut vars = vec![];
+        // for (n, s) in &self.states {
+        //     vars.push((n.to_string(), s.now_out().clone()));
+        // }
+        // vars.push((FIELD_IN.to_string(), input));
+
+        // let v = eval_to_val(
+        //     &self.comb.mod_env,
+        //     &vars,
+        //     &self.comb.code,
+        // )?;
+        // let Some(next) = v.get_field_of_value(FIELD_GRAPH_NEXT_STATE) else {
+        //     bail!("field {FIELD_GRAPH_NEXT_STATE} is not found");
+        // };
+        // let Some(out) = v.get_field_of_value(FIELD_OUT) else {
+        //     bail!("field {FIELD_OUT} is not found");
+        // };
+        // for (n, s) in &mut self.states {
+        //     let Some(next_value) = next.get_field_of_value(&n) else {
+        //         bail!("not found field {n} in {FIELD_GRAPH_NEXT_STATE}")
+        //     };
+        // }
+        // self.otput = out.clone();
+        // Ok(())
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct GraphStateModuleState {
-    names: Vec<String>,
-    states: Vec<(usize, Value)>,
-    inputs: usize,
-    edges: CombExpVal,
-    otputs: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct IterStateModule {
+pub struct IterModule {
     state_type: ValueType,
     initial_state: Value,
-
+    conn: CombExpVal,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct IterStateModuleState {
+pub struct IterModuleState {
     state: Value,
+    conn: CombExpVal,
 }
