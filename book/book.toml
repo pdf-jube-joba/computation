@@ -12,6 +12,7 @@ build-dir = "./out/book"
 after = ["links"]
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
+macros = "macros.txt"
 
 [preprocessor.trunk-build-preprocessor]
 component-name = "component"

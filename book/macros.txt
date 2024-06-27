@@ -1,0 +1,3 @@
+\SET:{\text{Set}}
+\function:{\to}
+\partfunction:{\rightharpoonup}
