@@ -277,10 +277,15 @@ pub struct SimpleModuleState {
     state: Value,
     comb_func: CodeEnv,
     otput: Value,
+    next_state: Value,
 }
 
 impl SimpleModuleState {
-    fn next(&mut self, input: Value) -> Result<(), Error> {
+    fn get_otput(&self) -> &Value {
+        &self.otput
+    }
+    fn clock(&mut self, input: Value) -> Result<(), Error> {
+        self.state = self.next_state.clone();
         let v = eval_to_val(
             &self.comb_func.mod_env,
             &vec![
@@ -295,12 +300,9 @@ impl SimpleModuleState {
         let Some(out) = v.get_field_of_value(FIELD_OUT) else {
             bail!("field {FIELD_OUT} is not found");
         };
-        self.state = next.clone();
+        self.next_state = next.clone();
         self.otput = out.clone();
         Ok(())
-    }
-    fn now_out(&self) -> &Value {
-        &self.otput
     }
 }
 
@@ -319,10 +321,10 @@ pub enum GeneralModuleState {
 }
 
 impl GeneralModuleState {
-    fn next(&mut self, input: Value) -> Result<(), Error> {
+    fn get_otput(&self) -> &Value {
         todo!()
     }
-    fn now_out(&self) -> &Value {
+    fn clock(&mut self, input: Value) -> Result<(), Error> {
         todo!()
     }
 }
@@ -339,38 +341,47 @@ pub struct GraphModule {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GraphModuleState {
-    states: Vec<(String, GeneralModuleState)>,
+    states_machines: Vec<(String, GeneralModuleState)>,
     comb: CodeEnv,
     otput: Value,
+    next_loop: Vec<Value>,
 }
 
 impl GraphModuleState {
-    fn next(&mut self, input: Value) -> Result<(), Error> {
-        // let mut vars = vec![];
-        // for (n, s) in &self.states {
-        //     vars.push((n.to_string(), s.now_out().clone()));
-        // }
-        // vars.push((FIELD_IN.to_string(), input));
+    fn get_otput(&self) -> &Value {
+        &self.otput
+    }
+    fn clock(&mut self, input: Value) -> Result<(), Error> {
+        let mut vars = vec![];
+        for (i, (s, sm)) in self.states_machines.iter_mut().enumerate() {
+            vars.push((s.clone(), sm.get_otput().clone()));
+            sm.clock(self.next_loop[i].clone())?;
+        }
 
-        // let v = eval_to_val(
-        //     &self.comb.mod_env,
-        //     &vars,
-        //     &self.comb.code,
-        // )?;
-        // let Some(next) = v.get_field_of_value(FIELD_GRAPH_NEXT_STATE) else {
-        //     bail!("field {FIELD_GRAPH_NEXT_STATE} is not found");
-        // };
-        // let Some(out) = v.get_field_of_value(FIELD_OUT) else {
-        //     bail!("field {FIELD_OUT} is not found");
-        // };
-        // for (n, s) in &mut self.states {
-        //     let Some(next_value) = next.get_field_of_value(&n) else {
-        //         bail!("not found field {n} in {FIELD_GRAPH_NEXT_STATE}")
-        //     };
-        // }
-        // self.otput = out.clone();
-        // Ok(())
-        todo!()
+        vars.push(("IN".to_string(), input));
+
+        let nv = eval_to_val(&self.comb.mod_env, &vars, &self.comb.code)?;
+
+        let Some(out) = nv.get_field_of_value("OUT") else {
+            bail!("field OUT not found")
+        };
+
+        let Some(next) = nv.get_field_of_value("NEXT") else {
+            bail!("field NEXT not found")
+        };
+
+        let mut next_loop = vec![];
+
+        for (s, _) in &self.states_machines {
+            let Some(next_s) = next.get_field_of_value(s) else {
+                bail!("field {s} not found in NEXT")
+            };
+            next_loop.push(next_s.clone());
+        }
+
+        self.next_loop = next_loop;
+
+        Ok(())
     }
 }
 
@@ -378,11 +389,22 @@ impl GraphModuleState {
 pub struct IterModule {
     state_type: ValueType,
     initial_state: Value,
-    conn: CombExpVal,
+    comb: CombExpVal,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IterModuleState {
-    state: Value,
-    conn: CombExpVal,
+    state_machines: Vec<GeneralModuleState>,
+    comb: CodeEnv,
+    otput: Value,
+    next_loop: Vec<Value>,
+}
+
+impl IterModuleState {
+    fn get_otput(&self) -> &Value {
+        &self.otput
+    }
+    fn clock(&self, input: Value) -> Result<(), Error> {
+        todo!()
+    }
 }
