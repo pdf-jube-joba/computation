@@ -1,3 +1,8 @@
 \SET:{\text{Set}}
 \function:{\to}
 \partfunction:{\rightharpoonup}
+
+\String:{\mathbb{S}}
+\Bool:{\mathbb{B}}
+\true:{\top}
+\false:{\bot}
