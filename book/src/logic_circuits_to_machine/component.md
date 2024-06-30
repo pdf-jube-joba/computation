@@ -37,6 +37,6 @@
 一般的な手法として、状態を持つ部分を D FlipFlop を並列にした「レジスタ」に押し込め、ほかの部分は組み合わせ回路を用いて実現するというのがある。
 
 ミスった。
-mealy machine と moore machine について書く。
+mealy machine と moore machine について考える。
 
 TODO 図を書く。
