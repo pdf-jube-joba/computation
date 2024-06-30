@@ -31,12 +31,18 @@
 たいていの場合はクロックは周期的に0と1を切り替わる。
 
 ## ステートマシンの論理回路による実現
-ここでいうステートマシンとは、\((S: \SET, I: \SET, O: \SET, s_0: S, \delta: S \times I \partfunction S times O)\) のこととする。
-普通の論理回路自体をステートマシンとみなすことは簡単だが、
+ここでいうステートマシンとは、
+状態を持ち、入力を受け取って状態を変化させ出力を行うもののことである。
+これの定式化はいくつかある。
+- Mealy machine
+    - \((S: \SET, I: \SET, O: \SET, s_0: S, \delta: S \times I \partfunction S times O)\) のこととする。
+    - これは出力が入力と現在の状態に依存する
+- Moore machine
+    - \((S: \SET, I: \SET, O: \SET, s_0: S, \delta: S \times I \partfunction S, \delta_O: S \function O)\)
+    - これは出力が現在の状態にのみ依存する。
+
+普通の論理回路自体を Mealy 型のステートマシンとみなすことは簡単だが、
 ステートマシンを論理回路へ変換するほうをやりたい。
 一般的な手法として、状態を持つ部分を D FlipFlop を並列にした「レジスタ」に押し込め、ほかの部分は組み合わせ回路を用いて実現するというのがある。
 
-ミスった。
-mealy machine と moore machine について考える。
-
-TODO 図を書く。
+- [ ] TODO 図を書く。
