@@ -2,6 +2,7 @@
 \function:{\to}
 \partfunction:{\rightharpoonup}
 
+\Nat:{\mathbb{N}}
 \String:{\mathbb{S}}
 \Bool:{\mathbb{B}}
 \true:{\top}
