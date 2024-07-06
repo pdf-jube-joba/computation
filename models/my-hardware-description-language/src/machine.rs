@@ -251,16 +251,15 @@ pub struct CodeEnv {
 
 const FIELD_IN: &str = "IN";
 const FIELD_OUT: &str = "OUT";
-
-const FIELD_SIMPLE_PREV_STATE: &str = "PREV";
-const FIELD_SIMPLE_NEXT_STATE: &str = "NEXT";
+const FIELD_STATE: &str = "STATE";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SimpleModule {
     state_type_and_init: (Value, ValueType),
     input_type: ValueType,
     otput_type: ValueType,
-    comp: CombExpVal,
+    trans_func: CombExpVal,
+    otput_func: CombExpVal,
 }
 
 impl SimpleModuleState {
@@ -275,33 +274,31 @@ impl SimpleModuleState {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SimpleModuleState {
     state: Value,
-    comb_func: CodeEnv,
-    otput: Value,
-    next_state: Value,
+    trans_func: CodeEnv,
+    otput_func: CodeEnv,
 }
 
 impl SimpleModuleState {
-    fn get_otput(&self) -> &Value {
-        &self.otput
+    fn now_state(&self) -> Value {
+        self.state.clone()
+    }
+    fn get_otput(&self) -> Result<Value, Error> {
+        eval_to_val(
+            &self.otput_func.mod_env,
+            &vec![(FIELD_STATE.to_string(), self.state.clone())],
+            &self.otput_func.code,
+        )
     }
     fn clock(&mut self, input: Value) -> Result<(), Error> {
-        self.state = self.next_state.clone();
-        let v = eval_to_val(
-            &self.comb_func.mod_env,
+        let state = eval_to_val(
+            &self.trans_func.mod_env,
             &vec![
                 (FIELD_IN.to_string(), input),
-                (FIELD_SIMPLE_PREV_STATE.to_string(), self.state.clone()),
+                (FIELD_STATE.to_string(), self.state.clone()),
             ],
-            &self.comb_func.code,
+            &self.trans_func.code,
         )?;
-        let Some(next) = v.get_field_of_value(FIELD_SIMPLE_NEXT_STATE) else {
-            bail!("field {FIELD_SIMPLE_NEXT_STATE} is not found");
-        };
-        let Some(out) = v.get_field_of_value(FIELD_OUT) else {
-            bail!("field {FIELD_OUT} is not found");
-        };
-        self.next_state = next.clone();
-        self.otput = out.clone();
+        self.state = state;
         Ok(())
     }
 }
@@ -321,10 +318,13 @@ pub enum GeneralModuleState {
 }
 
 impl GeneralModuleState {
-    fn get_otput(&self) -> &Value {
+    pub fn now_state(&self) -> Value {
         todo!()
     }
-    fn clock(&mut self, input: Value) -> Result<(), Error> {
+    pub fn get_otput(&self) -> Result<Value, Error> {
+        todo!()
+    }
+    pub fn clock(&mut self, input: Value) -> Result<(), Error> {
         todo!()
     }
 }
@@ -336,50 +336,49 @@ pub struct GraphModule {
     state_name_machines: Vec<(String, GeneralModule)>,
     input_type: ValueType,
     otput_type: ValueType,
-    comb: CombExpVal,
+    trans_func: CombExpVal,
+    otput_func: CombExpVal,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GraphModuleState {
     states_machines: Vec<(String, GeneralModuleState)>,
-    comb: CodeEnv,
-    otput: Value,
-    next_loop: Vec<Value>,
+    trans_func: CodeEnv,
+    otput_func: CodeEnv,
 }
 
 impl GraphModuleState {
-    fn get_otput(&self) -> &Value {
-        &self.otput
+    fn now_state(&self) -> Value {
+        let vars = self
+            .states_machines
+            .iter()
+            .map(|(s, sm)| (s.to_string(), sm.now_state()))
+            .collect();
+        Value::Strct(vars)
+    }
+    fn get_otput(&self) -> Result<Value, Error> {
+        let vars = self
+            .states_machines
+            .iter()
+            .map(|(s, sm)| -> Result<(String, Value), Error> {
+                Ok((s.to_string(), sm.get_otput()?))
+            })
+            .collect::<Result<_, _>>()?;
+        eval_to_val(&self.trans_func.mod_env, &vars, &self.trans_func.code)
     }
     fn clock(&mut self, input: Value) -> Result<(), Error> {
-        let mut vars = vec![];
-        for (i, (s, sm)) in self.states_machines.iter_mut().enumerate() {
-            vars.push((s.clone(), sm.get_otput().clone()));
-            sm.clock(self.next_loop[i].clone())?;
+        let mut vars = vec![(FIELD_IN.to_string(), input)];
+        for (s, sm) in &self.states_machines {
+            vars.push((s.to_string(), sm.get_otput()?));
         }
+        let v = eval_to_val(&self.trans_func.mod_env, &vars, &self.trans_func.code)?;
 
-        vars.push(("IN".to_string(), input));
-
-        let nv = eval_to_val(&self.comb.mod_env, &vars, &self.comb.code)?;
-
-        let Some(out) = nv.get_field_of_value("OUT") else {
-            bail!("field OUT not found")
-        };
-
-        let Some(next) = nv.get_field_of_value("NEXT") else {
-            bail!("field NEXT not found")
-        };
-
-        let mut next_loop = vec![];
-
-        for (s, _) in &self.states_machines {
-            let Some(next_s) = next.get_field_of_value(s) else {
-                bail!("field {s} not found in NEXT")
+        for (s, sm) in &mut self.states_machines {
+            let Some(next_in) = v.get_field_of_value(s) else {
+                bail!("field {s} not found")
             };
-            next_loop.push(next_s.clone());
+            sm.clock(next_in.clone())?;
         }
-
-        self.next_loop = next_loop;
 
         Ok(())
     }
@@ -387,24 +386,41 @@ impl GraphModuleState {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IterModule {
-    state_type: ValueType,
-    initial_state: Value,
-    comb: CombExpVal,
+    state_machine: GeneralModule,
+    trans_func: CombExpVal,
+    input_func: CombExpVal,
+    otput_func: CombExpVal,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IterModuleState {
+    init_state_machine: GeneralModuleState,
     state_machines: Vec<GeneralModuleState>,
-    comb: CodeEnv,
-    otput: Value,
-    next_loop: Vec<Value>,
+    trans_func: CodeEnv,
+    input_func: CodeEnv,
+    otput_func: CodeEnv,
 }
 
 impl IterModuleState {
-    fn get_otput(&self) -> &Value {
-        &self.otput
+    fn get_otput(&self) -> Result<Value, Error> {
+        let o = self.state_machines[0].get_otput()?;
+        eval_to_val(
+            &self.otput_func.mod_env,
+            &vec![(FIELD_STATE.to_string(), o)],
+            &self.otput_func.code,
+        )
     }
     fn clock(&self, input: Value) -> Result<(), Error> {
+        let s = eval_to_val(
+            &self.input_func.mod_env,
+            &vec![(FIELD_IN.to_string(), input)],
+            &self.input_func.code,
+        )?;
+        let otputs: Vec<Value> = self
+            .state_machines
+            .iter()
+            .map(|sm| sm.get_otput())
+            .collect::<Result<_, _>>()?;
         todo!()
     }
 }
