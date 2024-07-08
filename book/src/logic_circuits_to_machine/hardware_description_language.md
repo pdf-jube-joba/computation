@@ -39,8 +39,10 @@
 組み合わせ回路の内部で別の組み合わせ回路を呼び出すことができるので、その意味論には現在宣言されている組み合わせ回路の一覧が必要になる。
 また、変数を扱うためその宣言についての環境も必要である。
 それを踏まえると意味は次のように与えることができる。
+ここで、 CombEnv は List \((\String, \text{Exp})\) のこととする。
+
 - 組み合わせ回路の意味
-  - \(\text{eval-comb}\): List \((\String, \text{Exp})\) \(\times\) List \((\text{Variable}, \text{Value})\) \(\times\) \(\text{Exp}\) \(\partfunction\) \(\text{Value}\) := \(\text{eval-comb} E G e |->\)
+  - \(\text{eval-comb}\): CombEnv \(\times\) List \((\text{Variable}, \text{Value})\) \(\times\) \(\text{Exp}\) \(\partfunction\) \(\text{Value}\) := \(\text{eval-comb} E G e |->\)
     - \(v\) if
       - \(v\) = \(e\) where \(v: \text{Value}\)
     - \(v\) if
@@ -97,21 +99,44 @@
 そしたら、組み合わせ回路の宣言自体は次のようになる。
 - \(s\): `comb` (`IN`: \(t_I\)`;` `OUT`: \(t_O\)) \(e\) where \(s: \String, t_I, t_O: \text{Type}, e: \text{Exp}\)
 
-順序回路の記述はステートマシンを用いるが、
+順序回路の記述は Moore 型のステートマシンを用いるが、
 ステートマシンの記述は
 - 新たに作る
 - すでにあるものを合成する
 - 繰り返しにより合成する
 の \(3\) つを用意する。
-ステートマシンはここでは次の組とする。
-- 初期状態: \(\text{Value}
-- 遷移関数: \(\text{Value} \times \text{Value} \partfunction \text{Value} \times \text{Value})\)
+ステートマシンは入力と出力は \(\text{Value}\) とし、状態は構成に応じて定義する。
+つまりステートマシンは
+- 状態の全体 (\(S\)): Set
+- 初期状態: \(S\)
+- 遷移関数: \(S times \text{Value} \partfunction S\)
+- 出力計算: \(S\ partfunction \text{Value}\)
 
-単純ステートマシンの記述
-- \(s\): `state` (`IN`: \(t_I\)`;` `STATE`: \((v: t_S)\)`;`, `OUT`: \(t_O\)) \(e\) where \(s: \String, t_I, t_S, t_O: \text{Type}, e: \text{Exp}, v: \text{Value}\)
-- 意味論 ... \(\text{toSM}\): List \((\String, \text{Exp})\) \(\times\) \((\text{Value}, \text{Exp})\) \(\partfunction\) ステートマシン := \(\text{toSM} E (v, e) |->\)
-  - 初期状態 := \(v\)
-  - 遷移状態 := \((s, i) |-> (v_s, v_O)\)
-    - \(\text{eval-comb} E [("IN", i), ("STATE", s)] e = {"OUT": v_O, "STATE": v_s}\)
+ステートマシンとその名称の組のリスト \((\String, \text{SM})\) を SMEnv と書くことにする。
+
+単純ステートマシン
+- 記述
+  - \(s\): `state` (`IN`: \(t_I\)`;` `STATE`: \((v_0: t_S)\)`;`, `OUT`: \(t_O\)) `transition=`\(e_1\)`;` `output`=\(e_2\)`;` where \(s: \String, t_I, t_S, t_O: \text{Type}, e_i: \text{Exp}, v_0: \text{Value}\)
+  - つまり単純ステートマシン SimpSM は \((\String, \text{Value}, \text{Exp}, \text{Exp})\) のこと
+- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) SimpSM \(\partfunction\) ステートマシン := \(\text{toSM} E S (s, v, e_1, e_2) |->\)
+  - 状態の全体は \(\text{Value}\) 
+  - 初期状態 := \(v_0\)
+  - 遷移関数 := \((v, i) |-> v^\prime\) where
+    - \(\text{eval-comb} E [("IN", i), ("STATE", v)] e_1 = v^\prime\)
+  - 出力計算 := \(v |-> o\) where
+    - \(\text{eval-comb} E [("STATE", v)] e_2 = o\)
+  - \(s\) はこの後の他のマシン宣言時に使う、 \(S\) は参照しない。
+
+とても再帰的な定義になっているちゃんと書くのがめんどくさい。
+
+ステートマシンのグラフによる構成
+- 記述
+  - \(s\): `graph` (`IN`: \(t_I\)`;` `MACHINE`: \((s_1: N_1, ..., s_n: N_n)\)`;`, `OUT`: \(t_O\)) `transition=`\(e_1\)`;` `output`=\(e_2\)`;` where \(s: \String, t_I, t_S, t_O: \text{Type}, e_i: \text{Exp}, v_0: \text{Value}\)
+  - つまりグラフ構成 GraphSM は \((\String, \text{Set of} \, (\String \times \String), \text{Exp}, \text{Exp})\) のこと
+- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) GraphSM \(\partfuncion\) ステートマシン := \(\text{toSM} E S (s, (s_i: S_i), e_1, e_2) |->\)
+  - \((S_i, v_i, \delta_i, r_i)\) := \((N_i, (S_i, v_i, \delta_i, r_i)) \in S\)
+  - 状態の全体 := \((S_1, \ldots, S_n)\)
+  - 初期状態 := \((v_1, \ldots, v_n)\)
+  - 遷移関数 := \(((v_i)_i, i) |-> (v^\prime_i)\)
 
 # コンパイルについて
