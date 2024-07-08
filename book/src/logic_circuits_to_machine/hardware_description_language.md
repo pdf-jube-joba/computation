@@ -137,6 +137,10 @@
   - \((S_i, v_i, \delta_i, r_i)\) := \((N_i, (S_i, v_i, \delta_i, r_i)) \in S\)
   - 状態の全体 := \((S_1, \ldots, S_n)\)
   - 初期状態 := \((v_1, \ldots, v_n)\)
-  - 遷移関数 := \(((v_i)_i, i) |-> (v^\prime_i)\)
+  - 遷移関数 := \(((v_i)_i, i) |-> (v^\prime_i)\) where
+    - \(o_i\) := \(r_i v_i\)
+    - \(v\) := \(\text{eval-vomb}\) 
+
+- [] TODO 型についてちゃんと書く
 
 # コンパイルについて
