@@ -234,15 +234,6 @@ fn eval_to_val(
     }
 }
 
-// fn typeable_val(
-//     mod_env: &Vec<CombModule>,
-//     var_env: &Vec<(String, Value)>,
-//     value: &Value,
-//     value_type: &ValueType,
-// ) -> Result<(), Error> {
-//     todo!()
-// }
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CodeEnv {
     code: CombExpVal,
