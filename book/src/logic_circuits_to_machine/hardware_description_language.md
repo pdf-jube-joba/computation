@@ -150,7 +150,7 @@
 
 ステートマシンの繰り返し
 - 記述
-  - \(s\): `graph`: (`IN`: \(t_I\); `MACHINE`: \(N\), `OUT`: \(t_O\)) `input`=\(e_\text{in}\); `transition` = \(e\); `output`=\(e_{\text{ot}}\)
+  - \(s\): `iter`: (`IN`: \(t_I\); `MACHINE`: \(N\), `OUT`: \(t_O\)) `input`=\(e_\text{in}\); `transition` = \(e\); `output`=\(e_{\text{ot}}\)
 - 意味論
   - 同様の型を持つ toSM を定義する。
   - \((S, v, \delta, r)\) := \((N, (S, v, \delta, r)) \in S\)
