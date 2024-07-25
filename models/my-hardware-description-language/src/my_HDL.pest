@@ -1,0 +1,74 @@
+WHITESPACE = _{ " " | "\n" }
+
+symbol = { "-" | "_" }
+name = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
+number = @{ ASCII_DIGIT+ }
+
+bool_value = { "#true" | "#false"}
+array_value = { "[" ~ (value ~ ","*)* ~ "]" }
+struct_value = { "{" ~ (name ~ ":" ~ name ~ ","*)* ~ "}" }
+enum_value = { "<" ~ name ~ ">"}
+
+value = { bool_value | array_value | struct_value | enum_value }
+
+bool_type = { "Bool" }
+array_type = { "arr" ~ value_type ~ "[" ~ number ~ "]" }
+struct_type = { "str" ~ "{" ~ (name ~ ":" ~ value_type ~ ","*)* ~ "}" }
+enum_type = { "enm" ~ "<" ~ (name)* ~ ">"}
+
+value_type = { bool_type | array_type | struct_type | enum_type }
+
+exp_value = { "val" ~ value }
+exp_var = { "var" ~ name }
+exp_and = { "and" ~ comb_exp ~ comb_exp }
+exp_or = { "or" ~ comb_exp  ~ comb_exp}
+exp_not = { "!" ~ comb_exp }
+exp_if = { "if" ~ comb_exp ~  "then" ~ comb_exp ~ "else" }
+exp_arr_acc = { "[" ~ number ~ "]" ~ comb_exp}
+exp_arr_cst = { "[" ~ comb_exp* ~ "]"}
+exp_str_acc = { "{" ~ name ~ "}" ~ comb_exp }
+exp_str_cst = { "{" ~ ( name ~ ":" ~ comb_exp ~ ","*)* ~ "}" }
+exp_enm_acc = { "switch" ~ comb_exp ~ ("case" ~ name ~ comb_exp)* }
+exp_seq = { "seq" ~ (name ~ ":=" ~ comb_exp ~";")* ~ comb_exp }
+exp_call = { "comb" ~ name ~ "(" ~ comb_exp ~ ")"}
+
+comb_exp = {
+    exp_value | exp_var | exp_and | exp_or | exp_not | exp_if
+    | exp_arr_acc | exp_arr_cst | exp_str_acc | exp_str_cst
+    | exp_enm_acc | exp_seq | exp_call
+    | "(" ~ comb_exp ~ ")"
+}
+
+comb_def = { "comb" ~ name ~ ":" ~ comb_exp }
+
+state_sm = {
+    "state" ~ "(" ~
+        "IN" ~ value_type ~ ";" ~
+        "OUT" ~ value_type ~ ";" ~
+        "STATE" ~ value_type ~ ";" ~
+    ")" ~
+        "trans =" ~ comb_exp ~ ";" ~
+        "out = " ~ comb_exp ~ ";"
+}
+
+graph_sm = {
+    "graph" ~ "(" ~
+        "IN" ~ value_type ~ ";" ~
+        "OUT" ~ value_type ~ ";" ~
+        "MACHINE" ~ (name ~ ":" ~ name)* ~ ";" ~
+    ")" ~
+        "trans =" ~ comb_exp ~ ";" ~
+        "out = " ~ comb_exp ~ ";"
+}
+
+iter_sm = {
+    "iter" ~ "(" ~
+        "IN" ~ value_type ~ ";" ~
+        "OUT" ~ value_type ~ ";" ~
+        "MACHINE" ~ name ~ ";" ~
+    ")" ~
+        "trans =" ~ comb_exp ~ ";" ~
+        "out = " ~ comb_exp ~ ";"
+}
+
+code = { (comb_def | state_sm | graph_sm | iter_sm)* ~ EOI }

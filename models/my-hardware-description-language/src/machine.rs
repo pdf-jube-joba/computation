@@ -234,15 +234,6 @@ fn eval_to_val(
     }
 }
 
-// fn typeable_val(
-//     mod_env: &Vec<CombModule>,
-//     var_env: &Vec<(String, Value)>,
-//     value: &Value,
-//     value_type: &ValueType,
-// ) -> Result<(), Error> {
-//     todo!()
-// }
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CodeEnv {
     code: CombExpVal,
@@ -329,8 +320,6 @@ impl GeneralModuleState {
     }
 }
 
-const FIELD_GRAPH_NEXT_STATE: &str = "NEXT";
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GraphModule {
     state_name_machines: Vec<(String, GeneralModule)>,
@@ -401,6 +390,10 @@ pub struct IterModuleState {
     otput_func: CodeEnv,
 }
 
+const FIELD_NEXT: &str = "NEXT";
+const FIELD_THIS: &str = "THIS";
+const FILED_PREV: &str = "PREV";
+
 impl IterModuleState {
     fn get_otput(&self) -> Result<Value, Error> {
         let o = self.state_machines[0].get_otput()?;
@@ -410,8 +403,8 @@ impl IterModuleState {
             &self.otput_func.code,
         )
     }
-    fn clock(&self, input: Value) -> Result<(), Error> {
-        let s = eval_to_val(
+    fn clock(&mut self, input: Value) -> Result<(), Error> {
+        let o_m1 = eval_to_val(
             &self.input_func.mod_env,
             &vec![(FIELD_IN.to_string(), input)],
             &self.input_func.code,
@@ -421,6 +414,37 @@ impl IterModuleState {
             .iter()
             .map(|sm| sm.get_otput())
             .collect::<Result<_, _>>()?;
-        todo!()
+        let o_other = self.init_state_machine.get_otput()?;
+        let code_env = self.trans_func.clone();
+        for (i, machine) in self.state_machines.iter_mut().enumerate() {
+            let prev_out = if i == 0 {
+                o_m1.clone()
+            } else if i - 1 > otputs.len() {
+                o_other.clone()
+            } else {
+                otputs[i - 1].clone()
+            };
+            let this_out = if i > otputs.len() {
+                o_other.clone()
+            } else {
+                otputs[i].clone()
+            };
+            let next_out = if i + 1 > otputs.len() {
+                o_other.clone()
+            } else {
+                otputs[i + 1].clone()
+            };
+            let input = eval_to_val(
+                &code_env.mod_env,
+                &vec![
+                    (FILED_PREV.to_string(), prev_out),
+                    (FIELD_THIS.to_string(), this_out),
+                    (FILED_PREV.to_string(), next_out),
+                ],
+                &code_env.code,
+            )?;
+            machine.clock(input)?
+        }
+        Ok(())
     }
 }
