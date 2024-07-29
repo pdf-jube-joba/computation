@@ -18,7 +18,7 @@ impl TryFrom<&str> for Var {
 
 impl Display for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "var({})", self.0)
+        write!(f, "({})", self.0)
     }
 }
 
