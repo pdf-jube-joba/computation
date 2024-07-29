@@ -1,29 +1,8 @@
-use std::collections::{HashMap, HashSet};
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Var(usize);
-
-impl Var {
-    fn next_new(&self) -> Var {
-        Var(self.0 + 1)
-    }
-}
-
-impl ToString for Var {
-    fn to_string(&self) -> String {
-        self.0.to_string()
-    }
-}
-
-impl From<usize> for Var {
-    fn from(value: usize) -> Self {
-        Var(value)
-    }
-}
-
-fn new_var(set: &HashSet<Var>) -> Var {
-    Var(set.iter().map(|var| var.0).max().unwrap_or_default() + 1)
-}
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+};
+use utils::variable::Var;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LambdaTerm {
@@ -37,7 +16,7 @@ impl LambdaTerm {
         LambdaTerm::Variable(i.into())
     }
     pub fn abs(i: usize, term: LambdaTerm) -> Self {
-        LambdaTerm::Abstraction(Var(i), Box::new(term))
+        LambdaTerm::Abstraction(i.into(), Box::new(term))
     }
     pub fn app(term1: LambdaTerm, term2: LambdaTerm) -> Self {
         LambdaTerm::Application(Box::new(term1), Box::new(term2))
@@ -71,9 +50,9 @@ impl LambdaTerm {
     }
 }
 
-impl ToString for LambdaTerm {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for LambdaTerm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string: String = match self {
             LambdaTerm::Variable(var) => var.to_string(),
             LambdaTerm::Abstraction(var, term) => {
                 "\\".to_owned() + &var.to_string() + "." + &*term.to_string()
@@ -81,7 +60,8 @@ impl ToString for LambdaTerm {
             LambdaTerm::Application(term1, term2) => {
                 "(".to_owned() + &term1.to_string() + " " + &term2.to_string() + ")"
             }
-        }
+        };
+        writeln!(f, "{}", string)
     }
 }
 
@@ -162,7 +142,13 @@ fn alpha_eq_rec(
             new_corr1.insert(var1.clone(), new_var.clone());
             let mut new_corr2 = corr2.clone();
             new_corr2.insert(var2.clone(), new_var.clone());
-            alpha_eq_rec(term1, term2, &new_corr1, &new_corr2, new_var.next_new())
+            alpha_eq_rec(
+                term1,
+                term2,
+                &new_corr1,
+                &new_corr2,
+                utils::variable::new_var(vec![&new_var]),
+            )
         }
         (LambdaTerm::Application(term11, term12), LambdaTerm::Application(term21, term22)) => {
             alpha_eq_rec(term11, term21, corr1, corr2, new_var.clone())
@@ -179,7 +165,7 @@ pub fn alpha_eq(term1: &LambdaTerm, term2: &LambdaTerm) -> bool {
         set.extend(term1.bounded_variable());
         set.extend(term2.free_variable());
         set.extend(term2.bounded_variable());
-        new_var(&set)
+        utils::variable::new_var(&set)
     };
     alpha_eq_rec(term1, term2, &HashMap::new(), &HashMap::new(), new_var)
 }
@@ -203,7 +189,7 @@ pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
                     let mut set = HashSet::new();
                     set.extend(term1.free_variable());
                     set.extend(term2.free_variable());
-                    new_var(&set)
+                    utils::variable::new_var(&set)
                 };
                 LambdaTerm::Abstraction(
                     new_var.clone(),
@@ -295,82 +281,6 @@ pub fn left_most_reduction_step(term: LambdaTerm, step: usize) -> LambdaTerm {
         term = left_most_reduction(term);
     }
     term
-}
-
-pub mod utils {
-    use super::alpha_eq;
-    use super::LambdaTerm;
-
-    pub fn true_lambda() -> LambdaTerm {
-        LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(0)))
-    }
-
-    pub fn false_lambda() -> LambdaTerm {
-        LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(1)))
-    }
-
-    pub fn is_true(term: LambdaTerm) -> bool {
-        let l = true_lambda();
-        alpha_eq(&l, &term)
-    }
-
-    pub fn is_false(term: LambdaTerm) -> bool {
-        let l = false_lambda();
-        alpha_eq(&l, &term)
-    }
-
-    pub fn if_lambda(l: LambdaTerm, m: LambdaTerm, n: LambdaTerm) -> LambdaTerm {
-        LambdaTerm::app(LambdaTerm::app(l, m), n)
-    }
-
-    pub fn pair(m: LambdaTerm, n: LambdaTerm) -> LambdaTerm {
-        LambdaTerm::abs(
-            0,
-            LambdaTerm::app(LambdaTerm::app(LambdaTerm::var(0), m), n),
-        )
-    }
-
-    pub fn first() -> LambdaTerm {
-        LambdaTerm::abs(0, LambdaTerm::app(LambdaTerm::var(0), true_lambda()))
-    }
-
-    pub fn second() -> LambdaTerm {
-        LambdaTerm::abs(0, LambdaTerm::app(LambdaTerm::var(0), false_lambda()))
-    }
-
-    pub fn take_n_abs(list: Vec<usize>, term: LambdaTerm) -> LambdaTerm {
-        if let Some((head, tail)) = list.split_first() {
-            LambdaTerm::abs(*head, take_n_abs(tail.to_owned(), term))
-        } else {
-            term
-        }
-    }
-
-    pub fn fold_left(list: Vec<LambdaTerm>) -> LambdaTerm {
-        list.into_iter().reduce(LambdaTerm::app).unwrap()
-    }
-
-    pub fn y_combinator() -> LambdaTerm {
-        LambdaTerm::abs(
-            0,
-            LambdaTerm::app(
-                LambdaTerm::abs(
-                    1,
-                    LambdaTerm::app(
-                        LambdaTerm::var(0),
-                        LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(1)),
-                    ),
-                ),
-                LambdaTerm::abs(
-                    1,
-                    LambdaTerm::app(
-                        LambdaTerm::var(0),
-                        LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(1)),
-                    ),
-                ),
-            ),
-        )
-    }
 }
 
 #[cfg(test)]

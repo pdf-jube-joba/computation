@@ -1,4 +1,5 @@
 use lambda_calculus::{machine::*, manipulation};
+use utils::variable::Var;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;

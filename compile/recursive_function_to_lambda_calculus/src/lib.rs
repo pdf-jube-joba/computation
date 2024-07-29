@@ -1,4 +1,5 @@
-use lambda_calculus::machine::{utils::*, LambdaTerm};
+use lambda_calculus::example::*;
+use lambda_calculus::machine::LambdaTerm;
 use recursive_function::machine::RecursiveFunctions;
 use utils::number::*;
 
@@ -243,7 +244,7 @@ mod tests {
         for i in 0..10 {
             let mut lam = number_to_lambda_term(i.into());
             loop {
-                eprintln!("{} {}", is_normal(&lam), lam.to_string());
+                eprintln!("{} {}", is_normal(&lam), lam);
                 if is_normal(&lam) {
                     break;
                 }
@@ -259,7 +260,7 @@ mod tests {
         let zero = number_to_lambda_term(0.into());
         let mut lam = LambdaTerm::app(is_zero(), zero);
         loop {
-            eprintln!("{} {}", is_normal(&lam), lam.to_string());
+            eprintln!("{} {}", is_normal(&lam), lam);
             if is_normal(&lam) {
                 break;
             }
@@ -270,7 +271,7 @@ mod tests {
         let one = number_to_lambda_term(1.into());
         let mut lam = LambdaTerm::app(is_zero(), one);
         loop {
-            eprintln!("{} {}", is_normal(&lam), lam.to_string());
+            eprintln!("{} {}", is_normal(&lam), lam);
             if is_normal(&lam) {
                 break;
             }
@@ -281,7 +282,7 @@ mod tests {
         let two = number_to_lambda_term(2.into());
         let mut lam = LambdaTerm::app(is_zero(), two);
         loop {
-            eprintln!("{} {}", is_normal(&lam), lam.to_string());
+            eprintln!("{} {}", is_normal(&lam), lam);
             if is_normal(&lam) {
                 break;
             }
@@ -294,27 +295,27 @@ mod tests {
     fn proj_test() {
         let pj = projection(2, 0).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.0").unwrap();
-        eprintln!("{}", pj.to_string());
+        eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(2, 1).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.1").unwrap();
-        eprintln!("{}", pj.to_string());
+        eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(3, 0).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.\\2.0").unwrap();
-        eprintln!("{}", pj.to_string());
+        eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(3, 1).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.\\2.1").unwrap();
-        eprintln!("{}", pj.to_string());
+        eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(3, 2).unwrap();
         let expect = parse::parse_lambda("\\0.\\1.\\2.2").unwrap();
-        eprintln!("{}", pj.to_string());
+        eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
     }
 }

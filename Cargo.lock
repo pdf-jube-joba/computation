@@ -1075,6 +1075,9 @@ dependencies = [
 [[package]]
 name = "lambda_calculus"
 version = "0.1.0"
+dependencies = [
+ "utils",
+]
 
 [[package]]
 name = "lambda_calculus_app"
@@ -1092,6 +1095,7 @@ version = "0.1.0"
 dependencies = [
  "gloo",
  "lambda_calculus",
+ "utils",
  "wasm-bindgen",
  "web-sys",
  "yew",

@@ -12,3 +12,4 @@ wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 
 lambda_calculus = { path = "../../models/lambda_calculus" }
+utils = { path = "../../utils" }
