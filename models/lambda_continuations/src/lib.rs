@@ -1,16 +1,16 @@
 use utils::variable::Var;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Lam1 {
+pub enum Lam {
     Var(Var),
-    Lam(Var, Box<Lam1>),
-    App(Box<Lam1>, Box<Lam1>),
+    Lam(Var, Box<Lam>),
+    App(Box<Lam>, Box<Lam>),
 }
 
-impl Lam1 {
-    fn is_value(&self) -> Option<(&Var, &Lam1)> {
+impl Lam {
+    fn is_value(&self) -> Option<(&Var, &Lam)> {
         match self {
-            Lam1::Lam(x, e) => Some((x, e)),
+            Lam::Lam(x, e) => Some((x, e)),
             _ => None,
         }
     }
@@ -18,27 +18,27 @@ impl Lam1 {
 
 pub struct RedInfo {
     x: Var,
-    e: Lam1,
-    v: Lam1, // should  v.is_value()
+    e: Lam,
+    v: Lam, // should  v.is_value()
 }
 
-pub fn subst(e: Lam1, x: Var, t: Lam1) -> Lam1 {
+pub fn subst(e: Lam, x: Var, t: Lam) -> Lam {
     match e {
-        Lam1::Var(y) => {
+        Lam::Var(y) => {
             if x == y {
                 t
             } else {
-                Lam1::Var(y)
+                Lam::Var(y)
             }
         }
-        Lam1::Lam(y, e) => {
+        Lam::Lam(y, e) => {
             if x == y {
-                Lam1::Lam(y, e)
+                Lam::Lam(y, e)
             } else {
-                Lam1::Lam(y, Box::new(subst(*e, x, t)))
+                Lam::Lam(y, Box::new(subst(*e, x, t)))
             }
         }
-        Lam1::App(e1, e2) => Lam1::App(
+        Lam::App(e1, e2) => Lam::App(
             Box::new(subst(*e1, x.clone(), t.clone())),
             Box::new(subst(*e2, x, t)),
         ),
@@ -46,13 +46,13 @@ pub fn subst(e: Lam1, x: Var, t: Lam1) -> Lam1 {
 }
 
 #[allow(clippy::type_complexity)]
-pub fn decomp(e: Lam1) -> Option<(RedInfo, Box<dyn Fn(Lam1) -> Lam1>)> {
+pub fn decomp(e: Lam) -> Option<(RedInfo, Box<dyn Fn(Lam) -> Lam>)> {
     match e {
-        Lam1::Var(_) => None,
-        Lam1::Lam(_, _) => None,
-        Lam1::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
+        Lam::Var(_) => None,
+        Lam::Lam(_, _) => None,
+        Lam::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
             (Some((x1, e1)), Some(_)) => {
-                let cxt = |lam: Lam1| -> Lam1 { lam };
+                let cxt = |lam: Lam| -> Lam { lam };
                 let rdx = RedInfo {
                     x: x1.clone(),
                     e: e1.clone(),
@@ -62,17 +62,17 @@ pub fn decomp(e: Lam1) -> Option<(RedInfo, Box<dyn Fn(Lam1) -> Lam1>)> {
             }
             (Some(_), None) => {
                 let (rdx, cxt) = decomp(*e2)?;
-                let cxt = move |lam: Lam1| -> Lam1 {
+                let cxt = move |lam: Lam| -> Lam {
                     let lam = cxt(lam);
-                    Lam1::App(e1.clone(), Box::new(lam))
+                    Lam::App(e1.clone(), Box::new(lam))
                 };
                 Some((rdx, Box::new(cxt)))
             }
             (None, _) => {
                 let (rdx, cxt) = decomp(*e1)?;
-                let cxt = move |lam: Lam1| -> Lam1 {
+                let cxt = move |lam: Lam| -> Lam {
                     let lam = cxt(lam);
-                    Lam1::App(Box::new(lam), e2.clone())
+                    Lam::App(Box::new(lam), e2.clone())
                 };
                 Some((rdx, Box::new(cxt)))
             }
@@ -80,31 +80,40 @@ pub fn decomp(e: Lam1) -> Option<(RedInfo, Box<dyn Fn(Lam1) -> Lam1>)> {
     }
 }
 
-pub fn step(e: Lam1) -> Option<Lam1> {
+pub fn step(e: Lam) -> Option<Lam> {
     let (RedInfo { x, e, v }, cxt) = decomp(e)?;
     let reduced = subst(e, x, v);
     Some(cxt(reduced))
 }
 
 pub enum Cxt {
-    Hole,                 // []
-    AppR(Box<Cxt>, Lam1), // E[e []]
-    AppL(Box<Cxt>, Lam1), // E[[] v]
+    Hole,                // []
+    AppR(Box<Cxt>, Lam), // E[[] e]
+    AppL(Box<Cxt>, Lam), // E[v []]
 }
 
-pub fn plug(cxt: Cxt, t: Lam1) -> Lam1 {
+pub fn plug(cxt: Cxt, t: Lam) -> Lam {
     match cxt {
         Cxt::Hole => t,
-        Cxt::AppL(cxt, e) => plug(*cxt, Lam1::App(Box::new(e), Box::new(t))),
-        Cxt::AppR(cxt, e) => plug(*cxt, Lam1::App(Box::new(t), Box::new(e))),
+        Cxt::AppL(cxt, e) => plug(*cxt, Lam::App(Box::new(e), Box::new(t))),
+        Cxt::AppR(cxt, e) => plug(*cxt, Lam::App(Box::new(t), Box::new(e))),
     }
 }
 
-pub fn decomp1(t: Lam1) -> Option<(RedInfo, Cxt)> {
+pub fn cxt_rec_hole(cxt: Cxt, cxt2: Cxt) -> Cxt {
+    match cxt {
+        Cxt::Hole => cxt2,
+        Cxt::AppR(cxt, e) => Cxt::AppR(Box::new(cxt_rec_hole(*cxt, cxt2)), e),
+        Cxt::AppL(cxt, v) => Cxt::AppL(Box::new(cxt_rec_hole(*cxt, cxt2)), v),
+    }
+}
+
+pub fn decomp1(t: Lam) -> Option<(RedInfo, Cxt)> {
     match t {
-        Lam1::Var(_) => None,
-        Lam1::Lam(_, _) => None,
-        Lam1::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
+        Lam::Var(_) => None,
+        Lam::Lam(_, _) => None,
+        Lam::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
+            // v_1 v_2
             (Some((x1, e1)), Some(_)) => {
                 let rdx = RedInfo {
                     x: x1.clone(),
@@ -113,14 +122,17 @@ pub fn decomp1(t: Lam1) -> Option<(RedInfo, Cxt)> {
                 };
                 Some((rdx, Cxt::Hole))
             }
-            // 違う気がする。
+            // v_1 e_2
             (Some(_), None) => {
                 let (rdx, cxt) = decomp1(*e2)?;
-                Some((rdx, Cxt::AppR(Box::new(cxt), *e1)))
+                let new_cxt = cxt_rec_hole(cxt, Cxt::AppL(Box::new(Cxt::Hole), *e1));
+                Some((rdx, new_cxt))
             }
+            // e_1 e_2
             (None, _) => {
                 let (rdx, cxt) = decomp1(*e1)?;
-                Some((rdx, Cxt::AppL(Box::new(cxt), *e2)))
+                let new_cxt = cxt_rec_hole(cxt, Cxt::AppR(Box::new(Cxt::Hole), *e2));
+                Some((rdx, new_cxt))
             }
         },
     }
@@ -136,15 +148,15 @@ pub enum LamGrabDelim {
 
 pub enum GrabPureCxt {
     Hole,
-    AppR(Box<GrabPureCxt>, Lam1), // E[e []]
-    AppL(Box<GrabPureCxt>, Lam1), // E[[] v]
+    AppR(Box<GrabPureCxt>, LamGrabDelim), // E[[] e]
+    AppL(Box<GrabPureCxt>, LamGrabDelim), // E[v []]
 }
 
 pub enum GrabCxt {
     Hole,
-    AppR(Box<GrabCxt>, Lam1), // E[e []]
-    AppL(Box<GrabCxt>, Lam1), // E[[] v]
-    Del(Box<GrabCxt>), // E[delimit []] ,
+    AppR(Box<GrabCxt>, LamGrabDelim), // E[[] e]
+    AppL(Box<GrabCxt>, LamGrabDelim), // E[v []]
+    Del(Box<GrabCxt>),                // E[delimit []] ,
 }
 
 pub enum LamSendRun {
@@ -155,12 +167,38 @@ pub enum LamSendRun {
     Run(Box<LamSendRun>, Var, Box<LamSendRun>),
 }
 
+pub enum SendPureCxt {
+    Hole,
+    AppR(Box<SendPureCxt>, LamSendRun), // E[[] e]
+    AppL(Box<SendPureCxt>, LamSendRun), // E[v []]
+}
+
+pub enum SendCxt {
+    Hole,
+    AppR(Box<SendCxt>, LamSendRun), // E[[] e]
+    AppL(Box<SendCxt>, LamSendRun), // E[v []]
+    Del(Box<SendCxt>),              // E[send []] ,
+}
+
 pub enum LamEffect {
     Var(Var),
     Lam(Var, Box<LamEffect>),
     App(Box<LamEffect>, Box<LamEffect>),
     Op(String, Box<LamEffect>),
     Handle(Box<LamEffect>, Handlers),
+}
+
+pub enum EffPureCxt {
+    Hole,
+    AppR(Box<EffPureCxt>, LamEffect), // E[[] e]
+    AppL(Box<EffPureCxt>, LamEffect), // E[v []]
+}
+
+pub enum EffCxt {
+    Hole,
+    AppR(Box<EffCxt>, LamEffect), // E[[] e]
+    AppL(Box<EffCxt>, LamEffect), // E[v []]
+    Del(Box<EffCxt>),             // E[op []] ,
 }
 
 pub struct Handlers(Vec<(String, Var, Var, Box<LamEffect>)>);
