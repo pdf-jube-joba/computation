@@ -10,10 +10,16 @@ pub enum Lam {
 }
 
 impl Lam {
-    pub fn v(n: usize) -> Lam {
+    pub fn v<T>(n: T) -> Lam
+    where
+        T: Into<Var>,
+    {
         Lam::Var(n.into())
     }
-    pub fn l(n: usize, e: Lam) -> Lam {
+    pub fn l<T>(n: T, e: Lam) -> Lam
+    where
+        T: Into<Var>,
+    {
         Lam::Lam(n.into(), Box::new(e))
     }
     pub fn a(e1: Lam, e2: Lam) -> Lam {
@@ -25,10 +31,47 @@ impl Display for Lam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match self {
             Lam::Var(var) => format!("{var}"),
-            Lam::Lam(var, term) => format!("\\{var}.{term}"),
+            Lam::Lam(var, term) => format!("\\{var}. {term}"),
             Lam::App(term1, term2) => format!("({term1} @ {term2})"),
         };
         write!(f, "{}", string)
+    }
+}
+
+fn subst(e: Lam, x: Var, t: Lam) -> Lam {
+    match e {
+        Lam::Var(y) => {
+            if x == y {
+                t
+            } else {
+                Lam::Var(y)
+            }
+        }
+        Lam::Lam(y, e) => {
+            if x == y {
+                Lam::Lam(y, e)
+            } else {
+                Lam::Lam(y, Box::new(subst(*e, x, t)))
+            }
+        }
+        Lam::App(e1, e2) => Lam::App(
+            Box::new(subst(*e1, x.clone(), t.clone())),
+            Box::new(subst(*e2, x, t)),
+        ),
+    }
+}
+
+pub fn natural_l2rcbv(l: Lam) -> Option<Lam> {
+    match l {
+        Lam::Var(_) | Lam::Lam(_, _) => None,
+        Lam::App(e1, e2) => match (e1.is_value(), e2.is_value().is_some()) {
+            (Some((x, e)), true) => {
+                let rdxinfo = RdXInfo { x, e, v: *e2 };
+                Some(rdxinfo.step())
+            }
+            (Some(_), false) => Some(Lam::a(*e1, natural_l2rcbv(*e2)?)),
+            (None, _) => Some(Lam::a(natural_l2rcbv(*e1)?, *e2)),
+        },
     }
 }
 
@@ -36,6 +79,17 @@ pub struct RdXInfo {
     x: Var,
     e: Lam,
     v: Lam, // should  v.is_value()
+}
+
+impl RdXInfo {
+    pub fn as_lam(self) -> Lam {
+        let RdXInfo { x, e, v } = self;
+        Lam::a(Lam::l(x, e), v)
+    }
+    pub fn step(self) -> Lam {
+        let RdXInfo { x, e, v } = self;
+        subst(e, x, v)
+    }
 }
 
 impl Lam {
@@ -46,90 +100,74 @@ impl Lam {
         }
     }
     fn is_redux(&self) -> Option<RdXInfo> {
-        let Lam::App(e1, e2) = self else {
-            return None;
-        };
-        let (x, e) = e1.is_value()?;
-        e2.is_value()?;
-        Some(RdXInfo {
-            x,
-            e,
-            v: e2.as_ref().clone(),
-        })
-    }
-}
-
-pub fn subst(RdXInfo { x, e, v }: RdXInfo) -> Lam {
-    fn subst_rec(e: Lam, x: Var, t: Lam) -> Lam {
-        match e {
-            Lam::Var(y) => {
-                if x == y {
-                    t
-                } else {
-                    Lam::Var(y)
-                }
-            }
-            Lam::Lam(y, e) => {
-                if x == y {
-                    Lam::Lam(y, e)
-                } else {
-                    Lam::Lam(y, Box::new(subst_rec(*e, x, t)))
-                }
-            }
-            Lam::App(e1, e2) => Lam::App(
-                Box::new(subst_rec(*e1, x.clone(), t.clone())),
-                Box::new(subst_rec(*e2, x, t)),
-            ),
+        match self {
+            Lam::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
+                (Some((x, e)), Some(_)) => Some(RdXInfo {
+                    x,
+                    e,
+                    v: e2.as_ref().clone(),
+                }),
+                _ => None,
+            },
+            _ => None,
         }
     }
-    subst_rec(e, x, v)
 }
 
+// t = ... (v (r e)) ... v: value, r: redex とすると、
+// (r, M |-> ... (v (M e)) ... ) と分解する。
 #[allow(clippy::type_complexity)]
-pub fn decomp0(e: Lam) -> Option<(RdXInfo, Box<dyn Fn(Lam) -> Lam>)> {
+pub fn decomp_with_cxt_as_func(e: Lam) -> Option<(RdXInfo, Box<dyn Fn(Lam) -> Lam>)> {
+    if let Some(rdx) = e.is_redux() {
+        let cxt = |lam: Lam| -> Lam { lam };
+        return Some((rdx, Box::new(cxt)));
+    }
     match e {
         Lam::Var(_) => None,
         Lam::Lam(_, _) => None,
-        Lam::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
-            (Some((x1, e1)), Some(_)) => {
-                let cxt = |lam: Lam| -> Lam { lam };
-                let rdx = RdXInfo {
-                    x: x1.clone(),
-                    e: e1.clone(),
-                    v: *e2,
-                };
-                Some((rdx, Box::new(cxt)))
-            }
-            (Some(_), None) => {
-                let (rdx, cxt) = decomp0(*e2)?;
+        Lam::App(e1, e2) => {
+            if e1.is_value().is_some() {
+                let (rdx, cxt) = decomp_with_cxt_as_func(*e2)?;
                 let cxt = move |lam: Lam| -> Lam {
                     let lam = cxt(lam);
                     Lam::App(e1.clone(), Box::new(lam))
                 };
                 Some((rdx, Box::new(cxt)))
-            }
-            (None, _) => {
-                let (rdx, cxt) = decomp0(*e1)?;
+            } else {
+                let (rdx, cxt) = decomp_with_cxt_as_func(*e1)?;
                 let cxt = move |lam: Lam| -> Lam {
                     let lam = cxt(lam);
                     Lam::App(Box::new(lam), e2.clone())
                 };
                 Some((rdx, Box::new(cxt)))
             }
-        },
+        }
     }
 }
 
-pub fn step(e: Lam) -> Option<Lam> {
-    let (rdx, cxt) = decomp0(e)?;
-    let reduced = subst(rdx);
-    Some(cxt(reduced))
+pub fn step_with_cxt_as_func(e: Lam) -> Option<Lam> {
+    let (rdx, cxt) = decomp_with_cxt_as_func(e)?;
+    Some(cxt(rdx.step()))
 }
 
 pub enum Cxt {
     Hole,                // []
     AppR(Box<Cxt>, Lam), // E[[] e]
     AppL(Box<Cxt>, Lam), // E[v []]
+}
+
+pub enum Frame {
+    AppR(Lam), // [] e
+    AppL(Lam), // v []
+}
+
+impl Frame {
+    pub fn plug(self, t: Lam) -> Lam {
+        match self {
+            Frame::AppL(v) => Lam::a(v, t),
+            Frame::AppR(e) => Lam::a(t, e),
+        }
+    }
 }
 
 impl Display for Cxt {
@@ -159,65 +197,31 @@ pub fn cxt_rec_hole(cxt: Cxt, cxt2: Cxt) -> Cxt {
     }
 }
 
-pub fn one_decomp1(t: Lam) -> Option<(Lam, Cxt)> {
-    match t {
-        Lam::Var(_) => None,
-        Lam::Lam(_, _) => None,
-        Lam::App(e1, e2) => match (e1.is_value().is_some(), e2.is_value().is_some()) {
-            // v_1 v_2
-            (true, true) => Some((*e1, Cxt::Hole)),
-            // v_1 e_2
-            (true, false) => {
-                Some((*e1, Cxt::AppR(Box::new(Cxt::Hole), *e2)))
-                // let (rdx, cxt) = decomp1(*e2)?;
-                // let new_cxt = cxt_rec_hole(cxt, Cxt::AppL(Box::new(Cxt::Hole), *e1));
-                // Some((rdx, new_cxt))
-            }
-            // e_1 e_2
-            (false, _) => Some((*e2, Cxt::AppL(Box::new(Cxt::Hole), *e1))),
-        },
+pub fn decomp_with_cxt(t: Lam) -> Option<(RdXInfo, Cxt)> {
+    if let Some(rdx) = t.is_redux() {
+        return Some((rdx, Cxt::Hole));
     }
-}
-
-pub fn decomp1(t: Lam) -> Option<(RdXInfo, Cxt)> {
     match t {
         Lam::Var(_) => None,
         Lam::Lam(_, _) => None,
-        Lam::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
-            // v_1 v_2
-            (Some((x1, e1)), Some(_)) => {
-                let rdx = RdXInfo {
-                    x: x1.clone(),
-                    e: e1.clone(),
-                    v: *e2,
-                };
-                Some((rdx, Cxt::Hole))
-            }
-            // v_1 e_2
-            (Some(_), None) => {
-                let (rdx, cxt) = decomp1(*e2)?;
+        Lam::App(e1, e2) => {
+            if e1.is_value().is_some() {
+                let (rdx, cxt) = decomp_with_cxt(*e2)?;
                 let new_cxt = cxt_rec_hole(cxt, Cxt::AppL(Box::new(Cxt::Hole), *e1));
                 Some((rdx, new_cxt))
-            }
-            // e_1 e_2
-            (None, _) => {
-                let (rdx, cxt) = decomp1(*e1)?;
+            } else {
+                let (rdx, cxt) = decomp_with_cxt(*e1)?;
                 let new_cxt = cxt_rec_hole(cxt, Cxt::AppR(Box::new(Cxt::Hole), *e2));
                 Some((rdx, new_cxt))
             }
-        },
+        }
     }
 }
 
-pub fn step1(t: Lam) -> Option<Lam> {
-    let (rdx, cxt) = decomp1(t)?;
-    let reduced = subst(rdx);
+pub fn step_with_cxt(t: Lam) -> Option<Lam> {
+    let (rdx, cxt) = decomp_with_cxt(t)?;
+    let reduced = rdx.step();
     Some(plug(cxt, reduced))
-}
-
-pub enum Frame {
-    AppR(Lam), // [] e
-    AppL(Lam), // v []
 }
 
 pub struct State {
@@ -228,10 +232,7 @@ pub struct State {
 pub fn step_machine(State { mut stack, lam }: State) -> Option<State> {
     if lam.is_value().is_some() {
         if let Some(frame) = stack.pop() {
-            let new_lam = match frame {
-                Frame::AppL(e) => Lam::App(Box::new(lam), Box::new(e)),
-                Frame::AppR(e) => Lam::App(Box::new(e), Box::new(lam)),
-            };
+            let new_lam = frame.plug(lam);
             Some(State {
                 stack,
                 lam: new_lam,
@@ -242,7 +243,7 @@ pub fn step_machine(State { mut stack, lam }: State) -> Option<State> {
     } else if let Some(rdxinfo) = lam.is_redux() {
         Some(State {
             stack,
-            lam: subst(rdxinfo),
+            lam: rdxinfo.step(),
         })
     } else {
         match lam {
@@ -290,7 +291,7 @@ mod tests {
             if lam.is_value().is_some() {
                 break;
             }
-            let (rdx, cxt) = decomp1(lam).unwrap();
+            let (rdx, cxt) = decomp_with_cxt(lam).unwrap();
             println!("- (\\{}. {})@ {}", rdx.x, rdx.e, rdx.v);
             let mut cxt0 = &cxt;
             loop {
@@ -306,7 +307,7 @@ mod tests {
                     }
                 }
             }
-            let rdx = subst(rdx);
+            let rdx = rdx.step();
             println!("-> {}", rdx);
             lam = plug(cxt, rdx);
         }
