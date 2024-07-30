@@ -151,21 +151,45 @@ pub fn step_with_cxt_as_func(e: Lam) -> Option<Lam> {
 }
 
 pub enum Cxt {
-    Hole,                // []
-    AppR(Box<Cxt>, Lam), // E[[] e]
-    AppL(Box<Cxt>, Lam), // E[v []]
+    Hole,                 // []
+    EvalL(Lam, Box<Cxt>), // E[[] e]
+    EvalR(Lam, Box<Cxt>), // E[v []]
+}
+
+impl Cxt {
+    pub fn plug(self, t: Lam) -> Lam {
+        match self {
+            Cxt::Hole => t,
+            Cxt::EvalR(e, cxt) => cxt.plug(Lam::a(e, t)),
+            Cxt::EvalL(e, cxt) => cxt.plug(Lam::a(t, e)),
+        }
+    }
+    pub fn extend_r(self, e: Lam) -> Self {
+        match self {
+            Cxt::Hole => Cxt::EvalR(e, Box::new(Cxt::Hole)),
+            Cxt::EvalL(e1, c) => Cxt::EvalL(e1, Box::new(c.extend_r(e))),
+            Cxt::EvalR(e1, c) => Cxt::EvalR(e1, Box::new(c.extend_r(e))),
+        }
+    }
+    pub fn extend_l(self, e: Lam) -> Self {
+        match self {
+            Cxt::Hole => Cxt::EvalL(e, Box::new(Cxt::Hole)),
+            Cxt::EvalL(e1, c) => Cxt::EvalL(e1, Box::new(c.extend_l(e))),
+            Cxt::EvalR(e1, c) => Cxt::EvalR(e1, Box::new(c.extend_l(e))),
+        }
+    }
 }
 
 pub enum Frame {
-    AppR(Lam), // [] e
-    AppL(Lam), // v []
+    EvalL(Lam), // [] e
+    EvalR(Lam), // v []
 }
 
 impl Frame {
     pub fn plug(self, t: Lam) -> Lam {
         match self {
-            Frame::AppL(v) => Lam::a(v, t),
-            Frame::AppR(e) => Lam::a(t, e),
+            Frame::EvalR(v) => Lam::a(v, t),
+            Frame::EvalL(e) => Lam::a(t, e),
         }
     }
 }
@@ -174,26 +198,10 @@ impl Display for Cxt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match self {
             Cxt::Hole => "[]".to_string(),
-            Cxt::AppR(cxt, e) => format!("{}[[] @ {}]", cxt, e),
-            Cxt::AppL(cxt, e) => format!("{}[{} @ []]", cxt, e),
+            Cxt::EvalL(e, cxt) => format!("{}[[] @ {}]", e, cxt),
+            Cxt::EvalR(e, cxt) => format!("{}[{} @ []]", e, cxt),
         };
         write!(f, "{}", string)
-    }
-}
-
-pub fn plug(cxt: Cxt, t: Lam) -> Lam {
-    match cxt {
-        Cxt::Hole => t,
-        Cxt::AppL(cxt, e) => plug(*cxt, Lam::App(Box::new(e), Box::new(t))),
-        Cxt::AppR(cxt, e) => plug(*cxt, Lam::App(Box::new(t), Box::new(e))),
-    }
-}
-
-pub fn cxt_rec_hole(cxt: Cxt, cxt2: Cxt) -> Cxt {
-    match cxt {
-        Cxt::Hole => cxt2,
-        Cxt::AppR(cxt, e) => Cxt::AppR(Box::new(cxt_rec_hole(*cxt, cxt2)), e),
-        Cxt::AppL(cxt, v) => Cxt::AppL(Box::new(cxt_rec_hole(*cxt, cxt2)), v),
     }
 }
 
@@ -207,11 +215,11 @@ pub fn decomp_with_cxt(t: Lam) -> Option<(RdXInfo, Cxt)> {
         Lam::App(e1, e2) => {
             if e1.is_value().is_some() {
                 let (rdx, cxt) = decomp_with_cxt(*e2)?;
-                let new_cxt = cxt_rec_hole(cxt, Cxt::AppL(Box::new(Cxt::Hole), *e1));
+                let new_cxt = cxt.extend_l(*e1);
                 Some((rdx, new_cxt))
             } else {
                 let (rdx, cxt) = decomp_with_cxt(*e1)?;
-                let new_cxt = cxt_rec_hole(cxt, Cxt::AppR(Box::new(Cxt::Hole), *e2));
+                let new_cxt = cxt.extend_r(*e2);
                 Some((rdx, new_cxt))
             }
         }
@@ -221,7 +229,7 @@ pub fn decomp_with_cxt(t: Lam) -> Option<(RdXInfo, Cxt)> {
 pub fn step_with_cxt(t: Lam) -> Option<Lam> {
     let (rdx, cxt) = decomp_with_cxt(t)?;
     let reduced = rdx.step();
-    Some(plug(cxt, reduced))
+    Some(cxt.plug(reduced))
 }
 
 pub struct State {
@@ -251,10 +259,10 @@ pub fn step_machine(State { mut stack, lam }: State) -> Option<State> {
             Lam::Lam(_, _) => unreachable!(),
             Lam::App(e1, e2) => {
                 if e1.is_value().is_some() {
-                    stack.push(Frame::AppL(*e1));
+                    stack.push(Frame::EvalR(*e1));
                     Some(State { stack, lam: *e2 })
                 } else {
-                    stack.push(Frame::AppR(*e2));
+                    stack.push(Frame::EvalL(*e2));
                     Some(State { stack, lam: *e1 })
                 }
             }
@@ -297,11 +305,11 @@ mod tests {
             loop {
                 match &cxt0 {
                     Cxt::Hole => break,
-                    Cxt::AppR(cxt1, e) => {
+                    Cxt::EvalL(e, cxt1) => {
                         println!("[] {}", e);
                         cxt0 = cxt1.as_ref();
                     }
-                    Cxt::AppL(cxt1, e) => {
+                    Cxt::EvalR(e, cxt1) => {
                         println!("{} []", e);
                         cxt0 = cxt1.as_ref();
                     }
@@ -309,7 +317,7 @@ mod tests {
             }
             let rdx = rdx.step();
             println!("-> {}", rdx);
-            lam = plug(cxt, rdx);
+            lam = cxt.plug(rdx);
         }
     }
 }

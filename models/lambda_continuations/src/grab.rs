@@ -92,24 +92,38 @@ impl LamGrabDelim {
 
 pub enum GrabPureCxt {
     Hole,                                  // []
-    EvalL(Box<GrabPureCxt>, LamGrabDelim), // E[[] e]
-    EvalR(Box<GrabPureCxt>, LamGrabDelim), // E[v []]
+    EvalL(LamGrabDelim, Box<GrabPureCxt>), // E[[] e]
+    EvalR(LamGrabDelim, Box<GrabPureCxt>), // E[v []]
 }
 
 impl GrabPureCxt {
     pub fn plug(self, t: LamGrabDelim) -> LamGrabDelim {
         match self {
             GrabPureCxt::Hole => t,
-            GrabPureCxt::EvalL(cxt, e) => cxt.plug(LamGrabDelim::a(t, e)),
-            GrabPureCxt::EvalR(cxt, v) => cxt.plug(LamGrabDelim::a(v, t)),
+            GrabPureCxt::EvalL(e, cxt) => cxt.plug(LamGrabDelim::a(t, e)),
+            GrabPureCxt::EvalR(e, cxt) => cxt.plug(LamGrabDelim::a(e, t)),
+        }
+    }
+    pub fn extend_r(self, e: LamGrabDelim) -> Self {
+        match self {
+            GrabPureCxt::Hole => GrabPureCxt::EvalR(e, Box::new(GrabPureCxt::Hole)),
+            GrabPureCxt::EvalL(e1, c) => GrabPureCxt::EvalL(e1, Box::new(c.extend_r(e))),
+            GrabPureCxt::EvalR(e1, c) => GrabPureCxt::EvalR(e1, Box::new(c.extend_r(e))),
+        }
+    }
+    pub fn extend_l(self, e: LamGrabDelim) -> Self {
+        match self {
+            GrabPureCxt::Hole => GrabPureCxt::EvalL(e, Box::new(GrabPureCxt::Hole)),
+            GrabPureCxt::EvalL(e1, c) => GrabPureCxt::EvalL(e1, Box::new(c.extend_l(e))),
+            GrabPureCxt::EvalR(e1, c) => GrabPureCxt::EvalR(e1, Box::new(c.extend_l(e))),
         }
     }
 }
 
 pub enum GrabCxt {
     Hole,
-    EvalL(Box<GrabCxt>, LamGrabDelim), // E[[] e]
-    EvalR(Box<GrabCxt>, LamGrabDelim), // E[v []]
+    EvalL(LamGrabDelim, Box<GrabCxt>), // E[[] e]
+    EvalR(LamGrabDelim, Box<GrabCxt>), // E[v []]
     Del(Box<GrabCxt>),                 // E[delimit []] ,
 }
 
@@ -117,16 +131,40 @@ impl GrabCxt {
     pub fn plug(self, t: LamGrabDelim) -> LamGrabDelim {
         match self {
             GrabCxt::Hole => t,
-            GrabCxt::EvalL(cxt, e) => cxt.plug(LamGrabDelim::a(t, e)),
-            GrabCxt::EvalR(cxt, v) => cxt.plug(LamGrabDelim::a(v, t)),
+            GrabCxt::EvalL(e, cxt) => cxt.plug(LamGrabDelim::a(t, e)),
+            GrabCxt::EvalR(v, cxt) => cxt.plug(LamGrabDelim::a(v, t)),
             GrabCxt::Del(cxt) => cxt.plug(LamGrabDelim::d(t)),
+        }
+    }
+    pub fn extend_r(self, e: LamGrabDelim) -> Self {
+        match self {
+            GrabCxt::Hole => GrabCxt::EvalR(e, Box::new(GrabCxt::Hole)),
+            GrabCxt::EvalL(e1, c) => GrabCxt::EvalL(e1, Box::new(c.extend_r(e))),
+            GrabCxt::EvalR(e1, c) => GrabCxt::EvalR(e1, Box::new(c.extend_r(e))),
+            GrabCxt::Del(c) => GrabCxt::Del(Box::new(c.extend_r(e))),
+        }
+    }
+    pub fn extend_l(self, e: LamGrabDelim) -> Self {
+        match self {
+            GrabCxt::Hole => GrabCxt::EvalL(e, Box::new(GrabCxt::Hole)),
+            GrabCxt::EvalL(e1, c) => GrabCxt::EvalL(e1, Box::new(c.extend_l(e))),
+            GrabCxt::EvalR(e1, c) => GrabCxt::EvalR(e1, Box::new(c.extend_l(e))),
+            GrabCxt::Del(c) => GrabCxt::Del(Box::new(c.extend_l(e))),
+        }
+    }
+    pub fn extend_d(self) -> Self {
+        match self {
+            GrabCxt::Hole => GrabCxt::Del(Box::new(GrabCxt::Hole)),
+            GrabCxt::EvalL(e1, c) => GrabCxt::EvalL(e1, Box::new(c.extend_d())),
+            GrabCxt::EvalR(e1, c) => GrabCxt::EvalR(e1, Box::new(c.extend_d())),
+            GrabCxt::Del(c) => GrabCxt::Del(Box::new(c.extend_d())),
         }
     }
     pub fn purify(self) -> Option<GrabPureCxt> {
         match self {
             GrabCxt::Hole => Some(GrabPureCxt::Hole),
-            GrabCxt::EvalL(f, e) => Some(GrabPureCxt::EvalL(Box::new(f.purify()?), e)),
-            GrabCxt::EvalR(f, v) => Some(GrabPureCxt::EvalR(Box::new(f.purify()?), v)),
+            GrabCxt::EvalL(e, f) => Some(GrabPureCxt::EvalL(e, Box::new(f.purify()?))),
+            GrabCxt::EvalR(v, f) => Some(GrabPureCxt::EvalR(v, Box::new(f.purify()?))),
             GrabCxt::Del(_) => None,
         }
     }
@@ -153,8 +191,8 @@ pub fn frames_to_cxt(frames: Vec<Frame>) -> GrabCxt {
     frames
         .into_iter()
         .fold(GrabCxt::Hole, |cxt, frame| match frame {
-            Frame::EvalL(e) => GrabCxt::EvalL(Box::new(cxt), e),
-            Frame::EvalR(v) => GrabCxt::EvalR(Box::new(cxt), v),
+            Frame::EvalL(e) => GrabCxt::EvalL(e, Box::new(cxt)),
+            Frame::EvalR(v) => GrabCxt::EvalR(v, Box::new(cxt)),
             Frame::Del => GrabCxt::Del(Box::new(cxt)),
         })
 }
@@ -206,24 +244,12 @@ impl RdxInFo {
     }
 }
 
-pub fn cxt_rec_hole(cxt: GrabCxt, cxt2: GrabCxt) -> GrabCxt {
-    match cxt {
-        GrabCxt::Hole => cxt2,
-        GrabCxt::EvalL(cxt, e) => GrabCxt::EvalL(Box::new(cxt_rec_hole(*cxt, cxt2)), e),
-        GrabCxt::EvalR(cxt, v) => GrabCxt::EvalR(Box::new(cxt_rec_hole(*cxt, cxt2)), v),
-        GrabCxt::Del(cxt) => GrabCxt::Del(Box::new(cxt_rec_hole(*cxt, cxt2))),
-    }
-}
-
 // t = delim F[grab k. e] と書けるか
 pub fn cxt_grab(mut e: LamGrabDelim) -> Option<(Var, LamGrabDelim, GrabPureCxt)> {
-    let mut frames: Vec<Frame> = vec![];
+    let mut cxt = GrabPureCxt::Hole;
     let (k, e) = loop {
         let ne = match e {
-            LamGrabDelim::Var(_) => {
-                return None;
-            }
-            LamGrabDelim::Lam(_, _) => {
+            LamGrabDelim::Var(_) | LamGrabDelim::Lam(_, _) | LamGrabDelim::Delim(_) => {
                 return None;
             }
             LamGrabDelim::App(ref e1, ref e2)
@@ -233,16 +259,12 @@ pub fn cxt_grab(mut e: LamGrabDelim) -> Option<(Var, LamGrabDelim, GrabPureCxt)>
             }
             LamGrabDelim::App(e1, e2) => {
                 if e1.is_value().is_some() {
-                    frames.push(Frame::EvalR(*e1));
+                    cxt = cxt.extend_r(*e1);
                     *e2
                 } else {
-                    frames.push(Frame::EvalL(*e2));
+                    cxt = cxt.extend_l(*e2);
                     *e1
                 }
-            }
-            LamGrabDelim::Delim(e) => {
-                frames.push(Frame::Del);
-                *e
             }
             LamGrabDelim::Grab(k, e1) => {
                 break (k, e1);
@@ -250,7 +272,6 @@ pub fn cxt_grab(mut e: LamGrabDelim) -> Option<(Var, LamGrabDelim, GrabPureCxt)>
         };
         e = ne;
     };
-    let cxt = (frames_to_cxt(frames)).purify()?;
     Some((k, *e, cxt))
 }
 
@@ -284,7 +305,8 @@ impl LamGrabDelim {
     }
 }
 
-pub fn natural_l2rcbv(t: LamGrabDelim) -> Option<LamGrabDelim> {
+// incorrect
+pub fn incorrect_natural_l2rcbv(t: LamGrabDelim) -> Option<LamGrabDelim> {
     if let Some(rdxinfo) = t.is_redux() {
         return Some(rdxinfo.step());
     }
@@ -293,12 +315,12 @@ pub fn natural_l2rcbv(t: LamGrabDelim) -> Option<LamGrabDelim> {
         LamGrabDelim::Lam(_, _) => None,
         LamGrabDelim::App(e1, e2) => {
             if e1.is_value().is_some() {
-                Some(LamGrabDelim::a(*e1, natural_l2rcbv(*e2)?))
+                Some(LamGrabDelim::a(*e1, incorrect_natural_l2rcbv(*e2)?))
             } else {
-                Some(LamGrabDelim::a(natural_l2rcbv(*e1)?, *e2))
+                Some(LamGrabDelim::a(incorrect_natural_l2rcbv(*e1)?, *e2))
             }
         }
-        LamGrabDelim::Delim(e) => Some(LamGrabDelim::d(natural_l2rcbv(*e)?)),
+        LamGrabDelim::Delim(e) => Some(LamGrabDelim::d(incorrect_natural_l2rcbv(*e)?)),
         LamGrabDelim::Grab(_, _) => None,
     }
 }
@@ -307,10 +329,7 @@ pub fn decomp_with_cxt(mut t: LamGrabDelim) -> Option<(RdxInFo, GrabCxt)> {
     if t.is_value().is_some() {
         return None;
     }
-    if let Some(rdx) = t.is_redux() {
-        return Some((rdx, GrabCxt::Hole));
-    }
-    let mut frames = vec![];
+    let mut cxt = GrabCxt::Hole;
     let rdx = loop {
         if let Some(rdx) = t.is_redux() {
             break rdx;
@@ -324,15 +343,15 @@ pub fn decomp_with_cxt(mut t: LamGrabDelim) -> Option<(RdxInFo, GrabCxt)> {
             }
             LamGrabDelim::App(e1, e2) => {
                 if e1.is_value().is_some() {
-                    frames.push(Frame::EvalR(*e1));
+                    cxt = cxt.extend_r(*e1);
                     *e2
                 } else {
-                    frames.push(Frame::EvalL(*e2));
+                    cxt = cxt.extend_l(*e2);
                     *e1
                 }
             }
             LamGrabDelim::Delim(e) => {
-                frames.push(Frame::Del);
+                cxt = cxt.extend_d();
                 *e
             }
             LamGrabDelim::Grab(_, _) => {
@@ -341,7 +360,6 @@ pub fn decomp_with_cxt(mut t: LamGrabDelim) -> Option<(RdxInFo, GrabCxt)> {
         };
         t = nt;
     };
-    let cxt = frames_to_cxt(frames);
     Some((rdx, cxt))
 }
 
@@ -388,8 +406,10 @@ pub fn step_machine(State { mut stack, lam }: State) -> Option<State> {
                 old.pop().unwrap();
                 let cxt = frames_to_cxt(stack).purify().unwrap();
                 let rdx = RdxInFo::DelimGrab { cxt, k, e: *e };
-                let lam = rdx.as_lam();
-                Some(State { stack: old, lam })
+                Some(State {
+                    stack: old,
+                    lam: rdx.as_lam(),
+                })
             }
             LamGrabDelim::Delim(e) => {
                 stack.push(Frame::Del);
