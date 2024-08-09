@@ -18,4 +18,6 @@
     - [基本的な回路](./logic_circuits_to_machine/component.md)
     - [ハードウェアの記述](./logic_circuits_to_machine/hardware_description_language.md)
     - [機械語を動かす](./logic_circuits_to_machine/machine.md)
-- [他の計算モデル](turing_tarpit.md)
+- [他の計算モデル](./other.md)
+    - [Turing tarpit](./other/turing_tarpit.md)
+    - [継続概念について](./other/continuation.md)
