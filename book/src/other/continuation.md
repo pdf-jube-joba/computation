@@ -227,3 +227,203 @@ type State = State (e: Exp, c: List Frame) // <e | c> と書く。
 <App e e' | c> ->_("decomp") <e | ([] e')::c>
 ```
 このとき、 `->_*` は部分関数になっている。
+`->_("plug")` をできる限り行うのが plug 関数で、 `->_("step")` を行うのが step 関数で `->_("decomp")` を行うのが decomp 関数である。
+## CPS変換について
+- [ ] ラムダ項のCPS変換とスタックの関係について調べる。
+
+# abort/control によるラムダ計算の拡張
+## motivative な例
+計算の残りの部分をプログラムが扱えるようにすることで、例えば必要のない関数のリターンを読み飛ばすことができる。
+次の関数を考える。
+```fsharp
+let prod: List Number -> Number = function
+    | [] -> 1
+    | x::xs -> x * prod(xs)
+```
+これは自然数のリストを受け取ってその積をとる関数である。
+もしリストに `0` が含まれるならその時点で `0` を返してよい。
+```fsharp
+let prod: List Number -> Number = function
+    | [] -> 1
+    | x::xs -> if x == 0 then 0 else x * prod(xs)
+```
+
+ただこれでも次のように必要のない積は含まれる。
+例えば、最後の3行は計算する必要がない。
+```
+prod [1, 2, 0, 3]
+-> if 1 == 0 then 0 else 1 * prod [2, 0, 3] 
+-> 1 * prod[2, 0, 3]
+-> 1 * if 2 == 0 then 0 else 2 * prod[0, 3]
+-> 1 * (2 * prod[0, 3])
+-> 1 * (2 * if 0 == 0 then 0 else prod [3])
+-> 1 * (2 * 0)
+-> 1 * 0
+-> 0
+```
+これを一気に `0` にステップを進めるようにしたい。
+"次に何をやるか"の情報を前の節と同じようにスタックに管理しておけば、
+次のような操作を行いたいということがわかる。
+```
+< prod [1, 2, 0, 3] | []> // c は
+-> < if 1 == 0 then 0 else 1 * prod [2, 0, 3] | []>
+-> <1 == 0 | (if [] then 0 else 1 * prod [2, 0, 3])::[]>
+-> <false | (if...)::[]>
+-> <if false then 0 ... | []>
+-> <1 * prod [2, 0, 3] | []>
+-> < prod[2, 0, 3] | (1 * [])::[]>
+->_* <prod[0, 3] | (2 * [])::(1 * [])::[]>
+->_* <if true then 0 else prod [3] | (2 * [])::(1 * [])::[]>
+-> <0 | []> // blowup stack
+```
+これをしたいだけなら、ラムダ項を abort と呼ばれる項で拡張すればいい。
+項の簡約としては `< Abort e | c > -> < e | []>` という風に理解できる。
+また、もし計算の残りの部分を陽に扱いたい場合には control と呼ばれる項で拡張すればいい。
+この control は `< Control e | c > -> < App e k | []>` ただし `k = Lam z (Abort c(z))`
+のように簡約される。
+`k` に `Abort` が入るのはその方がうまくいくから。
+
+## 定義
+```fsharp
+type Exp =
+    | Var (x: String)
+    | Lam (x: String, e: Exp)
+    | App (e1: Exp, e2: Exp)
+    | Abort (e: Exp)
+    | Control (e: Exp)
+```
+みたいにして、
+- cxt-case: `plug(e, r) -> plug(e, r')`
+- abort-case: `plug(e, Abort(M)) -> M`
+みたいな感じに定義する。
+- [ ] ちゃんと定義する。
+
+# grab/delimit によるラムダ計算の拡張
+abort/control の具体例だと prod を内部で使っているだけの関数のスタックも壊されてしまう。
+スタックに区切りを入れるのが grab/delimit である。
+項の定義はそこまで変わらない。
+```fsharp
+type Exp =
+    | Var (x: String)
+    | Lam (x: String, e: Exp)
+    | App (e1: Exp, e2: Exp)
+    | Delimit (e: Exp)
+    | Grab (k: String, e: Exp)
+```
+value の定義は変わらないが、 redex を定義するために次に定義する PureCxt が必要になる。
+
+```fsharp
+type PureCxt =
+    | Hole 
+    | EvalL (e: Exp, E: PureCxt) 
+    | EvalR (v: {e: Exp | is_value(e)}, E: PureCxt) 
+
+type Cxt =
+    | Hole 
+    | EvalL (e: Exp, E: Cxt) 
+    | EvalR (v: {e: Exp | is_value(e)}, E: Cxt) 
+    | Delim (e: Cxt)
+```
+`plug` 関数の実装は省略する。
+
+簡約を定める関係式としては次のようになる。
+- base-case: `App (Lam x e) v -> subst(e, x, v)`
+- delim-case: `Delim v -> v`
+- grab-case: `Delim plug(c, Grab k e) -> subst(e, k, Lam y plug(c, y))` ただし `c` は PureCxt
+- cxt-case: `plug(c, e) -> plug(c, e')` ただし `e -> e'` かつ `c` は Cxt
+
+この関係については、部分関数性は成り立つが、証明木の一意性は成り立たない。
+また、 "grab" が現れることで単純な再帰関数を用いた step の実装が難しくなっている。
+例えば次のように実装を書いてみる。
+
+```fsharp
+let step: Exp -> Option Exp := function
+    | Var _ = None,
+    | Lam _ _ = None,
+    | App (Lam x e) e2 =
+        if is_value(e2) then
+            subst(e, x, e2)
+        else
+            App (Lam x e) step(e2)
+    | App e1 e2 = App step(e1) e2
+    | Delim e =
+        if is_value(e) then
+            e
+        else
+            Delim (step)
+    | Grab k e = ?
+```
+ここでどのように Grab を書こうとしても、再帰的に step が呼ばれる中で対応する Delim の情報が（このコード上には）残っていないために、実装を行うことができない。
+（当然、ホスト言語のコールスタックには残っているが、それを陽に扱わなければいけない。）
+
+これを解決するため、以降では順に必要なデータ型を（通常のラムダ計算のやり方にのっとり）定義していく。
+redex は次のようなデータ型である。
+（右側はラムダ式への変換を表す。）
+```fsharp
+type Rdx =
+    | Red (x: String, e: Exp, v: {e: Exp | is-value(e)})  // = App (Lam x e) v 
+    | Delim (v: {e: Exp | is-value(e)})  // = Delim v \
+    | DelGrab (c: PureCxt, k: variable, e: Exp) // = Delim (plug(c, (Grab k e)))
+$
+次の関数が定義できる。
+- `as_lam: Rdx -> Exp`
+- `is_rdx: Exp -> Option Rdx`
+ここで、 `as_lam` が単射であることが重要である。
+また、そのいわば逆写像である `is_lam` もプログラムとして書ける。
+そのさいに必要な `extend_l` や `extend_r` は変わらない。
+
+次の step 関数が簡約における cxt を除いた関係を担っている。
+```fsharp
+let step: Rdx -> Exp := function
+    | Rdx x e v = subst(e, x, v)
+    | Delim v = v
+    | DelGrab c k e =
+        let cont = Lam y (Delim plug(c, y))
+        subst(e, k, cont)
+```
+
+decomp の定義は以下である。
+```fsharp
+let decomp: Exp -> Option (Rdx, Cxt) := fun t ->
+    if is_value(t) then
+        None
+    else if is_redex(t) then
+        let r = is_rdx(t)
+        Some (r, Hole)
+    else match t with
+        | Var _ | Lam _ _ | Grab _ _ = None
+        | App e1 e2 =
+            if is_value(e1) then
+                let (r, c) = decomp(e2)
+                Some (r, extend_l c e1)
+            else
+                let (r, c) = decomp(e1)
+                Some (r, extend_r c e2)
+        | Delim e =
+            let (r, c) = decomp(e)
+            Some (r, extend_d c e)
+```
+
+これにより step が同様に定義できる。
+
+## stack を用いる。
+```fsharp
+type Frame =
+    | EvalL (e: Exp) // ([] e) と書く。
+    | EvalR (v: {e: Exp | is-value(e)}) // (v []) と書く。
+    | Delim // delim と書く。
+type State =
+    | State (e: Exp, c: List Frame) //  = < e | c > $
+```
+
+State の関係は次のようになる。
+```
+<v | delim::c> ->_("comp") <delim v | c>
+<Delim e | c> ->_("decomp") <e | delim::c>
+<Grab k e | c> ->_("grab") <Delim plug(F, Grab k e) | c'>
+```
+ただし、次の条件が満たされている。
+- `c = (c_1: List Frame) :: delim :: c_2` で `c_1` には `EvalL` か `EvalR` の Frame のみ含まれる。
+- `F` は `c_1` から得られる `PureCxt` とする。
+それ以外は定義は同様である。
+
