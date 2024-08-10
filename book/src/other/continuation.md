@@ -3,6 +3,227 @@
 ラムダ計算の項は次のような文法で定義される。
 （ただし、 variable と呼ばれる変数を扱うための型がすでに存在しているとする。）
 
-```ml
-type Exp = Var of Variable | Lam of Variable * Exp | App of Exp * Exp
+```fsharp
+type Exp =
+    | Var (x: String)
+    | Lam (x: String, e: Exp)
+    | App (e1: Exp, e2: Exp)
 ```
+
+ラムダ計算を前に考えたときはβ簡約とβ正規形（ベータ簡約ができない項）を考えたが、ここからは call-by-value で left-to-right な評価戦略を考えたい。
+そう考えたいので、ラムダ項は真ん中の形をしているとき値（ value ）という。
+
+次の簡約規則により、 call-by-value で left-to-right な評価戦略を定める。
+ここで、 `subst(e, x, t)` は（変数の束縛とかをちゃんと考えた）代入である。
+- base-case: ` App (Lam x e) v -> subst(e, x, v)` ただし `v` は value 
+- eval-r-case: `App v1 e2 -> App v1 e2'` ただし `v1` は value で `e2 -> e2'`
+- eval-l-case: `App e1 e2 -> App e1' e2` ただし `e1 -> e'`
+
+base-case に現れるような形をしたラムダ項を redex という。
+以降では、 `r` を redex 、 `v` を value を表すメタ変数とする。
+簡約規則を見ると全ての `e -> e'` なる関係は base-case から eval-l か eval-r を繰り返し用いて得られ、`e -> e'` を与える理由付けは一意である。
+つまり、 `e -> e'` を与える証明を証明木に直せばそれは一意になっている。
+特に、 `e -> e'` は（部分）関数を定めている。
+通常のβ簡約関係の定義とはいろいろ異なっていることがわかる。
+例えば、ラムダ項が redex を部分項に持っていても reduction ができるとは限らない。
+（ `Lam x (r: redex)` は reduction されないなど。）
+
+（疑似言語ではあるが、）ここから単純に再帰関数を使えば簡約が定まる。
+
+```fsharp
+step: Exp -> Option Exp := function
+    Var _ = None,
+    Lam _ _ = None,
+    App (Lam x e) e2 =
+        if is_value(e2) then
+            subst(e, x, e2)
+        else
+            App (Lam x e) step(e2)
+    App e1 e2 = App step(e1) e2
+```
+
+## 継続概念について
+項を redex になっている部分と残りの部分に分けることを考える。
+この"残りの部分"はどのように表現されるか。
+具体例として `t = App v1 (App r e)` の簡約を考えると、 `r` が `r'` へと簡約されるのであれば、 `t` は `App v1 (App r' e)` へと簡約される。
+これを `let f = fun m -> App v1 (App m e)` なる \(r\) の"外側"を用いて `t = f(r) -> f(r')` と簡約されたととらえることができる。
+これを踏まえると、 項を redex と外側に分けるつぎの関数が得られる。
+
+```fsharp
+decomp: Exp -> Option (Exp, Exp -> Exp) := function
+    Var _ = None,
+    Lam _ _ = None,
+    App e1 e2 =
+        if is_value(e1) && is_value(e2) then
+            (App e1 e2, fun m -> m) 
+        else if is-value(e1) then
+            let (r, f) = decomp(e2)
+            (r, fun m -> App e1 f(m))
+        else
+            let (r, f) = decomp(e1)
+            (r, fun m -> App f(m) e2)
+```
+分解しただけなので、 `decomp(m) = (r, f)` なら `m == f(r)` である。
+`r` は redex なので `r -> r'` が base-case に従って得られる。
+
+この decomp 関数の値域にあらわれるデータをもう少しちゃんと考えたい。
+`Option (Exp, Exp -> Exp)` の値であるが、 `Exp` 部分は redex しか現れず、 `Exp -> Exp` もこの型をもつどんな関数でも表れるわけではない。
+より適切なデータ型を与えようとすると、それが評価文脈になる。
+
+```fsharp
+type Cxt =
+    | Hole
+    | EvalL (e: Exp, c: Cxt)
+    | EvalR (v: {e: Exp | is_value(e)}, c: Cxt)
+```
+直感的には、 `fun x -> App e1 f(x)` なる関数を覚えておくために必要なデータ型が `EvalR e1 f` であり、 `fun x -> App f(x) e2` なる関数を覚えておくために必要なデータ型が `EvalL e2 f` である。
+以降で必要な関数をいくつか導入するが、順序が人によっては入れ替わっているように感じるかもしれない。
+
+`f: Cxt` と `m: Exp` に対して `f(m)` は次のように定義される。
+```fsharp
+let plug: Cxt -> Exp -> Exp := function
+    Hole t = t
+    (EvalL e c) t = plug c (App t e)
+    (EvalR v c) t = plug c (App v t)
+```
+この対応のもとで、評価文脈 `f` を受け取って評価文脈 `fun x -> App e1 f(x)` を返す関数は次のように書ける。
+```fsharp
+let extend_l: Exp -> Cxt -> Cxt := function
+    e1 Hole = EvalL e1 Hole
+    e1 (EvalL e c) = EvalL e (extend_l e1 c)
+    e1 (EvalR v c) = EvalR e (extend_l e1 c)
+```
+`fun x -> App f(x) e2` を返す関数は次のように書ける。
+```fsharp
+let extend_r: Exp -> Cxt -> Cxt := function
+    e2 Hole = EvalR e2 Hole
+    e2 (EvalL e c) = EvalL e (extend_r e2 c)
+    e2 (EvalR v c) = EvalR e (extend_l e2 c)
+```
+
+また redex を表すデータ型を次のように与える。
+```fsharp
+type Red =
+    Red (x: variable, e: Exp, v: {e: Exp | is_value(e)})
+```
+redex に関して次のような写像がある。
+- redex をラムダ項に戻す関数 `as_lam: Red -> Exp`
+- ラムダ項が redex かを判定する関数 `is_rdx: Exp -> Option Red`
+- redex の簡約を進める `step: Rdx -> Exp`
+
+この状態で再度 decomp を定義すると次のように書ける。
+```fsharp
+let decomp: Exp -> Option (Red, Cxt) := fun e -> 
+    match is_rdx(e)
+    Some r -> Some (r, Hole)
+    None ->
+      match e
+      Var _ = None
+      Lam _ _ = None
+      App e1 e2 =
+        if is_value(e1) then
+          let (r, c) = decomp(e2)
+          Some (r, extend_r e1 c)
+        else
+          let (r, c) = decomp(e1)
+          Some (r, extend_l e2 c)
+```
+また、`step`は次のように書ける。
+```fsharp
+let step: Exp -> Option Exp := fun e ->
+    let (r, c) = decomp(e)
+    plug(c, step(r))
+```
+
+注意点として、この状態で次のように簡約関係を定義してみると、これは先ほど定義した簡約関係とは性質が異なる。
+- base-case: `App (Lam x e) v -> subst(e, x, v)`ただし `v` は value
+- cxt-case: `plug(c, e) -> plug(c, e')` ただし `e -> e'`
+
+性質としては、 `M -> M'` なる関係自体は部分関数的であるが、その理由付けとしての証明木自体には一意性がなりたっていない。
+（つまり、 `E1 != E2` と `e1 != e2` を用いて `plug(E1, e1) = plug(E2, e2)` のようにかけ `e1 -> e1'` かつ `e2 -> e2'` となるような項が簡単に作り出せる。
+ただし、その場合でも `plug(E1, e1') = plug(E2, e2')` が成り立つ。）
+この点を考慮するのであれば、（多分）次の定義のみでよくなる。
+- cxt-case: `plug(c, r) -> plug(c, r')` ただし `r = App (Lam x e) v` で `is_value(v)` であり、このとき `r' = subst(e, x, v)` とする。
+
+## stack に直す
+`extend_*` をわざわざ使ったり、 `plug` の定義の仕方だったり、素直に考えれば `Cxt` に対する"解釈"を逆にすればもっと簡単に定義できそうに思える。
+例えば、 `plug` を `Hole` を探してそこに `t` を代入する関数にすれば、 `decomp` の定義で `extend_*` を使わずにそのままコンストラクタに入れれる。
+この定義を採用した理由が stack との関係によるもののためである。
+具体例として `m = App v (App r e)` を考えると、ここからえられる `Cxt` は `(EvalL e (EvalR v Hole))` である。
+`m` での `e` と `v` の登場する順番と `Cxt` での `e` と `v` の登場する順番はひっくり返っている。
+一方で、 plug を見れば確かに正しい。
+```
+plug (EvalL e (EvalR v Hole)) r
+-> plug (EvalR v Hole) (App r e)
+-> plug Hole (App v (App r e))
+-> (App v (App r e))
+```
+このように `r` の"内側から見ることで" `fun x -> App x e` と `fun x -> App v x` を適用したと解釈するのが評価文脈である。
+
+この観点で `Cxt` の型定義に注目すると、これは次の Frame なるデータ型を用いた List として表せる。
+```fsharp
+type Frame =
+    | EvalL (e: Exp) // ([] e) と書く。
+    | EvalR (v: {e: Exp | is-value(e)}) // (v []) と書く。
+```
+
+こうすれば、 `plug` や `decomp` や `step` は次のように解釈できる。
+```fsharp
+let plugf: Frame -> Exp -> Exp = function
+    EvalL e t = App t e
+    EvalR v t = App v t
+
+let plug: List Frame -> Exp -> Exp = function
+    [] t = t
+    f::c t = plug(plugf(f, t), c)
+
+let extend: Frame -> Cxt -> Cxt = function
+    f [] = f
+    f f'::c = f'::(extend(f, c))
+
+let decomp: Exp -> Option (Red, List Frame) =
+    match is_rdx(e)
+    Some r -> Some (r, [])
+    None ->
+      match e
+      Var _ = None
+      Lam _ _ = None
+      App e1 e2 =
+        if is_value(e1) then
+            let (r, c) = decomp(e2)
+            Some (r, extend((EvalR e1), c))
+        else
+            let (r, c) = decomp(e1)
+            Some (r, extend((EvalL e2), c))
+```
+
+もう少し decomp を見通しよく書くこともできる。
+```fsharp
+let decomp0: Exp -> List Frame -> Option (Red, List Frame) = fun e l ->
+    match is_rdx(e)
+    Some r -> Some (r, l)
+    None ->
+        match e
+        Var _ = None
+        Lam _ _ = None
+        App e1 e2 =
+            if is_value(e1) then
+                decompf(e2, (EvalR e1)::l)
+            else
+                decompf(e1, (EvalL e2)::l)
+let decomp: Exp -> Option (Red, List Frame) = fun e -> decomp0(e, [])
+```
+これがコールスタックに対応している。
+実際、ラムダ項の実行は次のように思える。
+```fsharp
+type State = State (e: Exp, c: List Frame) // <e | c> と書く。
+```
+
+```
+<v' | ([] e)::c> ->_("plug") <App v' e | c>
+<v' | (v []::c)> ->_("plug") <App v v' | c>
+<r | c> ->_("step") <r' | c>
+<App v e | c> ->_("decomp") <e | (v [])::c>
+<App e e' | c> ->_("decomp") <e | ([] e')::c>
+```
+このとき、 `->_*` は部分関数になっている。
