@@ -295,6 +295,7 @@ type Exp =
 みたいにして、
 - cxt-case: `plug(e, r) -> plug(e, r')`
 - abort-case: `plug(e, Abort(M)) -> M`
+- control-case: `plug(e, Control(M)) -> App M (Lam y plug(E, y))`
 みたいな感じに定義する。
 - [ ] ちゃんと定義する。
 
