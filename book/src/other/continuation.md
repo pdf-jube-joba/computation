@@ -282,6 +282,7 @@ prod [1, 2, 0, 3]
 この control は `< Control e | c > -> < App e k | []>` ただし `k = Lam z (Abort c(z))`
 のように簡約される。
 `k` に `Abort` が入るのはその方がうまくいくから。
+（ここもっとちゃんとした説明が欲しい。）
 
 ## 定義
 ```fsharp
