@@ -7,7 +7,7 @@ pub enum Var {
 }
 
 impl Var {
-    fn to_s(self) -> Self {
+    fn into_s(self) -> Self {
         match self {
             Var::S(s) => Var::S(s),
             Var::U(u) => Var::S(u.to_string()),
@@ -53,11 +53,15 @@ where
 }
 
 pub trait LamVar: Sized {
+    // return Some() if it is variable
     fn decomposition_to_var(&self) -> Option<(Var, Box<dyn Fn(Var) -> Self>)>;
-    fn decomposition_to_bound(&self) -> Option<(Var, Self, Box<dyn Fn(Var, Self) -> Self>)>;
+    // return Some() if it bound variable
+    fn decomposition_to_bound(&self) -> Option<(Var, Box<dyn Fn(Var) -> Self>)>;
     fn traversal(&self, f: Box<dyn Fn(Self) -> Self>) -> Self;
-    fn fold<T, A>(&self, f: Box<dyn Fn(Self) -> T>, add: A) -> T
+    fn fold<T, F, A>(&self, f: &F, add: A) -> T
     where
+        F: Fn(Self) -> T,
+        T: Default,
         A: Fn(T, T) -> T;
 }
 
@@ -70,27 +74,28 @@ pub fn free_variables<T>(e: &T) -> HashSet<Var>
 where
     T: LamVar,
 {
+
+    let mut s = e.fold(&Box::new(|m| free_variables(&m)), add_set);
+
     if let Some((y, _)) = e.decomposition_to_var() {
-        return vec![y].into_iter().collect();
+        s.insert(y);
     }
-    if let Some((y, r, _)) = e.decomposition_to_bound() {
-        let mut s = free_variables(&r);
+
+    if let Some((y, _)) = e.decomposition_to_bound() {
         s.remove(&y);
-        return s;
     }
-    e.fold(Box::new(|m| free_variables(&m)), add_set)
+    s
 }
 
 pub fn bound_variables<T>(e: &T) -> HashSet<Var>
 where
     T: LamVar,
 {
-    if let Some((y, r, _)) = e.decomposition_to_bound() {
-        let mut s: HashSet<_> = vec![y].into_iter().collect();
-        s.extend(bound_variables(&r));
-        return s;
+    let mut s = e.fold(&Box::new(|m| bound_variables(&m)), add_set);
+    if let Some((y, _)) = e.decomposition_to_bound() {
+        s.remove(&y);
     }
-    e.fold(Box::new(|m| bound_variables(&m)), add_set)
+    s
 }
 
 fn alpha_conversion_canonical_rec<T>(e: T, maps: Vec<Var>) -> T
@@ -101,13 +106,13 @@ where
         if let Some(new_y) = maps.iter().position(|v| *v == y) {
             return f(new_y.into());
         } else {
-            return f(y.to_s());
+            return f(y.into_s());
         }
     }
 
-    if let Some((y, r, f)) = e.decomposition_to_bound() {
+    if let Some((y, f)) = e.decomposition_to_bound() {
         let new_y: Var = maps.len().into();
-        let new_y = new_y.to_s();
+        let new_y = new_y.into_s();
         let mut maps = maps.clone();
         maps.push(y);
         let new_r = alpha_conversion_canonical_rec(r, maps);
@@ -143,4 +148,16 @@ where
         }
     }
     todo!()
+}
+
+mod test_lambda_calculus {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    enum Exp {
+        Var(Var),
+        Abs(Var, Box<Exp>),
+        App(Box<Exp>, Box<Exp>),
+        Let(Var, Box<Exp>, Box<Exp>),
+    }
 }
