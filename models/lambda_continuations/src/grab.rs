@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
-use utils::variable::Var;
+use utils::variable::{self, Var};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LamGrabDelim {
@@ -36,35 +36,125 @@ impl LamGrabDelim {
     {
         LamGrabDelim::Grab(k.into(), Box::new(e))
     }
-}
 
-pub fn subst(e: LamGrabDelim, x: Var, t: LamGrabDelim) -> LamGrabDelim {
-    match e {
-        LamGrabDelim::Var(y) => {
-            if x == y {
-                t
-            } else {
-                LamGrabDelim::v(y)
+    pub fn free_variables(&self) -> HashSet<Var> {
+        match self {
+            LamGrabDelim::Var(x) => HashSet::from_iter(vec![x.clone()]),
+            LamGrabDelim::Lam(x, e) => {
+                let mut s = e.free_variables();
+                s.remove(x);
+                s
+            }
+            LamGrabDelim::App(e1, e2) => {
+                let mut s = HashSet::new();
+                s.extend(e1.free_variables());
+                s.extend(e2.free_variables());
+                s
+            }
+            LamGrabDelim::Delim(e) => e.free_variables(),
+            LamGrabDelim::Grab(k, e) => {
+                let mut s = e.free_variables();
+                s.remove(k);
+                s
             }
         }
-        LamGrabDelim::Lam(y, e) => {
-            if x == y {
-                LamGrabDelim::l(y, *e)
-            } else {
-                LamGrabDelim::l(y, subst(*e, x, t))
+    }
+
+    pub fn bound_variables(&self) -> HashSet<Var> {
+        match self {
+            LamGrabDelim::Var(_) => HashSet::new(),
+            LamGrabDelim::Lam(x, e) => {
+                let mut s = e.bound_variables();
+                s.insert(x.clone());
+                s
+            }
+            LamGrabDelim::App(e1, e2) => {
+                let mut s = HashSet::new();
+                s.extend(e1.bound_variables());
+                s.extend(e2.bound_variables());
+                s
+            }
+            LamGrabDelim::Grab(k, e) => {
+                let mut s = e.bound_variables();
+                s.insert(k.clone());
+                s
+            }
+            LamGrabDelim::Delim(e) => e.free_variables(),
+        }
+    }
+
+    pub fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self {
+        fn alpha_conversion_canonical_rec(
+            e: LamGrabDelim,
+            mut v: variable::VarMap,
+        ) -> LamGrabDelim {
+            match e {
+                LamGrabDelim::Var(x) => LamGrabDelim::Var(v.get_table(&x)),
+                LamGrabDelim::Lam(x, e) => {
+                    v.push_var(&x);
+                    LamGrabDelim::Lam(
+                        v.get_table(&x),
+                        Box::new(alpha_conversion_canonical_rec(*e, v)),
+                    )
+                }
+                LamGrabDelim::App(e1, e2) => LamGrabDelim::App(
+                    Box::new(alpha_conversion_canonical_rec(*e1, v.clone())),
+                    Box::new(alpha_conversion_canonical_rec(*e2, v)),
+                ),
+                LamGrabDelim::Grab(k, e) => {
+                    v.push_var(&k);
+                    LamGrabDelim::Grab(
+                        v.get_table(&k),
+                        Box::new(alpha_conversion_canonical_rec(*e, v)),
+                    )
+                }
+                LamGrabDelim::Delim(e) => {
+                    LamGrabDelim::Delim(Box::new(alpha_conversion_canonical_rec(*e, v)))
+                }
             }
         }
-        LamGrabDelim::App(e1, e2) => {
-            LamGrabDelim::a(subst(*e1, x.clone(), t.clone()), subst(*e2, x, t))
-        }
-        LamGrabDelim::Delim(e) => LamGrabDelim::d(subst(*e, x, t)),
-        LamGrabDelim::Grab(k, e) => {
-            if k == x {
-                LamGrabDelim::g(k, *e)
-            } else {
-                LamGrabDelim::g(k, subst(*e, x, t))
+
+        let maps: variable::VarMap =
+            variable::VarMap::new_iter(self.free_variables().into_iter().chain(vs));
+
+        alpha_conversion_canonical_rec(self, maps)
+    }
+
+    pub fn subst(self, x: Var, t: LamGrabDelim) -> Self {
+        pub fn simple_subst(e: LamGrabDelim, x: Var, t: LamGrabDelim) -> LamGrabDelim {
+            match e {
+                LamGrabDelim::Var(y) => {
+                    if x == y {
+                        t
+                    } else {
+                        LamGrabDelim::v(y)
+                    }
+                }
+                LamGrabDelim::Lam(y, e) => {
+                    if x == y {
+                        LamGrabDelim::l(y, *e)
+                    } else {
+                        LamGrabDelim::l(y, simple_subst(*e, x, t))
+                    }
+                }
+                LamGrabDelim::App(e1, e2) => LamGrabDelim::a(
+                    simple_subst(*e1, x.clone(), t.clone()),
+                    simple_subst(*e2, x, t),
+                ),
+                LamGrabDelim::Delim(e) => LamGrabDelim::d(simple_subst(*e, x, t)),
+                LamGrabDelim::Grab(k, e) => {
+                    if k == x {
+                        LamGrabDelim::g(k, *e)
+                    } else {
+                        LamGrabDelim::g(k, simple_subst(*e, x, t))
+                    }
+                }
             }
         }
+
+        let free_t = t.free_variables();
+        let e = self.alpha_conversion_canonical(free_t);
+        simple_subst(e, x, t)
     }
 }
 
@@ -230,7 +320,7 @@ impl RdxInFo {
     }
     pub fn step(self) -> LamGrabDelim {
         match self {
-            RdxInFo::AbsApp { x, e, v } => subst(e, x, v),
+            RdxInFo::AbsApp { x, e, v } => e.subst(x, v),
             RdxInFo::DelimVal { v } => v,
             RdxInFo::DelimGrab { cxt, k, e } => {
                 let new_var: Var = 0.into();
@@ -238,7 +328,7 @@ impl RdxInFo {
                     new_var.clone(),
                     LamGrabDelim::d(cxt.plug(LamGrabDelim::v(new_var))),
                 );
-                subst(e, k, cont)
+                e.subst(k, cont)
             }
         }
     }
