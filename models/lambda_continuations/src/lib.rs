@@ -21,6 +21,7 @@ pub trait LambdaExt: Sized {
 
 pub trait LambdaContext: LambdaExt {
     type Frame;
+    fn decomp(e: Self) -> Option<(Self::Frame, Self)>;
     fn plug(frame: Self::Frame, e: Self) -> Self;
     fn step_state(state: State<Self>) -> Option<State<Self>>;
 }

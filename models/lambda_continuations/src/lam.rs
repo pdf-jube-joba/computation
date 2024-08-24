@@ -1,4 +1,4 @@
-use crate::{LambdaContext, LambdaExt};
+use crate::{LambdaContext, LambdaExt, State};
 use std::{collections::HashSet, fmt::Display};
 use utils::variable::{self, Var};
 
@@ -252,7 +252,6 @@ pub mod nat {
             }
         }
     }
-
     pub enum Frame {
         EvalL(Lam), // [] e
         EvalR(Lam), // v []
@@ -305,49 +304,57 @@ pub mod nat {
         Some(cxt.plug(reduced))
     }
 
-    pub struct State {
-        stack: Vec<Frame>,
-        lam: Lam,
-    }
-
-    pub fn step_machine(State { mut stack, lam }: State) -> Option<State> {
-        if lam.is_value().is_some() {
-            if let Some(frame) = stack.pop() {
-                let new_lam = frame.plug(lam);
-                Some(State {
-                    stack,
-                    lam: new_lam,
-                })
-            } else {
-                None
-            }
-        } else if let Some(rdxinfo) = lam.is_redex() {
-            Some(State {
-                stack,
-                lam: Lam::redex_step(rdxinfo),
-            })
-        } else {
-            match lam {
+    impl LambdaContext for Lam {
+        type Frame = Frame;
+        fn decomp(e: Self) -> Option<(Frame, Self)> {
+            match e {
                 Lam::Var(_) => None,
-                Lam::Lam(_, _) => unreachable!(),
+                Lam::Lam(_, _) => None,
                 Lam::App(e1, e2) => {
                     if e1.is_value().is_some() {
-                        stack.push(Frame::EvalR(*e1));
-                        Some(State { stack, lam: *e2 })
+                        Some((Frame::EvalR(*e1), *e2))
                     } else {
-                        stack.push(Frame::EvalL(*e2));
-                        Some(State { stack, lam: *e1 })
+                        Some((Frame::EvalL(*e2), *e1))
                     }
                 }
+            }
+        }
+
+        fn plug(frame: Self::Frame, t: Self) -> Self {
+            match frame {
+                Frame::EvalR(v) => Lam::a(v, t),
+                Frame::EvalL(e) => Lam::a(t, e),
+            }
+        }
+
+        fn step_state(State { mut stack, top }: State<Self>) -> Option<State<Self>> {
+            if top.is_value().is_some() {
+                if let Some(frame) = stack.pop() {
+                    let new_lam = Lam::plug(frame, top);
+                    Some(State {
+                        stack,
+                        top: new_lam,
+                    })
+                } else {
+                    None
+                }
+            } else if let Some(rdxinfo) = top.is_redex() {
+                Some(State {
+                    stack,
+                    top: Lam::redex_step(rdxinfo),
+                })
+            } else {
+                let (frame, e) = Lam::decomp(top)?;
+                stack.push(frame);
+                Some(State { stack, top: e })
             }
         }
     }
 }
 
 mod ext {
-    use utils::bool::Bool;
-
     use super::*;
+    use utils::bool::Bool;
 
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum Lam {
@@ -361,7 +368,26 @@ mod ext {
         If(Box<Lam>, Box<Lam>, Box<Lam>),
         EqZero(Box<Lam>),
         Let(Var, Box<Lam>, Box<Lam>),
-        Fix(Var, Box<Lam>),
+        Fix(Var, Box<Lam>, Box<Lam>),
+    }
+
+    impl Display for Lam {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let string = match self {
+                Lam::Var(x) => format!("{x}"),
+                Lam::Lam(x, e) => format!("\\{x}. {e}"),
+                Lam::App(e1, e2) => format!("({e1} @ {e2})"),
+                Lam::Zero => format!("0"),
+                Lam::Succ(e) => format!("succ {e}"),
+                Lam::Pred(e) => format!("pred {e}"),
+                Lam::Cst(b) => format!("{b:?}"),
+                Lam::If(e1, e2, e3) => format!("if {e1} then {e2} else {e3}"),
+                Lam::EqZero(e) => format!("0== {e}"),
+                Lam::Let(x, e1, e2) => format!("let {x} = {e1} in {e2}"),
+                Lam::Fix(x, e1, e2) => format!("fix {x} = {e1} in {e2}"),
+            };
+            write!(f, "{string}")
+        }
     }
 
     // impl Lam {

@@ -1,0 +1,5 @@
+WHITESPACE = _{ " " | "\n" }
+
+symbol = { "-" | "_" }
+name = @{ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
+variables = @{ ASCII_ALPHA+ ~  (ASCII_ALPHA | ASCII_DIGIT | symbol)* }
