@@ -354,7 +354,7 @@ pub mod nat {
 
 mod ext {
     use super::*;
-    use utils::bool::Bool;
+    use utils::{bool::Bool, number::Number};
 
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum Lam {
@@ -364,9 +364,7 @@ mod ext {
         Zero,
         Succ(Box<Lam>),
         Pred(Box<Lam>),
-        Cst(Bool),
-        If(Box<Lam>, Box<Lam>, Box<Lam>),
-        EqZero(Box<Lam>),
+        IfZ(Box<Lam>, Box<Lam>, Box<Lam>),
         Let(Var, Box<Lam>, Box<Lam>),
         Fix(Var, Box<Lam>, Box<Lam>),
     }
@@ -380,9 +378,7 @@ mod ext {
                 Lam::Zero => format!("0"),
                 Lam::Succ(e) => format!("succ {e}"),
                 Lam::Pred(e) => format!("pred {e}"),
-                Lam::Cst(b) => format!("{b:?}"),
-                Lam::If(e1, e2, e3) => format!("if {e1} then {e2} else {e3}"),
-                Lam::EqZero(e) => format!("0== {e}"),
+                Lam::IfZ(e1, e2, e3) => format!("if {e1} then {e2} else {e3}"),
                 Lam::Let(x, e1, e2) => format!("let {x} = {e1} in {e2}"),
                 Lam::Fix(x, e1, e2) => format!("fix {x} = {e1} in {e2}"),
             };
@@ -390,16 +386,38 @@ mod ext {
         }
     }
 
-    // impl Lam {
-    //     pub fn is_value(&self) ->
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum Value {
+        Num(Number),
+        Bool(Bool),
+        Function(Var, Lam),
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum RedexInfo {
+        App {
+            var: Var,
+            exp: Lam,
+            value: Value,
+        },
+        Let {
+            var: Var,
+            value_of_var: Value,
+            exp: Lam,
+        },
+        Fix {
+            var: Var,
+            fix_exp: Lam,
+
+        }
+    }
+
+    // impl LambdaExt for Lam {
+    //     type Value = ;
     // }
 
-    // pub fn step(t: Lam) -> Lam {
-    //     match t {
-    //         Lam::Var(x) => Var(x),
-    //         Lam::Lam(x, e) => Lam::Lam(x, v),
-    //         Lam::Zero => Lam::Zero,
-    //     }
+    // impl LambdaContext for Lam {
+
     // }
 
     pub enum Frame {}
