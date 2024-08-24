@@ -1,3 +1,4 @@
+use crate::{LambdaContext, LambdaExt};
 use std::{collections::HashSet, fmt::Display};
 use utils::variable::{self, Var};
 
@@ -40,8 +41,22 @@ pub mod nat {
         }
     }
 
-    impl Lam {
-        pub fn free_variables(&self) -> HashSet<Var> {
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub enum Value {
+        Function(Var, Box<Lam>),
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct RedexInfo {
+        x: Var,
+        e: Lam,
+        v: Value, // should  v.is_value()
+    }
+
+    impl LambdaExt for Lam {
+        type Value = Value;
+        type RedexInfo = RedexInfo;
+        fn free_variables(&self) -> HashSet<Var> {
             match self {
                 Lam::Var(x) => HashSet::from_iter(vec![x.clone()]),
                 Lam::Lam(x, e) => {
@@ -58,7 +73,7 @@ pub mod nat {
             }
         }
 
-        pub fn bound_variables(&self) -> HashSet<Var> {
+        fn bound_variables(&self) -> HashSet<Var> {
             match self {
                 Lam::Var(_) => HashSet::new(),
                 Lam::Lam(x, e) => {
@@ -75,7 +90,7 @@ pub mod nat {
             }
         }
 
-        pub fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self {
+        fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self {
             fn alpha_conversion_canonical_rec(e: Lam, mut v: variable::VarMap) -> Lam {
                 match e {
                     Lam::Var(x) => Lam::Var(v.get_table(&x)),
@@ -99,7 +114,39 @@ pub mod nat {
             alpha_conversion_canonical_rec(self, maps)
         }
 
-        pub fn subst(self, x: Var, t: Lam) -> Self {
+        fn is_value(&self) -> Option<Self::Value> {
+            match self {
+                Lam::Lam(v, e) => Some(Value::Function(v.clone(), e.clone())),
+                _ => None,
+            }
+        }
+
+        fn value_as_exp(v: Self::Value) -> Self {
+            let Value::Function(x, e) = v;
+            Lam::Lam(x, e)
+        }
+
+        fn is_redex(&self) -> Option<RedexInfo> {
+            match self {
+                Lam::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
+                    (Some(Value::Function(x, e)), Some(v)) => Some(RedexInfo { x, e: *e, v }),
+                    _ => None,
+                },
+                _ => None,
+            }
+        }
+
+        fn redex_as_exp(r: Self::RedexInfo) -> Self {
+            let RedexInfo { x, e, v } = r;
+            Lam::a(Lam::l(x, e), Lam::value_as_exp(v))
+        }
+
+        fn redex_step(r: Self::RedexInfo) -> Self {
+            let RedexInfo { x, e, v } = r;
+            e.subst(x, Lam::value_as_exp(v))
+        }
+
+        fn subst(self, x: Var, t: Lam) -> Self {
             pub fn simple_subst(e: Lam, x: Var, t: Lam) -> Lam {
                 match e {
                     Lam::Var(y) => {
@@ -127,58 +174,15 @@ pub mod nat {
             let e = self.alpha_conversion_canonical(free_t);
             simple_subst(e, x, t)
         }
-    }
 
-    pub fn natural_l2rcbv(l: Lam) -> Option<Lam> {
-        match l {
-            Lam::Var(_) | Lam::Lam(_, _) => None,
-            Lam::App(e1, e2) => match (e1.is_value(), e2.is_value().is_some()) {
-                (Some((x, e)), true) => {
-                    let rdxinfo = RdXInfo { x, e, v: *e2 };
-                    Some(rdxinfo.step())
-                }
-                (Some(_), false) => Some(Lam::a(*e1, natural_l2rcbv(*e2)?)),
-                (None, _) => Some(Lam::a(natural_l2rcbv(*e1)?, *e2)),
-            },
-        }
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct RdXInfo {
-        x: Var,
-        e: Lam,
-        v: Lam, // should  v.is_value()
-    }
-
-    impl RdXInfo {
-        pub fn as_lam(self) -> Lam {
-            let RdXInfo { x, e, v } = self;
-            Lam::a(Lam::l(x, e), v)
-        }
-        pub fn step(self) -> Lam {
-            let RdXInfo { x, e, v } = self;
-            e.subst(x, v)
-        }
-    }
-
-    impl Lam {
-        pub fn is_value(&self) -> Option<(Var, Lam)> {
+        fn step(self) -> Option<Self> {
             match self {
-                Lam::Lam(x, e) => Some((x.clone(), e.as_ref().clone())),
-                _ => None,
-            }
-        }
-        pub fn is_redux(&self) -> Option<RdXInfo> {
-            match self {
-                Lam::App(e1, e2) => match (e1.is_value(), e2.is_value()) {
-                    (Some((x, e)), Some(_)) => Some(RdXInfo {
-                        x,
-                        e,
-                        v: e2.as_ref().clone(),
-                    }),
-                    _ => None,
+                Lam::Var(_) | Lam::Lam(_, _) => None,
+                Lam::App(e1, e2) => match (e1.is_value(), e2.is_value().is_some()) {
+                    (Some(Value::Function(x, e)), true) => Some(e.subst(x, *e2)),
+                    (Some(_), false) => Some(Lam::a(*e1, e2.step()?)),
+                    (None, _) => Some(Lam::a(e1.step()?, *e2)),
                 },
-                _ => None,
             }
         }
     }
@@ -186,8 +190,8 @@ pub mod nat {
     // t = ... (v (r e)) ... v: value, r: redex とすると、
     // (r, M |-> ... (v (M e)) ... ) と分解する。
     #[allow(clippy::type_complexity)]
-    pub fn decomp_with_cxt_as_func(e: Lam) -> Option<(RdXInfo, Box<dyn Fn(Lam) -> Lam>)> {
-        if let Some(rdx) = e.is_redux() {
+    pub fn decomp_with_cxt_as_func(e: Lam) -> Option<(RedexInfo, Box<dyn Fn(Lam) -> Lam>)> {
+        if let Some(rdx) = e.is_redex() {
             let cxt = |lam: Lam| -> Lam { lam };
             return Some((rdx, Box::new(cxt)));
         }
@@ -216,7 +220,7 @@ pub mod nat {
 
     pub fn step_with_cxt_as_func(e: Lam) -> Option<Lam> {
         let (rdx, cxt) = decomp_with_cxt_as_func(e)?;
-        Some(cxt(rdx.step()))
+        Some(cxt(Lam::redex_step(rdx)))
     }
 
     pub enum Cxt {
@@ -274,8 +278,8 @@ pub mod nat {
         }
     }
 
-    pub fn decomp_with_cxt(t: Lam) -> Option<(RdXInfo, Cxt)> {
-        if let Some(rdx) = t.is_redux() {
+    pub fn decomp_with_cxt(t: Lam) -> Option<(RedexInfo, Cxt)> {
+        if let Some(rdx) = Lam::is_redex(&t) {
             return Some((rdx, Cxt::Hole));
         }
         match t {
@@ -297,7 +301,7 @@ pub mod nat {
 
     pub fn step_with_cxt(t: Lam) -> Option<Lam> {
         let (rdx, cxt) = decomp_with_cxt(t)?;
-        let reduced = rdx.step();
+        let reduced = Lam::redex_step(rdx);
         Some(cxt.plug(reduced))
     }
 
@@ -317,10 +321,10 @@ pub mod nat {
             } else {
                 None
             }
-        } else if let Some(rdxinfo) = lam.is_redux() {
+        } else if let Some(rdxinfo) = lam.is_redex() {
             Some(State {
                 stack,
-                lam: rdxinfo.step(),
+                lam: Lam::redex_step(rdxinfo),
             })
         } else {
             match lam {
@@ -359,11 +363,26 @@ mod ext {
         Let(Var, Box<Lam>, Box<Lam>),
         Fix(Var, Box<Lam>),
     }
+
+    // impl Lam {
+    //     pub fn is_value(&self) ->
+    // }
+
+    // pub fn step(t: Lam) -> Lam {
+    //     match t {
+    //         Lam::Var(x) => Var(x),
+    //         Lam::Lam(x, e) => Lam::Lam(x, v),
+    //         Lam::Zero => Lam::Zero,
+    //     }
+    // }
+
+    pub enum Frame {}
 }
 
 #[cfg(test)]
 mod tests {
     use super::nat::*;
+    use super::*;
     #[test]
     fn t() {
         // \ z s . z
@@ -406,7 +425,7 @@ mod tests {
                     }
                 }
             }
-            let rdx = rdx.step();
+            let rdx = Lam::redex_step(rdx);
             println!("-> {}", rdx);
             lam = cxt.plug(rdx);
         }
