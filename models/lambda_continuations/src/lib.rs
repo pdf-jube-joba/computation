@@ -6,15 +6,17 @@ pub trait LambdaExt: Sized {
     type RedexInfo;
     fn free_variables(&self) -> HashSet<Var>;
     fn bound_variables(&self) -> HashSet<Var>;
+    fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self;
+
     fn is_value(&self) -> Option<Self::Value>;
     fn value_as_exp(v: Self::Value) -> Self;
+
     fn is_redex(&self) -> Option<Self::RedexInfo>;
-    fn redex_step(r: Self::RedexInfo) -> Self;
     fn redex_as_exp(r: Self::RedexInfo) -> Self;
-    fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self;
+    fn redex_step(r: Self::RedexInfo) -> Self;
+
     fn subst(self, x: Var, t: Self) -> Self;
     fn step(self) -> Option<Self>;
-    
 }
 
 pub trait LambdaContext: LambdaExt {
