@@ -408,13 +408,89 @@ mod ext {
         Fix {
             var: Var,
             fix_exp: Lam,
-
-        }
+        },
     }
 
-    // impl LambdaExt for Lam {
-    //     type Value = ;
-    // }
+    impl LambdaExt for Lam {
+        type Value = Value;
+        type RedexInfo = RedexInfo;
+        fn free_variables(&self) -> HashSet<Var> {
+            let mut set = HashSet::new();
+            match self {
+                Lam::Var(x) => {
+                    set.insert(x.clone());
+                }
+                Lam::Lam(x, e) => {
+                    set.extend(e.free_variables());
+                    set.remove(x);
+                }
+                Lam::App(e1, e2) => {
+                    set.extend(e1.free_variables());
+                    set.extend(e2.free_variables());
+                }
+                Lam::Zero => {}
+                Lam::Succ(e1) => {
+                    set.extend(e1.free_variables());
+                }
+                Lam::Pred(e1) => {
+                    set.extend(e1.free_variables());
+                }
+                Lam::IfZ(e1, e2, e3) => {
+                    set.extend(e1.free_variables());
+                    set.extend(e2.free_variables());
+                    set.extend(e3.free_variables());
+                }
+                Lam::Let(x, e1, e2) => {
+                    set.extend(e1.free_variables());
+                    set.extend(e2.free_variables());
+                    set.remove(x);
+                }
+                Lam::Fix(x, e1, e2) => {
+                    set.extend(e1.free_variables());
+                    set.extend(e2.free_variables());
+                    set.remove(x);
+                }
+            }
+            set
+        }
+        fn bound_variables(&self) -> HashSet<Var> {
+            let mut set = HashSet::new();
+            match self {
+                Lam::Var(x) => {}
+                Lam::Lam(x, e) => {
+                    set.extend(e.bound_variables());
+                    set.insert(x.clone());
+                }
+                Lam::App(e1, e2) => {
+                    set.extend(e1.bound_variables());
+                    set.extend(e2.bound_variables());
+                }
+                Lam::Zero => {}
+                Lam::Succ(e1) => {
+                    set.extend(e1.bound_variables());
+                }
+                Lam::Pred(e1) => {
+                    set.extend(e1.bound_variables());
+                }
+                Lam::IfZ(e1, e2, e3) => {
+                    set.extend(e1.bound_variables());
+                    set.extend(e2.bound_variables());
+                    set.extend(e3.bound_variables());
+                }
+                Lam::Let(x, e1, e2) => {
+                    set.extend(e1.bound_variables());
+                    set.extend(e2.bound_variables());
+                    set.insert(x.clone());
+                }
+                Lam::Fix(x, e1, e2) => {
+                    set.extend(e1.bound_variables());
+                    set.extend(e2.bound_variables());
+                    set.insert(x.clone());
+                }
+            }
+            set
+        }
+    }
 
     // impl LambdaContext for Lam {
 
