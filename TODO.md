@@ -43,3 +43,6 @@
 
 # counter machine
 - [ ] todo 全部消す
+
+# continutations
+- [ ] proc macro を使って簡単にする
