@@ -429,3 +429,5 @@ State の関係は次のようになる。
 - `F` は `c_1` から得られる `PureCxt` とする。
 それ以外は定義は同様である。
 
+# 拡張について
+rec の定義の参考: [https://www.kurims.kyoto-u.ac.jp/~kenkyubu/kokai-koza/katsumata.pdf]

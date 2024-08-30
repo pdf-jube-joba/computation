@@ -1,21 +1,15 @@
 use std::collections::HashSet;
-use utils::variable::Var;
+use utils::{set::SubSet, variable::Var};
 
 pub trait LambdaExt: Sized {
-    type Value;
-    type RedexInfo;
+    type Value: SubSet<Super = Self>;
+    type RedexInfo: SubSet<Super = Self>;
     fn free_variables(&self) -> HashSet<Var>;
     fn bound_variables(&self) -> HashSet<Var>;
     fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self;
-
-    fn is_value(&self) -> Option<Self::Value>;
-    fn value_as_exp(v: Self::Value) -> Self;
-
-    fn is_redex(&self) -> Option<Self::RedexInfo>;
-    fn redex_as_exp(r: Self::RedexInfo) -> Self;
-    fn redex_step(r: Self::RedexInfo) -> Self;
-
     fn subst(self, x: Var, t: Self) -> Self;
+
+    fn redex_step(r: Self::RedexInfo) -> Self;
     fn step(self) -> Option<Self>;
 }
 
@@ -37,5 +31,6 @@ where
 pub mod ctrl;
 pub mod eff;
 pub mod grab;
-pub mod lam;
+pub mod lam_nat;
+pub mod lam_ext;
 pub mod send;
