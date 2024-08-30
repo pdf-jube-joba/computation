@@ -2,4 +2,20 @@ WHITESPACE = _{ " " | "\n" }
 
 symbol = { "-" | "_" }
 name = @{ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
-variables = @{ ASCII_ALPHA+ ~  (ASCII_ALPHA | ASCII_DIGIT | symbol)* }
+variable = @{ ASCII_ALPHA+ ~  (ASCII_ALPHA | ASCII_DIGIT | symbol)* }
+
+lam_nat_inner = _{ lam_nat_lam | lam_nat_app | variable }
+lam_nat = { lam_nat_inner | "(" ~ lam_nat_inner ~ ")" }
+lam_nat_lam = { "fun" ~ variable ~ "=>"  ~ lam_nat }
+lam_nat_app = { "@(" ~ lam_nat ~ lam_nat ~ ")" }
+
+lam_ext_inner = _{ lam_ext_lam | lam_ext_app | lam_ext_zero | lam_ext_succ | lam_ext_pred | lam_ext_ifz | lam_ext_let | lam_ext_rec | variable }
+lam_ext = { lam_ext_inner | "(" ~ lam_ext_inner ~ ")" }
+lam_ext_lam = { "fun" ~ variable ~ "=>"  ~ lam_ext }
+lam_ext_app = { "@(" ~ lam_ext ~ lam_ext ~ ")" }
+lam_ext_zero = { "zero" }
+lam_ext_succ = { "succ" ~ lam_ext }
+lam_ext_pred = { "pred" ~ lam_ext }
+lam_ext_ifz = { "ifz" ~ lam_ext ~ "then" ~ lam_ext ~ "else" ~ lam_ext }
+lam_ext_let = { "let" ~ variable ~ "=" ~ lam_ext ~ "in" ~ lam_ext }
+lam_ext_rec = { "rec" ~ variable ~ variable ~ "=" ~ lam_ext }
