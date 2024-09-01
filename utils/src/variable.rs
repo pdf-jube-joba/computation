@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{borrow::Borrow, collections::HashSet, fmt::Display};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Var {
@@ -40,13 +40,14 @@ impl Display for Var {
     }
 }
 
-pub fn new_var<'a, T>(vars: T) -> Var
+pub fn new_var<Iter, Item>(vars: Iter) -> Var
 where
-    T: IntoIterator<Item = &'a Var>,
+    Iter: IntoIterator<Item = Item>,
+    Item: Borrow<Var>,
 {
     let max = vars
         .into_iter()
-        .filter_map(|v| match v {
+        .filter_map(|v| match v.borrow() {
             Var::S(_) => None,
             Var::U(u) => Some(*u),
         })

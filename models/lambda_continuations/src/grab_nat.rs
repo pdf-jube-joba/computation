@@ -5,7 +5,7 @@ use utils::{
     variable::{self, Var},
 };
 
-use crate::LambdaExt;
+use crate::{LambdaContext, LambdaExt, State};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LamGrabDelim {
@@ -89,6 +89,21 @@ pub enum GrabPureCxt {
 }
 
 impl GrabPureCxt {
+    pub fn free_variables(&self) -> HashSet<Var> {
+        let mut set = HashSet::new();
+        match self {
+            GrabPureCxt::Hole => {}
+            GrabPureCxt::EvalL(e, c) => {
+                set.extend(c.free_variables());
+                set.extend(e.free_variables());
+            }
+            GrabPureCxt::EvalR(v, c) => {
+                set.extend(c.free_variables());
+                set.extend(v.clone().into_super().free_variables());
+            }
+        }
+        set
+    }
     pub fn plug(self, t: LamGrabDelim) -> LamGrabDelim {
         match self {
             GrabPureCxt::Hole => t,
@@ -194,11 +209,11 @@ pub enum RedexInfo {
     AbsApp {
         x: Var,
         e: LamGrabDelim,
-        v: LamGrabDelim, // e2.is_value()
+        v: Value, // e2.is_value()
     },
     // delim v
     DelimVal {
-        v: LamGrabDelim, // v.is_value()
+        v: Value, // v.is_value()
     },
     // delim F[grab k. e]
     DelimGrab {
@@ -241,23 +256,18 @@ impl SubSet for RedexInfo {
             };
             Some((k, *e, cxt))
         }
+
         match s {
             LamGrabDelim::Var(_) => None,
             LamGrabDelim::Lam(_, _) => None,
             LamGrabDelim::App(e1, e2) => {
                 let Value::Function(x, e) = Value::from_super(e1)?;
-                Value::from_super(e2)?;
-                Some(RedexInfo::AbsApp {
-                    x,
-                    e: *e,
-                    v: *(*e2).clone(),
-                })
+                let v = Value::from_super(e2)?;
+                Some(RedexInfo::AbsApp { x, e: *e, v })
             }
             LamGrabDelim::Delim(e) => {
-                if Value::from_super(e).is_some() {
-                    Some(RedexInfo::DelimVal {
-                        v: e.as_ref().clone(),
-                    })
+                if let Some(v) = Value::from_super(e) {
+                    Some(RedexInfo::DelimVal { v })
                 } else {
                     let e = e.as_ref().clone();
                     let (k, e, cxt) = cxt_grab(e)?;
@@ -270,10 +280,11 @@ impl SubSet for RedexInfo {
 
     fn into_super(self) -> Self::Super {
         match self {
-            RedexInfo::AbsApp { x, e, v } => {
-                LamGrabDelim::App(Box::new(LamGrabDelim::Lam(x, Box::new(e))), Box::new(v))
-            }
-            RedexInfo::DelimVal { v } => LamGrabDelim::Delim(Box::new(v)),
+            RedexInfo::AbsApp { x, e, v } => LamGrabDelim::App(
+                Box::new(LamGrabDelim::Lam(x, Box::new(e))),
+                Box::new(v.into_super()),
+            ),
+            RedexInfo::DelimVal { v } => LamGrabDelim::Delim(Box::new(v.into_super())),
             RedexInfo::DelimGrab { cxt, k, e } => {
                 LamGrabDelim::Delim(Box::new(cxt.plug(LamGrabDelim::Grab(k, Box::new(e)))))
             }
@@ -426,10 +437,11 @@ impl LambdaExt for LamGrabDelim {
 
     fn redex_step(r: Self::RedexInfo) -> Self {
         match r {
-            RedexInfo::AbsApp { x, e, v } => e.subst(x, v),
-            RedexInfo::DelimVal { v } => v,
+            RedexInfo::AbsApp { x, e, v } => e.subst(x, v.into_super()),
+            RedexInfo::DelimVal { v } => v.into_super(),
             RedexInfo::DelimGrab { cxt, k, e } => {
-                let new_var: Var = 0.into();
+                let free_variables = cxt.free_variables();
+                let new_var: Var = variable::new_var(free_variables);
                 let cont = LamGrabDelim::l(
                     new_var.clone(),
                     LamGrabDelim::d(cxt.plug(LamGrabDelim::v(new_var))),
@@ -504,53 +516,56 @@ pub fn step_with_cxt(t: LamGrabDelim) -> Option<LamGrabDelim> {
     Some(cxt.plug(LamGrabDelim::redex_step(rdx)))
 }
 
-pub struct State {
-    stack: Vec<Frame>,
-    lam: LamGrabDelim,
-}
-
-pub fn step_machine(State { mut stack, lam }: State) -> Option<State> {
-    if Value::from_super(&lam).is_some() {
-        if let Some(top) = stack.pop() {
-            let lam = top.plug(lam);
-            return Some(State { stack, lam });
-        } else {
-            return None;
-        }
-    }
-    if let Some(rdx) = RedexInfo::from_super(&lam) {
-        Some(State {
-            stack,
-            lam: LamGrabDelim::redex_step(rdx),
-        })
-    } else {
-        match lam {
-            LamGrabDelim::Var(_) => None,
-            LamGrabDelim::Lam(_, _) => None,
+impl LambdaContext for LamGrabDelim {
+    type Frame = Frame;
+    fn decomp(e: Self) -> Option<(Self::Frame, Self)> {
+        let (frame, exp) = match e {
+            LamGrabDelim::Var(_) | LamGrabDelim::Lam(_, _) | LamGrabDelim::Grab(_, _) => {
+                return None
+            }
             LamGrabDelim::App(e1, e2) => {
                 if let Some(v) = Value::from_super(&e1) {
-                    stack.push(Frame::EvalR(v));
-                    Some(State { stack, lam: *e2 })
+                    (Frame::EvalR(v), *e2)
                 } else {
-                    stack.push(Frame::EvalL(*e2));
-                    Some(State { stack, lam: *e1 })
+                    (Frame::EvalL(*e2), *e1)
                 }
             }
-            LamGrabDelim::Grab(k, e) => {
-                let i = stack.iter().position(|frame| *frame == Frame::Del)?;
-                let mut old = stack.split_off(i);
-                old.pop().unwrap();
-                let cxt = frames_to_cxt(stack).purify().unwrap();
-                let rdx = RedexInfo::DelimGrab { cxt, k, e: *e };
-                Some(State {
-                    stack: old,
-                    lam: rdx.into_super(),
-                })
+            LamGrabDelim::Delim(e) => (Frame::Del, *e),
+        };
+        Some((frame, exp))
+    }
+    fn plug(frame: Self::Frame, e: Self) -> Self {
+        frame.plug(e)
+    }
+    fn step_state(State { mut stack, top }: State<Self>) -> Option<State<Self>> {
+        if Value::from_super(&top).is_some() {
+            if let Some(frame) = stack.pop() {
+                let top = frame.plug(top);
+                return Some(crate::State { stack, top });
+            } else {
+                return None;
             }
-            LamGrabDelim::Delim(e) => {
-                stack.push(Frame::Del);
-                Some(State { stack, lam: *e })
-            }
+        }
+        if let Some(rdx) = RedexInfo::from_super(&top) {
+            Some(State {
+                stack,
+                top: LamGrabDelim::redex_step(rdx),
+            })
+        } else if let Some((frame, top)) = LamGrabDelim::decomp(top.clone()) {
+            stack.push(frame);
+            Some(State { stack, top })
+        } else if let LamGrabDelim::Grab(k, e) = top {
+            let i = stack.iter().position(|frame| *frame == Frame::Del)?;
+            let mut old = stack.split_off(i);
+            old.pop().unwrap();
+            let cxt = frames_to_cxt(stack).purify().unwrap();
+            let rdx = RedexInfo::DelimGrab { cxt, k, e: *e };
+            Some(State {
+                stack: old,
+                top: rdx.into_super(),
+            })
+        } else {
+            None
         }
     }
 }
