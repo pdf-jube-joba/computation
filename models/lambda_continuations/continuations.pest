@@ -19,3 +19,23 @@ lam_ext_pred = { "pred" ~ lam_ext }
 lam_ext_ifz = { "ifz" ~ lam_ext ~ "then" ~ lam_ext ~ "else" ~ lam_ext }
 lam_ext_let = { "let" ~ variable ~ "=" ~ lam_ext ~ "in" ~ lam_ext }
 lam_ext_rec = { "rec" ~ variable ~ variable ~ "=" ~ lam_ext }
+
+grab_nat_inner = _{ grab_nat_lam | grab_nat_app | grab_nat_grab | grab_nat_delim | variable }
+grab_nat = { grab_nat_inner | "(" ~ grab_nat_inner ~ ")" }
+grab_nat_lam = { "fun" ~ variable ~ "=>"  ~ grab_nat }
+grab_nat_app = { "@(" ~ grab_nat ~ grab_nat ~ ")" }
+grab_nat_grab = { "grab" ~ variable ~ "." ~ grab_nat }
+grab_nat_delim = { "delim" ~ grab_nat }
+
+grab_ext_inner = _{ grab_ext_lam | grab_ext_app | grab_ext_grab | grab_ext_delim | grab_ext_zero | grab_ext_succ | grab_ext_pred | grab_ext_ifz | grab_ext_let | grab_ext_rec | variable }
+grab_ext = { grab_ext_inner | "(" ~ grab_ext_inner ~ ")" }
+grab_ext_lam = { "fun" ~ variable ~ "=>"  ~ grab_ext }
+grab_ext_app = { "@(" ~ grab_ext ~ grab_ext ~ ")" }
+grab_ext_grab = { "grab" ~ variable ~ "." ~ grab_ext }
+grab_ext_delim = { "delim" ~ grab_ext }
+grab_ext_zero = { "zero" }
+grab_ext_succ = { "succ" ~ grab_ext }
+grab_ext_pred = { "pred" ~ grab_ext }
+grab_ext_ifz = { "ifz" ~ grab_ext ~ "then" ~ grab_ext ~ "else" ~ grab_ext }
+grab_ext_let = { "let" ~ variable ~ "=" ~ grab_ext ~ "in" ~ grab_ext }
+grab_ext_rec = { "rec" ~ variable ~ variable ~ "=" ~ grab_ext }

@@ -8,49 +8,49 @@ use utils::{
 use crate::{LambdaContext, LambdaExt, State};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum LamGrabDelim {
+pub enum Lam {
     Var(Var),
-    Lam(Var, Box<LamGrabDelim>),
-    App(Box<LamGrabDelim>, Box<LamGrabDelim>),
-    Delim(Box<LamGrabDelim>),
-    Grab(Var, Box<LamGrabDelim>),
+    Lam(Var, Box<Lam>),
+    App(Box<Lam>, Box<Lam>),
+    Delim(Box<Lam>),
+    Grab(Var, Box<Lam>),
 }
 
-impl LamGrabDelim {
-    pub fn v<T>(n: T) -> LamGrabDelim
+impl Lam {
+    pub fn v<T>(n: T) -> Lam
     where
         T: Into<Var>,
     {
-        LamGrabDelim::Var(n.into())
+        Lam::Var(n.into())
     }
-    pub fn l<T>(n: T, e: LamGrabDelim) -> LamGrabDelim
+    pub fn l<T>(n: T, e: Lam) -> Lam
     where
         T: Into<Var>,
     {
-        LamGrabDelim::Lam(n.into(), Box::new(e))
+        Lam::Lam(n.into(), Box::new(e))
     }
-    pub fn a(e1: LamGrabDelim, e2: LamGrabDelim) -> LamGrabDelim {
-        LamGrabDelim::App(Box::new(e1), Box::new(e2))
+    pub fn a(e1: Lam, e2: Lam) -> Lam {
+        Lam::App(Box::new(e1), Box::new(e2))
     }
-    pub fn d(e: LamGrabDelim) -> LamGrabDelim {
-        LamGrabDelim::Delim(Box::new(e))
+    pub fn d(e: Lam) -> Lam {
+        Lam::Delim(Box::new(e))
     }
-    pub fn g<T>(k: T, e: LamGrabDelim) -> LamGrabDelim
+    pub fn g<T>(k: T, e: Lam) -> Lam
     where
         T: Into<Var>,
     {
-        LamGrabDelim::Grab(k.into(), Box::new(e))
+        Lam::Grab(k.into(), Box::new(e))
     }
 }
 
-impl Display for LamGrabDelim {
+impl Display for Lam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match self {
-            LamGrabDelim::Var(var) => format!("{var}"),
-            LamGrabDelim::Lam(var, term) => format!("\\{var}.{term}"),
-            LamGrabDelim::App(term1, term2) => format!("({term1} @ {term2})"),
-            LamGrabDelim::Delim(term) => format!("delim {term}"),
-            LamGrabDelim::Grab(k, term) => format!("grab {k}. {term}"),
+            Lam::Var(var) => format!("{var}"),
+            Lam::Lam(var, term) => format!("\\{var}.{term}"),
+            Lam::App(term1, term2) => format!("({term1} @ {term2})"),
+            Lam::Delim(term) => format!("delim {term}"),
+            Lam::Grab(k, term) => format!("grab {k}. {term}"),
         };
         write!(f, "{}", string)
     }
@@ -58,20 +58,20 @@ impl Display for LamGrabDelim {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
-    Function(Var, Box<LamGrabDelim>),
+    Function(Var, Box<Lam>),
 }
 
 impl SubSet for Value {
-    type Super = LamGrabDelim;
+    type Super = Lam;
     fn from_super(s: &Self::Super) -> Option<Self> {
         match s {
-            LamGrabDelim::Lam(v, e) => Some(Value::Function(v.clone(), e.clone())),
+            Lam::Lam(v, e) => Some(Value::Function(v.clone(), e.clone())),
             _ => None,
         }
     }
     fn into_super(self) -> Self::Super {
         let Value::Function(x, e) = self;
-        LamGrabDelim::Lam(x, e)
+        Lam::Lam(x, e)
     }
 }
 
@@ -84,7 +84,7 @@ impl Display for Value {
 
 pub enum GrabPureCxt {
     Hole,                                  // []
-    EvalL(LamGrabDelim, Box<GrabPureCxt>), // E[[] e]
+    EvalL(Lam, Box<GrabPureCxt>), // E[[] e]
     EvalR(Value, Box<GrabPureCxt>),        // E[v []]
 }
 
@@ -104,11 +104,11 @@ impl GrabPureCxt {
         }
         set
     }
-    pub fn plug(self, t: LamGrabDelim) -> LamGrabDelim {
+    pub fn plug(self, t: Lam) -> Lam {
         match self {
             GrabPureCxt::Hole => t,
-            GrabPureCxt::EvalL(e, cxt) => cxt.plug(LamGrabDelim::a(t, e)),
-            GrabPureCxt::EvalR(v, cxt) => cxt.plug(LamGrabDelim::a(v.into_super(), t)),
+            GrabPureCxt::EvalL(e, cxt) => cxt.plug(Lam::a(t, e)),
+            GrabPureCxt::EvalR(v, cxt) => cxt.plug(Lam::a(v.into_super(), t)),
         }
     }
     pub fn extend_r(self, v: Value) -> Self {
@@ -118,7 +118,7 @@ impl GrabPureCxt {
             GrabPureCxt::EvalR(e1, c) => GrabPureCxt::EvalR(e1, Box::new(c.extend_r(v))),
         }
     }
-    pub fn extend_l(self, e: LamGrabDelim) -> Self {
+    pub fn extend_l(self, e: Lam) -> Self {
         match self {
             GrabPureCxt::Hole => GrabPureCxt::EvalL(e, Box::new(GrabPureCxt::Hole)),
             GrabPureCxt::EvalL(e1, c) => GrabPureCxt::EvalL(e1, Box::new(c.extend_l(e))),
@@ -129,18 +129,18 @@ impl GrabPureCxt {
 
 pub enum GrabCxt {
     Hole,
-    EvalL(LamGrabDelim, Box<GrabCxt>), // E[[] e]
+    EvalL(Lam, Box<GrabCxt>), // E[[] e]
     EvalR(Value, Box<GrabCxt>),        // E[v []]
     Del(Box<GrabCxt>),                 // E[delimit []] ,
 }
 
 impl GrabCxt {
-    pub fn plug(self, t: LamGrabDelim) -> LamGrabDelim {
+    pub fn plug(self, t: Lam) -> Lam {
         match self {
             GrabCxt::Hole => t,
-            GrabCxt::EvalL(e, cxt) => cxt.plug(LamGrabDelim::a(t, e)),
-            GrabCxt::EvalR(v, cxt) => cxt.plug(LamGrabDelim::a(v.into_super(), t)),
-            GrabCxt::Del(cxt) => cxt.plug(LamGrabDelim::d(t)),
+            GrabCxt::EvalL(e, cxt) => cxt.plug(Lam::a(t, e)),
+            GrabCxt::EvalR(v, cxt) => cxt.plug(Lam::a(v.into_super(), t)),
+            GrabCxt::Del(cxt) => cxt.plug(Lam::d(t)),
         }
     }
     pub fn extend_r(self, v: Value) -> Self {
@@ -151,7 +151,7 @@ impl GrabCxt {
             GrabCxt::Del(c) => GrabCxt::Del(Box::new(c.extend_r(v))),
         }
     }
-    pub fn extend_l(self, e: LamGrabDelim) -> Self {
+    pub fn extend_l(self, e: Lam) -> Self {
         match self {
             GrabCxt::Hole => GrabCxt::EvalL(e, Box::new(GrabCxt::Hole)),
             GrabCxt::EvalL(e1, c) => GrabCxt::EvalL(e1, Box::new(c.extend_l(e))),
@@ -179,17 +179,17 @@ impl GrabCxt {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Frame {
-    EvalL(LamGrabDelim), // [[] e]
+    EvalL(Lam), // [[] e]
     EvalR(Value),        // [v []]
     Del,
 }
 
 impl Frame {
-    fn plug(self, t: LamGrabDelim) -> LamGrabDelim {
+    fn plug(self, t: Lam) -> Lam {
         match self {
-            Frame::EvalL(e) => LamGrabDelim::a(t, e),
-            Frame::EvalR(v) => LamGrabDelim::a(v.into_super(), t),
-            Frame::Del => LamGrabDelim::d(t),
+            Frame::EvalL(e) => Lam::a(t, e),
+            Frame::EvalR(v) => Lam::a(v.into_super(), t),
+            Frame::Del => Lam::d(t),
         }
     }
 }
@@ -208,7 +208,7 @@ pub enum RedexInfo {
     // (\x. e) v
     AbsApp {
         x: Var,
-        e: LamGrabDelim,
+        e: Lam,
         v: Value, // e2.is_value()
     },
     // delim v
@@ -219,27 +219,27 @@ pub enum RedexInfo {
     DelimGrab {
         cxt: GrabPureCxt,
         k: Var,
-        e: LamGrabDelim,
+        e: Lam,
     },
 }
 
 impl SubSet for RedexInfo {
-    type Super = LamGrabDelim;
+    type Super = Lam;
     fn from_super(s: &Self::Super) -> Option<Self> {
         // t = delim F[grab k. e] と書けるか
-        fn cxt_grab(mut e: LamGrabDelim) -> Option<(Var, LamGrabDelim, GrabPureCxt)> {
+        fn cxt_grab(mut e: Lam) -> Option<(Var, Lam, GrabPureCxt)> {
             let mut cxt = GrabPureCxt::Hole;
             let (k, e) = loop {
                 let ne = match e {
-                    LamGrabDelim::Var(_) | LamGrabDelim::Lam(_, _) | LamGrabDelim::Delim(_) => {
+                    Lam::Var(_) | Lam::Lam(_, _) | Lam::Delim(_) => {
                         return None;
                     }
-                    LamGrabDelim::App(ref e1, ref e2)
+                    Lam::App(ref e1, ref e2)
                         if Value::from_super(e1).is_some() && Value::from_super(e2).is_some() =>
                     {
                         return None;
                     }
-                    LamGrabDelim::App(e1, e2) => {
+                    Lam::App(e1, e2) => {
                         if let Some(v) = Value::from_super(&e1) {
                             cxt = cxt.extend_r(v);
                             *e2
@@ -248,7 +248,7 @@ impl SubSet for RedexInfo {
                             *e1
                         }
                     }
-                    LamGrabDelim::Grab(k, e1) => {
+                    Lam::Grab(k, e1) => {
                         break (k, e1);
                     }
                 };
@@ -258,14 +258,14 @@ impl SubSet for RedexInfo {
         }
 
         match s {
-            LamGrabDelim::Var(_) => None,
-            LamGrabDelim::Lam(_, _) => None,
-            LamGrabDelim::App(e1, e2) => {
+            Lam::Var(_) => None,
+            Lam::Lam(_, _) => None,
+            Lam::App(e1, e2) => {
                 let Value::Function(x, e) = Value::from_super(e1)?;
                 let v = Value::from_super(e2)?;
                 Some(RedexInfo::AbsApp { x, e: *e, v })
             }
-            LamGrabDelim::Delim(e) => {
+            Lam::Delim(e) => {
                 if let Some(v) = Value::from_super(e) {
                     Some(RedexInfo::DelimVal { v })
                 } else {
@@ -280,57 +280,57 @@ impl SubSet for RedexInfo {
 
     fn into_super(self) -> Self::Super {
         match self {
-            RedexInfo::AbsApp { x, e, v } => LamGrabDelim::App(
-                Box::new(LamGrabDelim::Lam(x, Box::new(e))),
+            RedexInfo::AbsApp { x, e, v } => Lam::App(
+                Box::new(Lam::Lam(x, Box::new(e))),
                 Box::new(v.into_super()),
             ),
-            RedexInfo::DelimVal { v } => LamGrabDelim::Delim(Box::new(v.into_super())),
+            RedexInfo::DelimVal { v } => Lam::Delim(Box::new(v.into_super())),
             RedexInfo::DelimGrab { cxt, k, e } => {
-                LamGrabDelim::Delim(Box::new(cxt.plug(LamGrabDelim::Grab(k, Box::new(e)))))
+                Lam::Delim(Box::new(cxt.plug(Lam::Grab(k, Box::new(e)))))
             }
         }
     }
 }
 
 // incorrect
-// pub fn incorrect_natural_l2rcbv(t: LamGrabDelim) -> Option<LamGrabDelim> {
+// pub fn incorrect_natural_l2rcbv(t: Lam) -> Option<Lam> {
 //     if let Some(rdxinfo) = RedexInfo::from_super(&t) {
-//         return Some(LamGrabDelim::redex_step(rdxinfo));
+//         return Some(Lam::redex_step(rdxinfo));
 //     }
 //     match t {
-//         LamGrabDelim::Var(_) => None,
-//         LamGrabDelim::Lam(_, _) => None,
-//         LamGrabDelim::App(e1, e2) => {
+//         Lam::Var(_) => None,
+//         Lam::Lam(_, _) => None,
+//         Lam::App(e1, e2) => {
 //             if Value::from_super(&e1).is_some() {
-//                 Some(LamGrabDelim::a(*e1, incorrect_natural_l2rcbv(*e2)?))
+//                 Some(Lam::a(*e1, incorrect_natural_l2rcbv(*e2)?))
 //             } else {
-//                 Some(LamGrabDelim::a(incorrect_natural_l2rcbv(*e1)?, *e2))
+//                 Some(Lam::a(incorrect_natural_l2rcbv(*e1)?, *e2))
 //             }
 //         }
-//         LamGrabDelim::Delim(e) => Some(LamGrabDelim::d(incorrect_natural_l2rcbv(*e)?)),
-//         LamGrabDelim::Grab(_, _) => None,
+//         Lam::Delim(e) => Some(Lam::d(incorrect_natural_l2rcbv(*e)?)),
+//         Lam::Grab(_, _) => None,
 //     }
 // }
 
-impl LambdaExt for LamGrabDelim {
+impl LambdaExt for Lam {
     type Value = Value;
     type RedexInfo = RedexInfo;
     fn free_variables(&self) -> HashSet<Var> {
         match self {
-            LamGrabDelim::Var(x) => HashSet::from_iter(vec![x.clone()]),
-            LamGrabDelim::Lam(x, e) => {
+            Lam::Var(x) => HashSet::from_iter(vec![x.clone()]),
+            Lam::Lam(x, e) => {
                 let mut s = e.free_variables();
                 s.remove(x);
                 s
             }
-            LamGrabDelim::App(e1, e2) => {
+            Lam::App(e1, e2) => {
                 let mut s = HashSet::new();
                 s.extend(e1.free_variables());
                 s.extend(e2.free_variables());
                 s
             }
-            LamGrabDelim::Delim(e) => e.free_variables(),
-            LamGrabDelim::Grab(k, e) => {
+            Lam::Delim(e) => e.free_variables(),
+            Lam::Grab(k, e) => {
                 let mut s = e.free_variables();
                 s.remove(k);
                 s
@@ -340,54 +340,54 @@ impl LambdaExt for LamGrabDelim {
 
     fn bound_variables(&self) -> HashSet<Var> {
         match self {
-            LamGrabDelim::Var(_) => HashSet::new(),
-            LamGrabDelim::Lam(x, e) => {
+            Lam::Var(_) => HashSet::new(),
+            Lam::Lam(x, e) => {
                 let mut s = e.bound_variables();
                 s.insert(x.clone());
                 s
             }
-            LamGrabDelim::App(e1, e2) => {
+            Lam::App(e1, e2) => {
                 let mut s = HashSet::new();
                 s.extend(e1.bound_variables());
                 s.extend(e2.bound_variables());
                 s
             }
-            LamGrabDelim::Grab(k, e) => {
+            Lam::Grab(k, e) => {
                 let mut s = e.bound_variables();
                 s.insert(k.clone());
                 s
             }
-            LamGrabDelim::Delim(e) => e.free_variables(),
+            Lam::Delim(e) => e.free_variables(),
         }
     }
 
     fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self {
         fn alpha_conversion_canonical_rec(
-            e: LamGrabDelim,
+            e: Lam,
             mut v: variable::VarMap,
-        ) -> LamGrabDelim {
+        ) -> Lam {
             match e {
-                LamGrabDelim::Var(x) => LamGrabDelim::Var(v.get_table(&x)),
-                LamGrabDelim::Lam(x, e) => {
+                Lam::Var(x) => Lam::Var(v.get_table(&x)),
+                Lam::Lam(x, e) => {
                     v.push_var(&x);
-                    LamGrabDelim::Lam(
+                    Lam::Lam(
                         v.get_table(&x),
                         Box::new(alpha_conversion_canonical_rec(*e, v)),
                     )
                 }
-                LamGrabDelim::App(e1, e2) => LamGrabDelim::App(
+                Lam::App(e1, e2) => Lam::App(
                     Box::new(alpha_conversion_canonical_rec(*e1, v.clone())),
                     Box::new(alpha_conversion_canonical_rec(*e2, v)),
                 ),
-                LamGrabDelim::Grab(k, e) => {
+                Lam::Grab(k, e) => {
                     v.push_var(&k);
-                    LamGrabDelim::Grab(
+                    Lam::Grab(
                         v.get_table(&k),
                         Box::new(alpha_conversion_canonical_rec(*e, v)),
                     )
                 }
-                LamGrabDelim::Delim(e) => {
-                    LamGrabDelim::Delim(Box::new(alpha_conversion_canonical_rec(*e, v)))
+                Lam::Delim(e) => {
+                    Lam::Delim(Box::new(alpha_conversion_canonical_rec(*e, v)))
                 }
             }
         }
@@ -398,33 +398,33 @@ impl LambdaExt for LamGrabDelim {
         alpha_conversion_canonical_rec(self, maps)
     }
 
-    fn subst(self, x: Var, t: LamGrabDelim) -> Self {
-        pub fn simple_subst(e: LamGrabDelim, x: Var, t: LamGrabDelim) -> LamGrabDelim {
+    fn subst(self, x: Var, t: Lam) -> Self {
+        pub fn simple_subst(e: Lam, x: Var, t: Lam) -> Lam {
             match e {
-                LamGrabDelim::Var(y) => {
+                Lam::Var(y) => {
                     if x == y {
                         t
                     } else {
-                        LamGrabDelim::v(y)
+                        Lam::v(y)
                     }
                 }
-                LamGrabDelim::Lam(y, e) => {
+                Lam::Lam(y, e) => {
                     if x == y {
-                        LamGrabDelim::l(y, *e)
+                        Lam::l(y, *e)
                     } else {
-                        LamGrabDelim::l(y, simple_subst(*e, x, t))
+                        Lam::l(y, simple_subst(*e, x, t))
                     }
                 }
-                LamGrabDelim::App(e1, e2) => LamGrabDelim::a(
+                Lam::App(e1, e2) => Lam::a(
                     simple_subst(*e1, x.clone(), t.clone()),
                     simple_subst(*e2, x, t),
                 ),
-                LamGrabDelim::Delim(e) => LamGrabDelim::d(simple_subst(*e, x, t)),
-                LamGrabDelim::Grab(k, e) => {
+                Lam::Delim(e) => Lam::d(simple_subst(*e, x, t)),
+                Lam::Grab(k, e) => {
                     if k == x {
-                        LamGrabDelim::g(k, *e)
+                        Lam::g(k, *e)
                     } else {
-                        LamGrabDelim::g(k, simple_subst(*e, x, t))
+                        Lam::g(k, simple_subst(*e, x, t))
                     }
                 }
             }
@@ -442,9 +442,9 @@ impl LambdaExt for LamGrabDelim {
             RedexInfo::DelimGrab { cxt, k, e } => {
                 let free_variables = cxt.free_variables();
                 let new_var: Var = variable::new_var(free_variables);
-                let cont = LamGrabDelim::l(
+                let cont = Lam::l(
                     new_var.clone(),
-                    LamGrabDelim::d(cxt.plug(LamGrabDelim::v(new_var))),
+                    Lam::d(cxt.plug(Lam::v(new_var))),
                 );
                 e.subst(k, cont)
             }
@@ -453,27 +453,27 @@ impl LambdaExt for LamGrabDelim {
 
     fn step(self) -> Option<Self> {
         if let Some(r) = RedexInfo::from_super(&self) {
-            Some(LamGrabDelim::redex_step(r))
+            Some(Lam::redex_step(r))
         } else {
-            let e: LamGrabDelim = match self {
-                LamGrabDelim::Var(_) | LamGrabDelim::Lam(_, _) | LamGrabDelim::Grab(_, _) => {
+            let e: Lam = match self {
+                Lam::Var(_) | Lam::Lam(_, _) | Lam::Grab(_, _) => {
                     return None
                 }
-                LamGrabDelim::App(e1, e2) => {
+                Lam::App(e1, e2) => {
                     if let Some(v) = Value::from_super(&e1) {
-                        LamGrabDelim::a(v.into_super(), e2.step()?)
+                        Lam::a(v.into_super(), e2.step()?)
                     } else {
-                        LamGrabDelim::a(e1.step()?, *e2)
+                        Lam::a(e1.step()?, *e2)
                     }
                 }
-                LamGrabDelim::Delim(e) => LamGrabDelim::d(e.step()?),
+                Lam::Delim(e) => Lam::d(e.step()?),
             };
             Some(e)
         }
     }
 }
 
-pub fn decomp_with_cxt(mut t: LamGrabDelim) -> Option<(RedexInfo, GrabCxt)> {
+pub fn decomp_with_cxt(mut t: Lam) -> Option<(RedexInfo, GrabCxt)> {
     if Value::from_super(&t).is_some() {
         return None;
     }
@@ -483,13 +483,13 @@ pub fn decomp_with_cxt(mut t: LamGrabDelim) -> Option<(RedexInfo, GrabCxt)> {
             break rdx;
         }
         let nt = match t {
-            LamGrabDelim::Var(_) => {
+            Lam::Var(_) => {
                 return None;
             }
-            LamGrabDelim::Lam(_, _) => {
+            Lam::Lam(_, _) => {
                 unreachable!()
             }
-            LamGrabDelim::App(e1, e2) => {
+            Lam::App(e1, e2) => {
                 if let Some(v) = Value::from_super(&e1) {
                     cxt = cxt.extend_r(v);
                     *e2
@@ -498,11 +498,11 @@ pub fn decomp_with_cxt(mut t: LamGrabDelim) -> Option<(RedexInfo, GrabCxt)> {
                     *e1
                 }
             }
-            LamGrabDelim::Delim(e) => {
+            Lam::Delim(e) => {
                 cxt = cxt.extend_d();
                 *e
             }
-            LamGrabDelim::Grab(_, _) => {
+            Lam::Grab(_, _) => {
                 return None;
             }
         };
@@ -511,26 +511,26 @@ pub fn decomp_with_cxt(mut t: LamGrabDelim) -> Option<(RedexInfo, GrabCxt)> {
     Some((rdx, cxt))
 }
 
-pub fn step_with_cxt(t: LamGrabDelim) -> Option<LamGrabDelim> {
+pub fn step_with_cxt(t: Lam) -> Option<Lam> {
     let (rdx, cxt) = decomp_with_cxt(t)?;
-    Some(cxt.plug(LamGrabDelim::redex_step(rdx)))
+    Some(cxt.plug(Lam::redex_step(rdx)))
 }
 
-impl LambdaContext for LamGrabDelim {
+impl LambdaContext for Lam {
     type Frame = Frame;
     fn decomp(e: Self) -> Option<(Self::Frame, Self)> {
         let (frame, exp) = match e {
-            LamGrabDelim::Var(_) | LamGrabDelim::Lam(_, _) | LamGrabDelim::Grab(_, _) => {
+            Lam::Var(_) | Lam::Lam(_, _) | Lam::Grab(_, _) => {
                 return None
             }
-            LamGrabDelim::App(e1, e2) => {
+            Lam::App(e1, e2) => {
                 if let Some(v) = Value::from_super(&e1) {
                     (Frame::EvalR(v), *e2)
                 } else {
                     (Frame::EvalL(*e2), *e1)
                 }
             }
-            LamGrabDelim::Delim(e) => (Frame::Del, *e),
+            Lam::Delim(e) => (Frame::Del, *e),
         };
         Some((frame, exp))
     }
@@ -549,12 +549,12 @@ impl LambdaContext for LamGrabDelim {
         if let Some(rdx) = RedexInfo::from_super(&top) {
             Some(State {
                 stack,
-                top: LamGrabDelim::redex_step(rdx),
+                top: Lam::redex_step(rdx),
             })
-        } else if let Some((frame, top)) = LamGrabDelim::decomp(top.clone()) {
+        } else if let Some((frame, top)) = Lam::decomp(top.clone()) {
             stack.push(frame);
             Some(State { stack, top })
-        } else if let LamGrabDelim::Grab(k, e) = top {
+        } else if let Lam::Grab(k, e) = top {
             let i = stack.iter().position(|frame| *frame == Frame::Del)?;
             let mut old = stack.split_off(i);
             old.pop().unwrap();
