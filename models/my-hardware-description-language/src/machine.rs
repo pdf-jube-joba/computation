@@ -1,7 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use anyhow::{bail, Error};
-use either::Either::{self, Left, Right};
 use utils::{bool::Bool, number::Number};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -21,6 +20,24 @@ pub enum Value {
 }
 
 impl Value {
+    pub fn new_bit(b: Bool) -> Self {
+        Value::Bit(b)
+    }
+    pub fn new_array(v: Vec<Value>) -> Self {
+        Value::Array(v)
+    }
+    pub fn new_strct(v: Vec<(String, Value)>) -> Option<Self> {
+        let mut set = HashSet::new();
+        for (s, _) in v.iter() {
+            if set.insert(s.clone()) {
+                return None;
+            }
+        }
+        Some(Value::Strct(v))
+    }
+    pub fn new_enume(e: String) -> Self {
+        Value::Enume(e)
+    }
     pub fn get_field_of_value(&self, str: &str) -> Option<&Value> {
         let Value::Strct(v) = self else {
             return None;
@@ -30,7 +47,7 @@ impl Value {
     }
 }
 
-fn typable_value(value: &Value, type_expect: &ValueType) -> Result<(), Error> {
+pub fn typable_value(value: &Value, type_expect: &ValueType) -> Result<(), Error> {
     match (value, type_expect) {
         (Value::Bit(_), ValueType::Bit) => Ok(()),
         (Value::Array(v), ValueType::Array(len, val_type)) => {

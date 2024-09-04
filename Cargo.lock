@@ -334,6 +334,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpu_emulator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "either",
+ "pest",
+ "pest_derive",
+ "serde",
+ "serde_json",
+ "utils",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

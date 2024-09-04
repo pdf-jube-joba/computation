@@ -17,7 +17,7 @@
     - [playground](./logic_circuits_to_machine/play_groud.md)
     - [基本的な回路](./logic_circuits_to_machine/component.md)
     - [ハードウェアの記述](./logic_circuits_to_machine/hardware_description_language.md)
-    - [機械語を動かす](./logic_circuits_to_machine/machine.md)
+    - [機械語を動かす](./logic_circuits_to_machine/computer.md)
 - [他の計算モデル](./other.md)
     - [Turing tarpit](./other/turing_tarpit.md)
     - [継続概念について](./other/continuation.md)

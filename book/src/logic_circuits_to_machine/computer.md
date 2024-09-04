@@ -2,7 +2,8 @@
 いろいろ考えてたらわからなくなってきた。
 ちょっと特殊かも。
 - レジスタについて
-    - レジスタは汎用：R0,R1,R2,R3 とアキュームレータ：Aとフラグ：Fとプログラムカウンタ：P
+    - レジスタ：R0,R1,R2,R3 とアキュームレータ：Aとフラグ：Fとプログラムカウンタ：P
+        - 汎用という言葉はおかしいかも
     - レジスタのサイズは program counter を除き 8 bit で、 program counter は任意有限 bit が入れられる。
     - フラグは carry と zero の判定に使い、 \(F[z], F[c] \in \{0,1\}\) でそれぞれを表す。
 - メモリについて
@@ -19,9 +20,10 @@
         - ADD Rn Rm := A <- Rn + Rm
         - NOT Rn := A <- !Rn
         - AND Rn Rm := A <- Rn & Rm
-        - CPY Rn (Rm/A) := Rn <- (Rm/A)
+        - CPY Rn Rm := Rn <- Rm
+        - BCK Rn := Rn <- A
         - LDM Rn m := Rn <- [m]
-        - SRM Rn/A m := Rn/A <- [m]
+        - SRM m := [m] <- A
         - JMP m := P <- m
         - BRZ m := if F[z] then P <- m else none
         - BRC m := if F[c] then P <- m else none
@@ -49,3 +51,5 @@ Opcode の詳細はあとで決めるのでこんな感じにしておく。
 - Opcode := f: Byte -> {ADD Rn Rm, NOT Rn, AND Rn Rm, CPY Rn (Rn/A), LDM Rn, SRM Rn/A, JMP, BRC, BRZ, NOP, HLT} s.t. f(00000000) = NOP
 
 - State := 
+
+# 実装について

@@ -11,12 +11,12 @@
 - 値につく型
   - Type :=
     - \(\Bool\)
-    - | \(t[n ]\) where \(t\): Type, \(n \in \Nat\)
+    - | \([t; n]\) where \(t\): Type, \(n \in \Nat\)
     - | \(\{s_1: t_1, ..., t_n: t_n\}\) where \(n \in \Nat\), \(s_i\): \(\String\), \(t_i\): Type
-    - | \(\langle S \rangle\) where \(S\) is finite set
+    - | \(\langle S \rangle\) where \(S\) is finite set of \(\String\)
 - 型付け規則
-    - 見ての通り、
-    - ただし、 \(s \in S_1 \cap S_2\) なら \(s: S_1\) かつ \(s: S_2\) であるので、型は一意ではない。
+    - 見ての通り
+    - ただし、 \(s \in S_1 \cap S_2\) なら \(\langlr s \rangle: \langle S_1 \rangle \) かつ \(\langle s\ rangle: \langle S_2 \rangle\) であるので、型は一意ではない。
     - 判定はアルゴリズム的にできそう。
 
 型は記述には使うが意味論には使わない。
@@ -25,17 +25,28 @@
 
 - 組み合わせ回路の式
   - Exp :=
-    - \(v\) where \(v\): Value
-    - | \(x\) where \(x\): Variable
-    - | Exp `||` Exp | Exp `&&` Exp | `!`Exp ... bit の表現
-    - | `if` Exp `then` Exp `else` Exp ... if 文
-    - | \(e[n ]\) where exp: Exp, \(n \in \Nat\)
-    - | \([e_1, \ldots, e_n]\) where \(n \in \Nat\), \(e_i\): Exp
-    - | \(e.s\) where exp: Exp, \(s: \String\)
-    - | \(\{s_1: e_1, ..., s_n: e_n\}\) where \(n \in \Nat\), \(s_i \in \String\), \(e_i\): Exp
-    - | `switch` exp `case` \(s_1: e_1\), ..., `case` \(s_n: e_n\) where \(s_i: \String, e_i\): Exp
-    - | `seq` \(x_1 := e_1\) `;` ... \(x_n := e_n\) `;` e where \(x_i: \text{Variable}, e_i, e\): Exp
-    - | `comb` \(s\)(exp) where \(s: \String\), exp: Exp
+    - \(v\)
+      - where \(v\): Value
+    - | \(x\)
+      - where \(x\): Variable
+    - | Exp `||` Exp | Exp `&&` Exp | `!`Exp
+      - bit の表現
+    - | `if` Exp `then` Exp `else` Exp
+      - if 文
+    - | \(e[n ]\)
+      - where e: Exp, \(n \in \Nat\)
+    - | \([e_1, \ldots, e_n]\)
+      - where \(n \in \Nat\), \(e_i\): Exp
+    - | \(e.s\)
+      - where exp: Exp, \(s: \String\)
+    - | \(\{s_1: e_1, ..., s_n: e_n\}\)
+      - where \(n \in \Nat\), \(s_i \in \String\), \(e_i\): Exp
+    - | `switch` exp `case` \(s_1: e_1\), ..., `case` \(s_n: e_n\)
+      - where \(s_i: \String, e_i\): Exp
+    - | `seq` \(x_1 := e_1\) `;` ... \(x_n := e_n\) `;` e
+      - where \(x_i: \text{Variable}, e_i, e\): Exp
+    - | `comb` \(s\)(exp)
+      - where \(s: \String\), exp: Exp
 
 組み合わせ回路の内部で別の組み合わせ回路を呼び出すことができるので、その意味論には現在宣言されている組み合わせ回路の一覧が必要になる。
 また、変数を扱うためその宣言についての環境も必要である。

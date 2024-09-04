@@ -4,19 +4,23 @@ symbol = { "-" | "_" }
 name = @{ (ASCII_ALPHA | "_" ) ~ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
 number = @{ ASCII_DIGIT+ }
 
-bool_value = { "#true" | "#false"}
+true_bool = { "#true" }
+false_bool = { "#false" }
+bool_value = { true_bool | false_bool }
 array_value = { "[" ~ (value ~ ","*)* ~ "]" }
-struct_value = { "{" ~ (name ~ ":" ~ name ~ ","*)* ~ "}" }
+struct_value = { "{" ~ (name ~ ":" ~ value ~ ","*)* ~ "}" }
 enum_value = { "<" ~ name ~ ">"}
 
 value = { bool_value | array_value | struct_value | enum_value }
 
 bool_type = { "Bool" }
-array_type = { "arr" ~ value_type ~ "[" ~ number ~ "]" }
+array_type = { "arr" ~ "[" ~ value_type ~ ";" ~ number ~ "]" }
 struct_type = { "str" ~ "{" ~ (name ~ ":" ~ value_type ~ ","*)* ~ "}" }
 enum_type = { "enm" ~ "<" ~ (name)* ~ ">"}
 
-value_type = { bool_type | array_type | struct_type | enum_type }
+value_type = { bool_type | array_type | struct_type | enum_type | name }
+
+type_def = { "type" ~ name ~ "=" ~ value_type }
 
 exp_value = { "val" ~ value }
 exp_var = { "var" ~ name }
