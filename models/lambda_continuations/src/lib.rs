@@ -28,8 +28,10 @@ where
     pub top: T,
 }
 
-pub mod ctrl;
-pub mod eff;
+pub mod ctrl_nat;
+pub mod ctrl_ext;
+pub mod eff_nat;
+pub mod eff_ext;
 pub mod grab_nat;
 pub mod grab_ext;
 pub mod lam_ext;
