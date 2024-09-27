@@ -32,10 +32,7 @@ impl Lam {
     pub fn ab(e: Lam) -> Lam {
         Lam::Abort(Box::new(e))
     }
-    pub fn ct<T>(e: Lam) -> Lam
-    where
-        T: Into<Var>,
-    {
+    pub fn ct(e: Lam) -> Lam {
         Lam::Control(Box::new(e))
     }
 }
@@ -102,40 +99,60 @@ impl SubSet for RedexInfo {
     }
     fn into_super(self) -> Self::Super {
         match self {
-            RedexInfo::AbsApp { x, e, v } => {
-                Lam::App(Box::new(Lam::Lam(x, Box::new(e))), Box::new(v.into_super()))
-            }
+            RedexInfo::AbsApp { x, e, v } => Lam::a(Lam::l(x, e), v.into_super()),
         }
     }
 }
 
-pub enum Cxt {
-    Hole,
-    EvalL(Lam, Box<Cxt>),
-    EvalR(Value, Box<Cxt>),
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Frame {
+    EvalL(Lam),   // [[] t]
+    EvalR(Value), // [v []]
 }
+
+impl Frame {
+    fn plug(self, t: Lam) -> Lam {
+        match self {
+            Frame::EvalL(e) => Lam::a(t, e),
+            Frame::EvalR(v) => Lam::a(v.into_super(), t),
+        }
+    }
+    fn free_variables(&self) -> HashSet<Var> {
+        match self {
+            Frame::EvalL(t) => t.free_variables(),
+            Frame::EvalR(v) => v.clone().into_super().free_variables(),
+        }
+    }
+    fn bound_variables(&self) -> HashSet<Var> {
+        match self {
+            Frame::EvalL(t) => t.free_variables(),
+            Frame::EvalR(v) => v.clone().into_super().free_variables(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Cxt(Vec<Frame>);
 
 impl Cxt {
-    pub fn plug(self, t: Lam) -> Lam {
-        match self {
-            Cxt::Hole => t,
-            Cxt::EvalL(e, cxt) => cxt.plug(Lam::a(t, e)),
-            Cxt::EvalR(v, cxt) => cxt.plug(Lam::a(v.into_super(), t)),
+    pub fn plug(mut self, t: Lam) -> Lam {
+        if let Some(frame) = self.0.pop() {
+            Cxt(self.0).plug(frame.plug(t))
+        } else {
+            t
         }
     }
-    pub fn extend_r(self, v: Value) -> Self {
-        match self {
-            Cxt::Hole => Cxt::EvalR(v, Box::new(Cxt::Hole)),
-            Cxt::EvalL(e1, c) => Cxt::EvalL(e1, Box::new(c.extend_r(v))),
-            Cxt::EvalR(e1, c) => Cxt::EvalR(e1, Box::new(c.extend_r(v))),
-        }
+    pub fn free_variables(&self) -> HashSet<Var> {
+        self.0
+            .iter()
+            .flat_map(|frame| frame.free_variables().into_iter())
+            .collect()
     }
-    pub fn extend_l(self, e: Lam) -> Self {
-        match self {
-            Cxt::Hole => Cxt::EvalL(e, Box::new(Cxt::Hole)),
-            Cxt::EvalL(e1, c) => Cxt::EvalL(e1, Box::new(c.extend_l(e))),
-            Cxt::EvalR(e1, c) => Cxt::EvalR(e1, Box::new(c.extend_l(e))),
-        }
+    pub fn bound_variables(&self) -> HashSet<Var> {
+        self.0
+            .iter()
+            .flat_map(|frame| frame.bound_variables().into_iter())
+            .collect()
     }
 }
 
@@ -185,17 +202,14 @@ impl LambdaExt for Lam {
                 Lam::Var(x) => Lam::Var(v.get_table(&x)),
                 Lam::Lam(x, e) => {
                     v.push_var(&x);
-                    Lam::Lam(
-                        v.get_table(&x),
-                        Box::new(alpha_conversion_canonical_rec(*e, v)),
-                    )
+                    Lam::l(v.get_table(&x), alpha_conversion_canonical_rec(*e, v))
                 }
-                Lam::App(e1, e2) => Lam::App(
-                    Box::new(alpha_conversion_canonical_rec(*e1, v.clone())),
-                    Box::new(alpha_conversion_canonical_rec(*e2, v)),
+                Lam::App(e1, e2) => Lam::a(
+                    alpha_conversion_canonical_rec(*e1, v.clone()),
+                    alpha_conversion_canonical_rec(*e2, v),
                 ),
-                Lam::Abort(e) => Lam::Abort(Box::new(alpha_conversion_canonical_rec(*e, v))),
-                Lam::Control(e) => Lam::Control(Box::new(alpha_conversion_canonical_rec(*e, v))),
+                Lam::Abort(e) => Lam::ab(alpha_conversion_canonical_rec(*e, v)),
+                Lam::Control(e) => Lam::ct(alpha_conversion_canonical_rec(*e, v)),
             }
         }
 
@@ -226,8 +240,8 @@ impl LambdaExt for Lam {
                     simple_subst(*e1, x.clone(), t.clone()),
                     simple_subst(*e2, x, t),
                 ),
-                Lam::Abort(e) => Lam::Abort(Box::new(simple_subst(*e, x, t))),
-                Lam::Control(e) => Lam::Control(Box::new(simple_subst(*e, x, t))),
+                Lam::Abort(e) => Lam::ab(simple_subst(*e, x, t)),
+                Lam::Control(e) => Lam::ct(simple_subst(*e, x, t)),
             }
         }
 
@@ -244,22 +258,62 @@ impl LambdaExt for Lam {
 
     fn step(self) -> Option<Self> {
         // t = E[Abort(M)] ?
-        fn destruct_abort(t: Lam) -> Option<(Cxt, Lam)> {
-            todo!()
+        fn destruct_abort(mut t: Lam) -> Option<(Cxt, Lam)> {
+            let mut stack = vec![];
+            loop {
+                match t {
+                    Lam::Var(_) | Lam::Lam(_, _) | Lam::Control(_) => return None,
+                    Lam::App(e1, e2) => {
+                        if let Some(v) = Value::from_super(&e1) {
+                            stack.push(Frame::EvalR(v));
+                            t = *e2;
+                        } else {
+                            stack.push(Frame::EvalL(*e2));
+                            t = *e1;
+                        }
+                    }
+                    Lam::Abort(m) => {
+                        return Some((Cxt(stack), *m));
+                    }
+                }
+            }
         }
         // t = E[Control(M)] ?
-        fn destruct_control(t: Lam) -> Option<(Cxt, Lam)> {
-            todo!()
+        fn destruct_control(mut t: Lam) -> Option<(Cxt, Lam)> {
+            let mut stack = vec![];
+            loop {
+                match t {
+                    Lam::Var(_) | Lam::Lam(_, _) | Lam::Abort(_) => return None,
+                    Lam::App(e1, e2) => {
+                        if let Some(v) = Value::from_super(&e1) {
+                            stack.push(Frame::EvalR(v));
+                            t = *e2;
+                        } else {
+                            stack.push(Frame::EvalL(*e2));
+                            t = *e1;
+                        }
+                    }
+                    Lam::Control(m) => {
+                        return Some((Cxt(stack), *m));
+                    }
+                }
+            }
         }
         if let Some(r) = RedexInfo::from_super(&self) {
             return Some(Lam::redex_step(r));
         }
-        if let Some((e, t)) = destruct_abort(self.clone()) {
+        if let Some((_, t)) = destruct_abort(self.clone()) {
             return Some(t);
         }
-        if let Some((e, t)) = destruct_control(self.clone()) {
-            let cont: Lam = todo!();
-            todo!()
+        if let Some((cxt, t)) = destruct_control(self.clone()) {
+            let mut sets = HashSet::new();
+            sets.extend(t.free_variables());
+            sets.extend(t.bound_variables());
+            sets.extend(cxt.free_variables());
+            sets.extend(cxt.bound_variables());
+            let new_var: Var = utils::variable::new_var(sets);
+            let cont: Lam = Lam::l(new_var.clone(), Lam::ab(cxt.plug(Lam::v(new_var))));
+            return Some(Lam::a(t, cont));
         }
         match self {
             Lam::App(e1, e2) => {
