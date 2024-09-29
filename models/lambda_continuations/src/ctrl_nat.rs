@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use utils::{set::SubSet, variable::Var};
 
-use crate::LambdaExt;
+use crate::{LambdaContext, LambdaExt, State};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Lam {
@@ -324,6 +324,66 @@ impl LambdaExt for Lam {
                 }
             }
             _ => None,
+        }
+    }
+}
+
+impl LambdaContext for Lam {
+    type Frame = Frame;
+    fn decomp(e: Self) -> Option<(Self::Frame, Self)> {
+        if let Lam::App(e1, e2) = e {
+            if let Some(v) = Value::from_super(&e1) {
+                Some((Frame::EvalR(v), *e1))
+            } else {
+                Some((Frame::EvalL(*e2), *e1))
+            }
+        } else {
+            None
+        }
+    }
+    fn plug(frame: Self::Frame, e: Self) -> Self {
+        match frame {
+            Frame::EvalR(v) => Lam::a(v.into_super(), e),
+            Frame::EvalL(t) => Lam::a(e, t),
+        }
+    }
+    fn step_state(State { mut stack, mut top }: State<Self>) -> Option<State<Self>> {
+        if let Some(v) = Value::from_super(&top) {
+            if let Some(frame) = stack.pop() {
+                let top = frame.plug(top);
+                Some(State { stack, top })
+            } else {
+                None
+            }
+        } else if let Some(r) = RedexInfo::from_super(&top) {
+            Some(State {
+                stack,
+                top: Lam::redex_step(r),
+            })
+        } else if let Lam::Abort(t) = top {
+            Some(State {
+                stack: vec![],
+                top: *t,
+            })
+        } else if let Lam::Control(t) = top {
+            let mut sets = HashSet::new();
+            sets.extend(t.free_variables());
+            sets.extend(t.bound_variables());
+            for frame in &stack {
+                sets.extend(frame.free_variables());
+                sets.extend(frame.bound_variables());
+            }
+            let new_var: Var = utils::variable::new_var(sets);
+            let cont: Lam = Lam::l(new_var.clone(), Lam::ab(Cxt(stack).plug(Lam::v(new_var))));
+            Some(State {
+                stack: vec![],
+                top: Lam::a(*t, cont),
+            })
+        } else if let Some((frame, t)) = <Lam as LambdaContext>::decomp(top) {
+            stack.push(frame);
+            Some(State { stack, top: t })
+        } else {
+            None
         }
     }
 }
