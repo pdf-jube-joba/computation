@@ -431,3 +431,54 @@ State の関係は次のようになる。
 
 # 拡張について
 rec の定義の参考: [https://www.kurims.kyoto-u.ac.jp/~kenkyubu/kokai-koza/katsumata.pdf]
+
+# rust のコードについて
+higher kinded type を使った。:[https://rustyyato.github.io/type/system,type/families/2021/02/15/Type-Families-1.html]
+例として
+```rust
+enum Base<T> {
+    Var { var: Var },
+    Abs { var: Var, body: T },
+    App { e1: T, e2: T },
+}
+
+enum Ext<T> {
+    Var { var: Var },
+    Abs { var: Var, body: T },
+    App { e1: T, e2: T },
+    Zero,
+    Succ { succ: T },
+    Pred { pred: T },
+    IfZ { cond: T, tcase: T, fcase: T },
+    Let { var: Var, bind: T, body: T },
+    Rec { fix: Var, var: Var, body: T },
+}
+```
+みたいに generics を使っておいて、
+普通のラムダ計算（とそのPCFっぽい拡張）は次のように定義する。
+```rust
+enum Lam1 {
+    B(Box<Base<Lam1>>),
+}
+
+enum Lam2 {
+    B(Box<Ext<Lam2>>),
+}
+```
+Abort/Control による拡張（とそのPCFっぽい拡張）は次のように定義する。
+```rust
+enum AbCt1 {
+    B(Box<Base<AbCt1>>),
+    Abort(Box<AbCt1>),
+    Control(Box<AbCt1>),
+}
+
+enum AbCt2 {
+    B(Box<Ext<AbCt2>>),
+    Abort(Box<AbCt2>),
+    Control(Box<AbCt2>),
+}
+```
+それぞれのケースで1つめと2つめの型の違いは `Base<_>` と `Ext<_>` の違いしかない。
+のに、コードも大部分複製する必要があって辛そう。
+をなんとかするのに参考にした。
