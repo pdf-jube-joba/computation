@@ -66,22 +66,28 @@ impl<T> LambdaExt for Ext<T> {
     }
 }
 
-enum AbctBase {
-    B(Box<Base<AbctBase>>),
-    Ab(Box<AbctBase>),
-    Ct(Box<AbctBase>),
+struct BaseStruct;
+struct ExtStruct;
+
+trait AC<T> {
+    type This;
 }
 
-enum AbctExt {
-    B(Box<Ext<AbctExt>>),
-    Ab(Box<AbctExt>),
-    Ct(Box<AbctExt>),
+impl<T> AC<T> for BaseStruct {
+    type This = Base<T>;
 }
 
-enum AbCt<T> {
-    B(Box<T>),
-    Ab(Box<AbCt<T>>),
-    Ct(Box<AbCt<T>>),
+impl<T> AC<T> for ExtStruct {
+    type This = Ext<T>;
+}
+
+enum AbCt<E>
+where
+    E: AC<AbCt<E>>,
+{
+    B(Box<E::This>),
+    Ab(Box<AbCt<E>>),
+    Ct(Box<AbCt<E>>),
 }
 
 enum GrDl<T> {
