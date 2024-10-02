@@ -7,13 +7,14 @@ pub mod traits {
     pub trait LambdaExt: Sized {
         fn free_variables(&self) -> HashSet<Var>;
         fn bound_variables(&self) -> HashSet<Var>;
-        fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self;
+        //
+        fn alpha_conversion_canonical(self, not_use: HashSet<Var>) -> Self;
         fn subst(self, v: Var, t: Self) -> Self;
     }
 
     pub trait Step: LambdaExt {
         type Value: SubSet<Super = Self>;
-        fn step(self) -> Option<Self>;
+        fn step(self) -> Option<Result<Self::Value, Self>>;
     }
 
     pub trait CallState: LambdaExt {
@@ -30,7 +31,9 @@ pub mod traits {
     }
 }
 
-mod ext {
+pub mod ext {
+    use utils::variable;
+
     use super::traits::*;
     use super::*;
 
@@ -91,10 +94,38 @@ mod ext {
             set
         }
         fn bound_variables(&self) -> HashSet<Var> {
-            todo!()
+            let mut set = HashSet::new();
+            match self {
+                Base::Var { var: _ } => {}
+                Base::Abs { var, body } => {
+                    set.extend(body.bound_variables());
+                    set.insert(var.clone());
+                }
+                Base::App { e1, e2 } => {
+                    set.extend(e1.bound_variables());
+                    set.extend(e2.bound_variables());
+                }
+            }
+            set
         }
         fn alpha_conversion_canonical(self, vs: HashSet<Var>) -> Self {
-            todo!()
+            fn alpha_conversion_canonical_rec<T>(e: Base<T>, mut vs: variable::VarMap) -> Base<T> {
+                match e {
+                    Base::Var { var } => Base::Var {
+                        var: vs.get_table(&var),
+                    },
+                    Base::Abs { var, body } => {
+                        vs.push_var(&var);
+                        todo!()
+                    }
+                    Base::App { e1, e2 } => todo!(),
+                }
+            }
+
+            let maps: variable::VarMap =
+                variable::VarMap::new_iter(self.free_variables().into_iter().chain(vs));
+
+            alpha_conversion_canonical_rec(self, maps)
         }
         fn subst(self, v: Var, t: Self) -> Self {
             todo!()
