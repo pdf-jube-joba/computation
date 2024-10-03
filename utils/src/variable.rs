@@ -40,6 +40,19 @@ impl Display for Var {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct VarSet(HashSet<Var>);
+
+impl<I, V> From<I> for VarSet
+where
+    I: IntoIterator<Item = V>,
+    V: AsRef<Var>,
+{
+    fn from(value: I) -> Self {
+        VarSet(value.into_iter().map(|v| v.as_ref().clone()).collect())
+    }
+}
+
 pub fn new_var<Iter, Item>(vars: Iter) -> Var
 where
     Iter: IntoIterator<Item = Item>,
