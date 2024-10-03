@@ -28,10 +28,14 @@ pub mod traits {
         pub call_stack: Vec<T::Frame>,
         pub top: T,
     }
+
+    pub trait LamFamily<T> {
+        type This: LambdaExt;
+    }
 }
 
 pub mod ext {
-    use utils::variable;
+    use utils::variable::VarSet;
 
     use super::traits::*;
     use super::*;
@@ -44,13 +48,13 @@ pub mod ext {
     }
 
     impl<T> Base<T> {
-        fn n_v(var: Var) -> Self {
+        pub fn n_v(var: Var) -> Self {
             Base::Var { var }
         }
-        fn n_l(var: Var, body: T) -> Self {
+        pub fn n_l(var: Var, body: T) -> Self {
             Base::Lam { var, body }
         }
-        fn n_a(e1: T, e2: T) -> Self {
+        pub fn n_a(e1: T, e2: T) -> Self {
             Base::App { e1, e2 }
         }
     }
@@ -124,7 +128,7 @@ pub mod ext {
             match (self, other) {
                 (Base::Var { var: var1 }, Base::Var { var: var2 }) => var1 == var2,
                 (Base::App { e1: m1, e2: m2 }, Base::App { e1: n1, e2: n2 }) => {
-                    m1 == n1 && m2 == n2
+                    m1.alpha_eq(n1) && m2.alpha_eq(n2)
                 }
                 (
                     Base::Lam {
@@ -135,12 +139,11 @@ pub mod ext {
                         var: var2,
                         body: body2,
                     },
-                ) => {
-                    *body1
-                        == body2
-                            .clone()
-                            .subst(var2.clone(), Base::n_v(var1.clone()).into_super())
-                }
+                ) => body1.alpha_eq(
+                    &body2
+                        .clone()
+                        .subst(var2.clone(), Base::n_v(var1.clone()).into_super()),
+                ),
                 _ => false,
             }
         }
@@ -154,7 +157,8 @@ pub mod ext {
                     }
                 }
                 Base::Lam { var, body } => {
-                    let new_var = variable::new_var(t.free_variables());
+                    let mut set: VarSet = t.free_variables().into();
+                    let new_var = set.new_var_modify();
                     Base::n_l(
                         new_var.clone(),
                         body.subst(var, Base::n_v(new_var).into_super())
@@ -167,6 +171,16 @@ pub mod ext {
                 ),
             }
         }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct BaseStruct;
+    impl<T> LamFamily<T> for BaseStruct
+    where
+        T: LambdaExt + Clone + PartialEq,
+        Base<T>: SubSet<Super = T>,
+    {
+        type This = Base<T>;
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -344,7 +358,80 @@ pub mod ext {
             set
         }
         fn alpha_eq(&self, other: &Self) -> bool {
-            todo!()
+            match (self, other) {
+                (Ext::Var { var: var1 }, Ext::Var { var: var2 }) => var1 == var2,
+                (Ext::App { e1: m1, e2: m2 }, Ext::App { e1: n1, e2: n2 }) => {
+                    m1.alpha_eq(n1) && m2.alpha_eq(n2)
+                }
+                (
+                    Ext::Lam {
+                        var: var1,
+                        body: body1,
+                    },
+                    Ext::Lam {
+                        var: var2,
+                        body: body2,
+                    },
+                ) => body1.alpha_eq(
+                    &body2
+                        .clone()
+                        .subst(var2.clone(), Ext::n_v(var1.clone()).into_super()),
+                ),
+                (Ext::Zero, Ext::Zero) => true,
+                (Ext::Succ { succ: succ1 }, Ext::Succ { succ: succ2 }) => succ1.alpha_eq(succ2),
+                (Ext::Pred { pred: pred1 }, Ext::Pred { pred: pred2 }) => pred1.alpha_eq(pred2),
+                (
+                    Ext::IfZ {
+                        cond: cond1,
+                        tcase: tcase1,
+                        fcase: fcase1,
+                    },
+                    Ext::IfZ {
+                        cond: cond2,
+                        tcase: tcase2,
+                        fcase: fcase2,
+                    },
+                ) => cond1.alpha_eq(cond2) && tcase1.alpha_eq(tcase2) && fcase1.alpha_eq(fcase2),
+                (
+                    Ext::Let {
+                        var: var1,
+                        bind: bind1,
+                        body: body1,
+                    },
+                    Ext::Let {
+                        var: var2,
+                        bind: bind2,
+                        body: body2,
+                    },
+                ) => {
+                    body1.alpha_eq(body2) && {
+                        bind1.alpha_eq(
+                            &bind2
+                                .clone()
+                                .subst(var2.clone(), Ext::n_v(var1.clone()).into_super()),
+                        )
+                    }
+                }
+                (
+                    Ext::Rec {
+                        fix: fix1,
+                        var: var1,
+                        body: body1,
+                    },
+                    Ext::Rec {
+                        fix: fix2,
+                        var: var2,
+                        body: body2,
+                    },
+                ) => {
+                    let body2 = body2
+                        .clone()
+                        .subst(fix2.clone(), Ext::n_v(fix1.clone()).into_super())
+                        .subst(var2.clone(), Ext::n_v(var1.clone()).into_super());
+                    body1.alpha_eq(&body2)
+                }
+                _ => false,
+            }
         }
         fn subst(self, v: Var, t: Self) -> Self {
             match self {
@@ -356,7 +443,8 @@ pub mod ext {
                     }
                 }
                 Ext::Lam { var, body } => {
-                    let new_var = variable::new_var(t.free_variables());
+                    let mut set: VarSet = t.free_variables().into();
+                    let new_var = set.new_var_modify();
                     Ext::n_l(
                         new_var.clone(),
                         body.subst(var, Ext::n_v(new_var).into_super())
@@ -376,7 +464,8 @@ pub mod ext {
                     fcase.subst(v, t.into_super()),
                 ),
                 Ext::Let { var, bind, body } => {
-                    let new_var = variable::new_var(body.free_variables());
+                    let mut set: VarSet = body.free_variables().into();
+                    let new_var = set.new_var_modify();
                     let bind = bind.subst(v.clone(), t.clone().into_super());
                     let body = body
                         .subst(var, Ext::n_v(new_var.clone()).into_super())
@@ -384,10 +473,9 @@ pub mod ext {
                     Ext::n_d(new_var, bind, body)
                 }
                 Ext::Rec { fix, var, body } => {
-                    let mut set = body.free_variables();
-                    let new_fix = variable::new_var(set.clone());
-                    set.insert(var.clone());
-                    let new_var = variable::new_var(set);
+                    let mut set: VarSet = body.free_variables().into();
+                    let new_fix = set.new_var_default(&fix);
+                    let new_var = set.new_var_default(&var);
                     let new_body = body
                         .subst(fix.clone(), Ext::n_v(new_fix.clone()).into_super())
                         .subst(var.clone(), Ext::n_v(new_var.clone()).into_super())
@@ -397,44 +485,44 @@ pub mod ext {
             }
         }
     }
-}
 
-mod lambda {
-    use super::{ext::*, traits::*, *};
-
-    pub trait Lam<T> {
-        type This: LambdaExt;
-    }
-
-    pub struct BaseStruct;
-    impl<T> Lam<T> for BaseStruct
-    where
-        T: LambdaExt + Clone + PartialEq,
-        Base<T>: SubSet<Super = T>,
-    {
-        type This = Base<T>;
-    }
-
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct ExtStruct;
-    impl<T> Lam<T> for ExtStruct
+    impl<T> LamFamily<T> for ExtStruct
     where
         T: LambdaExt + Clone + PartialEq,
-        Base<T>: SubSet<Super = T>,
         Ext<T>: SubSet<Super = T>,
     {
         type This = Ext<T>;
     }
+}
 
+mod lambda {
+    use self::ext::{Base, BaseStruct};
+
+    use super::{traits::*, *};
+
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum LamStruct<E>
     where
-        E: Lam<LamStruct<E>>,
+        E: LamFamily<LamStruct<E>>,
     {
         B(Box<E::This>),
     }
 
+    impl SubSet for Base<LamStruct<BaseStruct>> {
+        type Super = LamStruct<BaseStruct>;
+        fn from_super(s: &Self::Super) -> Option<Self> {
+            todo!()
+        }
+        fn into_super(self) -> Self::Super {
+            todo!()
+        }
+    }
+
     impl<E> LambdaExt for LamStruct<E>
     where
-        E: Lam<LamStruct<E>>,
+        E: LamFamily<LamStruct<E>>,
     {
         fn free_variables(&self) -> HashSet<Var> {
             let LamStruct::B(b) = self;
@@ -445,43 +533,29 @@ mod lambda {
             b.bound_variables()
         }
         fn alpha_eq(&self, other: &Self) -> bool {
-            todo!()
+            let LamStruct::B(b1) = self;
+            let LamStruct::B(b2) = other;
+            b1.alpha_eq(b2)
         }
         fn subst(self, v: Var, t: Self) -> Self {
-            todo!()
+            let LamStruct::B(b) = self;
+            let LamStruct::B(t) = t;
+            LamStruct::B(Box::new(b.subst(v, *t)))
         }
+    }
+
+    type LamBase = LamStruct<BaseStruct>;
+    fn f() {
+        let b: Base<LamBase> = Base::n_v(0.into());
+        LamStruct::B(Box::new(b));
     }
 }
 
 mod abct {
     use super::{ext::*, traits::*, *};
-
-    pub struct BaseStruct;
-    pub struct ExtStruct;
-
-    pub trait AbCt<T> {
-        type This: LambdaExt;
-    }
-
-    impl<T> AbCt<T> for BaseStruct
-    where
-        T: LambdaExt + Clone + PartialEq,
-        Base<T>: SubSet<Super = T>,
-    {
-        type This = Base<T>;
-    }
-
-    impl<T> AbCt<T> for ExtStruct
-    where
-        T: LambdaExt + Clone + PartialEq,
-        Ext<T>: SubSet<Super = T>,
-    {
-        type This = Ext<T>;
-    }
-
     pub enum AbCtStruct<E>
     where
-        E: AbCt<AbCtStruct<E>>,
+        E: LamFamily<AbCtStruct<E>>,
     {
         B(Box<E::This>),
         Ab(Box<AbCtStruct<E>>),
@@ -490,7 +564,7 @@ mod abct {
 
     impl<E> LambdaExt for AbCtStruct<E>
     where
-        E: AbCt<AbCtStruct<E>>,
+        E: LamFamily<AbCtStruct<E>>,
     {
         fn free_variables(&self) -> HashSet<Var> {
             todo!()
@@ -509,33 +583,9 @@ mod abct {
 
 mod grdl {
     use super::{ext::*, traits::*, *};
-
-    pub struct BaseStruct;
-    pub struct ExtStruct;
-
-    pub trait GrDl<T> {
-        type This: LambdaExt;
-    }
-
-    impl<T> GrDl<T> for BaseStruct
-    where
-        T: LambdaExt + Clone + PartialEq,
-        Base<T>: SubSet<Super = T>,
-    {
-        type This = Base<T>;
-    }
-
-    impl<T> GrDl<T> for ExtStruct
-    where
-        T: LambdaExt + Clone + PartialEq,
-        Ext<T>: SubSet<Super = T>,
-    {
-        type This = Ext<T>;
-    }
-
     pub enum GrDlStruct<E>
     where
-        E: GrDl<GrDlStruct<E>>,
+        E: LamFamily<GrDlStruct<E>>,
     {
         B(Box<E::This>),
         Gr(Box<GrDlStruct<E>>),
@@ -544,7 +594,7 @@ mod grdl {
 
     impl<E> LambdaExt for GrDlStruct<E>
     where
-        E: GrDl<GrDlStruct<E>>,
+        E: LamFamily<GrDlStruct<E>>,
     {
         fn free_variables(&self) -> HashSet<Var> {
             todo!()

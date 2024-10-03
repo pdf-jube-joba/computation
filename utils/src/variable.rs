@@ -46,10 +46,63 @@ pub struct VarSet(HashSet<Var>);
 impl<I, V> From<I> for VarSet
 where
     I: IntoIterator<Item = V>,
-    V: AsRef<Var>,
+    V: Borrow<Var>,
 {
     fn from(value: I) -> Self {
-        VarSet(value.into_iter().map(|v| v.as_ref().clone()).collect())
+        VarSet(value.into_iter().map(|v| v.borrow().clone()).collect())
+    }
+}
+
+impl VarSet {
+    /// return v: Var s.t. v \notin self, and
+    fn new_var(&self) -> Var {
+        let new_u = self
+            .0
+            .iter()
+            .filter_map(|v| match v {
+                Var::S(_) => None,
+                Var::U(u) => Some(*u),
+            })
+            .max()
+            .unwrap_or(0);
+        Var::U(new_u)
+    }
+    pub fn is_in(&self, elem: &Var) -> bool {
+        self.0.contains(elem)
+    }
+    /// return (v: Var s.t. v \notin self), and self <= self + {v}
+    pub fn new_var_modify(&mut self) -> Var {
+        let new_var = self.new_var();
+        self.insert(new_var.clone());
+        new_var
+    }
+    /// if (default \notin self) then (return default) else (return v: Var s.t. v \notin self), and self <= self + {v}
+    pub fn new_var_default<V>(&mut self, default: V) -> Var
+    where
+        V: Borrow<Var>,
+    {
+        if self.is_in(default.borrow()) {
+            self.new_var()
+        } else {
+            default.borrow().clone()
+        }
+    }
+    pub fn insert<V>(&mut self, var: V) -> bool
+    where
+        V: Borrow<Var>,
+    {
+        self.0.insert(var.borrow().clone())
+    }
+    pub fn remove<V>(&mut self, var: V) -> bool
+    where
+        V: Borrow<Var>,
+    {
+        self.0.remove(var.borrow())
+    }
+    pub fn union(&self, other: &Self) -> Self {
+        let mut set = self.0.clone();
+        set.extend(other.0.iter().cloned());
+        VarSet(set)
     }
 }
 
@@ -110,113 +163,3 @@ impl VarMap {
         }
     }
 }
-
-// pub trait LamVar: Sized {
-//     // return Some() if it is variable
-//     fn decomposition_to_var(&self) -> Option<(Var, Box<dyn Fn(Var) -> Self>)>;
-//     // return Some() if it bound variable
-//     fn decomposition_to_bound(&self) -> Option<(Var, Box<dyn Fn(Var) -> Self>)>;
-//     fn traversal(&self, f: Box<dyn Fn(Self) -> Self>) -> Self;
-//     fn fold<T, F, A>(&self, f: &F, add: A) -> T
-//     where
-//         F: Fn(Self) -> T,
-//         T: Default,
-//         A: Fn(T, T) -> T;
-// }
-
-// fn add_set(mut s1: HashSet<Var>, s2: HashSet<Var>) -> HashSet<Var> {
-//     s1.extend(s2);
-//     s1
-// }
-
-// pub fn free_variables<T>(e: &T) -> HashSet<Var>
-// where
-//     T: LamVar,
-// {
-
-//     let mut s = e.fold(&Box::new(|m| free_variables(&m)), add_set);
-
-//     if let Some((y, _)) = e.decomposition_to_var() {
-//         s.insert(y);
-//     }
-
-//     if let Some((y, _)) = e.decomposition_to_bound() {
-//         s.remove(&y);
-//     }
-//     s
-// }
-
-// pub fn bound_variables<T>(e: &T) -> HashSet<Var>
-// where
-//     T: LamVar,
-// {
-//     let mut s = e.fold(&Box::new(|m| bound_variables(&m)), add_set);
-//     if let Some((y, _)) = e.decomposition_to_bound() {
-//         s.remove(&y);
-//     }
-//     s
-// }
-
-// fn alpha_conversion_canonical_rec<T>(e: T, maps: Vec<Var>) -> T
-// where
-//     T: LamVar,
-// {
-//     if let Some((y, f)) = e.decomposition_to_var() {
-//         if let Some(new_y) = maps.iter().position(|v| *v == y) {
-//             return f(new_y.into());
-//         } else {
-//             return f(y.into_s());
-//         }
-//     }
-
-//     if let Some((y, f)) = e.decomposition_to_bound() {
-//         let new_y: Var = maps.len().into();
-//         let new_y = new_y.into_s();
-//         let mut maps = maps.clone();
-//         maps.push(y);
-//         let new_r = alpha_conversion_canonical_rec(r, maps);
-//         return f(new_y, new_r);
-//     }
-
-//     e.traversal(Box::new(move |m| {
-//         alpha_conversion_canonical_rec(m, maps.clone())
-//     }))
-// }
-
-// pub fn alpha_conversion_canonical<T>(e: T) -> T
-// where
-//     T: LamVar,
-// {
-//     alpha_conversion_canonical_rec(e, vec![])
-// }
-
-// pub fn subst<L>(e: L, x: Var, t: L) -> L
-// where
-//     L: LamVar,
-// {
-//     if let Some((y, f)) = e.decomposition_to_var() {
-//         if x == y {
-//             return t;
-//         } else {
-//             return f(y);
-//         }
-//     }
-//     if let Some((y, r, f)) = e.decomposition_to_bound() {
-//         if x == y {
-//             return e;
-//         }
-//     }
-//     todo!()
-// }
-
-// mod test_lambda_calculus {
-//     use super::*;
-
-//     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-//     enum Exp {
-//         Var(Var),
-//         Abs(Var, Box<Exp>),
-//         App(Box<Exp>, Box<Exp>),
-//         Let(Var, Box<Exp>, Box<Exp>),
-//     }
-// }
