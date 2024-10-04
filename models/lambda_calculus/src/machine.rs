@@ -147,7 +147,7 @@ fn alpha_eq_rec(
                 term2,
                 &new_corr1,
                 &new_corr2,
-                utils::variable::new_var(vec![&new_var]),
+                utils::variable::VarSet::from(vec![&new_var]).new_var_modify(),
             )
         }
         (LambdaTerm::Application(term11, term12), LambdaTerm::Application(term21, term22)) => {
@@ -165,7 +165,7 @@ pub fn alpha_eq(term1: &LambdaTerm, term2: &LambdaTerm) -> bool {
         set.extend(term1.bounded_variable());
         set.extend(term2.free_variable());
         set.extend(term2.bounded_variable());
-        utils::variable::new_var(&set)
+        utils::variable::VarSet::from(&set).new_var_modify()
     };
     alpha_eq_rec(term1, term2, &HashMap::new(), &HashMap::new(), new_var)
 }
@@ -189,7 +189,7 @@ pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
                     let mut set = HashSet::new();
                     set.extend(term1.free_variable());
                     set.extend(term2.free_variable());
-                    utils::variable::new_var(&set)
+                    utils::variable::VarSet::from(&set).new_var_modify()
                 };
                 LambdaTerm::Abstraction(
                     new_var.clone(),

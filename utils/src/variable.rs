@@ -30,6 +30,12 @@ impl From<&str> for Var {
     }
 }
 
+impl From<String> for Var {
+    fn from(value: String) -> Self {
+        Var::S(value)
+    }
+}
+
 impl Display for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
@@ -70,6 +76,9 @@ impl VarSet {
     pub fn is_in(&self, elem: &Var) -> bool {
         self.0.contains(elem)
     }
+    pub fn new_var_not_midify(&self) -> Var {
+        self.new_var()
+    }
     /// return (v: Var s.t. v \notin self), and self <= self + {v}
     pub fn new_var_modify(&mut self) -> Var {
         let new_var = self.new_var();
@@ -104,22 +113,6 @@ impl VarSet {
         set.extend(other.0.iter().cloned());
         VarSet(set)
     }
-}
-
-pub fn new_var<Iter, Item>(vars: Iter) -> Var
-where
-    Iter: IntoIterator<Item = Item>,
-    Item: Borrow<Var>,
-{
-    let max = vars
-        .into_iter()
-        .filter_map(|v| match v.borrow() {
-            Var::S(_) => None,
-            Var::U(u) => Some(*u),
-        })
-        .max()
-        .unwrap_or(0);
-    (max + 1).into()
 }
 
 // free variable をよけて bound variable を付け替えるためにつかう
