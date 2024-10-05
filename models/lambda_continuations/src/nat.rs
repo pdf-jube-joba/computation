@@ -48,28 +48,19 @@ impl PartialEq for Lam<ExtStruct> {
     }
 }
 
-impl<T> Debug for Lam<T>
-where
-    T: LamFamily<Lam<T>>,
-    T::This: Debug,
-{
+impl Debug for Lam<BaseStruct> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Lam::Base(b) = self;
         write!(f, "{:?}", b)
     }
 }
 
-// impl Debug for Lam<BaseStruct> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//     }
-// }
-
-// impl Debug for Lam<ExtStruct> {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let Lam::Base(b) = self;
-//         write!(f, "{:?}", b)
-//     }
-// }
+impl Debug for Lam<ExtStruct> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Lam::Base(b) = self;
+        write!(f, "{:?}", b)
+    }
+}
 
 impl From<Base<Lam<BaseStruct>>> for Lam<BaseStruct> {
     fn from(value: Base<Lam<BaseStruct>>) -> Self {
