@@ -32,17 +32,23 @@ pub mod traits {
         pub call_stack: Vec<T::Frame>,
         pub top: T,
     }
+
+    /// associated type を用いた higher kinded type のためののトレイト
+    /// LamFamily<HogeStruct>::This == Hoge<T>
+    pub trait LamFamily<T> {
+        type This;
+    }
+
+    pub trait LamFamilySubst<T> {
+        // (Base<T>, Var, T) -> T or (Ext<T>, Var, T) -> T
+        fn subst_t(self, v: Var, t: T) -> T;
+    }
 }
 
 pub mod lambda {
     use super::traits::*;
     use super::*;
     use utils::variable::VarSet;
-
-    // associated type を用いた higher kinded type のためののトレイト
-    pub trait LamFamily<T> {
-        type This;
-    }
 
     pub mod base {
         use super::*;
@@ -75,6 +81,36 @@ pub mod lambda {
             fn from(value: BaseValue<T>) -> Self {
                 match value {
                     BaseValue::Fun { var, body } => Base::Lam { var, body },
+                }
+            }
+        }
+
+        impl<T> LamFamilySubst<T> for Base<T>
+        where
+            T: LambdaExt + From<Base<T>> + Clone,
+        {
+            /// (Base<T>, Var, T) -> T
+            fn subst_t(self, v: Var, t: T) -> T {
+                match self {
+                    Base::Var { var } => {
+                        if var == v {
+                            t
+                        } else {
+                            Base::n_v(var).into()
+                        }
+                    }
+                    Base::Lam { var, body } => {
+                        let mut set: VarSet = t.free_variables().into();
+                        let new_var = set.new_var_modify();
+                        Base::n_l(
+                            new_var.clone(),
+                            body.subst(var, Base::n_v(new_var).into()).subst(v, t),
+                        )
+                        .into()
+                    }
+                    Base::App { e1, e2 } => {
+                        Base::n_a(e1.subst(v.clone(), t.clone()), e2.subst(v, t)).into()
+                    }
                 }
             }
         }
@@ -169,6 +205,29 @@ pub mod lambda {
         impl<T> LamFamily<T> for BaseStruct {
             type This = Base<T>;
         }
+
+        #[macro_export]
+        macro_rules! bvar {
+            ($str: literal) => {
+                Base::n_v($str.into()).into()
+            };
+        }
+
+        #[macro_export]
+        macro_rules! blam {
+            ($str: literal, $t: expr) => {
+                Base::n_l($str.into(), $t).into()
+            };
+        }
+
+        #[macro_export]
+        macro_rules! bapp {
+            ($t1: expr, $t2: expr) => {
+                Base::n_a($t1, $t2).into()
+            };
+        }
+
+        pub use {bapp, blam, bvar};
     }
 
     pub mod ext {
@@ -452,19 +511,98 @@ pub mod lambda {
             }
         }
 
+        impl<T> LamFamilySubst<T> for Ext<T>
+        where
+            T: LambdaExt + From<Ext<T>> + Clone,
+        {
+            /// (Ext<T>, Var, T) -> T
+            fn subst_t(self, v: Var, t: T) -> T {
+                match self {
+                    Ext::Var { var } => {
+                        if var == v {
+                            t
+                        } else {
+                            Ext::Var { var }.into()
+                        }
+                    }
+                    Ext::Lam { var, body } => {
+                        let mut set: VarSet = t.free_variables().into();
+                        let new_var = set.new_var_modify();
+                        Ext::n_l(
+                            new_var.clone(),
+                            body.subst(var, Ext::n_v(new_var).into()).subst(v, t),
+                        )
+                        .into()
+                    }
+                    Ext::App { e1, e2 } => {
+                        Ext::n_a(e1.subst(v.clone(), t.clone()), e2.subst(v, t)).into()
+                    }
+                    Ext::Zero => Ext::n_z().into(),
+                    Ext::Succ { succ } => Ext::n_s(succ.subst(v, t)).into(),
+                    Ext::Pred { pred } => Ext::n_p(pred.subst(v, t)).into(),
+                    Ext::IfZ { cond, tcase, fcase } => Ext::n_i(
+                        cond.subst(v.clone(), t.clone()),
+                        tcase.subst(v.clone(), t.clone()),
+                        fcase.subst(v, t),
+                    )
+                    .into(),
+                    Ext::Let { var, bind, body } => {
+                        let mut set: VarSet = body.free_variables().into();
+                        let new_var = set.new_var_modify();
+                        let bind = bind.subst(v.clone(), t.clone());
+                        let body = body
+                            .subst(var, Ext::n_v(new_var.clone()).into())
+                            .subst(v, t);
+                        Ext::n_d(new_var, bind, body).into()
+                    }
+                    Ext::Rec { fix, var, body } => {
+                        let mut set: VarSet = body.free_variables().into();
+                        let new_fix = set.new_var_default(&fix);
+                        let new_var = set.new_var_default(&var);
+                        let new_body = body
+                            .subst(fix.clone(), Ext::n_v(new_fix.clone()).into())
+                            .subst(var.clone(), Ext::n_v(new_var.clone()).into())
+                            .subst(v, t);
+                        Ext::n_r(new_fix, new_var, new_body).into()
+                    }
+                }
+            }
+        }
+
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct ExtStruct;
-        impl<T> LamFamily<T> for ExtStruct
-        where
-            T: LambdaExt + Clone + PartialEq,
-            Ext<T>: SubSet<Super = T>,
-        {
+        impl<T> LamFamily<T> for ExtStruct {
             type This = Ext<T>;
         }
     }
+
+    #[macro_export]
+    macro_rules! evar {
+        ($str: literal) => {
+            Base::n_v($str.into()).into()
+        };
+    }
+
+    #[macro_export]
+    macro_rules! elam {
+        ($str: literal, $t: expr) => {
+            Base::n_l($str.into(), $t).into()
+        };
+    }
+
+    #[macro_export]
+    macro_rules! eapp {
+        ($t1: expr, $t2: expr) => {
+            Base::n_a($t1, $t2).into()
+        };
+    }
+
+    pub use {eapp, elam, evar};
 }
 
 pub mod ctrl;
+pub mod nat;
+pub mod parse;
 
 // pub mod ctrl_nat;
 // pub mod ctrl_ext;
