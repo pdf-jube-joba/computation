@@ -46,8 +46,11 @@ impl Display for Var {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct VarSet(HashSet<Var>);
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct VarSet {
+    set: HashSet<Var>,
+    max: usize,
+}
 
 impl<I, V> From<I> for VarSet
 where
@@ -55,63 +58,100 @@ where
     V: Borrow<Var>,
 {
     fn from(value: I) -> Self {
-        VarSet(value.into_iter().map(|v| v.borrow().clone()).collect())
+        let mut set = HashSet::new();
+        let mut max = 0;
+        for v in value {
+            match v.borrow() {
+                Var::S(_) => {}
+                Var::U(u) => max = std::cmp::max(*u, max),
+            }
+            set.insert(v.borrow().clone());
+        }
+        VarSet { set, max }
     }
 }
 
 impl VarSet {
     /// return v: Var s.t. v \notin self, and
     fn new_var(&self) -> Var {
-        let new_u = self
-            .0
-            .iter()
-            .filter_map(|v| match v {
-                Var::S(_) => None,
-                Var::U(u) => Some(*u),
-            })
-            .max()
-            .unwrap_or(0);
-        Var::U(new_u)
+        (self.max + 1).into()
     }
-    pub fn is_in(&self, elem: &Var) -> bool {
-        self.0.contains(elem)
+
+    fn consume(&mut self) {
+        self.max += 1;
     }
-    pub fn new_var_not_midify(&self) -> Var {
+
+    pub fn contains(&self, elem: &Var) -> bool {
+        self.set.contains(elem)
+    }
+
+    pub fn new_var_not_modify(&self) -> Var {
         self.new_var()
     }
-    /// return (v: Var s.t. v \notin self), and self <= self + {v}
+
+    /// return (v: Var s.t. v \notin self)
     pub fn new_var_modify(&mut self) -> Var {
         let new_var = self.new_var();
-        self.insert(new_var.clone());
+        self.consume();
         new_var
     }
+
     /// if (default \notin self) then (return default) else (return v: Var s.t. v \notin self), and self <= self + {v}
     pub fn new_var_default<V>(&mut self, default: V) -> Var
     where
         V: Borrow<Var>,
     {
-        if self.is_in(default.borrow()) {
-            self.new_var()
+        if self.contains(default.borrow()) {
+            self.new_var_modify()
         } else {
             default.borrow().clone()
         }
     }
+
     pub fn insert<V>(&mut self, var: V) -> bool
     where
         V: Borrow<Var>,
     {
-        self.0.insert(var.borrow().clone())
+        if let Var::U(u) = var.borrow() {
+            self.max = std::cmp::max(self.max, *u);
+        }
+        self.set.insert(var.borrow().clone())
     }
+
     pub fn remove<V>(&mut self, var: V) -> bool
     where
         V: Borrow<Var>,
     {
-        self.0.remove(var.borrow())
+        self.set.remove(var.borrow())
     }
+
     pub fn union(&self, other: &Self) -> Self {
-        let mut set = self.0.clone();
-        set.extend(other.0.iter().cloned());
-        VarSet(set)
+        let mut set = self.set.clone();
+        set.extend(other.set.iter().cloned());
+        VarSet {
+            set,
+            max: std::cmp::max(self.max, other.max),
+        }
+    }
+
+    pub fn extend(&mut self, other: Self) {
+        self.set.extend(other.set.clone());
+        self.max = std::cmp::max(self.max, other.max);
+    }
+}
+
+impl FromIterator<Var> for VarSet {
+    fn from_iter<T: IntoIterator<Item = Var>>(iter: T) -> Self {
+        let mut set = HashSet::new();
+        let mut max = 0;
+        for v in iter {
+            match v {
+                Var::S(_) => {}
+                Var::U(u) => max = std::cmp::max(u, max),
+            }
+            set.insert(v.borrow().clone());
+        }
+        VarSet { set, max }
     }
 }
 
@@ -154,5 +194,25 @@ impl VarMap {
             Some(u) => Var::U(u),
             None => x.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn variableset() {
+        let v: Vec<Var> = vec!["x".into()];
+        let mut varset: VarSet = v.into();
+        assert!(varset.contains(&"x".into()));
+        assert!(!varset.contains(&"y".into()));
+        let new_var = varset.new_var();
+        assert!(!varset.contains(&new_var));
+
+        let new_var1 = varset.new_var_modify();
+        let new_var2 = varset.new_var_modify();
+        assert!(!varset.contains(&new_var1));
+        assert!(!varset.contains(&new_var2));
+        assert!(new_var1 != new_var2);
     }
 }

@@ -5,9 +5,8 @@ use crate::{
     },
     traits::{LamFamily, LamFamilySubst, LambdaExt},
 };
-use utils::variable::Var;
+use utils::variable::{Var, VarSet};
 
-#[derive(Debug, Clone, PartialEq)]
 enum AbCt<T>
 where
     T: LamFamily<AbCt<T>>,
@@ -49,14 +48,14 @@ where
     T: LamFamily<AbCt<T>>,
     T::This: LambdaExt + LamFamilySubst<AbCt<T>>,
 {
-    fn free_variables(&self) -> std::collections::HashSet<Var> {
+    fn free_variables(&self) -> VarSet {
         match self {
             AbCt::Base(b) => b.free_variables(),
             AbCt::Abort(t) => t.free_variables(),
             AbCt::Control(t) => t.free_variables(),
         }
     }
-    fn bound_variables(&self) -> std::collections::HashSet<Var> {
+    fn bound_variables(&self) -> VarSet {
         match self {
             AbCt::Base(b) => b.bound_variables(),
             AbCt::Abort(t) => t.bound_variables(),

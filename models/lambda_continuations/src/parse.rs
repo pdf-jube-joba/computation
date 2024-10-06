@@ -6,16 +6,6 @@ use pest::{iterators::Pair, Parser};
 #[grammar = "continuations.pest"]
 struct Ps;
 
-pub fn take_variable(pair: Pair<Rule>) -> Option<Var> {
-    match pair.as_rule() {
-        Rule::variable => {
-            let str = pair.as_str();
-            Some(Var::from(str))
-        }
-        _ => None,
-    }
-}
-
 // pub fn take_lam_nat(pair: Pair<Rule>) -> Option<lam_nat::Lam> {
 //     if matches!(pair.as_rule(), Rule::lam_nat) {
 //         let mut inner = pair.into_inner();

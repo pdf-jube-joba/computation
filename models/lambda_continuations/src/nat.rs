@@ -7,7 +7,7 @@ use crate::{
     },
     traits::{LamFamily, LamFamilySubst, LambdaExt},
 };
-use utils::variable::Var;
+use utils::variable::{Var, VarSet};
 
 pub enum Lam<T>
 where
@@ -75,12 +75,12 @@ impl From<Ext<Lam<ExtStruct>>> for Lam<ExtStruct> {
 }
 
 impl LambdaExt for Lam<BaseStruct> {
-    fn free_variables(&self) -> std::collections::HashSet<Var> {
+    fn free_variables(&self) -> VarSet {
         match self {
             Lam::Base(b) => b.as_ref().free_variables(),
         }
     }
-    fn bound_variables(&self) -> std::collections::HashSet<Var> {
+    fn bound_variables(&self) -> VarSet {
         match self {
             Lam::Base(b) => b.bound_variables(),
         }
@@ -98,12 +98,12 @@ impl LambdaExt for Lam<BaseStruct> {
 }
 
 impl LambdaExt for Lam<ExtStruct> {
-    fn free_variables(&self) -> std::collections::HashSet<Var> {
+    fn free_variables(&self) -> VarSet {
         match self {
             Lam::Base(b) => b.as_ref().free_variables(),
         }
     }
-    fn bound_variables(&self) -> std::collections::HashSet<Var> {
+    fn bound_variables(&self) -> VarSet {
         match self {
             Lam::Base(b) => b.bound_variables(),
         }
@@ -145,7 +145,25 @@ mod tests {
             vec!["x".into(), "z".into()].into_iter().collect()
         );
         assert_eq!(l.bound_variables(), vec!["x".into()].into_iter().collect());
+    }
+    #[test]
+    fn test2() {
+        // let l: Lam<_> = blam!("x", bvar!("x"));
+        // let l = l.subst("x".into(), bvar!("z"));
+        // eprintln!("{l:?}");
+        let l1: Lam<BaseStruct> = blam!("x", blam!("x", bvar!("x")));
+        let l2: Lam<BaseStruct> = blam!("x", blam!("y", bvar!("x")));
+        assert!(!l1.alpha_eq(&l2));
 
+        // let l1: Lam<BaseStruct> = blam!("x", bvar!("x"));
+        // let l2: Lam<BaseStruct> = blam!("y", bvar!("x"));
+        // let l1 = l1.subst("x".into(), bvar!("z"));
+        // let l2 = l2.subst("x".into(), bvar!("z"));
+        // assert!(!l1.alpha_eq(&l2));
+
+    }
+    #[test]
+    fn test3() {
         let l1: Lam<BaseStruct> = blam!("x", blam!("x", bvar!("x")));
         let l2: Lam<BaseStruct> = blam!("x", blam!("x", bvar!("y")));
         let l3: Lam<BaseStruct> = blam!("x", blam!("y", bvar!("x")));
