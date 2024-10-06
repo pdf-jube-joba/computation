@@ -122,7 +122,7 @@ impl LambdaExt for Lam<ExtStruct> {
 
 #[cfg(test)]
 mod tests {
-    use crate::lambda::base::{bapp, blam, bvar, Base, BaseStruct};
+    use crate::{eapp, elam, evar, ezero, lambda::base::{bapp, blam, bvar, Base, BaseStruct}};
 
     use super::*;
     #[test]
@@ -145,22 +145,6 @@ mod tests {
             vec!["x".into(), "z".into()].into_iter().collect()
         );
         assert_eq!(l.bound_variables(), vec!["x".into()].into_iter().collect());
-    }
-    #[test]
-    fn test2() {
-        // let l: Lam<_> = blam!("x", bvar!("x"));
-        // let l = l.subst("x".into(), bvar!("z"));
-        // eprintln!("{l:?}");
-        let l1: Lam<BaseStruct> = blam!("x", blam!("x", bvar!("x")));
-        let l2: Lam<BaseStruct> = blam!("x", blam!("y", bvar!("x")));
-        assert!(!l1.alpha_eq(&l2));
-
-        // let l1: Lam<BaseStruct> = blam!("x", bvar!("x"));
-        // let l2: Lam<BaseStruct> = blam!("y", bvar!("x"));
-        // let l1 = l1.subst("x".into(), bvar!("z"));
-        // let l2 = l2.subst("x".into(), bvar!("z"));
-        // assert!(!l1.alpha_eq(&l2));
-
     }
     #[test]
     fn test3() {
@@ -211,5 +195,57 @@ mod tests {
         for t in &set2 {
             assert!(!l7.alpha_eq(t))
         }
+    }
+
+    #[test]
+    fn etest1() {
+        let l1: Lam<ExtStruct> = elam!("x", elam!("x", evar!("x")));
+        let l2: Lam<ExtStruct> = elam!("x", elam!("x", evar!("y")));
+        let l3: Lam<ExtStruct> = elam!("x", elam!("y", evar!("x")));
+        let l4: Lam<ExtStruct> = elam!("x", elam!("y", evar!("y")));
+        let l5: Lam<ExtStruct> = elam!("y", elam!("x", evar!("x")));
+        let l6: Lam<ExtStruct> = elam!("y", elam!("x", evar!("y")));
+        let l7: Lam<ExtStruct> = elam!("y", elam!("y", evar!("x")));
+        let l8: Lam<ExtStruct> = elam!("y", elam!("y", evar!("y")));
+
+        let set1 = vec![l1, l4, l5, l8]; // \x.\x.x = \x.\y.y = \y.\x.x = \y.\y.y
+        let set2 = vec![l3, l6]; // \x.y.x = \y.\x.y
+        for t1 in &set1 {
+            for t2 in &set1 {
+                assert!(t1.alpha_eq(t2));
+            }
+        }
+
+        for t1 in &set2 {
+            for t2 in &set2 {
+                assert!(t1.alpha_eq(t2));
+            }
+        }
+
+        for t1 in &set1 {
+            for t2 in &set2 {
+                println!("{t1:?} {t2:?}");
+                assert!(!t1.alpha_eq(t2));
+            }
+        }
+
+        assert!(!l2.alpha_eq(&l7));
+
+        for t in &set1 {
+            assert!(!l2.alpha_eq(t))
+        }
+
+        for t in &set2 {
+            assert!(!l2.alpha_eq(t))
+        }
+
+        for t in &set1 {
+            assert!(!l7.alpha_eq(t))
+        }
+
+        for t in &set2 {
+            assert!(!l7.alpha_eq(t))
+        }
+
     }
 }

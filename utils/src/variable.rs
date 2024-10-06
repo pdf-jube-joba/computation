@@ -74,7 +74,7 @@ where
 impl VarSet {
     /// return v: Var s.t. v \notin self, and
     fn new_var(&self) -> Var {
-        (self.max + 1).into()
+        Var::from_num(self.max + 1)
     }
 
     fn consume(&mut self) {
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn variableset() {
         let v: Vec<Var> = vec!["x".into()];
-        let mut varset: VarSet = v.into();
+        let mut varset: VarSet = v.into_iter().collect();
         assert!(varset.contains(&"x".into()));
         assert!(!varset.contains(&"y".into()));
         let new_var = varset.new_var();

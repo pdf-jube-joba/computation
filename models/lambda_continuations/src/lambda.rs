@@ -139,7 +139,7 @@ pub mod base {
                 }
                 Base::Lam { var, body } => {
                     let mut set: VarSet = t.free_variables();
-                    let new_var = set.new_var_modify();
+                    let new_var = set.new_var_default(var.clone());
                     Base::n_l(
                         new_var.clone(),
                         body.subst(var, Base::n_v(new_var).into())
@@ -351,11 +351,14 @@ pub mod ext {
                         var: var2,
                         body: body2,
                     },
-                ) => body1.alpha_eq(
-                    &body2
-                        .clone()
-                        .subst(var2.clone(), Ext::n_v(var1.clone()).into()),
-                ),
+                ) => {
+                    let mut set: VarSet = body1.free_variables();
+                    set.union(&body2.free_variables());
+                    let new_var = Ext::n_v(set.new_var_modify());
+                    let body1 = body1.clone().subst(var1.clone(), new_var.clone().into());
+                    let body2 = body2.clone().subst(var2.clone(), new_var.into());
+                    body1.alpha_eq(&body2)
+                }
                 (Ext::Zero, Ext::Zero) => true,
                 (Ext::Succ { succ: succ1 }, Ext::Succ { succ: succ2 }) => succ1.alpha_eq(succ2),
                 (Ext::Pred { pred: pred1 }, Ext::Pred { pred: pred2 }) => pred1.alpha_eq(pred2),
@@ -383,13 +386,23 @@ pub mod ext {
                         body: body2,
                     },
                 ) => {
-                    body1.alpha_eq(body2) && {
-                        bind1.alpha_eq(
-                            &bind2
-                                .clone()
-                                .subst(var2.clone(), Ext::n_v(var1.clone()).into()),
-                        )
-                    }
+                    body1.alpha_eq(body2)
+                        && Ext::Lam {
+                            var: var1.clone(),
+                            body: bind1.clone(),
+                        }
+                        .alpha_eq(&Ext::Lam {
+                            var: var2.clone(),
+                            body: bind2.clone(),
+                        })
+                    // {
+                    //     let mut set: VarSet = bind1.free_variables();
+                    //     set.extend(bind2.free_variables());
+                    //     let new_var = Ext::n_v(set.new_var_modify());
+                    //     let bind1 = bind1.clone().subst(var1.clone(), new_var.clone().into());
+                    //     let bind2 = bind2.clone().subst(var2.clone(), new_var.into());
+                    //     bind1.alpha_eq(&bind2)
+                    // }
                 }
                 (
                     Ext::Rec {
@@ -403,10 +416,18 @@ pub mod ext {
                         body: body2,
                     },
                 ) => {
+                    let mut set = body1.free_variables();
+                    set.extend(body2.free_variables());
+                    let new_var = set.new_var_modify();
+                    let new_fix = set.new_var_modify();
+                    let body1 = body1
+                        .clone()
+                        .subst(var1.clone(), Ext::n_v(new_var.clone()).into())
+                        .subst(fix1.clone(), Ext::n_v(new_fix.clone()).into());
                     let body2 = body2
                         .clone()
-                        .subst(fix2.clone(), Ext::n_v(fix1.clone()).into())
-                        .subst(var2.clone(), Ext::n_v(var1.clone()).into());
+                        .subst(var2.clone(), Ext::n_v(new_var.clone()).into())
+                        .subst(fix2.clone(), Ext::n_v(new_fix.clone()).into());
                     body1.alpha_eq(&body2)
                 }
                 _ => false,
@@ -450,7 +471,7 @@ pub mod ext {
                     Ext::n_d(new_var, bind, body)
                 }
                 Ext::Rec { fix, var, body } => {
-                    let mut set: VarSet = body.free_variables();
+                    let mut set: VarSet = t.free_variables();
                     let new_fix = set.new_var_default(&fix);
                     let new_var = set.new_var_default(&var);
                     let new_body = body
@@ -548,5 +569,12 @@ pub mod ext {
         };
     }
 
-    pub use {eapp, elam, evar};
+    #[macro_export]
+    macro_rules! ezero {
+        () => {
+            Ext::Zero.into()
+        };
+    }
+
+    pub use {eapp, elam, evar, ezero};
 }
