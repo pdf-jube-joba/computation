@@ -1,9 +1,6 @@
 // ラムダ計算の拡張の実装のためのトレイト
 pub mod traits {
-    use utils::{
-        set::SubSet,
-        variable::{Var, VarSet},
-    };
+    use utils::variable::{Var, VarSet};
 
     // 変数周りで実装すべき部分
     pub trait LambdaExt: Sized {
@@ -15,8 +12,9 @@ pub mod traits {
 
     // 簡約の定義の実装すべき部分
     pub trait Step: LambdaExt {
-        type Value: SubSet<Super = Self>;
-        fn step(self) -> Option<Result<Self::Value, Self>>;
+        type Value;
+        fn is_value(&self) -> Option<Self::Value>;
+        fn step(self) -> Option<Result<Self, Self::Value>>;
     }
 
     // 環境の定義の実装すべき部分

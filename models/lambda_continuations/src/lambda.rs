@@ -36,6 +36,17 @@ pub mod base {
         }
     }
 
+    impl<T> TryFrom<Base<T>> for BaseValue<T> {
+        type Error = ();
+        fn try_from(value: Base<T>) -> Result<Self, Self::Error> {
+            match value {
+                Base::Var { var: _ } => Err(()),
+                Base::Lam { var, body } => Ok(BaseValue::Fun { var, body }),
+                Base::App { e1: _, e2: _ } => Err(()),
+            }
+        }
+    }
+
     impl<T> LamFamilySubst<T> for Base<T>
     where
         T: LambdaExt + From<Base<T>> + Clone + PartialEq,
@@ -256,6 +267,31 @@ pub mod ext {
             match value {
                 ExtValue::Fun { var, body } => Ext::Lam { var, body },
                 ExtValue::Num(n) => num_to_exp(n),
+            }
+        }
+    }
+
+    fn exp_to_num<T, F>(t: Ext<T>, f: F) -> Option<Number>
+    where
+        F: Fn(T) -> Option<Ext<T>>,
+    {
+        if let Ext::Zero = t {
+            Some(0.into())
+        } else if let Ext::Succ { succ } = t {
+            exp_to_num(f(succ)?, f)
+        } else {
+            None
+        }
+    }
+
+    pub fn ext_to_ext_value<T, F>(value: Ext<T>, f: F) -> Option<ExtValue<T>>
+    where
+        F: Fn(T) -> Option<Ext<T>>,
+    {
+        match value {
+            Ext::Lam { var, body } => Some(ExtValue::Fun { var, body }),
+            _ => {
+                Some(ExtValue::Num(exp_to_num(value, f)?))
             }
         }
     }
