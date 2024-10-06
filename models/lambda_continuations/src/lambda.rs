@@ -271,6 +271,19 @@ pub mod ext {
         }
     }
 
+    pub fn num_to_exp<T, F>(n: Number, f: F) -> Ext<T>
+    where
+        F: Fn(Ext<T>) -> T + Clone,
+    {
+        if n.is_zero() {
+            Ext::Zero
+        } else {
+            Ext::Succ {
+                succ: f(num_to_exp(n.pred(), f.clone())),
+            }
+        }
+    }
+
     fn exp_to_num<T, F>(t: Ext<T>, f: F) -> Option<Number>
     where
         F: Fn(T) -> Option<Ext<T>>,
@@ -290,9 +303,7 @@ pub mod ext {
     {
         match value {
             Ext::Lam { var, body } => Some(ExtValue::Fun { var, body }),
-            _ => {
-                Some(ExtValue::Num(exp_to_num(value, f)?))
-            }
+            _ => Some(ExtValue::Num(exp_to_num(value, f)?)),
         }
     }
 
@@ -612,5 +623,55 @@ pub mod ext {
         };
     }
 
-    pub use {eapp, elam, evar, ezero};
+    #[macro_export]
+    macro_rules! esucc {
+        ($t: expr) => {
+            Ext::Succ { succ: $t }.into()
+        };
+    }
+
+    #[macro_export]
+    macro_rules! epred {
+        ($t: expr) => {
+            Ext::Pred { pred: $t }.into()
+        };
+    }
+
+    #[macro_export]
+    macro_rules! eif {
+        ($t: expr, $t1: expr, $t2: expr) => {
+            Ext::IfZ {
+                cond: $t,
+                tcase: $t1,
+                fcase: $t2,
+            }
+            .into()
+        };
+    }
+
+    #[macro_export]
+    macro_rules! elet {
+        ($t: literal, $t1: expr, $t2: expr) => {
+            Ext::Let {
+                var: $t.into(),
+                bind: $t1,
+                body: $t2,
+            }
+            .into()
+        };
+    }
+
+    #[macro_export]
+    macro_rules! erec {
+        ($t: literal, $t1: literal, $t2: expr) => {
+            Ext::Rec {
+                fix: $t.into(),
+                var: $t1.into(),
+                body: $t2,
+            }
+            .into()
+        };
+    }
+
+    pub use {eapp, eif, elam, elet, epred, erec, esucc, evar, ezero};
 }

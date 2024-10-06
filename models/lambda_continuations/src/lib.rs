@@ -14,7 +14,7 @@ pub mod traits {
     pub trait Step: LambdaExt {
         type Value;
         fn is_value(&self) -> Option<Self::Value>;
-        fn step(self) -> Option<Result<Self, Self::Value>>;
+        fn step(self) -> Option<Self>;
     }
 
     // 環境の定義の実装すべき部分

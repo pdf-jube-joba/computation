@@ -1,9 +1,9 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use crate::{
     lambda::{
         base::{Base, BaseStruct, BaseValue},
-        ext::{ext_to_ext_value, Ext, ExtStruct, ExtValue},
+        ext::{ext_to_ext_value, num_to_exp, Ext, ExtStruct, ExtValue},
     },
     traits::{LamFamily, LamFamilySubst, LambdaExt, Step},
 };
@@ -72,26 +72,45 @@ impl Step for Lam<BaseStruct> {
             None
         }
     }
-    fn step(self) -> Option<Result<Self, Self::Value>> {
+    fn step(self) -> Option<Self> {
         let Lam::Base(b) = self;
         match *b {
             Base::Var { var: _ } => None,
-            Base::Lam { var, body } => Some(Err(BaseValue::Fun { var, body })),
+            Base::Lam { var, body } => None,
             Base::App { e1, e2 } => {
-                if let Some(v) = e1.is_value() {
+                if let Some(BaseValue::Fun { var, body }) = e1.is_value() {
                     if e2.is_value().is_some() {
-                        let BaseValue::Fun { var, body } = v;
-                        Some(Ok(body.subst(var, e2)))
+                        Some(body.subst(var, e2))
                     } else {
-                        let e2 = e2.step()?.unwrap();
-                        Some(Ok(Lam::Base(Box::new(Base::n_a(e1, e2)))))
+                        Some(Lam::Base(Box::new(Base::n_a(e1, e2.step()?))))
                     }
                 } else {
-                    let e1 = e1.step()?.unwrap();
-                    Some(Ok(Lam::Base(Box::new(Base::n_a(e1, e2)))))
+                    Some(Lam::Base(Box::new(Base::n_a(e1.step()?, e2))))
                 }
             }
         }
+    }
+}
+
+fn print(t: &Lam<ExtStruct>) -> String {
+    let Lam::Base(b) = t;
+    match b.as_ref() {
+        Ext::Var { var } => format!("{var}"),
+        Ext::Lam { var, body } => format!("fun {var} => {}", print(body)),
+        Ext::App { e1, e2 } => format!("({} {})", print(e1), print(e2)),
+        Ext::Zero => format!("0"),
+        Ext::Succ { succ } => format!("S {}", print(succ)),
+        Ext::Pred { pred } => format!("P {}", print(pred)),
+        Ext::IfZ { cond, tcase, fcase } => format!(
+            "if {} then {} else {}",
+            print(cond),
+            print(tcase),
+            print(fcase)
+        ),
+        Ext::Let { var, bind, body } => {
+            format!("let {var} = {} in \n {}", print(bind), print(body))
+        }
+        Ext::Rec { fix, var, body } => format!("rec {fix} {var} = {}", print(body)),
     }
 }
 
@@ -108,21 +127,102 @@ impl Step for Lam<ExtStruct> {
         let v: Option<ExtValue<Lam<ExtStruct>>> = ext_to_ext_value(b.as_ref().clone(), t_to_ext_t);
         v
     }
-    fn step(self) -> Option<Result<Self, Self::Value>> {
-        todo!()
+    fn step(self) -> Option<Self> {
+        let Lam::Base(b) = self;
+        match *b {
+            Ext::Var { var } => None,
+            Ext::Lam { var, body } => None,
+            Ext::App { e1, e2 } => match (e1.is_value(), e2.is_value()) {
+                (Some(ExtValue::Fun { var, body }), Some(_)) => Some(body.subst(var, e2)),
+                (Some(ExtValue::Num(_)), Some(_)) => None,
+                (Some(_), None) => Some(Ext::n_a(e1, e2.step()?).into()),
+                (None, _) => Some(Ext::n_a(e1.step()?, e2).into()),
+            },
+            Ext::Zero => None,
+            Ext::Succ { succ } => {
+                if succ.is_value().is_none() {
+                    Some(Lam::Base(Box::new(Ext::Succ { succ: succ.step()? })))
+                } else {
+                    None
+                }
+            }
+            Ext::Pred { pred } => {
+                if let Some(v) = pred.is_value() {
+                    match v {
+                        ExtValue::Fun { var, body } => None,
+                        ExtValue::Num(number) => {
+                            fn a(t: Ext<Lam<ExtStruct>>) -> Lam<ExtStruct> {
+                                t.into()
+                            }
+                            let e = num_to_exp(number.pred(), a);
+                            Some(e.into())
+                        }
+                    }
+                } else {
+                    Some(Ext::Pred { pred: pred.step()? }.into())
+                }
+            }
+            Ext::IfZ { cond, tcase, fcase } => {
+                // call by value だから tcase と fcase の両方を value にする必要がある。
+                // がこれをやると rec と incompatible になる？
+                match (cond.is_value(), tcase.is_value(), fcase.is_value()) {
+                    (Some(ExtValue::Num(n)), Some(_), Some(_)) => {
+                        if n.is_zero() {
+                            Some(tcase)
+                        } else {
+                            Some(fcase)
+                        }
+                    }
+                    (Some(ExtValue::Fun { var: _, body: _ }), Some(_), Some(_)) => None,
+                    (Some(_), Some(_), None) => Some(
+                        Ext::IfZ {
+                            cond,
+                            tcase,
+                            fcase: fcase.step()?,
+                        }
+                        .into(),
+                    ),
+                    (Some(_), None, _) => Some(
+                        Ext::IfZ {
+                            cond,
+                            tcase: tcase.step()?,
+                            fcase,
+                        }
+                        .into(),
+                    ),
+                    (None, _, _) => Some(
+                        Ext::IfZ {
+                            cond: cond.step()?,
+                            tcase,
+                            fcase,
+                        }
+                        .into(),
+                    ),
+                }
+            }
+            Ext::Let { var, bind, body } => Some(Ext::n_a(Ext::n_l(var, body).into(), bind).into()),
+            Ext::Rec { fix, var, body } => Some(
+                Ext::n_l(
+                    var.clone(),
+                    body.clone()
+                        .subst(fix.clone(), Ext::Rec { fix, var, body }.into()),
+                )
+                .into(),
+            ),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        eapp, elam, evar, ezero,
+        eapp, eif, elam, elet, epred, erec, esucc, evar, ezero,
         lambda::base::{bapp, blam, bvar, Base, BaseStruct},
     };
 
     use super::*;
     #[test]
-    fn test1() {
+    fn test_variables() {
         let l: Lam<BaseStruct> = bvar!("x");
         assert_eq!(l.free_variables(), vec!["x".into()].into_iter().collect());
         assert_eq!(l.bound_variables(), vec![].into_iter().collect());
@@ -143,7 +243,7 @@ mod tests {
         assert_eq!(l.bound_variables(), vec!["x".into()].into_iter().collect());
     }
     #[test]
-    fn test3() {
+    fn test_subst_alpha() {
         let l1: Lam<BaseStruct> = blam!("x", blam!("x", bvar!("x")));
         let l2: Lam<BaseStruct> = blam!("x", blam!("x", bvar!("y")));
         let l3: Lam<BaseStruct> = blam!("x", blam!("y", bvar!("x")));
@@ -192,9 +292,52 @@ mod tests {
             assert!(!l7.alpha_eq(t))
         }
     }
+    #[test]
+    fn test_value_step() {
+        let l: Lam<_> = bvar!("x");
+        assert!(l.is_value().is_none());
+        let l: Lam<_> = blam!("x", bvar!("x"));
+        assert!(l.is_value().is_some());
+
+        let l: Lam<_> = bapp!(blam!("x", bvar!("x")), blam!("y", blam!("z", bvar!("y"))));
+        assert!(l.is_value().is_none());
+        let l = l.step().unwrap();
+        assert!(l.alpha_eq(&blam!("y", blam!("z", bvar!("y")))))
+    }
+
+    fn double() -> Lam<ExtStruct> {
+        erec!(
+            "f",
+            "x",
+            eif!(
+                evar!("x"),
+                ezero!(),
+                esucc!(esucc!(eapp!(evar!("f"), epred!(evar!("x")))))
+            )
+        )
+    }
 
     #[test]
-    fn etest1() {
+    fn etest_variables() {
+        let _: Lam<_> = evar!("x");
+        let _: Lam<_> = eapp!(evar!("x"), evar!("x"));
+        let _: Lam<_> = ezero!();
+        let _: Lam<_> = esucc!(evar!("x"));
+        let _: Lam<_> = epred!(esucc!(ezero!()));
+        let _: Lam<_> = elet!("x", ezero!(), esucc!(evar!("x")));
+        let _: Lam<_> = erec!(
+            "f",
+            "x",
+            eif!(
+                evar!("x"),
+                ezero!(),
+                esucc!(esucc!(eapp!(evar!("f"), epred!(evar!("x")))))
+            )
+        );
+    }
+
+    #[test]
+    fn etest_subst_alpha() {
         let l1: Lam<ExtStruct> = elam!("x", elam!("x", evar!("x")));
         let l2: Lam<ExtStruct> = elam!("x", elam!("x", evar!("y")));
         let l3: Lam<ExtStruct> = elam!("x", elam!("y", evar!("x")));
@@ -241,6 +384,16 @@ mod tests {
 
         for t in &set2 {
             assert!(!l7.alpha_eq(t))
+        }
+    }
+
+    #[test]
+    fn etest_value_step() {
+        let l: Lam<_> = double();
+        let mut l: Lam<_> = eapp!(l, esucc!(ezero!()));
+        for _ in 0..100 {
+            println!("{}", print(&l));
+            l = l.step().unwrap();
         }
     }
 }

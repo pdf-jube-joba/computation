@@ -14,7 +14,11 @@ impl Number {
         Number(self.0 + 1)
     }
     pub fn pred(self) -> Self {
-        Number(self.0 - 1)
+        if self.is_zero() {
+            Number(0)
+        } else {
+            Number(self.0 - 1)
+        }
     }
 }
 

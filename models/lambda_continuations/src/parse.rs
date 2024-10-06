@@ -1,74 +1,89 @@
 use crate::*;
 use anyhow::{bail, Result};
 use pest::{iterators::Pair, Parser};
+use utils::variable::Var;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "continuations.pest"]
 struct Ps;
 
-// pub fn take_lam_nat(pair: Pair<Rule>) -> Option<lam_nat::Lam> {
-//     if matches!(pair.as_rule(), Rule::lam_nat) {
-//         let mut inner = pair.into_inner();
-//         let pair = inner.next().unwrap();
-//         take_lam_nat_var(pair.clone())
-//             .or(take_lam_nat_lam(pair.clone()))
-//             .or(take_lam_nat_app(pair))
-//     } else {
-//         None
-//     }
-// }
+pub fn take_variable(pair: Pair<Rule>) -> Option<Var> {
+    if matches!(pair.as_rule(), Rule::variable) {
+        Some(pair.as_str().into())
+    } else {
+        None
+    }
+}
 
-// pub fn take_lam_nat_var(pair: Pair<Rule>) -> Option<lam_nat::Lam> {
-//     let v = take_variable(pair)?;
-//     Some(lam_nat::Lam::v(v))
-// }
+pub mod nat {
+    use super::*;
+    use crate::nat::Lam;
+    use lambda::base::{Base, BaseStruct};
 
-// pub fn take_lam_nat_lam(pair: Pair<Rule>) -> Option<lam_nat::Lam> {
-//     if matches!(pair.as_rule(), Rule::lam_nat_lam) {
-//         let mut inner = pair.into_inner();
+    pub fn parse_lam_nat(code: &str) -> Result<Lam<BaseStruct>> {
+        let mut code = Ps::parse(Rule::lam_nat, code)?;
+        let Some(pair) = code.next() else {
+            bail!("rule が空？");
+        };
+        match take_lam_nat(pair) {
+            Some(e) => Ok(e),
+            None => bail!("lam_nat parse 失敗"),
+        }
+    }
 
-//         let x = inner.next().unwrap();
-//         assert_eq!(x.as_rule(), Rule::variable);
-//         let x = take_variable(x)?;
+    pub fn take_lam_nat(pair: Pair<Rule>) -> Option<Lam<BaseStruct>> {
+        if matches!(pair.as_rule(), Rule::lam_nat) {
+            let mut inner = pair.into_inner();
+            let pair = inner.next().unwrap();
+            take_lam_nat_var(pair.clone())
+                .or(take_lam_nat_lam(pair.clone()))
+                .or(take_lam_nat_app(pair))
+        } else {
+            None
+        }
+    }
 
-//         let e = inner.next().unwrap();
-//         assert_eq!(e.as_rule(), Rule::lam_nat);
-//         let e = take_lam_nat(e)?;
+    pub fn take_lam_nat_var(pair: Pair<Rule>) -> Option<Lam<BaseStruct>> {
+        let v = take_variable(pair)?;
+        Some(Lam::Base(Box::new(Base::n_v(v))))
+    }
 
-//         Some(lam_nat::Lam::l(x, e))
-//     } else {
-//         None
-//     }
-// }
+    pub fn take_lam_nat_lam(pair: Pair<Rule>) -> Option<Lam<BaseStruct>> {
+        if matches!(pair.as_rule(), Rule::lam_nat_lam) {
+            let mut inner = pair.into_inner();
 
-// pub fn take_lam_nat_app(pair: Pair<Rule>) -> Option<lam_nat::Lam> {
-//     if matches!(pair.as_rule(), Rule::lam_nat_app) {
-//         let mut inner = pair.into_inner();
+            let x = inner.next().unwrap();
+            assert_eq!(x.as_rule(), Rule::variable);
+            let x = take_variable(x)?;
 
-//         let e1 = inner.next().unwrap();
-//         assert_eq!(e1.as_rule(), Rule::lam_nat);
-//         let e1 = take_lam_nat(e1)?;
+            let e = inner.next().unwrap();
+            assert_eq!(e.as_rule(), Rule::lam_nat);
+            let e = take_lam_nat(e)?;
 
-//         let e2 = inner.next().unwrap();
-//         assert_eq!(e2.as_rule(), Rule::lam_nat);
-//         let e2 = take_lam_nat(e2)?;
+            Some(Lam::Base(Box::new(Base::n_l(x, e))))
+        } else {
+            None
+        }
+    }
 
-//         Some(lam_nat::Lam::a(e1, e2))
-//     } else {
-//         None
-//     }
-// }
+    pub fn take_lam_nat_app(pair: Pair<Rule>) -> Option<Lam<BaseStruct>> {
+        if matches!(pair.as_rule(), Rule::lam_nat_app) {
+            let mut inner = pair.into_inner();
 
-// pub fn parse_lam_nat(code: &str) -> Result<lam_nat::Lam> {
-//     let mut code = Ps::parse(Rule::lam_nat, code)?;
-//     let Some(pair) = code.next() else {
-//         bail!("rule が空？");
-//     };
-//     match take_lam_nat(pair) {
-//         Some(e) => Ok(e),
-//         None => bail!("lam_nat parse 失敗"),
-//     }
-// }
+            let e1 = inner.next().unwrap();
+            assert_eq!(e1.as_rule(), Rule::lam_nat);
+            let e1 = take_lam_nat(e1)?;
+
+            let e2 = inner.next().unwrap();
+            assert_eq!(e2.as_rule(), Rule::lam_nat);
+            let e2 = take_lam_nat(e2)?;
+
+            Some(Lam::Base(Box::new(Base::n_a(e1, e2))))
+        } else {
+            None
+        }
+    }
+}
 
 // pub fn take_lam_ext(pair: Pair<Rule>) -> Option<lam_ext::Lam> {
 //     if matches!(pair.as_rule(), Rule::lam_ext) {
@@ -228,64 +243,69 @@ struct Ps;
 //     }
 // }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     #[test]
-//     fn lam_nat() {
-//         let check_parse = |code: &str| {
-//             let e = parse_lam_nat(code).unwrap();
-//             println!("{e:?}");
-//         };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn lam() {
+        let code = "x";
+        let res = Ps::parse(Rule::variable, code);
+        res.unwrap();
+    }
+    #[test]
+    fn lam_nat() {
+        let check_parse = |code: &str| {
+            let e = super::nat::parse_lam_nat(code).unwrap();
+            println!("{e:?}");
+        };
 
-//         let code = "x";
-//         check_parse(code);
+        let code = "x";
+        check_parse(code);
 
-//         let code = "fun x => x";
-//         check_parse(code);
+        let code = "fun x => x";
+        check_parse(code);
 
-//         let code = "@(fun x => x fun x => x)";
-//         check_parse(code);
+        let code = "@(fun x => x fun x => x)";
+        check_parse(code);
 
-//         let code = "@((fun x => x) (fun x => (x)))";
-//         check_parse(code);
-//     }
-//     #[test]
-//     fn lam_ext() {
-//         let check_parse = |code: &str| {
-//             let e = parse_lam_ext(code).unwrap();
-//             println!("{e:?}");
-//         };
+        let code = "@((fun x => x) (fun x => (x)))";
+        check_parse(code);
+    }
+    #[test]
+    fn lam_ext() {
+        let check_parse = |code: &str| {
+            // let e = parse_lam_ext(code).unwrap();
+            // println!("{e:?}");
+        };
 
-//         let code = "x";
-//         check_parse(code);
+        let code = "x";
+        check_parse(code);
 
-//         let code = "fun x => x";
-//         check_parse(code);
+        let code = "fun x => x";
+        check_parse(code);
 
-//         let code = "@(fun x => x fun x => x)";
-//         check_parse(code);
+        let code = "@(fun x => x fun x => x)";
+        check_parse(code);
 
-//         let code = "@((fun x => x) (fun x => (x)))";
-//         check_parse(code);
+        let code = "@((fun x => x) (fun x => (x)))";
+        check_parse(code);
 
-//         let code = "zero";
-//         check_parse(code);
+        let code = "zero";
+        check_parse(code);
 
-//         let code = "succ zero";
-//         check_parse(code);
+        let code = "succ zero";
+        check_parse(code);
 
-//         let code = "pred succ zero";
-//         check_parse(code);
+        let code = "pred succ zero";
+        check_parse(code);
 
-//         let code = "ifz x then x else x";
-//         check_parse(code);
+        let code = "ifz x then x else x";
+        check_parse(code);
 
-//         let code = "let id = fun x => x in @(id id)";
-//         check_parse(code);
+        let code = "let id = fun x => x in @(id id)";
+        check_parse(code);
 
-//         let code = "rec f x = zero";
-//         check_parse(code);
-
-//     }
-// }
+        let code = "rec f x = zero";
+        check_parse(code);
+    }
+}
