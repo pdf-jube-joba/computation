@@ -163,42 +163,66 @@ impl Step for Lam<ExtStruct> {
                 }
             }
             Ext::IfZ { cond, tcase, fcase } => {
-                // call by value だから tcase と fcase の両方を value にする必要がある。
-                // がこれをやると rec と incompatible になる？
-                match (cond.is_value(), tcase.is_value(), fcase.is_value()) {
-                    (Some(ExtValue::Num(n)), Some(_), Some(_)) => {
-                        if n.is_zero() {
-                            Some(tcase)
-                        } else {
-                            Some(fcase)
+                if let Some(v) = cond.is_value() {
+                    match v {
+                        ExtValue::Fun { var, body } => None,
+                        ExtValue::Num(number) => {
+                            if number.is_zero() {
+                                Some(tcase)
+                            } else {
+                                Some(fcase)
+                            }
                         }
                     }
-                    (Some(ExtValue::Fun { var: _, body: _ }), Some(_), Some(_)) => None,
-                    (Some(_), Some(_), None) => Some(
-                        Ext::IfZ {
-                            cond,
-                            tcase,
-                            fcase: fcase.step()?,
-                        }
-                        .into(),
-                    ),
-                    (Some(_), None, _) => Some(
-                        Ext::IfZ {
-                            cond,
-                            tcase: tcase.step()?,
-                            fcase,
-                        }
-                        .into(),
-                    ),
-                    (None, _, _) => Some(
+                } else {
+                    Some(
                         Ext::IfZ {
                             cond: cond.step()?,
                             tcase,
                             fcase,
                         }
                         .into(),
-                    ),
+                    )
                 }
+
+                // ちゃんと理解はできてないが、以下をやめます。
+                // (なぜこれがまずいかはわかったが)
+                // // call by value だから tcase と fcase の両方を value にする必要がある。
+                // // がこれをやると rec と incompatible になる？
+                // match (cond.is_value(), tcase.is_value(), fcase.is_value()) {
+                //     (Some(ExtValue::Num(n)), Some(_), Some(_)) => {
+                //         if n.is_zero() {
+                //             Some(tcase)
+                //         } else {
+                //             Some(fcase)
+                //         }
+                //     }
+                //     (Some(ExtValue::Fun { var: _, body: _ }), Some(_), Some(_)) => None,
+                //     (Some(_), Some(_), None) => Some(
+                //         Ext::IfZ {
+                //             cond,
+                //             tcase,
+                //             fcase: fcase.step()?,
+                //         }
+                //         .into(),
+                //     ),
+                //     (Some(_), None, _) => Some(
+                //         Ext::IfZ {
+                //             cond,
+                //             tcase: tcase.step()?,
+                //             fcase,
+                //         }
+                //         .into(),
+                //     ),
+                //     (None, _, _) => Some(
+                //         Ext::IfZ {
+                //             cond: cond.step()?,
+                //             tcase,
+                //             fcase,
+                //         }
+                //         .into(),
+                //     ),
+                // }
             }
             Ext::Let { var, bind, body } => Some(Ext::n_a(Ext::n_l(var, body).into(), bind).into()),
             Ext::Rec { fix, var, body } => Some(
@@ -390,10 +414,10 @@ mod tests {
     #[test]
     fn etest_value_step() {
         let l: Lam<_> = double();
-        let mut l: Lam<_> = eapp!(l, esucc!(ezero!()));
-        for _ in 0..100 {
-            println!("{}", print(&l));
-            l = l.step().unwrap();
+        let mut l: Lam<_> = eapp!(l, esucc!(esucc!(ezero!())));
+        while let Some(l1) = l.step() {
+            println!("{}", print(&l1));
+            l = l1;
         }
     }
 }

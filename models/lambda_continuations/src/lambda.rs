@@ -291,7 +291,7 @@ pub mod ext {
         if let Ext::Zero = t {
             Some(0.into())
         } else if let Ext::Succ { succ } = t {
-            exp_to_num(f(succ)?, f)
+            Some(exp_to_num(f(succ)?, f)?.succ())
         } else {
             None
         }
