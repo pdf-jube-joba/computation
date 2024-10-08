@@ -47,6 +47,43 @@ pub mod base {
         }
     }
 
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum BaseFrame<T> {
+        EvalR { left_value: BaseValue<T> },
+        EvalL { right_exp: T },
+    }
+
+    impl<T> BaseFrame<T>
+    where
+        T: Clone + From<Base<T>>,
+    {
+        pub fn decomp<F>(t: Base<T>, f: F) -> Option<(BaseFrame<T>, T)>
+        where
+            F: Fn(T) -> Option<BaseValue<T>>,
+        {
+            let Base::App { e1, e2 } = t else {
+                return None;
+            };
+            match f(e1.clone()) {
+                Some(value) => Some((BaseFrame::EvalR { left_value: value }, e2)),
+                None => Some((BaseFrame::EvalL { right_exp: e2 }, e1)),
+            }
+        }
+        pub fn plug(self, t: T) -> Base<T> {
+            match self {
+                BaseFrame::EvalR { left_value } => {
+                    let value: Base<T> = left_value.into();
+                    let value: T = value.into();
+                    Base::App { e1: value, e2: t }
+                }
+                BaseFrame::EvalL { right_exp } => Base::App {
+                    e1: right_exp,
+                    e2: t,
+                },
+            }
+        }
+    }
+
     impl<T> LamFamilySubst<T> for Base<T>
     where
         T: LambdaExt + From<Base<T>> + Clone + PartialEq,
@@ -304,6 +341,68 @@ pub mod ext {
         match value {
             Ext::Lam { var, body } => Some(ExtValue::Fun { var, body }),
             _ => Some(ExtValue::Num(exp_to_num(value, f)?)),
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum ExtFrame<T> {
+        EvalR { left_value: ExtValue<T> },
+        EvalL { right_exp: T },
+        EvalSucc,
+        EvalPred,
+        EvalIf { tcase: T, fcase: T },
+        EvalLet { var: Var, body: T },
+    }
+
+    impl<T> ExtFrame<T>
+    where
+        T: Clone + From<Ext<T>>,
+    {
+        pub fn decomp<F>(t: Ext<T>, f: F) -> Option<(ExtFrame<T>, T)>
+        where
+            F: Fn(T) -> Option<ExtValue<T>> + Clone,
+        {
+            match t {
+                Ext::Var { var: _ } => None,
+                Ext::Lam { var: _, body: _ } => None,
+                Ext::App { e1, e2 } => match f(e1.clone()) {
+                    Some(value) => Some((ExtFrame::EvalR { left_value: value }, e2)),
+                    None => Some((ExtFrame::EvalL { right_exp: e2 }, e1)),
+                },
+                Ext::Zero => None,
+                Ext::Succ { succ } => Some((ExtFrame::EvalSucc, succ)),
+                Ext::Pred { pred } => Some((ExtFrame::EvalPred, pred)),
+                Ext::IfZ { cond, tcase, fcase } => Some((ExtFrame::EvalIf { tcase, fcase }, cond)),
+                Ext::Let { var, bind, body } => Some((ExtFrame::EvalLet { var, body }, bind)),
+                Ext::Rec {
+                    fix: _,
+                    var: _,
+                    body: _,
+                } => None,
+            }
+        }
+        pub fn plug(self, t: T) -> Ext<T> {
+            match self {
+                ExtFrame::EvalR { left_value } => {
+                    let v: Ext<T> = left_value.into();
+                    Ext::App {
+                        e1: v.into(),
+                        e2: t,
+                    }
+                }
+                ExtFrame::EvalL { right_exp } => Ext::App {
+                    e1: t,
+                    e2: right_exp,
+                },
+                ExtFrame::EvalSucc => Ext::Succ { succ: t },
+                ExtFrame::EvalPred => Ext::Pred { pred: t },
+                ExtFrame::EvalIf { tcase, fcase } => Ext::IfZ {
+                    cond: t,
+                    tcase,
+                    fcase,
+                },
+                ExtFrame::EvalLet { var, body } => Ext::Let { var, bind: t, body },
+            }
         }
     }
 
