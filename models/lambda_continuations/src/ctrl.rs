@@ -1,6 +1,6 @@
 use crate::{
     lambda::{
-        base::{Base, BaseStruct, BaseValue},
+        base::{Base, BaseFrame, BaseStruct, BaseValue},
         ext::{Ext, ExtStruct},
     },
     traits::{LamFamily, LamFamilySubst, LambdaExt, Step},
@@ -30,6 +30,8 @@ where
         AbCt::Control(Box::new(t))
     }
 }
+
+struct AbCtBaseFrame(BaseFrame<AbCt<BaseStruct>>);
 
 impl LambdaExt for AbCt<BaseStruct> {
     fn free_variables(&self) -> VarSet {
@@ -79,7 +81,36 @@ impl Step for AbCt<BaseStruct> {
         }
     }
     fn step(self) -> Option<Self> {
-        todo!()
+        let mut stack: Vec<BaseFrame<AbCt<BaseStruct>>> = vec![];
+        let mut t = self;
+        loop {
+            match t {
+                AbCt::Base(b) => {
+                    todo!()
+                }
+                AbCt::Abort(e) => {
+                    return Some(*e);
+                }
+                AbCt::Control(e) => {
+                    let cont = {
+                        let new_var: Var = {
+                            let mut setvar = VarSet::default();
+                            for frame in &stack {
+                                setvar.extend(frame.free_variables());
+                                setvar.extend(frame.bound_variables());
+                            }
+                            setvar.new_var_modify()
+                        };
+                        let mut t = Base::n_v(new_var.clone());
+                        while let Some(frame) = stack.pop() {
+                            t = frame.plug(t.into());
+                        }
+                        Base::n_l(new_var, AbCt::n(t)).into()
+                    };
+                    return Some(Base::n_a(*e, cont).into());
+                }
+            }
+        }
     }
 }
 

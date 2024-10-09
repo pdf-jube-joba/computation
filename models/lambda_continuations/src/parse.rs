@@ -17,7 +17,7 @@ pub fn take_variable(pair: Pair<Rule>) -> Option<Var> {
 
 pub mod nat {
     use super::*;
-    use crate::nat::Lam;
+    use crate::no_ext::Lam;
     use lambda::base::{Base, BaseStruct};
 
     pub fn parse_lam_nat(code: &str) -> Result<Lam<BaseStruct>> {

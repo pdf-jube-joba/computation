@@ -45,7 +45,7 @@ pub mod traits {
 
 pub mod ctrl;
 pub mod lambda;
-pub mod nat;
+pub mod no_ext;
 pub mod parse;
 
 // pub mod ctrl_nat;
