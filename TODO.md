@@ -1,6 +1,7 @@
 # book
 ## 全体
 - [ ] after.py を mdbook のバックエンドにする。
+- [ ] github.io を　
 ## models of computation
 - [ ] 参考にした文献を列挙する。
 - [ ] 万能チューリングマシンを、できたら構成する。
