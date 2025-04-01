@@ -14,7 +14,18 @@ READMD.md という名前なのは、 typo ではなく、mdbook がビルド時
 - 論理回路から作るやつ
 
 <div id="canvas"></div>
-<script src="./assets/hello_world/hello.js"></script>
+
+<script type="module">
+  import init, { parse } from "./assets/generated/turing_machine_web.js";
+  import { load } from "./assets/generated/turing_machine_glue.js";
+
+  async function run() {
+    await init();       // wasm の初期化
+    load(parse);        // SVG描画を行う
+  }
+
+  run();
+</script>
 
 # 注意
 - 真っ白な画面が出たら、f12を押して、エラーを確認。

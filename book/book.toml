@@ -1,12 +1,12 @@
 [book]
-authors = ["poijnhy"]
+authors = ["pdf-jube-joba"]
 language = "jp"
 multilingual = false
 src = "src"
 title = "computations"
 
 [build]
-build-dir = "./out/book"
+build-dir = "./out"
 
 [preprocessor.katex]
 after = ["links"]
