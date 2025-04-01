@@ -1,4 +1,4 @@
-use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
+use turing_machine_core::{machine::*, manipulation::builder::TuringMachineBuilder};
 
 fn sign(str: &str) -> Sign {
     Sign::try_from(str).unwrap()

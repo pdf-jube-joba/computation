@@ -1,8 +1,8 @@
-use recursive_function::machine::RecursiveFunctions;
-use turing_machine::manipulation::builder::TuringMachineBuilder;
+use recursive_function_core::machine::RecursiveFunctions;
+use turing_machine_core::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
-    use turing_machine::machine::{Sign, TapeAsVec};
+    use turing_machine_core::machine::{Sign, TapeAsVec};
     use utils::number::*;
 
     fn partition() -> Sign {
@@ -85,7 +85,7 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
             projection::projection(proj.parameter_length(), proj.projection_num())
         }
         RecursiveFunctions::Composition(composition) => {
-            let recursive_function::machine::Composition {
+            let recursive_function_core::machine::Composition {
                 parameter_length: _,
                 outer_func,
                 inner_func,
@@ -99,7 +99,7 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
             composition::composition(inner_builders, outer_builder)
         }
         RecursiveFunctions::PrimitiveRecursion(prim) => {
-            let recursive_function::machine::PrimitiveRecursion {
+            let recursive_function_core::machine::PrimitiveRecursion {
                 zero_func,
                 succ_func,
             } = prim;
@@ -109,7 +109,7 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
             )
         }
         RecursiveFunctions::MuOperator(muop) => {
-            let recursive_function::machine::MuOperator { mu_func } = muop;
+            let recursive_function_core::machine::MuOperator { mu_func } = muop;
             mu_recursion::mu_recursion(compile(mu_func.as_ref()))
         }
     }

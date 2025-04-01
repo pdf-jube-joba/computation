@@ -1,6 +1,6 @@
-use lambda_calculus::example::*;
-use lambda_calculus::machine::LambdaTerm;
-use recursive_function::machine::RecursiveFunctions;
+use lambda_calculus_core::example::*;
+use lambda_calculus_core::machine::LambdaTerm;
+use recursive_function_core::machine::RecursiveFunctions;
 use utils::number::*;
 
 pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
@@ -232,7 +232,7 @@ pub fn compile(func: &RecursiveFunctions) -> LambdaTerm {
 
 #[cfg(test)]
 mod tests {
-    use lambda_calculus::{
+    use lambda_calculus_core::{
         machine::{alpha_eq, is_normal, left_most_reduction},
         manipulation::parse,
     };

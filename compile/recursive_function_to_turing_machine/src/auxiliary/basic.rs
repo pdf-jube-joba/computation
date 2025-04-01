@@ -1,4 +1,4 @@
-use turing_machine::{
+use turing_machine_core::{
     machine::*,
     manipulation::{
         builder::TuringMachineBuilder,

@@ -1,5 +1,5 @@
-use recursive_function::machine::RecursiveFunctions;
-use while_minus_lang::machine::*;
+use recursive_function_core::machine::RecursiveFunctions;
+use while_minus_lang_core::machine::*;
 
 // 入力と出力に使うレジスターは指定できるようにする、また触ってはいけないレジスターを指定できるようにする。
 // input, output, used は交差してはいけない。

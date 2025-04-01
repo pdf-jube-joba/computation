@@ -1,4 +1,4 @@
-use turing_machine::machine::*;
+use turing_machine_core::machine::*;
 use utils::number::*;
 
 use crate::compile::projection::projection;
