@@ -1,0 +1,16 @@
+[package]
+name = "cpu_emulator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+utils = { workspace = true }
+either = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+
+[lints]
+workspace = true

@@ -2,13 +2,8 @@
 resolver = "2"
 members = [
   "utils",
-  "mdbook/*",
-  "models/*",
-  "view/*",
-  "integration/*",
+  "models/*/core",
   "compile/*",
-  "book/component/*",
-  "test_view",
 ]
 
 exclude = [
@@ -16,6 +11,18 @@ exclude = [
 ]
 
 [workspace.dependencies]
+utils = { path = "./utils" }
+
+counter_machine = { path = "./models/counter_machine/core" }
+cpu_emulator = { path = "./models/cpu_emulator/core" }
+lambda_calculus = { path = "./models/lambda_calculus/core" }
+lambda_continuations = { path = "./models/lambda_continuations/core" }
+logic_circuit = { path = "./models/logic_circuit/core" }
+my_hardware_description_language = { path = "./models/counter_machine/core" }
+recursive_function =  { path = "./models/recursive_function/core" }
+turing_machine = { path = "./models/turing_machine/core" }
+while_minus_lang = { path = "./models/while_minus_lang/core" }
+
 either = "1.0.0"
 anyhow = "1.0.0"
 serde = { version = "1.0", features = ["derive"] }

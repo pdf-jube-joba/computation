@@ -1,5 +1,0 @@
-[build]
-target = "index.html"
-dist = "../../out/dist"
-filehash = false
-release = true
