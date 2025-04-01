@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 utils = { workspace = true }
-lambda_calculus = { workspace = true }
-recursive_function = { workspace = true }
+lambda_calculus_core = { workspace = true }
+recursive_function_core = { workspace = true }

@@ -1,5 +1,5 @@
 [package]
-name = "lambda_calculus"
+name = "lambda_calculus_core"
 version = "0.1.0"
 edition = "2021"
 

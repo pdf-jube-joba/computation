@@ -112,7 +112,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter_machine"
+name = "counter_machine_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -122,16 +122,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_machine_cui"
+version = "0.1.0"
+
+[[package]]
 name = "counter_machine_to_logic_circuits"
 version = "0.1.0"
 dependencies = [
- "counter_machine",
- "logic_circuit",
+ "counter_machine_core",
+ "logic_circuit_core",
  "utils",
 ]
 
 [[package]]
-name = "cpu_emulator"
+name = "counter_machine_web"
+version = "0.1.0"
+
+[[package]]
+name = "cpu_emulator_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -142,6 +150,14 @@ dependencies = [
  "serde_json",
  "utils",
 ]
+
+[[package]]
+name = "cpu_emulator_cui"
+version = "0.1.0"
+
+[[package]]
+name = "cpu_emulator_web"
+version = "0.1.0"
 
 [[package]]
 name = "cpufeatures"
@@ -510,14 +526,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "lambda_calculus"
+name = "lambda_calculus_core"
 version = "0.1.0"
 dependencies = [
  "utils",
 ]
 
 [[package]]
-name = "lambda_continuations"
+name = "lambda_calculus_cui"
+version = "0.1.0"
+
+[[package]]
+name = "lambda_calculus_web"
+version = "0.1.0"
+
+[[package]]
+name = "lambda_continuations_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -527,6 +551,14 @@ dependencies = [
  "serde",
  "utils",
 ]
+
+[[package]]
+name = "lambda_continuations_cui"
+version = "0.1.0"
+
+[[package]]
+name = "lambda_continuations_web"
+version = "0.1.0"
 
 [[package]]
 name = "libc"
@@ -541,7 +573,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
-name = "logic_circuit"
+name = "logic_circuit_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -551,6 +583,14 @@ dependencies = [
  "serde",
  "utils",
 ]
+
+[[package]]
+name = "logic_circuit_cui"
+version = "0.1.0"
+
+[[package]]
+name = "logic_circuit_web"
+version = "0.1.0"
 
 [[package]]
 name = "memchr"
@@ -568,7 +608,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "my-hardware-description-language"
+name = "my_hdl_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -579,6 +619,14 @@ dependencies = [
  "serde_json",
  "utils",
 ]
+
+[[package]]
+name = "my_hdl_cui"
+version = "0.1.0"
+
+[[package]]
+name = "my_hdl_web"
+version = "0.1.0"
 
 [[package]]
 name = "num_cpus"
@@ -769,7 +817,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "recursive_function"
+name = "recursive_function_core"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -778,11 +826,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "recursive_function_cui"
+version = "0.1.0"
+
+[[package]]
 name = "recursive_function_to_lambda_calculus"
 version = "0.1.0"
 dependencies = [
- "lambda_calculus",
- "recursive_function",
+ "lambda_calculus_core",
+ "recursive_function_core",
  "utils",
 ]
 
@@ -790,8 +842,8 @@ dependencies = [
 name = "recursive_function_to_turing_machine"
 version = "0.1.0"
 dependencies = [
- "recursive_function",
- "turing_machine",
+ "recursive_function_core",
+ "turing_machine_core",
  "utils",
 ]
 
@@ -799,9 +851,13 @@ dependencies = [
 name = "recursive_function_to_while_minus_lang"
 version = "0.1.0"
 dependencies = [
- "recursive_function",
- "while_minus_lang",
+ "recursive_function_core",
+ "while_minus_lang_core",
 ]
+
+[[package]]
+name = "recursive_function_web"
+version = "0.1.0"
 
 [[package]]
 name = "rustc-demangle"
@@ -1008,11 +1064,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "turing_machine"
+name = "turing_machine_core"
 version = "0.1.0"
 dependencies = [
  "utils",
 ]
+
+[[package]]
+name = "turing_machine_cui"
+version = "0.1.0"
+
+[[package]]
+name = "turing_machine_web"
+version = "0.1.0"
 
 [[package]]
 name = "typenum"
@@ -1131,11 +1195,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "while_minus_lang"
+name = "while_minus_lang_core"
 version = "0.1.0"
 dependencies = [
  "utils",
 ]
+
+[[package]]
+name = "while_minus_lang_cui"
+version = "0.1.0"
+
+[[package]]
+name = "while_minus_lang_web"
+version = "0.1.0"
 
 [[package]]
 name = "yew"

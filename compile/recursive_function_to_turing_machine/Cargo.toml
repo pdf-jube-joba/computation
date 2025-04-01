@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 utils = { workspace = true }
-turing_machine = { workspace = true }
-recursive_function = { workspace = true }
+turing_machine_core = { workspace = true }
+recursive_function_core = { workspace = true }

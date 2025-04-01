@@ -1,5 +1,5 @@
 [package]
-name = "while_minus_lang"
+name = "while_minus_lang_core"
 version = "0.1.0"
 edition = "2021"
 

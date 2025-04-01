@@ -1,5 +1,5 @@
 [package]
-name = "turing_machine"
+name = "turing_machine_core"
 version = "0.1.0"
 edition = "2021"
 

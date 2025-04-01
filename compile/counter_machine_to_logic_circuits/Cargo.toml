@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 utils = { workspace = true }
-logic_circuit =  { workspace = true }
-counter_machine = { workspace = true }
+logic_circuit_core =  { workspace = true }
+counter_machine_core = { workspace = true }
