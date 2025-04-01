@@ -2,7 +2,7 @@ use recursive_function_core::machine::RecursiveFunctions;
 use turing_machine_core::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
-    use turing_machine_core::machine::{Sign, TapeAsVec};
+    use turing_machine_core::machine::{Sign, Tape};
     use utils::number::*;
 
     fn partition() -> Sign {
@@ -17,7 +17,7 @@ pub mod num_tape {
         (0..num.into()).map(|_| one()).collect()
     }
 
-    pub fn write(tuple: NumberTuple) -> TapeAsVec {
+    pub fn write(tuple: NumberTuple) -> Tape {
         let vec: Vec<Number> = tuple.into();
         let mut signs: Vec<Sign> = vec
             .into_iter()
@@ -28,7 +28,7 @@ pub mod num_tape {
             })
             .collect();
         signs.extend_from_slice(&[partition()]);
-        TapeAsVec {
+        Tape {
             left: vec![],
             head: partition(),
             right: signs,
@@ -43,7 +43,7 @@ pub mod num_tape {
         Some(v.collect::<Vec<_>>().into())
     }
 
-    pub fn read_right_one(tape: TapeAsVec) -> Option<NumberTuple> {
+    pub fn read_right_one(tape: &Tape) -> Option<NumberTuple> {
         if tape.head != partition() {
             return None;
         }

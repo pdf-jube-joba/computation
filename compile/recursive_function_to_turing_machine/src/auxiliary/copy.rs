@@ -123,6 +123,7 @@ pub fn n_times_iter(n: usize) -> TuringMachineBuilder {
 }
 #[cfg(test)]
 mod tests {
+    use turing_machine_core::machine::Tape;
     use super::*;
     #[test]
     fn builder_safe() {
@@ -140,24 +141,24 @@ mod tests {
 
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-", "-"]),
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "-", "-"]),
@@ -172,24 +173,24 @@ mod tests {
         let mut builder = copy();
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-", "-"]),
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
@@ -203,24 +204,24 @@ mod tests {
         let mut builder = n_times_iter(2);
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-", "-"]),
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "1", "-", "", "1", "-"]),

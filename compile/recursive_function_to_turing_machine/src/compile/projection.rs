@@ -1,5 +1,6 @@
 use turing_machine_core::manipulation::{
     builder::TuringMachineBuilder,
+    code::parse_one_code_entry,
     graph_compose::{builder_composition, GraphOfBuilder},
 };
 
@@ -20,7 +21,7 @@ fn flat_1_till_end() -> TuringMachineBuilder {
                 "-,  next, -,  end,  C",
             ]
             .into_iter()
-            .map(|str| str.try_into().unwrap())
+            .map(|str| parse_one_code_entry(str).unwrap())
             .collect(),
         );
     builder
@@ -40,7 +41,7 @@ fn move_1_till_end() -> TuringMachineBuilder {
                 "-,  next, -,  end, C",
             ]
             .into_iter()
-            .map(|str| str.try_into().unwrap())
+            .map(|str| parse_one_code_entry(str).unwrap())
             .collect(),
         );
     builder
@@ -63,7 +64,7 @@ fn shrink_bar_right_till_1_or_bar() -> TuringMachineBuilder {
                 " ,  put1, -,  end, C",
             ]
             .into_iter()
-            .map(|str| str.try_into().unwrap())
+            .map(|str| parse_one_code_entry(str).unwrap())
             .collect(),
         );
     builder
@@ -87,7 +88,7 @@ fn move_1_left_in_bar() -> TuringMachineBuilder {
                 "-,  next, -,  end, C",
             ]
             .into_iter()
-            .map(|str| str.try_into().unwrap())
+            .map(|str| parse_one_code_entry(str).unwrap())
             .collect(),
         );
     builder
@@ -109,7 +110,7 @@ pub fn format() -> TuringMachineBuilder {
                 " ,  post, -,  end, C",
             ]
             .into_iter()
-            .map(|str| str.try_into().unwrap())
+            .map(|str| parse_one_code_entry(str).unwrap())
             .collect(),
         );
     builder
@@ -161,36 +162,36 @@ mod tests {
         let mut builder = flat_1_till_end();
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign(""),
                     right: vec_sign(vec![""]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec![""]),
                     head: sign(""),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign(""),
                     right: vec_sign(vec!["1"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec![""]),
                     head: sign(""),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign(""),
                     right: vec_sign(vec!["1", "1", "1", ""]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec![""]),
                     head: sign(""),
                     right: vec![],
@@ -204,36 +205,36 @@ mod tests {
         let mut builder = move_1_till_end();
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign(""),
                     right: vec_sign(vec![""]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec![""]),
                     head: sign(""),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign(""),
                     right: vec_sign(vec!["1"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1"]),
                     head: sign(""),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign(""),
                     right: vec_sign(vec!["1", "1", "1", ""]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1", "1", "1"]),
                     head: sign(""),
                     right: vec![],
@@ -247,36 +248,36 @@ mod tests {
         let mut builder = shrink_bar_right_till_1_or_bar();
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["-"]),
                     head: sign("-"),
                     right: vec![],
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["-"]),
                     head: sign("-"),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1", "-"]),
                     head: sign("-"),
                     right: vec![],
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1", "-"]),
                     head: sign("-"),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["", "1", "1", "1", "-"]),
                     head: sign("-"),
                     right: vec![],
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1", "1", "1", "-"]),
                     head: sign("-"),
                     right: vec![],
@@ -290,36 +291,36 @@ mod tests {
         let mut builder = move_1_left_in_bar();
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["-"]),
                     head: sign("-"),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["1", "-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1", "-"]),
                     head: sign("-"),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["", "", "1", "1", "-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["", "", "1", "1", "-"]),
                     head: sign("-"),
                     right: vec![],
@@ -333,36 +334,36 @@ mod tests {
         let mut builder = format();
         let tests = vec![
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["", "-"]),
                     head: sign("-"),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["1", "-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1", "", "-"]),
                     head: sign("-"),
                     right: vec![],
                 },
             ),
             (
-                TapeAsVec {
+                Tape {
                     left: vec![],
                     head: sign("-"),
                     right: vec_sign(vec!["1", "1", "1", "1", "-"]),
                 },
-                TapeAsVec {
+                Tape {
                     left: vec_sign(vec!["1", "1", "1", "1", "", "-"]),
                     head: sign("-"),
                     right: vec![],

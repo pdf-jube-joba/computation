@@ -45,7 +45,7 @@ pub fn succ_builder() -> TuringMachineBuilder {
 fn builder_test(
     builder: &mut TuringMachineBuilder,
     step: usize,
-    tests: Vec<(TapeAsVec, TapeAsVec)>,
+    tests: Vec<(Tape, Tape)>,
 ) {
     eprintln!("test start");
     for (input, result) in tests {
@@ -67,7 +67,7 @@ fn builder_test(
 fn builder_test_predicate(
     builder: &mut TuringMachineBuilder,
     step: usize,
-    tests: Vec<(TapeAsVec, State)>,
+    tests: Vec<(Tape, State)>,
 ) {
     eprintln!("test start");
     for (input, result) in tests {

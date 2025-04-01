@@ -17,7 +17,7 @@ fn print_process(machine: &TuringMachineSet) {
 fn tuple_read_write() {
     fn assert_equal(tuple: NumberTuple) {
         let tape = num_tape::write(tuple.clone());
-        let result = num_tape::read_right_one(tape);
+        let result = num_tape::read_right_one(&tape);
         assert_eq!(Some(tuple), result)
     }
 
@@ -65,7 +65,7 @@ fn succ_zero() {
 #[test]
 fn projection_test() {
     let mut builder = projection::projection(2, 0);
-    let input: TapeAsVec = num_tape::write(vec![1, 2].into());
+    let input: Tape = num_tape::write(vec![1, 2].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -82,7 +82,7 @@ fn projection_test() {
     assert_eq!(result, Some(vec![1].into()));
 
     let mut builder = projection::projection(3, 0);
-    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
+    let input: Tape = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -99,7 +99,7 @@ fn projection_test() {
     assert_eq!(result, Some(vec![1].into()));
 
     let mut builder = projection::projection(3, 1);
-    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
+    let input: Tape = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -116,7 +116,7 @@ fn projection_test() {
     assert_eq!(result, Some(vec![2].into()));
 
     let mut builder = projection::projection(3, 2);
-    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
+    let input: Tape = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -135,7 +135,7 @@ fn projection_test() {
 #[test]
 fn composition_test() {
     let mut builder = composition::composition(vec![zero_builder()], succ_builder());
-    let input: TapeAsVec = num_tape::write(Vec::<usize>::new().into());
+    let input: Tape = num_tape::write(Vec::<usize>::new().into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();
@@ -158,7 +158,7 @@ fn composition_test() {
         ],
         projection(3, 0),
     );
-    let input: TapeAsVec = num_tape::write(vec![1, 2, 3].into());
+    let input: Tape = num_tape::write(vec![1, 2, 3].into());
     builder.input(input);
 
     let mut machine = builder.build().unwrap();

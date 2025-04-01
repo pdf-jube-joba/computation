@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Display;
+use utils::alphabet::Alphabet; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
 #[derive(Debug, Clone, PartialEq)]
@@ -9,104 +9,92 @@ pub enum Direction {
     Left,
 }
 
-pub enum DirectionParseError {
-    Error,
-}
-
 impl TryFrom<&str> for Direction {
-    type Error = DirectionParseError;
+    type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.trim();
         match value {
             "R" => Ok(Direction::Right),
             "L" => Ok(Direction::Left),
             "C" => Ok(Direction::Constant),
-            _ => Err(DirectionParseError::Error),
+            _ => Err("Invalid direction".to_string()),
+        }
+    }
+}
+
+impl Display for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Direction::Right => write!(f, "R"),
+            Direction::Constant => write!(f, "C"),
+            Direction::Left => write!(f, "L"),
         }
     }
 }
 
 // テープで扱う記号の定義
-// 空白記号（スペース）と','と制御記号の含まれない文字列を記号として扱う
-// 空の文字列で記号としての空白記号を表す
+// 空白記号（None）と制御記号の含まれない文字列を記号として扱う
 #[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
-pub struct Sign(String);
+pub struct Sign(Option<Alphabet>);
 
 impl Sign {
     pub fn blank() -> Sign {
-        Sign("".to_owned())
+        Sign(None)
     }
 }
 
 impl Display for Sign {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        match &self.0 {
+            Some(alphabet) => write!(f, "{}", alphabet),
+            None => write!(f, " "),
+        }
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum SignParseError {
-    Error,
 }
 
 // 「両端以外に空白を含むか、 "," を含む文字列」以外は記号として扱う。
 // ただし、両端の空白は無視するものとする。
 impl TryFrom<&str> for Sign {
-    type Error = SignParseError;
+    type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value = value.trim();
-        if value.contains(|char: char| char.is_whitespace() || char == ',') {
-            return Err(SignParseError::Error);
+        match value.try_into() {
+            Ok(alphabet) => Ok(Sign(Some(alphabet))),
+            Err(err) => {
+                if value.trim().is_empty() {
+                    Ok(Sign::blank())
+                } else {
+                    Err(err)
+                }
+            }
         }
-        Ok(Sign(value.to_string()))
     }
 }
 
 // 左右無限のテープ
 // ヘッド部分の読み書きと左右への移動のみが許される
-// これの中身を読みたい場合はコストを払って、TapeAsVec を使う
-#[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
-pub struct Tape {
-    left: VecDeque<Sign>,
-    head: Sign,
-    right: VecDeque<Sign>,
-}
-
-// テープを簡単に見たり作ったりするための構造体
+// テープの左右端には空白記号が無限に並んでいるものとする
+// left[0] が左端で right[0] が右端 => テープとしては、 left[0] ... left[n] [head] right[m] ... right[0]
 #[derive(Debug, Default, Clone)]
-pub struct TapeAsVec {
+pub struct Tape {
     pub left: Vec<Sign>,
     pub head: Sign,
     pub right: Vec<Sign>,
 }
 
-impl TapeAsVec {
-    pub fn new(
-        left: impl IntoIterator<Item = Sign>,
-        head: Sign,
-        right: impl IntoIterator<Item = Sign>,
-    ) -> Self {
-        Self {
-            left: left.into_iter().collect(),
-            head,
-            right: right.into_iter().collect(),
-        }
-    }
-}
-
-impl PartialEq for TapeAsVec {
+impl PartialEq for Tape {
+    // 空白記号のみの部分は無視して比較する
     fn eq(&self, other: &Self) -> bool {
         fn same_except_last_blanks(vec1: &[Sign], vec2: &[Sign]) -> bool {
             let iter1 = vec1.iter().rev().skip_while(|sign| **sign == Sign::blank());
             let iter2 = vec2.iter().rev().skip_while(|sign| **sign == Sign::blank());
             iter1.eq(iter2)
         }
-        let TapeAsVec {
+        let Tape {
             left: left1,
             head: head1,
             right: right1,
         } = self;
-        let TapeAsVec {
+        let Tape {
             left: left2,
             head: head2,
             right: right2,
@@ -117,91 +105,13 @@ impl PartialEq for TapeAsVec {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum TapeParseError {
-    Error,
-    LineTooFew,
-}
-
-impl From<SignParseError> for TapeParseError {
-    fn from(value: SignParseError) -> Self {
-        match value {
-            SignParseError::Error => TapeParseError::Error,
-        }
-    }
-}
-
-impl TryFrom<(Vec<&str>, usize)> for TapeAsVec {
-    type Error = TapeParseError;
-    fn try_from(value: (Vec<&str>, usize)) -> Result<Self, Self::Error> {
-        let signs: Vec<Sign> = value
-            .0
-            .into_iter()
-            .map(Sign::try_from)
-            .collect::<Result<_, _>>()
-            .map_err(|_| TapeParseError::Error)?;
-        Ok(TapeAsVec {
-            left: {
-                let mut v = signs[..value.1].to_owned();
-                v.reverse();
-                v
-            },
-            head: signs[value.1].to_owned(),
-            right: signs[value.1 + 1..].to_owned(),
-        })
-    }
-}
-
-impl From<TapeAsVec> for Tape {
-    fn from(TapeAsVec { left, head, right }: TapeAsVec) -> Self {
-        Tape {
-            left: left.into(),
-            head,
-            right: right.into(),
-        }
-    }
-}
-
-pub fn parse_str_to_signs<T>(str: &str) -> Result<T, SignParseError>
-where
-    T: std::iter::FromIterator<Sign>,
-{
-    str.split_whitespace()
-        .map(Sign::try_from)
-        .collect::<Result<_, _>>()
-}
-
-impl TryFrom<&str> for TapeAsVec {
-    type Error = TapeParseError;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let v: Vec<&str> = value.lines().collect();
-        if v.len() < 3 {
-            return Err(TapeParseError::LineTooFew);
-        }
-        let left: Vec<Sign> = parse_str_to_signs(v[0])?;
-        let head: Sign = v[1].try_into()?;
-        let right: Vec<Sign> = parse_str_to_signs(v[2])?;
-        Ok(Self { left, head, right })
-    }
-}
-
-impl TryFrom<(&str, &str, &str)> for TapeAsVec {
-    type Error = TapeParseError;
-    fn try_from(value: (&str, &str, &str)) -> Result<Self, Self::Error> {
-        let (left, head, right) = value;
-        Ok(Self {
-            left: parse_str_to_signs(left)?,
-            head: head.try_into()?,
-            right: parse_str_to_signs(right)?,
-        })
-    }
-}
-
-impl Display for TapeAsVec {
+/// left = l0, l1, l2, ... , ln, right = r0, r1, r2, ... , rm, head = h のとき
+/// l0, ..., ln [h] rn, ..., r0 と表示される
+impl Display for Tape {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let TapeAsVec { left, head, right } = &self;
+        let Tape { left, head, right } = &self;
         let mut str = String::new();
-        left.iter().rev().for_each(|sign| {
+        left.iter().for_each(|sign| {
             if *sign == Sign::blank() {
                 str.push(' ');
             } else {
@@ -209,7 +119,7 @@ impl Display for TapeAsVec {
             }
         });
         str.push_str(&format!("[{head}]",));
-        right.iter().for_each(|sign| {
+        right.iter().rev().for_each(|sign| {
             if *sign == Sign::blank() {
                 str.push(' ');
             } else {
@@ -241,41 +151,24 @@ impl Tape {
     fn move_to(&mut self, m: &Direction) {
         match m {
             Direction::Left => {
-                let next_head = self.left.pop_front().unwrap_or_default();
+                let next_head = self.left.pop().unwrap_or_default();
                 let old_head = std::mem::replace(&mut self.head, next_head);
-                self.right.push_front(old_head);
+                self.right.push(old_head);
             }
             Direction::Right => {
-                let next_head = self.right.pop_front().unwrap_or_default();
+                let next_head = self.right.pop().unwrap_or_default();
                 let old_head = std::mem::replace(&mut self.head, next_head);
-                self.left.push_front(old_head);
+                self.left.push(old_head);
             }
             Direction::Constant => {}
         }
-    }
-    fn show(&self) -> TapeAsVec {
-        TapeAsVec {
-            left: self.left.iter().cloned().collect(),
-            head: self.head.clone(),
-            right: self.right.iter().cloned().collect(),
-        }
-    }
-}
-
-impl Display for Tape {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let left: String = self.left.iter().map(|sign| format!("{sign} ")).collect();
-        writeln!(f, "l:{left}")?;
-        writeln!(f, "h:{}", self.head)?;
-        let right: String = self.right.iter().map(|sign| format!("{sign} ")).collect();
-        writeln!(f, "r:{right}")
     }
 }
 
 // マシンの持つ状態の定義
 // テープの記号と同じ
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
-pub struct State(String);
+pub struct State(Alphabet);
 
 impl Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -283,196 +176,41 @@ impl Display for State {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum StateParseError {
-    Error,
-}
-
 impl TryFrom<&str> for State {
-    type Error = StateParseError;
+    type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value = value.trim();
-        if value.contains(|char: char| char.is_whitespace() || char == ',') {
-            return Err(StateParseError::Error);
-        }
-        Ok(State(value.to_string()))
+        Ok(State(value.try_into()?))
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
-pub struct CodeKey(Sign, State);
-#[derive(Debug, Clone, PartialEq)]
-pub struct CodeValue(Sign, State, Direction);
+pub type CodeEntry = ((Sign, State), (Sign, State, Direction));
+pub type Code = Vec<CodeEntry>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CodeEntry(CodeKey, CodeValue);
-
-impl CodeEntry {
-    pub fn key_sign(&self) -> Sign {
-        self.0 .0.clone()
-    }
-    pub fn key_state(&self) -> State {
-        self.0 .1.clone()
-    }
-    pub fn value_sign(&self) -> Sign {
-        self.1 .0.clone()
-    }
-    pub fn value_state(&self) -> State {
-        self.1 .1.clone()
-    }
-    pub fn value_direction(&self) -> Direction {
-        self.1 .2.clone()
-    }
-    pub fn from_tuple(
-        key_sign: Sign,
-        key_state: State,
-        value_sign: Sign,
-        value_state: State,
-        value_direction: Direction,
-    ) -> Self {
-        CodeEntry(
-            CodeKey(key_sign, key_state),
-            CodeValue(value_sign, value_state, value_direction),
-        )
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum ParseCodeEntryError {
-    ControlCharContained,
-    TooFewArgumentOnLine,
-    SignParseError,
-    StateParseError,
-    DirectionParseError,
-}
-
-impl From<SignParseError> for ParseCodeEntryError {
-    fn from(value: SignParseError) -> Self {
-        match value {
-            SignParseError::Error => ParseCodeEntryError::SignParseError,
-        }
-    }
-}
-
-impl From<StateParseError> for ParseCodeEntryError {
-    fn from(value: StateParseError) -> Self {
-        match value {
-            StateParseError::Error => ParseCodeEntryError::SignParseError,
-        }
-    }
-}
-
-impl From<DirectionParseError> for ParseCodeEntryError {
-    fn from(value: DirectionParseError) -> Self {
-        match value {
-            DirectionParseError::Error => ParseCodeEntryError::DirectionParseError,
-        }
-    }
-}
-
-impl TryFrom<&str> for CodeEntry {
-    type Error = ParseCodeEntryError;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value.contains(|char: char| char.is_control()) {
-            return Err(ParseCodeEntryError::ControlCharContained);
-        };
-        let v: Vec<&str> = value.split(',').collect();
-        if v.len() < 5 {
-            return Err(ParseCodeEntryError::TooFewArgumentOnLine);
-        }
-        let code_key: CodeKey = CodeKey(v[0].try_into()?, v[1].try_into()?);
-        let code_value: CodeValue = CodeValue(v[2].try_into()?, v[3].try_into()?, v[4].try_into()?);
-        Ok(CodeEntry(code_key, code_value))
-    }
-}
-
-#[derive(Debug, Default, Clone, PartialEq)]
-pub struct Code {
-    hash: HashMap<CodeKey, CodeValue>,
-}
-
-impl Code {
-    fn code(&self) -> &HashMap<CodeKey, CodeValue> {
-        &self.hash
-    }
-    pub fn code_as_vec(&self) -> Vec<CodeEntry> {
-        self.hash
-            .iter()
-            .map(|(k, v)| CodeEntry(k.clone(), v.clone()))
-            .collect()
-    }
-    pub fn add(&mut self, CodeEntry(k, v): CodeEntry) {
-        self.hash.insert(k, v);
-    }
-    pub fn from_iter_entry(iter: impl IntoIterator<Item = CodeEntry>) -> Self {
-        Code {
-            hash: HashMap::from_iter(iter.into_iter().map(|CodeEntry(k, v)| (k, v))),
-        }
-    }
-}
-
-impl TryFrom<&str> for Code {
-    type Error = (ParseCodeEntryError, usize);
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let mut code = Code::default();
-        for (index, str) in value.lines().enumerate() {
-            match CodeEntry::try_from(str) {
-                Ok(entry) => {
-                    code.add(entry);
-                }
-                Err(err) => {
-                    return Err((err, index));
-                }
-            }
-        }
-        Ok(code)
-    }
-}
-
-// Turing machine は次のものから構成されている。
-// Σ:有限集合...テープに用いる記号
-// b:Σ...空白記号
-// Q:有限集合...マシンの状態
-// q_init:Q...マシンの初期状態
-// F:subset of Q...マシンの受理状態全体
-// δ:(Q,Σ\F) -> (Q,Σ,{E,R,C})...マシンの遷移関数
-// ただし、実装上は次のように固定してしまう
-// ΣやQはある無限集合（可能なマシンの用いうる記号や状態の集合）Sign, State の部分集合を（暗黙的に）指しているものとし、
-// δを（有限な）Vec<(Sign, State), (Sign, State, {L,R,C})> により実装することで、
-// このHashMapに存在するSignやStateが「実は考えていたQやΣである」とする。
-// また、マシンの停止は以下の二つの可能性があるものとする。
-// - マシンの状態が accepted_state に含まれる。
-// - 部分関数である遷移関数の定義域に含まれない。
-#[derive(Debug, Clone, PartialEq)]
-pub struct TuringMachine {
+pub struct TuringMachineDefinition {
     init_state: State,
     accepted_state: Vec<State>,
-    code: Vec<CodeEntry>,
+    code: Code,
 }
 
-#[derive(Debug, Clone)]
-pub enum TuringMachineError {
-    CodeContainsAcceptedState,
-}
-
-impl TuringMachine {
+impl TuringMachineDefinition {
     pub fn new(
         init_state: State,
         accepted_state: impl IntoIterator<Item = State>,
         code: impl IntoIterator<Item = CodeEntry>,
-    ) -> Result<Self, TuringMachineError> {
+    ) -> Result<Self, String> {
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
-        let code: Vec<CodeEntry> = code
+        let code: Code = code
             .into_iter()
             .map(|entry| {
-                if accepted_state.contains(&entry.key_state()) {
-                    Err(TuringMachineError::CodeContainsAcceptedState)
+                if accepted_state.contains(&entry.0 .1) {
+                    Err("Code contains accepted state".to_string())
                 } else {
                     Ok(entry)
                 }
             })
             .collect::<Result<_, _>>()?;
-        Ok(TuringMachine {
+        Ok(TuringMachineDefinition {
             init_state,
             accepted_state,
             code,
@@ -484,26 +222,30 @@ impl TuringMachine {
     pub fn accepted_state(&self) -> &Vec<State> {
         &self.accepted_state
     }
-    pub fn code(&self) -> &Vec<CodeEntry> {
+    pub fn code(&self) -> &Code {
         &self.code
     }
     pub fn signs(&self) -> Vec<Sign> {
         self.code
             .iter()
-            .flat_map(|CodeEntry(CodeKey(sign1, _), CodeValue(sign2, _, _))| {
-                vec![sign1.clone(), sign2.clone()]
-            })
+            .flat_map(|((sign1, _), (sign2, _, _))| vec![sign1.clone(), sign2.clone()])
             .collect()
     }
     pub fn states(&self) -> Vec<State> {
         let mut state: Vec<State> = vec![self.init_state.clone()];
         state.extend_from_slice(&self.accepted_state);
-        state.extend(self.code.iter().flat_map(
-            |CodeEntry(CodeKey(_, state1), CodeValue(_, state2, _))| {
-                vec![state1.clone(), state2.clone()]
-            },
-        ));
+        state.extend(
+            self.code
+                .iter()
+                .flat_map(|((_, state1), (_, state2, _))| vec![state1.clone(), state2.clone()]),
+        );
         state
+    }
+    pub fn get_next_state(&self, key: &(Sign, State)) -> Option<&(Sign, State, Direction)> {
+        self.code
+            .iter()
+            .find(|((sign, state), _)| sign == &key.0 && state == &key.1)
+            .map(|(_, next)| next)
     }
 }
 
@@ -522,32 +264,20 @@ impl TuringMachineState {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TuringMachineSet {
-    machine_code: Code,
-    accepted_state: HashSet<State>,
+    machine_definition: TuringMachineDefinition,
     machine_state: TuringMachineState,
-    made_by: TuringMachine,
 }
 
 impl TuringMachineSet {
-    pub fn new(machine: TuringMachine, tape: TapeAsVec) -> Self {
-        let TuringMachine {
-            init_state,
-            accepted_state,
-            code,
-        } = machine.clone();
-        let machine_code = Code::from_iter_entry(code);
-        let accepted_state = HashSet::from_iter(accepted_state);
-        let machine_state =
-            TuringMachineState::new(init_state, Tape::new(tape.left, tape.head, tape.right));
+    pub fn new(machine: TuringMachineDefinition, tape: Tape) -> Self {
+        let init_state = machine.init_state.clone();
         TuringMachineSet {
-            machine_code,
-            accepted_state,
-            machine_state,
-            made_by: machine,
+            machine_definition: machine,
+            machine_state: TuringMachineState::new(init_state, tape),
         }
     }
-    fn now_key(&self) -> CodeKey {
-        CodeKey(
+    fn now_key(&self) -> (Sign, State) {
+        (
             self.machine_state.tape.head_read().clone(),
             self.machine_state.state.clone(),
         )
@@ -555,32 +285,28 @@ impl TuringMachineSet {
     pub fn now_state(&self) -> &State {
         &self.machine_state.state
     }
-    pub fn now_tape(&self) -> TapeAsVec {
-        self.machine_state.tape.show()
+    pub fn now_tape(&self) -> &Tape {
+        &self.machine_state.tape
     }
-    pub fn code_as_vec(&self) -> &Vec<CodeEntry> {
-        &self.made_by.code
-    }
-    pub fn is_terminate(&self) -> bool {
-        self.accepted_state.contains(&self.machine_state.state)
-            || !self.machine_code.code().contains_key(&self.now_key())
+    pub fn code(&self) -> &Code {
+        &self.machine_definition.code
     }
     pub fn is_accepted(&self) -> bool {
-        self.accepted_state.contains(&self.machine_state.state)
+        self.machine_definition
+            .accepted_state
+            .contains(&self.machine_state.state)
     }
-    pub fn next_step(&self) -> Option<CodeEntry> {
-        if self.is_terminate() {
-            return None;
-        }
-        let key = self.now_key();
-        let value = self.machine_code.code().get(&key).unwrap().clone();
-        Some(CodeEntry(key, value))
+    pub fn is_terminate(&self) -> bool {
+        self.is_accepted()
+            || self
+                .machine_definition
+                .get_next_state(&self.now_key())
+                .is_none()
     }
     fn one_step(&mut self) {
         if !self.is_terminate() {
-            let hash = self.machine_code.code();
             let key = self.now_key();
-            let CodeValue(sign, state, direction) = hash.get(&key).unwrap();
+            let (sign, state, direction) = self.machine_definition.get_next_state(&key).unwrap();
             self.machine_state.tape.head_write(sign);
             self.machine_state.tape.move_to(direction);
             self.machine_state.state = state.clone();
@@ -595,18 +321,18 @@ impl TuringMachineSet {
         }
         Ok(())
     }
-    pub fn result(&self) -> Result<TapeAsVec, String> {
+    pub fn result(&self) -> Result<Tape, String> {
         if !self.is_terminate() {
             return Err("not terminated".to_string());
         }
-        Ok(self.now_tape())
+        Ok(self.now_tape().clone())
     }
 }
 
 impl Display for TuringMachineSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "code:")?;
-        for (CodeKey(k1, k2), CodeValue(v1, v2, v3)) in self.machine_code.hash.iter() {
+        for ((k1, k2), (v1, v2, v3)) in self.machine_definition.code.iter() {
             writeln!(f, "{k1}, {k2}, {v1}, {v2}, {v3:?}")?;
         }
         writeln!(f, "state: {}", self.machine_state.state)?;
