@@ -1,7 +1,6 @@
 /target
 integration/book/out/
-index.html
-*.wasm
-*.js
 out/
 dist
+pkg
+generated

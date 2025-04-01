@@ -3,7 +3,12 @@ name = "turing_machine_web"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+turing_machine_core = { workspace = true }
+wasm-bindgen = { workspace = true }
 
 [lints]
 workspace = true

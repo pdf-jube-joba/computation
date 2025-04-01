@@ -13,8 +13,8 @@ READMD.md という名前なのは、 typo ではなく、mdbook がビルド時
 - 計算モデルについて
 - 論理回路から作るやつ
 
-以下はyew用のコンポネントのテスト
-<component id="counter_example">
+<div id="canvas"></div>
+<script src="./assets/hello_world/hello.js"></script>
 
 # 注意
 - 真っ白な画面が出たら、f12を押して、エラーを確認。

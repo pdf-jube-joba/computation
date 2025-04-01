@@ -14,18 +14,7 @@ inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 macros = "macros.txt"
 
-[preprocessor.trunk-build-preprocessor]
-component-name = "component"
-book-out-dir = "./out/book"
-
-[output.trunk-build-renderer]
-component-dir = "./component/"
-trunk-out-dir = "./out/dist"
-component-out-dir = "./out/book/html/component"
-
 [output.html]
-additional-css = [
-    "css/view.css",
-    "css/models_of_computation.css",
-    "css/logic_circuit.css"
+additional-js = [
+    "assets/vendor/svg.js",
 ]
