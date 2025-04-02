@@ -6,20 +6,17 @@
     <title>test </title>
     <script src="../../../book/assets/vendor/svg.js"></script>
     <script type="module">
-        import init, { parse } from "../web/pkg/turing_machine_web.js";
         import { load } from "../web/turing_machine_glue.js";
-
-        async function run() {
-            await init(); // wasm初期化
-            load(parse);
-        }
-
-        run();
+        load();
     </script>
 </head>
 
 <body>
     <h1>Test View</h1>
+    <div>
+        <button id="left" class="button"> left </button>
+        <button id="right" class="button"> right </button>
+    </div>
     <div id="canvas"></div>
 </body>
 
