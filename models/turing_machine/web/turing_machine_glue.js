@@ -12,7 +12,13 @@ export async function tape_initialize(canvas_id, left_btn, right_btn) {
 
     let tape = tape_parse("a, b, c, d", "-", "0, 1, 2");
 
-    const draw = SVG().addTo(`#${canvas_id}`).size('100%', 200);
+    const draw = SVG().addTo(`#${canvas_id}`).viewbox(-100, 0, 200, 40);
+
+    // 中央固定のヘッド三角形
+    draw.polygon('0,20 10,0 -10,0')
+        .fill('red')
+        .id('head-triangle');
+
     let cellGroup = draw.group();
 
     function renderTape() {
@@ -29,8 +35,7 @@ export async function tape_initialize(canvas_id, left_btn, right_btn) {
         });
 
         let headIndex = left(tape).length;
-        let triangleX = headIndex * CELL_WIDTH + CELL_WIDTH / 2;
-        cellGroup.polygon('0,0 10,20 -10,20').move(triangleX, TAPE_Y - 20).fill('red');
+        cellGroup.translate(centerX - headIndex * CELL_WIDTH - CELL_WIDTH / 2, 0);
     }
 
     function animateTape(direction) {
