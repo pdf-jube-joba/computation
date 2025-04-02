@@ -16,15 +16,8 @@ READMD.md という名前なのは、 typo ではなく、mdbook がビルド時
 <div id="canvas"></div>
 
 <script type="module">
-  import init, { parse } from "./assets/generated/turing_machine_web.js";
-  import { load } from "./assets/generated/turing_machine_glue.js";
-
-  async function run() {
-    await init();       // wasm の初期化
-    load(parse);        // SVG描画を行う
-  }
-
-  run();
+  import { load } from "./assets/generated/turing_machine/turing_machine_glue.js";
+  load();
 </script>
 
 # 注意

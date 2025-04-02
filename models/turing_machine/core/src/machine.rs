@@ -145,10 +145,10 @@ impl Tape {
     pub fn head_read(&self) -> &Sign {
         &self.head
     }
-    fn head_write(&mut self, sign: &Sign) {
+    pub fn head_write(&mut self, sign: &Sign) {
         self.head = sign.clone();
     }
-    fn move_to(&mut self, m: &Direction) {
+    pub fn move_to(&mut self, m: &Direction) {
         match m {
             Direction::Left => {
                 let next_head = self.left.pop().unwrap_or_default();

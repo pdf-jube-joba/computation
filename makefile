@@ -23,7 +23,8 @@ build_models:
 	@for dir in $(MODEL_WEB_DIRS); do \
 		if [ -f $$dir/Cargo.toml ]; then \
 			echo "📦 wasm-pack build $$dir"; \
-			wasm-pack build $$dir --target web --out-dir $$dir/pkg; \
+			mkdir -p $$dir/pkg; \
+			wasm-pack build $$dir --target web --out-dir pkg; \
 		fi; \
 	done
 

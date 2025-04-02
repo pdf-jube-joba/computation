@@ -6,16 +6,16 @@
     <title>test </title>
     <script src="../../../book/assets/vendor/svg.js"></script>
     <script type="module">
-        import { load } from "../web/turing_machine_glue.js";
-        load();
+        import { tape_initialize } from "../web/turing_machine_glue.js";
+        tape_initialize("canvas", "left_btn", "right_btn");
     </script>
 </head>
 
 <body>
     <h1>Test View</h1>
     <div>
-        <button id="left" class="button"> left </button>
-        <button id="right" class="button"> right </button>
+        <button id="left_btn" class="button"> left </button>
+        <button id="right_btn" class="button"> right </button>
     </div>
     <div id="canvas"></div>
 </body>
