@@ -33,4 +33,10 @@
 ## while-minus-lang
 - [ ] eval を実行している行を指定した実行状況を作る。
 
+## その他追加したいやつ
+- brainfuck
+- grass
+- iota/jot
+
 # compiler
+

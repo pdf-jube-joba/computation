@@ -1,6 +1,6 @@
 # Summary
 
-[README](READMD.md)
+[README](README.md)
 
 - [計算モデルと計算について](./models_of_computation.md)
     - [再帰関数](./models_of_computation/Recursive_function.md)

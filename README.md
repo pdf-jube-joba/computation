@@ -6,13 +6,25 @@
 
 ## 内容について
 - `rust` 言語で各計算モデルの実装をしてます
-- `rust` 言語からコンパイルした `wasm` と `javascript` を用いてブラウザで動いているのを見れるようにしました。    
+- `rust` 言語からコンパイルした `wasm` と `javascript` を用いてブラウザで動いているのを見れるようにしました。   
+    - `wacm-pack` を使って、 `rust` から `wasm` へのコンパイル、 `js` から利用する用のコードが生成されます。
     - `SVG.js` というライブラリを使って、 `SVG` で描画します。
 - `markdown` で各計算モデルについて書いたものを、 `mdBook` でブラウザで見れるようにしています。
+    - 数式を書いたりするために、 `mdbook-katex` を使っています。
 - ファイルをコピーしたり、ローカルサーバーを建てるコードもあります。
     - `makefile` の中に、 `rust` のビルド、出力物のコピー、 `mdbook build` の起動が書いてあります。
     - `watchexec` を用いてファイルを監視していて、必要に応じて上のことを行います。
     - ローカルのサーバーは `serve.sh` の中で  `python3 -m http.server` としてプロジェクトのルートディレクトリから配信します。
+
+## 必要なもの
+- `rust` 周り
+ - `cargo`
+ - wasm 向けの target を追加すること
+- `wasm-pack`
+- `mdbook`
+    - `mdbook-katex`
+- `watchexec`
+- `python3`
 
 ## ディレクトリ構成
 `Cargo.toml` や `Cargo.lock` は `rust` 言語用のファイルです。
