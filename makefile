@@ -1,4 +1,4 @@
-# === 各種パス設定 ===
+# === 各種パス設定 ==
 BOOK_DIR := book
 MODEL_WEB_DIRS := $(wildcard models/*/web)
 ASSETS_OUT := $(BOOK_DIR)/src/assets/generated
