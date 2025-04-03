@@ -17,11 +17,11 @@ watchexec --postpone -q -w book/src -w book/assets -e md,toml,js -- make build_b
 PID1=$!
 echo "📂 watchexec for build_book started with PID: $PID1"
 
-watchexec --postpone -q -w models -e rs -- make build_models copy_assets &
+watchexec --postpone -q -w models -w test_global_tape -e rs -- make build_models copy_assets build_book &
 PID2=$!
 echo "📂 watchexec for build_models and copy_assets started with PID: $PID2"
 
-watchexec --postpone -q -w models -e js,html -- make copy_assets &
+watchexec --postpone -q -w models -w test_global_tape -e js,html -- make copy_assets build_book &
 PID3=$!
 echo "📂 watchexec for copy_assets started with PID: $PID3"
 

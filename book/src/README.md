@@ -18,12 +18,25 @@
 ```
 
 <script type="module">
-  import { write_rect } from "./assets/test.js";
-  await write_rect();
+  import { load, add_tape } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
+  await load();
+  add_tape("svg_test1", "1,2,3", "4", "5,6,7", "left1", "right1");
+  add_tape("svg_test2", "a,b,c", "d", "e,f,g", "left2", "right2");
 </script>
 
 `SVG.js` の呼び出し↓
-<div id="svg_test"></div>
+<div id="svg_test1">
+<button id="left1"> left </button>
+<button id="right1"> right </button>
+</div>
+
+もう一つ
+
+<div id="svg_test2">
+<button id="left2"> left </button>
+<button id="right2"> right </button>
+</div>
+
 呼び出しここまで
 
 `mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)

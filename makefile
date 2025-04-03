@@ -16,10 +16,13 @@ serve:
 build: build_models copy_assets build_book
 
 build_book:
+	@echo "📚 Building book"
 	mdbook build $(BOOK_DIR)
 
 # === wasm-pack によるビルドを行う ===
 build_models:
+	@echo "📦 Building models with wasm-pack"
+	wasm-pack build test_global_tape --target web --out-dir pkg
 	@for dir in $(MODEL_WEB_DIRS); do \
 		if [ -f $$dir/Cargo.toml ]; then \
 			echo "📦 wasm-pack build $$dir"; \
@@ -30,7 +33,15 @@ build_models:
 
 # === wasm-pack ビルド出力物等（.js を手書きしたものも含めて） assets/ へのコピー ===
 copy_assets:
+	@echo "📦 Copying assets to $(ASSETS_OUT)"
 	@mkdir -p $(ASSETS_OUT)
+
+	@mkdir -p $(ASSETS_OUT)/test_global_tape/
+	@mkdir -p $(ASSETS_OUT)/test_global_tape/pkg
+	@cp test_global_tape/pkg/*.js $(ASSETS_OUT)/test_global_tape/pkg 2>/dev/null || true
+	@cp test_global_tape/pkg/*.wasm $(ASSETS_OUT)/test_global_tape/pkg 2>/dev/null || true
+	@cp test_global_tape/test_global_tape_glue.js $(ASSETS_OUT)/test_global_tape
+
 	@for dir in $(MODEL_WEB_DIRS); do \
 		MODEL=$$(basename $$(dirname $$dir)); \
 		OUT_DIR=$(ASSETS_OUT)/$$MODEL; \
