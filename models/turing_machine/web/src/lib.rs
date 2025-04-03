@@ -45,7 +45,7 @@ pub fn tape_parse(left: &str, head: &str, right: &str) -> TapeWeb {
     let right: Vec<_> = right.split(',').map(|s| s.trim().to_owned()).collect();
     let tapeweb = TapeWeb { left, head, right };
     match Tape::try_from(tapeweb.clone()) {
-        Ok(ok) => tapeweb,
+        Ok(_) => tapeweb,
         Err(err) => TapeWeb {
             left: vec![err],
             head: String::new(),
