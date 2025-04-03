@@ -3,8 +3,8 @@ import init, {
     move_left, move_right, head, left, right, tape_parse,
 } from "./pkg/turing_machine_web.js";
 
-let CELL_WIDTH = 20;
-let TAPE_Y = 20;
+let CELL_WIDTH = 60;
+let TAPE_Y = 50;
 
 export async function tape_initialize(canvas_id, left_btn, right_btn) {
     await init();
@@ -14,46 +14,28 @@ export async function tape_initialize(canvas_id, left_btn, right_btn) {
 
     const draw = SVG().addTo(`#${canvas_id}`).viewbox(-100, 0, 200, 40);
 
-    // fixed triangle on head position
+    // 中央固定のヘッド三角形
     draw.polygon('0,20 10,0 -10,0')
         .fill('red')
         .id('head-triangle');
 
-    // group for the tape cells
     let cellGroup = draw.group();
 
     function renderTape() {
         cellGroup.clear();
 
-        let left_tape = left(tape);
+        let flattened = [...left(tape), head(tape), ...right(tape)];
 
-        console.log(left_tape);
+        console.log(flattened);
 
-        let head_sign = head(tape);
-        let right_tape = right(tape);
+        flattened.forEach((symbol, i) => {
+            let x = i * CELL_WIDTH;
+            cellGroup.rect(CELL_WIDTH - 4, 40).move(x, TAPE_Y).fill('#fff').stroke({ width: 1 });
+            cellGroup.text(symbol).move(x + 20, TAPE_Y + 10).font({ size: 20 });
+        });
 
-        // draw the head
-        cellGroup.rect(CELL_WIDTH, 20)
-            .fill('green')
-            .move(0 - CELL_WIDTH / 2, TAPE_Y)
-            .text("");
-
-        // // for each symbol in left tape, draw a rectangle
-        // left_tape.forEach((symbols, i) => {
-        //     cellGroup.rect(CELL_WIDTH, 20)
-        //         .fill('blue')
-        //         .move(-CELL_WIDTH * (i + 1), TAPE_Y)
-        //         .text(symbols);
-        // });
-
-        // // for each symbol in right tape, draw a rectangle
-        // right_tape.forEach((symbols, i) => {
-        //     cellGroup.rect(CELL_WIDTH, 20)
-        //         .fill('blue')
-        //         .move(CELL_WIDTH * i, TAPE_Y)
-        //         .text(symbols);
-        // });
-
+        let headIndex = left(tape).length;
+        cellGroup.translate(centerX - headIndex * CELL_WIDTH - CELL_WIDTH / 2, 0);
     }
 
     function animateTape(direction) {

@@ -13,11 +13,13 @@ READMD.md という名前なのは、 typo ではなく、mdbook がビルド時
 - 計算モデルについて
 - 論理回路から作るやつ
 
-<div id="canvas"></div>
+`SVG.js` の呼び出し↓
+<div id="svg_test"></div>
+呼び出しここまで
 
 <script type="module">
-  import { load } from "./assets/generated/turing_machine/turing_machine_glue.js";
-  load();
+  import { write_rect } from "./assets/test.js";
+  await write_rect();
 </script>
 
 # 注意

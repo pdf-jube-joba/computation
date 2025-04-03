@@ -13,7 +13,7 @@ fi
 make build
 
 # parallel execution of watch => build
-watchexec --postpone -q -w book/src -w book/assets -e md,toml,js -- make build_book --postpone &
+watchexec --postpone -q -w book/src -w book/assets -e md,toml,js -- make build_book &
 PID1=$!
 echo "📂 watchexec for build_book started with PID: $PID1"
 
