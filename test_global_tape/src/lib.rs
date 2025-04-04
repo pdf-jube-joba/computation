@@ -2,6 +2,13 @@ use std::sync::{LazyLock, Mutex};
 
 use wasm_bindgen::prelude::*;
 
+pub fn alert(message: &str) {
+    web_sys::window()
+        .unwrap()
+        .alert_with_message(message)
+        .unwrap();
+}
+
 mod tape {
     #[derive(Debug, Clone)]
     pub struct Tape {
@@ -64,7 +71,7 @@ pub fn mutate_tape(id: usize, left: String, head: String, right: String) {
     if let Some(tape) = tapes.get_mut(id) {
         *tape = tape::tape_parse(&left, &head, &right);
     } else {
-        todo!()
+        alert("Invalid tape ID");
     }
 }
 
@@ -74,7 +81,8 @@ pub fn head(tape_id: usize) -> String {
     if let Some(tape) = tapes.get(tape_id) {
         tape::head(tape)
     } else {
-        todo!()
+        alert("Invalid tape ID");
+        String::new()
     }
 }
 
@@ -84,7 +92,8 @@ pub fn left(tape_id: usize) -> Vec<String> {
     if let Some(tape) = tapes.get(tape_id) {
         tape::left(tape)
     } else {
-        todo!()
+        alert("Invalid tape ID");
+        vec![]
     }
 }
 
@@ -94,7 +103,8 @@ pub fn right(tape_id: usize) -> Vec<String> {
     if let Some(tape) = tapes.get(tape_id) {
         tape::right(tape)
     } else {
-        todo!()
+        alert("Invalid tape ID");
+        vec![]
     }
 }
 
@@ -104,7 +114,7 @@ pub fn move_right(tape_id: usize) {
     if let Some(tape) = tapes.get_mut(tape_id) {
         tape::move_right(tape);
     } else {
-        todo!()
+        alert("Invalid tape ID");
     }
 }
 
@@ -114,6 +124,6 @@ pub fn move_left(tape_id: usize) {
     if let Some(tape) = tapes.get_mut(tape_id) {
         tape::move_left(tape);
     } else {
-        todo!()
+        alert("Invalid tape ID");
     }
 }

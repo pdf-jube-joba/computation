@@ -982,6 +982,7 @@ name = "test_global_tape"
 version = "0.1.0"
 dependencies = [
  "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
