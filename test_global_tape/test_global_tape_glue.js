@@ -1,4 +1,4 @@
-import init, { new_tape, left, right, head, move_left, move_right } from "./pkg/test_global_tape.js";
+import init, { new_tape, mutate_tape, left, right, head, move_left, move_right } from "./pkg/test_global_tape.js";
 
 export async function load() {
     await init();
@@ -8,15 +8,38 @@ export const ready = new Promise(resolve => {
     document.addEventListener("wasm-ready", resolve);
 });
 
+export function parse(tape_str) {
+    return tape_str
+        .trim()
+        .split("\n")
+        .map(line => {
+            const [left, head, right] = line.split("|").map(s => s.trim());
+            return { left, head, right };
+        });
+}
+
 let CELL_WIDTH = 20;
 let MARGIN = 5;
 let TAPE_Y = 15;
 
 // get id of div, create a new tape, draw the tape with SVG
-export function add_tape(canvas_id, left_str, head_str, right_str, left_btn, right_btn) {
+export function tape_init(canvas_id, left_btn, right_btn) {
 
     // create new tape from wasm and get id
-    let id = new_tape(left_str, head_str, right_str);
+    let id = new_tape("", "", "");
+
+    function tape_reload(tape_str) {
+        // parse tape_str
+        const tape_splitted = tape_str.split("|").map(s => s.trim());
+        const left_str = tape_splitted[0];
+        const head_str = tape_splitted[1];
+        const right_str = tape_splitted[2];
+
+        console.log("tape_reload", tape_str, left_str, head_str, right_str);
+
+        mutate_tape(id, left_str, head_str, right_str);
+        renderTape();
+    }
 
     const draw = SVG().addTo(`#${canvas_id}`).viewbox(-100, 0, 200, 40);
 
@@ -79,4 +102,6 @@ export function add_tape(canvas_id, left_str, head_str, right_str, left_btn, rig
     });
 
     renderTape();
+
+    return tape_reload;
 }

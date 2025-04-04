@@ -14,7 +14,11 @@ mod tape {
     pub fn tape_parse(left: &str, head: &str, right: &str) -> Tape {
         let left: Vec<_> = left.split(',').map(|s| s.trim().to_owned()).collect();
         let head = head.trim().to_owned();
-        let right: Vec<_> = right.split(',').map(|s| s.trim().to_owned()).rev().collect();
+        let right: Vec<_> = right
+            .split(',')
+            .map(|s| s.trim().to_owned())
+            .rev()
+            .collect();
         Tape { left, head, right }
     }
 
@@ -52,6 +56,16 @@ pub fn new_tape(left: String, head: String, right: String) -> usize {
     let l = tapes.len();
     tapes.push(tape::tape_parse(&left, &head, &right));
     l
+}
+
+#[wasm_bindgen]
+pub fn mutate_tape(id: usize, left: String, head: String, right: String) {
+    let mut tapes = TAPES.lock().unwrap();
+    if let Some(tape) = tapes.get_mut(id) {
+        *tape = tape::tape_parse(&left, &head, &right);
+    } else {
+        todo!()
+    }
 }
 
 #[wasm_bindgen]

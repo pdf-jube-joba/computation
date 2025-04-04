@@ -18,7 +18,7 @@
 ```
 
 <script type="module">
-  import { load, add_tape } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
+  import { load } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
   await load();
   document.dispatchEvent(new Event("wasm-ready"));
 </script>
@@ -27,10 +27,12 @@
 <div id="svg_test1">
 <button id="left1"> left </button>
 <button id="right1"> right </button>
+
 <script type="module">
-  import { ready, add_tape } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
+  import { ready, tape_init } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
   await ready;
-  add_tape("svg_test1", "1,2,3", "4", "5,6,7", "left1", "right1");
+  let tape_reload = tape_init("svg_test1", "left1", "right1");
+  tape_reload("1,2,3 | 4 | 5,6,7");
 </script>
 </div>
 
@@ -39,10 +41,35 @@
 <div id="svg_test2">
 <button id="left2"> left </button>
 <button id="right2"> right </button>
+
 <script type="module">
-  import { ready, add_tape } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
+  import { ready, tape_init } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
   await ready;
-  add_tape("svg_test2", "a,b,c", "d", "e,f,g", "left2", "right2");
+  let tape_reload = tape_init("svg_test2", "left2", "right2");
+
+  const res = await fetch("./assets/component/test_global_tape/tape.txt");
+  const text = await res.text();
+  tape_reload(text);
+</script>
+</div>
+
+ユーザーが入力するものも。
+
+<div id="svg_test3">
+<button id="left3"> left </button>
+<button id="right3"> right </button>
+<button id="load"> load </button>
+<textarea id="user_defined" rows="1"></textarea>
+
+<script type="module">
+  import { ready, tape_init } from "./assets/generated/test_global_tape/test_global_tape_glue.js";
+  await ready;
+  let tape_reload = tape_init("svg_test3", "left3", "right3");
+  
+  document.getElementById("load").addEventListener("click", () => {
+      const tape_str = document.getElementById("user_defined").value.trim();
+      tape_reload(tape_str);
+    });
 </script>
 </div>
 
