@@ -12,21 +12,38 @@
             box-sizing: border-box;
             background-color: white;
         }
+
+        th,
+        td {
+            border: 1px solid rgb(160 160 160);
+            padding: 8px 10px;
+        }
     </style>
     <script src="../../../book/assets/vendor/svg.js"></script>
     <script type="module">
-        import { tape_initialize } from "../web/turing_machine_glue.js";
-        tape_initialize("canvas", "left_btn", "right_btn");
+        import { load, turing_machine_init } from "../web/turing_machine_glue.js";
+        await load();
+
+        let res = turing_machine_init("code_input", "tape_input", "load_code", "load_tape", "start_button", "code_view", "tape_view", "step_button");
     </script>
 </head>
 
 <body>
     <h1>Test View</h1>
-    <div>
-        <button id="left_btn" class="button"> left </button>
-        <button id="right_btn" class="button"> right </button>
+    <div id="machine">
+        <div id="input">
+            <textarea id="code_input" rows="10"></textarea>
+            <textarea id="tape_input" rows="1" cols="30"></textarea> <br />
+            <button id="load_code"> load code </button>
+            <button id="load_tape"> load tape </button>
+        </div>
+        <div id="state">
+            <button id="start_button"> start </button>
+            <div id="tape_view"></div>
+            <div id="code_view"> </div>
+            <button id="step_button"> button </button>
+        </div>
     </div>
-    <div id="canvas"></div>
 </body>
 
 </html>

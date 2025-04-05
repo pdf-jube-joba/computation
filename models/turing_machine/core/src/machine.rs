@@ -241,6 +241,13 @@ impl TuringMachineDefinition {
         );
         state
     }
+    pub fn get_now_entry(&self, key: &(Sign, State)) -> Option<(usize, &(Sign, State, Direction))> {
+        self.code
+            .iter()
+            .enumerate()
+            .find(|(_, ((sign, state), _))| sign == &key.0 && state == &key.1)
+            .map(|(i, (_, next))| (i, next))
+    }
     pub fn get_next_state(&self, key: &(Sign, State)) -> Option<&(Sign, State, Direction)> {
         self.code
             .iter()
@@ -288,8 +295,17 @@ impl TuringMachineSet {
     pub fn now_tape(&self) -> &Tape {
         &self.machine_state.tape
     }
+    pub fn next_code(&self) -> Option<(usize, &(Sign, State, Direction))> {
+        self.machine_definition.get_now_entry(&self.now_key())
+    }
     pub fn code(&self) -> &Code {
         &self.machine_definition.code
+    }
+    pub fn init_state(&self) -> &State {
+        &self.machine_definition.init_state
+    }
+    pub fn accepted_state(&self) -> &Vec<State> {
+        &self.machine_definition.accepted_state
     }
     pub fn is_accepted(&self) -> bool {
         self.machine_definition

@@ -8,16 +8,6 @@ export const ready = new Promise(resolve => {
     document.addEventListener("wasm-ready", resolve);
 });
 
-export function parse(tape_str) {
-    return tape_str
-        .trim()
-        .split("\n")
-        .map(line => {
-            const [left, head, right] = line.split("|").map(s => s.trim());
-            return { left, head, right };
-        });
-}
-
 let CELL_WIDTH = 20;
 let MARGIN = 5;
 let TAPE_Y = 15;
@@ -31,6 +21,10 @@ export function tape_init(canvas_id, left_btn, right_btn) {
     function tape_reload(tape_str) {
         // parse tape_str
         const tape_splitted = tape_str.split("|").map(s => s.trim());
+        if (tape_splitted.length !== 3) {
+            alert("Invalid tape format. Expected format: left|head|right");
+            return;
+        }
         const left_str = tape_splitted[0];
         const head_str = tape_splitted[1];
         const right_str = tape_splitted[2];
