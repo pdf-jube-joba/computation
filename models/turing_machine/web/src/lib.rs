@@ -8,6 +8,7 @@ use wasm_bindgen::prelude::*;
 static MACHINES: LazyLock<Mutex<Vec<TuringMachineSet>>> = LazyLock::new(|| Mutex::new(vec![]));
 
 #[wasm_bindgen]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TapeForWeb {
     left: Vec<String>,
     head: String,
@@ -160,20 +161,20 @@ impl Code {
 }
 
 #[wasm_bindgen]
-pub fn parse_code(str: String) -> Result<Code, String> {
+pub fn parse_code(str: &str) -> Result<Code, String> {
     // get init state from first line
     let mut lines = str.lines();
 
     let init_state = lines
         .next()
-        .ok_or_else(|| "Missing inittial states line: first line should be init_state".to_string())?
+        .ok_or_else(|| "Missing initial states line: first line should be init_state".to_string())?
         .trim()
         .to_string();
 
     let accepted_state = lines
         .next()
         .ok_or_else(|| {
-            "Missing accepted states line: second line should be accecpted states splitted by \',\'"
+            "Missing accepted states line: second line should be accepted states split by ','"
                 .to_string()
         })?
         .split(',')
@@ -236,12 +237,27 @@ fn construct_turing_machine_definition(code: Code) -> Result<TuringMachineDefini
     TuringMachineDefinition::new(init_state, accepted_state, code)
 }
 
+/// Helper function to lock `MACHINES` and retrieve the machine by `id`.
+fn get_machine_by_id(
+    id: usize,
+) -> Result<std::sync::MutexGuard<'static, Vec<TuringMachineSet>>, String> {
+    let machines = MACHINES
+        .lock()
+        .map_err(|_| "Failed to lock MACHINES".to_string())?;
+
+    if id >= machines.len() {
+        return Err(format!("No Turing machine found with ID {}", id));
+    }
+
+    Ok(machines)
+}
+
 // make a new Turing machine and add it to the global list
 // return the index of the new machine
 #[wasm_bindgen]
-pub fn new_turing_machine(code: Code, tape: TapeForWeb) -> Result<usize, String> {
-    let definition = construct_turing_machine_definition(code)?;
-    let tmset: TuringMachineSet = TuringMachineSet::new(definition, tape.try_into()?);
+pub fn new_turing_machine(code: &Code, tape: &TapeForWeb) -> Result<usize, String> {
+    let definition = construct_turing_machine_definition(code.clone())?;
+    let tmset: TuringMachineSet = TuringMachineSet::new(definition, tape.clone().try_into()?);
 
     let mut machines = MACHINES
         .lock()
@@ -253,31 +269,18 @@ pub fn new_turing_machine(code: Code, tape: TapeForWeb) -> Result<usize, String>
 
 // set a Turing machine by given id
 #[wasm_bindgen]
-pub fn set_turing_machine(id: usize, code: Code, tape: TapeForWeb) -> Result<(), String> {
-    let mut machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
+pub fn set_turing_machine(id: usize, code: &Code, tape: &TapeForWeb) -> Result<(), String> {
+    let definition = construct_turing_machine_definition(code.clone())?;
 
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
-    let definition = construct_turing_machine_definition(code)?;
-
-    machines[id] = TuringMachineSet::new(definition, tape.try_into()?);
+    let mut machines = get_machine_by_id(id)?;
+    machines[id] = TuringMachineSet::new(definition, tape.clone().try_into()?);
 
     Ok(())
 }
 
 #[wasm_bindgen]
 pub fn get_code(id: usize) -> Result<Vec<CodeEntry>, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
+    let machines = get_machine_by_id(id)?;
 
     let code = &machines[id].code();
     let code_entries: Vec<CodeEntry> = code
@@ -298,70 +301,35 @@ pub fn get_code(id: usize) -> Result<Vec<CodeEntry>, String> {
 
 #[wasm_bindgen]
 pub fn get_initial_state(id: usize) -> Result<String, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
+    let machines = get_machine_by_id(id)?;
     let initial_state = machines[id].init_state();
     Ok(initial_state.to_string())
 }
 
 #[wasm_bindgen]
 pub fn get_accepted_state(id: usize) -> Result<Vec<String>, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
+    let machines = get_machine_by_id(id)?;
     let accepted_state = machines[id].accepted_state();
     Ok(accepted_state.iter().map(|s| s.to_string()).collect())
 }
 
 #[wasm_bindgen]
 pub fn get_now_tape(id: usize) -> Result<TapeForWeb, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
+    let machines = get_machine_by_id(id)?;
     let tape = machines[id].now_tape();
     Ok(tape.clone().into())
 }
 
 #[wasm_bindgen]
 pub fn get_now_state(id: usize) -> Result<String, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
+    let machines = get_machine_by_id(id)?;
     let state = machines[id].now_state();
     Ok(state.to_string())
 }
 
 #[wasm_bindgen]
 pub fn step_machine(id: usize) -> Result<(), String> {
-    let mut machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
+    let mut machines = get_machine_by_id(id)?;
     let machine = &mut machines[id];
     machine.step(1).map_err(|_| "Step failed".to_string())?;
     Ok(())
@@ -369,34 +337,18 @@ pub fn step_machine(id: usize) -> Result<(), String> {
 
 #[wasm_bindgen]
 pub fn get_next(id: usize) -> Result<usize, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
+    let machines = get_machine_by_id(id)?;
     let next = machines[id]
         .next_code()
         .ok_or_else(|| "No next code available".to_string())?;
-
     Ok(next.0)
 }
 
 #[wasm_bindgen]
 pub fn next_direction(id: usize) -> Result<String, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
-    }
-
+    let machines = get_machine_by_id(id)?;
     let next = machines[id]
         .next_code()
         .ok_or_else(|| "No next code available".to_string())?;
-
     Ok(next.1 .2.to_string())
 }

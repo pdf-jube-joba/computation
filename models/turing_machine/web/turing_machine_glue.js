@@ -31,7 +31,7 @@ export function turing_machine_init(code_input, tape_input, load_code, load_tape
     code_table.appendChild(table);
 
     // remember if or not of turing machine
-    // if id === null => turing machine is not initialized
+    // if id === undefined => turing machine is not initialized
     let id;
 
     // :Code
@@ -105,18 +105,18 @@ export function turing_machine_init(code_input, tape_input, load_code, load_tape
             return;
         }
 
-        console.log(code);
-        console.log(tape);
+        console.log(id);
 
         // set turing machine
         if (id === undefined) {
-            // !!!! 所有権が渡るので、 code と tape は __wbg_ptr == 0 になる !!!!
-            // FIXME: これをどうにかする
+            console.log("new turing machine");
             id = new_turing_machine(code, tape);
-            console.log(code);
         } else {
+            console.log("set turing machine");
             set_turing_machine(id, code, tape);
         }
+
+        console.log(id);
 
         // update value
         tape = get_now_tape(id);
@@ -127,11 +127,16 @@ export function turing_machine_init(code_input, tape_input, load_code, load_tape
     // step button
     document.getElementById(step_button)?.addEventListener("click", () => {
         console.log("step button clicked");
-        if (!is_initialized) {
+        if (id === undefined) {
             alert("Please load code and tape first.");
             return;
         }
-        let next_direction_of_tape = next_direction(id);
+        try {
+            let next_direction_of_tape = next_direction(id);
+        } catch {
+            alert("no step");
+            return;
+        }
         animateTape(next_direction_of_tape, cellGroupTape, () => {
             // step machine
             step_machine(id);
