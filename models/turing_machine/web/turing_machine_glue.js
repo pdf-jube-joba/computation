@@ -1,225 +1,240 @@
-import init, { CodeEntry, TapeForWeb, set_turing_machine, get_accepted_state, get_code, get_initial_state, get_now_state, get_now_tape, new_turing_machine, parse_code, parse_tape, next_direction, step_machine } from "./pkg/turing_machine_web.js";
+import init, { CodeEntry, TapeForWeb, tape_left_index, tape_right_index, set_turing_machine, get_accepted_state, get_code, get_initial_state, get_now_state, get_now_tape, new_turing_machine, parse_code, parse_tape, next_direction, step_machine } from "./pkg/turing_machine_web.js";
+
+// ---- wasm module glue code ----
 
 export async function load() {
     await init();
 }
 
+// Use this function when you want to load the wasm module
 export const ready = new Promise(resolve => {
     document.addEventListener("wasm-ready", resolve);
 });
 
-let TAPE_CELL_WIDTH = 20;
-let TAPE_CELL_MARGIN = 5;
-let TAPE_Y_CENTER = 15;
+// ---- wasm module glue code end ----
 
-export function turing_machine_init(code_input, tape_input, load_code, load_tape, start_button, code_view, tape_view, step_button) {
+// ---- input resource class ----
+// We can use this classes as text source
 
-    // html table element for code
-    let table = document.createElement("table");
-    table.innerHTML = ""; // Clear the table
+// class provide text source from given textarea
+export class TextAreaSource {
+    // constructor from textarea_id
+    constructor(textarea_id) {
+        this.textarea = document.getElementById(textarea_id);
+    }
 
-    // add header to table
-    let thead = table.createTHead();
-    let headerRow = thead.insertRow();
-    headerRow.insertCell().innerText = "now sign";
-    headerRow.insertCell().innerText = "now state";
-    headerRow.insertCell().innerText = "next sign";
-    headerRow.insertCell().innerText = "next state";
-    headerRow.insertCell().innerText = "direction";
+    // return text: string
+    getText() {
+        return this.textarea.value;
+    }
+}
 
-    let code_table = document.getElementById(code_view);
-    code_table.appendChild(table);
+// class provide text source from given text
+export class TextDefinedSource {
+    constructor(text) {
+        this.text = text;
+    }
 
-    // remember if or not of turing machine
-    // if id === undefined => turing machine is not initialized
-    let id;
+    // return text: string
+    getText() {
+        return this.text;
+    }
+}
 
-    // :Code
-    let code;
-    // now state
-    let now_state;
+// ---- input resource class end ----
 
-    // set value `code` and `now_state` if clicked
-    document.getElementById(load_code)?.addEventListener("click", () => {
+// ---- turing machine model class ----
+
+export class TuringMachineViewModel {
+    code = null;
+    tape = null;
+    machineId = undefined;
+    currentState = null;
+
+    constructor(codeResource, tapeResource, viewId, startButtonId, stepButtonId) {
+        this.codeResource = codeResource;
+        this.tapeResource = tapeResource;
+        this.view = new TuringMachineView(viewId);
+        this.startButton = document.getElementById(startButtonId);
+        this.startButton.onclick = () => {
+            this.loadCode();
+            this.loadTape();
+            this.start();
+        };
+        this.stepButton = document.getElementById(stepButtonId);
+        this.stepButton.onclick = () => {
+            this.step();
+        };
+    }
+
+    loadCode() {
         console.log("load code");
-        // get code text from textarea of id = code_input
-        const code_text = document.getElementById(code_input)?.value;
-        if (!code_text) {
-            alert("Please write code");
-            return;
-        }
-        console.log(code_text);
-
+        const text = this.codeResource.getText();
+        if (!text) return alert("Please write code");
         try {
-            code = parse_code(code_text);
-            console.log(code);
+            this.code = parse_code(text);
+            this.currentState = this.code.init_state;
         } catch (e) {
             alert(`${e}`);
             return;
         }
+    }
 
-        now_state = code.init_state;
-        drawTable(code.code, table);
-    });
-
-    // TapeForWeb
-    let tape;
-
-    // set value `tape` if clicked
-    document.getElementById(load_tape)?.addEventListener("click", () => {
+    loadTape() {
         console.log("load tape");
-        // get tape text from textarea of id = tape_input
-        const tape_text = document.getElementById(tape_input)?.value;
-        if (!tape_text) {
-            alert("Please write tape");
-            return;
-        }
-        console.log(tape_text);
-
+        const text = this.tapeResource.getText();
+        if (!text) return alert("Please write tape");
         try {
-            tape = parse_tape(tape_text);
+            this.tape = parse_tape(text);
         } catch (e) {
-            alert("Invalid tape format. Please check your tape.");
+            alert(`${e}`);
             return;
         }
-        drawStateSVG(tape, now_state, cellGroupTape);
+    }
 
-    });
+    start() {
+        console.log("start");
+        if (!this.code || !this.tape) return alert("Please load code and tape");
 
-    // SVG element for tape
-    let drawtape = SVG().addTo(`#${tape_view}`).viewbox(-100, 0, 200, 40);
-    let cellGroupTape = drawtape.group();
-
-    // if code and tape is loaded
-    // set turing machine
-    document.getElementById(start_button)?.addEventListener("click", () => {
-        console.log("start button clicked");
-
-        // check if code and tape is loaded
-        if (!code) {
-            alert("Please load code first.");
-            return;
-        }
-        if (!tape) {
-            alert("Please load tape first.");
-            return;
-        }
-
-        console.log(id);
-
-        // set turing machine
-        if (id === undefined) {
-            console.log("new turing machine");
-            id = new_turing_machine(code, tape);
+        if (this.machineId === undefined) {
+            this.machineId = new_turing_machine(this.code, this.tape);
         } else {
-            console.log("set turing machine");
-            set_turing_machine(id, code, tape);
+            set_turing_machine(this.machineId, this.code, this.tape);
         }
 
-        console.log(id);
-
-        // update value
-        tape = get_now_tape(id);
-        now_state = get_now_state(id);
-        drawStateSVG(tape, now_state, cellGroupTape);
-    });
-
-    // step button
-    document.getElementById(step_button)?.addEventListener("click", () => {
-        console.log("step button clicked");
-        if (id === undefined) {
-            alert("Please load code and tape first.");
-            return;
-        }
-        try {
-            let next_direction_of_tape = next_direction(id);
-        } catch {
-            alert("no step");
-            return;
-        }
-        animateTape(next_direction_of_tape, cellGroupTape, () => {
-            // step machine
-            step_machine(id);
-            // update value
-            tape = get_now_tape(id);
-            now_state = get_now_state(id);
+        this.tape = get_now_tape(this.machineId);
+        this.currentState = get_now_state(this.machineId);
+        this.view.update({
+            tape: this.tape,
+            state: this.currentState,
+            code: get_code(this.machineId),
         });
-    });
-}
-
-function drawTable(codeentryarr, table) {
-    // Find all <tbody> elements
-    const old_tbody = table.getElementsByTagName("tbody");
-    // Remove all <tbody> elements
-    while (old_tbody.length > 0) {
-        table.removeChild(old_tbody[0]);
     }
 
-    // Create a new <tbody> element
-    const new_tbody = table.createTBody();
+    step() {
+        console.log("step");
+        if (this.machineId === undefined) return alert("Please initialize first");
+        let direction;
+        try {
+            direction = next_direction(this.machineId);
+        } catch {
+            alert("No step");
+            return;
+        }
 
-    // Create a new row for each entry in the code
-    codeentryarr.forEach(entry => {
-        console.log(entry);
-        const row = new_tbody.insertRow();
-        row.insertCell().innerText = entry.key_sign;
-        row.insertCell().innerText = entry.key_state;
-        row.insertCell().innerText = entry.next_sign;
-        row.insertCell().innerText = entry.next_state;
-        row.insertCell().innerText = entry.direction;
-    });
-}
-
-function drawStateSVG(tape, state, cellGroup) {
-    // Clear the existing SVG elements in the group
-    cellGroup.clear();
-
-    function drawCell(i, text, b) {
-        const x = i * (TAPE_CELL_WIDTH + TAPE_CELL_MARGIN);
-        const color = b ? "#f00" : "#0f0";
-        cellGroup
-            .rect(TAPE_CELL_WIDTH, TAPE_CELL_WIDTH)
-            .center(x, TAPE_Y_CENTER)
-            .fill("#fff")
-            .stroke({ color: color, width: 1 });
-        cellGroup
-            .text(text)
-            .move(x, TAPE_Y_CENTER - 10)
-            .font({
-                size: 5,
-                anchor: "middle",
+        this.view.animateTape(direction, this.tapeGroup, () => {
+            step_machine(this.machineId);
+            this.tape = get_now_tape(this.machineId);
+            this.currentState = get_now_state(this.machineId);
+            this.view.update({
+                tape: this.tape,
+                state: this.currentState,
+                code: get_code(this.machineId),
             });
-    }
-
-    // Draw the left part of the tape
-    for (let i = 0; i < tape.left.length; i++) {
-        drawCell(i - tape.left.length, tape.left[i], false);
-    }
-
-    // Draw the head
-    drawCell(0, tape.head, true);
-
-    // Draw the right part of the tape
-    for (let i = 0; i < tape.right.length; i++) {
-        drawCell(i + 1, tape.right[i], false);
-    }
-
-    // Draw the state under the head if is not falsy
-    if (state) {
-        cellGroup
-            .text(state)
-            .move(0, TAPE_Y_CENTER + 5)
-            .font({
-                size: 5,
-                anchor: "middle",
-            });
+        });
     }
 }
 
-function animateTape(direction, cellGroup, callback) {
-    let delta = direction === "right" ? -(CELL_WIDTH + MARGIN) : (CELL_WIDTH + MARGIN);
-    cellGroup.animate(200).dx(delta).after(() => {
-        callback();
-        cellGroup.dx(0);
-    });
+export class TuringMachineView {
+    constructor(container) {
+        console.log("TuringMachineView");
+
+        // --- initialize container
+        this.container = typeof container === "string"
+            ? document.getElementById(container)
+            : container;
+        this.container.innerHTML = ""; // clear
+
+        // --- svg wrapper for tape
+        const svgWrapper = SVG().addTo(this.container).viewbox(-100, 0, 200, 40);
+        this.tapeGroup = svgWrapper.group();
+
+        // layout / spacing config
+        this.cellWidth = 20;
+        this.cellMargin = 5;
+        this.tapeYCenter = 15;
+
+        // --- table for code
+        this.codeTable = document.createElement("table");
+        // add thead
+        const thead = this.codeTable.createTHead();
+        const row = thead.insertRow();
+        row.insertCell().innerText = "key_sign";
+        row.insertCell().innerText = "key_state";
+        row.insertCell().innerText = "next_sign";
+        row.insertCell().innerText = "next_state";
+        row.insertCell().innerText = "direction";
+        // add thead
+        this.container.appendChild(this.codeTable);
+    }
+
+    update({ tape, state, code }) {
+        this.drawCode(code);
+        this.drawTape(tape, state);
+    }
+
+    animateTape(direction, afterCallback) {
+        const delta =
+            direction === "right"
+                ? -(this.cellWidth + this.cellMargin)
+                : (this.cellWidth + this.cellMargin);
+        this.tapeGroup.animate(200).dx(delta).after(() => {
+            afterCallback?.();
+            this.tapeGroup.dx(0);
+        });
+    }
+
+    drawCode(codeEntryArr) {
+        const oldTbody = this.codeTable.getElementsByTagName("tbody");
+        while (oldTbody.length > 0) {
+            this.codeTable.removeChild(oldTbody[0]);
+        }
+
+        const newTbody = this.codeTable.createTBody();
+        codeEntryArr.forEach(entry => {
+            const row = newTbody.insertRow();
+            row.insertCell().innerText = entry.key_sign;
+            row.insertCell().innerText = entry.key_state;
+            row.insertCell().innerText = entry.next_sign;
+            row.insertCell().innerText = entry.next_state;
+            row.insertCell().innerText = entry.direction;
+        });
+    }
+
+    drawTape(tape, state) {
+        this.tapeGroup.clear();
+
+        const drawCell = (i, text, isHead) => {
+            const x = i * (this.cellWidth + this.cellMargin);
+            const color = isHead ? "#f00" : "#0f0";
+            this.tapeGroup
+                .rect(this.cellWidth, this.cellWidth)
+                .center(x, this.tapeYCenter)
+                .fill("#fff")
+                .stroke({ color: color, width: 1 });
+            this.tapeGroup
+                .text(text)
+                .move(x, this.tapeYCenter - 10)
+                .font({ size: 5, anchor: "middle" });
+        };
+
+        for (let i = 0; i < 4; i++) {
+            drawCell(- i - 1, tape_left_index(tape, i), false);
+        }
+
+        drawCell(0, tape.head, true);
+
+        for (let i = 0; i < 4; i++) {
+            drawCell(i + 1, tape_right_index(tape, i), false);
+        }
+
+        if (state) {
+            this.tapeGroup
+                .text(state)
+                .move(0, this.tapeYCenter + 5)
+                .font({ size: 5, anchor: "middle" });
+        }
+    }
 }
+
+// ---- turing machine model class end ----

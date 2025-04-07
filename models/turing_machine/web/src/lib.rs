@@ -9,6 +9,7 @@ static MACHINES: LazyLock<Mutex<Vec<TuringMachineSet>>> = LazyLock::new(|| Mutex
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, PartialEq, Eq)]
+// left[0], ..., left[last], head, right[last], ..., right[0]
 pub struct TapeForWeb {
     left: Vec<String>,
     head: String,
@@ -23,18 +24,28 @@ impl TapeForWeb {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn left(&self) -> Vec<String> {
-        self.left.clone()
-    }
-
-    #[wasm_bindgen(getter)]
     pub fn head(&self) -> String {
         self.head.clone()
     }
+}
 
-    #[wasm_bindgen(getter)]
-    pub fn right(&self) -> Vec<String> {
-        self.right.clone()
+#[wasm_bindgen]
+pub fn tape_left_index(tape: &TapeForWeb, index: usize) -> String {
+    let l = tape.left.len() as isize - index as isize - 1;
+    if l < 0 {
+        String::new()
+    } else {
+        tape.left.get(l as usize).cloned().unwrap_or_default()
+    }
+}
+
+#[wasm_bindgen]
+pub fn tape_right_index(tape: &TapeForWeb, index: usize) -> String {
+    let r = tape.right.len() as isize - index as isize - 1;
+    if r < 0 {
+        String::new()
+    } else {
+        tape.right.get(r as usize).cloned().unwrap_or_default()
     }
 }
 
@@ -75,7 +86,7 @@ pub fn parse_tape(tape: &str) -> Result<TapeForWeb, String> {
     }
     let left = parts[0].split(',').map(|s| s.trim().to_string()).collect();
     let head = parts[1].to_string();
-    let right = parts[2].split(',').map(|s| s.trim().to_string()).collect();
+    let right = parts[2].split(',').map(|s| s.trim().to_string()).rev().collect();
     Ok(TapeForWeb::new(left, head, right))
 }
 

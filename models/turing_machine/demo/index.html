@@ -21,10 +21,14 @@
     </style>
     <script src="../../../book/assets/vendor/svg.js"></script>
     <script type="module">
-        import { load, turing_machine_init } from "../web/turing_machine_glue.js";
+        import { load, TextAreaSource, TuringMachineViewModel } from "../web/turing_machine_glue.js";
         await load();
 
-        let res = turing_machine_init("code_input", "tape_input", "load_code", "load_tape", "start_button", "code_view", "tape_view", "step_button");
+        let code_input = new TextAreaSource("code_input");
+        let tape_input = new TextAreaSource("tape_input");
+
+        let view = new TuringMachineViewModel(code_input, tape_input, "view", "start", "step");
+
     </script>
 </head>
 
@@ -34,14 +38,12 @@
         <div id="input">
             <textarea id="code_input" rows="10"></textarea>
             <textarea id="tape_input" rows="1" cols="30"></textarea> <br />
-            <button id="load_code"> load code </button>
-            <button id="load_tape"> load tape </button>
         </div>
-        <div id="state">
-            <button id="start_button"> start </button>
-            <button id="step_button"> step </button>
-            <div id="tape_view"></div>
-            <div id="code_view"> </div>
+        <div id="control">
+            <button id="start"> start </button>
+            <button id="step"> step </button>
+        </div>
+        <div id="view">
         </div>
     </div>
 </body>
