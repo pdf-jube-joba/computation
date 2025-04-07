@@ -296,6 +296,9 @@ impl TuringMachineSet {
         &self.machine_state.tape
     }
     pub fn next_code(&self) -> Option<(usize, &(Sign, State, Direction))> {
+        if self.is_terminate() {
+            return None;
+        }
         self.machine_definition.get_now_entry(&self.now_key())
     }
     pub fn code(&self) -> &Code {

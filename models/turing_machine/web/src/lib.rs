@@ -347,7 +347,7 @@ pub fn step_machine(id: usize) -> Result<(), String> {
 }
 
 #[wasm_bindgen]
-pub fn get_next(id: usize) -> Result<usize, String> {
+pub fn get_next_codeentry_index(id: usize) -> Result<usize, String> {
     let machines = get_machine_by_id(id)?;
     let next = machines[id]
         .next_code()

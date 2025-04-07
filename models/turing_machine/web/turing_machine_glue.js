@@ -1,4 +1,4 @@
-import init, { CodeEntry, TapeForWeb, tape_left_index, tape_right_index, set_turing_machine, get_accepted_state, get_code, get_initial_state, get_now_state, get_now_tape, new_turing_machine, parse_code, parse_tape, next_direction, step_machine } from "./pkg/turing_machine_web.js";
+import init, { CodeEntry, TapeForWeb, tape_left_index, tape_right_index, set_turing_machine, get_accepted_state, get_code, get_next_codeentry_index, get_initial_state, get_now_state, get_now_tape, new_turing_machine, parse_code, parse_tape, next_direction, step_machine } from "./pkg/turing_machine_web.js";
 
 // ---- wasm module glue code ----
 
@@ -122,10 +122,11 @@ export class TuringMachineViewModel {
             return;
         }
 
-        this.view.animateTape(direction, this.tapeGroup, () => {
+        this.view.animateTape(direction, () => {
             step_machine(this.machineId);
             this.tape = get_now_tape(this.machineId);
             this.currentState = get_now_state(this.machineId);
+            const index = ne
             this.view.update({
                 tape: this.tape,
                 state: this.currentState,
@@ -168,18 +169,22 @@ export class TuringMachineView {
         this.container.appendChild(this.codeTable);
     }
 
-    update({ tape, state, code }) {
+    update({ tape, state, code, index }) {
         this.drawCode(code);
         this.drawTape(tape, state);
+        if (index !== undefined) {
+            this.highlightCodeIndex(index);
+        }
     }
 
     animateTape(direction, afterCallback) {
+        console.log("animate tape", direction);
         const delta =
             direction === "right"
-                ? -(this.cellWidth + this.cellMargin)
-                : (this.cellWidth + this.cellMargin);
+                ? (this.cellWidth + this.cellMargin)
+                : -(this.cellWidth + this.cellMargin);
         this.tapeGroup.animate(200).dx(delta).after(() => {
-            afterCallback?.();
+            afterCallback();
             this.tapeGroup.dx(0);
         });
     }
@@ -199,6 +204,19 @@ export class TuringMachineView {
             row.insertCell().innerText = entry.next_state;
             row.insertCell().innerText = entry.direction;
         });
+    }
+
+    highlightCodeIndex(index) {
+        // get n-th tr element of codeTable in tbody
+        const tbody = this.codeTable.getElementsByTagName("tbody")[0];
+        const rows = tbody.getElementsByTagName("tr");
+        for (let i = 0; i < rows.length; i++) {
+            if (i === index) {
+                rows[i].style.backgroundColor = "#f00";
+            } else {
+                rows[i].style.backgroundColor = "#fff";
+            }
+        }
     }
 
     drawTape(tape, state) {
