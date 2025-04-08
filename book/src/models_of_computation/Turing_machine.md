@@ -1,23 +1,63 @@
-# チューリングマシン
-## 注意
-チューリングマシンの定義は複数あり、本によって異なる。
-標準的なものはないようなので、都合のいい感じで定義している。
-
-## ざっとした説明ととりあえず動く見本
-
+# チューリングマシン（ざっくり）
 チューリングマシンの構成要素はだいたい以下の通り
 
-- 記号が書かれた左右無限のテープ
-- 状態を持つ制御部
-- プログラムとか遷移表とか言われるような、「状態と記号」から次の「状態と記号及びテープの動かし方」への対応一覧
+- **記号**が書かれたテープ（ちょうど前にあるテープしか読み書きができない。）
+- **状態**を持つ制御部
+- プログラム（とか遷移表と言われる）：「状態と記号」から次の「状態と記号及びテープの動かし方」への対応一覧
 
 このプログラムに従ってテープと制御部を動かしていくことで、テープを書き換えながら動作する。
 最終的に終了状態と呼ばれる状態に行きついたら動作は終了であり、どんなテープを入力すると停止するのか、その時のテープの状態はどうか、
 といった部分を計算とみなすことができる。
 
-例えば、次の例はテープに書かれた二つの二進数に 1 を足す。
+1つめの例は、テープにある `1` を全部 `2` に書き換える例。
+2つめの例は、テープにある `0` と `1` の"仕分け"を行う例。
+両方とも、 `step` ボタンを押すと状態が遷移して、 `reset` を押すと一番最初に戻る。
+2つめの例では、自由にテープを書いて試してみて。
 
-<component id="turing_machine_example">
+<script type="module">
+    import { load, TextAreaSource, TextDefinedSource, TuringMachineViewModel } from "../assets/generated/turing_machine/turing_machine_glue.js";
+    await load();
+
+    let code_input1 = new TextDefinedSource("s \n g \n 1,s,2,s,R \n end,s,end,g,C");
+    let tape_input1 = new TextDefinedSource("0|1|1,1,1,end");
+
+    let view1 = new TuringMachineViewModel(code_input1, tape_input1, "view1", "start1", "step1", true);
+
+    let res = await fetch("../assets/component/models_of_computation/sorting_01.txt");
+    let txt = await res.text();
+
+    let code_input2 = new TextDefinedSource(txt);
+    let tape_input2 = new TextAreaSource("user_defined");
+
+    let view2 = new TuringMachineViewModel(code_input2, tape_input2, "view2", "start2", "step2", true);
+</script>
+
+<div id="machine1">
+    <div id="control">
+        <button id="start1"> reset </button>
+        <button id="step1"> step </button>
+    </div>
+    <div id="view1">
+    </div>
+</div>
+
+<div id="machine2">
+    <div id="control">
+        <button id="start2"> reset </button>
+        <button id="step2"> step </button>
+    </div>
+    <textarea id="user_defined" rows="1" cols="20"> x|0|1,1,0 </textarea>
+    <div id="view2">
+    </div>
+</div>
+
+# チューリングマシン（ちゃんとした解説）
+ここ以降は読まなくても大丈夫。
+読まなくても、動いているのを見ることができます。
+
+## 注意
+チューリングマシンの定義は複数あり、本によって異なる。
+標準的なものはないようなので、都合のいい感じで定義している。
 
 ## 定義
 ### チューリングマシンの定義
@@ -41,6 +81,7 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 
 ここで、 \(\delta\) は部分関数であるから、（集合を用いた定義を考えると） \((Q - Q_{\text{fin}}) \times \Sigma \times Q \times \Sigma \times \{L,R,C\}\) の部分集合とみなせる。
 この関数の元 \((q, \sigma, q^\prime, \sigma^\prime, D)\) をエントリと呼ぶことにする。
+（このエントリという語はあまり気にしなくてもいい。）
 
 **Note**
 チューリングマシンの他の定義には次のものがある。
@@ -52,16 +93,16 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 
 ### チューリングマシンが操作するものの定義
 今、集合 \(\Sigma\) に対して（ \(\Sigma\) 上の）テープと呼ばれるものを考える。
-このテープとは、各セルに \(\Sigma\) の元が格納されたものが左右無限に並んだもののことを言う。
+このテープとは、各"セル"に \(\Sigma\) の元が格納されたものが左右無限に並んだもののことを言う。
 ただし、テープの中の有限個のセルを除いて、セルは基本的に（先ほど固定した空白記号） \(\mathbb{B}\) が入っているものとする。
 さらに、このテープには制御部と呼ばれるものがついていて、セルのうちの一つを指し示している。
-あまり使わないかもしれないが、 \(\Sigma\) 上のテープ全体を \(\text{Tape}T\) と書くことにする。
+あまり使わないかもしれないが、 \(\Sigma\) 上のテープ全体を \(\text{Tape}(T)\) と書くことにする。
 
 このテープに対しては次のような操作を行うことができる。
-- テープ \(T\) に対して、制御部を一つ右（ resp. 左）に動かしたテープを表す... \(\text{R} T\) （ resp. \(\text{L} T\) ）
-- \(CT = T\) とする。
-- テープ \(T\) に対して、制御部の指し示すセルの中身の記号を取り出す... \(\text{Head} T\)
-- テープ \(T\) と \(s \in \Sigma\) に対して、制御部の指し示すセルの中身を \(s\) で書き換える... \(\text{Write} (T, s)\)
+- テープ \(T\) に対して、制御部を一つ右（ resp. 左）に動かしたテープ： \(\text{R}(T)\) （ resp. \(\text{L}(T)\) ）
+- また、 テープ \(T\) に対して、 \(\text{C}(T) = T\) とする。
+- テープ \(T\) に対して、制御部の指し示すセルの中身の記号を取り出す... \(\text{Head}(T)\)
+- テープ \(T\) と \(s \in \Sigma\) に対して、制御部の指し示すセルの中身を \(s\) で書き換えたテープ： \(\text{Write} (T, s)\)
 
 テープには制御部が付いていることにより、単に記号列が並んだものよりも情報が豊富である。
 
@@ -151,9 +192,6 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 |  | write| -| end| L |
 
 ここでは記号や状態、初期状態と終了状態を省略した。
-実際に動いているサンプルは以下である。
-
-<component id="turing_machine_example2">
 
 ## チューリングマシンができること：計算可能な自然数の関数について
 自然数の符号化を固定して、チューリングマシンの計算できる自然数関数がどれぐらいなのかを見積もる。

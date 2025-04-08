@@ -51,7 +51,7 @@ export class TuringMachineViewModel {
     machineId = undefined;
     currentState = null;
 
-    constructor(codeResource, tapeResource, viewId, startButtonId, stepButtonId) {
+    constructor(codeResource, tapeResource, viewId, startButtonId, stepButtonId, start_when_init = false) {
         this.codeResource = codeResource;
         this.tapeResource = tapeResource;
         this.view = new TuringMachineView(viewId);
@@ -65,11 +65,17 @@ export class TuringMachineViewModel {
         this.stepButton.onclick = () => {
             this.step();
         };
+        if (start_when_init) {
+            this.loadCode();
+            this.loadTape();
+            this.start();
+        }
     }
 
     loadCode() {
         console.log("load code");
         const text = this.codeResource.getText();
+        console.log("text", text);
         if (!text) return alert("Please write code");
         try {
             this.code = parse_code(text);
@@ -104,7 +110,12 @@ export class TuringMachineViewModel {
 
         this.tape = get_now_tape(this.machineId);
         this.currentState = get_now_state(this.machineId);
-        let index = get_next_codeentry_index(this.machineId);
+        let index;
+        try {
+            index = get_next_codeentry_index(this.machineId);
+        } catch {
+            // index is undefined
+        }
         let is_accepted = machine_is_accepted(this.machineId);
         console.log("is_accepted", is_accepted);
         this.view.update({
@@ -123,7 +134,7 @@ export class TuringMachineViewModel {
         try {
             direction = next_direction(this.machineId);
         } catch {
-            alert("No step");
+            alert("machine is terminated");
             return;
         }
 
@@ -194,10 +205,12 @@ export class TuringMachineView {
 
     animateTape(direction, afterCallback) {
         console.log("animate tape", direction);
-        const delta =
-            direction === "right"
-                ? (this.cellWidth + this.cellMargin)
-                : -(this.cellWidth + this.cellMargin);
+        let delta = 0;
+        if (direction === "R") {
+            delta = - (this.cellWidth + this.cellMargin);
+        } else if (direction === "L") {
+            delta = + (this.cellWidth + this.cellMargin);
+        }
         this.tapeGroup.animate(200).dx(delta).after(() => {
             afterCallback();
             this.tapeGroup.dx(0);

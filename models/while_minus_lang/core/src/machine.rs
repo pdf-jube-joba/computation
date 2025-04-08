@@ -1,25 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 use utils::number::*;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Var(usize);
-
-pub fn new_var(vars: Vec<Var>) -> Var {
-    vars.into_iter().max().unwrap_or(0.into())
-}
-
-impl From<usize> for Var {
-    fn from(value: usize) -> Self {
-        Var(value)
-    }
-}
-
-impl TryFrom<&str> for Var {
-    type Error = ();
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(Var(value.parse().map_err(|_| ())?))
-    }
-}
+use utils::variable::Var; // Updated to use Var from utils/variable
 
 #[derive(Debug, Default, Clone)]
 pub struct Environment {
@@ -583,19 +564,19 @@ mod tests {
         let env2: Environment = vec![].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var(0), Number(1))].into();
-        let env2: Environment = vec![(Var(0), Number(1))].into();
+        let env1: Environment = vec![(Var::U(0), Number(1))].into();
+        let env2: Environment = vec![(Var::U(0), Number(1))].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var(0), Number(1)), (Var(0), Number(1))].into();
-        let env2: Environment = vec![(Var(0), Number(1))].into();
+        let env1: Environment = vec![(Var::U(0), Number(1)), (Var::U(0), Number(1))].into();
+        let env2: Environment = vec![(Var::U(0), Number(1))].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var(0), Number(1)), (Var(1), Number(2))].into();
-        let env2: Environment = vec![(Var(1), Number(2)), (Var(0), Number(1))].into();
+        let env1: Environment = vec![(Var::U(0), Number(1)), (Var::U(1), Number(2))].into();
+        let env2: Environment = vec![(Var::U(1), Number(2)), (Var::U(0), Number(1))].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var(0), Number(0))].into();
+        let env1: Environment = vec![(Var::U(0), Number(0))].into();
         let env2: Environment = vec![].into();
         assert_eq!(env1, env2);
     }
@@ -603,39 +584,39 @@ mod tests {
     #[test]
     fn eval_test() {
         let env: Environment = Environment::new();
-        let prog: WhileLanguage = vec![WhileStatement::inc(Var(0))].into();
+        let prog: WhileLanguage = vec![WhileStatement::inc(Var::U(0))].into();
         let env_res = eval(&prog, env.clone());
-        let env_exp: Environment = vec![(Var(0), Number(1))].into();
+        let env_exp: Environment = vec![(Var::U(0), Number(1))].into();
         assert_eq!(env_exp, env_res);
 
         let env: Environment = Environment::new();
         let prog: WhileLanguage = vec![
-            WhileStatement::inc(Var(0)),
-            WhileStatement::inc(Var(0)),
-            WhileStatement::inc(Var(0)),
-            WhileStatement::copy(Var(1), Var(0)),
-            WhileStatement::copy(Var(0), Var(2)),
+            WhileStatement::inc(Var::U(0)),
+            WhileStatement::inc(Var::U(0)),
+            WhileStatement::inc(Var::U(0)),
+            WhileStatement::copy(Var::U(1), Var::U(0)),
+            WhileStatement::copy(Var::U(0), Var::U(2)),
         ]
         .into();
         let env_res = eval(&prog, env.clone());
-        let env_exp: Environment = vec![(Var(1), Number(3))].into();
+        let env_exp: Environment = vec![(Var::U(1), Number(3))].into();
         assert_eq!(env_exp, env_res);
 
         let env: Environment = Environment::new();
         let prog: WhileLanguage = vec![
-            WhileStatement::inc(Var(0)),
-            WhileStatement::inc(Var(0)),
-            WhileStatement::inc(Var(0)),
-            WhileStatement::inc(Var(0)),
-            WhileStatement::inc(Var(0)),
+            WhileStatement::inc(Var::U(0)),
+            WhileStatement::inc(Var::U(0)),
+            WhileStatement::inc(Var::U(0)),
+            WhileStatement::inc(Var::U(0)),
+            WhileStatement::inc(Var::U(0)),
             WhileStatement::while_not_zero(
-                Var(0),
-                vec![WhileStatement::dec(Var(0)), WhileStatement::inc(Var(1))],
+                Var::U(0),
+                vec![WhileStatement::dec(Var::U(0)), WhileStatement::inc(Var::U(1))],
             ),
         ]
         .into();
         let env_res = eval(&prog, env.clone());
-        let env_exp: Environment = vec![(Var(0), Number(0)), (Var(1), Number(5))].into();
+        let env_exp: Environment = vec![(Var::U(0), Number(0)), (Var::U(1), Number(5))].into();
         assert_eq!(env_exp, env_res);
     }
     #[test]
@@ -644,33 +625,33 @@ mod tests {
         let expected: WhileLanguage = vec![].into();
         assert_eq!(flat_lang.try_into(), Ok(expected));
 
-        let flat_lang: FlatWhileLanguage = vec![FlatWhileStatement::inc(Var(0))].into();
-        let expected: WhileLanguage = vec![WhileStatement::inc(Var(0))].into();
+        let flat_lang: FlatWhileLanguage = vec![FlatWhileStatement::inc(Var::U(0))].into();
+        let expected: WhileLanguage = vec![WhileStatement::inc(Var::U(0))].into();
         assert_eq!(flat_lang.try_into(), Ok(expected));
 
         let flat_lang: FlatWhileLanguage = vec![
-            FlatWhileStatement::while_not_zero(Var(0)),
+            FlatWhileStatement::while_not_zero(Var::U(0)),
             FlatWhileStatement::while_end(),
         ]
         .into();
-        let expected: WhileLanguage = vec![WhileStatement::while_not_zero(Var(0), vec![])].into();
+        let expected: WhileLanguage = vec![WhileStatement::while_not_zero(Var::U(0), vec![])].into();
         assert_eq!(flat_lang.try_into(), Ok(expected));
 
         let flat_lang: FlatWhileLanguage = vec![
-            FlatWhileStatement::while_not_zero(Var(0)),
-            FlatWhileStatement::inc(Var(0)),
-            FlatWhileStatement::while_not_zero(Var(0)),
+            FlatWhileStatement::while_not_zero(Var::U(0)),
+            FlatWhileStatement::inc(Var::U(0)),
+            FlatWhileStatement::while_not_zero(Var::U(0)),
             FlatWhileStatement::while_end(),
-            FlatWhileStatement::inc(Var(0)),
+            FlatWhileStatement::inc(Var::U(0)),
             FlatWhileStatement::while_end(),
         ]
         .into();
         let expected: WhileLanguage = vec![WhileStatement::while_not_zero(
-            Var(0),
+            Var::U(0),
             vec![
-                WhileStatement::inc(Var(0)),
-                WhileStatement::while_not_zero(Var(0), vec![]),
-                WhileStatement::inc(Var(0)),
+                WhileStatement::inc(Var::U(0)),
+                WhileStatement::while_not_zero(Var::U(0), vec![]),
+                WhileStatement::inc(Var::U(0)),
             ],
         )]
         .into();

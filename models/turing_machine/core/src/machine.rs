@@ -2,7 +2,7 @@ use std::fmt::Display;
 use utils::alphabet::Alphabet; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Direction {
     Right,
     Constant,
@@ -34,6 +34,7 @@ impl Display for Direction {
 
 // テープで扱う記号の定義
 // 空白記号（None）と制御記号の含まれない文字列を記号として扱う
+// Alphabet は空白ではない
 #[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
 pub struct Sign(Option<Alphabet>);
 
@@ -52,15 +53,14 @@ impl Display for Sign {
     }
 }
 
-// 「両端以外に空白を含むか、 "," を含む文字列」以外は記号として扱う。
-// ただし、両端の空白は無視するものとする。
+// 空文字列は空白記号として扱う
 impl TryFrom<&str> for Sign {
     type Error = String;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value.try_into() {
             Ok(alphabet) => Ok(Sign(Some(alphabet))),
             Err(err) => {
-                if value.trim().is_empty() {
+                if value.is_empty() {
                     Ok(Sign::blank())
                 } else {
                     Err(err)

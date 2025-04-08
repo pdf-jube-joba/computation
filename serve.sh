@@ -13,14 +13,18 @@ fi
 make build
 
 # parallel execution of watch => build
+
+# watch for book/
 watchexec --postpone -q -w book/src -w book/assets -e md,toml,js -- make build_book &
 PID1=$!
 echo "📂 watchexec for build_book started with PID: $PID1"
 
-watchexec --postpone -q -w models -w test_global_tape -e rs -- make build_models copy_assets build_book &
+# watch for rust file
+watchexec --postpone -q -w utils -w models -w test_global_tape -e rs -- make build_models copy_assets build_book &
 PID2=$!
 echo "📂 watchexec for build_models and copy_assets started with PID: $PID2"
 
+# watch for js,html file
 watchexec --postpone -q -w models -w test_global_tape -e js,html -- make copy_assets build_book &
 PID3=$!
 echo "📂 watchexec for copy_assets started with PID: $PID3"

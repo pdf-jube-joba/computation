@@ -1,4 +1,5 @@
-use crate::machine::{FlatWhileLanguage, FlatWhileStatement, Var, WhileLanguage};
+use crate::machine::{FlatWhileLanguage, FlatWhileStatement, WhileLanguage};
+use utils::variable::Var;
 
 fn one_line_parse(line: &str) -> Option<FlatWhileStatement> {
     let mut words = line.split_whitespace();

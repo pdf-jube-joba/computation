@@ -86,7 +86,11 @@ pub fn parse_tape(tape: &str) -> Result<TapeForWeb, String> {
     }
     let left = parts[0].split(',').map(|s| s.trim().to_string()).collect();
     let head = parts[1].to_string();
-    let right = parts[2].split(',').map(|s| s.trim().to_string()).rev().collect();
+    let right = parts[2]
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .rev()
+        .collect();
     Ok(TapeForWeb::new(left, head, right))
 }
 
@@ -98,6 +102,27 @@ pub struct CodeEntry {
     next_sign: String,
     next_state: String,
     direction: String,
+}
+
+impl From<((String, String), (String, String, String))> for CodeEntry {
+    fn from(entry: ((String, String), (String, String, String))) -> Self {
+        CodeEntry {
+            key_sign: entry.0 .0,
+            key_state: entry.0 .1,
+            next_sign: entry.1 .0,
+            next_state: entry.1 .1,
+            direction: entry.1 .2,
+        }
+    }
+}
+
+impl From<CodeEntry> for ((String, String), (String, String, String)) {
+    fn from(entry: CodeEntry) -> Self {
+        (
+            (entry.key_sign, entry.key_state),
+            (entry.next_sign, entry.next_state, entry.direction),
+        )
+    }
 }
 
 #[wasm_bindgen]
@@ -150,7 +175,7 @@ impl CodeEntry {
 pub struct Code {
     init_state: String,
     accepted_state: Vec<String>,
-    code: Vec<CodeEntry>,
+    code: turing_machine_core::machine::Code, // = Vec<((Sign, State), (Sign, State, Direction))>,
 }
 
 #[wasm_bindgen]
@@ -167,7 +192,16 @@ impl Code {
 
     #[wasm_bindgen(getter)]
     pub fn code(&self) -> Vec<CodeEntry> {
-        self.code.clone()
+        self.code
+            .iter()
+            .map(|entry| CodeEntry {
+                key_sign: entry.0 .0.to_string(),
+                key_state: entry.0 .1.to_string(),
+                next_sign: entry.1 .0.to_string(),
+                next_state: entry.1 .1.to_string(),
+                direction: entry.1 .2.to_string(),
+            })
+            .collect()
     }
 }
 
@@ -192,21 +226,16 @@ pub fn parse_code(str: &str) -> Result<Code, String> {
         .map(|s| s.trim().to_string())
         .collect::<Vec<_>>();
 
-    let code = lines
-        .map(|line| {
-            let parts: Vec<&str> = line.split(",").collect();
-            if parts.len() != 5 {
-                return Err(format!("Invalid code entry: {}", line));
-            }
-            Ok(CodeEntry::new(
-                parts[0].trim().to_string(),
-                parts[1].trim().to_string(),
-                parts[2].trim().to_string(),
-                parts[3].trim().to_string(),
-                parts[4].trim().to_string(),
-            ))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let remains = lines.fold(String::new(), |acc, line| {
+        if line.trim().is_empty() {
+            acc
+        } else {
+            format!("{}\n{}", acc, line)
+        }
+    });
+
+    let code = turing_machine_core::manipulation::code::parse_code(&remains)
+        .map_err(|e| format!("Failed to parse code: {} at line:{}", e.1, e.0 + 2))?;
 
     let entire_code = Code {
         init_state,
@@ -227,25 +256,7 @@ fn construct_turing_machine_definition(code: Code) -> Result<TuringMachineDefini
         .into_iter()
         .map(|s| s.as_str().try_into())
         .collect::<Result<_, String>>()?;
-    let code: Vec<(_, _)> = code
-        .code
-        .into_iter()
-        .map(|entry| {
-            let s: ((Sign, State), (Sign, State, Direction)) = (
-                (
-                    entry.key_sign.as_str().try_into()?,
-                    entry.key_state.as_str().try_into()?,
-                ),
-                (
-                    entry.next_sign.as_str().try_into()?,
-                    entry.next_state.as_str().try_into()?,
-                    entry.direction.as_str().try_into()?,
-                ),
-            );
-            Ok(s)
-        })
-        .collect::<Result<_, String>>()?;
-    TuringMachineDefinition::new(init_state, accepted_state, code)
+    TuringMachineDefinition::new(init_state, accepted_state, code.code)
 }
 
 /// Helper function to lock `MACHINES` and retrieve the machine by `id`.

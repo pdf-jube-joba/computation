@@ -9,9 +9,10 @@ pub mod code {
         if v.len() < 5 {
             return Err("Code entry is too short".to_string());
         }
+        // .trim() で parse 用に成形する
         Ok((
-            (v[0].try_into()?, v[1].try_into()?),
-            (v[2].try_into()?, v[3].try_into()?, v[4].try_into()?),
+            (v[0].trim().try_into()?, v[1].trim().try_into()?),
+            (v[2].trim().try_into()?, v[3].trim().try_into()?, v[4].trim().try_into()?),
         ))
     }
 
@@ -19,7 +20,7 @@ pub mod code {
         let vec: Vec<CodeEntry> = code
             .lines()
             .enumerate()
-            .filter(|(_, line)| line.contains(','))
+            .filter(|(_, line)| !line.is_empty() && !line.starts_with('#') && line.contains(","))
             .map(|(index, line)| match parse_one_code_entry(line) {
                 Ok(entry) => Ok(entry),
                 Err(err) => Err((index, err)),
