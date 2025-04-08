@@ -363,3 +363,17 @@ pub fn next_direction(id: usize) -> Result<String, String> {
         .ok_or_else(|| "No next code available".to_string())?;
     Ok(next.1 .2.to_string())
 }
+
+#[wasm_bindgen]
+pub fn machine_is_terminate(id: usize) -> Result<bool, String> {
+    let machines = get_machine_by_id(id)?;
+    let machine = &machines[id];
+    Ok(machine.is_terminate())
+}
+
+#[wasm_bindgen]
+pub fn machine_is_accepted(id: usize) -> Result<bool, String> {
+    let machines = get_machine_by_id(id)?;
+    let machine = &machines[id];
+    Ok(machine.is_accepted())
+}

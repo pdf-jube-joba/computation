@@ -1,4 +1,4 @@
-import init, { CodeEntry, TapeForWeb, tape_left_index, tape_right_index, set_turing_machine, get_accepted_state, get_code, get_next_codeentry_index, get_initial_state, get_now_state, get_now_tape, new_turing_machine, parse_code, parse_tape, next_direction, step_machine } from "./pkg/turing_machine_web.js";
+import init, { CodeEntry, TapeForWeb, tape_left_index, tape_right_index, set_turing_machine, get_accepted_state, get_code, get_next_codeentry_index, get_initial_state, get_now_state, get_now_tape, new_turing_machine, parse_code, parse_tape, next_direction, step_machine, machine_is_terminate, machine_is_accepted } from "./pkg/turing_machine_web.js";
 
 // ---- wasm module glue code ----
 
@@ -104,10 +104,15 @@ export class TuringMachineViewModel {
 
         this.tape = get_now_tape(this.machineId);
         this.currentState = get_now_state(this.machineId);
+        let index = get_next_codeentry_index(this.machineId);
+        let is_accepted = machine_is_accepted(this.machineId);
+        console.log("is_accepted", is_accepted);
         this.view.update({
             tape: this.tape,
             state: this.currentState,
+            is_accepted: is_accepted,
             code: get_code(this.machineId),
+            index: index,
         });
     }
 
@@ -126,11 +131,20 @@ export class TuringMachineViewModel {
             step_machine(this.machineId);
             this.tape = get_now_tape(this.machineId);
             this.currentState = get_now_state(this.machineId);
-            const index = ne
+            let index;
+
+            try {
+                index = get_next_codeentry_index(this.machineId);
+            } catch (e) {
+
+            }
+
             this.view.update({
                 tape: this.tape,
                 state: this.currentState,
                 code: get_code(this.machineId),
+                is_accepted: machine_is_accepted(this.machineId),
+                index: index,
             });
         });
     }
@@ -169,12 +183,13 @@ export class TuringMachineView {
         this.container.appendChild(this.codeTable);
     }
 
-    update({ tape, state, code, index }) {
+    update({ tape, state, is_accepted, code, index }) {
         this.drawCode(code);
-        this.drawTape(tape, state);
         if (index !== undefined) {
             this.highlightCodeIndex(index);
         }
+        this.drawTape(tape);
+        this.drawState(state, is_accepted);
     }
 
     animateTape(direction, afterCallback) {
@@ -212,19 +227,19 @@ export class TuringMachineView {
         const rows = tbody.getElementsByTagName("tr");
         for (let i = 0; i < rows.length; i++) {
             if (i === index) {
-                rows[i].style.backgroundColor = "#f00";
+                rows[i].style.backgroundColor = "#9f9";
             } else {
                 rows[i].style.backgroundColor = "#fff";
             }
         }
     }
 
-    drawTape(tape, state) {
+    drawTape(tape) {
         this.tapeGroup.clear();
 
         const drawCell = (i, text, isHead) => {
             const x = i * (this.cellWidth + this.cellMargin);
-            const color = isHead ? "#f00" : "#0f0";
+            const color = isHead ? "#0f0" : "#aaa";
             this.tapeGroup
                 .rect(this.cellWidth, this.cellWidth)
                 .center(x, this.tapeYCenter)
@@ -245,10 +260,19 @@ export class TuringMachineView {
         for (let i = 0; i < 4; i++) {
             drawCell(i + 1, tape_right_index(tape, i), false);
         }
+    }
 
-        if (state) {
+    drawState(state, is_accepted) {
+        if (is_accepted) {
             this.tapeGroup
                 .text(state)
+                .fill("#00f")
+                .move(0, this.tapeYCenter + 5)
+                .font({ size: 5, anchor: "middle" });
+        } else {
+            this.tapeGroup
+                .text(state)
+                .fill("#0f0")
                 .move(0, this.tapeYCenter + 5)
                 .font({ size: 5, anchor: "middle" });
         }
