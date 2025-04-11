@@ -1,4 +1,7 @@
 WHITESPACE = _{ " " | "\n" }
+COMMENT_MULTILINE = _{ ("/*" ~ (!"*/" ~ COMMENT* ~ ANY)* ~ "*/") }
+COMMENT_ONELINE = _{ "//" ~ (!"\n" ~ ANY)* ~ "\n" }
+COMMENT = _{ COMMENT_MULTILINE | COMMENT_ONELINE }
 
 symbol = { "-" | "_" }
 name = @{ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
