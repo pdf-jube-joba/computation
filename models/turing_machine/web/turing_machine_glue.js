@@ -21,37 +21,35 @@ export class TuringMachineViewModel {
     machineId = undefined;
     currentState = null;
 
-    constructor(codeResource, tapeResource, viewId, startButtonId, stepButtonId, start_when_init = false) {
+    constructor(codeResource, tapeResource, controls, viewId) {
+        // control: UserControls
         this.codeResource = codeResource;
         this.tapeResource = tapeResource;
         this.view = new TuringMachineView(viewId);
-        this.startButton = document.getElementById(startButtonId);
-        this.startButton.onclick = () => {
+        this.controls = controls;
+        this.controls.setOnLoad(() => {
             this.loadCode();
             this.loadTape();
             this.start();
-        };
-        this.stepButton = document.getElementById(stepButtonId);
-        this.stepButton.onclick = () => {
+        });
+        this.controls.setOnStep(() => {
             this.step();
-        };
-        if (start_when_init) {
-            this.loadCode();
-            this.loadTape();
-            this.start();
-        }
+        });
     }
 
     loadCode() {
         console.log("load code");
         const text = this.codeResource.getText();
         console.log("text", text);
-        if (!text) return alert("Please write code");
+        if (!text) {
+            this.controls.handleError("Please write code");
+            return;
+        };
         try {
             this.code = parse_code(text);
             this.currentState = this.code.init_state;
         } catch (e) {
-            alert(`${e}`);
+            this.controls.handleError(e);
             return;
         }
     }
@@ -59,18 +57,24 @@ export class TuringMachineViewModel {
     loadTape() {
         console.log("load tape");
         const text = this.tapeResource.getText();
-        if (!text) return alert("Please write tape");
+        if (!text) {
+            this.controls.handleError("Please write tape");
+            return;
+        }
         try {
             this.tape = parse_tape(text);
         } catch (e) {
-            alert(`${e}`);
+            this.controls.handleError(e);
             return;
         }
     }
 
     start() {
         console.log("start");
-        if (!this.code || !this.tape) return alert("Please load code and tape");
+        if (!this.code || !this.tape) {
+            this.controls.handleError("Please load code and tape first");
+            return;
+        }
 
         if (this.machineId === undefined) {
             this.machineId = new_turing_machine(this.code, this.tape);
@@ -84,7 +88,8 @@ export class TuringMachineViewModel {
         try {
             index = get_next_codeentry_index(this.machineId);
         } catch {
-            // index is undefined
+            this.controls.handleError(e);
+            return;
         }
         let is_accepted = machine_is_accepted(this.machineId);
         console.log("is_accepted", is_accepted);
@@ -99,12 +104,15 @@ export class TuringMachineViewModel {
 
     step() {
         console.log("step");
-        if (this.machineId === undefined) return alert("Please initialize first");
+        if (this.machineId === undefined) {
+            this.controls.handleError("Please load code and tape first");
+            return;
+        }
         let direction;
         try {
             direction = next_direction(this.machineId);
-        } catch {
-            alert("machine is terminated");
+        } catch (e) {
+            this.controls.handleError(e);
             return;
         }
 
@@ -117,7 +125,8 @@ export class TuringMachineViewModel {
             try {
                 index = get_next_codeentry_index(this.machineId);
             } catch (e) {
-
+                this.controls.handleError(e);
+                return;
             }
 
             this.view.update({

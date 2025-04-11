@@ -78,9 +78,14 @@
 
 ## `utils.js` を呼び出す
 <script type="module">
-  import { TextAreaSource } from "./assets/utils.js";
-  let v = new TextAreaSource("test_code");
+  import { TextAreaSource, UserControls } from "./assets/utils.js";
+  let textinput = new TextAreaSource("test_code");
+  let controlinput = new UserControls("test_control");
+  controlinput.setOnLoad(() => {console.log("load")});
+  controlinput.setOnStep(() => {console.log("step")});
+  controlinput.time_interval = 1000;
 </script>
 <textarea id="test_code"> </textarea>
+<div id="test_control"> </div>
 
 `mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)

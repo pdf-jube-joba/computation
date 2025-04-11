@@ -16,37 +16,33 @@
 
 <script type="module">
     import { load, TuringMachineViewModel } from "../assets/generated/turing_machine/turing_machine_glue.js";
-    import { TextAreaSource, TextDefinedSource } from "../assets/utils.js";
+    import { TextAreaSource, TextDefinedSource, UserControls } from "../assets/utils.js";
     await load();
 
     let code_input1 = new TextDefinedSource("s \n g \n 1,s,2,s,R \n end,s,end,g,C");
     let tape_input1 = new TextDefinedSource("0|1|1,1,1,end");
+    let control1 = new UserControls("control1");
 
-    let view1 = new TuringMachineViewModel(code_input1, tape_input1, "view1", "start1", "step1", true);
+    let view1 = new TuringMachineViewModel(code_input1, tape_input1, control1, "view1");
 
     let res = await fetch("../assets/component/models_of_computation/sorting_01.txt");
     let txt = await res.text();
 
     let code_input2 = new TextDefinedSource(txt);
     let tape_input2 = new TextAreaSource("user_defined");
+    let control2 = new UserControls("control2");
 
-    let view2 = new TuringMachineViewModel(code_input2, tape_input2, "view2", "start2", "step2", true);
+    let view2 = new TuringMachineViewModel(code_input2, tape_input2, control2, "view2");
 </script>
 
 <div id="machine1">
-    <div id="control">
-        <button id="start1"> reset </button>
-        <button id="step1"> step </button>
-    </div>
+    <div id="control1"></div>
     <div id="view1">
     </div>
 </div>
 
 <div id="machine2">
-    <div id="control">
-        <button id="start2"> reset </button>
-        <button id="step2"> step </button>
-    </div>
+    <div id="control2"></div>
     <textarea id="user_defined" rows="1" cols="20"> x|0|1,1,0 </textarea>
     <div id="view2">
     </div>
