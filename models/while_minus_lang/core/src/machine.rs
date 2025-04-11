@@ -81,14 +81,6 @@ impl InstructionCommand {
             }
         }
     }
-    pub fn changed_var(&self) -> Var {
-        match self {
-            InstructionCommand::ClearVariable(var) => var.clone(),
-            InstructionCommand::IncVariable(var) => var.clone(),
-            InstructionCommand::DecVariable(var) => var.clone(),
-            InstructionCommand::CopyVariable(var1, _var2) => var1.clone(),
-        }
-    }
     pub fn used_var(&self) -> Vec<Var> {
         match self {
             InstructionCommand::ClearVariable(var) => vec![var.clone()],
@@ -132,15 +124,6 @@ impl WhileStatement {
             WhileStatement::Cont(ControlCommand::WhileNotZero(_var, statements)) => statements
                 .iter()
                 .flat_map(|statement| statement.used_var())
-                .collect(),
-        }
-    }
-    pub fn changed_var(&self) -> Vec<Var> {
-        match self {
-            WhileStatement::Inst(inst) => vec![inst.changed_var()],
-            WhileStatement::Cont(ControlCommand::WhileNotZero(_var, statements)) => statements
-                .iter()
-                .flat_map(|statement| statement.changed_var())
                 .collect(),
         }
     }
@@ -202,12 +185,6 @@ impl WhileLanguage {
     pub fn new(v: Vec<WhileStatement>) -> Self {
         WhileLanguage { statements: v }
     }
-    pub fn changed_var(&self) -> Vec<Var> {
-        (self.statements)
-            .iter()
-            .flat_map(|statement| statement.changed_var())
-            .collect()
-    }
 }
 
 impl From<Vec<WhileStatement>> for WhileLanguage {
@@ -268,6 +245,18 @@ impl ProgramProcess {
         } = self;
         let mut vec = (prog.statements).clone();
         vec.remove(*index)
+    }
+    pub fn step(&mut self) {
+        let ProgramProcess {
+            prog,
+            index,
+            env,
+        } = self;
+        if *index < prog.statements.len() {
+            let statement = &prog.statements[*index];
+            *env = eval_statement(statement, env.clone());
+            *index += 1;
+        }
     }
 }
 

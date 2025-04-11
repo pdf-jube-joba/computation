@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+utils = { workspace = true }
 while_minus_lang_core = { workspace = true }
 wasm-bindgen = { workspace = true }
 serde = { workspace = true }
