@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 utils = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+anyhow = { workspace = true }

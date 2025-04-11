@@ -8,5 +8,5 @@ inc = {"inc" ~ number}
 dec = {"dec" ~ number}
 clr = {"clr" ~ number}
 cop = {"cop" ~ number ~ number}
-ifz = {"if" ~ number ~ "is" ~ "zero" ~ "goto" ~ number}
+ifz = {"ifz" ~ number ~ "goto" ~ number}
 code = {(inc | dec | clr | cop | ifz)+ ~ EOI}

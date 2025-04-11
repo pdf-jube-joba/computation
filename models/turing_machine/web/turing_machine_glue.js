@@ -13,36 +13,6 @@ export const ready = new Promise(resolve => {
 
 // ---- wasm module glue code end ----
 
-// ---- input resource class ----
-// We can use this classes as text source
-
-// class provide text source from given textarea
-export class TextAreaSource {
-    // constructor from textarea_id
-    constructor(textarea_id) {
-        this.textarea = document.getElementById(textarea_id);
-    }
-
-    // return text: string
-    getText() {
-        return this.textarea.value;
-    }
-}
-
-// class provide text source from given text
-export class TextDefinedSource {
-    constructor(text) {
-        this.text = text;
-    }
-
-    // return text: string
-    getText() {
-        return this.text;
-    }
-}
-
-// ---- input resource class end ----
-
 // ---- turing machine model class ----
 
 export class TuringMachineViewModel {

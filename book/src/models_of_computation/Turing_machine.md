@@ -15,7 +15,8 @@
 2つめの例では、自由にテープを書いて試してみて。
 
 <script type="module">
-    import { load, TextAreaSource, TextDefinedSource, TuringMachineViewModel } from "../assets/generated/turing_machine/turing_machine_glue.js";
+    import { load, TuringMachineViewModel } from "../assets/generated/turing_machine/turing_machine_glue.js";
+    import { TextAreaSource, TextDefinedSource } from "../assets/utils.js";
     await load();
 
     let code_input1 = new TextDefinedSource("s \n g \n 1,s,2,s,R \n end,s,end,g,C");

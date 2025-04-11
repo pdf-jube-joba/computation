@@ -1,0 +1,20 @@
+WHITESPACE = _{ " " | "\n" }
+
+symbol = { "-" | "_" }
+name = @{ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
+
+inc_statement = { "inc" ~ name }
+dec_statement = { "dec" ~ name }
+clr_statement = { "clr" ~ name }
+cpy_statement = { "cpy" ~ name }
+while_statement = { "while_nz" ~ name ~ "{" ~ statement* ~  "}" }
+
+statement = {
+    inc_statement
+    | dec_statement
+    | clr_statement
+    | cpy_statement
+    | while_statement
+}
+
+program = { statement* }

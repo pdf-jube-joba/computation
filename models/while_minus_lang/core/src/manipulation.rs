@@ -1,41 +1,75 @@
-use crate::machine::{FlatWhileLanguage, FlatWhileStatement, WhileLanguage};
+use crate::machine::{WhileLanguage, WhileStatement};
+use anyhow::Result;
+use pest::{iterators::Pair, Parser};
 use utils::variable::Var;
 
-fn one_line_parse(line: &str) -> Option<FlatWhileStatement> {
-    let mut words = line.split_whitespace();
-    match words.next()? {
-        "inc" => {
-            let var: Var = words.next()?.try_into().ok()?;
-            Some(FlatWhileStatement::inc(var))
+#[derive(pest_derive::Parser)]
+#[grammar = "while_minus_language.pest"]
+struct Ps;
+
+pub fn parse_name(ps: Pair<Rule>) -> Var {
+    let name = ps.as_str();
+    name.into()
+}
+
+pub fn parse_one_statement(code: &str) -> Result<WhileStatement> {
+    let mut code = Ps::parse(Rule::statement, code)?;
+    let p = code.next().unwrap();
+    let rule = p.as_rule();
+    let mut l = p.into_inner();
+    let statement = match rule {
+        Rule::inc_statement => {
+            // take one var
+            let var = l.next().unwrap();
+            let var: Var = parse_name(var);
+            WhileStatement::inc(var)
         }
-        "dec" => {
-            let var: Var = words.next()?.try_into().ok()?;
-            Some(FlatWhileStatement::dec(var))
+        Rule::dec_statement => {
+            // take one var
+            let var = l.next().unwrap();
+            let var: Var = parse_name(var);
+            WhileStatement::dec(var)
         }
-        "init" => {
-            let var: Var = words.next()?.try_into().ok()?;
-            Some(FlatWhileStatement::init(var))
+        Rule::clr_statement => {
+            // take one var
+            let var = l.next().unwrap();
+            let var: Var = parse_name(var);
+            WhileStatement::clr(var)
         }
-        "copy" => {
-            let var1: Var = words.next()?.try_into().ok()?;
-            let var2: Var = words.next()?.try_into().ok()?;
-            Some(FlatWhileStatement::copy(var1, var2))
+        Rule::cpy_statement => {
+            // take two var
+            let var0 = l.next().unwrap();
+            let var0: Var = parse_name(var0);
+            let var1 = l.next().unwrap();
+            let var1: Var = parse_name(var1);
+            WhileStatement::cpy(var0, var1)
         }
-        "while" => {
-            let var: Var = words.next()?.try_into().ok()?;
-            Some(FlatWhileStatement::while_not_zero(var))
+        Rule::while_statement => {
+            // while `var` { statements* }
+            let var = l.next().unwrap();
+            let var: Var = parse_name(var);
+            let mut statements = vec![];
+            for statement in l {
+                assert!(statement.as_rule() == Rule::statement);
+                let statement = parse_one_statement(statement.as_str()).unwrap();
+                statements.push(statement);
+            }
+            WhileStatement::while_not_zero(var, statements)
         }
-        "end" => Some(FlatWhileStatement::while_end()),
-        _ => None,
+        _ => {
+            unreachable!()
+        }
+    };
+    Ok(statement)
+}
+
+pub fn program(code: &str) -> Result<WhileLanguage> {
+    let code = Ps::parse(Rule::program, code)?;
+    let mut statements = vec![];
+    for p in code {
+        assert!(p.as_rule() == Rule::statement);
+        let statement = parse_one_statement(p.as_str()).unwrap();
+        statements.push(statement);
     }
-}
-
-pub fn parse_flat(code: &str) -> Option<FlatWhileLanguage> {
-    let vec: Option<Vec<FlatWhileStatement>> = code.lines().map(one_line_parse).collect();
-    Some(vec?.into())
-}
-
-pub fn parse(code: &str) -> Option<WhileLanguage> {
-    let vec: Option<Vec<FlatWhileStatement>> = code.lines().map(one_line_parse).collect();
-    FlatWhileLanguage::from(vec?).try_into().ok()
+    Ok(WhileLanguage::new(statements))
 }

@@ -20,16 +20,11 @@
         }
     </style>
     <script src="../../../book/assets/vendor/svg.js"></script>
-    </script>
     <script type="module">
+        import { load } from "../web/while_minus_lang_glue.js";
         import { TextAreaSource, TextDefinedSource } from "../../../book/src/assets/utils.js";
-        import { load, TuringMachineViewModel } from "../web/turing_machine_glue.js";
+        import { WhileMinusLangViewModel } from "../web/while_minus_lang_glue.js";
         await load();
-
-        let code_input = new TextAreaSource("code_input");
-        let tape_input = new TextDefinedSource("x|0|1,1,0,1,0,0,1,1");
-
-        let view = new TuringMachineViewModel(code_input, tape_input, "view", "start", "step");
     </script>
 </head>
 

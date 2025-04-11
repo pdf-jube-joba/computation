@@ -7,6 +7,12 @@ pub enum Var {
 }
 
 impl Var {
+    pub fn new_s(s: String) -> Self {
+        Var::S(s)
+    }
+    pub fn new_u(u: usize) -> Self {
+        Var::U(u)
+    }
     pub fn into_s(self) -> Self {
         match self {
             Var::S(s) => Var::S(s),

@@ -6,5 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+utils = { workspace =  true }
 while_minus_lang_core = { workspace = true }
 recursive_function_core = { workspace = true }

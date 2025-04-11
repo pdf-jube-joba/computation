@@ -844,6 +844,7 @@ name = "recursive_function_to_while_minus_lang"
 version = "0.1.0"
 dependencies = [
  "recursive_function_core",
+ "utils",
  "while_minus_lang_core",
 ]
 
@@ -1226,6 +1227,9 @@ version = "0.1.0"
 name = "while_minus_lang_core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "pest",
+ "pest_derive",
  "utils",
 ]
 
@@ -1236,6 +1240,12 @@ version = "0.1.0"
 [[package]]
 name = "while_minus_lang_web"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "while_minus_lang_core",
+]
 
 [[package]]
 name = "windows-targets"

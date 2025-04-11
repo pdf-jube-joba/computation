@@ -9,6 +9,7 @@
 
 # テスト
 
+## SVG.js と wasm の連携コード
 `src/assets/test.js` を読み込んで、`SVG.js` で書くテスト。
 ```
 <script type="module">
@@ -74,5 +75,12 @@
 </div>
 
 呼び出しここまで
+
+## `utils.js` を呼び出す
+<script type="module">
+  import { TextAreaSource } from "./assets/utils.js";
+  let v = new TextAreaSource("test_code");
+</script>
+<textarea id="test_code"> </textarea>
 
 `mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)

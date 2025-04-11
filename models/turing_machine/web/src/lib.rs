@@ -1,10 +1,10 @@
 use std::sync::{LazyLock, Mutex};
-use turing_machine_core::machine::{
-    Direction, Sign, State, Tape, TuringMachineDefinition, TuringMachineSet,
-};
 use wasm_bindgen::prelude::*;
+use turing_machine_core::machine::{
+    Sign, State, Tape, TuringMachineDefinition, TuringMachineSet,
+};
 
-// many global mutable tapes
+// many global mutable turing machines
 static MACHINES: LazyLock<Mutex<Vec<TuringMachineSet>>> = LazyLock::new(|| Mutex::new(vec![]));
 
 #[wasm_bindgen]
