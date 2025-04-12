@@ -64,7 +64,7 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
             WhileStatement::while_end()
         }
         _ => {
-            return Err(anyhow::anyhow!("unreachable"));
+            return Err(anyhow::anyhow!("unreachable {} {:?}", p.as_str(), p.as_rule()));
         }
     };
     Ok(statement)
@@ -83,15 +83,13 @@ pub fn program(code: &str) -> Result<Vec<WhileStatement>> {
 }
 
 pub fn program_read_to_end(code: &str) -> Result<Vec<WhileStatement>> {
-    let mut code = Ps::parse(Rule::program_end, code)?;
+    let mut code = Ps::parse(Rule::program_read_to_end, code)?;
     let code = code.next().unwrap();
-    let code = code.into_inner();
-    let mut statements = vec![];
-    for p in code {
-        let statement = parse_one_statement(p)?;
-        statements.push(statement);
-    }
-    Ok(statements)
+    let mut code = code.into_inner();
+    let p = code.next().unwrap();
+    assert!(p.as_rule() == Rule::program);
+
+    program(p.as_str())
 }
 
 #[cfg(test)]
@@ -102,22 +100,27 @@ mod tests {
         // empty code is acceptable
         let code = "";
         assert!(program(code).is_ok());
+        assert!(program_read_to_end(code).is_ok());
 
         // one line with no \n
         let code = "inc x";
         assert!(program(code).is_ok());
+        assert!(program_read_to_end(code).is_ok());
 
         // one line with \n
         let code = "inc x \n";
         assert!(program(code).is_ok());
+        assert!(program_read_to_end(code).is_ok());
 
         // two line
         let code = "inc x\n inc x";
         assert!(program(code).is_ok());
+        assert!(program_read_to_end(code).is_ok());
 
         // one line start with space
         let code = " inc x";
         assert!(program(code).is_ok());
+        assert!(program_read_to_end(code).is_ok());
     }
     #[test]
     fn parse_comment() {
@@ -206,7 +209,6 @@ mod tests {
     #[test]
     fn parse_fail_test() {
         let code = "i";
-
         // result is ok
         // because pest does not consume the input
         let result = program(code);

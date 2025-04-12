@@ -8,6 +8,26 @@ static MACHINES: LazyLock<Mutex<Vec<while_minus_lang_core::machine::ProgramProce
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnvSet {
+    name: String,
+    value: usize,
+}
+
+#[wasm_bindgen]
+impl EnvSet {
+    #[wasm_bindgen(getter)]
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn value(&self) -> usize {
+        self.value
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProgramState {
     program: Vec<String>,
     current_line: Option<usize>,
@@ -38,13 +58,6 @@ impl From<ProgramProcess> for ProgramState {
             env,
         }
     }
-}
-
-#[wasm_bindgen]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EnvSet {
-    name: String,
-    value: usize,
 }
 
 #[wasm_bindgen]
@@ -132,9 +145,8 @@ pub fn new_while_machine(code: &str, envs: &str) -> Result<usize, String> {
 
 #[wasm_bindgen]
 pub fn set_while_machine(id: usize, code: &str, envs: &str) -> Result<(), String> {
-    let mut machines = get_machine_by_id(id)?;
     let code: Vec<WhileStatement> =
-        while_minus_lang_core::manipulation::program(code).map_err(|e| format!("{:?}", e))?;
+        while_minus_lang_core::manipulation::program_read_to_end(code).map_err(|e| format!("{:?}", e))?;
     let env = parse_env(envs)?
         .into_iter()
         .map(|env| {
@@ -144,8 +156,20 @@ pub fn set_while_machine(id: usize, code: &str, envs: &str) -> Result<(), String
         })
         .collect();
     let envs = Environment { env };
+    let mut machines = get_machine_by_id(id)?;
     machines[id] = ProgramProcess::new(code, envs);
     Ok(())
+}
+
+#[wasm_bindgen]
+pub fn step_while_machine(id: usize) -> Result<(), String> {
+    let mut machines = get_machine_by_id(id)?;
+    let machine = &mut machines[id];
+    if machine.step() {
+        Ok(())
+    } else {
+        Err("Machine has finished".to_string())
+    }
 }
 
 #[wasm_bindgen]

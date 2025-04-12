@@ -1,4 +1,4 @@
-import init, { new_while_machine, set_while_machine, get_code, get_current_line, get_env } from "./pkg/while_minus_lang_web.js";
+import init, { new_while_machine, set_while_machine, step_while_machine, get_code, get_current_line, get_env } from "./pkg/while_minus_lang_web.js";
 
 // ---- wasm module glue code ----
 
@@ -16,7 +16,6 @@ export class WhileMinusLangViewModel {
     code = null;
     env = null;
     machineId = undefined;
-    currentLine = null;
 
     constructor(codeResource, envResource, controls, viewId) {
         // control: UserControls
@@ -41,12 +40,7 @@ export class WhileMinusLangViewModel {
             this.controls.handleError("Please write code");
             return;
         };
-        try {
-            this.code = text;
-        } catch (e) {
-            this.controls.handleError(e);
-            return;
-        }
+        this.code = text;
         console.log("code", this.code);
     }
 
@@ -57,12 +51,7 @@ export class WhileMinusLangViewModel {
             this.controls.handleError("Please write env");
             return;
         };
-        try {
-            this.env = text;
-        } catch (e) {
-            this.controls.handleError(e);
-            return;
-        }
+        this.env = text;
         console.log("env", this.env);
     }
 
@@ -78,18 +67,32 @@ export class WhileMinusLangViewModel {
                 return;
             }
         } else {
+            console.log("set while machine", this.machineId, this.code, this.env);
             try {
                 set_while_machine(this.machineId, this.code, this.env);
             } catch (e) {
                 this.controls.handleError(e);
                 return;
             }
-            console.log("machineId", this.machineId);
         }
+        console.log("machineId", this.machineId);
 
-        this.currentLine = get_current_line(this.machineId);
-        this.env = get_env(this.machineId);
-        this.view.update({ code: this.code, env: this.env, currentLine: this.currentLine });
+        this.view.update({ code: get_code(this.machineId), env: get_env(this.machineId), currentLine: get_current_line(this.machineId) });
+    }
+
+    step() {
+        console.log("step");
+        if (this.machineId === undefined) {
+            this.controls.handleError("Please load code and env first");
+            return;
+        }
+        try {
+            step_while_machine(this.machineId);
+            this.view.update({ code: get_code(this.machineId), env: get_env(this.machineId), currentLine: get_current_line(this.machineId) });
+        } catch (e) {
+            this.controls.handleError(e);
+            return;
+        }
     }
 }
 
@@ -111,42 +114,58 @@ export class WhileMinusLangView {
         // add thead
         this.container.appendChild(this.codeTable);
 
-        // --- pre for code
-        this.codePre = document.createElement("pre");
-        this.codePre.className = "code";
-        this.codePre.innerText = "";
+        // --- div for code
+        this.codePreview = document.createElement("code");
+        this.codePreview.className = "code";
+        this.codePreview.innerText = "";
+        // add code div
+        this.container.appendChild(this.codePreview);
     }
 
     update({ code, env, currentLine }) {
         this.drawCode(code, currentLine);
-        this.updateEnv(env);
+        this.drawEnv(env);
     }
 
     drawCode(codearr, currentLine) {
         // clear old code
-        this.codePre.innerText = "";
-        // draw new code
-        codearr.forEach((entry, index) => {
-            const line = document.createElement("div");
-            line.innerText = entry;
+        this.codePreview.innerText = "";
+
+        // code div
+        const inner = document.createElement("code");
+        // for each line in codearr, add line number + <pre> code </pre>
+        codearr.forEach((line, index) => {
+            const lineDiv = document.createElement("pre");
+            lineDiv.className = "line";
+            lineDiv.innerText = `${index + 1}: ${line}`;
             if (index === currentLine) {
-                line.className = "current-line";
+                lineDiv.classList.add("current");
             }
-            this.codePre.appendChild(line);
+            inner.appendChild(lineDiv);
         });
-        this.container.appendChild(this.codePre);
+
+        // append code
+        this.codePreview.appendChild(inner);
     }
 
     drawEnv(envarr) {
         // clear old env
         this.codeTable.innerHTML = "";
 
+        // add thead
+        const thead = this.codeTable.createTHead();
+        const row = thead.insertRow();
+        row.insertCell().innerText = "variable";
+        row.insertCell().innerText = "number";
+        // add thead
+        this.container.appendChild(this.codeTable);
+
         // draw new env
         const newTbody = this.codeTable.createTBody();
         envarr.forEach((entry) => {
             const row = newTbody.insertRow();
-            row.insertCell().innerText = entry.variable;
-            row.insertCell().innerText = entry.number;
+            row.insertCell().innerText = entry.name;
+            row.insertCell().innerText = entry.value;
         });
     }
 }

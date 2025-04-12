@@ -129,24 +129,24 @@ impl Display for WhileStatement {
         let str: String = match self {
             WhileStatement::Inst(inst) => match inst {
                 InstructionCommand::ClearVariable(var) => {
-                    format!("clr {var:?} \n")
+                    format!("clr {var} \n")
                 }
                 InstructionCommand::IncVariable(var) => {
-                    format!("inc {var:?} \n")
+                    format!("inc {var} \n")
                 }
                 InstructionCommand::DecVariable(var) => {
-                    format!("dec {var:?} \n")
+                    format!("dec {var} \n")
                 }
                 InstructionCommand::CopyVariable(var1, var2) => {
-                    format!("cpy {var1:?} {var2:?} \n")
+                    format!("cpy {var1} <- {var2} \n")
                 }
             },
             WhileStatement::Cont(cont) => match cont {
                 ControlCommand::WhileNotZero(var) => {
-                    format!("while_nz {var:?} {{ \n")
+                    format!("while_nz {var} {{ \n")
                 }
                 ControlCommand::WhileEnd => {
-                    "}} \n".to_string()
+                    "} \n".to_string()
                 }
             },
         };
@@ -186,14 +186,14 @@ impl ProgramProcess {
     pub fn is_terminate(&self) -> bool {
         self.index.is_none()
     }
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> bool {
         let ProgramProcess {
             prog,
             index: index_opt,
             env,
         } = self;
         let Some(index) = index_opt else {
-            return;
+            return false;
         };
         debug_assert!(*index < prog.len());
 
@@ -215,7 +215,7 @@ impl ProgramProcess {
                             *index += 1;
                             if *index >= prog.len() {
                                 *index_opt = None;
-                                return;
+                                return false;
                             }
 
                             match &prog[*index] {
@@ -233,7 +233,7 @@ impl ProgramProcess {
                         }
                         if stack != 0 {
                             *index_opt = None;
-                            return;
+                            return false;
                         }
                     } else {
                         // Enter the while loop
@@ -249,7 +249,7 @@ impl ProgramProcess {
                     loop {
                         if *index == 0 {
                             *index_opt = None;
-                            return;
+                            return false;
                         }
 
                         *index -= 1;
@@ -269,7 +269,8 @@ impl ProgramProcess {
                     }
                 }
             },
-        }
+        };
+        true
     }
 }
 
