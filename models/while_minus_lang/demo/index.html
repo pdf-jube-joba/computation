@@ -21,26 +21,24 @@
     </style>
     <script src="../../../book/assets/vendor/svg.js"></script>
     <script type="module">
-        import { load } from "../web/while_minus_lang_glue.js";
+        import { load, WhileMinusLangViewModel } from "../web/while_minus_lang_glue.js";
         import { TextAreaSource, TextDefinedSource, UserControls } from "../../../book/src/assets/utils.js";
-        import { WhileMinusLangViewModel } from "../web/while_minus_lang_glue.js";
         await load();
 
         let code_input = new TextAreaSource("code_input");
+        let env_input = new TextAreaSource("env");
         let control = new UserControls("control");
+        let view = new WhileMinusLangViewModel(code_input, env_input, control, "canvas");
     </script>
 </head>
 
 <body>
     <h1>Test View</h1>
     <div id="machine">
-        <div id="input">
-            <textarea id="code_input" rows="10"></textarea>
-            <!-- <textarea id="tape_input" rows="1" cols="30"></textarea> <br /> -->
-        </div>
+        <textarea id="code_input" rows="10"></textarea>
+        <textarea id="env" rows="1"></textarea>
         <div id="control"></div>
-        <div id="view">
-        </div>
+        <div id="canvas"></div>
     </div>
 </body>
 

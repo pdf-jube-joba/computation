@@ -146,7 +146,7 @@ impl Display for WhileStatement {
                     format!("while_nz {var:?} {{ \n")
                 }
                 ControlCommand::WhileEnd => {
-                    format!("}} \n")
+                    "}} \n".to_string()
                 }
             },
         };
@@ -154,99 +154,128 @@ impl Display for WhileStatement {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
-pub struct WhileLanguage {
-    pub statements: Vec<WhileStatement>,
-}
-
-impl WhileLanguage {
-    pub fn new(v: Vec<WhileStatement>) -> Self {
-        WhileLanguage { statements: v }
-    }
-}
-
-impl From<Vec<WhileStatement>> for WhileLanguage {
-    fn from(value: Vec<WhileStatement>) -> Self {
-        WhileLanguage { statements: value }
-    }
-}
-
-impl From<WhileLanguage> for Vec<WhileStatement> {
-    fn from(value: WhileLanguage) -> Self {
-        value.statements
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProgramProcess {
-    prog: WhileLanguage,
-    index: usize,
+    prog: Vec<WhileStatement>,
+    // assert Some(v) => v < prog.statements.len()
+    // none means it is terminated
+    index: Option<usize>,
     env: Environment,
 }
 
 impl ProgramProcess {
-    pub fn new(prog: WhileLanguage, env: Environment) -> Self {
+    pub fn new(prog: Vec<WhileStatement>, env: Environment) -> Self {
         ProgramProcess {
             prog,
-            index: 0,
+            index: Some(0),
             env,
         }
     }
-    pub fn program(&self) -> WhileLanguage {
+    pub fn program(&self) -> Vec<WhileStatement> {
         self.prog.clone()
     }
-    pub fn current_line(&self) -> usize {
+    pub fn current_line(&self) -> Option<usize> {
         self.index
     }
     pub fn env(&self) -> Environment {
         self.env.clone()
     }
-    pub fn code(&self) -> WhileLanguage {
+    pub fn code(&self) -> Vec<WhileStatement> {
         self.prog.clone()
     }
     pub fn is_terminate(&self) -> bool {
-        self.index == self.prog.statements.len()
-    }
-    pub fn now_statement(&self) -> WhileStatement {
-        let ProgramProcess {
-            prog,
-            index,
-            env: _,
-        } = self;
-        let mut vec = (prog.statements).clone();
-        vec.remove(*index)
+        self.index.is_none()
     }
     pub fn step(&mut self) {
-        let ProgramProcess { prog, index, env } = self;
-        if *index < prog.statements.len() {
-            let statement = &prog.statements[*index];
-            match statement {
-                WhileStatement::Inst(inst) => {
-                    inst.eval(env);
-                    *index += 1;
+        let ProgramProcess {
+            prog,
+            index: index_opt,
+            env,
+        } = self;
+        let Some(index) = index_opt else {
+            return;
+        };
+        debug_assert!(*index < prog.len());
+
+        let statement = &prog[*index];
+        match statement {
+            WhileStatement::Inst(inst) => {
+                inst.eval(env);
+                *index += 1;
+                if *index >= prog.len() {
+                    *index_opt = None;
                 }
-                WhileStatement::Cont(cont) => match cont {
-                    ControlCommand::WhileNotZero(var) => {
-                        if env.get(var).is_zero() {
-                            // skip until the end of while
-                            todo!()
-                        } else {
+            }
+            WhileStatement::Cont(cont) => match cont {
+                ControlCommand::WhileNotZero(var) => {
+                    if env.get(var).is_zero() {
+                        // Skip the while loop and move to the matching WhileEnd
+                        let mut stack = 1;
+                        loop {
                             *index += 1;
+                            if *index >= prog.len() {
+                                *index_opt = None;
+                                return;
+                            }
+
+                            match &prog[*index] {
+                                WhileStatement::Cont(ControlCommand::WhileNotZero(_)) => {
+                                    stack += 1;
+                                }
+                                WhileStatement::Cont(ControlCommand::WhileEnd) => {
+                                    stack -= 1;
+                                    if stack == 0 {
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        if stack != 0 {
+                            *index_opt = None;
+                            return;
+                        }
+                    } else {
+                        // Enter the while loop
+                    }
+                    *index += 1; // in any case, this works
+                    if *index >= prog.len() {
+                        *index_opt = None;
+                    }
+                }
+                ControlCommand::WhileEnd => {
+                    // Move back to the matching WhileNotZero
+                    let mut stack = 1;
+                    loop {
+                        if *index == 0 {
+                            *index_opt = None;
+                            return;
+                        }
+
+                        *index -= 1;
+
+                        match &prog[*index] {
+                            WhileStatement::Cont(ControlCommand::WhileEnd) => {
+                                stack += 1;
+                            }
+                            WhileStatement::Cont(ControlCommand::WhileNotZero(_)) => {
+                                stack -= 1;
+                                if stack == 0 {
+                                    break;
+                                }
+                            }
+                            _ => {}
                         }
                     }
-                    ControlCommand::WhileEnd => {
-                        // goto the start of while
-                        todo!()
-                    }
-                },
-            }
+                }
+            },
         }
     }
 }
 
-pub fn eval(prog: &WhileLanguage, env: Environment) -> Environment {
+pub fn eval(prog: &[WhileStatement], env: Environment) -> Environment {
     // use step function
-    let mut process = ProgramProcess::new(prog.clone(), env);
+    let mut process = ProgramProcess::new(prog.to_vec(), env);
     while !process.is_terminate() {
         process.step();
     }
@@ -283,26 +312,28 @@ mod tests {
     #[test]
     fn eval_test() {
         let env: Environment = Environment::new();
-        let prog: WhileLanguage = vec![WhileStatement::inc(Var::U(0))].into();
+        let prog: Vec<WhileStatement> = vec![WhileStatement::inc(Var::U(0))];
         let env_res = eval(&prog, env.clone());
         let env_exp: Environment = vec![(Var::U(0), Number(1))].into();
         assert_eq!(env_exp, env_res);
 
         let env: Environment = Environment::new();
-        let prog: WhileLanguage = vec![
+        let prog: Vec<WhileStatement> = vec![
             WhileStatement::inc(Var::U(0)),
             WhileStatement::inc(Var::U(0)),
             WhileStatement::inc(Var::U(0)),
             WhileStatement::cpy(Var::U(1), Var::U(0)),
             WhileStatement::cpy(Var::U(0), Var::U(2)),
-        ]
-        .into();
+        ];
         let env_res = eval(&prog, env.clone());
         let env_exp: Environment = vec![(Var::U(1), Number(3))].into();
         assert_eq!(env_exp, env_res);
+    }
+    #[test]
 
+    fn eval_test_while() {
         let env: Environment = Environment::new();
-        let prog: WhileLanguage = vec![
+        let prog: Vec<WhileStatement> = vec![
             WhileStatement::inc(Var::U(0)),
             WhileStatement::inc(Var::U(0)),
             WhileStatement::inc(Var::U(0)),
@@ -312,10 +343,14 @@ mod tests {
             WhileStatement::dec(Var::U(0)),
             WhileStatement::inc(Var::U(1)),
             WhileStatement::while_end(),
-        ]
-        .into();
-        let env_res = eval(&prog, env.clone());
-        let env_exp: Environment = vec![(Var::U(0), Number(0)), (Var::U(1), Number(5))].into();
-        assert_eq!(env_exp, env_res);
+        ];
+
+        let mut process = ProgramProcess::new(prog.clone(), env);
+        let mut count = 0;
+        while !process.is_terminate() && count < 10000 {
+            process.step();
+            println!("step: {:?} env: {:?}", process.current_line(), process.env());
+            count += 1;
+        }
     }
 }

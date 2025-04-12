@@ -112,8 +112,8 @@ export class UserControls {
 
     handleError(e) {
         this.error_handler(e);
-        console.log("auto stop");
         if (this.auto_mode) {
+            console.log("auto stop");
             this.toggleAuto();
         }
     }

@@ -4,13 +4,15 @@ COMMENT_ONELINE = _{ "//" ~ (!"\n" ~ ANY)* ~ "\n" }
 COMMENT = _{ COMMENT_MULTILINE | COMMENT_ONELINE }
 
 symbol = { "-" | "_" }
-name = @{ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
+name = @{ (ASCII_ALPHA | symbol) ~ (ASCII_ALPHA | ASCII_DIGIT | symbol)* }
+number = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 
 inc_statement = { "inc" ~ name }
 dec_statement = { "dec" ~ name }
 clr_statement = { "clr" ~ name }
-cpy_statement = { "cpy" ~ name }
-while_statement = { "while_nz" ~ name ~ "{" ~ statement* ~  "}" }
+cpy_statement = { "cpy" ~ name ~ "<-" ~  name }
+while_statement = { "while_nz" ~ name ~ "{" }
+while_end = { "}" }
 
 statement = {
     inc_statement
@@ -18,6 +20,8 @@ statement = {
     | clr_statement
     | cpy_statement
     | while_statement
+    | while_end
 }
 
-program = { statement* }
+program = { ((statement ~ "\n")* ~ statement)* }
+program_end = { program ~ EOI }
