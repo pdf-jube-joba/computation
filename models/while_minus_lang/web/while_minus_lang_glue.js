@@ -59,7 +59,7 @@ export class WhileMinusLangViewModel {
         console.log("start");
 
         if (this.machineId === undefined) {
-            console.log("new while machine", this.code, this.env);
+            console.log("new while machine");
             try {
                 this.machineId = new_while_machine(this.code, this.env);
             } catch (e) {
@@ -67,7 +67,7 @@ export class WhileMinusLangViewModel {
                 return;
             }
         } else {
-            console.log("set while machine", this.machineId, this.code, this.env);
+            console.log("set while machine", this.machineId);
             try {
                 set_while_machine(this.machineId, this.code, this.env);
             } catch (e) {
@@ -116,7 +116,6 @@ export class WhileMinusLangView {
 
         // --- div for code
         this.codePreview = document.createElement("code");
-        this.codePreview.className = "code";
         this.codePreview.innerText = "";
         // add code div
         this.container.appendChild(this.codePreview);
@@ -131,8 +130,6 @@ export class WhileMinusLangView {
         // clear old code
         this.codePreview.innerText = "";
 
-        // code div
-        const inner = document.createElement("code");
         // for each line in codearr, add line number + <pre> code </pre>
         codearr.forEach((line, index) => {
             const lineDiv = document.createElement("pre");
@@ -141,11 +138,8 @@ export class WhileMinusLangView {
             if (index === currentLine) {
                 lineDiv.classList.add("current");
             }
-            inner.appendChild(lineDiv);
+            this.codePreview.appendChild(lineDiv);
         });
-
-        // append code
-        this.codePreview.appendChild(inner);
     }
 
     drawEnv(envarr) {

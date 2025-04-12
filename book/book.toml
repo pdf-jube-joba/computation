@@ -18,3 +18,8 @@ macros = "macros.txt"
 additional-js = [
     "assets/vendor/svg.js",
 ]
+
+additional-css = [
+    "assets/css/logic_circuit.css",
+    "assets/css/models_of_computation.css",
+]

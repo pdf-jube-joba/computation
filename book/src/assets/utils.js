@@ -3,9 +3,20 @@
 
 // class provide text source from given textarea
 export class TextAreaSource {
+    is_ready = false;
+
     // constructor from textarea_id
     constructor(textarea_id) {
         this.textarea = document.getElementById(textarea_id);
+        // prevent propagation of keyevent
+        // to chapter navigation
+        // next page by rightarrow key
+        // prev page by leftarrow key
+        this.textarea.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                e.stopPropagation();
+            }
+        });
     }
 
     // return text: string
@@ -16,6 +27,9 @@ export class TextAreaSource {
 
 // class provide text source from given text
 export class TextDefinedSource {
+    is_ready = true;
+
+    // constructor from text
     constructor(text) {
         this.text = text;
     }

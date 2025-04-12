@@ -1,0 +1,19 @@
+#canvas {
+    border: 2px solid #888;
+    box-sizing: border-box;
+    background-color: white;
+}
+
+th,
+td {
+    border: 1px solid rgb(160 160 160);
+    padding: 8px 10px;
+}
+
+.current {
+    background-color: #6f6;
+}
+
+pre {
+    margin: 0;
+}

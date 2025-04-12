@@ -129,24 +129,24 @@ impl Display for WhileStatement {
         let str: String = match self {
             WhileStatement::Inst(inst) => match inst {
                 InstructionCommand::ClearVariable(var) => {
-                    format!("clr {var} \n")
+                    format!("clr {var}")
                 }
                 InstructionCommand::IncVariable(var) => {
-                    format!("inc {var} \n")
+                    format!("inc {var}")
                 }
                 InstructionCommand::DecVariable(var) => {
-                    format!("dec {var} \n")
+                    format!("dec {var}")
                 }
                 InstructionCommand::CopyVariable(var1, var2) => {
-                    format!("cpy {var1} <- {var2} \n")
+                    format!("cpy {var1} <- {var2}")
                 }
             },
             WhileStatement::Cont(cont) => match cont {
                 ControlCommand::WhileNotZero(var) => {
-                    format!("while_nz {var} {{ \n")
+                    format!("while_nz {var} {{")
                 }
                 ControlCommand::WhileEnd => {
-                    "} \n".to_string()
+                    "}".to_string()
                 }
             },
         };

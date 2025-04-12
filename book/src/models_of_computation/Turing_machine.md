@@ -9,6 +9,8 @@
 最終的に終了状態と呼ばれる状態に行きついたら動作は終了であり、どんなテープを入力すると停止するのか、その時のテープの状態はどうか、
 といった部分を計算とみなすことができる。
 
+## 具体例
+
 1つめの例は、テープにある `1` を全部 `2` に書き換える例。
 2つめの例は、テープにある `0` と `1` の"仕分け"を行う例。
 両方とも、 `step` ボタンを押すと状態が遷移して、 `reset` を押すと一番最初に戻る。
@@ -25,7 +27,7 @@
 
     let view1 = new TuringMachineViewModel(code_input1, tape_input1, control1, "view1");
 
-    let res = await fetch("../assets/component/models_of_computation/sorting_01.txt");
+    let res = await fetch("../assets/component/models_of_computation/Turing_machine_sorting_01.txt");
     let txt = await res.text();
 
     let code_input2 = new TextDefinedSource(txt);

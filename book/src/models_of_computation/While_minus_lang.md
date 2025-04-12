@@ -1,14 +1,56 @@
 # while-minus 言語（ざっくり）
 プログラミング言語として while-minus 言語というものを見てみる。
-（これは適当に要素をひいて作った。）
+（これは適当に While 言語というものから要素をひいて作った。）
 この言語は、変数を 
 - 初期化（０を入れる）する
 - 1 だけ加算する
 - 1 だけ減算する
+- 値をコピーする
 
 ような単純な文に加え、
-`while` と呼ばれる、**指定された変数が `0` でない場合は**中に含まれる文達を実行し続ける制御構造からなる。
-プログラムは単に上から実行していくだけである。
+`while` と呼ばれる、 **指定された変数が `0` でない場合は** 中に含まれる文達を実行し続ける制御構造からなる。
+
+## 具体例
+
+1つめの例は \(x * y\) を計算するプログラム
+2つめの例は \(\text{gcd}(x, y)\) を計算するプログラム
+
+<script type="module">
+    import { load, WhileMinusLangViewModel } from "../assets/generated/while_minus_lang/while_minus_lang_glue.js";
+    import { TextAreaSource, TextDefinedSource, UserControls } from "../assets/utils.js";
+    await load();
+
+    let res1 = await fetch("../assets/component/models_of_computation/while_minus_lang_multiplication.txt");
+    let txt1 = await res1.text();
+
+    let code_input1 = new TextDefinedSource(txt1);
+    let tape_input1 = new TextDefinedSource("x=5, y=3");
+    let control1 = new UserControls("control1");
+
+    let view1 = new WhileMinusLangViewModel(code_input1, tape_input1, control1, "view1");
+
+    let res2 = await fetch("../assets/component/models_of_computation/while_minus_lang_gcd.txt");
+    let txt2 = await res2.text();
+
+    let code_input2 = new TextDefinedSource(txt2);
+    let tape_input2 = new TextAreaSource("user_defined");
+    let control2 = new UserControls("control2");
+
+    let view2 = new WhileMinusLangViewModel(code_input2, tape_input2, control2, "view2");
+</script>
+
+<div id="machine1">
+    <div id="control1"></div>
+    <div id="view1">
+    </div>
+</div>
+
+<div id="machine2">
+    <div id="control2"></div>
+    <textarea id="user_defined" rows="1" cols="20"> x = 6, y = 4 </textarea>
+    <div id="view2">
+    </div>
+</div>
 
 ## 直感的な説明
 while 言語は変数と呼ばれる何かを各文を実行するごとに更新していく。
@@ -31,8 +73,6 @@ while プログラムは次のように動作する。
 結果として \(x = 0, y = 2\) となった。
 
 具体例は以下。
-
-<component id="while_minus_lang_example">
 
 # while-minus 言語（ちゃんとした解説）
 
