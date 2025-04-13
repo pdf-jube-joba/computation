@@ -5,7 +5,6 @@
 - [計算モデルと計算について](./models_of_computation.md)
     - [チューリングマシン](./models_of_computation/Turing_machine.md)
     - [While(minus) 言語](./models_of_computation/While_minus_lang.md)
-    - [レジスターマシン](./models_of_computation/Register_machine.md)
     - [ラムダ計算](./models_of_computation/Lambda_calculus.md)
     - [再帰関数](./models_of_computation/Recursive_function.md)
     - [強さの比較について](./models_of_computation/Comparison.md)

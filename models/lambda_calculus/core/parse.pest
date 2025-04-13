@@ -1,0 +1,18 @@
+WHITESPACE = _{ " " | "\n" }
+COMMENT_MULTILINE = _{ ("/*" ~ (!"*/" ~ COMMENT* ~ ANY)* ~ "*/") }
+COMMENT_ONELINE = _{ "//" ~ (!"\n" ~ ANY)* ~ "\n" }
+COMMENT = _{ COMMENT_MULTILINE | COMMENT_ONELINE }
+
+symbol = { "-" | "_" }
+name = @{ (ASCII_ALPHA | symbol) ~ (ASCII_ALPHA | ASCII_DIGIT | symbol)* }
+
+var = { name }
+abs = { "\\" ~ var+ ~ "." ~ exp }
+exp = {
+    var
+    | abs
+    | exp_paren
+}
+exp_paren = { "(" ~ exp+ ~ ")"}
+
+lambda_read_to_end = { exp+ ~ EOI }

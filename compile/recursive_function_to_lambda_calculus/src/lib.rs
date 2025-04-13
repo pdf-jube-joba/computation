@@ -1,17 +1,18 @@
 use lambda_calculus_core::example::*;
 use lambda_calculus_core::machine::LambdaTerm;
+use lambda_calculus_core::manipulation::utility::var;
 use recursive_function_core::machine::RecursiveFunctions;
 use utils::number::*;
 
 pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
     fn term(num: Number) -> LambdaTerm {
         if num.is_zero() {
-            LambdaTerm::var(1)
+            var!(0)
         } else {
-            LambdaTerm::app(LambdaTerm::var(0), term(num.pred()))
+            LambdaTerm::app(LambdaTerm::var(0.into()), term(num.pred()))
         }
     }
-    LambdaTerm::abs(0, LambdaTerm::abs(1, term(num)))
+    LambdaTerm::abs(0.into(), LambdaTerm::abs(1.into(), term(num)))
 }
 
 pub fn lambda_term_to_number(term: LambdaTerm) -> Option<Number> {
@@ -55,25 +56,25 @@ pub fn lambda_term_to_number(term: LambdaTerm) -> Option<Number> {
 // \xyz.x(\pq.q(py))(\v.z)(\v.v) = \xyz.xMNL
 pub fn pred() -> LambdaTerm {
     let m = LambdaTerm::abs(
-        3,
+        3.into(),
         LambdaTerm::abs(
-            4,
+            4.into(),
             LambdaTerm::app(
-                LambdaTerm::var(4),
-                LambdaTerm::app(LambdaTerm::var(3), LambdaTerm::var(0)),
+                LambdaTerm::var(4.into()),
+                LambdaTerm::app(LambdaTerm::var(3.into()), LambdaTerm::var(0.into())),
             ),
         ),
     );
-    let n = LambdaTerm::abs(5, LambdaTerm::var(1));
-    let l = LambdaTerm::abs(5, LambdaTerm::var(5));
+    let n = LambdaTerm::abs(5.into(), LambdaTerm::var(1.into()));
+    let l = LambdaTerm::abs(5.into(), LambdaTerm::var(5.into()));
     LambdaTerm::abs(
-        2,
+        2.into(),
         LambdaTerm::abs(
-            0,
+            0.into(),
             LambdaTerm::abs(
-                1,
+                1.into(),
                 LambdaTerm::app(
-                    LambdaTerm::app(LambdaTerm::app(LambdaTerm::var(2), m), n),
+                    LambdaTerm::app(LambdaTerm::app(LambdaTerm::var(2.into()), m), n),
                     l,
                 ),
             ),
@@ -83,9 +84,12 @@ pub fn pred() -> LambdaTerm {
 
 pub fn is_zero() -> LambdaTerm {
     LambdaTerm::abs(
-        0,
+        0.into(),
         LambdaTerm::app(
-            LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::abs(1, false_lambda())),
+            LambdaTerm::app(
+                LambdaTerm::var(0.into()),
+                LambdaTerm::abs(1.into(), false_lambda()),
+            ),
             true_lambda(),
         ),
     )
@@ -94,16 +98,16 @@ pub fn is_zero() -> LambdaTerm {
 // \xyz.y(xyz)
 pub fn succ() -> LambdaTerm {
     LambdaTerm::abs(
-        2,
+        2.into(),
         LambdaTerm::abs(
-            0,
+            0.into(),
             LambdaTerm::abs(
-                1,
+                1.into(),
                 LambdaTerm::app(
-                    LambdaTerm::var(0),
+                    LambdaTerm::var(0.into()),
                     LambdaTerm::app(
-                        LambdaTerm::app(LambdaTerm::var(2), LambdaTerm::var(0)),
-                        LambdaTerm::var(1),
+                        LambdaTerm::app(LambdaTerm::var(2.into()), LambdaTerm::var(0.into())),
+                        LambdaTerm::var(1.into()),
                     ),
                 ),
             ),
@@ -116,7 +120,7 @@ pub fn projection(n: usize, i: usize) -> Option<LambdaTerm> {
     if n < i {
         None
     } else {
-        Some(take_n_abs((0..n).collect(), LambdaTerm::var(i)))
+        Some(take_n_abs((0..n).collect(), LambdaTerm::var(i.into())))
     }
 }
 
@@ -126,7 +130,7 @@ pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> Lambd
     v.extend(inner.into_iter().map(|term| {
         fold_left({
             let mut v2 = vec![term];
-            v2.extend((0..n).map(LambdaTerm::var));
+            v2.extend((0..n).map(|i| LambdaTerm::var(i.into())));
             v2
         })
     }));
@@ -137,25 +141,25 @@ pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> Lambd
 // THIS = \x0,,,xn. if (iszero x0) (f x1,,,xn) (g (THIS (pred x0) x1,,,xn) (pred x0) x1,,,xn)
 pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm {
     // is_zero 0
-    let is_zero = LambdaTerm::app(is_zero(), LambdaTerm::var(0));
+    let is_zero = LambdaTerm::app(is_zero(), LambdaTerm::var(0.into()));
 
     // f x1 ... xn
     let f_new = fold_left({
         let mut v = vec![f];
-        v.extend((1..=n).map(LambdaTerm::var));
+        v.extend((1..=n).map(|i| LambdaTerm::var(i.into())));
         v
     });
 
     // g (n+1 (pred 0) 1 ... n) (pred 0) 1 ... n
     let g_new = fold_left({
-        let pred_0 = LambdaTerm::app(pred(), LambdaTerm::var(0));
+        let pred_0 = LambdaTerm::app(pred(), LambdaTerm::var(0.into()));
         let p = {
-            let mut v = vec![LambdaTerm::var(n + 1), pred_0.clone()];
-            v.extend((1..=n).map(LambdaTerm::var));
+            let mut v = vec![LambdaTerm::var((n + 1).into()), pred_0.clone()];
+            v.extend((1..=n).map(|i| LambdaTerm::var(i.into())));
             fold_left(v)
         };
         let mut t = vec![g, p, pred_0];
-        t.extend((1..=n).map(LambdaTerm::var));
+        t.extend((1..=n).map(|i| LambdaTerm::var(i.into())));
         t
     });
     let fix = if_lambda(is_zero, f_new, g_new);
@@ -180,19 +184,19 @@ pub fn mu_recursion(n: usize, f: LambdaTerm) -> LambdaTerm {
         (0..=n).collect(),
         fold_left({
             let mut v = vec![f];
-            v.extend((0..=n).map(LambdaTerm::var));
+            v.extend((0..=n).map(|i| LambdaTerm::var(i.into())));
             v
         }),
     );
     let rec = fold_left({
         let mut v = vec![
-            LambdaTerm::var(n + 1),
-            LambdaTerm::app(succ(), LambdaTerm::var(0)),
+            LambdaTerm::var((n + 1).into()),
+            LambdaTerm::app(succ(), LambdaTerm::var(0.into())),
         ];
-        v.extend((1..=n).map(LambdaTerm::var));
+        v.extend((1..=n).map(|i| LambdaTerm::var(i.into())));
         v
     });
-    let fix = if_lambda(is_zero, LambdaTerm::var(0), rec);
+    let fix = if_lambda(is_zero, LambdaTerm::var(0.into()), rec);
     LambdaTerm::app(
         y_combinator(),
         take_n_abs(

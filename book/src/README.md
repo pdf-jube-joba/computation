@@ -92,3 +92,6 @@
 ## katex で数式
 
 `mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)
+
+# references
+- 横内寛文, プログラム意味論

@@ -7,6 +7,8 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+lambda_calculus_core = { workspace = true }
+wasm-bindgen = { workspace = true }
 
 [lints]
 workspace = true

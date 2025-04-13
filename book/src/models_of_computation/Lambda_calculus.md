@@ -1,22 +1,64 @@
-# ラムダ計算
-## 参考文献
-- 横内寛文, プログラム意味論
-
-## ざっくりとした説明ととりあえず動く見本
+# ラムダ計算 （ざっくり）
 ラムダ計算とは、ラムダ項と呼ばれる式と、その間の"変換"と呼ばれる関係式により、式をどんどん変形していく計算モデルである。
+**多分今紹介している中では一番わかりにくい。**
 
 - ラムダ項は変数・関数の宣言・関数の関数適用、みたいなもののみを使って作られる
+    - 変数は `x` とか `y` とか
+    - 関数の宣言はちょっと独特で、 `f(x) = x + 1` を `\x. x` のように書く。
+    - 関数の適用も独特で、 `f(5)` を `(f 5)` のように書く。
 - ラムダ項は現れる変数を（その束縛に注意しつつ）適当に変更してよい
-- ラムダ項はその中に関数の関数適用がある場合、関数を呼び出した結果で置き換えてよい
+    - `f(x) = x + 1` と `f(y) = y + 1` が同じ関数であるのと同じように、 `\x. x` と `\y. y` は同じとみなす。
+- ラムダ項はその中に関数の適用があると、変数の置き換えを行う。
+    - `f(x) = x + 1` としたとき `f(5)` はまず書き換えると `5 + 1` になるのと同じように、 `(\x. x + 1) 5` はまず書き換えると `5 + 1` になる。
 
-この変換は、どの部分を先に変更するかによって結果が変わってくるが、ラムダ項の変換はどの順でやってもだいたい合流する。
-この点で、ラムダ計算は、"次にどう変化するか"が指定されていない計算モデルである。
-（計算モデルとは何かが具体的に数学的構造として定まっているわけではないので、まあ「○○は計算モデルである」というのはあまり意味のない言葉ではある。）
+説明にはわかりやすく `+` を使ったけれど、
+ふつうのラムダ項には実際はそういうものがない。
 
-一方で、ラムダ計算はたしかに計算現象をとらえているようにも思えるし、チューリングマシンと同じぐらい複雑で、
-特に、（適当な符号化というか同一視というかそんな感じのやつによって）再帰関数を計算しているとみなすことができる。
+## 具体例
+わかりやすい例が全然ないので、とりあえずいろいろ動く例を載せた。
 
-注意点として、ラムダ項の定義を見ると、自然数や足し算などの"余計な"記号が一切入っていないのでわかりにくいかもしれない。
+<script type="module">
+    import { load, LambdaCalculusViewModel } from "../assets/generated/lambda_calculus/lambda_calculus_glue.js";
+    import { TextAreaSource, TextDefinedSource, UserControls } from "../assets/utils.js";
+    await load();
+
+    let code_input1 = new TextAreaSource("user_defined1");
+    let control1 = new UserControls("control1");
+
+    let view1 = new LambdaCalculusViewModel(code_input1, control1, "view1");
+
+    let code_input2 = new TextAreaSource("user_defined2");
+    let control2 = new UserControls("control2");
+
+    let view2 = new LambdaCalculusViewModel(code_input2, control2, "view2");
+</script>
+
+まずは、 `f(x) = x` に対して、 `f(y)` を計算する例
+
+<div id="machine1">
+    <div id="control1"></div>
+    <textarea id="user_defined1" rows="1" cols="20"> (\x.x) y </textarea>
+    <div id="view1">
+    </div>
+</div>
+
+次はちょっと長い。
+自然数を次のようにラムダ項にうつす。
+- \(0\) は `\s. \z. z`
+- \(1\) は `\s. \z. (s z)`
+- \(2\) は `\s. \z. (s (s z))`
+- \(3\) は `\s. \z. (s (s (s z)))`
+こう考えると、 \(s(n) = n \mapsto n + 1\) を表す関数は、 `\x.\y.\z. (y ((x y) z))` とすればいい。
+\(s(2)\) はそうすると次のようになる。
+
+<div id="machine2">
+    <div id="control2"></div>
+    <textarea id="user_defined2" rows="1" cols="60"> (\ x y z. (y ((x y) z))) (\s z. (s (s z))) </textarea>
+    <div id="view2">
+    </div>
+</div>
+
+ちゃんと \(3\) に対応する表現が得られている。
 
 ## 定義
 ### 変数について

@@ -11,12 +11,18 @@ pub enum LambdaTerm {
     Application(Box<LambdaTerm>, Box<LambdaTerm>),
 }
 
-impl LambdaTerm {
-    pub fn var(i: usize) -> Self {
-        LambdaTerm::Variable(i.into())
+impl From<Var> for LambdaTerm {
+    fn from(var: Var) -> Self {
+        LambdaTerm::Variable(var)
     }
-    pub fn abs(i: usize, term: LambdaTerm) -> Self {
-        LambdaTerm::Abstraction(i.into(), Box::new(term))
+}
+
+impl LambdaTerm {
+    pub fn var(var: Var) -> Self {
+        LambdaTerm::Variable(var)
+    }
+    pub fn abs(var: Var, term: LambdaTerm) -> Self {
+        LambdaTerm::Abstraction(var, Box::new(term))
     }
     pub fn app(term1: LambdaTerm, term2: LambdaTerm) -> Self {
         LambdaTerm::Application(Box::new(term1), Box::new(term2))
@@ -52,16 +58,15 @@ impl LambdaTerm {
 
 impl Display for LambdaTerm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let string: String = match self {
-            LambdaTerm::Variable(var) => var.to_string(),
+        match self {
+            LambdaTerm::Variable(var) => write!(f, "[{var}]"),
             LambdaTerm::Abstraction(var, term) => {
-                "\\".to_owned() + &var.to_string() + "." + &*term.to_string()
+                write!(f, "\\{var}.{}", term)
             }
             LambdaTerm::Application(term1, term2) => {
-                "(".to_owned() + &term1.to_string() + " " + &term2.to_string() + ")"
+                write!(f, "({} {})", term1, term2)
             }
-        };
-        writeln!(f, "{}", string)
+        }
     }
 }
 
@@ -290,57 +295,87 @@ mod tests {
     #[test]
     fn alpha_eq_test() {
         let tests = vec![
-            (LambdaTerm::var(0), LambdaTerm::var(0), true),
-            (LambdaTerm::var(0), LambdaTerm::var(1), false),
+            (LambdaTerm::var(0.into()), LambdaTerm::var(0.into()), true),
+            (LambdaTerm::var(0.into()), LambdaTerm::var(1.into()), false),
             (
-                LambdaTerm::abs(0, LambdaTerm::var(0)),
-                LambdaTerm::abs(1, LambdaTerm::var(1)),
+                LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
+                LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
                 true,
             ),
             (
-                LambdaTerm::abs(0, LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::var(1))),
-                LambdaTerm::abs(2, LambdaTerm::app(LambdaTerm::var(2), LambdaTerm::var(1))),
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::app(LambdaTerm::var(0.into()), LambdaTerm::var(1.into())),
+                ),
+                LambdaTerm::abs(
+                    2.into(),
+                    LambdaTerm::app(LambdaTerm::var(2.into()), LambdaTerm::var(1.into())),
+                ),
                 true,
             ),
             (
-                LambdaTerm::abs(0, LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::var(0))),
-                LambdaTerm::abs(2, LambdaTerm::app(LambdaTerm::var(2), LambdaTerm::var(1))),
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::app(LambdaTerm::var(0.into()), LambdaTerm::var(0.into())),
+                ),
+                LambdaTerm::abs(
+                    2.into(),
+                    LambdaTerm::app(LambdaTerm::var(2.into()), LambdaTerm::var(1.into())),
+                ),
                 false,
             ),
             (
-                LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(0))),
-                LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(1))),
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(0.into())),
+                ),
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
+                ),
                 false,
             ),
             (
-                LambdaTerm::abs(0, LambdaTerm::abs(0, LambdaTerm::var(0))),
-                LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(1))),
-                true,
-            ),
-            (
-                LambdaTerm::abs(0, LambdaTerm::abs(0, LambdaTerm::var(2))),
-                LambdaTerm::abs(0, LambdaTerm::abs(1, LambdaTerm::var(2))),
-                true,
-            ),
-            (
-                LambdaTerm::app(
-                    LambdaTerm::abs(0, LambdaTerm::var(0)),
-                    LambdaTerm::abs(1, LambdaTerm::var(1)),
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
                 ),
-                LambdaTerm::app(
-                    LambdaTerm::abs(1, LambdaTerm::var(1)),
-                    LambdaTerm::abs(1, LambdaTerm::var(1)),
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
                 ),
                 true,
             ),
             (
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::abs(0.into(), LambdaTerm::var(2.into())),
+                ),
+                LambdaTerm::abs(
+                    0.into(),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(2.into())),
+                ),
+                true,
+            ),
+            (
                 LambdaTerm::app(
-                    LambdaTerm::abs(0, LambdaTerm::var(0)),
-                    LambdaTerm::abs(1, LambdaTerm::var(1)),
+                    LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
                 ),
                 LambdaTerm::app(
-                    LambdaTerm::abs(1, LambdaTerm::var(1)),
-                    LambdaTerm::abs(1, LambdaTerm::var(1)),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
+                ),
+                true,
+            ),
+            (
+                LambdaTerm::app(
+                    LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
+                ),
+                LambdaTerm::app(
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
+                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
                 ),
                 true,
             ),

@@ -48,7 +48,7 @@ impl Display for Var {
             Var::U(u) => u.to_string(),
             Var::S(s) => s.clone(),
         };
-        write!(f, "({})", s)
+        write!(f, "{}", s)
     }
 }
 

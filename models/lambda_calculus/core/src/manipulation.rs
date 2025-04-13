@@ -1,221 +1,221 @@
-pub mod parse {
-    use std::ops::Range;
-
+pub mod utility {
     use crate::machine::LambdaTerm;
+    use utils::variable::Var;
 
-    pub fn brackets(str: &str, start: usize) -> Option<usize> {
-        if str.len() <= start {
-            return None;
+    pub fn apps(first: LambdaTerm, remains: Vec<LambdaTerm>) -> LambdaTerm {
+        let mut term = first;
+        for remain in remains {
+            term = LambdaTerm::app(term, remain);
         }
-        let mut stack = Vec::new();
+        term
+    }
 
-        for (index, character) in str[start..].chars().enumerate() {
-            if character == '(' {
-                stack.push(index);
-            } else if character == ')' {
-                stack.pop()?;
-                if stack.is_empty() {
-                    return Some(start + index);
+    pub fn app_with_nonepmty(all: Vec<LambdaTerm>) -> LambdaTerm {
+        assert!(!all.is_empty());
+        let term = all[0].clone();
+        let remains = all[1..].to_vec();
+        apps(term, remains)
+    }
+
+    pub fn lambdas(pres: Vec<Var>, last: LambdaTerm) -> LambdaTerm {
+        let mut term = last;
+        for pre in pres.into_iter().rev() {
+            term = LambdaTerm::abs(pre, term);
+        }
+        term
+    }
+
+    #[macro_export]
+    macro_rules! var {
+        ($v:expr) => {
+            utils::variable::Var::from(($v)).into()
+        };
+    }
+
+    #[macro_export]
+    macro_rules! lam {
+        ($v:expr, $t:expr) => {
+            $crate::machine::LambdaTerm::abs($v, $t)
+        };
+    }
+
+    // e1 e2 ... en = (((e1 e2) e3) ... en)
+    #[macro_export]
+    macro_rules! app {
+        ($( $x:expr ),*) => {
+            {
+                let mut alls = vec![];
+                $(
+                    alls.push($x);
+                )*
+                $crate::manipulation::utility::app_with_nonepmty(alls)
+            }
+        };
+    }
+
+    pub use {app, lam, var};
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::machine::LambdaTerm;
+
+        #[test]
+        fn test_var() {
+            let term: Var = var!("x");
+            assert_eq!(term, Var::from("x"));
+        }
+        #[test]
+        fn test_lam() {
+            let term = lam!(var!("x"), var!("y"));
+            assert_eq!(term, LambdaTerm::abs(var!("x"), LambdaTerm::var(var!("y"))));
+        }
+        #[test]
+        fn test_app() {
+            // "x"
+            let term = app!(var!("x"));
+            assert_eq!(term, LambdaTerm::var(var!("x")));
+
+            // "x y"
+            let term = app!(var!("x"), var!("y"));
+            assert_eq!(
+                term,
+                LambdaTerm::app(LambdaTerm::var(var!("x")), LambdaTerm::var(var!("y")))
+            );
+
+            // "(x y) z"
+            let term = app!(var!("x"), var!("y"), var!("z"));
+            assert_eq!(
+                term,
+                LambdaTerm::app(
+                    LambdaTerm::app(LambdaTerm::var(var!("x")), LambdaTerm::var(var!("y"))),
+                    LambdaTerm::var(var!("z"))
+                )
+            );
+        }
+    }
+}
+
+pub mod parse {
+    use pest::{iterators::Pair, Parser};
+    use utils::variable::Var;
+
+    use crate::{
+        machine::LambdaTerm,
+        manipulation::utility::{self, app_with_nonepmty},
+    };
+
+    #[derive(pest_derive::Parser)]
+    #[grammar = "parse.pest"]
+    pub struct Ps;
+
+    pub fn parse_exp(p: Pair<Rule>) -> Result<LambdaTerm, String> {
+        assert_eq!(p.as_rule(), Rule::exp);
+        let mut ps = p.into_inner();
+        let term = ps.next().unwrap();
+        match term.as_rule() {
+            Rule::var => {
+                let var: Var = term.as_str().into();
+                Ok(LambdaTerm::var(var))
+            }
+            Rule::abs => {
+                let mut ps = term.into_inner();
+                let mut vars = vec![];
+                while ps.peek().map(|p| p.as_rule()) == Some(Rule::var) {
+                    let var: Var = ps.next().unwrap().as_str().into();
+                    vars.push(var);
                 }
+                let exp = parse_exp(ps.next().unwrap())?;
+                Ok(utility::lambdas(vars, exp))
             }
-        }
-        None
-    }
-
-    // Some(index) = index -> index <= self.str.len()
-    struct SplitWhiteBracket<'a> {
-        str: &'a str,
-        index: Option<usize>,
-    }
-
-    impl<'a> SplitWhiteBracket<'a> {
-        fn new(str: &'a str) -> Self {
-            SplitWhiteBracket {
-                str,
-                index: Some(0),
+            Rule::exp_paren => {
+                let mut ps = term.into_inner();
+                let first = parse_exp(ps.next().unwrap())?;
+                let remains = ps.map(|p| parse_exp(p)).collect::<Result<Vec<_>, _>>()?;
+                let term = utility::apps(first, remains);
+                Ok(term)
             }
+            _ => unreachable!("exp should be \"var\" or \"abs\" or \"exp_paren\""),
         }
     }
 
-    impl<'a> Iterator for SplitWhiteBracket<'a> {
-        type Item = Range<usize>;
-        fn next(&mut self) -> Option<Self::Item> {
-            if let Some(start) = self.index {
-                let end: usize = {
-                    let first_char = self.str.chars().nth(start).unwrap();
-                    if first_char == '(' {
-                        brackets(self.str, start)
-                            .map(|i| i + 1)
-                            .unwrap_or(self.str.len())
-                    } else {
-                        self.str[start..]
-                            .find(|char: char| char == '(' || char.is_whitespace())
-                            .map(|off_set| start + off_set)
-                            .unwrap_or(self.str.len())
-                    }
-                };
-
-                // end <= str.len()
-                let range = start..end;
-
-                // end == str.len() -> self.index = None; -> iter.next() = None;
-                self.index = if let Some(off_set) =
-                    self.str[end..].find(|char: char| !char.is_whitespace())
-                {
-                    if end + off_set < self.str.len() {
-                        Some(end + off_set)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-                Some(range)
-            } else {
-                None
-            }
-        }
+    pub fn parse_lambda(code: &str) -> Result<LambdaTerm, String> {
+        let mut code = Ps::parse(Rule::exp, code.trim()).map_err(|e| e.to_string())?;
+        let p = code.next().unwrap();
+        parse_exp(p)
     }
 
-    pub fn parse_lambda(str: &str) -> Option<LambdaTerm> {
-        let first_char = str.chars().next()?;
-        if first_char == '\\' {
-            if let Some(index) = str.find('.') {
-                let var: usize = str[1..index].parse::<usize>().ok()?;
-                let term = parse_lambda(&str[index + 1..])?;
-                Some(LambdaTerm::abs(var, term))
-            } else {
-                None
-            }
-        } else {
-            SplitWhiteBracket::new(str.trim())
-                .map(|range| {
-                    if !str[range.clone()].contains(|char: char| char == '(' || char == ')') {
-                        let u: usize = str[range].parse().ok()?;
-                        Some(LambdaTerm::var(u))
-                    } else {
-                        parse_lambda(&str[range.start + 1..range.end - 1])
-                    }
-                })
-                .collect::<Option<Vec<LambdaTerm>>>()?
-                .into_iter()
-                .reduce(LambdaTerm::app)
-        }
+    pub fn parse_lambda_read_to_end(code: &str) -> Result<LambdaTerm, String> {
+        let mut code =
+            Ps::parse(Rule::lambda_read_to_end, code.trim()).map_err(|e| e.to_string())?;
+        let p = code.next().unwrap();
+        let ps: Vec<_> = p
+            .into_inner()
+            .filter(|p| p.as_rule() == Rule::exp)
+            .map(|p| parse_exp(p))
+            .collect::<Result<_, _>>()?;
+        debug_assert!(!ps.is_empty());
+        Ok(app_with_nonepmty(ps))
     }
 
     #[cfg(test)]
     mod tests {
-        #[test]
-        fn curly_test() {
-            let tests = vec![
-                ("()", 0, Some(1)),
-                (")", 0, None),
-                ("(", 0, None),
-                ("(())", 0, Some(3)),
-                ("(()())", 0, Some(5)),
-                ("(()())", 1, Some(2)),
-                ("(()())", 3, Some(4)),
-            ];
+        use crate::manipulation::utility::{app, lam, var};
 
-            for (str, index, expect) in tests {
-                assert_eq!(brackets(str, index), expect);
-            }
-        }
-        #[test]
-        fn split_test() {
-            let str = "0";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), None);
-
-            let str = "0  ";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), None);
-
-            let str = "0 1";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), Some(2..3));
-            assert_eq!(iter.next(), None);
-
-            let str = "0 1 ";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), Some(2..3));
-            assert_eq!(iter.next(), None);
-
-            let str = "0 (0 1) 1";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), Some(2..7));
-            assert_eq!(iter.next(), Some(8..9));
-            assert_eq!(iter.next(), None);
-
-            let str = "0(0 1)1";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), Some(1..6));
-            assert_eq!(iter.next(), Some(6..7));
-            assert_eq!(iter.next(), None);
-
-            let str = "0  ((0) 1)1";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), Some(3..10));
-            assert_eq!(iter.next(), Some(10..11));
-            assert_eq!(iter.next(), None);
-
-            let str = "0  ((0) 1)1 ";
-            let mut iter = SplitWhiteBracket::new(str);
-            assert_eq!(iter.next(), Some(0..1));
-            assert_eq!(iter.next(), Some(3..10));
-            assert_eq!(iter.next(), Some(10..11));
-            assert_eq!(iter.next(), None);
-        }
+        use super::*;
         #[test]
         fn parse_test() {
-            let tests = vec![
-                ("0", Some(LambdaTerm::var(0))),
-                ("1", Some(LambdaTerm::var(1))),
-                ("\\0.0", Some(LambdaTerm::abs(0, LambdaTerm::var(0)))),
-                (
-                    "\\0.\\1.0",
-                    Some(LambdaTerm::abs(
-                        0,
-                        LambdaTerm::abs(1, LambdaTerm::Variable(0.into())),
-                    )),
-                ),
-                (
-                    "0 1",
-                    Some(LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::var(1))),
-                ),
-                (
-                    "(0 1) 2",
-                    Some(LambdaTerm::app(
-                        LambdaTerm::app(LambdaTerm::var(0), LambdaTerm::var(1)),
-                        LambdaTerm::var(2),
-                    )),
-                ),
-                (
-                    "\\0.1 2",
-                    Some(LambdaTerm::abs(
-                        0,
-                        LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(2)),
-                    )),
-                ),
-                (
-                    "\\0.(1 2)",
-                    Some(LambdaTerm::abs(
-                        0,
-                        LambdaTerm::app(LambdaTerm::var(1), LambdaTerm::var(2)),
-                    )),
-                ),
-            ];
-            for (str, expect) in tests {
-                assert_eq!(parse_lambda(str), expect)
-            }
+            let code = "x";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, var!("x"));
+
+            let code = "(x)";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, var!("x"));
+
+            let code = " x";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, var!("x"));
+
+            let code = "\\x.x";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, lam!(var!("x"), var!("x")));
+
+            let code = "(\\x.x)";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, lam!(var!("x"), var!("x")));
+
+            let code = "(x y)";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, app!(var!("x"), var!("y")));
+
+            let code = "x y";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, app!(var!("x"), var!("y")));
+
+            let code = "(x y z)";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, app!(var!("x"), var!("y"), var!("z")));
+
+            let code = "x y z";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, app!(var!("x"), var!("y"), var!("z")));
+
+            let code = "(\\x.x y)";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, app!(lam!(var!("x"), var!("x")), var!("y")));
+
+            let code = "(\\x.x) y";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, app!(lam!(var!("x"), var!("x")), var!("y")));
+
+            let code = "(\\x. (x y))";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, lam!(var!("x"), app!(var!("x"), var!("y"))));
+
+            let code = "\\ x y. x";
+            let term = parse_lambda_read_to_end(code).unwrap();
+            assert_eq!(term, lam!(var!("x"), lam!(var!("y"), var!("x"))));
         }
-        use super::*;
     }
 }

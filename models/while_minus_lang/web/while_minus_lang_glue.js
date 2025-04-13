@@ -12,6 +12,8 @@ export const ready = new Promise(resolve => {
 });
 
 // ---- wasm module glue code end ----
+
+// ---- view model class ----
 export class WhileMinusLangViewModel {
     code = null;
     env = null;

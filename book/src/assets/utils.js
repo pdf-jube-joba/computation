@@ -23,6 +23,10 @@ export class TextAreaSource {
     getText() {
         return this.textarea.value;
     }
+
+    setDefaultText(text) {
+        this.textarea.value = text;
+    }
 }
 
 // class provide text source from given text
@@ -37,6 +41,10 @@ export class TextDefinedSource {
     // return text: string
     getText() {
         return this.text;
+    }
+
+    setDefaultText(text) {
+        this.text = text;
     }
 }
 
