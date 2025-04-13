@@ -252,7 +252,7 @@ mod tests {
                 if is_normal(&lam) {
                     break;
                 }
-                lam = left_most_reduction(lam);
+                lam = left_most_reduction(lam).unwrap();
             }
             let res = lambda_term_to_number(lam);
             assert_eq!(res, Some(i.into()))
@@ -268,7 +268,7 @@ mod tests {
             if is_normal(&lam) {
                 break;
             }
-            lam = left_most_reduction(lam);
+            lam = left_most_reduction(lam).unwrap();
         }
         assert!(is_true(lam));
 
@@ -279,7 +279,7 @@ mod tests {
             if is_normal(&lam) {
                 break;
             }
-            lam = left_most_reduction(lam);
+            lam = left_most_reduction(lam).unwrap();
         }
         assert!(is_false(lam));
 
@@ -290,7 +290,7 @@ mod tests {
             if is_normal(&lam) {
                 break;
             }
-            lam = left_most_reduction(lam);
+            lam = left_most_reduction(lam).unwrap();
         }
         assert!(is_false(lam));
     }

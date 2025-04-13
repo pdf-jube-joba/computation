@@ -18,6 +18,19 @@
             border: 1px solid rgb(160 160 160);
             padding: 8px 10px;
         }
+
+        .var_lambda {
+            background-color: aqua;
+        }
+        .body_lambda {
+            background-color: lightblue;
+        }
+        .arg_lambda {
+            background-color: lightgreen;
+        }
+        pre {
+            margin: 0;
+        }
     </style>
     <script src="../../../book/assets/vendor/svg.js"></script>
     </script>
@@ -38,7 +51,7 @@
     <h1>Test View</h1>
     <div id="machine">
         <div id="input">
-            <textarea id="code_input" rows="10"></textarea>
+            <textarea id="code_input" rows="10"> (\ x y z. (y ((x y) z))) (\s z. (s (s z))) </textarea>
             <!-- <textarea id="tape_input" rows="1" cols="30"></textarea> <br /> -->
         </div>
         <div id="control">

@@ -104,27 +104,16 @@ pub fn var_change(var_pre: Var, var_post: Var, term: LambdaTerm) -> LambdaTerm {
     }
 }
 
-pub fn unchecked_subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
-    match term1.clone() {
-        LambdaTerm::Variable(variable) => {
-            if variable == var {
-                term2
-            } else {
-                term1
-            }
-        }
-        LambdaTerm::Abstraction(variable, abs_term) => {
-            if variable == var {
-                term1
-            } else {
-                LambdaTerm::Abstraction(variable, Box::new(unchecked_subst(*abs_term, var, term2)))
-            }
-        }
-        LambdaTerm::Application(app_term1, app_term2) => LambdaTerm::Application(
-            Box::new(unchecked_subst(*app_term1, var.clone(), term2.clone())),
-            Box::new(unchecked_subst(*app_term2, var, term2)),
-        ),
-    }
+pub fn alpha_eq(term1: &LambdaTerm, term2: &LambdaTerm) -> bool {
+    let new_var = {
+        let mut set = HashSet::new();
+        set.extend(term1.free_variable());
+        set.extend(term1.bounded_variable());
+        set.extend(term2.free_variable());
+        set.extend(term2.bounded_variable());
+        utils::variable::VarSet::from(&set).new_var_modify()
+    };
+    alpha_eq_rec(term1, term2, &HashMap::new(), &HashMap::new(), new_var)
 }
 
 fn alpha_eq_rec(
@@ -163,16 +152,27 @@ fn alpha_eq_rec(
     }
 }
 
-pub fn alpha_eq(term1: &LambdaTerm, term2: &LambdaTerm) -> bool {
-    let new_var = {
-        let mut set = HashSet::new();
-        set.extend(term1.free_variable());
-        set.extend(term1.bounded_variable());
-        set.extend(term2.free_variable());
-        set.extend(term2.bounded_variable());
-        utils::variable::VarSet::from(&set).new_var_modify()
-    };
-    alpha_eq_rec(term1, term2, &HashMap::new(), &HashMap::new(), new_var)
+pub fn unchecked_subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
+    match term1.clone() {
+        LambdaTerm::Variable(variable) => {
+            if variable == var {
+                term2
+            } else {
+                term1
+            }
+        }
+        LambdaTerm::Abstraction(variable, abs_term) => {
+            if variable == var {
+                term1
+            } else {
+                LambdaTerm::Abstraction(variable, Box::new(unchecked_subst(*abs_term, var, term2)))
+            }
+        }
+        LambdaTerm::Application(app_term1, app_term2) => LambdaTerm::Application(
+            Box::new(unchecked_subst(*app_term1, var.clone(), term2.clone())),
+            Box::new(unchecked_subst(*app_term2, var, term2)),
+        ),
+    }
 }
 
 pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
@@ -213,79 +213,136 @@ pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
     }
 }
 
-pub fn is_beta_redux(term: &LambdaTerm) -> bool {
-    match term {
-        LambdaTerm::Application(term, _) => {
-            matches!(term.as_ref(), LambdaTerm::Abstraction(_, _))
+#[derive(Debug, Clone, PartialEq)]
+pub struct Redux {
+    pub var: Var,
+    pub body: LambdaTerm,
+    pub arg: LambdaTerm,
+}
+
+impl Redux {
+    pub fn eval(self) -> LambdaTerm {
+        let mut term = self.body;
+        term = subst(term, self.var, self.arg);
+        term
+    }
+    pub fn from_term(term: &LambdaTerm) -> Option<Self> {
+        if let LambdaTerm::Application(term1, term2) = term {
+            if let LambdaTerm::Abstraction(var, body) = term1.as_ref() {
+                Some(Redux {
+                    var: var.clone(),
+                    body: *body.clone(),
+                    arg: *term2.clone(),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
         }
-        _ => false,
     }
 }
 
-pub fn is_normal(term: &LambdaTerm) -> bool {
-    if is_beta_redux(term) {
-        return false;
+impl From<Redux> for LambdaTerm {
+    fn from(redux: Redux) -> Self {
+        LambdaTerm::app(LambdaTerm::abs(redux.var, redux.body), redux.arg)
     }
-    match term {
-        LambdaTerm::Variable(_) => true,
-        LambdaTerm::Abstraction(_, term) => is_normal(term.as_ref()),
-        LambdaTerm::Application(term1, term2) => {
-            is_normal(term1.as_ref()) && is_normal(term2.as_ref())
+}
+
+impl Display for Redux {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(\\{}.{} {})", self.var, self.body, self.arg)
+    }
+}
+
+// it has exactly one redux in it
+#[derive(Debug, Clone, PartialEq)]
+pub enum MarkedTerm {
+    Redux(Redux),
+    Abstraction(Var, Box<MarkedTerm>),
+    ApplicationL(Box<MarkedTerm>, Box<LambdaTerm>),
+    ApplicationR(Box<LambdaTerm>, Box<MarkedTerm>),
+}
+
+impl From<MarkedTerm> for LambdaTerm {
+    fn from(marked_term: MarkedTerm) -> Self {
+        match marked_term {
+            MarkedTerm::Redux(redux) => LambdaTerm::from(redux),
+            MarkedTerm::Abstraction(var, term) => {
+                LambdaTerm::Abstraction(var, Box::new(term.eval()))
+            }
+            MarkedTerm::ApplicationL(term1, term2) => {
+                LambdaTerm::Application(Box::new(term1.eval()), term2)
+            }
+            MarkedTerm::ApplicationR(term1, term2) => {
+                LambdaTerm::Application(term1, Box::new(term2.eval()))
+            }
         }
     }
 }
 
-pub fn unchecked_beta_redux_reduce(term: LambdaTerm) -> LambdaTerm {
-    match term {
-        LambdaTerm::Application(term, term2) => match *term {
-            LambdaTerm::Abstraction(var, term1) => subst(*term1, var, *term2),
-            _ => unreachable!(),
-        },
-        _ => unreachable!(),
+impl MarkedTerm {
+    fn eval(self) -> LambdaTerm {
+        match self {
+            MarkedTerm::Redux(redux) => redux.eval(),
+            MarkedTerm::Abstraction(var, term) => {
+                LambdaTerm::Abstraction(var, Box::new(term.eval()))
+            }
+            MarkedTerm::ApplicationL(term1, term2) => {
+                LambdaTerm::Application(Box::new(term1.eval()), term2)
+            }
+            MarkedTerm::ApplicationR(term1, term2) => {
+                LambdaTerm::Application(term1, Box::new(term2.eval()))
+            }
+        }
     }
 }
 
-pub fn list_up_reduce(term: LambdaTerm) -> Vec<LambdaTerm> {
+impl Display for MarkedTerm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MarkedTerm::Redux(redux) => write!(f, "{}", redux),
+            MarkedTerm::Abstraction(var, term) => write!(f, "\\{var}.{}", term),
+            MarkedTerm::ApplicationL(term1, term2) => write!(f, "({} {})", term1, term2),
+            MarkedTerm::ApplicationR(term1, term2) => write!(f, "({} {})", term1, term2),
+        }
+    }
+}
+
+pub fn listup_marked_term(term: &LambdaTerm) -> Vec<MarkedTerm> {
     let mut vec = Vec::new();
-    if is_beta_redux(&term) {
-        vec.push(unchecked_beta_redux_reduce(term.clone()))
+    if let Some(redux) = Redux::from_term(term) {
+        vec.push(MarkedTerm::Redux(redux));
     }
     match term {
         LambdaTerm::Variable(_) => {}
         LambdaTerm::Abstraction(var, term) => {
-            vec.extend(
-                list_up_reduce(*term)
-                    .into_iter()
-                    .map(|term| LambdaTerm::Abstraction(var.clone(), Box::new(term))),
-            );
+            for a in listup_marked_term(term.as_ref()) {
+                vec.push(MarkedTerm::Abstraction(var.clone(), Box::new(a)));
+            }
         }
         LambdaTerm::Application(term1, term2) => {
-            vec.extend(
-                list_up_reduce(*term1.clone())
-                    .into_iter()
-                    .map(|term| LambdaTerm::Application(Box::new(term), Box::new(*term2.clone()))),
-            );
-            vec.extend(
-                list_up_reduce(*term2)
-                    .into_iter()
-                    .map(|term| LambdaTerm::Application(Box::new(*term1.clone()), Box::new(term))),
-            );
+            for a in listup_marked_term(term2.as_ref()) {
+                vec.push(MarkedTerm::ApplicationR(term1.clone(), Box::new(a)));
+            }
+            for a in listup_marked_term(term1.as_ref()) {
+                vec.push(MarkedTerm::ApplicationL(Box::new(a), term2.clone()));
+            }
         }
     }
     vec
 }
 
-pub fn left_most_reduction(term: LambdaTerm) -> LambdaTerm {
-    let list = list_up_reduce(term);
-    list[0].clone()
+pub fn is_normal(term: &LambdaTerm) -> bool {
+    listup_marked_term(term).is_empty()
 }
 
-pub fn left_most_reduction_step(term: LambdaTerm, step: usize) -> LambdaTerm {
-    let mut term = term;
-    for _ in 0..step {
-        term = left_most_reduction(term);
-    }
-    term
+pub fn left_most_marked_term(term: LambdaTerm) -> Option<MarkedTerm> {
+    listup_marked_term(&term).last().cloned()
+}
+
+pub fn left_most_reduction(term: LambdaTerm) -> Option<LambdaTerm> {
+    listup_marked_term(&term).last().map(|x| x.clone().eval())
 }
 
 #[cfg(test)]

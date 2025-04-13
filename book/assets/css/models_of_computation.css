@@ -4,6 +4,10 @@
     background-color: white;
 }
 
+pre {
+    margin: 0;
+}
+
 th,
 td {
     border: 1px solid rgb(160 160 160);
@@ -14,6 +18,12 @@ td {
     background-color: #6f6;
 }
 
-pre {
-    margin: 0;
+.var_lambda {
+    background-color: aqua;
+}
+.body_lambda {
+    background-color: lightblue;
+}
+.arg_lambda {
+    background-color: lightgreen;
 }
