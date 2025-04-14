@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Sub, SubAssign},
+    ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -132,11 +132,19 @@ impl NumberTuple {
             Some(&self.0[index])
         }
     }
+    pub fn concat(self, tuple: NumberTuple) -> NumberTuple {
+        let mut vec = self.0;
+        vec.extend(tuple.0);
+        NumberTuple(vec)
+    }
 }
 
-pub fn concat_head(num: Number, NumberTuple(tuple): NumberTuple) -> NumberTuple {
-    let vec = std::iter::once(num).chain(tuple).collect::<Vec<_>>();
-    NumberTuple(vec)
+impl Number {
+    pub fn concat(self, tuple: NumberTuple) -> NumberTuple {
+        let mut vec = vec![self];
+        vec.extend(tuple.0);
+        NumberTuple(vec)
+    }
 }
 
 impl From<Vec<usize>> for NumberTuple {
@@ -201,5 +209,31 @@ impl From<NumberTuple> for Vec<Number> {
 impl From<NumberTuple> for Vec<usize> {
     fn from(value: NumberTuple) -> Self {
         value.0.into_iter().map(|num| num.into()).collect()
+    }
+}
+
+impl Index<Number> for NumberTuple {
+    type Output = Number;
+    fn index(&self, index: Number) -> &Self::Output {
+        &self.0[index.0]
+    }
+}
+
+impl Index<usize> for NumberTuple {
+    type Output = Number;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<Number> for NumberTuple {
+    fn index_mut(&mut self, index: Number) -> &mut Self::Output {
+        &mut self.0[index.0]
+    }
+}
+
+impl IndexMut<usize> for NumberTuple {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }

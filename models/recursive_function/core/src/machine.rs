@@ -2,46 +2,25 @@ use std::fmt::Display;
 use utils::number::*;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Projection {
-    parameter_length: usize,
-    projection_num: usize,
-}
-
-impl Projection {
-    pub fn parameter_length(&self) -> usize {
-        self.parameter_length
-    }
-    pub fn projection_num(&self) -> usize {
-        self.projection_num
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Composition {
-    pub parameter_length: usize,
-    pub outer_func: Box<RecursiveFunctions>,
-    pub inner_func: Box<Vec<RecursiveFunctions>>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PrimitiveRecursion {
-    pub zero_func: Box<RecursiveFunctions>,
-    pub succ_func: Box<RecursiveFunctions>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MuOperator {
-    pub mu_func: Box<RecursiveFunctions>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub enum RecursiveFunctions {
     ZeroConstant,
     Successor,
-    Projection(Projection),
-    Composition(Composition),
-    PrimitiveRecursion(PrimitiveRecursion),
-    MuOperator(MuOperator),
+    Projection {
+        parameter_length: usize,
+        projection_num: usize,
+    },
+    Composition {
+        parameter_length: usize,
+        outer_func: Box<RecursiveFunctions>,
+        inner_funcs: Box<Vec<RecursiveFunctions>>,
+    },
+    PrimitiveRecursion {
+        zero_func: Box<RecursiveFunctions>,
+        succ_func: Box<RecursiveFunctions>,
+    },
+    MuOperator {
+        mu_func: Box<RecursiveFunctions>,
+    },
 }
 
 impl RecursiveFunctions {
@@ -49,12 +28,16 @@ impl RecursiveFunctions {
         match self {
             RecursiveFunctions::ZeroConstant => 0,
             RecursiveFunctions::Successor => 1,
-            RecursiveFunctions::Projection(ref proj) => proj.parameter_length,
-            RecursiveFunctions::Composition(ref comp) => comp.parameter_length,
-            RecursiveFunctions::PrimitiveRecursion(ref prim) => {
-                &prim.zero_func.parameter_length() + 1
+            RecursiveFunctions::Projection {
+                parameter_length, ..
+            } => *parameter_length,
+            RecursiveFunctions::Composition {
+                parameter_length, ..
+            } => *parameter_length,
+            RecursiveFunctions::PrimitiveRecursion { zero_func, .. } => {
+                zero_func.parameter_length() + 1
             }
-            RecursiveFunctions::MuOperator(ref muop) => &muop.mu_func.parameter_length() - 1,
+            RecursiveFunctions::MuOperator { mu_func } => mu_func.parameter_length() - 1,
         }
     }
     pub fn zero() -> RecursiveFunctions {
@@ -65,12 +48,12 @@ impl RecursiveFunctions {
     }
     pub fn projection(len: usize, num: usize) -> Result<RecursiveFunctions, String> {
         if len <= num {
-            Err("projection number if out of range".to_string())
+            Err("projection number is out of range".to_string())
         } else {
-            Ok(Self::Projection(Projection {
+            Ok(Self::Projection {
                 parameter_length: len,
                 projection_num: num,
-            }))
+            })
         }
     }
     pub fn composition(
@@ -90,32 +73,32 @@ impl RecursiveFunctions {
         {
             return Err("each element of the array has a different length".to_string());
         }
-        Ok(Self::Composition(Composition {
+        Ok(Self::Composition {
             parameter_length,
             outer_func: Box::new(outer_func),
-            inner_func: Box::new(inner_funcs),
-        }))
+            inner_funcs: Box::new(inner_funcs),
+        })
     }
     pub fn primitive_recursion(
         zero_func: RecursiveFunctions,
         succ_func: RecursiveFunctions,
     ) -> Result<RecursiveFunctions, String> {
         if zero_func.parameter_length() + 2 != succ_func.parameter_length() {
-            Err("par len of prim is invalid".to_string())
+            Err("parameter length of primitive recursion is invalid".to_string())
         } else {
-            Ok(Self::PrimitiveRecursion(PrimitiveRecursion {
+            Ok(Self::PrimitiveRecursion {
                 zero_func: Box::new(zero_func),
                 succ_func: Box::new(succ_func),
-            }))
+            })
         }
     }
     pub fn muoperator(func: RecursiveFunctions) -> Result<RecursiveFunctions, String> {
         if func.parameter_length() == 0 {
-            Err("par len of muop is invalid".to_string())
+            Err("parameter length of mu operator is invalid".to_string())
         } else {
-            Ok(Self::MuOperator(MuOperator {
+            Ok(Self::MuOperator {
                 mu_func: Box::new(func),
-            }))
+            })
         }
     }
 }
@@ -125,31 +108,31 @@ impl Display for RecursiveFunctions {
         let str = match self {
             RecursiveFunctions::ZeroConstant => "zero-const".to_string(),
             RecursiveFunctions::Successor => "successor".to_string(),
-            RecursiveFunctions::Projection(Projection {
+            RecursiveFunctions::Projection {
                 parameter_length,
                 projection_num,
-            }) => {
+            } => {
                 format!("proj {parameter_length} {projection_num}")
             }
-            RecursiveFunctions::Composition(Composition {
-                parameter_length: _,
+            RecursiveFunctions::Composition {
                 outer_func,
-                inner_func,
-            }) => {
-                let inner: String = inner_func
+                inner_funcs,
+                ..
+            } => {
+                let inner: String = inner_funcs
                     .iter()
                     .map(|func| format!("{{{func}}}"))
                     .reduce(|str1, str2| str1 + &str2)
                     .unwrap_or("no function".to_string());
                 format!("composition {{{outer_func}}} {}", inner)
             }
-            RecursiveFunctions::PrimitiveRecursion(PrimitiveRecursion {
+            RecursiveFunctions::PrimitiveRecursion {
                 zero_func,
                 succ_func,
-            }) => {
+            } => {
                 format!("primitive recursion {} {}", zero_func, succ_func)
             }
-            RecursiveFunctions::MuOperator(MuOperator { mu_func }) => {
+            RecursiveFunctions::MuOperator { mu_func } => {
                 format!("mu operator {mu_func}")
             }
         };
@@ -157,6 +140,195 @@ impl Display for RecursiveFunctions {
     }
 }
 
+// this is a struct for the computation state of the recursive function
+// this struct can be used to represent each step of the process
+// f(g(3), h(5, 2), 1) -> f(8, h(5, 2), 1) -> f(8, 3, 1) -> 12
+// Process::Comp { function: f, args: [Process::Comp { function: g, args: [3] }, Process::Comp { function: h, args: [5, 2] }, 1] }
+// -> Process::Comp { function: f, args: [8, Process::Comp { function: h, args: [5, 2] }, 1] }
+// -> Process::Comp { function: f, args: [8, 3, 1] }
+// -> Process::Result(12)
+#[derive(Clone, Debug, PartialEq)]
+pub enum Process {
+    Comp {
+        function: RecursiveFunctions,
+        args: Vec<Process>,
+    },
+    // start: Mu { f, 0, (x0, , .., xn), process}
+    MuOpComp {
+        now_index: Number,
+        args: NumberTuple,
+        function: RecursiveFunctions,
+        process: Box<Process>, // now computation
+    },
+    Result(Number),
+}
+
+fn tuple_to_vec_process(tuple: NumberTuple) -> Vec<Process> {
+    let tuple: Vec<Number> = tuple.into();
+    tuple.into_iter().map(Process::Result).collect()
+}
+
+impl Process {
+    pub fn new(func: RecursiveFunctions, args: Vec<Process>) -> Self {
+        Process::Comp {
+            function: func,
+            args,
+        }
+    }
+    pub fn result(&self) -> Option<Number> {
+        match self {
+            Process::Result(num) => Some(num.clone()),
+            _ => None,
+        }
+    }
+    pub fn eval_one_step(&self) -> Option<Self> {
+        match self {
+            Process::Comp { function, args } => {
+                debug_assert!(function.parameter_length() == args.len());
+
+                // if args has some arg of which can be eval, then we need to eval one step
+                let mut args = args.clone();
+                let mut args_as_tuple = Vec::new();
+                for arg in args.iter_mut() {
+                    if let Some(result) = arg.eval_one_step() {
+                        *arg = result;
+                        return Some(Process::Comp {
+                            function: function.clone(),
+                            args: args.clone(),
+                        });
+                    } else {
+                        args_as_tuple.push(arg.result().unwrap());
+                    }
+                }
+                let args_as_tuple: NumberTuple = args_as_tuple.into();
+
+                // if all args are evaluated, then we can eval the function
+                match function {
+                    RecursiveFunctions::ZeroConstant => Some(Process::Result(Number(0))),
+                    RecursiveFunctions::Successor => {
+                        let (head, _) = args_as_tuple.split().unwrap();
+                        let result = head.succ();
+                        Some(Process::Result(result))
+                    }
+                    RecursiveFunctions::Projection {
+                        parameter_length,
+                        projection_num,
+                    } => {
+                        debug_assert!(parameter_length == &args_as_tuple.len());
+                        Some(Process::Result(args_as_tuple[*projection_num].clone()))
+                    }
+                    RecursiveFunctions::Composition {
+                        parameter_length,
+                        outer_func,
+                        inner_funcs,
+                    } => {
+                        debug_assert!(parameter_length == &args_as_tuple.len());
+                        let inner_processes: Vec<Process> = inner_funcs
+                            .iter()
+                            .map(|func| {
+                                let inner_args: Vec<Process> =
+                                    tuple_to_vec_process(args_as_tuple.clone());
+                                Process::Comp {
+                                    function: func.clone(),
+                                    args: inner_args,
+                                }
+                            })
+                            .collect();
+                        Some(Process::Comp {
+                            function: outer_func.as_ref().clone(),
+                            args: inner_processes,
+                        })
+                    }
+                    RecursiveFunctions::PrimitiveRecursion {
+                        zero_func,
+                        succ_func,
+                    } => {
+                        let (first, cont) = args_as_tuple.split().unwrap();
+                        if first.is_zero() {
+                            // Prim(fz, fs)(0, ..., xn) = fz(x1, .., xn)
+                            Some(Process::Comp {
+                                function: zero_func.as_ref().clone(),
+                                args: tuple_to_vec_process(cont),
+                            })
+                        } else {
+                            // Prim(fz, fs)(x0 + 1, ..., xn) = fs(Prim(fz, fs)(x0, .., xn), x0, .., xn)
+                            let pred_process: Process = Process::Comp {
+                                function: function.clone(),
+                                args: tuple_to_vec_process(
+                                    first.clone().pred().concat(cont.clone()),
+                                ),
+                            };
+                            let mut vec = vec![pred_process];
+                            vec.extend(tuple_to_vec_process(first.pred().concat(cont)));
+                            Some(Process::Comp {
+                                function: succ_func.as_ref().clone(),
+                                args: vec,
+                            })
+                        }
+                    }
+                    RecursiveFunctions::MuOperator { mu_func } => {
+                        // Mu { f, 0, (x0, .., xn), process == f(0, x0, .., xn) }
+                        let arg = Number::from(0).concat(args_as_tuple.clone());
+                        Some(Process::MuOpComp {
+                            now_index: 0.into(),
+                            args: args_as_tuple.clone(),
+                            function: mu_func.as_ref().clone(),
+                            process: Box::new(Process::Comp {
+                                function: mu_func.as_ref().clone(),
+                                args: tuple_to_vec_process(arg),
+                            }),
+                        })
+                    }
+                }
+            }
+            // Muop(f)(x1, .., xn) := minimum { i | f(i, x1, .., xn) = 0 }
+            Process::MuOpComp {
+                now_index,
+                args,
+                function,
+                process,
+            } => {
+                // computation process:
+                // Mu { f, i, (x0, .., xn), process != result(v) }
+                // => eval process
+                if let Some(result) = process.eval_one_step() {
+                    return Some(Process::MuOpComp {
+                        now_index: now_index.clone(),
+                        args: args.clone(),
+                        function: function.clone(),
+                        process: Box::new(result),
+                    });
+                }
+
+                // Mu { f, i, (x0, .., xn), process == result(v) }
+                // => if v == 0 => result(i)
+                // => else => Mu { f, i + 1, (x0, .., xn), process == f(i + 1, x0, .., xn) }
+                let Some(result) = process.result() else {
+                    unreachable!("process is not result");
+                };
+
+                if result.is_zero() {
+                    Some(Process::Result(now_index.clone()))
+                } else {
+                    let next_index = now_index.clone().succ();
+                    let arg = next_index.clone().concat(args.clone());
+                    Some(Process::MuOpComp {
+                        now_index: next_index,
+                        args: args.clone(),
+                        function: function.clone(),
+                        process: Box::new(Process::Comp {
+                            function: function.clone(),
+                            args: tuple_to_vec_process(arg),
+                        }),
+                    })
+                }
+            }
+            Process::Result(_) => None,
+        }
+    }
+}
+
+// this is a strcut for any functions which may not be recursive functions
 pub struct NaturalFunction {
     parameter_length: usize,
     func: Box<dyn Fn(NumberTuple) -> Number>,
@@ -179,7 +351,6 @@ impl NaturalFunction {
 }
 
 pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
-    // eprintln!("{func:?}");
     match func {
         RecursiveFunctions::ZeroConstant => NaturalFunction {
             parameter_length: 0,
@@ -192,21 +363,20 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
                 f.succ()
             }),
         },
-        RecursiveFunctions::Projection(proj) => {
-            let num = proj.projection_num;
+        RecursiveFunctions::Projection { projection_num, .. } => {
+            let num = *projection_num;
             NaturalFunction {
                 parameter_length: func.parameter_length(),
                 func: Box::new(move |tuple| tuple.index(num).unwrap().clone()),
             }
         }
-        RecursiveFunctions::Composition(composition) => {
-            let Composition {
-                parameter_length,
-                outer_func,
-                ref inner_func,
-            } = composition;
+        RecursiveFunctions::Composition {
+            parameter_length,
+            outer_func,
+            ref inner_funcs,
+        } => {
             let outer_func = interpreter(outer_func);
-            let inner_funcs = inner_func.iter().map(interpreter).collect::<Vec<_>>();
+            let inner_funcs = inner_funcs.iter().map(interpreter).collect::<Vec<_>>();
             let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |tuple| {
                 let result_vec: NumberTuple = inner_funcs
                     .iter()
@@ -220,14 +390,13 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
                 func,
             }
         }
-        RecursiveFunctions::PrimitiveRecursion(prim) => {
-            let PrimitiveRecursion {
-                zero_func,
-                succ_func,
-            } = prim.clone();
-            let length = &zero_func.parameter_length() + 1;
-            let zero_func = interpreter(&zero_func);
-            let succ_func = interpreter(&succ_func);
+        RecursiveFunctions::PrimitiveRecursion {
+            zero_func,
+            succ_func,
+        } => {
+            let length = zero_func.parameter_length() + 1;
+            let zero_func = interpreter(zero_func);
+            let succ_func = interpreter(succ_func);
             let this_func_clone = func.clone();
             let function: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
                 let (first, cont) = vector.clone().split().unwrap();
@@ -235,10 +404,10 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
                     zero_func.unchecked_subst(cont)
                 } else {
                     let pred_result = {
-                        let pred_input = concat_head(first.clone().pred(), cont.clone());
+                        let pred_input = first.clone().pred().concat(cont.clone());
                         interpreter(&this_func_clone).unchecked_subst(pred_input)
                     };
-                    let input = concat_head(pred_result, concat_head(first.pred(), cont));
+                    let input = pred_result.concat(first.pred().concat(cont));
                     succ_func.unchecked_subst(input)
                 }
             });
@@ -247,14 +416,13 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
                 func: function,
             }
         }
-        RecursiveFunctions::MuOperator(muop) => {
-            let MuOperator { mu_func } = muop;
+        RecursiveFunctions::MuOperator { mu_func } => {
             let length = mu_func.parameter_length() - 1;
             let mu_func = interpreter(mu_func);
             let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
                 let mut i = 0;
                 'lp: loop {
-                    let result = mu_func.unchecked_subst(concat_head(Number(i), vector.clone()));
+                    let result = mu_func.unchecked_subst(Number(i).concat(vector.clone()));
                     if result == Number(0) {
                         break 'lp Number(i);
                     }

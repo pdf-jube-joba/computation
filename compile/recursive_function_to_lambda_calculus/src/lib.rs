@@ -214,23 +214,30 @@ pub fn compile(func: &RecursiveFunctions) -> LambdaTerm {
     match func {
         RecursiveFunctions::ZeroConstant => number_to_lambda_term(0.into()),
         RecursiveFunctions::Successor => succ(),
-        RecursiveFunctions::Projection(proj) => {
-            projection(proj.parameter_length(), proj.projection_num()).unwrap()
+        RecursiveFunctions::Projection {
+            parameter_length,
+            projection_num,
+        } => projection(*parameter_length, *projection_num).unwrap(),
+        RecursiveFunctions::Composition {
+            parameter_length,
+            outer_func,
+            inner_funcs,
+        } => composition(
+            *parameter_length,
+            inner_funcs.iter().map(compile).collect(),
+            compile(outer_func.as_ref()),
+        ),
+        RecursiveFunctions::PrimitiveRecursion {
+            zero_func,
+            succ_func,
+        } => primitive_recursion(
+            zero_func.parameter_length() + 1,
+            compile(zero_func.as_ref()),
+            compile(succ_func.as_ref()),
+        ),
+        RecursiveFunctions::MuOperator { mu_func } => {
+            mu_recursion(mu_func.parameter_length(), compile(mu_func.as_ref()))
         }
-        RecursiveFunctions::Composition(comp) => composition(
-            comp.parameter_length,
-            comp.inner_func.iter().map(compile).collect(),
-            compile(comp.outer_func.as_ref()),
-        ),
-        RecursiveFunctions::PrimitiveRecursion(prim) => primitive_recursion(
-            prim.zero_func.parameter_length() + 1,
-            compile(prim.zero_func.as_ref()),
-            compile(prim.succ_func.as_ref()),
-        ),
-        RecursiveFunctions::MuOperator(muop) => mu_recursion(
-            muop.mu_func.parameter_length(),
-            compile(muop.mu_func.as_ref()),
-        ),
     }
 }
 

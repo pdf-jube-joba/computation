@@ -81,35 +81,31 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
     match recursive_function {
         RecursiveFunctions::ZeroConstant => zero_builder(),
         RecursiveFunctions::Successor => succ_builder(),
-        RecursiveFunctions::Projection(proj) => {
-            projection::projection(proj.parameter_length(), proj.projection_num())
-        }
-        RecursiveFunctions::Composition(composition) => {
-            let recursive_function_core::machine::Composition {
-                parameter_length: _,
-                outer_func,
-                inner_func,
-            } = composition;
+        RecursiveFunctions::Projection {
+            parameter_length,
+            projection_num,
+        } => projection::projection(*parameter_length, *projection_num),
+        RecursiveFunctions::Composition {
+            parameter_length,
+            outer_func,
+            inner_funcs,
+        } => {
             let outer_builder = compile(outer_func.as_ref());
-            let inner_builders: Vec<TuringMachineBuilder> = inner_func
+            let inner_builders: Vec<TuringMachineBuilder> = inner_funcs
                 .iter()
                 .cloned()
                 .map(|func| compile(&func))
                 .collect();
             composition::composition(inner_builders, outer_builder)
         }
-        RecursiveFunctions::PrimitiveRecursion(prim) => {
-            let recursive_function_core::machine::PrimitiveRecursion {
-                zero_func,
-                succ_func,
-            } = prim;
-            primitive_recursion::primitive_recursion(
-                compile(zero_func.as_ref()),
-                compile(succ_func.as_ref()),
-            )
-        }
-        RecursiveFunctions::MuOperator(muop) => {
-            let recursive_function_core::machine::MuOperator { mu_func } = muop;
+        RecursiveFunctions::PrimitiveRecursion {
+            zero_func,
+            succ_func,
+        } => primitive_recursion::primitive_recursion(
+            compile(zero_func.as_ref()),
+            compile(succ_func.as_ref()),
+        ),
+        RecursiveFunctions::MuOperator { mu_func } => {
             mu_recursion::mu_recursion(compile(mu_func.as_ref()))
         }
     }
