@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
+    ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign}, str::FromStr,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -112,6 +112,9 @@ impl SubAssign<usize> for Number {
 pub struct NumberTuple(Vec<Number>);
 
 impl NumberTuple {
+    pub fn unit() -> Self {
+        NumberTuple(vec![])
+    }
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -185,6 +188,26 @@ impl TryFrom<String> for NumberTuple {
     }
 }
 
+impl FromStr for NumberTuple {
+    type Err = String;
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value.trim();
+        if !(value.starts_with('(') && value.ends_with(')')) {
+            return Err("not tuple".to_string());
+        }
+        let vec = value
+            .get(1..value.len() - 1)
+            .unwrap()
+            .split(',')
+            .map(|str| match str.trim().parse() {
+                Ok(n) => Ok(Number(n)),
+                Err(_) => Err("parse fail".to_string()),
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(NumberTuple(vec))
+    }
+}
+
 impl From<NumberTuple> for String {
     fn from(value: NumberTuple) -> Self {
         let mut s = String::new();
@@ -235,5 +258,20 @@ impl IndexMut<Number> for NumberTuple {
 impl IndexMut<usize> for NumberTuple {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]
+    }
+}
+
+impl Display for NumberTuple {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        s.push('(');
+        for (i, Number(num)) in self.0.iter().enumerate() {
+            if i != 0 {
+                s.push(',');
+            }
+            s.push_str(&num.to_string());
+        }
+        s.push(')');
+        write!(f, "{}", s)
     }
 }

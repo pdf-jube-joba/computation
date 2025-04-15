@@ -51,16 +51,16 @@ export class LambdaCalculusViewModel {
 
     start() {
         console.log("start");
-        // try {
+        try {
         if (this.machineId == undefined) {
             this.machineId = new_lambda_term(this.term);
         } else {
             set_lambda_term(this.machineId, this.term);
         }
-        // } catch (e) {
-        //     this.controls.handleError(e);
-        //     return;
-        // }
+        } catch (e) {
+            this.controls.handleError(e);
+            return;
+        }
 
         console.log("machineId", this.machineId, "term", this.term.into_string);
 
@@ -70,13 +70,13 @@ export class LambdaCalculusViewModel {
     }
 
     step() {
-        if (!this.term) {
+        if (!this.machineId) {
             this.controls.handleError("No term loaded. Please load a term first.");
             return;
         }
 
         try {
-            step_lambda_term(this.machineId, this.term);
+            step_lambda_term(this.machineId);
             this.term = get_lambda_term(this.machineId);
             console.log("step", this.term.into_string);
         } catch (e) {
