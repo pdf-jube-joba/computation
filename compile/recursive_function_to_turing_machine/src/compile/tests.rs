@@ -215,9 +215,8 @@ fn add() -> RecursiveFunctions {
     RecursiveFunctions::primitive_recursion(
         RecursiveFunctions::projection(1, 0).unwrap(),
         RecursiveFunctions::composition(
-            3,
-            vec![RecursiveFunctions::projection(3, 0).unwrap()],
             RecursiveFunctions::succ(),
+            vec![RecursiveFunctions::projection(3, 0).unwrap()],
         )
         .unwrap(),
     )
@@ -225,19 +224,18 @@ fn add() -> RecursiveFunctions {
 }
 
 fn any_to_zero() -> RecursiveFunctions {
-    RecursiveFunctions::composition(1, vec![], RecursiveFunctions::zero()).unwrap()
+    RecursiveFunctions::composition(RecursiveFunctions::zero(), vec![]).unwrap()
 }
 
 fn mul() -> RecursiveFunctions {
     RecursiveFunctions::primitive_recursion(
         any_to_zero(),
         RecursiveFunctions::composition(
-            3,
+            add(),
             vec![
                 RecursiveFunctions::projection(3, 0).unwrap(),
                 RecursiveFunctions::projection(3, 2).unwrap(),
             ],
-            add(),
         )
         .unwrap(),
     )
@@ -256,9 +254,8 @@ fn inv_monus() -> RecursiveFunctions {
     RecursiveFunctions::primitive_recursion(
         RecursiveFunctions::projection(1, 0).unwrap(),
         RecursiveFunctions::composition(
-            3,
-            vec![RecursiveFunctions::projection(3, 0).unwrap()],
             pred(),
+            vec![RecursiveFunctions::projection(3, 0).unwrap()],
         )
         .unwrap(),
     )

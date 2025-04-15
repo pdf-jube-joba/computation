@@ -819,6 +819,8 @@ dependencies = [
 name = "recursive_function_core"
 version = "0.1.0"
 dependencies = [
+ "pest",
+ "pest_derive",
  "serde",
  "serde_json",
  "utils",
@@ -858,6 +860,11 @@ dependencies = [
 [[package]]
 name = "recursive_function_web"
 version = "0.1.0"
+dependencies = [
+ "recursive_function_core",
+ "utils",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "rustc-demangle"

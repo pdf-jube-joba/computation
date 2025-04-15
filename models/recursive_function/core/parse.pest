@@ -1,0 +1,35 @@
+WHITESPACE = _{ " " | "\n" }
+COMMENT_MULTILINE = _{ ("/*" ~ (!"*/" ~ COMMENT* ~ ANY)* ~ "*/") }
+COMMENT_ONELINE = _{ "//" ~ (!"\n" ~ ANY)* ~ "\n" }
+COMMENT = _{ COMMENT_MULTILINE | COMMENT_ONELINE }
+
+symbol = { "-" | "_" }
+name = @{ !keyword ~ (ASCII_ALPHA | symbol) ~ (ASCII_ALPHA | ASCII_DIGIT | symbol)* }
+number = @{ "0" | (ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*) }
+
+keyword = { "ZERO" | "SUCC" | "PROJ" | "COMP" | "PRIM" | "MUOP" | "let" }
+
+zero = { "ZERO" }
+succ = { "SUCC" }
+proj = { "PROJ" ~ "[" ~ number ~ "," ~ number ~ "]" }
+comp = { "COMP" ~ "[" ~  func ~ ":" ~ "("
+    ~ func ~ ("," ~ func)* ~ ","* ~
+    ")" ~ "]" }
+prim = { "PRIM" ~ "[" ~ "z:" ~ func ~ "s:" ~ func ~ "]" }
+muop = { "MUOP" ~ "[" ~ func ~ "]" }
+
+func = {
+    zero
+    | succ
+    | proj
+    | comp
+    | prim
+    | muop
+    | name
+}
+
+let_statement = { "let" ~ name ~ "=" ~ func ~ "." }
+
+program = {
+    let_statement* ~ func ~ EOI
+}

@@ -57,15 +57,20 @@ impl RecursiveFunctions {
         }
     }
     pub fn composition(
-        parameter_length: usize,
-        inner_funcs: Vec<RecursiveFunctions>,
+        // parameter_length: usize,
         outer_func: RecursiveFunctions,
+        inner_funcs: Vec<RecursiveFunctions>,
     ) -> Result<RecursiveFunctions, String> {
         if inner_funcs.len() != outer_func.parameter_length() {
             return Err(
                 "length of inner_funcs is different from outer_func's parameter length".to_string(),
             );
         }
+        if inner_funcs.is_empty() {
+            return Err("inner_funcs is empty".to_string());
+        }
+        let parameter_length = inner_funcs[0].parameter_length();
+
         if inner_funcs
             .iter()
             .map(|func| func.parameter_length())
@@ -299,6 +304,7 @@ impl Process {
                         process: Box::new(result),
                     });
                 }
+                // here: process == result(v)
 
                 // Mu { f, i, (x0, .., xn), process == result(v) }
                 // => if v == 0 => result(i)
@@ -324,6 +330,28 @@ impl Process {
                 }
             }
             Process::Result(_) => None,
+        }
+    }
+}
+
+impl Display for Process {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Process::Comp { function, args } => {
+                let args_str: String = args
+                    .iter()
+                    .map(|arg| format!("{arg},"))
+                    .reduce(|str1, str2| str1 + &str2)
+                    .unwrap_or_default();
+                write!(f, "{function}({args_str})")
+            }
+            Process::MuOpComp {
+                now_index,
+                args,
+                function,
+                process,
+            } => write!(f, "Mu[{function},{args:?}:{now_index}]{process}"),
+            Process::Result(num) => write!(f, "{num}"),
         }
     }
 }
@@ -477,49 +505,44 @@ mod tests {
     #[test]
     fn comp_call() {
         let succcc = RecursiveFunctions::composition(
-            1,
-            vec![RecursiveFunctions::succ()],
             RecursiveFunctions::succ(),
+            vec![RecursiveFunctions::succ()],
         )
         .unwrap();
         let succcc_func = interpreter(&succcc);
         let result = succcc_func.checked_subst(vec![0].into());
         assert_eq!(result, Some(Number(2)));
-        assert!(RecursiveFunctions::composition(0, vec![], RecursiveFunctions::succ()).is_err());
+        assert!(RecursiveFunctions::composition(RecursiveFunctions::succ(), vec![]).is_err());
         assert!(RecursiveFunctions::composition(
-            0,
+            RecursiveFunctions::zero(),
             vec![RecursiveFunctions::succ()],
-            RecursiveFunctions::zero()
         )
         .is_err());
         assert!(RecursiveFunctions::composition(
-            1,
+            RecursiveFunctions::projection(2, 1).unwrap(),
             vec![RecursiveFunctions::succ(), RecursiveFunctions::zero()],
-            RecursiveFunctions::projection(2, 1).unwrap()
         )
         .is_err());
         let snd_succ = RecursiveFunctions::composition(
-            1,
+            RecursiveFunctions::projection(3, 1).unwrap(),
             vec![
                 RecursiveFunctions::succ(),
                 RecursiveFunctions::succ(),
                 RecursiveFunctions::succ(),
             ],
-            RecursiveFunctions::projection(3, 1).unwrap(),
         )
         .unwrap();
         let func = interpreter(&snd_succ);
         assert_eq!(func.checked_subst(vec![0].into()), Some(Number(1)));
 
         let snd_succ = RecursiveFunctions::composition(
-            3,
+            RecursiveFunctions::projection(4, 1).unwrap(),
             vec![
                 RecursiveFunctions::projection(3, 0).unwrap(),
                 RecursiveFunctions::projection(3, 1).unwrap(),
                 RecursiveFunctions::projection(3, 0).unwrap(),
                 RecursiveFunctions::projection(3, 0).unwrap(),
             ],
-            RecursiveFunctions::projection(4, 1).unwrap(),
         )
         .unwrap();
         let func = interpreter(&snd_succ);
@@ -529,9 +552,8 @@ mod tests {
     fn prim_call() {
         let zero_func = RecursiveFunctions::projection(1, 0).unwrap();
         let succ_func = RecursiveFunctions::composition(
-            3,
-            vec![RecursiveFunctions::projection(3, 0).unwrap()],
             RecursiveFunctions::succ(),
+            vec![RecursiveFunctions::projection(3, 0).unwrap()],
         )
         .unwrap();
         let add = RecursiveFunctions::primitive_recursion(zero_func, succ_func).unwrap();
@@ -562,9 +584,8 @@ mod tests {
         RecursiveFunctions::primitive_recursion(
             RecursiveFunctions::projection(1, 0).unwrap(),
             RecursiveFunctions::composition(
-                3,
-                vec![RecursiveFunctions::projection(3, 0).unwrap()],
                 pred_func(),
+                vec![RecursiveFunctions::projection(3, 0).unwrap()],
             )
             .unwrap(),
         )
@@ -572,12 +593,11 @@ mod tests {
     }
     fn monus() -> RecursiveFunctions {
         RecursiveFunctions::composition(
-            2,
+            inv_monus(),
             vec![
                 RecursiveFunctions::projection(2, 1).unwrap(),
                 RecursiveFunctions::projection(2, 0).unwrap(),
             ],
-            inv_monus(),
         )
         .unwrap()
     }

@@ -1,198 +1,193 @@
+use pest::{iterators::Pair, Parser};
 use std::collections::HashMap;
-
-use serde::{Deserialize, Serialize};
 
 use crate::machine::{self, RecursiveFunctions};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Proj {
-    length: usize,
-    number: usize,
-}
+#[derive(pest_derive::Parser)]
+#[grammar = "parse.pest"]
+pub struct Ps;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Comp {
-    length: usize,
-    inner: Vec<Function>,
-    outer: Box<Function>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Prim {
-    zero: Box<Function>,
-    succ: Box<Function>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Muop {
-    muop: Box<Function>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub enum Function {
-    Zero,
-    Succ,
-    Proj(Proj),
-    Comp(Comp),
-    Prim(Prim),
-    Muop(Muop),
-    Exist(String),
-}
-
-fn convert(
-    func: Function,
+fn parse_func(
+    pair: Pair<Rule>,
     map: &HashMap<String, RecursiveFunctions>,
 ) -> Result<RecursiveFunctions, String> {
-    match func {
-        Function::Zero => Ok(RecursiveFunctions::zero()),
-        Function::Succ => Ok(RecursiveFunctions::succ()),
-        Function::Proj(Proj { length, number }) => RecursiveFunctions::projection(length, number),
-        Function::Comp(Comp {
-            length,
-            inner,
-            outer,
-        }) => {
-            let inner = inner
-                .into_iter()
-                .map(|func| convert(func, map))
-                .collect::<Result<_, _>>();
-            let outer = convert(*outer, map);
-            RecursiveFunctions::composition(length, inner?, outer?)
+    debug_assert!(pair.as_rule() == Rule::func);
+    let mut inner = pair.into_inner();
+    let p = inner.next().unwrap();
+    match p.as_rule() {
+        Rule::zero => {
+            debug_assert!(p.as_str() == "ZERO");
+            Ok(RecursiveFunctions::zero())
         }
-        Function::Prim(Prim { zero, succ }) => {
-            let zero = convert(*zero, map);
-            let succ = convert(*succ, map);
-            RecursiveFunctions::primitive_recursion(zero?, succ?)
+        Rule::succ => {
+            debug_assert!(p.as_str() == "SUCC");
+            Ok(RecursiveFunctions::succ())
         }
-        Function::Muop(Muop { muop }) => {
-            let muop = convert(*muop, map);
-            RecursiveFunctions::muoperator(muop?)
+        Rule::proj => {
+            let mut inner = p.into_inner();
+            let length = inner.next().unwrap().as_str().parse::<usize>().unwrap();
+            let number = inner.next().unwrap().as_str().parse::<usize>().unwrap();
+            RecursiveFunctions::projection(length, number)
         }
-        Function::Exist(string) => map
-            .get(&string)
-            .cloned()
-            .ok_or_else(|| format!("not found function name: {string}")),
+        Rule::comp => {
+            let mut ps = p.into_inner();
+            let outer = parse_func(ps.next().unwrap(), map)?;
+            let inner_funcs: Vec<RecursiveFunctions> = ps
+                .map(|pair| {
+                    debug_assert!(pair.as_rule() == Rule::func);
+                    parse_func(pair, map)
+                })
+                .collect::<Result<_, _>>()?;
+            RecursiveFunctions::composition(outer, inner_funcs)
+        }
+        Rule::prim => {
+            let mut inner = p.into_inner();
+            let zero = parse_func(inner.next().unwrap(), map)?;
+            let succ = parse_func(inner.next().unwrap(), map)?;
+            RecursiveFunctions::primitive_recursion(zero, succ)
+        }
+        Rule::muop => {
+            let mut inner = p.into_inner();
+            let muop = parse_func(inner.next().unwrap(), map)?;
+            RecursiveFunctions::muoperator(muop)
+        }
+        Rule::name => {
+            let name = p.as_str().to_string();
+            if let Some(func) = map.get(&name) {
+                return Ok(func.clone());
+            }
+            Err(format!("Function {name} not found"))
+        }
+        _ => {
+            unreachable!("??? {}", p.as_str());
+        }
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct FunctionData {
-    name: String,
-    function: Function,
+fn parse_let_statement(
+    pair: Pair<Rule>,
+    map: &HashMap<String, RecursiveFunctions>,
+) -> Result<(String, RecursiveFunctions), String> {
+    debug_assert!(pair.as_rule() == Rule::let_statement);
+    let mut inner = pair.into_inner();
+    let name = inner.next().unwrap().as_str().to_string();
+    let func = parse_func(inner.next().unwrap(), map)?;
+    if map.contains_key(&name) {
+        return Err(format!("Function {name} already exists"));
+    }
+    Ok((name, func))
 }
 
-pub fn parse(str: &str) -> Result<machine::RecursiveFunctions, String> {
-    let funcs_data: Vec<FunctionData> =
-        serde_json::from_str(str).map_err(|err| format!("{err:?}"))?;
-    let mut map: HashMap<String, RecursiveFunctions> = HashMap::new();
-    for FunctionData { name, function } in funcs_data {
-        let func = convert(function, &map)?;
+pub fn parse(str: &str) -> Result<RecursiveFunctions, String> {
+    let mut map = HashMap::new();
+    let mut pairs = Ps::parse(Rule::program, str).map_err(|err| format!("{err:?}"))?;
+    let mut pairs = pairs.next().unwrap().into_inner();
+
+    while pairs.peek().unwrap().as_rule() == Rule::let_statement {
+        let pair = pairs.next().unwrap();
+        let (name, func) = parse_let_statement(pair, &map)?;
         map.insert(name, func);
     }
-    map.get("main")
-        .cloned()
-        .ok_or("main is not found".to_string())
+
+    let main_func = parse_func(pairs.next().unwrap(), &map)?;
+
+    Ok(main_func)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::machine::interpreter;
-    use utils::number::Number;
-
     use super::*;
     #[test]
-    fn json_test() {
-        let stru = Function::Zero;
-        let json = serde_json::to_string(&stru).unwrap();
-        println!("{json}");
+    fn parse_test_simple() {
+        let code = "ZERO";
+        let func = parse(code).unwrap();
+        assert_eq!(func, RecursiveFunctions::zero());
 
-        let stru = Function::Succ;
-        let json = serde_json::to_string(&stru).unwrap();
-        println!("{json}");
+        let code = "SUCC";
+        let func = parse(code).unwrap();
+        assert_eq!(func, RecursiveFunctions::succ());
 
-        let stru = Function::Proj(Proj {
-            length: 3,
-            number: 0,
-        });
-        let json = serde_json::to_string(&stru).unwrap();
-        println!("{json}");
-
-        let stru = Function::Comp(Comp {
-            length: 1,
-            inner: vec![Function::Zero],
-            outer: Box::new(Function::Zero),
-        });
-        let json = serde_json::to_string(&stru).unwrap();
-        println!("{json}");
-
-        let stru = Function::Prim(Prim {
-            zero: Box::new(Function::Zero),
-            succ: Box::new(Function::Zero),
-        });
-        let json = serde_json::to_string(&stru).unwrap();
-        println!("{json}");
-
-        let stru = Function::Muop(Muop {
-            muop: Box::new(Function::Zero),
-        });
-        let json = serde_json::to_string(&stru).unwrap();
-        println!("{json}");
-
-        let stru = Function::Exist("add".to_string());
-        let json = serde_json::to_string(&stru).unwrap();
-        println!("{json}");
+        let code = "PROJ[3, 0]";
+        let func = parse(code).unwrap();
+        assert_eq!(func, RecursiveFunctions::projection(3, 0).unwrap());
     }
     #[test]
-    fn json_test_2() {
-        let func_data: Vec<FunctionData> = vec![FunctionData {
-            name: "add1".to_string(),
-            function: Function::Succ,
-        }];
-        let str = serde_json::to_string(&func_data).unwrap();
-        println!("{str}");
-        let json: serde_json::Value = serde_json::from_str(&str).unwrap();
-        let func_data_from: Vec<FunctionData> = serde_json::from_value(json).unwrap();
-        assert_eq!(func_data, func_data_from)
+    fn parse_test_rec() {
+        let code = "COMP[SUCC: (ZERO)]";
+        let func = parse(code).unwrap();
+        assert_eq!(
+            func,
+            RecursiveFunctions::composition(
+                RecursiveFunctions::succ(),
+                vec![RecursiveFunctions::zero()],
+            )
+            .unwrap()
+        );
+
+        let code = "PRIM[z: ZERO s: PROJ[2, 0] ]";
+        let func = parse(code).unwrap();
+        assert_eq!(
+            func,
+            RecursiveFunctions::primitive_recursion(
+                RecursiveFunctions::zero(),
+                RecursiveFunctions::projection(2, 0).unwrap()
+            )
+            .unwrap()
+        );
+
+        let code = "MUOP[SUCC]";
+        let func = parse(code).unwrap();
+        assert_eq!(
+            func,
+            RecursiveFunctions::muoperator(RecursiveFunctions::succ()).unwrap()
+        );
     }
     #[test]
-    fn json_test_3() {
-        let func_str = r#"[{"name":"main","function":"Succ"}]"#;
-        let _ = parse(func_str).unwrap();
-        let func_str = r#"
-[
-    {
-        "name": "(x,y,z) -> succ x",
-        "function": {
-            "Comp": {
-                "length": 3,
-                "inner": [
-                    {"Proj": {"length": 3, "number": 0}}
-                ],
-                "outer": "Succ"
-            }
-        }
-    },
-    {
-        "name": "id",
-        "function": {
-            "Proj": {
-                "length": 1,
-                "number": 0
-            }
-        }
-    },
-    {
-        "name": "main",
-        "function": {
-            "Prim": {
-                "zero": {"Exist": "id"},
-                "succ": {"Exist": "(x,y,z) -> succ x"}
-            }
-        }
+    fn parse_test_rec2() {
+        let code = "MUOP[MUOP[PROJ[2, 0]]]";
+        let func = parse(code).unwrap();
+        assert_eq!(
+            func,
+            RecursiveFunctions::muoperator(
+                RecursiveFunctions::muoperator(RecursiveFunctions::projection(2, 0).unwrap())
+                    .unwrap()
+            )
+            .unwrap()
+        );
+
+        let code = "COMP[PROJ[2, 0]: (MUOP[SUCC], MUOP[SUCC])]";
+        let func = parse(code).unwrap();
+        assert_eq!(
+            func,
+            RecursiveFunctions::composition(
+                RecursiveFunctions::projection(2, 0).unwrap(),
+                vec![
+                    RecursiveFunctions::muoperator(RecursiveFunctions::succ()).unwrap(),
+                    RecursiveFunctions::muoperator(RecursiveFunctions::succ()).unwrap()
+                ]
+            )
+            .unwrap()
+        );
     }
-]"#;
-        let func = parse(func_str).unwrap();
-        let res = interpreter(&func).unchecked_subst(vec![1, 2].into());
-        assert_eq!(Number::from(3), res)
+    #[test]
+    fn parse_test_with_name() {
+        let code = "let f = ZERO.\nf";
+        let func = parse(code).unwrap();
+        assert_eq!(func, RecursiveFunctions::zero());
+
+        let code = "let f = ZERO.\nlet g = SUCC.\nf";
+        let func = parse(code).unwrap();
+        assert_eq!(func, RecursiveFunctions::zero());
+
+        let code = "let f = PROJ[2,1].\nlet g = SUCC.\nCOMP[f: (g, g)]";
+        let func = parse(code).unwrap();
+        assert_eq!(
+            func,
+            RecursiveFunctions::composition(
+                RecursiveFunctions::projection(2, 1).unwrap(),
+                vec![RecursiveFunctions::succ(), RecursiveFunctions::succ()]
+            )
+            .unwrap()
+        );
     }
 }

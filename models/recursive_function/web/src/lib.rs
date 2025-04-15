@@ -1,14 +1,22 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+use recursive_function_core::machine::Process;
+use std::sync::{LazyLock, Mutex};
+use wasm_bindgen::prelude::*;
+
+// many global mutable turing machines
+static MACHINES: LazyLock<Mutex<Vec<Process>>> = LazyLock::new(|| Mutex::new(vec![]));
+
+#[wasm_bindgen]
+pub struct ProcessWeb {
+    process: Process,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+#[wasm_bindgen]
+impl ProcessWeb {
+    #[wasm_bindgen(getter)]
+    pub fn into_string(&self) -> String {
+        self.process.to_string()
     }
 }
+
+// #[wasm_bindgen]
+// pub fn 

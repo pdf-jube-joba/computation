@@ -7,6 +7,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+recursive_function_core = { workspace = true }
+utils = { workspace = true }
+wasm-bindgen = { workspace = true }
 
 [lints]
 workspace = true
