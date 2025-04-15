@@ -44,10 +44,7 @@ pub mod utility {
     macro_rules! app {
         ($( $x:expr ),*) => {
             {
-                let mut alls = vec![];
-                $(
-                    alls.push($x);
-                )*
+                let alls = vec![$($x),*];
                 $crate::manipulation::utility::app_with_nonepmty(alls)
             }
         };

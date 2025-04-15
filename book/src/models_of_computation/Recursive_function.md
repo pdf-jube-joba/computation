@@ -27,3 +27,41 @@
 中身は思ったよりも"計算"っぽい。
 例としては恒等写像、足し算、掛け算などの基本的な関数は当然含まれる。
 
+## 具体例
+ここでは実際の計算の過程を見せている。
+1 つめの例は足し算で、
+
+<script type="module">
+    import { load, RecursiveFunctionViewModel } from "../assets/generated/recursive_function/recursive_function_glue.js";
+    import { TextAreaSource, TextDefinedSource, UserControls } from "../assets/utils.js";
+    await load();
+
+    let code_input1 = new TextDefinedSource("let zf = PROJ[1,0]. let sf = COMP[SUCC: (PROJ[3,0])]. let add = PRIM[z: zf s: sf]. add");
+    let tuple_input1 = new TextAreaSource("user_defined1");
+    let control1 = new UserControls("control1");
+
+    let view1 = new TuringMachineViewModel(code_input1, tuple_input1, control1, "view1");
+
+    let res = await fetch("../assets/component/models_of_computation/Turing_machine_sorting_01.txt");
+    let txt = await res.text();
+
+    let code_input2 = new TextDefinedSource(txt);
+    let tape_input2 = new TextAreaSource("user_defined");
+    let control2 = new UserControls("control2");
+
+    let view2 = new TuringMachineViewModel(code_input2, tape_input2, control2, "view2");
+</script>
+
+<div id="machine1">
+    <div id="control1"></div>
+    <textarea id="user_defined1"> (3, 4) </textarea>
+    <div id="view1">
+    </div>
+</div>
+
+<div id="machine2">
+    <div id="control2"></div>
+    <textarea id="user_defined" rows="1" cols="20"> x|0|1,1,0 </textarea>
+    <div id="view2">
+    </div>
+</div>

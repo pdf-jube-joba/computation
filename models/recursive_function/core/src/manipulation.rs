@@ -1,7 +1,7 @@
 use pest::{iterators::Pair, Parser};
 use std::collections::HashMap;
 
-use crate::machine::{self, RecursiveFunctions};
+use crate::machine::RecursiveFunctions;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "parse.pest"]
@@ -80,7 +80,7 @@ fn parse_let_statement(
 
 pub fn parse(str: &str) -> Result<RecursiveFunctions, String> {
     let mut map = HashMap::new();
-    let mut pairs = Ps::parse(Rule::program, str).map_err(|err| format!("{err:?}"))?;
+    let mut pairs = Ps::parse(Rule::program, str).map_err(|err| format!("{err}"))?;
     let mut pairs = pairs.next().unwrap().into_inner();
 
     while pairs.peek().unwrap().as_rule() == Rule::let_statement {

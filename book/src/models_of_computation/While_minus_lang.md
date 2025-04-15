@@ -115,10 +115,6 @@ while minus はこれで全てである、と言いたいところだが、こ�
 部分関数として意味を与えるか、関係として意味を与えることが多い。
 ラムダ計算もそうであった。
 
-## play ground
-
-<component id="while_minus_lang_playground">
-
 ## 再帰関数の計算
 
 ところでこの while-minus 言語の計算能力も気になるが、実はこれはチューリングマシンと等価であることがわかる。
@@ -143,7 +139,3 @@ while minus はこれで全てである、と言いたいところだが、こ�
 > 多分束縛というよりは代入のほうがニュアンスが近いのか？
 
 あとは変数の総入れ替えを考えればよい？
-
-作ったのは以下になる
-
-<component id="recursive_function_to_while_minus_lang">

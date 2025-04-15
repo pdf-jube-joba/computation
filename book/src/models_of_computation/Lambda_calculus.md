@@ -226,10 +226,6 @@
 > **theorem**
 > ラムダ項が正規形を持つなら最左最外簡約を繰り返すことで到達できる。
 
-### ラムダ計算を実際に簡約してみる
-
-<component id="lambda_calculus_example">
-
 ## Church encoding とラムダ計算による自然数関数の計算可能性
 ラムダ計算もまた帰納関数の計算を"埋め込む"ことができる。
 帰納関数の埋め込み方は複数あるが、ここでは代表的な Church encoding を用いる。
@@ -294,9 +290,3 @@
 
 あとは再帰関数との対応をしっかり与えればよいが、ここまでやれば自明なのでいいか。
 こうして再帰関数がラムダ計算で計算可能であることが分かった。
-
-## playground
-
-以下では再帰関数を書くと対応したラムダ式を作る。
-
-<component id="recursive_function_to_lambda_calculus_playground">
