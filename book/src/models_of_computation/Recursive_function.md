@@ -1,6 +1,8 @@
 # 再帰的関数
 自然数全体を \(\mathbb{N}\) と書き、 \(0\) を含めるものとする。
 この節では再帰関数と呼ばれる関数たちを定義する。
+自然数の組から自然数への関数のうち、"計算できる"っぽいものを再帰関数という。
+
 
 ## 再帰関数の定義
 
@@ -29,7 +31,7 @@
 
 ## 具体例
 ここでは実際の計算の過程を見せている。
-1 つめの例は足し算で、
+足し算の定義には、原始再帰を使う。
 
 <script type="module">
     import { load, RecursiveFunctionViewModel } from "../assets/generated/recursive_function/recursive_function_glue.js";
@@ -40,28 +42,12 @@
     let tuple_input1 = new TextAreaSource("user_defined1");
     let control1 = new UserControls("control1");
 
-    let view1 = new TuringMachineViewModel(code_input1, tuple_input1, control1, "view1");
-
-    let res = await fetch("../assets/component/models_of_computation/Turing_machine_sorting_01.txt");
-    let txt = await res.text();
-
-    let code_input2 = new TextDefinedSource(txt);
-    let tape_input2 = new TextAreaSource("user_defined");
-    let control2 = new UserControls("control2");
-
-    let view2 = new TuringMachineViewModel(code_input2, tape_input2, control2, "view2");
+    let view1 = new RecursiveFunctionViewModel(code_input1, tuple_input1, control1, "view1");
 </script>
 
 <div id="machine1">
     <div id="control1"></div>
-    <textarea id="user_defined1"> (3, 4) </textarea>
+    <textarea id="user_defined1" rows="1" cols="20"> (3, 4) </textarea>
     <div id="view1">
-    </div>
-</div>
-
-<div id="machine2">
-    <div id="control2"></div>
-    <textarea id="user_defined" rows="1" cols="20"> x|0|1,1,0 </textarea>
-    <div id="view2">
     </div>
 </div>

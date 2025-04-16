@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use crate::machine::*;
 use anyhow::{bail, Ok, Result};
 use either::Either;
 use pest::{iterators::Pair, Parser};
+use utils::bool::Bool;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "logic_circuit.pest"]

@@ -1,4 +1,8 @@
-use std::ops::Not;
+use std::{
+    fmt::Display,
+    ops::{Neg, Not},
+    str::FromStr,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Bool {
@@ -21,12 +25,34 @@ impl Bool {
     }
 }
 
+
+// !T = F
 impl Not for Bool {
     type Output = Bool;
     fn not(self) -> Self::Output {
         match self {
             Bool::T => Bool::F,
             Bool::F => Bool::T,
+        }
+    }
+}
+
+impl FromStr for Bool {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "T" => Ok(Bool::T),
+            "F" => Ok(Bool::F),
+            _ => Err(anyhow::anyhow!("fail to parse {s}")),
+        }
+    }
+}
+
+impl Display for Bool {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Bool::T => write!(f, "T"),
+            Bool::F => write!(f, "F"),
         }
     }
 }

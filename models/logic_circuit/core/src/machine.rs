@@ -1,69 +1,10 @@
 use anyhow::{anyhow, bail, Result};
 use either::Either;
-use serde::{Deserialize, Serialize};
-use std::str::FromStr;
-use std::{collections::HashMap, fmt::Display, ops::Neg};
-use utils::number::*;
+use std::{collections::HashMap, fmt::Display};
+use utils::{bool::Bool, number::*};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum Bool {
-    T,
-    F,
-}
-
-impl Neg for Bool {
-    type Output = Bool;
-    fn neg(self) -> Self::Output {
-        match self {
-            Bool::T => Bool::F,
-            Bool::F => Bool::T,
-        }
-    }
-}
-
-impl Bool {
-    pub fn and(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::T, Bool::T) => Bool::T,
-            _ => Bool::F,
-        }
-    }
-    pub fn or(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::F, Bool::F) => Bool::F,
-            _ => Bool::T,
-        }
-    }
-}
-
-impl FromStr for Bool {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "T" => Ok(Bool::T),
-            "F" => Ok(Bool::F),
-            _ => Err(anyhow!("fail to parse {s}")),
-        }
-    }
-}
-
-impl Display for Bool {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Bool::T => write!(f, "T"),
-            Bool::F => write!(f, "F"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InPin(String);
-
-impl InPin {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 
 impl From<String> for InPin {
     fn from(value: String) -> Self {
@@ -83,14 +24,8 @@ impl Display for InPin {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OtPin(String);
-
-impl OtPin {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 
 impl From<String> for OtPin {
     fn from(value: String) -> Self {
@@ -110,7 +45,7 @@ impl Display for OtPin {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Gate {
     Cst {
         state: Bool,
@@ -274,7 +209,7 @@ impl Gate {
     pub fn next(&mut self) {
         match self {
             Gate::Not { state, input } => {
-                *state = input.neg();
+                *state = !*input;
             }
             Gate::Br { state, input } => {
                 *state = *input;
@@ -313,7 +248,7 @@ impl Gate {
                 input1: _,
             } => "or ".to_owned(),
             Gate::Cst { state } => format!("cst{state}"),
-            Gate::Br { state: _, input: _ } => "br ".to_owned(),
+            Gate::Br { state: _, input: _ } => "br".to_owned(),
             Gate::End { input: _ } => "end".to_owned(),
             Gate::Delay { input: _, state: _ } => "dly".to_owned(),
         }
@@ -323,7 +258,7 @@ impl Gate {
             Gate::Not { state: _, input }
             | Gate::Br { state: _, input }
             | Gate::Delay { input, state: _ }
-            | Gate::End { input } => vec![("IN".into(), input.clone())],
+            | Gate::End { input } => vec![("IN".into(), *input)],
             Gate::And {
                 state: _,
                 input0,
@@ -333,10 +268,7 @@ impl Gate {
                 state: _,
                 input0,
                 input1,
-            } => vec![
-                ("IN0".into(), input0.clone()),
-                ("IN1".into(), input1.clone()),
-            ],
+            } => vec![("IN0".into(), *input0), ("IN1".into(), *input1)],
             Gate::Cst { state: _ } => vec![],
         }
     }
@@ -354,24 +286,15 @@ impl Gate {
                 input0: _,
                 input1: _,
             }
-            | Gate::Cst { state } => vec![("OUT".into(), state.clone())],
-            Gate::Br { state, input: _ } => vec![
-                ("OUT0".into(), state.clone()),
-                ("OUT1".into(), state.clone()),
-            ],
+            | Gate::Cst { state } => vec![("OUT".into(), *state)],
+            Gate::Br { state, input: _ } => vec![("OUT0".into(), *state), ("OUT1".into(), *state)],
             Gate::End { input: _ } => vec![],
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Name(String);
-
-impl Name {
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 
 impl From<String> for Name {
     fn from(value: String) -> Self {
@@ -391,7 +314,7 @@ impl Display for Name {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinGraph {
     pub lcs: Vec<(Name, LoC)>,
     pub edges: Vec<((Name, OtPin), (Name, InPin))>,
@@ -583,13 +506,12 @@ impl FinGraph {
             .collect()
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Iter {
     lc_init: Box<LoC>,
     lc_extended: Vec<LoC>,
-    // LC[i].out -> LC[i+1].in
     next_edges: Vec<(OtPin, InPin)>,
-    // LC[i].in <- LC[i+1].out
     prev_edges: Vec<(OtPin, InPin)>,
 }
 
@@ -708,7 +630,7 @@ impl Iter {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoC {
     Gate(Gate),
     FinGraph(Name, Box<FinGraph>),
