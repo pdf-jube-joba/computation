@@ -24,6 +24,42 @@ impl PinWeb {
 }
 
 #[wasm_bindgen]
+pub struct GateWeb {
+    gate: String,
+    state: bool,
+}
+
+#[wasm_bindgen]
+impl GateWeb {
+    #[wasm_bindgen(getter)]
+    pub fn gate(&self) -> String {
+        self.gate.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn state(&self) -> bool {
+        self.state
+    }
+}
+
+#[wasm_bindgen]
+pub struct EdgeWeb {
+    from: String,
+    to: String,
+}
+
+#[wasm_bindgen]
+impl EdgeWeb {
+    #[wasm_bindgen(getter)]
+    pub fn from(&self) -> String {
+        self.from.clone()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn to(&self) -> String {
+        self.to.clone()
+    }
+}
+
+#[wasm_bindgen]
 pub struct LogicCircuitWeb {
     circuit: LogicCircuit,
 }
@@ -35,7 +71,7 @@ impl LogicCircuitWeb {
         self.circuit.get_name().to_string()
     }
     #[wasm_bindgen(getter)]
-    pub fn get_input(&self) -> Vec<PinWeb> {
+    pub fn get_inputs(&self) -> Vec<PinWeb> {
         self.circuit
             .get_inpins()
             .iter()
@@ -45,8 +81,8 @@ impl LogicCircuitWeb {
             })
             .collect()
     }
-    #[wasm_bindgen]
-    pub fn get_output(&self) -> Vec<PinWeb> {
+    #[wasm_bindgen(getter)]
+    pub fn get_outputs(&self) -> Vec<PinWeb> {
         self.circuit
             .get_otpins()
             .iter()
@@ -55,6 +91,10 @@ impl LogicCircuitWeb {
                 value: v.1.into(),
             })
             .collect()
+    }
+    #[wasm_bindgen(getter)]
+    pub fn get_gates(&self) -> Vec<GateWeb> {
+        todo!()
     }
 }
 
@@ -72,6 +112,18 @@ pub fn set_logic_circuit(index: usize, code: &str) -> Result<(), String> {
     let mut machines = MACHINES.lock().unwrap();
     if index < machines.len() {
         machines[index] = loc;
+        Ok(())
+    } else {
+        Err("Index out of bounds".to_string())
+    }
+}
+
+#[wasm_bindgen]
+pub fn step_logic_circuit(index: usize) -> Result<(), String> {
+    let mut machines = MACHINES.lock().unwrap();
+    if index < machines.len() {
+        let machine = &mut machines[index];
+        machine.next();
         Ok(())
     } else {
         Err("Index out of bounds".to_string())

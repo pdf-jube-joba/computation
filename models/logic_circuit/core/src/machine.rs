@@ -807,6 +807,7 @@ impl LogicCircuit {
             _ => None,
         }
     }
+    // pub fn get_all_gate(&self) -> Vec<>
 }
 
 #[cfg(test)]

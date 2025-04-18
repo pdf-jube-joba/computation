@@ -1,4 +1,4 @@
-import init from "./pkg/logic_circuit_web.js";
+import init, {get_inputs, get_outputs} from "./pkg/logic_circuit_web.js";
 
 // ---- wasm module glue code ----
 
@@ -38,7 +38,11 @@ export class LogicCircuitViewModel {
 // use SVG.js for drawing
 export class LogicCircuitView {
 
-  constructor(viewId, placement) {
+  constructor(viewId, circuit, default_placement) {
+    // set default placement
+    this.default_placement = default_placement;
+
+    // setting for SVG.js
     this.viewId = viewId;
     this.SVG_elm = SVG().addTo(`#${viewId}`).size('100%', '100%').viewbox(0, 0, 800, 600);
     // set width and height
@@ -49,23 +53,8 @@ export class LogicCircuitView {
   }
 
   draw(circuit) {
-    // test code for drag rect
     this.group.clear();
-    const rect = this.group.rect(100, 100).attr({ fill: '#f06' });
-    enableDrag(rect);
-    const rect2 = this.group.rect(100, 100).attr({ fill: '#0f6' });
-    enableDrag(rect2, {
-      onStart: (x, y) => {
-        console.log("drag start", x, y);
-      },
-      onMove: (x, y) => {
-        console.log("drag move", x, y);
-      },
-      onEnd: (e) => {
-        console.log("drag end", e);
-      }
-    });
-    rect2.move(200, 200);
+
   }
 }
 // ---- view class end ----
