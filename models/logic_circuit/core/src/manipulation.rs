@@ -9,11 +9,11 @@ use utils::bool::Bool;
 struct Ps;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct List(pub Vec<(Name, LoC)>);
+pub struct List(pub Vec<(Name, LogicCircuit)>);
 
 impl<T> From<T> for List
 where
-    T: IntoIterator<Item = (Name, LoC)>,
+    T: IntoIterator<Item = (Name, LogicCircuit)>,
 {
     fn from(value: T) -> Self {
         List(value.into_iter().collect())
@@ -21,12 +21,12 @@ where
 }
 
 impl List {
-    pub fn get(&self, name: &Name) -> Option<&LoC> {
+    pub fn get(&self, name: &Name) -> Option<&LogicCircuit> {
         self.0
             .iter()
             .find_map(|v| if &v.0 == name { Some(&v.1) } else { None })
     }
-    pub fn insert(&mut self, name_loc: (Name, LoC)) -> Option<()> {
+    pub fn insert(&mut self, name_loc: (Name, LogicCircuit)) -> Option<()> {
         if self.get(&name_loc.0).is_none() {
             self.0.push(name_loc);
             Some(())
@@ -39,19 +39,19 @@ impl List {
 // contains fundamental gate
 pub fn init_maps() -> List {
     vec![
-        ("NOT-T".into(), LoC::notgate(Bool::T)),
-        ("NOT-F".into(), LoC::notgate(Bool::F)),
-        ("AND-T".into(), LoC::andgate(Bool::T)),
-        ("AND-F".into(), LoC::andgate(Bool::F)),
-        ("OR-T".into(), LoC::orgate(Bool::T)),
-        ("OR-F".into(), LoC::orgate(Bool::F)),
-        ("CST-T".into(), LoC::cstgate(Bool::T)),
-        ("CST-F".into(), LoC::cstgate(Bool::F)),
-        ("BR-T".into(), LoC::brgate(Bool::T)),
-        ("BR-F".into(), LoC::brgate(Bool::F)),
-        ("END".into(), LoC::endgate()),
-        ("DLY-T".into(), LoC::delaygate(Bool::T)),
-        ("DLY-F".into(), LoC::delaygate(Bool::F)),
+        ("NOT-T".into(), LogicCircuit::notgate(Bool::T)),
+        ("NOT-F".into(), LogicCircuit::notgate(Bool::F)),
+        ("AND-T".into(), LogicCircuit::andgate(Bool::T)),
+        ("AND-F".into(), LogicCircuit::andgate(Bool::F)),
+        ("OR-T".into(), LogicCircuit::orgate(Bool::T)),
+        ("OR-F".into(), LogicCircuit::orgate(Bool::F)),
+        ("CST-T".into(), LogicCircuit::cstgate(Bool::T)),
+        ("CST-F".into(), LogicCircuit::cstgate(Bool::F)),
+        ("BR-T".into(), LogicCircuit::brgate(Bool::T)),
+        ("BR-F".into(), LogicCircuit::brgate(Bool::F)),
+        ("END".into(), LogicCircuit::endgate()),
+        ("DLY-T".into(), LogicCircuit::delaygate(Bool::T)),
+        ("DLY-F".into(), LogicCircuit::delaygate(Bool::F)),
     ]
     .into()
 }
@@ -95,7 +95,7 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
                 //         e.push(((n.clone(), o.clone()), (lcname.clone(), i.clone())));
                 //     }
                 // }
-                let graphlc = LoC::new_graph(name.clone(), new_lcs, edges, inpins, otpin)?;
+                let graphlc = LogicCircuit::new_graph(name.clone(), new_lcs, edges, inpins, otpin)?;
                 maps.insert((name, graphlc));
             }
             Rule::iterator => {
@@ -109,7 +109,7 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
                 let Some(initlc) = maps.get(&initlc) else {
                     bail!("not found name {initlc}");
                 };
-                let iterlc = LoC::new_iter(name.clone(), initlc.clone(), next, prev)?;
+                let iterlc = LogicCircuit::new_iter(name.clone(), initlc.clone(), next, prev)?;
                 maps.insert((name, iterlc));
             }
             _ => {
@@ -120,7 +120,7 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
     Ok(())
 }
 
-pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LoC> {
+pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LogicCircuit> {
     parse(code, &mut maps)?;
     match maps.get(&"main".into()) {
         Some(lc) => Ok(lc.clone()),
@@ -128,7 +128,7 @@ pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LoC> {
     }
 }
 
-pub fn parse_main(code: &str) -> Result<LoC> {
+pub fn parse_main(code: &str) -> Result<LogicCircuit> {
     let mut maps: List = init_maps();
     parse(code, &mut maps)?;
     match maps.get(&"main".into()) {

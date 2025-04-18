@@ -1,8 +1,4 @@
-use std::{
-    fmt::Display,
-    ops::{Neg, Not},
-    str::FromStr,
-};
+use std::{fmt::Display, ops::Not, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Bool {
@@ -24,7 +20,6 @@ impl Bool {
         }
     }
 }
-
 
 // !T = F
 impl Not for Bool {
@@ -53,6 +48,15 @@ impl Display for Bool {
         match self {
             Bool::T => write!(f, "T"),
             Bool::F => write!(f, "F"),
+        }
+    }
+}
+
+impl From<Bool> for bool {
+    fn from(b: Bool) -> Self {
+        match b {
+            Bool::T => true,
+            Bool::F => false,
         }
     }
 }

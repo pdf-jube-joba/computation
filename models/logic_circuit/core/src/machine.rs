@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use either::Either;
 use std::{collections::HashMap, fmt::Display};
 use utils::{bool::Bool, number::*};
@@ -316,7 +316,7 @@ impl Display for Name {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FinGraph {
-    pub lcs: Vec<(Name, LoC)>,
+    pub lcs: Vec<(Name, LogicCircuit)>,
     pub edges: Vec<((Name, OtPin), (Name, InPin))>,
     pub input: Vec<(InPin, (Name, InPin))>,
     pub otput: Vec<(OtPin, (Name, OtPin))>,
@@ -324,7 +324,7 @@ pub struct FinGraph {
 
 impl FinGraph {
     fn new(
-        mut lcs: Vec<(Name, LoC)>,
+        mut lcs: Vec<(Name, LogicCircuit)>,
         edges: Vec<((Name, OtPin), (Name, InPin))>,
         input: Vec<(InPin, (Name, InPin))>,
         otput: Vec<(OtPin, (Name, OtPin))>,
@@ -435,11 +435,11 @@ impl FinGraph {
         let (_, lc) = self.lcs.iter().find(|(name2, _)| name2 == name)?;
         lc.get_otput(otpin)
     }
-    pub fn getmut_lc(&mut self, name: &Name) -> Option<&mut LoC> {
+    pub fn getmut_lc(&mut self, name: &Name) -> Option<&mut LogicCircuit> {
         let (_, lc) = self.lcs.iter_mut().find(|(n, _)| name == n)?;
         Some(lc)
     }
-    pub fn get_lc(&self, name: &Name) -> Option<&LoC> {
+    pub fn get_lc(&self, name: &Name) -> Option<&LogicCircuit> {
         let (_, lc) = self.lcs.iter().find(|(n, _)| name == n)?;
         Some(lc)
     }
@@ -509,15 +509,15 @@ impl FinGraph {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Iter {
-    lc_init: Box<LoC>,
-    lc_extended: Vec<LoC>,
+    lc_init: Box<LogicCircuit>,
+    lc_extended: Vec<LogicCircuit>,
     next_edges: Vec<(OtPin, InPin)>,
     prev_edges: Vec<(OtPin, InPin)>,
 }
 
 impl Iter {
     fn new(
-        lc: LoC,
+        lc: LogicCircuit,
         next_edges: Vec<(OtPin, InPin)>,
         prev_edges: Vec<(OtPin, InPin)>,
     ) -> Result<Self> {
@@ -574,15 +574,15 @@ impl Iter {
         let otpin = self.get_otpins().into_iter().find(|o| o.0 == *otpin)?;
         self.lc_extended[0].get_otput(&otpin.0)
     }
-    pub fn getmut_lc(&mut self, n: Number) -> Option<&mut LoC> {
+    pub fn getmut_lc(&mut self, n: Number) -> Option<&mut LogicCircuit> {
         let n: usize = n.into();
         self.lc_extended.get_mut(n)
     }
-    fn get_lc(&self, n: Number) -> Option<&LoC> {
+    fn get_lc(&self, n: Number) -> Option<&LogicCircuit> {
         let n: usize = n.into();
         self.lc_extended.get(n)
     }
-    pub fn get_lcs(&self) -> &Vec<LoC> {
+    pub fn get_lcs(&self) -> &Vec<LogicCircuit> {
         &self.lc_extended
     }
     pub fn next(&mut self) {
@@ -619,19 +619,19 @@ impl Iter {
     pub fn get_inpins(&self) -> Vec<(InPin, Bool)> {
         self.next_edges
             .iter()
-            .map(|(_, i)| (i.clone(), *self.get_input(&i).unwrap()))
+            .map(|(_, i)| (i.clone(), *self.get_input(i).unwrap()))
             .collect()
     }
     pub fn get_otpins(&self) -> Vec<(OtPin, Bool)> {
         self.prev_edges
             .iter()
-            .map(|(o, _)| (o.clone(), *self.get_otput(&o).unwrap()))
+            .map(|(o, _)| (o.clone(), *self.get_otput(o).unwrap()))
             .collect()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LoC {
+pub enum LogicCircuit {
     Gate(Gate),
     FinGraph(Name, Box<FinGraph>),
     Iter(Name, Iter),
@@ -649,101 +649,104 @@ pub fn into_inpin_path(str: &str) -> Path {
     p
 }
 
-impl LoC {
-    pub fn notgate(b: Bool) -> LoC {
-        LoC::Gate(Gate::Not {
+impl LogicCircuit {
+    pub fn notgate(b: Bool) -> LogicCircuit {
+        LogicCircuit::Gate(Gate::Not {
             state: b,
             input: Bool::F,
         })
     }
-    pub fn andgate(b: Bool) -> LoC {
-        LoC::Gate(Gate::And {
+    pub fn andgate(b: Bool) -> LogicCircuit {
+        LogicCircuit::Gate(Gate::And {
             state: b,
             input0: Bool::F,
             input1: Bool::F,
         })
     }
-    pub fn orgate(b: Bool) -> LoC {
-        LoC::Gate(Gate::Or {
+    pub fn orgate(b: Bool) -> LogicCircuit {
+        LogicCircuit::Gate(Gate::Or {
             state: b,
             input0: Bool::F,
             input1: Bool::F,
         })
     }
-    pub fn cstgate(b: Bool) -> LoC {
-        LoC::Gate(Gate::Cst { state: b })
+    pub fn cstgate(b: Bool) -> LogicCircuit {
+        LogicCircuit::Gate(Gate::Cst { state: b })
     }
-    pub fn brgate(b: Bool) -> LoC {
-        LoC::Gate(Gate::Br {
+    pub fn brgate(b: Bool) -> LogicCircuit {
+        LogicCircuit::Gate(Gate::Br {
             state: b,
             input: Bool::F,
         })
     }
-    pub fn endgate() -> LoC {
-        LoC::Gate(Gate::End { input: Bool::F })
+    pub fn endgate() -> LogicCircuit {
+        LogicCircuit::Gate(Gate::End { input: Bool::F })
     }
-    pub fn delaygate(b: Bool) -> LoC {
-        LoC::Gate(Gate::Delay {
+    pub fn delaygate(b: Bool) -> LogicCircuit {
+        LogicCircuit::Gate(Gate::Delay {
             input: Bool::F,
             state: b,
         })
     }
     pub fn new_graph(
         name: Name,
-        lcs: Vec<(Name, LoC)>,
+        lcs: Vec<(Name, LogicCircuit)>,
         edges: Vec<((Name, OtPin), (Name, InPin))>,
         input: Vec<(InPin, (Name, InPin))>,
         output: Vec<(OtPin, (Name, OtPin))>,
     ) -> Result<Self> {
-        Ok(LoC::FinGraph(
+        Ok(LogicCircuit::FinGraph(
             name,
             Box::new(FinGraph::new(lcs, edges, input, output)?),
         ))
     }
     pub fn new_iter(
         name: Name,
-        lc: LoC,
+        lc: LogicCircuit,
         next_edges: Vec<(OtPin, InPin)>,
         prev_edges: Vec<(OtPin, InPin)>,
     ) -> Result<Self> {
-        Ok(LoC::Iter(name, Iter::new(lc, next_edges, prev_edges)?))
+        Ok(LogicCircuit::Iter(
+            name,
+            Iter::new(lc, next_edges, prev_edges)?,
+        ))
     }
     pub fn get_name(&self) -> Name {
         match self {
-            LoC::Gate(gate) => gate.name().into(),
-            LoC::FinGraph(name, _) => name.clone(),
-            LoC::Iter(name, _) => name.clone(),
+            LogicCircuit::Gate(gate) => gate.name().into(),
+            LogicCircuit::FinGraph(name, _) => name.clone(),
+            LogicCircuit::Iter(name, _) => name.clone(),
         }
     }
     pub fn get_input(&self, inpin: &InPin) -> Option<&Bool> {
         match self {
-            LoC::Gate(gate) => gate.get_input(inpin),
-            LoC::FinGraph(_, fingraph) => fingraph.get_input(inpin),
-            LoC::Iter(_, iter) => iter.get_input(inpin),
+            LogicCircuit::Gate(gate) => gate.get_input(inpin),
+            LogicCircuit::FinGraph(_, fingraph) => fingraph.get_input(inpin),
+            LogicCircuit::Iter(_, iter) => iter.get_input(inpin),
         }
     }
     pub fn getmut_input(&mut self, inpin: &InPin) -> Option<&mut Bool> {
         match self {
-            LoC::Gate(gate) => gate.getmut_input(inpin),
-            LoC::FinGraph(_, fingraph) => fingraph.getmut_input(inpin),
-            LoC::Iter(_, iter) => iter.getmut_input(inpin),
+            LogicCircuit::Gate(gate) => gate.getmut_input(inpin),
+            LogicCircuit::FinGraph(_, fingraph) => fingraph.getmut_input(inpin),
+            LogicCircuit::Iter(_, iter) => iter.getmut_input(inpin),
         }
     }
     pub fn get_otput(&self, otpin: &OtPin) -> Option<&Bool> {
         match self {
-            LoC::Gate(gate) => gate.get_output(otpin),
-            LoC::FinGraph(_, fingraph) => fingraph.get_otput(otpin),
-            LoC::Iter(_, iter) => iter.get_otput(otpin),
+            LogicCircuit::Gate(gate) => gate.get_output(otpin),
+            LogicCircuit::FinGraph(_, fingraph) => fingraph.get_otput(otpin),
+            LogicCircuit::Iter(_, iter) => iter.get_otput(otpin),
         }
     }
-    pub fn getmut_lc_from_path(&mut self, path: &Path) -> Option<&mut LoC> {
+    pub fn getmut_lc_from_path(&mut self, path: &Path) -> Option<&mut LogicCircuit> {
         let mut lc = self;
         for name in path {
             match (lc, name) {
-                (LoC::FinGraph(_, fingraph), Either::Left(name)) => {
+                (LogicCircuit::FinGraph(_, fingraph), Either::Left(name)) => {
                     lc = fingraph.getmut_lc(name)?;
                 }
-                (LoC::Iter(_, iter), Either::Right(num)) => {
+                (LogicCircuit::Iter(_, iter), Either::Right(num)) => {
                     lc = iter.getmut_lc(num.clone())?;
                 }
                 _ => {
@@ -753,14 +756,14 @@ impl LoC {
         }
         Some(lc)
     }
-    pub fn get_lc_from_path(&self, path: &Path) -> Option<&LoC> {
+    pub fn get_lc_from_path(&self, path: &Path) -> Option<&LogicCircuit> {
         let mut lc = self;
         for name in path {
             match (lc, name) {
-                (LoC::FinGraph(_, fingraph), Either::Left(name)) => {
+                (LogicCircuit::FinGraph(_, fingraph), Either::Left(name)) => {
                     lc = fingraph.get_lc(name)?;
                 }
-                (LoC::Iter(_, iter), Either::Right(num)) => {
+                (LogicCircuit::Iter(_, iter), Either::Right(num)) => {
                     lc = iter.get_lc(num.clone())?;
                 }
                 _ => {
@@ -772,35 +775,35 @@ impl LoC {
     }
     pub fn get_state_of_gate_from_path(&self, path: &Path) -> Option<&Bool> {
         let lc = self.get_lc_from_path(path)?;
-        let LoC::Gate(gate) = lc else {
+        let LogicCircuit::Gate(gate) = lc else {
             return None;
         };
         Some(gate.state())
     }
     pub fn next(&mut self) {
         match self {
-            LoC::Gate(gate) => gate.next(),
-            LoC::FinGraph(_, fingraph) => fingraph.next(),
-            LoC::Iter(_, iter) => iter.next(),
+            LogicCircuit::Gate(gate) => gate.next(),
+            LogicCircuit::FinGraph(_, fingraph) => fingraph.next(),
+            LogicCircuit::Iter(_, iter) => iter.next(),
         }
     }
     pub fn get_inpins(&self) -> Vec<(InPin, Bool)> {
         match self {
-            LoC::Gate(gate) => gate.get_inpins(),
-            LoC::FinGraph(_, fingraph) => fingraph.get_inpins(),
-            LoC::Iter(_, iter) => iter.get_inpins(),
+            LogicCircuit::Gate(gate) => gate.get_inpins(),
+            LogicCircuit::FinGraph(_, fingraph) => fingraph.get_inpins(),
+            LogicCircuit::Iter(_, iter) => iter.get_inpins(),
         }
     }
     pub fn get_otpins(&self) -> Vec<(OtPin, Bool)> {
         match self {
-            LoC::Gate(gate) => gate.get_otpins(),
-            LoC::FinGraph(_, fingraph) => fingraph.get_otpins(),
-            LoC::Iter(_, iter) => iter.get_otpins(),
+            LogicCircuit::Gate(gate) => gate.get_otpins(),
+            LogicCircuit::FinGraph(_, fingraph) => fingraph.get_otpins(),
+            LogicCircuit::Iter(_, iter) => iter.get_otpins(),
         }
     }
     pub fn take_fingraph(self) -> Option<FinGraph> {
         match self {
-            LoC::FinGraph(name, fingraph) => Some(*fingraph),
+            LogicCircuit::FinGraph(_, fingraph) => Some(*fingraph),
             _ => None,
         }
     }
@@ -820,15 +823,15 @@ mod tests {
     }
     #[test]
     fn rsratch() {
-        let rs = LoC::new_graph(
+        let rs = LogicCircuit::new_graph(
             "RS-latch".into(),
             vec![
-                ("O0".into(), LoC::orgate(Bool::T)),
-                ("N0".into(), LoC::notgate(Bool::F)),
-                ("B0".into(), LoC::brgate(Bool::F)),
-                ("O1".into(), LoC::orgate(Bool::F)),
-                ("N1".into(), LoC::notgate(Bool::T)),
-                ("B1".into(), LoC::brgate(Bool::T)),
+                ("O0".into(), LogicCircuit::orgate(Bool::T)),
+                ("N0".into(), LogicCircuit::notgate(Bool::F)),
+                ("B0".into(), LogicCircuit::brgate(Bool::F)),
+                ("O1".into(), LogicCircuit::orgate(Bool::F)),
+                ("N1".into(), LogicCircuit::notgate(Bool::T)),
+                ("B1".into(), LogicCircuit::brgate(Bool::T)),
             ],
             vec![
                 (("O0".into(), "OUT".into()), ("N0".into(), "IN".into())),
@@ -852,7 +855,7 @@ mod tests {
         let a = rs.get_inpins();
         assert_eq!(a, vec![("R".into(), Bool::F), ("S".into(), Bool::F)]);
 
-        let t = |lc: &mut LoC| loop {
+        let t = |lc: &mut LogicCircuit| loop {
             let lc_prev = lc.clone();
             lc.next();
             if lc_prev == *lc {

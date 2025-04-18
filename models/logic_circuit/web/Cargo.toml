@@ -7,6 +7,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+logic_circuit_core = { workspace = true }
+utils = { workspace = true }
+wasm-bindgen = { workspace = true }
 
 [lints]
 workspace = true

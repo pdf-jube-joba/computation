@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::manipulation::List;
 
-use super::machine::{LoC, Name};
+use super::machine::{LogicCircuit, Name};
 use super::manipulation;
 
 pub fn examples() -> List {
