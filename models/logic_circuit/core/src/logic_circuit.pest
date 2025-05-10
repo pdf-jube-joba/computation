@@ -5,7 +5,7 @@ name = @{ (ASCII_ALPHA | ASCII_DIGIT | symbol)+ }
 
 in_graph = { "in"  ~ "{" ~ (name ~ ","*)* ~ "}" }
 
-otpin_graph = {name ~ "=" ~ name ~ "." ~ name }
+otpin_graph = { name ~ "=" ~ name ~ "." ~ name }
 ot_graph = { "out" ~ "{" ~ (otpin_graph ~ ","*)* ~ "}" }
 
 pin = {(name ~ "." ~ name) | name}
