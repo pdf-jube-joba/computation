@@ -1,24 +1,9 @@
-use std::{fmt::Display, ops::Not, str::FromStr};
+use std::{fmt::Display, ops::{BitAnd, BitOr, Not}, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Bool {
     T,
     F,
-}
-
-impl Bool {
-    pub fn and(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::T, Bool::T) => Bool::T,
-            _ => Bool::F,
-        }
-    }
-    pub fn or(self, other: Self) -> Self {
-        match (self, other) {
-            (Bool::F, Bool::F) => Bool::F,
-            _ => Bool::T,
-        }
-    }
 }
 
 // !T = F
@@ -28,6 +13,26 @@ impl Not for Bool {
         match self {
             Bool::T => Bool::F,
             Bool::F => Bool::T,
+        }
+    }
+}
+
+impl BitAnd for Bool {
+    type Output = Bool;
+    fn bitand(self, other: Self) -> Self::Output {
+        match (self, other) {
+            (Bool::T, Bool::T) => Bool::T,
+            _ => Bool::F,
+        }
+    }
+}
+
+impl BitOr for Bool {
+    type Output = Bool;
+    fn bitor(self, other: Self) -> Self::Output {
+        match (self, other) {
+            (Bool::F, Bool::F) => Bool::F,
+            _ => Bool::T,
         }
     }
 }

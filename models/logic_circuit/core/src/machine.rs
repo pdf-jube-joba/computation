@@ -1,51 +1,157 @@
-use anyhow::{bail, Result};
-use either::Either;
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 use utils::{alphabet::Identifier, bool::Bool, number::*};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct InPin(pub Identifier);
+pub struct InPin(Vec<Identifier>);
 
-impl From<Identifier> for InPin {
-    fn from(id: Identifier) -> Self {
-        InPin(id)
+pub fn destruct(inpin: InPin) -> Option<(Identifier, InPin)> {
+    let (a, b) = inpin.0.split_first()?;
+    Some((a.clone(), InPin(b.to_vec())))
+}
+
+pub fn concat(indent: Identifier, inpin: InPin) -> InPin {
+    let mut v = vec![indent];
+    v.extend(inpin.0);
+    InPin(v)
+}
+
+impl FromStr for InPin {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut v = vec![];
+        for i in s.split('.') {
+            v.push(Identifier::new_user(i)?);
+        }
+        Ok(InPin(v))
     }
 }
 
-impl TryFrom<&str> for InPin {
-    type Error = String;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Identifier::new_user(value).map(InPin)
-    }
-}
-
-impl std::fmt::Display for InPin {
+impl Display for InPin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join(".")
+        )
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct OtPin(pub Identifier);
+pub struct OtPin(Vec<Identifier>);
 
-impl From<Identifier> for OtPin {
-    fn from(id: Identifier) -> Self {
-        OtPin(id)
+impl FromStr for OtPin {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut v = vec![];
+        for i in s.split('.') {
+            v.push(Identifier::new_user(i)?);
+        }
+        Ok(OtPin(v))
     }
 }
 
-impl TryFrom<&str> for OtPin {
-    type Error = String;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Identifier::new_user(value).map(OtPin)
-    }
-}
-
-impl std::fmt::Display for OtPin {
+impl Display for OtPin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join(".")
+        )
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Graph {
+    pub verts: Vec<(String, LogicCircuit)>,
+    pub edges: Vec<((String, OtPin), (String, InPin))>,
+}
+
+trait LogicCircuitTrait {
+    fn kind(&self) -> String;
+    fn get_inpins(&self) -> Vec<InPin>;
+    fn get_otpins(&self) -> Vec<OtPin>;
+    fn get_otputs(&self) -> Vec<(OtPin, Bool)>;
+    fn step(&mut self, inputs: Vec<(InPin, Bool)>);
+    fn as_graph_group(&self) -> Graph;
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogicCircuit {
+    Gate(Gate),
+    MixLogicCircuit(Box<MixLogicCircuit>),
+    IterLogicCircuit(Box<IterLogicCircuit>),
+    PinMap(Box<PinMap>),
+}
+
+impl LogicCircuitTrait for LogicCircuit {
+    fn kind(&self) -> String {
+        match self {
+            LogicCircuit::Gate(gate) => gate.kind(),
+            LogicCircuit::MixLogicCircuit(mix) => mix.kind.clone(),
+            LogicCircuit::IterLogicCircuit(iter) => iter.kind.clone(),
+            LogicCircuit::PinMap(pinmap) => pinmap.kind(),
+        }
+    }
+
+    fn get_inpins(&self) -> Vec<InPin> {
+        match self {
+            LogicCircuit::Gate(gate) => gate.get_inpins(),
+            LogicCircuit::MixLogicCircuit(mix) => {
+                mix.gates.iter().flat_map(|(_, g)| g.get_inpins()).collect()
+            }
+            LogicCircuit::IterLogicCircuit(iter) => iter.init.get_inpins(),
+            LogicCircuit::PinMap(pinmap) => pinmap.get_inpins(),
+        }
+    }
+
+    fn get_otpins(&self) -> Vec<OtPin> {
+        match self {
+            LogicCircuit::Gate(gate) => gate.get_otpins(),
+            LogicCircuit::MixLogicCircuit(mix) => {
+                mix.gates.iter().flat_map(|(_, g)| g.get_otpins()).collect()
+            }
+            LogicCircuit::IterLogicCircuit(iter) => iter.init.get_otpins(),
+            LogicCircuit::PinMap(pinmap) => pinmap.get_otpins(),
+        }
+    }
+
+    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+        match self {
+            LogicCircuit::Gate(gate) => gate.get_otputs(),
+            LogicCircuit::MixLogicCircuit(mix) => {
+                mix.gates.iter().flat_map(|(_, g)| g.get_otputs()).collect()
+            }
+            LogicCircuit::IterLogicCircuit(iter) => iter.init.get_otputs(),
+            LogicCircuit::PinMap(pinmap) => pinmap.get_otputs(),
+        }
+    }
+
+    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+        match self {
+            LogicCircuit::Gate(gate) => gate.step(inputs),
+            LogicCircuit::MixLogicCircuit(mix) => mix
+                .gates
+                .iter_mut()
+                .for_each(|(_, g)| g.step(inputs.clone())),
+            LogicCircuit::IterLogicCircuit(iter) => iter.init.step(inputs),
+            LogicCircuit::PinMap(pinmap) => pinmap.step(inputs),
+        }
+    }
+    fn as_graph_group(&self) -> Graph {
+        match self {
+            LogicCircuit::Gate(gate) => gate.as_graph_group(),
+            LogicCircuit::MixLogicCircuit(mix) => mix.as_graph_group(),
+            LogicCircuit::IterLogicCircuit(iter) => iter.as_graph_group(),
+            LogicCircuit::PinMap(pinmap) => pinmap.as_graph_group(),
+        }
     }
 }
 
@@ -74,10 +180,237 @@ impl Display for GateKind {
     }
 }
 
+fn get_inputs_from_map(inputs: Vec<(InPin, Bool)>, inpin: &InPin) -> Bool {
+    inputs
+        .iter()
+        .find(|(i, _)| i == inpin)
+        .map(|(_, b)| *b)
+        .unwrap_or(Bool::F)
+}
+
+fn get_otputs_from_map(otputs: Vec<(OtPin, Bool)>, otpin: &OtPin) -> Bool {
+    otputs
+        .iter()
+        .find(|(o, _)| o == otpin)
+        .map(|(_, b)| *b)
+        .unwrap_or(Bool::F)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Gate {
     kind: GateKind,
     state: Bool,
+}
+
+impl LogicCircuitTrait for Gate {
+    fn kind(&self) -> String {
+        self.kind.to_string()
+    }
+
+    fn get_inpins(&self) -> Vec<InPin> {
+        match self.kind {
+            GateKind::Cst => vec![],
+            GateKind::Not | GateKind::Br | GateKind::Delay | GateKind::End => {
+                vec!["IN".parse().unwrap()]
+            }
+            GateKind::And | GateKind::Or => {
+                vec!["IN0".parse().unwrap(), "IN1".parse().unwrap()]
+            }
+        }
+    }
+
+    fn get_otpins(&self) -> Vec<OtPin> {
+        match self.kind {
+            GateKind::Cst | GateKind::Not | GateKind::Delay | GateKind::And | GateKind::Or => {
+                vec!["OUT".parse().unwrap()]
+            }
+            GateKind::Br => vec!["OUT0".parse().unwrap(), "OUT1".parse().unwrap()],
+            GateKind::End => vec![],
+        }
+    }
+
+    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+        self.get_otpins()
+            .into_iter()
+            .map(|otpin| (otpin, self.state))
+            .collect()
+    }
+
+    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+        match self.kind {
+            GateKind::Cst => {}
+            GateKind::Not => {
+                self.state = !get_inputs_from_map(inputs.clone(), &"IN".parse().unwrap());
+            }
+            GateKind::And => {
+                self.state = get_inputs_from_map(inputs.clone(), &"IN0".parse().unwrap())
+                    & get_inputs_from_map(inputs.clone(), &"IN1".parse().unwrap());
+            }
+            GateKind::Or => {
+                self.state = get_inputs_from_map(inputs.clone(), &"IN0".parse().unwrap())
+                    | get_inputs_from_map(inputs.clone(), &"IN1".parse().unwrap());
+            }
+            GateKind::Br => {
+                self.state = get_inputs_from_map(inputs.clone(), &"IN".parse().unwrap());
+            }
+            GateKind::Delay => {
+                self.state = get_inputs_from_map(inputs.clone(), &"IN".parse().unwrap());
+            }
+            GateKind::End => {
+                self.state = get_inputs_from_map(inputs.clone(), &"IN".parse().unwrap());
+            }
+        }
+    }
+
+    fn as_graph_group(&self) -> Graph {
+        Graph {
+            verts: vec![(self.kind(), LogicCircuit::Gate(self.clone()))],
+            edges: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PinMap {
+    pub this: LogicCircuit,
+    pub inpin_maps: Vec<(InPin, InPin)>,
+    pub otpin_maps: Vec<(OtPin, OtPin)>,
+}
+
+impl LogicCircuitTrait for PinMap {
+    fn kind(&self) -> String {
+        self.this.kind()
+    }
+
+    fn get_inpins(&self) -> Vec<InPin> {
+        self.inpin_maps.iter().map(|(i, _)| i.clone()).collect()
+    }
+
+    fn get_otpins(&self) -> Vec<OtPin> {
+        self.otpin_maps.iter().map(|(o, _)| o.clone()).collect()
+    }
+
+    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+        self.otpin_maps
+            .iter()
+            .map(|(o, o_binded)| {
+                let b = get_otputs_from_map(self.this.get_otputs(), o_binded);
+                (o.clone(), b)
+            })
+            .collect()
+    }
+
+    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+        let mut new_inputs = vec![];
+        for (i, b) in inputs {
+            if let Some((_, i2)) = self.inpin_maps.iter().find(|(i1, _)| i1 == &i) {
+                new_inputs.push((i2.clone(), b));
+            }
+        }
+        self.this.step(new_inputs);
+    }
+
+    fn as_graph_group(&self) -> Graph {
+        Graph {
+            verts: vec![(self.kind(), self.this.clone())],
+            edges: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MixLogicCircuit {
+    pub kind: Identifier,
+    pub verts: Vec<(Identifier, LogicCircuit)>,
+    pub edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
+}
+
+impl LogicCircuitTrait for MixLogicCircuit {
+    fn kind(&self) -> String {
+        self.kind.clone().to_string()
+    }
+
+    fn get_inpins(&self) -> Vec<InPin> {
+        self.verts
+            .iter()
+            .flat_map(|(s, g)| {
+                g.get_inpins()
+                    .into_iter()
+                    .filter(move |i| self.edges.iter().all(|(_, (s2, i2))| s != s2 || i != i2))
+            })
+            .collect()
+    }
+
+    fn get_otpins(&self) -> Vec<OtPin> {
+        self.verts
+            .iter()
+            .flat_map(|(s, g)| {
+                g.get_otpins()
+                    .into_iter()
+                    .filter(move |o| self.edges.iter().all(|((s2, o2), _)| s != s2 || o != o2))
+            })
+            .collect()
+    }
+
+    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+        self.verts
+            .iter()
+            .flat_map(|(s, g)| {
+                g.get_otputs()
+                    .into_iter()
+                    .filter(move |(o, _)| self.edges.iter().all(|((s2, o2), _)| s != s2 || o != o2))
+            })
+            .collect()
+    }
+
+    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+        // inputs for each Logic Circuits (key by name)
+        let mut new_inputs: HashMap<Identifier, Vec<(InPin, Bool)>> = HashMap::new();
+
+        // from inputs
+        for (i, b) in inputs {
+            let (name, rest) = destruct(i).unwrap();
+            if self
+                .edges
+                .iter()
+                .any(|(_, ib2)| ib2.0 == name && ib2.1 == rest)
+            {
+                continue;
+            }
+            new_inputs.entry(name.clone()).or_default().push((rest, b));
+        }
+        // from other Logic Circuits
+        for (name, loc) in &self.verts {
+            for (otpins, b) in loc.get_otputs() {
+                
+            }
+        }
+
+        for (name, gate) in &mut self.gates {
+            let input_for_this: Vec<(InPin, Bool)> = new_inputs.remove(name).unwrap_or(vec![]);
+            gate.step(input_for_this);
+        }
+    }
+
+    fn as_graph_group(&self) -> Graph {
+        Graph {
+            verts: self
+                .gates
+                .iter()
+                .map(|(name, lc)| (name.clone(), lc.clone()))
+                .collect(),
+            edges: self.edges.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IterLogicCircuit {
+    pub kind: String,
+    pub init: LogicCircuit,
+    pub extended: Vec<LogicCircuit>,
+    pub next_edges: Vec<(OtPin, InPin)>,
+    pub prev_edges: Vec<(OtPin, InPin)>,
 }
 
 // #[derive(Debug, Clone, PartialEq, Eq)]
@@ -293,7 +626,7 @@ pub struct Gate {
 //             Gate::Not { state: _, input }
 //             | Gate::Br { state: _, input }
 //             | Gate::Delay { input, state: _ }
-//             | Gate::End { input } => vec![("IN".into(), *input)],
+//             | Gate::End { input } => vec![("IN".parse().unwrap(), *input)],
 //             Gate::And {
 //                 state: _,
 //                 input0,
@@ -303,7 +636,7 @@ pub struct Gate {
 //                 state: _,
 //                 input0,
 //                 input1,
-//             } => vec![("IN0".into(), *input0), ("IN1".into(), *input1)],
+//             } => vec![("IN0".parse().unwrap(), *input0), ("IN1".parse().unwrap(), *input1)],
 //             Gate::Cst { state: _ } => vec![],
 //         }
 //     }
@@ -321,8 +654,8 @@ pub struct Gate {
 //                 input0: _,
 //                 input1: _,
 //             }
-//             | Gate::Cst { state } => vec![("OUT".into(), *state)],
-//             Gate::Br { state, input: _ } => vec![("OUT0".into(), *state), ("OUT1".into(), *state)],
+//             | Gate::Cst { state } => vec![("OUT".parse().unwrap(), *state)],
+//             Gate::Br { state, input: _ } => vec![("OUT0".parse().unwrap(), *state), ("OUT1".parse().unwrap(), *state)],
 //             Gate::End { input: _ } => vec![],
 //         }
 //     }
@@ -862,34 +1195,34 @@ pub struct Gate {
 //         let rs = LogicCircuit::new_graph(
 //             "RS-latch".into(),
 //             vec![
-//                 ("O0".into(), LogicCircuit::orgate(Bool::T)),
-//                 ("N0".into(), LogicCircuit::notgate(Bool::F)),
-//                 ("B0".into(), LogicCircuit::brgate(Bool::F)),
-//                 ("O1".into(), LogicCircuit::orgate(Bool::F)),
-//                 ("N1".into(), LogicCircuit::notgate(Bool::T)),
-//                 ("B1".into(), LogicCircuit::brgate(Bool::T)),
+//                 ("O0".parse().unwrap(), LogicCircuit::orgate(Bool::T)),
+//                 ("N0".parse().unwrap(), LogicCircuit::notgate(Bool::F)),
+//                 ("B0".parse().unwrap(), LogicCircuit::brgate(Bool::F)),
+//                 ("O1".parse().unwrap(), LogicCircuit::orgate(Bool::F)),
+//                 ("N1".parse().unwrap(), LogicCircuit::notgate(Bool::T)),
+//                 ("B1".parse().unwrap(), LogicCircuit::brgate(Bool::T)),
 //             ],
 //             vec![
-//                 (("O0".into(), "OUT".into()), ("N0".into(), "IN".into())),
-//                 (("O1".into(), "OUT".into()), ("N1".into(), "IN".into())),
-//                 (("N0".into(), "OUT".into()), ("B0".into(), "IN".into())),
-//                 (("N1".into(), "OUT".into()), ("B1".into(), "IN".into())),
-//                 (("B0".into(), "OUT1".into()), ("O1".into(), "IN1".into())),
-//                 (("B1".into(), "OUT1".into()), ("O0".into(), "IN1".into())),
+//                 (("O0".parse().unwrap(), "OUT".parse().unwrap()), ("N0".parse().unwrap(), "IN".parse().unwrap())),
+//                 (("O1".parse().unwrap(), "OUT".parse().unwrap()), ("N1".parse().unwrap(), "IN".parse().unwrap())),
+//                 (("N0".parse().unwrap(), "OUT".parse().unwrap()), ("B0".parse().unwrap(), "IN".parse().unwrap())),
+//                 (("N1".parse().unwrap(), "OUT".parse().unwrap()), ("B1".parse().unwrap(), "IN".parse().unwrap())),
+//                 (("B0".parse().unwrap(), "OUT1".parse().unwrap()), ("O1".parse().unwrap(), "IN1".parse().unwrap())),
+//                 (("B1".parse().unwrap(), "OUT1".parse().unwrap()), ("O0".parse().unwrap(), "IN1".parse().unwrap())),
 //             ],
 //             vec![
-//                 ("R".into(), ("O0".into(), "IN0".into())),
-//                 ("S".into(), ("O1".into(), "IN0".into())),
+//                 ("R".parse().unwrap(), ("O0".parse().unwrap(), "IN0".parse().unwrap())),
+//                 ("S".parse().unwrap(), ("O1".parse().unwrap(), "IN0".parse().unwrap())),
 //             ],
 //             vec![
-//                 ("Q".into(), ("B0".into(), "OUT0".into())),
-//                 ("nQ".into(), ("B1".into(), "OUT0".into())),
+//                 ("Q".parse().unwrap(), ("B0".parse().unwrap(), "OUT0".parse().unwrap())),
+//                 ("nQ".parse().unwrap(), ("B1".parse().unwrap(), "OUT0".parse().unwrap())),
 //             ],
 //         );
 //         let mut rs = rs.unwrap();
 
 //         let a = rs.get_inpins();
-//         assert_eq!(a, vec![("R".into(), Bool::F), ("S".into(), Bool::F)]);
+//         assert_eq!(a, vec![("R".parse().unwrap(), Bool::F), ("S".parse().unwrap(), Bool::F)]);
 
 //         let t = |lc: &mut LogicCircuit| loop {
 //             let lc_prev = lc.clone();
@@ -903,14 +1236,14 @@ pub struct Gate {
 //         rs.next();
 //         assert_eq!(rsp, rs);
 
-//         let r = rs.getmut_input(&"R".into()).unwrap();
+//         let r = rs.getmut_input(&"R".parse().unwrap()).unwrap();
 //         *r = Bool::T;
 //         t(&mut rs);
 //         println!("---");
 
-//         let r = rs.getmut_input(&"R".into()).unwrap();
+//         let r = rs.getmut_input(&"R".parse().unwrap()).unwrap();
 //         *r = Bool::F;
-//         let r = rs.getmut_input(&"S".into()).unwrap();
+//         let r = rs.getmut_input(&"S".parse().unwrap()).unwrap();
 //         *r = Bool::T;
 //         t(&mut rs);
 //     }
