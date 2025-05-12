@@ -2,31 +2,70 @@ use crate::machine::*;
 use std::collections::HashSet;
 
 pub mod code {
-    use crate::machine::CodeEntry;
+    use crate::machine::{CodeEntry, State, TuringMachineDefinition};
+    use anyhow::Result;
 
-    pub fn parse_one_code_entry(code: &str) -> Result<CodeEntry, String> {
+    pub fn parse_one_code_entry(code: &str) -> Result<CodeEntry> {
         let v: Vec<_> = code.split(',').collect();
         if v.len() < 5 {
-            return Err("Code entry is too short".to_string());
+            anyhow::bail!("Invalid code entry: {}", code);
         }
         // .trim() で parse 用に成形する
         Ok((
-            (v[0].trim().try_into()?, v[1].trim().try_into()?),
-            (v[2].trim().try_into()?, v[3].trim().try_into()?, v[4].trim().try_into()?),
+            (v[0].trim().parse()?, v[1].trim().parse()?),
+            (
+                v[2].trim().parse()?,
+                v[3].trim().parse()?,
+                v[4].trim().try_into()?,
+            ),
         ))
     }
 
-    pub fn parse_code(code: &str) -> Result<Vec<CodeEntry>, (usize, String)> {
+    pub fn parse_code(code: &str) -> Result<Vec<CodeEntry>> {
         let vec: Vec<CodeEntry> = code
             .lines()
             .enumerate()
             .filter(|(_, line)| !line.is_empty() && !line.starts_with('#') && line.contains(","))
             .map(|(index, line)| match parse_one_code_entry(line) {
                 Ok(entry) => Ok(entry),
-                Err(err) => Err((index, err)),
+                Err(err) => {
+                    anyhow::bail!("Error parsing code entry at line {}: {}", index + 1, err)
+                }
             })
-            .collect::<Result<Vec<CodeEntry>, (usize, String)>>()?;
+            .collect::<Result<Vec<CodeEntry>>>()?;
         Ok(vec)
+    }
+
+    pub fn parse_definition(code: &str) -> Result<TuringMachineDefinition> {
+        // get init state from first line
+        let mut lines = code.lines();
+
+        let Some(init_state_line) = lines.next() else {
+            anyhow::bail!("Missing initial state line")
+        };
+
+        let init_state: State = init_state_line.trim().parse()?;
+
+        let Some(accepted_state_line) = lines.next() else {
+            anyhow::bail!("Missing accepted states line")
+        };
+
+        let accepted_state: Vec<State> = accepted_state_line
+            .split(',')
+            .map(|s| s.trim().parse())
+            .collect::<Result<_>>()?;
+
+        let code: Vec<_> = lines
+            .enumerate()
+            .filter(|(_, line)| !line.is_empty() && !line.starts_with('#') && line.contains(","))
+            .map(|(index, line)| {
+                parse_one_code_entry(line).map_err(|err| {
+                    anyhow::anyhow!("Error parsing code entry at line {}: {}", index + 1, err)
+                })
+            })
+            .collect::<Result<_>>()?;
+
+        TuringMachineDefinition::new(init_state, accepted_state, code)
     }
 }
 
@@ -44,25 +83,7 @@ pub mod tape {
 
 pub mod builder {
     use crate::machine::*;
-
-    use super::code::parse_code;
-
-    #[derive(Debug, Clone)]
-    pub enum TuringMachineBuilderError {
-        NameIsEmpty,
-        InitialStateIsEmpty,
-        InputTapeIsEmpty,
-        OnParseInitialState,
-        OnParseAcceptedStates,
-        OnParseCode(usize, String),
-        CodeContainsAcceptedState,
-    }
-
-    impl From<(usize, String)> for TuringMachineBuilderError {
-        fn from((index, err): (usize, String)) -> Self {
-            TuringMachineBuilderError::OnParseCode(index, err)
-        }
-    }
+    use anyhow::{anyhow, Result};
 
     #[derive(Clone, PartialEq)]
     pub struct TuringMachineBuilder {
@@ -74,43 +95,32 @@ pub mod builder {
     }
 
     impl TuringMachineBuilder {
-        pub fn new(name: &str) -> Result<TuringMachineBuilder, TuringMachineBuilderError> {
+        pub fn new(name: &str) -> Result<TuringMachineBuilder> {
             if name.is_empty() {
-                return Err(TuringMachineBuilderError::NameIsEmpty);
+                return Err(anyhow!("Name is empty"));
             }
-            let builder = TuringMachineBuilder {
+            Ok(TuringMachineBuilder {
                 name: name.to_string(),
                 init_state: None,
                 accepted_state: Vec::new(),
                 code: Vec::new(),
                 input: None,
-            };
-            Ok(builder)
+            })
         }
-        pub fn build(&self) -> Result<TuringMachineSet, TuringMachineBuilderError> {
-            let init_state = if let Some(state) = self.init_state.clone() {
-                state
-            } else {
-                return Err(TuringMachineBuilderError::InitialStateIsEmpty);
-            };
+
+        pub fn build(&self) -> Result<TuringMachineSet> {
+            let init_state = self
+                .init_state
+                .clone()
+                .ok_or_else(|| anyhow!("Initial state is empty"))?;
             let code = self.code.clone();
-            let machine: TuringMachineDefinition =
-                match TuringMachineDefinition::new(init_state, self.accepted_state.clone(), code) {
-                    Ok(machine) => machine,
-                    Err(err) => {
-                        if err == "Code contains accepted state" {
-                            return Err(TuringMachineBuilderError::CodeContainsAcceptedState);
-                        } else {
-                            unreachable!();
-                        }
-                    }
-                };
+            let machine =
+                TuringMachineDefinition::new(init_state, self.accepted_state.clone(), code)?;
             let input_tape = self
                 .input
                 .clone()
-                .ok_or(TuringMachineBuilderError::InputTapeIsEmpty)?;
-            let machine = TuringMachineSet::new(machine, input_tape);
-            Ok(machine)
+                .ok_or_else(|| anyhow!("Input tape is empty"))?;
+            Ok(TuringMachineSet::new(machine, input_tape))
         }
 
         pub fn input(&mut self, input: Tape) -> &mut Self {
@@ -174,37 +184,19 @@ pub mod builder {
                 .collect()
         }
 
-        pub fn from_source(&mut self, str: &str) -> Result<&mut Self, TuringMachineBuilderError> {
-            let mut lines = str.lines();
-            if let Some(str) = lines.next() {
-                if let Ok(state) = State::try_from(str) {
-                    self.init_state(state);
-                } else {
-                    return Err(TuringMachineBuilderError::OnParseInitialState);
-                }
-            } else {
-                return Err(TuringMachineBuilderError::OnParseInitialState);
-            }
-            if let Some(str) = lines.next() {
-                let res: Vec<State> = str
-                    .split_whitespace()
-                    .map(State::try_from)
-                    .collect::<Result<_, _>>()
-                    .map_err(|_| TuringMachineBuilderError::OnParseAcceptedStates)?;
-                self.accepted_state(res);
-            }
-            let code = parse_code(str)?;
-            self.code = code;
+        pub fn from_source(&mut self, str: &str) -> Result<&mut Self> {
+            let definition: TuringMachineDefinition = super::code::parse_definition(str)?;
+            self.init_state(definition.init_state().clone());
+            self.accepted_state(definition.accepted_state().clone());
+            self.code = definition.code().clone();
             Ok(self)
         }
     }
 }
 
 pub mod graph_compose {
-    use super::{
-        builder::{TuringMachineBuilder, TuringMachineBuilderError},
-        *,
-    };
+    use super::{builder::TuringMachineBuilder, *};
+    use anyhow::{anyhow, Result};
 
     pub struct GraphOfBuilder {
         pub name: String,
@@ -214,23 +206,7 @@ pub mod graph_compose {
         pub acceptable: Vec<Vec<State>>,
     }
 
-    #[derive(Debug, Clone)]
-    pub enum GraphOfBuilderError {
-        BuilderError(TuringMachineBuilderError),
-        InitialStateIsNotSetted(usize),
-        LengthOfVertexAndAcceptableIsDifferent,
-        EdgeIndexOut(usize, usize, usize, State),
-    }
-
-    impl From<TuringMachineBuilderError> for GraphOfBuilderError {
-        fn from(value: TuringMachineBuilderError) -> Self {
-            GraphOfBuilderError::BuilderError(value)
-        }
-    }
-
-    pub fn builder_composition(
-        graph: GraphOfBuilder,
-    ) -> Result<TuringMachineBuilder, GraphOfBuilderError> {
+    pub fn builder_composition(graph: GraphOfBuilder) -> Result<TuringMachineBuilder> {
         let GraphOfBuilder {
             name,
             init_state,
@@ -238,40 +214,34 @@ pub mod graph_compose {
             assign_edge_to_state,
             acceptable,
         } = graph;
+
         let mut builder = TuringMachineBuilder::new(&name)?;
 
         for (index, builder) in assign_vertex_to_builder.iter().enumerate() {
             if builder.get_init_state().is_none() {
-                return Err(GraphOfBuilderError::InitialStateIsNotSetted(index));
+                return Err(anyhow!("Initial state is not set for vertex {index}"));
             }
         }
 
         if assign_vertex_to_builder.len() != acceptable.len() {
-            return Err(GraphOfBuilderError::LengthOfVertexAndAcceptableIsDifferent);
+            return Err(anyhow!("Length of vertices and acceptable states differ"));
         }
 
         for ((i1, i2), state) in &assign_edge_to_state {
             let num_vertex = assign_vertex_to_builder.len();
             if num_vertex <= *i1 || num_vertex <= *i2 {
-                return Err(GraphOfBuilderError::EdgeIndexOut(
-                    num_vertex,
-                    *i1,
-                    *i2,
-                    state.clone(),
+                return Err(anyhow!(
+                    "Edge index out of bounds: {num_vertex}, {i1}, {i2}, {state:?}"
                 ));
             }
         }
 
         let format_name = |index: usize, state: State| {
-            State::try_from(
-                format!(
-                    "{index}-{}-{state}",
-                    assign_vertex_to_builder[index].get_name()
-                )
-                .as_ref(),
-            )
-            .map_err(|_| ())
-            .unwrap()
+            let str = format!(
+                "{index}-{}-{state}",
+                assign_vertex_to_builder[index].get_name()
+            );
+            str.as_str().parse::<State>().map_err(|_| ()).unwrap()
         };
 
         builder.init_state(init_state.clone());
@@ -352,9 +322,8 @@ pub mod graph_compose {
 
 #[cfg(test)]
 mod tests {
-    use crate::machine::State;
-
     use super::{builder, code};
+    use crate::machine::State;
 
     static CODE_STR: &str = "
         -, start, -, end, C
@@ -365,16 +334,17 @@ mod tests {
         let code = code::parse_code(CODE_STR);
         assert!(code.is_ok());
     }
+
     #[test]
     fn builder() {
         let mut builder = builder::TuringMachineBuilder::new("test").unwrap();
         assert!(builder.build().is_err());
 
-        let start_state = State::try_from("start").unwrap();
+        let start_state: State = "start".parse().unwrap();
         builder.init_state(start_state.clone());
         assert_eq!(builder.get_init_state(), Some(start_state));
 
-        let accepted_state = vec![State::try_from("end").unwrap()];
+        let accepted_state: Vec<State> = vec!["end".parse().unwrap()];
         builder.accepted_state(accepted_state);
     }
 }

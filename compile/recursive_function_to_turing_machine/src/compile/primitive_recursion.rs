@@ -11,7 +11,7 @@ use crate::*;
 fn is_left_sig() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "is_left_sig".to_string(),
-        init_state: state("start"),
+        init_state: "start".parse().unwrap(),
         assign_vertex_to_builder: vec![
             basic::left_one(), // 0
             basic::bor1orbar(),
@@ -26,19 +26,19 @@ fn is_left_sig() -> TuringMachineBuilder {
             basic::id_end("endT"),
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("endB")),
-            ((1, 2), state("endbar")),
-            ((2, 9), state("end")),
-            ((1, 3), state("end1")),
-            ((3, 4), state("end")),
-            ((4, 5), state("endB")),
-            ((4, 5), state("end1")),
-            ((4, 7), state("endbar")),
-            ((5, 6), state("end")),
-            ((6, 9), state("end")),
-            ((7, 8), state("end")),
-            ((8, 10), state("end")),
+            ((0, 1), "end".parse().unwrap()),
+            ((1, 2), "endB".parse().unwrap()),
+            ((1, 2), "endbar".parse().unwrap()),
+            ((2, 9), "end".parse().unwrap()),
+            ((1, 3), "end1".parse().unwrap()),
+            ((3, 4), "end".parse().unwrap()),
+            ((4, 5), "endB".parse().unwrap()),
+            ((4, 5), "end1".parse().unwrap()),
+            ((4, 7), "endbar".parse().unwrap()),
+            ((5, 6), "end".parse().unwrap()),
+            ((6, 9), "end".parse().unwrap()),
+            ((7, 8), "end".parse().unwrap()),
+            ((8, 10), "end".parse().unwrap()),
         ],
         acceptable: vec![
             vec![],
@@ -50,8 +50,8 @@ fn is_left_sig() -> TuringMachineBuilder {
             vec![],
             vec![],
             vec![],
-            vec![state("endF")],
-            vec![state("endT")],
+            vec!["endF".parse().unwrap()],
+            vec!["endT".parse().unwrap()],
         ],
     };
     builder_composition(graph).unwrap()
@@ -62,7 +62,7 @@ fn is_left_sig() -> TuringMachineBuilder {
 fn expand_aux_shrink() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "shrink".to_string(),
-        init_state: state("start"),
+        init_state: "start".parse().unwrap(),
         assign_vertex_to_builder: vec![
             basic::move_right(),
             basic::putb(),
@@ -85,29 +85,29 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             basic::left_one(),
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 3), state("end")),
-            ((3, 4), state("endB")),
-            ((3, 10), state("end1")),
-            ((4, 5), state("end")), // b-case
-            ((5, 6), state("end")),
-            ((6, 7), state("endB")),
-            ((6, 8), state("end1")),
-            ((6, 9), state("endbar")),
-            ((7, 5), state("end")),
-            ((8, 11), state("end")),
-            ((9, 16), state("end")),
-            ((10, 11), state("end")), // 1-case
-            ((11, 12), state("end")),
-            ((12, 13), state("endB")),
-            ((12, 14), state("end1")),
-            ((12, 15), state("endbar")),
-            ((13, 5), state("end")),
-            ((14, 11), state("end")),
-            ((15, 16), state("end")),
-            ((16, 17), state("end")),
-            ((17, 18), state("end")),
+            ((0, 1), "end".parse().unwrap()),
+            ((1, 2), "end".parse().unwrap()),
+            ((2, 3), "end".parse().unwrap()),
+            ((3, 4), "endB".parse().unwrap()),
+            ((3, 10), "end1".parse().unwrap()),
+            ((4, 5), "end".parse().unwrap()), // b-case
+            ((5, 6), "end".parse().unwrap()),
+            ((6, 7), "endB".parse().unwrap()),
+            ((6, 8), "end1".parse().unwrap()),
+            ((6, 9), "endbar".parse().unwrap()),
+            ((7, 5), "end".parse().unwrap()),
+            ((8, 11), "end".parse().unwrap()),
+            ((9, 16), "end".parse().unwrap()),
+            ((10, 11), "end".parse().unwrap()), // 1-case
+            ((11, 12), "end".parse().unwrap()),
+            ((12, 13), "endB".parse().unwrap()),
+            ((12, 14), "end1".parse().unwrap()),
+            ((12, 15), "endbar".parse().unwrap()),
+            ((13, 5), "end".parse().unwrap()),
+            ((14, 11), "end".parse().unwrap()),
+            ((15, 16), "end".parse().unwrap()),
+            ((16, 17), "end".parse().unwrap()),
+            ((17, 18), "end".parse().unwrap()),
         ],
         acceptable: accept_end_only(18),
     };
@@ -118,7 +118,7 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
 fn expand_aux_remove_zero() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "shrink".to_string(),
-        init_state: state("start"),
+        init_state: "start".parse().unwrap(),
         assign_vertex_to_builder: vec![
             basic::move_right(),
             basic::putb(),
@@ -137,24 +137,24 @@ fn expand_aux_remove_zero() -> TuringMachineBuilder {
             basic::id(),
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 3), state("end")),
-            ((3, 4), state("endB")),
-            ((3, 9), state("end1")),
-            ((4, 5), state("end")),
-            ((5, 6), state("end")),
-            ((6, 7), state("endB")),
-            ((6, 8), state("end1")),
-            ((6, 14), state("endbar")),
-            ((7, 5), state("end")),
-            ((8, 10), state("end")),
-            ((9, 10), state("end")),
-            ((10, 11), state("end")),
-            ((11, 12), state("endB")),
-            ((11, 13), state("end1")),
-            ((12, 5), state("end")),
-            ((13, 10), state("end")),
+            ((0, 1), "end".parse().unwrap()),
+            ((1, 2), "end".parse().unwrap()),
+            ((2, 3), "end".parse().unwrap()),
+            ((3, 4), "endB".parse().unwrap()),
+            ((3, 9), "end1".parse().unwrap()),
+            ((4, 5), "end".parse().unwrap()),
+            ((5, 6), "end".parse().unwrap()),
+            ((6, 7), "endB".parse().unwrap()),
+            ((6, 8), "end1".parse().unwrap()),
+            ((6, 14), "endbar".parse().unwrap()),
+            ((7, 5), "end".parse().unwrap()),
+            ((8, 10), "end".parse().unwrap()),
+            ((9, 10), "end".parse().unwrap()),
+            ((10, 11), "end".parse().unwrap()),
+            ((11, 12), "endB".parse().unwrap()),
+            ((11, 13), "end1".parse().unwrap()),
+            ((12, 5), "end".parse().unwrap()),
+            ((13, 10), "end".parse().unwrap()),
         ],
         acceptable: accept_end_only(14),
     };
@@ -164,7 +164,7 @@ fn expand_aux_remove_zero() -> TuringMachineBuilder {
 fn expand_aux_shift_right() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "shift_right".to_string(),
-        init_state: state("start"),
+        init_state: "start".parse().unwrap(),
         assign_vertex_to_builder: vec![
             basic::right_one(),
             basic::bor1orbar(),
@@ -186,29 +186,29 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
             basic::move_lefts(2),
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("endB")),
-            ((1, 8), state("end1")),
-            ((1, 14), state("endbar")),
-            ((2, 3), state("end")),
-            ((3, 4), state("end")),
-            ((4, 5), state("endB")),
-            ((4, 6), state("end1")),
-            ((4, 7), state("endbar")),
-            ((5, 3), state("end")),
-            ((6, 9), state("end")),
-            ((7, 15), state("end")),
-            ((8, 9), state("end")),
-            ((9, 10), state("end")),
-            ((10, 11), state("endB")),
-            ((10, 12), state("end1")),
-            ((10, 13), state("endbar")),
-            ((11, 3), state("end")),
-            ((12, 9), state("end")),
-            ((13, 15), state("end")),
-            ((14, 15), state("end")),
-            ((15, 16), state("end")),
-            ((16, 17), state("end")),
+            ((0, 1), "end".parse().unwrap()),
+            ((1, 2), "endB".parse().unwrap()),
+            ((1, 8), "end1".parse().unwrap()),
+            ((1, 14), "endbar".parse().unwrap()),
+            ((2, 3), "end".parse().unwrap()),
+            ((3, 4), "end".parse().unwrap()),
+            ((4, 5), "endB".parse().unwrap()),
+            ((4, 6), "end1".parse().unwrap()),
+            ((4, 7), "endbar".parse().unwrap()),
+            ((5, 3), "end".parse().unwrap()),
+            ((6, 9), "end".parse().unwrap()),
+            ((7, 15), "end".parse().unwrap()),
+            ((8, 9), "end".parse().unwrap()),
+            ((9, 10), "end".parse().unwrap()),
+            ((10, 11), "endB".parse().unwrap()),
+            ((10, 12), "end1".parse().unwrap()),
+            ((10, 13), "endbar".parse().unwrap()),
+            ((11, 3), "end".parse().unwrap()),
+            ((12, 9), "end".parse().unwrap()),
+            ((13, 15), "end".parse().unwrap()),
+            ((14, 15), "end".parse().unwrap()),
+            ((15, 16), "end".parse().unwrap()),
+            ((16, 17), "end".parse().unwrap()),
         ],
         acceptable: accept_end_only(17),
     };
@@ -220,7 +220,7 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
 fn expand() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "expand".to_string(),
-        init_state: state("start"),
+        init_state: "start".parse().unwrap(),
         assign_vertex_to_builder: vec![
             expand_aux_shift_right(),
             basic::right_one(),
@@ -234,16 +234,16 @@ fn expand() -> TuringMachineBuilder {
             expand_aux_remove_zero(), //9
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 3), state("end")),
-            ((3, 4), state("end")),
-            ((4, 5), state("end")),
-            ((5, 9), state("endT")),
-            ((5, 6), state("endF")),
-            ((6, 7), state("end")),
-            ((7, 8), state("end")),
-            ((8, 5), state("end")),
+            ((0, 1), "end".parse().unwrap()),
+            ((1, 2), "end".parse().unwrap()),
+            ((2, 3), "end".parse().unwrap()),
+            ((3, 4), "end".parse().unwrap()),
+            ((4, 5), "end".parse().unwrap()),
+            ((5, 9), "endT".parse().unwrap()),
+            ((5, 6), "endF".parse().unwrap()),
+            ((6, 7), "end".parse().unwrap()),
+            ((7, 8), "end".parse().unwrap()),
+            ((8, 5), "end".parse().unwrap()),
         ],
         acceptable: accept_end_only(9),
     };
@@ -254,15 +254,15 @@ fn expand() -> TuringMachineBuilder {
 fn format() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "format".to_string(),
-        init_state: state("start"),
+        init_state: "start".parse().unwrap(),
         assign_vertex_to_builder: vec![
             basic::move_right(),
-            basic::shift_left_to_right_fill(sign("-")),
+            basic::shift_left_to_right_fill("-".parse().unwrap()),
             basic::putbar(),
             basic::move_rights(2),
             basic::putb(),
             basic::left_one(),
-            basic::shift_left_to_right_fill(sign("-")),
+            basic::shift_left_to_right_fill("-".parse().unwrap()),
             basic::move_rights(2),
             basic::putb(),
             basic::move_lefts(2),
@@ -283,7 +283,7 @@ pub fn primitive_recursion(
             zero_case.get_name(),
             succ_builder().get_name()
         ),
-        init_state: state("start"),
+        init_state: "start".parse().unwrap(),
         assign_vertex_to_builder: vec![
             expand(), // 0
             zero_case,
@@ -295,14 +295,14 @@ pub fn primitive_recursion(
             format(), // 7
         ],
         assign_edge_to_state: vec![
-            ((0, 1), state("end")),
-            ((1, 2), state("end")),
-            ((2, 7), state("endT")),
-            ((2, 3), state("endF")),
-            ((3, 4), state("end")),
-            ((4, 5), state("end")),
-            ((5, 6), state("end")),
-            ((6, 2), state("end")),
+            ((0, 1), "end".parse().unwrap()),
+            ((1, 2), "end".parse().unwrap()),
+            ((2, 7), "endT".parse().unwrap()),
+            ((2, 3), "endF".parse().unwrap()),
+            ((3, 4), "end".parse().unwrap()),
+            ((4, 5), "end".parse().unwrap()),
+            ((5, 6), "end".parse().unwrap()),
+            ((6, 2), "end".parse().unwrap()),
         ],
         acceptable: accept_end_only(7),
     };
@@ -330,34 +330,34 @@ mod tests {
             (
                 Tape {
                     left: vec_sign(vec!["-"]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-"]),
                 },
-                state("endF"),
+                "endF".parse().unwrap(),
             ),
             (
                 Tape {
                     left: vec_sign(vec!["1", "", "-"]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "", "1", "-"]),
                 },
-                state("endF"),
+                "endF".parse().unwrap(),
             ),
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
                 },
-                state("endF"),
+                "endF".parse().unwrap(),
             ),
             (
                 Tape {
                     left: vec_sign(vec!["1", "-"]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "", "1", "-"]),
                 },
-                state("endT"),
+                "endT".parse().unwrap(),
             ),
         ];
         builder_test_predicate(&mut builder, 100, tests);
@@ -369,36 +369,36 @@ mod tests {
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "-"]),
                 },
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "-"]),
                 },
             ),
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "", "1", "-"]),
                 },
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "", "1", "-"]),
                 },
             ),
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
                 },
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "", "1", "-"]),
                 },
             ),
@@ -412,24 +412,24 @@ mod tests {
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "-"]),
                 },
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-"]),
                 },
             ),
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "", "1", "", "1", "-"]),
                 },
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "", "1", "-"]),
                 },
             ),
@@ -443,24 +443,24 @@ mod tests {
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-"]),
                 },
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-", "-"]),
                 },
             ),
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "", "1", "-"]),
                 },
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-", "", "", "1", "-"]),
                 },
             ),
@@ -474,19 +474,19 @@ mod tests {
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "-"]),
                 },
                 Tape {
                     left: vec_sign(vec!["1", "-"]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-"]),
                 },
             ),
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
                 },
                 from_vec_and_position(
@@ -494,7 +494,7 @@ mod tests {
                         "-", "1", "-", "", "1", "", "1", "-", "", "", "1", "-", "", "1", "-",
                     ]
                     .into_iter()
-                    .map(|s| s.try_into().unwrap())
+                    .map(|s| s.parse().unwrap())
                     .collect(),
                     11,
                 ),
@@ -502,7 +502,7 @@ mod tests {
             (
                 Tape {
                     left: vec![],
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "1", "1", "", "1", "-"]),
                 },
                 from_vec_and_position(
@@ -511,7 +511,7 @@ mod tests {
                         "1", "-", "", "1", "-",
                     ]
                     .into_iter()
-                    .map(|s| s.try_into().unwrap())
+                    .map(|s| s.parse().unwrap())
                     .collect(),
                     17,
                 ),
@@ -526,36 +526,36 @@ mod tests {
             (
                 Tape {
                     left: vec_sign(vec!["1", "-"]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-"]),
                 },
                 Tape {
                     left: vec_sign(vec![]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["-"]),
                 },
             ),
             (
                 Tape {
                     left: vec_sign(vec!["1", "-"]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "-"]),
                 },
                 Tape {
                     left: vec_sign(vec![]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "-"]),
                 },
             ),
             (
                 Tape {
                     left: vec_sign(vec!["1", "-"]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "1", "", "-"]),
                 },
                 Tape {
                     left: vec_sign(vec![]),
-                    head: sign("-"),
+                    head: "-".parse().unwrap(),
                     right: vec_sign(vec!["", "1", "1", "", "-"]),
                 },
             ),

@@ -1,8 +1,8 @@
+use anyhow::{bail, Error};
 use std::sync::{LazyLock, Mutex};
+use turing_machine_core::machine::{Sign, State, Tape, TuringMachineDefinition, TuringMachineSet};
+use utils::ToJsResult;
 use wasm_bindgen::prelude::*;
-use turing_machine_core::machine::{
-    Sign, State, Tape, TuringMachineDefinition, TuringMachineSet,
-};
 
 // many global mutable turing machines
 static MACHINES: LazyLock<Mutex<Vec<TuringMachineSet>>> = LazyLock::new(|| Mutex::new(vec![]));
@@ -50,20 +50,20 @@ pub fn tape_right_index(tape: &TapeForWeb, index: usize) -> String {
 }
 
 impl TryFrom<TapeForWeb> for Tape {
-    type Error = String;
+    type Error = Error;
 
     fn try_from(tape_for_web: TapeForWeb) -> Result<Self, Self::Error> {
-        let left = tape_for_web
+        let left: Vec<_> = tape_for_web
             .left
             .into_iter()
-            .map(|s| s.as_str().try_into())
-            .collect::<Result<Vec<Sign>, String>>()?;
-        let head = tape_for_web.head.as_str().try_into()?;
-        let right = tape_for_web
+            .map(|s| s.as_str().parse())
+            .collect::<Result<_, _>>()?;
+        let head = tape_for_web.head.as_str().parse()?;
+        let right: Vec<_> = tape_for_web
             .right
             .into_iter()
-            .map(|s| s.as_str().try_into())
-            .collect::<Result<Vec<Sign>, String>>()?;
+            .map(|s| s.as_str().parse())
+            .collect::<Result<_, _>>()?;
         Ok(Tape::new(left, head, right))
     }
 }
@@ -205,60 +205,6 @@ impl Code {
     }
 }
 
-#[wasm_bindgen]
-pub fn parse_code(str: &str) -> Result<Code, String> {
-    // get init state from first line
-    let mut lines = str.lines();
-
-    let init_state = lines
-        .next()
-        .ok_or_else(|| "Missing initial states line: first line should be init_state".to_string())?
-        .trim()
-        .to_string();
-
-    let accepted_state = lines
-        .next()
-        .ok_or_else(|| {
-            "Missing accepted states line: second line should be accepted states split by ','"
-                .to_string()
-        })?
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .collect::<Vec<_>>();
-
-    let remains = lines.fold(String::new(), |acc, line| {
-        if line.trim().is_empty() {
-            acc
-        } else {
-            format!("{}\n{}", acc, line)
-        }
-    });
-
-    let code = turing_machine_core::manipulation::code::parse_code(&remains)
-        .map_err(|e| format!("Failed to parse code: {} at line:{}", e.1, e.0 + 2))?;
-
-    let entire_code = Code {
-        init_state,
-        accepted_state,
-        code,
-    };
-
-    let _ = construct_turing_machine_definition(entire_code.clone())?;
-
-    Ok(entire_code)
-}
-
-/// Helper function to construct a TuringMachineDefinition
-fn construct_turing_machine_definition(code: Code) -> Result<TuringMachineDefinition, String> {
-    let init_state: State = code.init_state.as_str().try_into()?;
-    let accepted_state: Vec<State> = code
-        .accepted_state
-        .into_iter()
-        .map(|s| s.as_str().try_into())
-        .collect::<Result<_, String>>()?;
-    TuringMachineDefinition::new(init_state, accepted_state, code.code)
-}
-
 /// Helper function to lock `MACHINES` and retrieve the machine by `id`.
 fn get_machine_by_id(
     id: usize,
@@ -274,12 +220,31 @@ fn get_machine_by_id(
     Ok(machines)
 }
 
+pub fn construct_turing_machine_definition(code: Code) -> Result<TuringMachineDefinition, Error> {
+    let init_state = code.init_state.parse()?;
+    let accepted_state: Vec<State> = code
+        .accepted_state
+        .iter()
+        .map(|s| s.parse())
+        .collect::<Result<_, _>>()?;
+    let code: turing_machine_core::machine::Code = code.code;
+
+    Ok(TuringMachineDefinition::new(
+        init_state,
+        accepted_state,
+        code,
+    )?)
+}
+
 // make a new Turing machine and add it to the global list
 // return the index of the new machine
 #[wasm_bindgen]
 pub fn new_turing_machine(code: &Code, tape: &TapeForWeb) -> Result<usize, String> {
-    let definition = construct_turing_machine_definition(code.clone())?;
-    let tmset: TuringMachineSet = TuringMachineSet::new(definition, tape.clone().try_into()?);
+    let definition = construct_turing_machine_definition(code.clone()).to_js()?;
+    let tmset: TuringMachineSet = TuringMachineSet::new(
+        definition,
+        tape.clone().try_into().map_err(|e| format!("{e}"))?,
+    );
 
     let mut machines = MACHINES
         .lock()
@@ -292,10 +257,10 @@ pub fn new_turing_machine(code: &Code, tape: &TapeForWeb) -> Result<usize, Strin
 // set a Turing machine by given id
 #[wasm_bindgen]
 pub fn set_turing_machine(id: usize, code: &Code, tape: &TapeForWeb) -> Result<(), String> {
-    let definition = construct_turing_machine_definition(code.clone())?;
+    let definition = construct_turing_machine_definition(code.clone()).to_js()?;
 
     let mut machines = get_machine_by_id(id)?;
-    machines[id] = TuringMachineSet::new(definition, tape.clone().try_into()?);
+    machines[id] = TuringMachineSet::new(definition, tape.clone().try_into().to_js()?);
 
     Ok(())
 }

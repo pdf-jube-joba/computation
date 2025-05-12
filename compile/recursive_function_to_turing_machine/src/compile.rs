@@ -6,11 +6,11 @@ pub mod num_tape {
     use utils::number::*;
 
     fn partition() -> Sign {
-        Sign::try_from("-").unwrap()
+        "-".parse().unwrap()
     }
 
     fn one() -> Sign {
-        Sign::try_from("1").unwrap()
+        "1".parse().unwrap()
     }
 
     fn num_sings(num: Number) -> Vec<Sign> {

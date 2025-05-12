@@ -1101,6 +1101,7 @@ dependencies = [
 name = "turing_machine_core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "utils",
 ]
 
@@ -1112,9 +1113,11 @@ version = "0.1.0"
 name = "turing_machine_web"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "serde",
  "serde_json",
  "turing_machine_core",
+ "utils",
  "wasm-bindgen",
 ]
 

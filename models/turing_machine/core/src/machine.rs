@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 use utils::alphabet::Alphabet; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
@@ -10,14 +10,14 @@ pub enum Direction {
 }
 
 impl TryFrom<&str> for Direction {
-    type Error = String;
+    type Error = anyhow::Error; // Changed from String to anyhow::Error
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value = value.trim();
         match value {
             "R" => Ok(Direction::Right),
             "L" => Ok(Direction::Left),
             "C" => Ok(Direction::Constant),
-            _ => Err("Invalid direction".to_string()),
+            _ => Err(anyhow::anyhow!("Invalid direction")),
         }
     }
 }
@@ -54,16 +54,16 @@ impl Display for Sign {
 }
 
 // 空文字列は空白記号として扱う
-impl TryFrom<&str> for Sign {
-    type Error = String;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl FromStr for Sign {
+    type Err = anyhow::Error; // Changed from String to anyhow::Error
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.try_into() {
             Ok(alphabet) => Ok(Sign(Some(alphabet))),
             Err(err) => {
                 if value.is_empty() {
                     Ok(Sign::blank())
                 } else {
-                    Err(err)
+                    Err(anyhow::anyhow!(err))
                 }
             }
         }
@@ -176,9 +176,9 @@ impl Display for State {
     }
 }
 
-impl TryFrom<&str> for State {
-    type Error = String;
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl FromStr for State {
+    type Err = anyhow::Error; // Changed from String to anyhow::Error
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         Ok(State(value.try_into()?))
     }
 }
@@ -198,13 +198,13 @@ impl TuringMachineDefinition {
         init_state: State,
         accepted_state: impl IntoIterator<Item = State>,
         code: impl IntoIterator<Item = CodeEntry>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, anyhow::Error> { // Changed from String to anyhow::Error
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
         let code: Code = code
             .into_iter()
             .map(|entry| {
                 if accepted_state.contains(&entry.0 .1) {
-                    Err("Code contains accepted state".to_string())
+                    Err(anyhow::anyhow!("Code contains accepted state"))
                 } else {
                     Ok(entry)
                 }
@@ -340,9 +340,9 @@ impl TuringMachineSet {
         }
         Ok(())
     }
-    pub fn result(&self) -> Result<Tape, String> {
+    pub fn result(&self) -> Result<Tape, anyhow::Error> { // Changed from String to anyhow::Error
         if !self.is_terminate() {
-            return Err("not terminated".to_string());
+            return Err(anyhow::anyhow!("not terminated"));
         }
         Ok(self.now_tape().clone())
     }

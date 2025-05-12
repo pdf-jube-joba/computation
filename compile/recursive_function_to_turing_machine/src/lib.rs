@@ -1,28 +1,22 @@
 use turing_machine_core::{machine::*, manipulation::builder::TuringMachineBuilder};
 
-fn sign(str: &str) -> Sign {
-    Sign::try_from(str).unwrap()
-}
-
-fn state(str: &str) -> State {
-    State::try_from(str).unwrap()
-}
-
 // 最後の edge の番号 = n
 fn accept_end_only(n: usize) -> Vec<Vec<State>> {
     let mut v = vec![vec![]; n];
-    v.push(vec![state("end")]);
+    v.push(vec!["end".parse().unwrap()]);
     v
 }
 
 // 最後の edge の番号 = n
 fn series_edge_end_only(n: usize) -> Vec<((usize, usize), State)> {
-    (0..n).map(|i| ((i, i + 1), state("end"))).collect()
+    (0..n)
+        .map(|i| ((i, i + 1), "end".parse().unwrap()))
+        .collect()
 }
 
 #[cfg(test)]
 fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
-    vec.into_iter().map(sign).collect()
+    vec.into_iter().map(|s| s.parse().unwrap()).collect()
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {
@@ -42,11 +36,7 @@ pub fn succ_builder() -> TuringMachineBuilder {
 }
 
 #[cfg(test)]
-fn builder_test(
-    builder: &mut TuringMachineBuilder,
-    step: usize,
-    tests: Vec<(Tape, Tape)>,
-) {
+fn builder_test(builder: &mut TuringMachineBuilder, step: usize, tests: Vec<(Tape, Tape)>) {
     eprintln!("test start");
     for (input, result) in tests {
         let mut machine = builder.input(input).build().unwrap();

@@ -169,11 +169,11 @@ impl From<Number> for NumberTuple {
 }
 
 impl TryFrom<String> for NumberTuple {
-    type Error = String;
+    type Error = anyhow::Error; // Changed from String to anyhow::Error
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let value = value.trim();
         if !(value.starts_with('(') && value.ends_with(')')) {
-            return Err("not tuple".to_string());
+            return Err(anyhow::Error::msg("not tuple"));
         }
         let vec = value
             .get(1..value.len() - 1)
@@ -181,7 +181,7 @@ impl TryFrom<String> for NumberTuple {
             .split(',')
             .map(|str| match str.trim().parse() {
                 Ok(n) => Ok(Number(n)),
-                Err(_) => Err("parse fail".to_string()),
+                Err(_) => Err(anyhow::Error::msg("parse fail")),
             })
             .collect::<Result<_, _>>()?;
         Ok(NumberTuple(vec))
@@ -189,11 +189,11 @@ impl TryFrom<String> for NumberTuple {
 }
 
 impl FromStr for NumberTuple {
-    type Err = String;
+    type Err = anyhow::Error; // Changed from String to anyhow::Error
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         let value = value.trim();
         if !(value.starts_with('(') && value.ends_with(')')) {
-            return Err("not tuple".to_string());
+            return Err(anyhow::Error::msg("not tuple"));
         }
         let vec = value
             .get(1..value.len() - 1)
@@ -201,7 +201,7 @@ impl FromStr for NumberTuple {
             .split(',')
             .map(|str| match str.trim().parse() {
                 Ok(n) => Ok(Number(n)),
-                Err(_) => Err("parse fail".to_string()),
+                Err(_) => Err(anyhow::Error::msg("parse fail")),
             })
             .collect::<Result<_, _>>()?;
         Ok(NumberTuple(vec))

@@ -6,24 +6,24 @@ use std::fmt::Display;
 pub struct Alphabet(String);
 
 impl TryFrom<&str> for Alphabet {
-    type Error = String;
+    type Error = anyhow::Error; // Changed from String to anyhow::Error
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         Alphabet::try_from(s.to_string())
     }
 }
 
 impl TryFrom<String> for Alphabet {
-    type Error = String;
+    type Error = anyhow::Error; // Changed from String to anyhow::Error
     fn try_from(s: String) -> Result<Self, Self::Error> {
         if s.is_empty() {
-            return Err("alphabet cannot be empty".to_string());
+            return Err(anyhow::anyhow!("alphabet cannot be empty"));
         }
         if s.chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
             Ok(Alphabet(s))
         } else {
-            Err(format!("invalid alphabet:[{}]", s))
+            Err(anyhow::anyhow!(format!("invalid alphabet:[{}]", s)))
         }
     }
 }
@@ -50,9 +50,9 @@ impl Display for Identifier {
 }
 
 impl Identifier {
-    pub fn new_user(name: &str) -> Result<Self, String> {
+    pub fn new_user(name: &str) -> Result<Self, anyhow::Error> { // Changed from String to anyhow::Error
         if name.is_empty() {
-            return Err("alphabet cannot be empty".to_string());
+            return Err(anyhow::anyhow!("alphabet cannot be empty"));
         }
         if name
             .chars()
@@ -60,7 +60,7 @@ impl Identifier {
         {
             Ok(Identifier::User(name.to_string()))
         } else {
-            Err(format!("invalid alphabet:[{}]", name))
+            Err(anyhow::anyhow!(format!("invalid alphabet:[{}]", name)))
         }
     }
     pub fn new_system(name: &str) -> Self {

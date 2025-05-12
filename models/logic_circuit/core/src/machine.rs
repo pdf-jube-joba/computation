@@ -3,6 +3,7 @@ use std::{
     fmt::Display,
     str::FromStr,
 };
+use anyhow::Error;
 use utils::{alphabet::Identifier, bool::Bool};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -20,7 +21,7 @@ pub fn concat_inpin(indent: Identifier, inpin: InPin) -> InPin {
 }
 
 impl FromStr for InPin {
-    type Err = String;
+    type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut v = vec![];
         for i in s.split('.') {
@@ -54,7 +55,7 @@ fn concat_otpin(indent: Identifier, otpin: OtPin) -> OtPin {
 }
 
 impl FromStr for OtPin {
-    type Err = String;
+    type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut v = vec![];
         for i in s.split('.') {
