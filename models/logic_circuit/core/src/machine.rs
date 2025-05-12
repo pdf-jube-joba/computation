@@ -1,4 +1,8 @@
-use std::{collections::HashMap, fmt::Display, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    str::FromStr,
+};
 use utils::{alphabet::Identifier, bool::Bool};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -97,6 +101,56 @@ pub enum LogicCircuit {
     PinMap(Box<PinMap>),
 }
 
+impl LogicCircuit {
+    pub fn new_gate(kind: GateKind, state: Bool) -> LogicCircuit {
+        LogicCircuit::Gate(Gate { kind, state })
+    }
+    pub fn new_mix(
+        kind: Identifier,
+        verts: Vec<(Identifier, LogicCircuit)>,
+        edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
+    ) -> Result<LogicCircuit, String> {
+        // prepare all inputs and outputs for each Logic Circuit
+        let mut maps: HashMap<Identifier, (HashSet<InPin>, HashSet<OtPin>)> = HashMap::new();
+        // initialize
+        for (name, lc) in &verts {
+            if maps.contains_key(name) {
+                return Err(format!("duplicate name {name:?}"));
+            }
+            maps.insert(
+                name.clone(),
+                (
+                    lc.get_inpins().into_iter().collect(),
+                    lc.get_otpins().into_iter().collect(),
+                ),
+            );
+        }
+
+        // check if all edges are in verts
+        // and no overlap
+        for (no, ni) in &edges {
+            let Some((_, otpins)) = maps.get_mut(&no.0) else {
+                return Err(format!("edge {no:?} not in verts"));
+            };
+            if !otpins.remove(&no.1) {
+                return Err(format!("edge {no:?} not in verts"));
+            }
+
+            let Some((inpins, _)) = maps.get_mut(&ni.0) else {
+                return Err(format!("edge {ni:?} not in verts"));
+            };
+            if !inpins.remove(&ni.1) {
+                return Err(format!("edge {ni:?} not in verts"));
+            }
+        }
+        Ok(LogicCircuit::MixLogicCircuit(Box::new(MixLogicCircuit {
+            kind,
+            verts,
+            edges,
+        })))
+    }
+}
+
 impl LogicCircuitTrait for LogicCircuit {
     fn kind(&self) -> Identifier {
         match self {
@@ -178,7 +232,7 @@ impl Display for GateKind {
     }
 }
 
-fn get_inputs_from_map(inputs: &Vec<(InPin, Bool)>, inpin: &InPin) -> Bool {
+fn get_inputs_from_map(inputs: &[(InPin, Bool)], inpin: &InPin) -> Bool {
     inputs
         .iter()
         .find(|(i, _)| i == inpin)
@@ -353,6 +407,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
                 g.get_inpins()
                     .into_iter()
                     .filter(move |i| self.edges.iter().all(|(_, (s2, i2))| s != s2 || i != i2))
+                    .map(|i| concat_inpin(s.clone(), i))
             })
             .collect()
     }
@@ -364,6 +419,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
                 g.get_otpins()
                     .into_iter()
                     .filter(move |o| self.edges.iter().all(|((s2, o2), _)| s != s2 || o != o2))
+                    .map(|o| concat_otpin(s.clone(), o))
             })
             .collect()
     }
@@ -375,6 +431,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
                 g.get_otputs()
                     .into_iter()
                     .filter(move |(o, _)| self.edges.iter().all(|((s2, o2), _)| s != s2 || o != o2))
+                    .map(|(o, b)| (concat_otpin(s.clone(), o), b))
             })
             .collect()
     }
@@ -386,6 +443,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
         for (name, _) in &self.verts {
             new_inputs.insert(name.clone(), vec![]);
         }
+        // after this, there is no new insertions to `new_inputs`
 
         // from other Logic Circuits
         // priority is high
@@ -406,8 +464,14 @@ impl LogicCircuitTrait for MixLogicCircuit {
         // from inputs
         // priority is low => check if already used
         for (i, b) in inputs {
-            let (name, rest) = destruct_inpin(i).unwrap();
-            let v = new_inputs.get_mut(&name).unwrap();
+            let Some((name, rest)) = destruct_inpin(i) else {
+                eprintln!("Invalid InPin");
+                continue;
+            };
+            let Some(v) = new_inputs.get_mut(&name) else {
+                eprintln!("Invalid Name {name}");
+                continue;
+            };
             if v.iter().all(|(i2, _)| i2 != &rest) {
                 v.push((rest, b));
             }
@@ -418,7 +482,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
                 .verts
                 .iter_mut()
                 .find_map(|(name2, lc)| if *name2 == name { Some(lc) } else { None })
-                .unwrap();
+                .unwrap(); // unwrap is safe because we initialized `new_inputs` with all names
             lc.step(inputs);
         }
     }
@@ -451,6 +515,7 @@ impl LogicCircuitTrait for IterLogicCircuit {
     fn kind(&self) -> Identifier {
         self.kind.clone()
     }
+
     fn get_inpins(&self) -> Vec<InPin> {
         self.used
             .iter()
@@ -458,14 +523,15 @@ impl LogicCircuitTrait for IterLogicCircuit {
             .flat_map(|(n, g)| {
                 g.get_inpins()
                     .into_iter()
-                    .map(move |inpin| concat_inpin(num_to_ident(n), inpin))
                     .filter(|inpin| {
                         self.next_edges.iter().all(|(_, i2)| inpin != i2)
                             && self.prev_edges.iter().all(|(_, i2)| inpin != i2)
                     })
+                    .map(move |inpin| concat_inpin(num_to_ident(n), inpin))
             })
             .collect()
     }
+
     fn get_otpins(&self) -> Vec<OtPin> {
         self.used
             .iter()
@@ -473,29 +539,31 @@ impl LogicCircuitTrait for IterLogicCircuit {
             .flat_map(|(n, g)| {
                 g.get_otpins()
                     .into_iter()
-                    .map(move |otpin| concat_otpin(num_to_ident(n).clone(), otpin))
                     .filter(|otpin| {
                         self.next_edges.iter().all(|(o2, _)| otpin != o2)
                             && self.prev_edges.iter().all(|(o2, _)| otpin != o2)
                     })
+                    .map(move |otpin| concat_otpin(num_to_ident(n), otpin))
             })
             .collect()
     }
+
     fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
         self.used
             .iter()
             .enumerate()
-            .flat_map(|(i, g)| {
+            .flat_map(|(n, g)| {
                 g.get_otputs()
                     .into_iter()
-                    .map(move |(otpin, b)| (concat_otpin(num_to_ident(i), otpin), b))
                     .filter(|(otpin, _)| {
                         self.next_edges.iter().all(|(o2, _)| otpin != o2)
                             && self.prev_edges.iter().all(|(o2, _)| otpin != o2)
                     })
+                    .map(move |(otpin, b)| (concat_otpin(num_to_ident(n), otpin), b))
             })
             .collect()
     }
+
     fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
         // inputs for each Logic Circuits (key by index)
         // initialized
@@ -527,14 +595,17 @@ impl LogicCircuitTrait for IterLogicCircuit {
         // from inputs
         // priority is low => check if already used
         for (i, b) in inputs {
-            let (num, rest) = destruct_inpin(i).unwrap();
-            if let Some(num) = num.to_usize() {
-                let v = &mut new_inputs[num];
-                if v.iter().all(|(i2, _)| i2 != &rest) {
-                    v.push((rest, b));
-                }
-            } else {
-                print!("ignored input {num} because not a number");
+            let Some((num, rest)) = destruct_inpin(i) else {
+                eprintln!("Invalid InPin");
+                continue;
+            };
+            let Some(num) = num.to_usize() else {
+                eprint!("ignored input {num} because not a number");
+                continue;
+            };
+            let v = &mut new_inputs[num];
+            if v.iter().all(|(i2, _)| i2 != &rest) {
+                v.push((rest, b));
             }
         }
 
@@ -551,6 +622,7 @@ impl LogicCircuitTrait for IterLogicCircuit {
             }
         }
     }
+
     fn as_graph_group(&self) -> Graph {
         let edges = {
             let mut edges = vec![];
@@ -583,5 +655,119 @@ impl LogicCircuitTrait for IterLogicCircuit {
                 .collect(),
             edges,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use utils::bool::Bool;
+
+    #[test]
+    fn test_gate() {
+        let mut gate = Gate {
+            kind: GateKind::And,
+            state: Bool::F,
+        };
+        assert_eq!(
+            gate.get_inpins(),
+            vec!["IN0".parse().unwrap(), "IN1".parse().unwrap()]
+        );
+        assert_eq!(gate.get_otpins(), vec!["OUT".parse().unwrap()]);
+        assert_eq!(gate.get_otputs(), vec![("OUT".parse().unwrap(), Bool::F)]);
+        gate.step(vec![
+            ("IN0".parse().unwrap(), Bool::T),
+            ("IN1".parse().unwrap(), Bool::T),
+        ]);
+        assert_eq!(gate.state, Bool::T);
+        assert_eq!(gate.get_otputs(), vec![("OUT".parse().unwrap(), Bool::T)]);
+        gate.step(vec![
+            ("IN0".parse().unwrap(), Bool::T),
+            ("IN1".parse().unwrap(), Bool::F),
+        ]);
+        assert_eq!(gate.state, Bool::F);
+        assert_eq!(gate.get_otputs(), vec![("OUT".parse().unwrap(), Bool::F)]);
+    }
+    #[test]
+    fn test_pin_map() {
+        let mut pin_map = PinMap {
+            this: LogicCircuit::Gate(Gate {
+                kind: GateKind::And,
+                state: Bool::F,
+            }),
+            inpin_maps: vec![("I".parse().unwrap(), "IN0".parse().unwrap())],
+            otpin_maps: vec![("O".parse().unwrap(), "OUT".parse().unwrap())],
+        };
+        assert_eq!(
+            pin_map.get_inpins(),
+            vec!["I".parse().unwrap(), "IN1".parse().unwrap()]
+        );
+        assert_eq!(pin_map.get_otpins(), vec!["O".parse().unwrap()]);
+        assert_eq!(pin_map.get_otputs(), vec![("O".parse().unwrap(), Bool::F)]);
+
+        pin_map.step(vec![("I".parse().unwrap(), Bool::T)]);
+        assert_eq!(pin_map.get_otputs(), vec![("O".parse().unwrap(), Bool::F)]);
+    }
+    #[test]
+    fn test_mix() {
+        // graph like
+        // A.IN0 ---> A <--- A.IN1
+        //            |-- A.OUT == B.IN0 ---> B <--- B.IN1
+        //                                    |--> B.OUT
+        // B.OUT takes 2 step to be T if A.IN0 and A.IN1 are T
+        // B.OUT takes 1 step to be T is B.IN1 is T
+        let mut mix = MixLogicCircuit {
+            kind: Identifier::new_user("MIX").unwrap(),
+            verts: vec![
+                (
+                    Identifier::new_user("A").unwrap(),
+                    LogicCircuit::Gate(Gate {
+                        kind: GateKind::And,
+                        state: Bool::F,
+                    }),
+                ),
+                (
+                    Identifier::new_user("B").unwrap(),
+                    LogicCircuit::Gate(Gate {
+                        kind: GateKind::Or,
+                        state: Bool::F,
+                    }),
+                ),
+            ],
+            edges: vec![(
+                (Identifier::new_user("A").unwrap(), "OUT".parse().unwrap()),
+                (Identifier::new_user("B").unwrap(), "IN0".parse().unwrap()),
+            )],
+        };
+        assert_eq!(
+            mix.get_inpins(),
+            vec![
+                "A.IN0".parse().unwrap(),
+                "A.IN1".parse().unwrap(),
+                "B.IN1".parse().unwrap()
+            ]
+        );
+        assert_eq!(mix.get_otpins(), vec!["B.OUT".parse().unwrap()]);
+        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
+
+        mix.step(vec![("A.IN0".parse().unwrap(), Bool::T)]);
+        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
+
+        mix.step(vec![("A.IN0".parse().unwrap(), Bool::T)]);
+        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
+
+        // A.IN0 and A.IN1 are T
+        mix.step(vec![
+            ("A.IN0".parse().unwrap(), Bool::T),
+            ("A.IN1".parse().unwrap(), Bool::T),
+            // B.IN1 is F if not set
+        ]);
+        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
+        mix.step(vec![
+            ("A.IN0".parse().unwrap(), Bool::F),
+            ("A.IN1".parse().unwrap(), Bool::F),
+            // B.IN1 is F if not set
+        ]);
+        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::T)]);
     }
 }

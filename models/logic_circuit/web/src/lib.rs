@@ -1,4 +1,4 @@
-use logic_circuit_core::machine::{InPin, LogicCircuit, OtPin};
+use logic_circuit_core::machine::{Graph, InPin, LogicCircuit, OtPin};
 use std::{
     collections::HashMap,
     sync::{LazyLock, Mutex},
@@ -39,7 +39,7 @@ pub struct EdgeWeb {
 }
 
 #[wasm_bindgen]
-pub struct Graph {
+pub struct GraphWeb  {
     #[wasm_bindgen(getter_with_clone)]
     pub boxes: Vec<BoxWeb>,
     #[wasm_bindgen(getter_with_clone)]
@@ -49,3 +49,10 @@ pub struct Graph {
     #[wasm_bindgen(getter_with_clone)]
     pub edges: Vec<EdgeWeb>,
 }
+
+#[wasm_bindgen]
+pub fn new_logic_circuit(code: String) -> usize {
+    let mut machines = MACHINES.lock().unwrap();
+    machines.len() - 1
+}
+

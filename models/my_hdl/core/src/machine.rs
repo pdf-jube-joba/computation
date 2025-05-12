@@ -137,7 +137,7 @@ fn eval_to_val(
             let v1 = eval_to_val(mod_env, var_env, e1.as_ref())?;
             let v2 = eval_to_val(mod_env, var_env, e2.as_ref())?;
             match (v1, v2) {
-                (Value::Bit(b1), Value::Bit(b2)) => Ok(Value::Bit(b1.and(b2))),
+                (Value::Bit(b1), Value::Bit(b2)) => Ok(Value::Bit(b1 & b2)),
                 _ => bail!("expression is not boolean"),
             }
         }
@@ -145,7 +145,7 @@ fn eval_to_val(
             let v1 = eval_to_val(mod_env, var_env, e1)?;
             let v2 = eval_to_val(mod_env, var_env, e2)?;
             match (v1, v2) {
-                (Value::Bit(b1), Value::Bit(b2)) => Ok(Value::Bit(b1.or(b2))),
+                (Value::Bit(b1), Value::Bit(b2)) => Ok(Value::Bit(b1 | b2)),
                 _ => bail!("expression is not boolean"),
             }
         }
