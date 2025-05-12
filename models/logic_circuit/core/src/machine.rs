@@ -1,9 +1,9 @@
+use anyhow::{bail, Error, Result};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     str::FromStr,
 };
-use anyhow::Error;
 use utils::{alphabet::Identifier, bool::Bool};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -110,13 +110,13 @@ impl LogicCircuit {
         kind: Identifier,
         verts: Vec<(Identifier, LogicCircuit)>,
         edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
-    ) -> Result<LogicCircuit, String> {
+    ) -> Result<LogicCircuit> {
         // prepare all inputs and outputs for each Logic Circuit
         let mut maps: HashMap<Identifier, (HashSet<InPin>, HashSet<OtPin>)> = HashMap::new();
         // initialize
         for (name, lc) in &verts {
             if maps.contains_key(name) {
-                return Err(format!("duplicate name {name:?}"));
+                bail!("duplicate name {name:?}");
             }
             maps.insert(
                 name.clone(),
@@ -131,23 +131,37 @@ impl LogicCircuit {
         // and no overlap
         for (no, ni) in &edges {
             let Some((_, otpins)) = maps.get_mut(&no.0) else {
-                return Err(format!("edge {no:?} not in verts"));
+                bail!("edge {no:?} not in verts");
             };
             if !otpins.remove(&no.1) {
-                return Err(format!("edge {no:?} not in verts"));
+                bail!("edge {no:?} not in verts");
             }
 
             let Some((inpins, _)) = maps.get_mut(&ni.0) else {
-                return Err(format!("edge {ni:?} not in verts"));
+                bail!("edge {ni:?} not in verts");
             };
             if !inpins.remove(&ni.1) {
-                return Err(format!("edge {ni:?} not in verts"));
+                bail!("edge {ni:?} not in verts");
             }
         }
         Ok(LogicCircuit::MixLogicCircuit(Box::new(MixLogicCircuit {
             kind,
             verts,
             edges,
+        })))
+    }
+    pub fn new_iter(
+        kind: Identifier,
+        init: LogicCircuit,
+        next_edges: Vec<(OtPin, InPin)>,
+        prev_edges: Vec<(OtPin, InPin)>,
+    ) -> Result<LogicCircuit> {
+        Ok(LogicCircuit::IterLogicCircuit(Box::new(IterLogicCircuit {
+            kind,
+            init,
+            used: vec![],
+            next_edges,
+            prev_edges,
         })))
     }
 }

@@ -108,7 +108,7 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
                     name,
                     // なんか書いてたらいらなくなってしまった。
                     inpin: _,
-                    otpin,
+                    otpin: _,
                     lcs,
                 } = fingraph_parse(lc.as_str());
                 eprintln!("{name}");
@@ -157,7 +157,7 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
 
 pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LogicCircuit> {
     parse(code, &mut maps)?;
-    match maps.get(&"main".into()) {
+    match maps.get(&Identifier::new_user("main").unwrap()) {
         Some(lc) => Ok(lc.clone()),
         None => bail!("not found main"),
     }
@@ -166,7 +166,7 @@ pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LogicCircuit> 
 pub fn parse_main(code: &str) -> Result<LogicCircuit> {
     let mut maps: List = init_maps();
     parse(code, &mut maps)?;
-    match maps.get(&"main".into()) {
+    match maps.get(&Identifier::new_user("main").unwrap()) {
         Some(lc) => Ok(lc.clone()),
         None => bail!("not found main"),
     }
