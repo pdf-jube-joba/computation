@@ -66,6 +66,11 @@ impl Identifier {
     pub fn new_system(name: &str) -> Self {
         Identifier::System(name.to_string())
     }
+    pub fn to_usize(&self) -> Option<usize> {
+        match self {
+            Identifier::User(name) | Identifier::System(name) => name.parse::<usize>().ok(),
+        }
+    }
 }
 
 impl AsRef<str> for Identifier {
