@@ -48,7 +48,7 @@ impl Display for InPin {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OtPin(Vec<Identifier>);
 
-fn concat_otpin(indent: Identifier, otpin: OtPin) -> OtPin {
+pub fn concat_otpin(indent: Identifier, otpin: OtPin) -> OtPin {
     let mut v = vec![indent];
     v.extend(otpin.0);
     OtPin(v)
@@ -105,6 +105,17 @@ pub enum LogicCircuit {
 impl LogicCircuit {
     pub fn new_gate(kind: GateKind, state: Bool) -> LogicCircuit {
         LogicCircuit::Gate(Gate { kind, state })
+    }
+    pub fn new_pin_map(
+        this: LogicCircuit,
+        inpin_maps: Vec<(InPin, InPin)>,
+        otpin_maps: Vec<(OtPin, OtPin)>,
+    ) -> Result<LogicCircuit> {
+        Ok(LogicCircuit::PinMap(Box::new(PinMap {
+            this,
+            inpin_maps,
+            otpin_maps,
+        })))
     }
     pub fn new_mix(
         kind: Identifier,

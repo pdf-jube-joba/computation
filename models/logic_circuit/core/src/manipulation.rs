@@ -106,15 +106,14 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
             Rule::fingraph => {
                 let FingraphParse {
                     name,
-                    // なんか書いてたらいらなくなってしまった。
-                    inpin: _,
-                    otpin: _,
+                    inpin: inpins,
+                    otpin: otpin_maps,
                     lcs,
                 } = fingraph_parse(lc.as_str());
                 eprintln!("{name}");
                 let mut new_lcs = vec![];
                 let mut edges = vec![];
-                let mut inpins = vec![];
+                let mut inpin_maps = vec![];
                 // let mut otpins = vec![];
                 for (lcname, usename, inout) in lcs {
                     let Some(c) = maps.get(&usename) else {
@@ -126,12 +125,30 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
                             Either::Left((name, otpin)) => {
                                 edges.push(((name, otpin), (lcname.clone(), inpin)));
                             }
-                            Either::Right(i) => inpins.push((i, (lcname.clone(), inpin))),
+                            Either::Right(i) => {
+                                if !inpins.contains(&i) {
+                                    bail!("not found inpin {i}");
+                                }
+                                inpin_maps.push((i, (lcname.clone(), inpin)));
+                            }
                         }
                     }
                 }
+
                 let graphlc = LogicCircuit::new_mix(name.clone(), new_lcs, edges)?;
-                maps.insert((name, graphlc));
+                // use core::pinmap
+                let pinmap = LogicCircuit::new_pin_map(
+                    graphlc,
+                    inpin_maps
+                        .into_iter()
+                        .map(|(i, (n, ni))| (i, concat_inpin(n, ni)))
+                        .collect(),
+                    otpin_maps
+                        .into_iter()
+                        .map(|(o, (n, no))| (o, concat_otpin(n, no)))
+                        .collect(),
+                )?;
+                maps.insert((name, pinmap));
             }
             Rule::iterator => {
                 let IterParse {
@@ -177,7 +194,6 @@ type Pin = (InPin, Either<(Identifier, OtPin), InPin>);
 #[derive(Debug)]
 struct FingraphParse {
     name: Identifier,
-    #[allow(unused)]
     inpin: Vec<InPin>,
     otpin: Vec<(OtPin, (Identifier, OtPin))>,
     lcs: Vec<(Identifier, Identifier, Vec<Pin>)>,
@@ -186,7 +202,7 @@ struct FingraphParse {
 fn conn_graph_parse(p: Pair<'_, Rule>) -> Pin {
     assert_eq!(p.as_rule(), Rule::conn_graph);
     let mut l = p.into_inner();
-    let i: Identifier = Identifier::new_user(l.next().unwrap().as_str()).unwrap();
+    let i: InPin = l.next().unwrap().as_str().parse().unwrap();
     let e = {
         let e = l.next().unwrap();
         assert_eq!(e.as_rule(), Rule::pin);
@@ -194,8 +210,11 @@ fn conn_graph_parse(p: Pair<'_, Rule>) -> Pin {
         let first = e.next().unwrap();
         let second = e.next();
         match second {
-            Some(i) => Either::Left((first.as_str().into(), i.as_str().into())),
-            None => Either::Right(first.as_str().into()),
+            Some(i) => Either::Left((
+                Identifier::new_user(first.as_str()).unwrap(),
+                i.as_str().parse().unwrap(),
+            )),
+            None => Either::Right(first.as_str().parse().unwrap()),
         }
     };
     (i, e)
@@ -207,7 +226,13 @@ fn otpin_graph_parse(p: Pair<'_, Rule>) -> (OtPin, (Identifier, OtPin)) {
     let o = l.next().unwrap();
     let n0 = l.next().unwrap();
     let o0 = l.next().unwrap();
-    (o.as_str().into(), (n0.as_str().into(), o0.as_str().into()))
+    (
+        o.as_str().parse().unwrap(),
+        (
+            Identifier::new_user(n0.as_str()).unwrap(),
+            o0.as_str().parse().unwrap(),
+        ),
+    )
 }
 
 fn fingraph_parse(code: &str) -> FingraphParse {
@@ -217,7 +242,7 @@ fn fingraph_parse(code: &str) -> FingraphParse {
     let name: Identifier = {
         let name = l.next().unwrap();
         assert_eq!(name.as_rule(), Rule::name);
-        name.as_str().into()
+        Identifier::new_user(name.as_str()).unwrap()
     };
     let inpin: Vec<InPin> = {
         let inpins = l.next().unwrap();
@@ -226,22 +251,22 @@ fn fingraph_parse(code: &str) -> FingraphParse {
             .into_inner()
             .map(|p| {
                 assert_eq!(p.as_rule(), Rule::name);
-                p.as_str().into()
+                p.as_str().parse().unwrap()
             })
             .collect()
     };
     let otpin: Vec<(OtPin, (Identifier, OtPin))> = {
-        let inpins = l.next().unwrap();
-        assert_eq!(inpins.as_rule(), Rule::ot_graph);
-        inpins.into_inner().map(|p| otpin_graph_parse(p)).collect()
+        let otpins = l.next().unwrap();
+        assert_eq!(otpins.as_rule(), Rule::ot_graph);
+        otpins.into_inner().map(|p| otpin_graph_parse(p)).collect()
     };
     let lcs: Vec<(Identifier, Identifier, Vec<Pin>)> = {
         let mut v = vec![];
         for lcs in l {
             assert_eq!(lcs.as_rule(), Rule::lc_graph);
             let mut vs = lcs.into_inner();
-            let name: Identifier = vs.next().unwrap().as_str().into();
-            let usename: Identifier = vs.next().unwrap().as_str().into();
+            let name: Identifier = Identifier::new_user(vs.next().unwrap().as_str()).unwrap();
+            let usename: Identifier = Identifier::new_user(vs.next().unwrap().as_str()).unwrap();
             let ve: Vec<_> = vs.map(|p| conn_graph_parse(p)).collect();
             v.push((name, usename, ve))
         }
@@ -276,12 +301,12 @@ fn iter_parse<'a>(code: &'a str) -> IterParse {
     let name: Identifier = {
         let name = l.next().unwrap();
         assert_eq!(name.as_rule(), Rule::name);
-        name.as_str().into()
+        Identifier::new_user(name.as_str()).unwrap()
     };
     let initlc: Identifier = {
         let name = l.next().unwrap();
         assert_eq!(name.as_rule(), Rule::name);
-        name.as_str().into()
+        Identifier::new_user(name.as_str()).unwrap()
     };
     let next: Vec<(OtPin, InPin)> = {
         let otpin = l.next().unwrap();
@@ -291,7 +316,7 @@ fn iter_parse<'a>(code: &'a str) -> IterParse {
             .map(|p| {
                 assert_eq!(p.as_rule(), Rule::conn_iter);
                 let (i, i0) = conn_iter_parse(p);
-                (i.into(), i0.into())
+                (i.parse().unwrap(), i0.parse().unwrap())
             })
             .collect()
     };
@@ -303,7 +328,7 @@ fn iter_parse<'a>(code: &'a str) -> IterParse {
             .map(|p| {
                 assert_eq!(p.as_rule(), Rule::conn_iter);
                 let (i, i0) = conn_iter_parse(p);
-                (i.into(), i0.into())
+                (i.parse().unwrap(), i0.parse().unwrap())
             })
             .collect()
     };
@@ -321,9 +346,9 @@ mod tests {
     #[test]
     fn f() {
         let s = "graph: main {
-            in {A=b.c, d=g.f }
+            in {A, d}
             out {a=b.c}
-            A, AND-T,
+            A, AND-T {}
           }";
         let _c = parse_main(s).unwrap();
     }
