@@ -16,7 +16,6 @@
     - [ ] 不動点による定義
 
 ## lambda continutations
-- [ ] proc macro を使って簡単にする
 
 ## my_hdl
 - 名前の解決をする部分と意味論を各部分は分けたほうがいい気がする。それを使えば型に名前を付けるのが楽になる。
@@ -28,7 +27,6 @@
 - [ ] 再帰関数の描画部分では、重い計算をバックグラウンドで動かすように変更する。
 
 ## turing machine
-- [ ] 解釈について、 Fn trait と Clone を使えないか試す。
 
 ## while-minus-lang
 - [ ] eval を実行している行を指定した実行状況を作る。
@@ -39,4 +37,5 @@
 - iota/jot
 
 # compiler
-
+- recursive machine -> turing machine
+    - [ ] なんか気が付いたら壊れてた。

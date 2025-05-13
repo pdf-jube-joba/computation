@@ -145,8 +145,8 @@ pub fn new_while_machine(code: &str, envs: &str) -> Result<usize, String> {
 
 #[wasm_bindgen]
 pub fn set_while_machine(id: usize, code: &str, envs: &str) -> Result<(), String> {
-    let code: Vec<WhileStatement> =
-        while_minus_lang_core::manipulation::program_read_to_end(code).map_err(|e| format!("{:?}", e))?;
+    let code: Vec<WhileStatement> = while_minus_lang_core::manipulation::program_read_to_end(code)
+        .map_err(|e| format!("{:?}", e))?;
     let env = parse_env(envs)?
         .into_iter()
         .map(|env| {

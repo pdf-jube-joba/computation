@@ -1,6 +1,7 @@
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign}, str::FromStr,
+    ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
+    str::FromStr,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]

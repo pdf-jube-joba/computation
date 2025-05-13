@@ -47,6 +47,7 @@ pub mod num_tape {
         if tape.head != partition() {
             return None;
         }
+        eprintln!("hello");
         let iter = tape
             .right
             .iter()

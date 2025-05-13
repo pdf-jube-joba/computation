@@ -198,7 +198,8 @@ impl TuringMachineDefinition {
         init_state: State,
         accepted_state: impl IntoIterator<Item = State>,
         code: impl IntoIterator<Item = CodeEntry>,
-    ) -> Result<Self, anyhow::Error> { // Changed from String to anyhow::Error
+    ) -> Result<Self, anyhow::Error> {
+        // Changed from String to anyhow::Error
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
         let code: Code = code
             .into_iter()
@@ -340,7 +341,8 @@ impl TuringMachineSet {
         }
         Ok(())
     }
-    pub fn result(&self) -> Result<Tape, anyhow::Error> { // Changed from String to anyhow::Error
+    pub fn result(&self) -> Result<Tape, anyhow::Error> {
+        // Changed from String to anyhow::Error
         if !self.is_terminate() {
             return Err(anyhow::anyhow!("not terminated"));
         }

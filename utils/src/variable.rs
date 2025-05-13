@@ -44,11 +44,14 @@ impl From<String> for Var {
 
 impl Display for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Var::U(u) => u.to_string(),
-            Var::S(s) => s.clone(),
-        };
-        write!(f, "{}", s)
+        match self {
+            Var::U(u) => {
+                write!(f, "_{u}_")
+            }
+            Var::S(s) => {
+                write!(f, "{s}")
+            },
+        }
     }
 }
 

@@ -1,4 +1,8 @@
-use std::{fmt::Display, ops::{BitAnd, BitOr, Not}, str::FromStr};
+use std::{
+    fmt::Display,
+    ops::{BitAnd, BitOr, Not},
+    str::FromStr,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Bool {

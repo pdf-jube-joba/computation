@@ -64,7 +64,11 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
             WhileStatement::while_end()
         }
         _ => {
-            return Err(anyhow::anyhow!("unreachable {} {:?}", p.as_str(), p.as_rule()));
+            return Err(anyhow::anyhow!(
+                "unreachable {} {:?}",
+                p.as_str(),
+                p.as_rule()
+            ));
         }
     };
     Ok(statement)

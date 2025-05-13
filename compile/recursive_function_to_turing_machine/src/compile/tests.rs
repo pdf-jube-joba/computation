@@ -36,6 +36,7 @@ fn test_zero() {
     let mut machine = zero_builder.build().unwrap();
     loop {
         let _ = machine.step(1);
+        eprintln!("{}", machine.now_tape());
         print_process(&machine);
         if machine.is_terminate() {
             break;

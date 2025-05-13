@@ -50,7 +50,8 @@ impl Display for Identifier {
 }
 
 impl Identifier {
-    pub fn new_user(name: &str) -> Result<Self, anyhow::Error> { // Changed from String to anyhow::Error
+    pub fn new_user(name: &str) -> Result<Self, anyhow::Error> {
+        // Changed from String to anyhow::Error
         if name.is_empty() {
             return Err(anyhow::anyhow!("alphabet cannot be empty"));
         }

@@ -1,18 +1,18 @@
 use lambda_calculus_core::example::*;
 use lambda_calculus_core::machine::LambdaTerm;
-use lambda_calculus_core::manipulation::utility::var;
 use recursive_function_core::machine::RecursiveFunctions;
 use utils::number::*;
+use utils::variable::Var;
 
 pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
     fn term(num: Number) -> LambdaTerm {
         if num.is_zero() {
-            var!(0)
+            Var::new_u(1).into()
         } else {
-            LambdaTerm::app(LambdaTerm::var(0.into()), term(num.pred()))
+            LambdaTerm::app(LambdaTerm::var(Var::new_u(0)), term(num.pred()))
         }
     }
-    LambdaTerm::abs(0.into(), LambdaTerm::abs(1.into(), term(num)))
+    LambdaTerm::abs(Var::new_u(0), LambdaTerm::abs(Var::new_u(1), term(num)))
 }
 
 pub fn lambda_term_to_number(term: LambdaTerm) -> Option<Number> {
@@ -305,27 +305,27 @@ mod tests {
     #[test]
     fn proj_test() {
         let pj = projection(2, 0).unwrap();
-        let expect = parse::parse_lambda("\\0.\\1.0").unwrap();
+        let expect = parse::parse_lambda("\\s.\\z.s").unwrap();
         eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(2, 1).unwrap();
-        let expect = parse::parse_lambda("\\0.\\1.1").unwrap();
+        let expect = parse::parse_lambda("\\s.\\z.z").unwrap();
         eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(3, 0).unwrap();
-        let expect = parse::parse_lambda("\\0.\\1.\\2.0").unwrap();
+        let expect = parse::parse_lambda("\\x.\\y.\\z.x").unwrap();
         eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(3, 1).unwrap();
-        let expect = parse::parse_lambda("\\0.\\1.\\2.1").unwrap();
+        let expect = parse::parse_lambda("\\x.\\y.\\z.y").unwrap();
         eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
 
         let pj = projection(3, 2).unwrap();
-        let expect = parse::parse_lambda("\\0.\\1.\\2.2").unwrap();
+        let expect = parse::parse_lambda("\\x.\\y.\\z.z").unwrap();
         eprintln!("{}", pj);
         assert!(alpha_eq(&pj, &expect));
     }

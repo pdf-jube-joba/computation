@@ -145,9 +145,7 @@ impl Display for WhileStatement {
                 ControlCommand::WhileNotZero(var) => {
                     format!("while_nz {var} {{")
                 }
-                ControlCommand::WhileEnd => {
-                    "}".to_string()
-                }
+                ControlCommand::WhileEnd => "}".to_string(),
             },
         };
         write!(f, "{str}")
@@ -350,7 +348,11 @@ mod tests {
         let mut count = 0;
         while !process.is_terminate() && count < 10000 {
             process.step();
-            println!("step: {:?} env: {:?}", process.current_line(), process.env());
+            println!(
+                "step: {:?} env: {:?}",
+                process.current_line(),
+                process.env()
+            );
             count += 1;
         }
     }
