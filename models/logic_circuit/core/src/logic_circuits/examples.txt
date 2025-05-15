@@ -9,11 +9,11 @@ graph: one-shot {
 
 graph: tick-add1 {
     in {I}
-    out {O=O.OUT}
+    out {O=ON.OUT}
 
     B, BR-F {IN=I}
     D, DLY-F {IN=B.OUT0}
-    O, OR-F {IN0=B.OUT1, IN1=D.OUT}
+    ON, OR-F {IN0=B.OUT1, IN1=D.OUT}
 }
 
 graph: RS-latch {
