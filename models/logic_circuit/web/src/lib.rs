@@ -45,15 +45,20 @@ pub struct BoxWeb {
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PinInfo {
+    #[wasm_bindgen(getter_with_clone)]
+    pub name: String,
+    #[wasm_bindgen(getter_with_clone)]
+    pub pin: String,
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EdgeWeb {
     #[wasm_bindgen(getter_with_clone)]
-    pub from: String,
+    pub from: PinInfo,
     #[wasm_bindgen(getter_with_clone)]
-    pub otpin: String,
-    #[wasm_bindgen(getter_with_clone)]
-    pub to: String,
-    #[wasm_bindgen(getter_with_clone)]
-    pub inpin: String,
+    pub to: PinInfo,
 }
 
 #[wasm_bindgen]
@@ -67,12 +72,20 @@ pub struct GraphWeb {
     pub otpins: Vec<PinWeb>,
     #[wasm_bindgen(getter_with_clone)]
     pub edges: Vec<EdgeWeb>,
+    inpins_map: HashMap<String, PinInfo>,
+    otpins_map: HashMap<String, PinInfo>,
 }
 
 #[wasm_bindgen]
-pub struct PinMapping {
-    inpins_map: HashMap<InPin, (Identifier, InPin)>,
-    otpins_map: HashMap<OtPin, (Identifier, OtPin)>,
+impl GraphWeb {
+    #[wasm_bindgen]
+    pub fn get_inpins_map(&self, name: String) -> Option<PinInfo> {
+        self.inpins_map.get(&name).cloned()
+    }
+    #[wasm_bindgen]
+    pub fn get_otpins_map(&self, name: String) -> Option<PinInfo> {
+        self.otpins_map.get(&name).cloned()
+    }
 }
 
 fn lc_to_box(lc: &LogicCircuit, name: String) -> BoxWeb {
@@ -103,53 +116,83 @@ fn graph_to_graphweb(g: Graph) -> GraphWeb {
         inpins_map,
         otpins_map,
     } = g;
-    let mut inpins: Vec<(Identifier, InPin, bool)> = vec![];
-    let mut otpins: Vec<(Identifier, OtPin, bool)> = vec![];
     let mut boxes = vec![];
     let mut edges_web = vec![];
     for (name, lc) in &verts {
-        for inpin in lc.get_inpins() {
-            inpins.push((name.clone(), inpin, false));
-        }
-        for (otpin, b) in lc.get_otputs() {
-            otpins.push((name.clone(), otpin, b == Bool::T));
-        }
         boxes.push(lc_to_box(lc, name.to_string()));
     }
     for ((from, otpin), (to, inpin)) in edges {
-        if let Some(pos) = inpins.iter().position(|(n, i, _)| *n == to && *i == inpin) {
-            inpins.remove(pos);
-        }
-        if let Some(pos) = otpins
-            .iter()
-            .position(|(n, o, _)| *n == from && *o == otpin)
-        {
-            otpins.remove(pos);
-        }
         edges_web.push(EdgeWeb {
-            from: from.to_string(),
-            otpin: otpin.to_string(),
-            to: to.to_string(),
-            inpin: inpin.to_string(),
+            from: PinInfo {
+                name: from.to_string(),
+                pin: otpin.to_string(),
+            },
+            to: PinInfo {
+                name: to.to_string(),
+                pin: inpin.to_string(),
+            },
         });
     }
     GraphWeb {
         boxes,
-        inpins: inpins
-            .into_iter()
-            .map(|(name, pin, state)| PinWeb {
-                name: concat_inpin(name, pin).to_string(),
-                state,
+        inpins: inpins_map
+            .iter()
+            .map(|(epin, _)| PinWeb {
+                name: epin.to_string(),
+                state: false,
             })
             .collect(),
-        otpins: otpins
-            .into_iter()
-            .map(|(name, pin, state)| PinWeb {
-                name: concat_otpin(name, pin).to_string(),
-                state,
+        otpins: otpins_map
+            .iter()
+            .map(|(epin, (no, o))| {
+                // get the state of the output pin from the verts
+                let b: Option<bool> = verts.iter().find_map(|(name, lc)| {
+                    if name == no {
+                        let otputs: Vec<_> = lc.get_otputs();
+                        otputs.iter().find_map(
+                            |(pin, b)| {
+                                if pin == o {
+                                    Some((*b).into())
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                    } else {
+                        None
+                    }
+                });
+                PinWeb {
+                    name: epin.to_string(),
+                    state: b.unwrap_or_default(),
+                }
             })
             .collect(),
         edges: edges_web,
+        inpins_map: inpins_map
+            .iter()
+            .map(|(epin, (name, pin))| {
+                (
+                    epin.to_string(),
+                    PinInfo {
+                        name: name.to_string(),
+                        pin: pin.to_string(),
+                    },
+                )
+            })
+            .collect(),
+        otpins_map: otpins_map
+            .iter()
+            .map(|(epin, (name, pin))| {
+                (
+                    epin.to_string(),
+                    PinInfo {
+                        name: name.to_string(),
+                        pin: pin.to_string(),
+                    },
+                )
+            })
+            .collect(),
     }
 }
 

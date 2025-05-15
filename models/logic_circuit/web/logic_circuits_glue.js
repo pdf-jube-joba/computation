@@ -78,10 +78,16 @@ export class LogicCircuitViewModel {
 // use SVG.js for drawing
 export class LogicCircuitView {
   inpins_state = null;
+  edges_drawn = [];
 
   constructor(viewId, default_placement) {
     // set default placement
-    this.default_placement = default_placement;
+    // map of string -> SV.js's group, contains position of inpins, otpins and boxes
+    if (default_placement == null) {
+      this.placement = new Map();
+    } else {
+      this.placement = default_placement;
+    };
 
     // setting for SVG.js
     this.viewId = viewId;
@@ -107,7 +113,8 @@ export class LogicCircuitView {
   }
 
   draw(circuit) {
-    this.group.clear();
+    console.log("placement", this.placement);
+
     const inpins = circuit.inpins;
     if (this.inpins_state == null) {
       this.inpins_state = new Map();
@@ -120,8 +127,6 @@ export class LogicCircuitView {
     const boxes = circuit.boxes;
     const edges = circuit.edges;
 
-    const map_pos = new Map();
-
     // draw boxes
     for (let i = 0; i < boxes.length; i++) {
       const name = boxes[i].name;
@@ -131,102 +136,164 @@ export class LogicCircuitView {
       const state = boxes[i].state;
       console.log("draw boxes", name, kind, inpins, otpins, state);
 
-      map_pos.set(name, i);
-
-      // Create a group for each input pin
-      let group = this.group.group();
-
-      let is_gate = (kind == "_AND_" || kind == "_OR_" || kind == "_NOT_" || kind == "_BR_" || kind == "_CST_" || kind == "_DLY_" || kind == "END");
-
-      // Draw a rectangle for the input pin
-      group.rect(50, 30) // width: 50, height: 30
-        .fill("white")
-        .stroke(is_gate ? (state ? "green" : "red") : "black") // Green for "T", red for "F"
-
-      // Add the name of the input pin as text
-      group.text(kind)
-        .font({ size: 12, fill: "black" })
-        .move(0, 10);
-
-      group.move(i * 70 + 5, 200 - 15);
-      enableDrag(group);
+      let rect;
+      // set the box position if not exists
+      if (!this.placement.has(name)) {
+        let group = this.group.group();
+        let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
+        draw.move(i * 70 + 5, 200 - 15);
+        this.placement.set(name, box);
+        rect = box;
+        enableDrag(group, {
+          onMove: () => {
+            for (const edge of this.edges_drawn) {
+              console.log("update edge", edge, name);
+              if (edge.from_name === name || edge.to_name === name) {
+                const from = this.placement.get(edge.from_name);
+                const to = this.placement.get(edge.to_name);
+                edge.line.plot(from.cx(), from.cy(), to.cx(), to.cy());
+              }
+            }
+          }
+        });
+      } else {
+        // get the rect from the placement
+        rect = this.placement.get(name);
+      }
+      rect.stroke(is_gate(kind) ? (state ? "green" : "red") : "black"); // Green for "T", red for "F"
     }
-
-    console.log("map_pos", map_pos);
 
     let i = 0;
     // draw inpins use inpins_state instead of inpins
     for (const [name, state] of this.inpins_state) {
       console.log("draw inpins", name, state);
 
-      // Create a group for each input pin
-      let group = this.group.group();
+      let rect;
+      // set the box position if not exists
+      if (!this.placement.has(name)) {
+        let group = this.group.group();
+        let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
+        draw.move(i * 40 + 5, 15);
 
-      // Draw a rectangle for the input pin
-      group.rect(50, 30) // width: 50, height: 30
-        .fill("white")
-        .stroke(state ? "green" : "red") // Green for "T", red for "F"
-        ;
+        box.on('click', () => {
+          console.log("click inpins", name);
+          const state = this.inpins_state.get(name);
+          this.inpins_state.set(name, !state);
+          this.draw(circuit);
+        });
 
-      // Add the name of the input pin as text
-      group.text(name)
-        .font({ size: 12, fill: "black" }) // Text styling
-        .move(0, 10);
+        this.placement.set(name, box);
+        rect = box;
+        // toggle inpins[name] if clicked
+      } else {
+        // get the rect from the placement
+        rect = this.placement.get(name);
+      }
+      rect.stroke(state ? "green" : "red"); // Green for "T", red for "F"
 
-      // toggle inpins[name] if clicked
-      group.on('click', () => {
-        console.log("click inpins", name);
-        const state = this.inpins_state.get(name);
-        this.inpins_state.set(name, !state);
-        this.draw(circuit);
-      });
-
-      group.move(i * 40 + 5, 15);
       i++;
     }
 
     // draw otpins
     for (let i = 0; i < otpins.length; i++) {
-      console.log("draw otpins", otpins[i].name, otpins[i].state);
       const name = otpins[i].name;
       const state = otpins[i].state;
+      console.log("draw otpins", name, state);
 
-      // Create a group for each input pin
-      let group = this.group.group();
-
-      // Draw a rectangle for the input pin
-      group.rect(50, 30) // width: 50, height: 30
-        .fill("white")
-        .stroke(state ? "green" : "red"); // Green for "T", red for "F"
-
-      // Add the name of the input pin as text
-      group.text(name)
-        .font({ size: 12, fill: "black" })
-        .move(0, 10);
-
-      group.move(i * 40 + 5, 400 - 15);
-      enableDrag(group);
+      let rect;
+      // set the box position if not exists
+      if (!this.placement.has(name)) {
+        let group = this.group.group();
+        let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
+        draw.move(i * 40 + 5, 400 - 15);
+        this.placement.set(name, box);
+        rect = box;
+      } else {
+        // get the rect from the placement
+        rect = this.placement.get(name);
+      }
+      rect.stroke(state ? "green" : "red"); // Green for "T", red for "F"
     }
 
-    // draw edges
+    // remove all edges (it's ok to remove all edges and draw again)
+    this.edges_drawn.forEach(edge => {
+      edge.line.remove();
+    });
+    this.edges_drawn = [];
+
+    // draw edges between boxes
     for (let i = 0; i < edges.length; i++) {
-      const v_from = edges[i].from;
-      const v_from_num = map_pos.get(v_from);
-      const otpin = edges[i].otpin;
-      const v_to = edges[i].to;
-      const v_to_num = map_pos.get(v_to);
-      const inpin = edges[i].inpin;
-      console.log("draw edges", v_from, v_from_num, otpin, v_to, v_to_num, inpin);
+      const from = edges[i].from;
+      const v_from_name = from.name;
+      const v_from = this.placement.get(v_from_name);
+      const to = edges[i].to;
+      const v_to_name = to.name;
+      const v_to = this.placement.get(v_to_name);
 
-      let group = this.group.group();
+      console.log("draw edges", i, from, v_from_name, v_from, to, v_to_name, v_to);
 
-      group.line(x1, y1, x2, y2)
-
-      map_pos[v_from]
+      const line = lineFromPoints(this.group, { x: v_from.cx(), y: v_from.cy() }, { x: v_to.cx(), y: v_to.cy() });
+      this.edges_drawn.push({ from_name: v_from_name, to_name: v_to_name, line });
     }
+
+    // draw edges from inpins to boxes
+    for (let i = 0; i < inpins.length; i++) {
+      const v_from_name = inpins[i].name;
+      const v_from = this.placement.get(v_from_name);
+      const to = circuit.get_inpins_map(v_from_name);
+      if (to == null) {
+        return;
+      }
+      const v_to_name = to.name;
+      const v_to = this.placement.get(v_to_name);
+      console.log("draw edges (inpin)", v_from_name, v_from, v_to_name, v_to);
+      const line = lineFromPoints(this.group, { x: v_from.cx(), y: v_from.cy() }, { x: v_to.cx(), y: v_to.cy() });
+      this.edges_drawn.push({ from_name: v_from_name, to_name: v_to_name, line });
+    }
+
+    // draw edges from boxes to otpins
+    for (let i = 0; i < otpins.length; i++) {
+      const v_to_name = otpins[i].name;
+      const v_to = this.placement.get(v_to_name);
+      const from = circuit.get_otpins_map(v_to_name);
+      if (from == null) {
+        return;
+      }
+      const v_from_name = from.name;
+      const v_from = this.placement.get(v_from_name);
+      console.log("draw edges (otpin)", v_from_name, v_from, v_to_name, v_to);
+      let line = lineFromPoints(this.group, { x: v_from.cx(), y: v_from.cy() }, { x: v_to.cx(), y: v_to.cy() });
+      this.edges_drawn.push({ from_name: v_from_name, to_name: v_to_name, line });
+    }
+
+    console.log("draw placement", this.placement);
   }
 }
 // ---- view class end ----
+
+// ---- helper functions ----
+// draw a arrow line from a to b
+function lineFromPoints(draw, a, b) {
+  const line = draw.line(a.x, a.y, b.x, b.y).stroke({ color: 'black', width: 1, dasharray: '5,5' });
+  const arrow = draw.marker(10, 10, (add) => {
+    add.polyline('0,0 10,5 0,10 2,5').fill('black');
+  });
+  line.marker('end', arrow);
+  return line;
+}
+
+// pos: center of box
+// draw in a `draw` group
+function drawBox(draw, text, a) {
+  const box = draw.rect(50, 30).fill('white').stroke('black');
+  draw.text(text).font({ size: 12, fill: 'black' }).move(5, 5);
+  return { draw, box };
+}
+
+function is_gate(kind) {
+  return (kind == "_AND_" || kind == "_OR_" || kind == "_NOT_" || kind == "_BR_" || kind == "_CST_" || kind == "_DLY_" || kind == "END");
+}
+// ---- helper functions end ----
 
 // ---- drag SVG element ----
 /**
