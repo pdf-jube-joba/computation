@@ -15,12 +15,16 @@ export const ready = new Promise(resolve => {
 
 // ---- view models class ----
 export class LogicCircuitViewModel {
+  viewId = null;
+  default_placement = null;
   machineId = undefined;
 
   constructor(codeResource, controls, viewId, default_placement) {
     // control: UserControls
     this.codeResource = codeResource;
     this.view = new LogicCircuitView(viewId, default_placement);
+    this.viewId = viewId;
+    this.default_placement = default_placement;
     this.controls = controls;
     this.controls.setOnLoad(() => {
       this.start();
@@ -36,7 +40,7 @@ export class LogicCircuitViewModel {
     if (!text) {
       this.controls.handleError("Please write code");
       return;
-    };
+    }
     try {
       if (this.machineId == undefined) {
         this.machineId = new_logic_circuit(text);
@@ -48,6 +52,10 @@ export class LogicCircuitViewModel {
       return;
     }
     let circuit = get_logic_circuit(this.machineId);
+
+    // Reset the existing view instead of creating a new one
+    this.view.reset();
+
     this.view.draw(circuit);
   }
 
@@ -78,6 +86,7 @@ export class LogicCircuitViewModel {
 // use SVG.js for drawing
 export class LogicCircuitView {
   inpins_state = null;
+  placement = null;
   edges_drawn = [];
 
   constructor(viewId, default_placement) {
@@ -95,6 +104,15 @@ export class LogicCircuitView {
     // set width and height
     this.SVG_elm.attr('style', 'border: 1px solid black;');
     this.group = this.SVG_elm.group();
+  }
+
+  reset() {
+    // Clear the SVG group and reset state
+    this.group.clear();
+    this.placement = new Map();
+    this.inpins_state = null;
+    this.edges_drawn = [];
+    console.log("View reset");
   }
 
   get_inputs() {
@@ -141,7 +159,9 @@ export class LogicCircuitView {
       if (!this.placement.has(name)) {
         let group = this.group.group();
         let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
-        draw.move(i * 70 + 5, 200 - 15);
+        // if there is many boxes, line wrap
+        draw.move((i % 8) * 70 + 5, Math.floor(i / 8) * 50 + 150);
+
         this.placement.set(name, box);
         rect = box;
         enableDrag(group, {
