@@ -83,6 +83,8 @@ impl Display for OtPin {
 pub struct Graph {
     pub verts: Vec<(Identifier, LogicCircuit)>,
     pub edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
+    pub inpins_map: Vec<(InPin, (Identifier, InPin))>,
+    pub otpins_map: Vec<(OtPin, (Identifier, OtPin))>,
 }
 
 pub trait LogicCircuitTrait {
@@ -103,6 +105,13 @@ pub enum LogicCircuit {
 }
 
 impl LogicCircuit {
+    pub fn state_as_gate(&self) -> Option<Bool> {
+        if let LogicCircuit::Gate(gate) = self {
+            Some(gate.state)
+        } else {
+            None
+        }
+    }
     pub fn new_gate(kind: GateKind, state: Bool) -> LogicCircuit {
         LogicCircuit::Gate(Gate { kind, state })
     }
@@ -336,6 +345,16 @@ impl LogicCircuitTrait for Gate {
         Graph {
             verts: vec![(self.kind(), LogicCircuit::Gate(self.clone()))],
             edges: vec![],
+            inpins_map: self
+                .get_inpins()
+                .into_iter()
+                .map(|i| (i.clone(), (self.kind(), i)))
+                .collect(),
+            otpins_map: self
+                .get_otpins()
+                .into_iter()
+                .map(|o| (o.clone(), (self.kind(), o)))
+                .collect(),
         }
     }
 }
@@ -407,9 +426,35 @@ impl LogicCircuitTrait for PinMap {
     }
 
     fn as_graph_group(&self) -> Graph {
+        let Graph {
+            verts,
+            edges,
+            inpins_map: inpins_map_of_graph,
+            otpins_map: otpins_map_of_graph,
+        } = self.this.as_graph_group();
         Graph {
-            verts: vec![(self.kind(), self.this.clone())],
-            edges: vec![],
+            verts,
+            edges,
+            inpins_map: self
+                .inpin_maps
+                .iter()
+                .filter_map(|(i1, i2)| {
+                    inpins_map_of_graph
+                        .iter()
+                        .find(|(i, _)| i == i2)
+                        .map(|(_, (s, i))| (i1.clone(), (s.clone(), i.clone())))
+                })
+                .collect(),
+            otpins_map: self
+                .otpin_maps
+                .iter()
+                .filter_map(|(o1, o2)| {
+                    otpins_map_of_graph
+                        .iter()
+                        .find(|(o, _)| o == o2)
+                        .map(|(_, (s, o))| (o1.clone(), (s.clone(), o.clone())))
+                })
+                .collect(),
         }
     }
 }
@@ -421,32 +466,47 @@ pub struct MixLogicCircuit {
     pub edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
 }
 
-impl LogicCircuitTrait for MixLogicCircuit {
-    fn kind(&self) -> Identifier {
-        self.kind.clone()
-    }
-
-    fn get_inpins(&self) -> Vec<InPin> {
+impl MixLogicCircuit {
+    fn usable_inpins(&self) -> Vec<(Identifier, InPin)> {
         self.verts
             .iter()
             .flat_map(|(s, g)| {
                 g.get_inpins()
                     .into_iter()
                     .filter(move |i| self.edges.iter().all(|(_, (s2, i2))| s != s2 || i != i2))
-                    .map(|i| concat_inpin(s.clone(), i))
+                    .map(|i| (s.clone(), i))
             })
             .collect()
     }
-
-    fn get_otpins(&self) -> Vec<OtPin> {
+    fn usable_otpins(&self) -> Vec<(Identifier, OtPin)> {
         self.verts
             .iter()
             .flat_map(|(s, g)| {
                 g.get_otpins()
                     .into_iter()
                     .filter(move |o| self.edges.iter().all(|((s2, o2), _)| s != s2 || o != o2))
-                    .map(|o| concat_otpin(s.clone(), o))
+                    .map(|o| (s.clone(), o))
             })
+            .collect()
+    }
+}
+
+impl LogicCircuitTrait for MixLogicCircuit {
+    fn kind(&self) -> Identifier {
+        self.kind.clone()
+    }
+
+    fn get_inpins(&self) -> Vec<InPin> {
+        self.usable_inpins()
+            .into_iter()
+            .map(|(s, i)| concat_inpin(s.clone(), i.clone()))
+            .collect()
+    }
+
+    fn get_otpins(&self) -> Vec<OtPin> {
+        self.usable_otpins()
+            .into_iter()
+            .map(|(s, o)| concat_otpin(s.clone(), o.clone()))
             .collect()
     }
 
@@ -517,6 +577,16 @@ impl LogicCircuitTrait for MixLogicCircuit {
         Graph {
             verts: self.verts.clone(),
             edges: self.edges.clone(),
+            inpins_map: self
+                .usable_inpins()
+                .into_iter()
+                .map(|(s, i)| (concat_inpin(s.clone(), i.clone()), (s, i)))
+                .collect(),
+            otpins_map: self
+                .usable_otpins()
+                .into_iter()
+                .map(|(s, o)| (concat_otpin(s.clone(), o.clone()), (s, o)))
+                .collect(),
         }
     }
 }
@@ -537,40 +607,55 @@ pub struct IterLogicCircuit {
     pub prev_edges: Vec<(OtPin, InPin)>, // edge from used[i] -> used[i-1]
 }
 
-impl LogicCircuitTrait for IterLogicCircuit {
-    fn kind(&self) -> Identifier {
-        self.kind.clone()
-    }
-
-    fn get_inpins(&self) -> Vec<InPin> {
+impl IterLogicCircuit {
+    fn usable_inpins(&self) -> Vec<(usize, InPin)> {
         self.used
             .iter()
             .enumerate()
             .flat_map(|(n, g)| {
                 g.get_inpins()
                     .into_iter()
-                    .filter(|inpin| {
-                        self.next_edges.iter().all(|(_, i2)| inpin != i2)
-                            && self.prev_edges.iter().all(|(_, i2)| inpin != i2)
+                    .filter(move |i| {
+                        (n == 0 || self.next_edges.iter().all(|(_, i2)| i != i2))
+                            && self.prev_edges.iter().all(|(_, i2)| i != i2)
                     })
-                    .map(move |inpin| concat_inpin(num_to_ident(n), inpin))
+                    .map(move |i| (n, i))
             })
             .collect()
     }
-
-    fn get_otpins(&self) -> Vec<OtPin> {
+    fn usable_otpins(&self) -> Vec<(usize, OtPin)> {
         self.used
             .iter()
             .enumerate()
             .flat_map(|(n, g)| {
                 g.get_otpins()
                     .into_iter()
-                    .filter(|otpin| {
-                        self.next_edges.iter().all(|(o2, _)| otpin != o2)
-                            && self.prev_edges.iter().all(|(o2, _)| otpin != o2)
+                    .filter(move |o| {
+                        (n == 0 || self.prev_edges.iter().all(|(o2, _)| o != o2))
+                            && self.next_edges.iter().all(|(o2, _)| o != o2)
                     })
-                    .map(move |otpin| concat_otpin(num_to_ident(n), otpin))
+                    .map(move |o| (n, o))
             })
+            .collect()
+    }
+}
+
+impl LogicCircuitTrait for IterLogicCircuit {
+    fn kind(&self) -> Identifier {
+        self.kind.clone()
+    }
+
+    fn get_inpins(&self) -> Vec<InPin> {
+        self.usable_inpins()
+            .into_iter()
+            .map(|(n, i)| concat_inpin(num_to_ident(n), i.clone()))
+            .collect()
+    }
+
+    fn get_otpins(&self) -> Vec<OtPin> {
+        self.usable_otpins()
+            .into_iter()
+            .map(|(n, o)| concat_otpin(num_to_ident(n), o.clone()))
             .collect()
     }
 
@@ -581,11 +666,11 @@ impl LogicCircuitTrait for IterLogicCircuit {
             .flat_map(|(n, g)| {
                 g.get_otputs()
                     .into_iter()
-                    .filter(|(otpin, _)| {
-                        self.next_edges.iter().all(|(o2, _)| otpin != o2)
-                            && self.prev_edges.iter().all(|(o2, _)| otpin != o2)
+                    .filter(move |(o, _)| {
+                        (n == 0 || self.prev_edges.iter().all(|(o2, _)| o != o2))
+                            && self.next_edges.iter().all(|(o2, _)| o != o2)
                     })
-                    .map(move |(otpin, b)| (concat_otpin(num_to_ident(n), otpin), b))
+                    .map(move |(o, b)| (concat_otpin(num_to_ident(n), o), b))
             })
             .collect()
     }
@@ -680,6 +765,26 @@ impl LogicCircuitTrait for IterLogicCircuit {
                 .map(|(i, lc)| (num_to_ident(i), lc.clone()))
                 .collect(),
             edges,
+            inpins_map: self
+                .usable_inpins()
+                .into_iter()
+                .map(|(n, i)| {
+                    (
+                        concat_inpin(num_to_ident(n), i.clone()),
+                        (num_to_ident(n), i),
+                    )
+                })
+                .collect(),
+            otpins_map: self
+                .usable_otpins()
+                .into_iter()
+                .map(|(n, o)| {
+                    (
+                        concat_otpin(num_to_ident(n), o.clone()),
+                        (num_to_ident(n), o),
+                    )
+                })
+                .collect(),
         }
     }
 }

@@ -18,6 +18,7 @@
             border: 1px solid rgb(160 160 160);
             padding: 8px 10px;
         }
+
         pre {
             margin: 0;
         }
@@ -32,7 +33,7 @@
         let code_input = new TextAreaSource("code_input");
         let user_controls = new UserControls("control");
 
-        let view = new LogicCircuitViewModel(code_input,  user_controls, "view");
+        let view = new LogicCircuitViewModel(code_input, user_controls, "view", null);
 
     </script>
 </head>
@@ -41,7 +42,14 @@
     <h1>Test View</h1>
     <div id="machine">
         <div id="input">
-            <textarea id="code_input" rows="10"></textarea>
+<textarea id="code_input" rows="10">
+graph: main {
+in {I}
+out {O=A.OUT}
+
+B, BR-F {IN=I}
+N, NOT-T {IN=B.OUT0}
+A, AND-F {IN0=B.OUT1, IN1=N.OUT}}</textarea>
             <br />
         </div>
         <div id="control">

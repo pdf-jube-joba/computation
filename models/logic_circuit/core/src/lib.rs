@@ -26,6 +26,7 @@ mod tests {
             .get(&Identifier::new_user("one-shot").unwrap())
             .unwrap();
         eprintln!("{:?}", lc);
-        eprintln!("{:?}", lc.as_graph_group())
+        eprintln!("{:?}", lc.as_graph_group());
+        eprintln!("{:?}", lc.get_inpins());
     }
 }
