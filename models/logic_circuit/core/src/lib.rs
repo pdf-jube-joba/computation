@@ -13,9 +13,9 @@ pub mod example {
 
 #[cfg(test)]
 mod tests {
-    use utils::alphabet::Identifier;
+    use utils::{alphabet::Identifier, bool::Bool};
 
-    use crate::machine::LogicCircuitTrait;
+    use crate::machine::{InPin, LogicCircuitTrait};
 
     use super::example::utils_map;
 
@@ -28,5 +28,45 @@ mod tests {
         eprintln!("{:?}", lc);
         eprintln!("{:?}", lc.as_graph_group());
         eprintln!("{:?}", lc.get_inpins());
+    }
+    #[test]
+    fn test_xor() {
+        let list = utils_map();
+        let mut lc = list
+            .get(&Identifier::new_user("XOR").unwrap())
+            .unwrap()
+            .clone();
+        eprintln!("{:?}", lc.get_otputs());
+
+        let inputs: Vec<(InPin, Bool)> = vec![
+            ("IN0".parse().unwrap(), Bool::F),
+            ("IN1".parse().unwrap(), Bool::F),
+        ];
+        for _ in 0..6 {
+            lc.step(inputs.clone());
+            eprintln!("{:?}", lc.get_otputs());
+        }
+
+        eprintln!("----");
+
+        let inputs: Vec<(InPin, Bool)> = vec![
+            ("IN0".parse().unwrap(), Bool::T),
+            ("IN1".parse().unwrap(), Bool::T),
+        ];
+        for _ in 0..6 {
+            lc.step(inputs.clone());
+            eprintln!("{:?}", lc.get_otputs());
+        }
+
+        eprintln!("----");
+
+        let inputs: Vec<(InPin, Bool)> = vec![
+            ("IN0".parse().unwrap(), Bool::T),
+            ("IN1".parse().unwrap(), Bool::F),
+        ];
+        for _ in 0..6 {
+            lc.step(inputs.clone());
+            eprintln!("{:?}", lc.get_otputs());
+        }
     }
 }
