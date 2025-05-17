@@ -1,11 +1,9 @@
-use logic_circuit_core::machine::{
-    concat_inpin, concat_otpin, Graph, InPin, LogicCircuit, LogicCircuitTrait, OtPin,
-};
+use logic_circuit_core::machine::{Graph, InPin, LogicCircuit, LogicCircuitTrait};
 use std::{
     collections::HashMap,
     sync::{LazyLock, Mutex},
 };
-use utils::{alphabet::Identifier, bool::Bool, ToJsResult};
+use utils::{bool::Bool, ToJsResult};
 use wasm_bindgen::prelude::*;
 
 // many global mutable turing machines

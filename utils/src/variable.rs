@@ -50,7 +50,7 @@ impl Display for Var {
             }
             Var::S(s) => {
                 write!(f, "{s}")
-            },
+            }
         }
     }
 }
