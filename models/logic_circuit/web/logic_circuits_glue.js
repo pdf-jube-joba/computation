@@ -53,9 +53,7 @@ export class LogicCircuitViewModel {
     }
     let circuit = get_logic_circuit(this.machineId);
 
-    // Reset the existing view instead of creating a new one
     this.view.reset();
-
     this.view.draw(circuit);
   }
 
@@ -86,15 +84,14 @@ export class LogicCircuitViewModel {
 // use SVG.js for drawing
 export class LogicCircuitView {
   inpins_state = null;
-  placement = null;
+  placement_box = new Map();
+  placement_pin = new Map();
   edges_drawn = [];
 
   constructor(viewId, default_placement) {
     // set default placement
     // map of string -> SV.js's group, contains position of inpins, otpins and boxes
-    if (default_placement == null) {
-      this.placement = new Map();
-    } else {
+    if (default_placement != null) {
       this.placement = default_placement;
     };
 
@@ -107,12 +104,15 @@ export class LogicCircuitView {
   }
 
   reset() {
-    // Clear the SVG group and reset state
-    this.group.clear();
-    this.placement = new Map();
-    this.inpins_state = null;
+    // reset SVG part
+    this.SVG_elm.clear();
+    this.SVG_elm.attr('style', 'border: 1px solid black;');
+    this.group = this.SVG_elm.group();
+
     this.edges_drawn = [];
-    console.log("View reset");
+    this.inpins_state = null;
+    this.placement_box = new Map();
+    this.placement_pin = new Map();
   }
 
   get_inputs() {
@@ -130,8 +130,19 @@ export class LogicCircuitView {
     }
   }
 
+  redraw_inpins() {
+    // redraw inpins
+    // draw inpins use inpins_state instead of inpins
+    for (const [name, state] of this.inpins_state) {
+      console.log("redraw inpins", name, state);
+      // get the rect from the placement
+      let rect = this.placement_pin.get(name);
+      rect.stroke(state ? "green" : "red"); // Green for "T", red for "F"
+    }
+  }
+
   draw(circuit) {
-    console.log("placement", this.placement);
+    // console.log("placement", this.placement);
 
     const inpins = circuit.inpins;
     if (this.inpins_state == null) {
@@ -156,21 +167,21 @@ export class LogicCircuitView {
 
       let rect;
       // set the box position if not exists
-      if (!this.placement.has(name)) {
+      if (!this.placement_box.has(name)) {
         let group = this.group.group();
         let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
         // if there is many boxes, line wrap
         draw.move((i % 8) * 70 + 5, Math.floor(i / 8) * 50 + 150);
 
-        this.placement.set(name, box);
+        this.placement_box.set(name, box);
         rect = box;
         enableDrag(group, {
           onMove: () => {
             for (const edge of this.edges_drawn) {
               console.log("update edge", edge, name);
               if (edge.from_name === name || edge.to_name === name) {
-                const from = this.placement.get(edge.from_name);
-                const to = this.placement.get(edge.to_name);
+                const from = this.placement_box.get(edge.from_name);
+                const to = this.placement_box.get(edge.to_name);
                 edge.line.plot(from.cx(), from.cy(), to.cx(), to.cy());
               }
             }
@@ -178,7 +189,7 @@ export class LogicCircuitView {
         });
       } else {
         // get the rect from the placement
-        rect = this.placement.get(name);
+        rect = this.placement_box.get(name);
       }
       rect.stroke(is_gate(kind) ? (state ? "green" : "red") : "black"); // Green for "T", red for "F"
     }
@@ -189,25 +200,26 @@ export class LogicCircuitView {
       console.log("draw inpins", name, state);
 
       let rect;
-      // set the box position if not exists
-      if (!this.placement.has(name)) {
+      // set the circle position if not exists
+      if (!this.placement_pin.has(name)) {
         let group = this.group.group();
-        let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
+        let { draw, circle } = drawCircle(group, name, { x: 0, y: 0 });
+        console.log(circle);
         draw.move(i * 40 + 5, 15);
 
-        box.on('click', () => {
+        circle.on('click', () => {
           console.log("click inpins", name);
           const state = this.inpins_state.get(name);
           this.inpins_state.set(name, !state);
-          this.draw(circuit);
+          this.redraw_inpins();
         });
 
-        this.placement.set(name, box);
-        rect = box;
+        this.placement_pin.set(name, circle);
+        rect = circle;
         // toggle inpins[name] if clicked
       } else {
         // get the rect from the placement
-        rect = this.placement.get(name);
+        rect = this.placement_pin.get(name);
       }
       rect.stroke(state ? "green" : "red"); // Green for "T", red for "F"
 
@@ -221,16 +233,16 @@ export class LogicCircuitView {
       console.log("draw otpins", name, state);
 
       let rect;
-      // set the box position if not exists
-      if (!this.placement.has(name)) {
+      // set the circle position if not exists
+      if (!this.placement_pin.has(name)) {
         let group = this.group.group();
-        let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
+        let { draw, circle } = drawCircle(group, name, { x: 0, y: 0 });
         draw.move(i * 40 + 5, 400 - 15);
-        this.placement.set(name, box);
-        rect = box;
+        this.placement_pin.set(name, circle);
+        rect = circle;
       } else {
         // get the rect from the placement
-        rect = this.placement.get(name);
+        rect = this.placement_pin.get(name);
       }
       rect.stroke(state ? "green" : "red"); // Green for "T", red for "F"
     }
@@ -245,12 +257,12 @@ export class LogicCircuitView {
     for (let i = 0; i < edges.length; i++) {
       const from = edges[i].from;
       const v_from_name = from.name;
-      const v_from = this.placement.get(v_from_name);
+      const v_from = this.placement_box.get(v_from_name);
       const to = edges[i].to;
       const v_to_name = to.name;
-      const v_to = this.placement.get(v_to_name);
+      const v_to = this.placement_box.get(v_to_name);
 
-      console.log("draw edges", i, from, v_from_name, v_from, to, v_to_name, v_to);
+      // console.log("draw edges", i, from, v_from_name, v_from, to, v_to_name, v_to);
 
       const line = lineFromPoints(this.group, { x: v_from.cx(), y: v_from.cy() }, { x: v_to.cx(), y: v_to.cy() });
       this.edges_drawn.push({ from_name: v_from_name, to_name: v_to_name, line });
@@ -259,14 +271,14 @@ export class LogicCircuitView {
     // draw edges from inpins to boxes
     for (let i = 0; i < inpins.length; i++) {
       const v_from_name = inpins[i].name;
-      const v_from = this.placement.get(v_from_name);
+      const v_from = this.placement_pin.get(v_from_name);
       const to = circuit.get_inpins_map(v_from_name);
       if (to == null) {
         return;
       }
       const v_to_name = to.name;
-      const v_to = this.placement.get(v_to_name);
-      console.log("draw edges (inpin)", v_from_name, v_from, v_to_name, v_to);
+      const v_to = this.placement_box.get(v_to_name);
+      // console.log("draw edges (inpin)", v_from_name, v_from, v_to_name, v_to);
       const line = lineFromPoints(this.group, { x: v_from.cx(), y: v_from.cy() }, { x: v_to.cx(), y: v_to.cy() });
       this.edges_drawn.push({ from_name: v_from_name, to_name: v_to_name, line });
     }
@@ -274,14 +286,14 @@ export class LogicCircuitView {
     // draw edges from boxes to otpins
     for (let i = 0; i < otpins.length; i++) {
       const v_to_name = otpins[i].name;
-      const v_to = this.placement.get(v_to_name);
+      const v_to = this.placement_pin.get(v_to_name);
       const from = circuit.get_otpins_map(v_to_name);
       if (from == null) {
         return;
       }
       const v_from_name = from.name;
-      const v_from = this.placement.get(v_from_name);
-      console.log("draw edges (otpin)", v_from_name, v_from, v_to_name, v_to);
+      const v_from = this.placement_box.get(v_from_name);
+      // console.log("draw edges (otpin)", v_from_name, v_from, v_to_name, v_to);
       let line = lineFromPoints(this.group, { x: v_from.cx(), y: v_from.cy() }, { x: v_to.cx(), y: v_to.cy() });
       this.edges_drawn.push({ from_name: v_from_name, to_name: v_to_name, line });
     }
@@ -304,10 +316,16 @@ function lineFromPoints(draw, a, b) {
 
 // pos: center of box
 // draw in a `draw` group
-function drawBox(draw, text, a) {
+function drawBox(draw, text) {
   const box = draw.rect(50, 30).fill('white').stroke('black');
   draw.text(text).font({ size: 12, fill: 'black' }).move(5, 5);
   return { draw, box };
+}
+
+function drawCircle(draw, text) {
+  const circle = draw.circle(30).fill('white').stroke('black');
+  draw.text(text).font({ size: 12, fill: 'black' }).move(5, 5);
+  return { draw, circle };
 }
 
 function is_gate(kind) {

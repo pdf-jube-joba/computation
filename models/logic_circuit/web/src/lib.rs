@@ -79,12 +79,12 @@ pub struct GraphWeb {
 #[wasm_bindgen]
 impl GraphWeb {
     #[wasm_bindgen]
-    pub fn get_inpins_map(&self, name: String) -> Option<PinInfo> {
-        self.inpins_map.get(&name).cloned()
+    pub fn get_inpins_map(&self, name: &str) -> Option<PinInfo> {
+        self.inpins_map.get(name).cloned()
     }
     #[wasm_bindgen]
-    pub fn get_otpins_map(&self, name: String) -> Option<PinInfo> {
-        self.otpins_map.get(&name).cloned()
+    pub fn get_otpins_map(&self, name: &str) -> Option<PinInfo> {
+        self.otpins_map.get(name).cloned()
     }
 }
 
