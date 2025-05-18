@@ -1,0 +1,13 @@
+graph: main {
+    in {IN0 IN1}
+    out {OUT=O.OUT}
+    B0, BR-F {IN=IN0}
+    B1, BR-F {IN=IN1}
+    D0, DLY-F {IN=B0.OUT0}
+    N1, NOT-T {IN=B1.OUT0}
+    A0, AND-F {IN0=D0.OUT IN1=N1.OUT}
+    N0, NOT-T {IN=B0.OUT1}
+    D1, DLY-F {IN=B1.OUT1}
+    A1, AND-F {IN0=N0.OUT IN1=D1.OUT}
+    O, OR-F {IN0=A0.OUT IN1=A1.OUT}
+}

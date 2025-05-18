@@ -22,9 +22,9 @@ export class LogicCircuitViewModel {
   constructor(codeResource, controls, viewId, default_placement) {
     // control: UserControls
     this.codeResource = codeResource;
-    this.view = new LogicCircuitView(viewId, default_placement);
-    this.viewId = viewId;
     this.default_placement = default_placement;
+    this.viewId = viewId;
+    this.view = new LogicCircuitView(viewId, default_placement);
     this.controls = controls;
     this.controls.setOnLoad(() => {
       this.start();
@@ -92,7 +92,7 @@ export class LogicCircuitView {
     // set default placement
     // map of string -> SV.js's group, contains position of inpins, otpins and boxes
     if (default_placement != null) {
-      this.placement = default_placement;
+      this.default_placement = default_placement;
     };
 
     // setting for SVG.js
@@ -112,6 +112,28 @@ export class LogicCircuitView {
     this.edges_drawn = [];
     this.inpins_state = null;
     this.placement_box = new Map();
+
+    for (const [name, pos] of this.default_placement) {
+      // set the box position if not exists
+      if (!this.placement_box.has(name)) {
+        let group = this.group.group();
+        let { draw, box } = drawBox(group, name, pos);
+        this.placement_box.set(name, box);
+        box.stroke("black");
+        enableDrag(group, {
+          onMove: () => {
+            for (const edge of this.edges_drawn) {
+              console.log("update edge", edge, name);
+              if (edge.from_name === name || edge.to_name === name) {
+                const from = this.placement_box.get(edge.from_name);
+                const to = this.placement_box.get(edge.to_name);
+                edge.line.plot(from.cx(), from.cy(), to.cx(), to.cy());
+              }
+            }
+          }
+        });
+      }
+    }
     this.placement_pin = new Map();
   }
 
@@ -169,9 +191,7 @@ export class LogicCircuitView {
       // set the box position if not exists
       if (!this.placement_box.has(name)) {
         let group = this.group.group();
-        let { draw, box } = drawBox(group, name, { x: 0, y: 0 });
-        // if there is many boxes, line wrap
-        draw.move((i % 8) * 70 + 5, Math.floor(i / 8) * 50 + 150);
+        let { draw, box } = drawBox(group, name, { x: (i % 8) * 70 + 5, y: Math.floor(i / 8) * 50 + 150 });
 
         this.placement_box.set(name, box);
         rect = box;
@@ -236,8 +256,7 @@ export class LogicCircuitView {
       // set the circle position if not exists
       if (!this.placement_pin.has(name)) {
         let group = this.group.group();
-        let { draw, circle } = drawCircle(group, name, { x: 0, y: 0 });
-        draw.move(i * 40 + 5, 400 - 15);
+        let { draw, circle } = drawCircle(group, name, { x: i * 40 + 5, y: 400 - 15 });
         this.placement_pin.set(name, circle);
         rect = circle;
       } else {
@@ -316,15 +335,17 @@ function lineFromPoints(draw, a, b) {
 
 // pos: center of box
 // draw in a `draw` group
-function drawBox(draw, text) {
+function drawBox(draw, text, a) {
   const box = draw.rect(50, 30).fill('white').stroke('black');
   draw.text(text).font({ size: 12, fill: 'black' }).move(5, 5);
+  draw.move(a.x, a.y);
   return { draw, box };
 }
 
-function drawCircle(draw, text) {
+function drawCircle(draw, text, a) {
   const circle = draw.circle(30).fill('white').stroke('black');
   draw.text(text).font({ size: 12, fill: 'black' }).move(5, 5);
+  draw.move(a.x, a.y);
   return { draw, circle };
 }
 

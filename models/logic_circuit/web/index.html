@@ -27,14 +27,24 @@
     </script>
     <script type="module">
         import { TextAreaSource, TextDefinedSource, UserControls } from "../../../book/src/assets/utils.js";
-        import { load, LogicCircuitViewModel } from "./logic_circuits_glue.js";
+        import { load, LogicCircuitViewModel } from "./logic_circuit_glue.js";
         await load();
 
         let code_input = new TextAreaSource("code_input");
         let user_controls = new UserControls("control");
 
-        let view = new LogicCircuitViewModel(code_input, user_controls, "view", null);
+        let default_placement = new Map();
+        default_placement.set("B0", { x: 0, y: 70 });
+        default_placement.set("B1", { x: 200, y: 70 });
+        default_placement.set("D0", { x: 0, y: 140 });
+        default_placement.set("N0", { x: 100, y: 140 });
+        default_placement.set("D1", { x: 200, y: 140 });
+        default_placement.set("N1", { x: 300, y: 140 });
+        default_placement.set("A0", { x: 100, y: 210 });
+        default_placement.set("A1", { x: 300, y: 210 });
+        default_placement.set("O", { x: 200, y: 280 });
 
+        let view = new LogicCircuitViewModel(code_input, user_controls, "view", default_placement);
     </script>
 </head>
 
