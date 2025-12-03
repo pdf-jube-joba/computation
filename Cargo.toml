@@ -6,7 +6,7 @@ members = [
   "models/*/cui",
   "models/*/web",
   "compile/*",
-  "test_global_tape",
+  "web_builder",
 ]
 
 exclude = [
