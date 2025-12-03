@@ -45,7 +45,7 @@ pub fn output_machine(index: usize) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn default_machine() -> usize {
+pub fn default_machine(_input: &str) -> usize {
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         let m: Box<dyn WebView> = Box::new(example::Counter { count: 0 });
