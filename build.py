@@ -53,8 +53,6 @@ def run(cmd: list[str], cwd: Path) -> None:
 def rename_and_move(label: str) -> None:
     src_dir = WEB_BUILDER_DIR / "pkg"
     dest_dir = ASSETS_DIR
-    if dest_dir.exists():
-        shutil.rmtree(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     wasm_src = src_dir / "web_builder_bg.wasm"
@@ -69,6 +67,11 @@ def main() -> None:
     ensure_wasm_pack()
 
     targets: list[str | None] = [None, *FEATURES]
+
+    # Reset output dir once before building all targets so artifacts for each
+    # feature accumulate instead of being overwritten on every iteration.
+    if ASSETS_DIR.exists():
+        shutil.rmtree(ASSETS_DIR)
 
     for feature in targets:
         label = feature_label(feature)

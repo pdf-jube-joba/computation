@@ -31,10 +31,11 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn default_machine(_input: &str) {
+pub fn create(input: &str) {
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
-        let m: Box<dyn WebView> = Box::new(example::Counter { count: 0 });
+        let initial_count = input.parse::<usize>().unwrap_or(0);
+        let m: Box<dyn WebView> = Box::new(example::Counter { count: initial_count });
         *machine = Some(m);
     })
 }

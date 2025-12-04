@@ -3,6 +3,21 @@
 // それぞれに対応する wasm モジュール (./wasm_bundle/<model>.js) を動的に読み込み、
 // 簡単な playground UI (textarea + button + output + canvas) を作って動かします。
 
+// Renderer interface (JSDoc for documentation only):
+// /**
+//  * @callback Renderer
+//  * @param {any} state   - current_machine() の結果
+//  * @param {CanvasRenderingContext2D} ctx
+//  * @param {HTMLCanvasElement} canvas
+//  * @param {ViewModel} vm   - ViewModel インスタンス
+//  */
+//
+// WASM module interface (feature共通):
+// - default(): wasm-pack が生成する初期化関数
+// - create(input: string): machine を初期化
+// - step_machine(input: string): Step 実行
+// - current_machine(): 現在状態を返す
+
 // -------------------------------------
 // ヘルパー: <script type="text/plain" class="..."> からデフォルト文字列を取得
 // -------------------------------------
@@ -55,11 +70,15 @@ class ViewModel {
     }
 
     // textarea にデフォルト値をセット
-    if (!this.inputArea.value) {
+    if (this.defaultInput) {
       this.inputArea.value = this.defaultInput;
+    } else if (!this.inputArea.value) {
+      this.inputArea.value = "";
     }
-    if (!this.codeArea.value) {
+    if (this.defaultCode) {
       this.codeArea.value = this.defaultCode;
+    } else if (!this.codeArea.value) {
+      this.codeArea.value = "";
     }
 
     // wasm モジュール (glue JS) とその export 群
@@ -77,10 +96,18 @@ class ViewModel {
     // 1) wasm モジュール
     const wasmPath = `./wasm_bundle/${this.modelName}.js`;
     this.module = await import(wasmPath);
+    this.api = this.module;
+    // wasm-pack で生成された glue の default() は初期化に必要。
     if (typeof this.module.default === "function") {
       await this.module.default();
     }
-    this.api = this.module;
+    // 各 feature 共通の API: create / step_machine / current_machine
+    if (typeof this.api.create === "function") {
+      const initial = this.defaultInput || this.inputArea.value || "";
+      await Promise.resolve(this.api.create(initial));
+    } else {
+      console.warn(`WASM module for ${this.modelName} does not expose create()`);
+    }
 
     // 2) renderer モジュール
     const rendererPath = `./renderers/${this.modelName}.js`;
@@ -92,6 +119,8 @@ class ViewModel {
       console.warn(`No renderer for model "${this.modelName}"`, e);
       this.renderer = null;
     }
+
+    await this.refreshView();
   }
 
   // wasm 関数呼び出しのラッパ（関数が存在しない場合は何もしない）
@@ -132,18 +161,20 @@ class ViewModel {
   }
 
   // 状態の描画。とりあえずデフォルト実装はカウンタ用を想定。
-  // モデルごとに変えたくなったら、modelName ごとに分岐したり、
-  // 別の renderer レジストリを使う形に拡張すればOK。
+  // renderer が提供されていればそれを使い、なければデフォルト描画。
   draw(state) {
     if (!this.ctx) return;
 
     const { ctx, canvas } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 簡単な例: state が { count: number } を持つと仮定
-    // （他のモデルでは自由に拡張・書き換えしてOK）
-    const count = (state && typeof state.count === "number") ? state.count : 0;
+    if (typeof this.renderer === "function") {
+      this.renderer(state, ctx, canvas, this);
+      return;
+    }
 
+    // fallback: state が { count: number } を持つと仮定
+    const count = (state && typeof state.count === "number") ? state.count : 0;
     ctx.font = "20px sans-serif";
     ctx.textBaseline = "top";
     ctx.fillText(`${this.modelName}: count = ${count}`, 10, 10);

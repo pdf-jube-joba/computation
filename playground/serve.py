@@ -24,7 +24,8 @@ def pull_assets() -> None:
     shutil.copytree(ASSETS_DIR, dest_dir)
 
 def serve(port: int) -> None:
-    handler = partial(SimpleHTTPRequestHandler, directory=str(PLAYGROUND_DIR / "playground_files"))
+    # Serve the entire playground folder so both playground_files/ and assets/ are reachable.
+    handler = partial(SimpleHTTPRequestHandler, directory=str(PLAYGROUND_DIR))
     server = ThreadingHTTPServer(("127.0.0.1", port), handler)
     print(f"[serve] http://127.0.0.1:{port}/ (serving {PLAYGROUND_DIR})")
     try:
