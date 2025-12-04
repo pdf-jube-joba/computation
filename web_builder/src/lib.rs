@@ -3,54 +3,39 @@ use utils::WebView;
 use wasm_bindgen::prelude::*;
 
 thread_local! {
-    static MACHINE: RefCell<Vec<Box<dyn WebView>>> = RefCell::new(vec![]);
+    static MACHINE: RefCell<Option<Box<dyn WebView>>> = RefCell::new(None);
 }
 
 #[wasm_bindgen]
-pub fn step_machine(index: usize, input: &str) -> Result<JsValue, JsValue> {
+pub fn step_machine(input: &str) -> Result<JsValue, JsValue> {
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         let m = machine
-            .get_mut(index)
-            .ok_or_else(|| JsValue::from_str("Invalid machine index"))?;
+            .as_mut()
+            .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
         let result = m.step(input).map_err(|e| JsValue::from_str(&e))?;
         serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
     })
 }
 
 #[wasm_bindgen]
-pub fn current_machine(index: usize) -> Result<JsValue, JsValue> {
+pub fn current_machine() -> Result<JsValue, JsValue> {
     MACHINE.with(|machine| {
         let machine = machine.borrow();
         let m = machine
-            .get(index)
-            .ok_or_else(|| JsValue::from_str("Invalid machine index"))?;
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
         let result = m.current();
         serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
     })
 }
 
 #[wasm_bindgen]
-pub fn output_machine(index: usize) -> Result<JsValue, JsValue> {
-    MACHINE.with(|machine| {
-        let machine = machine.borrow();
-        let m = machine
-            .get(index)
-            .ok_or_else(|| JsValue::from_str("Invalid machine index"))?;
-        let result = m
-            .output()
-            .ok_or_else(|| JsValue::from_str("Machine not terminated"))?;
-        serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
-    })
-}
-
-#[wasm_bindgen]
-pub fn default_machine(_input: &str) -> usize {
+pub fn default_machine(_input: &str) {
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         let m: Box<dyn WebView> = Box::new(example::Counter { count: 0 });
-        machine.push(m);
-        machine.len() - 1
+        *machine = Some(m);
     })
 }
 
@@ -61,18 +46,18 @@ mod example {
         pub count: usize,
     }
     impl WebView for Counter {
-        fn step(&mut self, input: &str) -> Result<serde_json::Value, String> {
+        fn step(&mut self, input: &str) -> Result<Option<serde_json::Value>, String> {
             match input {
                 "increment" => {
                     self.count += 1;
-                    Ok(serde_json::json!({"status": "ok", "count": self.count}))
+                    Ok(None)
                 }
                 "decrement" => {
                     if self.count == 0 {
                         Err("Count cannot be negative".to_string())
                     } else {
                         self.count -= 1;
-                        Ok(serde_json::json!({"status": "ok", "count": self.count}))
+                        Ok(None)
                     }
                 }
                 _ => Err("Invalid input".to_string()),
@@ -81,10 +66,6 @@ mod example {
 
         fn current(&self) -> serde_json::Value {
             serde_json::json!({"count": self.count})
-        }
-
-        fn output(&self) -> Option<serde_json::Value> {
-            None
         }
     }
 }

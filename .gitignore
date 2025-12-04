@@ -4,3 +4,6 @@ out/
 dist
 pkg
 generated
+assets/wasm_bundle
+playground/assets/
+book/assets/

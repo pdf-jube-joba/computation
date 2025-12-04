@@ -1,9 +1,19 @@
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import shutil
 
 PLAYGROUND_DIR = Path(__file__).resolve().parent
-ASSETS_DIR = PLAYGROUND_DIR / "generated"
+WORKSPACE_DIR = PLAYGROUND_DIR.parent
+# `./assets` may contains hand written files => include all of `./assets`
+ASSETS_DIR = WORKSPACE_DIR / "assets" 
+
+def pull_assets() -> None:
+    # copy from `assets/` to `playground/assets/`
+    dest_dir = PLAYGROUND_DIR / "assets"
+    if dest_dir.exists():
+        shutil.rmtree(dest_dir)
+    shutil.copytree(ASSETS_DIR, dest_dir)
 
 def serve(port: int) -> None:
     handler = partial(SimpleHTTPRequestHandler, directory=str(ASSETS_DIR))

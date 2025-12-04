@@ -13,12 +13,10 @@ pub trait WebView {
     // => we expect implement individually for each model
     // fn create(&self) -> Result<Self, String>;
     
-    // step the model with the given input and return Self
-    fn step(&mut self, input: &str) -> Result<Value, String>;
+    // step the model with the given input and return output if terminated
+    fn step(&mut self, input: &str) -> Result<Option<Value>, String>;
     // get the current state of the model as a Value
     fn current(&self) -> Value;
-    // get output if it is terminated
-    fn output(&self) -> Option<Value>;
 }
 
 pub trait ToJsResult<T> {
