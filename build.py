@@ -52,7 +52,7 @@ def run(cmd: list[str], cwd: Path) -> None:
 
 def rename_and_move(label: str) -> None:
     src_dir = WEB_BUILDER_DIR / "pkg"
-    dest_dir = ASSETS_DIR / label
+    dest_dir = ASSETS_DIR
     if dest_dir.exists():
         shutil.rmtree(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -74,3 +74,6 @@ def main() -> None:
         label = feature_label(feature)
         build_wasm(feature, release=True)
         rename_and_move(label)
+
+if __name__ == "__main__":
+    main()
