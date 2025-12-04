@@ -10,41 +10,39 @@ import subprocess
 import sys
 from pathlib import Path
 
-FEATURES = [] # currently no per-feature builds
 WORKSPACE_DIR = Path(__file__).resolve().parent
 WEB_BUILDER_DIR = WORKSPACE_DIR / "web_builder"
 ASSETS_DIR = WORKSPACE_DIR / "assets" / "wasm_bundle"
+FEATURES: list[str] = []  # fill with feature names if/when they exist
+
+
+def feature_label(feature: str | None) -> str:
+    return feature if feature else "default"
 
 def ensure_wasm_pack() -> None:
     if shutil.which("wasm-pack") is None:
         sys.exit("wasm-pack is required but not found on PATH. Install it via `cargo install wasm-pack` or from https://rustwasm.github.io/wasm-pack/installer/ .")
 
-def build_feature(feature: str, release: bool) -> None:
-    out_dir = ASSETS_DIR / feature
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
+def build_wasm(feature: str | None, release: bool) -> None:
+    label = feature_label(feature)
     cmd = [
         "wasm-pack",
         "build",
-        "--out-dir",
-        str(out_dir),
-        "--out-name",
-        feature,
         "--target",
         "web",
         "--mode",
         "no-install",
         "--no-typescript",
         "--no-pack",
-        "--features",
-        feature,
     ]
+
     if release:
         cmd.insert(2, "--release")
 
-    print(f"[build] feature={feature}")
+    if feature:
+        cmd.extend(["--features", feature])
+
+    print(f"[build] feature={label}")
     run(cmd, cwd=WEB_BUILDER_DIR)
 
 def run(cmd: list[str], cwd: Path) -> None:
@@ -52,24 +50,27 @@ def run(cmd: list[str], cwd: Path) -> None:
     if result.returncode != 0:
         sys.exit(result.returncode)
 
-def rename_and_move(feature: str) -> None:
+def rename_and_move(label: str) -> None:
     src_dir = WEB_BUILDER_DIR / "pkg"
-    dest_dir = ASSETS_DIR / feature
+    dest_dir = ASSETS_DIR / label
     if dest_dir.exists():
         shutil.rmtree(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     wasm_src = src_dir / "web_builder_bg.wasm"
-    wasm_dest = dest_dir / f"{feature}_bg.wasm"
+    wasm_dest = dest_dir / f"{label}_bg.wasm"
     shutil.move(str(wasm_src), str(wasm_dest))
 
     js_src = src_dir / "web_builder.js"
-    js_dest = dest_dir / f"{feature}.js"
+    js_dest = dest_dir / f"{label}.js"
     shutil.move(str(js_src), str(js_dest))
 
 def main() -> None:
     ensure_wasm_pack()
 
-    for feature in FEATURES:
-        build_feature(feature, release=True)
-        rename_and_move(feature)
+    targets: list[str | None] = [None, *FEATURES]
+
+    for feature in targets:
+        label = feature_label(feature)
+        build_wasm(feature, release=True)
+        rename_and_move(label)

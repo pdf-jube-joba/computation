@@ -14,3 +14,5 @@ serde-wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 
 utils = { workspace = true }
+
+[features]
