@@ -13,7 +13,7 @@ pub trait IntoWeb {
     type Output: Serialize;
     type This: Serialize;
 
-    fn parse(input: &str) -> Self::Input;
+    fn parse(input: &str) -> Result<Self::Input, String>;
     fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String>;
     fn current(&self) -> Self::This;
 }
@@ -39,7 +39,7 @@ where
     T: IntoWeb,
 {
     fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
-        let parsed = <Self as IntoWeb>::parse(input);
+        let parsed = <Self as IntoWeb>::parse(input)?;
         let output = <Self as IntoWeb>::step(self, parsed)?;
         match output {
             Some(o) => {

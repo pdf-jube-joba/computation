@@ -67,11 +67,11 @@ mod example {
         type Output = ();
         type This = Current;
 
-        fn parse(input: &str) -> Self::Input {
+        fn parse(input: &str) -> Result<Self::Input, String> {
             match input.trim() {
-                "increment" => Command::Increment,
-                "decrement" => Command::Decrement,
-                _ => Command::Unknown,
+                "increment" => Ok(Command::Increment),
+                "decrement" => Ok(Command::Decrement),
+                _ => Err("Invalid input".to_string()),
             }
         }
 
