@@ -33,9 +33,9 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn create(input: &str) {
     MACHINE.with(|machine| {
-        let mut machine = machine.borrow_mut();
-        let initial_count = input.trim().parse::<usize>().unwrap_or(0);
+        let initial_count = input.trim().parse::<usize>().unwrap_or(15);
         let m: Box<dyn WebView> = Box::new(example::Counter { count: initial_count });
+        let mut machine = machine.borrow_mut();
         *machine = Some(m);
     })
 }
@@ -48,7 +48,7 @@ mod example {
     }
     impl WebView for Counter {
         fn step(&mut self, input: &str) -> Result<Option<serde_json::Value>, String> {
-            match input {
+            match input.trim() {
                 "increment" => {
                     self.count += 1;
                     Ok(None)

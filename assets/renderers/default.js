@@ -5,9 +5,13 @@ export function render(state, ctx, canvas, vm) {
   // canvas: HTMLCanvasElement
   // vm:    ViewModel インスタンス（必要なら UI にアクセスできる）
 
+  
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const count = (state && typeof state.count === "number") ? state.count : 0;
+  console.log("default renderer:", state);
+  const raw = state instanceof Map ? state.get("count") : state && state.count;
+  const count = typeof raw === "number" ? raw : Number(raw) || 0;
+  console.log("count =", count);
 
   ctx.font = "20px sans-serif";
   ctx.textBaseline = "top";

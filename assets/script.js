@@ -103,7 +103,8 @@ class ViewModel {
     this.createFn = null;
     this.stepFn = null;
     this.currentFn = null;
-    this.initialized = false;
+    // status: "uninitialized" | "ready" | "machine_setted" | "init_failed"
+    this.status = "uninitialized";
 
     // イベントハンドラ
     this.createButton.addEventListener("click", () => {
@@ -114,71 +115,95 @@ class ViewModel {
     });
   }
 
+  async initializeMachine(initial) {
+    console.log("ViewModel.initializeMachine");
+    if (this.status === "init_failed") return false;
+    if (this.status === "uninitialized") {
+      this.outputPre.textContent = "(init not completed)";
+      return false;
+    }
+    try {
+      await Promise.resolve(this.createFn(initial));
+      if (this.currentFn) {
+        await Promise.resolve(this.currentFn());
+      }
+      this.status = "machine_setted";
+      return true;
+    } catch (e) {
+      this.status = "ready";
+      console.error("initializeMachine failed:", e);
+      this.outputPre.textContent = `Error: ${e}`;
+      return false;
+    }
+  }
+
+  disableUI() {
+    console.log("ViewModel.disableUI");
+    this.createButton.disabled = true;
+    this.stepButton.disabled = true;
+  }
+
   // wasm モジュール読み込み & 初期化
   async init() {
     console.log("ViewModel.init");
 
-    // 1) wasm モジュール
-    const wasmPath = `./wasm_bundle/${this.modelName}.js`;
-    this.module = await import(wasmPath);
-    this.api = this.module;
-    this.createFn = typeof this.api.create === "function" ? this.api.create : null;
-    this.stepFn = typeof this.api.step_machine === "function" ? this.api.step_machine : null;
-    this.currentFn = typeof this.api.current_machine === "function" ? this.api.current_machine : null;
-    // wasm-pack で生成された glue の default() は初期化に必要。
-    if (typeof this.module.default === "function") {
-      await this.module.default();
-    }
-    // 各 feature 共通の API: create / step_machine / current_machine
-    // codeArea にデフォルト文字列があるときだけ初期化を行う
-    if (this.codeArea.value.trim()) {
-      if (this.createFn) {
-        const initial = this.defaultInput || this.inputArea.value || "";
-        await Promise.resolve(this.createFn(initial));
-        this.initialized = true;
-      } else {
-        console.warn(`WASM module for ${this.modelName} does not expose create()`);
-      }
-    }
-
-    // 2) renderer モジュール
-    const rendererPath = `./renderers/${this.modelName}.js`;
     try {
-      const rmod = await import(rendererPath);
-      // default export or named export 'render'
-      this.renderer = rmod.default || rmod.render || null;
-    } catch (e) {
-      console.warn(`No renderer for model "${this.modelName}"`, e);
-      this.renderer = null;
-    }
+      // 1) wasm モジュール
+      const wasmPath = `./wasm_bundle/${this.modelName}.js`;
+      this.module = await import(wasmPath);
+      this.api = this.module;
+      this.createFn = typeof this.api.create === "function" ? this.api.create : null;
+      this.stepFn = typeof this.api.step_machine === "function" ? this.api.step_machine : null;
+      this.currentFn = typeof this.api.current_machine === "function" ? this.api.current_machine : null;
+      const missing = [];
 
-    // renderer がなければデフォルト renderer を読み込む
-    if (!this.renderer) {
-      try {
-        const def = await import("./renderers/default.js");
-        this.renderer = def.default || def.render || null;
-      } catch (e) {
-        console.warn("No default renderer found", e);
+      // 必須 export チェック
+      if (!this.createFn) missing.push("create");
+      if (!this.stepFn) missing.push("step_machine");
+      if (!this.currentFn) missing.push("current_machine");
+      if (missing.length) {
+        throw new Error(`WASM module is missing exports: ${missing.join(", ")}`);
       }
-    }
+      // wasm-pack で生成された glue の default() は初期化に必要。
+      if (typeof this.module.default === "function") {
+        await this.module.default();
+      }
 
-    if (this.initialized) {
-      await this.refreshView();
+      // 2) renderer モジュール
+      const rendererPath = `./renderers/${this.modelName}.js`;
+      const rmod = await import(rendererPath);
+      this.renderer = rmod.render;
+      if (typeof this.renderer !== "function") {
+        throw new Error(`Renderer not found or invalid for model "${this.modelName}"`);
+      }
+
+      this.status = "ready";
+    } catch (e) {
+      console.error("init failed:", e);
+      this.outputPre.textContent = `Init error: ${e}`;
+      this.disableUI();
+      this.status = "init_failed";
+      return;
     }
   }
 
   async handleCreateClick() {
     console.log("ViewModel.handleCreateClick");
-    if (!this.createFn) {
-      this.outputPre.textContent = "(create is not exported)";
+    if (this.status === "init_failed") {
+      this.outputPre.textContent = "(init failed; reload required)";
+      return;
+    }
+    if (this.status === "uninitialized") {
+      this.outputPre.textContent = "(init not completed)";
       return;
     }
     try {
-      const codeStr = this.codeArea.value;
+      const codeStr = this.codeArea.value.trim();
       console.log("Creating machine with code:", codeStr);
-      await Promise.resolve(this.createFn(codeStr));
-      this.initialized = true;
-      await this.refreshView();
+      const ok = await this.initializeMachine(codeStr);
+      if (ok) {
+        await this.refreshView();
+      }
     } catch (e) {
       console.error(e);
       this.outputPre.textContent = `Error: ${e}`;
@@ -187,17 +212,17 @@ class ViewModel {
 
   async handleStepClick() {
     console.log("ViewModel.handleStepClick");
-    if (!this.stepFn) {
-      this.outputPre.textContent = "(step_machine is not exported)";
+    if (this.status === "init_failed") {
+      this.outputPre.textContent = "(init failed; reload required)";
       return;
     }
-    if (!this.initialized) {
+    if (this.status !== "machine_setted") {
       this.outputPre.textContent = "(machine not initialized; run Create first)";
       return;
     }
 
     try {
-      const inputStr = this.inputArea.value;
+      const inputStr = this.inputArea.value.trim();
       console.log("Stepping machine with input:", inputStr);
       const result = await Promise.resolve(this.stepFn(inputStr));
       const display = result === undefined ? "(no result)" : JSON.stringify(result, null, 2);
@@ -211,9 +236,8 @@ class ViewModel {
 
   async refreshView() {
     console.log("ViewModel.refreshView");
-    if (!this.initialized) return;
+    if (this.status !== "machine_setted") return;
     try {
-      if (!this.currentFn) return;
       const state = await Promise.resolve(this.currentFn());
       this.draw(state);
     } catch (e) {
