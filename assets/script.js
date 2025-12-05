@@ -290,3 +290,5 @@ if (document.readyState === "loading") {
 } else {
   setupAllModels().catch(err => console.error(err));
 }
+
+console.log("script.js loaded");

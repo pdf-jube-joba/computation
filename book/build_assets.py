@@ -48,7 +48,6 @@ def process_item(item):
     depth = path.count('/')  # number of path separators indicates nesting level
     prefix = '../' * depth
     chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
-    chapter['content'] += f'\n<script> console.log("added <script> ... for md") </script>\n'
 
     for sub in chapter.get('sub_items', []):
         process_item(sub)
