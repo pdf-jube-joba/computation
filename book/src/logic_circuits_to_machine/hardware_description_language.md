@@ -16,7 +16,7 @@
     - | \(\langle S \rangle\) where \(S\) is finite set of \(\String\)
 - 型付け規則
     - 見ての通り
-    - ただし、 \(s \in S_1 \cap S_2\) なら \(\langlr s \rangle: \langle S_1 \rangle \) かつ \(\langle s\ rangle: \langle S_2 \rangle\) であるので、型は一意ではない。
+    - ただし、 \(s \in S_1 \cap S_2\) なら \(\langle s \rangle: \langle S_1 \rangle \) かつ \(\langle s\ rangle: \langle S_2 \rangle\) であるので、型は一意ではない。
     - 判定はアルゴリズム的にできそう。
 
 型は記述には使うが意味論には使わない。
@@ -79,7 +79,7 @@
     - \(v\)
       - `if` e_1 `then` e_2 `else` \(e_3\) = exp
       - eval-comb E G \(e_1 = \false\)
-      - eval-comb E G \(e_3 = v)
+      - eval-comb E G \(e_3 = v\)
     - \(v_i\)
       - \(e^\prime[i ] = e\)
       - eval-comb E G \(e^\prime = [v_1, \ldots, v_n]\)
@@ -146,7 +146,7 @@
 - 記述
   - \(s\): `graph` (`IN`: \(t_I\)`;` `MACHINE`: \((s_1: N_1, ..., s_n: N_n)\)`;`, `OUT`: \(t_O\)) `transition=`e_1`;` `output`=e_2`;` where \(s: \String, t_I, t_S, t_O: \text{Type}, e_i\): Exp, \( v_0: \text{Value}\)
   - つまりグラフ構成 GraphSM は \((\String, \text{Set of} \, (\String \times \String), \text{Exp}, \text{Exp})\) のこと
-- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) GraphSM \(\partfuncion\) ステートマシン := \(\text{toSM} E S (s, (s_i: S_i), e_1, e_2) |->\)
+- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) GraphSM \(\partfunction\) ステートマシン := \(\text{toSM} E S (s, (s_i: S_i), e_1, e_2) |->\)
   - \((S_i, v_i, \delta_i, r_i)\) := \((N_i, (S_i, v_i, \delta_i, r_i)) \in S\)
   - 状態の全体 := \((S_1, \ldots, S_n)\)
   - 初期状態 := \((v_1, \ldots, v_n)\)

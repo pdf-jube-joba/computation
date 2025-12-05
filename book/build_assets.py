@@ -30,18 +30,8 @@ def copy_assets() -> None:
     shutil.copytree(ASSETS_SRC, ASSETS_DEST)
 
 def main() -> None:
-    # case of `supports <renderer>`
-    if len(sys.argv) > 1 and sys.argv[1] == "supports":
-        if sys.argv[2] == "html":
-            exit(0)
-        else:
-            exit(1)
-
-    # default case: read book JSON from stdin, build, copy assets, write book JSON to stdout
-    book = json.load(sys.stdin)
     call_build_script()
     copy_assets()
-    json.dump(book, sys.stdout)
 
 if __name__ == "__main__":
     main()

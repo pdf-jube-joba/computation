@@ -12,16 +12,3 @@ after = ["links"]
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 macros = "macros.txt"
-
-[preprocessor.build-assets]
-command = "python3 build_assets.py"
-
-[output.html]
-additional-js = [
-    "assets/vendor/svg.js",
-]
-
-additional-css = [
-    "assets/css/logic_circuit.css",
-    "assets/css/models_of_computation.css",
-]

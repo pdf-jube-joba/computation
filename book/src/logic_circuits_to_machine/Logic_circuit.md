@@ -194,4 +194,4 @@
 > - 繰り返し論理回路の直和は繰り返し論理回路である。
 >   - これは、  \((V, E, l), (V', E', l')\) から \((V \sqcup v', E \sqcup E', \text{mix}(l, l'))\) みたいな操作
 >   - 注意点として、入出力のラベルの番号付けはちゃんとやらないといけない。
-> - 繰り返し回路 \((V, E, l)\) に対して、 \((v^{\text{in}}_i, v^{\text{in}}_j)\) を使って、 \((V \times \Nat, \{(v, i) \rightoarrow (v', i) \mid v \rightarrow v' \in E\}, l)\) に対して結合を行う。
+> - 繰り返し回路 \((V, E, l)\) に対して、 \((v^{\text{in}}_i, v^{\text{in}}_j)\) を使って、 \((V \times \Nat, \{(v, i) \rightarrow (v', i) \mid v \rightarrow v' \in E\}, l)\) に対して結合を行う。
