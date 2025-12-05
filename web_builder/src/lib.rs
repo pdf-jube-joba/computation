@@ -59,7 +59,6 @@ mod example {
     pub enum Command {
         Increment,
         Decrement,
-        Unknown,
     }
 
     impl IntoWeb for Counter {
@@ -89,7 +88,6 @@ mod example {
                         Ok(None)
                     }
                 }
-                Command::Unknown => Err("Invalid input".to_string()),
             }
         }
 

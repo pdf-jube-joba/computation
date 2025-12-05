@@ -55,23 +55,3 @@ where
             .unwrap_or_else(|e| JsValue::from_str(&e.to_string()))
     }
 }
-
-/*
-pub trait TestA {
-    type T: serde::Serialize;
-    fn get(&self) -> Self::T;
-}
-
-pub trait TestB {
-    fn get(&self) -> JsValue;
-}
-
-impl<T> TestB for T
-where
-    T: TestA,
-{
-    fn get(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&self.get()).unwrap_or(JsValue::NULL)
-    }
-}
-*/
