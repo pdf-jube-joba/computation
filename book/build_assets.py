@@ -38,13 +38,27 @@ def copy_assets() -> None:
         shutil.rmtree(ASSETS_DEST)
     shutil.copytree(ASSETS_SRC, ASSETS_DEST)
 
+def process_item(item):
+    if 'Chapter' not in item:
+        return
+
+    chapter = item['Chapter']
+    # Adjust the asset path based on the chapter depth so nested chapters resolve correctly
+    path = chapter.get('path', '')
+    depth = path.count('/')  # number of path separators indicates nesting level
+    prefix = '../' * depth
+    chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
+
+    for sub in chapter.get('sub_items', []):
+        process_item(sub)
 
 def preprocess() -> None:
-    context, book = json.load(sys.stdin)
     call_build_script()
     copy_assets()
+    context, book = json.load(sys.stdin)
+    for top in book['items']:
+        process_item(top)
     json.dump(book, sys.stdout)
-
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "supports":
