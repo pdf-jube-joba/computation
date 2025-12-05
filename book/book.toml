@@ -1,7 +1,6 @@
 [book]
 authors = ["pdf-jube-joba"]
 language = "jp"
-multilingual = false
 src = "src"
 title = "computations"
 
@@ -13,6 +12,9 @@ after = ["links"]
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 macros = "macros.txt"
+
+[preprocessor.build-assets]
+command = "python3 build_assets.py"
 
 [output.html]
 additional-js = [
