@@ -12,3 +12,6 @@ after = ["links"]
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 macros = "macros.txt"
+
+[preprocessor.build-assets]
+command = "python3 build_assets.py"

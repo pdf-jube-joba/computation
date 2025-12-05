@@ -1,8 +1,0 @@
-while_nz x {
-    cpy y2 <- y
-    while_nz y2 {
-        inc z
-        dec y2
-    }
-    dec x
-}

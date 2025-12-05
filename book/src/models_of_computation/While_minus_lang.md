@@ -52,6 +52,48 @@
     </div>
 </div>
 
+```mul
+while_nz x {
+    cpy y2 <- y
+    while_nz y2 {
+        inc z
+        dec y2
+    }
+    dec x
+}
+```
+
+```gcd
+// y == 0 なら終了
+while_nz y {
+    // x < y なら x と y を入れ替えたい。
+    // x < y => y_cpy > 0
+    cpy x_cpy <- x
+    cpy y_cpy <- y
+    while_nz x_cpy {
+        dec x_cpy
+        dec y_cpy
+    }
+    // x < y ならここに入る。
+    while_nz y_cpy {
+        // x と y の swap
+        cpy tmp <- y
+        cpy y <- x
+        cpy x <- tmp
+        // 抜けるため
+        clr y_cpy
+    }
+
+    // x > y が保証される
+    // x <- x - y
+    cpy y_cpy <- y
+    while_nz y_cpy {
+        dec x
+        dec y_cpy
+    }
+}
+```
+
 # while-minus 言語（ちゃんとした解説）
 
 ## 定義

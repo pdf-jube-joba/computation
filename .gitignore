@@ -5,5 +5,5 @@ dist
 pkg
 generated
 assets/wasm_bundle
-playground/assets/
-book/assets/
+playground/assets
+book/src/assets
