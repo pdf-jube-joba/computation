@@ -13,23 +13,18 @@ from pathlib import Path
 WORKSPACE_DIR = Path(__file__).resolve().parent
 WEB_BUILDER_DIR = WORKSPACE_DIR / "web_builder"
 ASSETS_DIR = WORKSPACE_DIR / "assets" / "wasm_bundle"
-FEATURES: list[str] = []  # fill with feature names if/when they exist
-
-
-def feature_label(feature: str | None) -> str:
-    return feature if feature else "default"
+FEATURES: list[str] = ["default"]
 
 def ensure_wasm_pack() -> None:
     if shutil.which("wasm-pack") is None:
         sys.exit("wasm-pack is required but not found on PATH. Install it via `cargo install wasm-pack` or from https://rustwasm.github.io/wasm-pack/installer/ .")
 
-def build_wasm(feature: str | None, release: bool) -> None:
-    label = feature_label(feature)
+def build_wasm(feature: str, release: bool) -> None:
     cmd = [
         "wasm-pack",
         "build",
         "--out-name",
-        label,
+        feature,
         "--target",
         "web",
         "--mode",
@@ -41,10 +36,9 @@ def build_wasm(feature: str | None, release: bool) -> None:
     if release:
         cmd.insert(2, "--release")
 
-    if feature:
-        cmd.extend(["--features", feature])
+    cmd.extend(["--features", feature])
 
-    print(f"[build] feature={label}")
+    print(f"[build] feature={feature}")
     run(cmd, cwd=WEB_BUILDER_DIR)
 
 def run(cmd: list[str], cwd: Path) -> None:
@@ -68,18 +62,15 @@ def rename_and_move(label: str) -> None:
 def main() -> None:
     ensure_wasm_pack()
 
-    targets: list[str | None] = [None, *FEATURES]
-
     # Reset output dir once before building all targets so artifacts for each
     # feature accumulate instead of being overwritten on every iteration.
     if ASSETS_DIR.exists():
         shutil.rmtree(ASSETS_DIR)
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    for feature in targets:
-        label = feature_label(feature)
+    for feature in FEATURES:
         build_wasm(feature, release=True)
-        rename_and_move(label)
+        rename_and_move(feature)
 
 if __name__ == "__main__":
     main()

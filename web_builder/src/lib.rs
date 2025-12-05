@@ -29,17 +29,20 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
     })
 }
 
-#[wasm_bindgen]
-pub fn create(input: &str) -> Result<(), JsValue> {
+pub fn create_machine<T: utils::IntoWeb + 'static>(input: &str) -> Result<(), JsValue> {
+    let m = T::parse_self(input).map_err(|e| JsValue::from_str(&e))?;
+    let boxed: Box<dyn WebView> = Box::new(m);
     MACHINE.with(|machine| {
-        let initial_count = input.trim().parse::<usize>().unwrap_or(15);
-        let m: Box<dyn WebView> = Box::new(example::Counter {
-            count: initial_count,
-        });
         let mut machine = machine.borrow_mut();
-        *machine = Some(m);
+        *machine = Some(boxed);
         Ok(())
     })
+}
+
+#[cfg(feature = "default")]
+#[wasm_bindgen]
+pub fn create(input: &str) -> Result<(), JsValue> {
+    create_machine::<example::Counter>(input)
 }
 
 mod example {
@@ -66,7 +69,14 @@ mod example {
         type Output = ();
         type This = Current;
 
-        fn parse(input: &str) -> Result<Self::Input, String> {
+        fn parse_self(input: &str) -> Result<Self, String> {
+            let initial_count = input.trim().parse::<usize>().map_err(|e| e.to_string())?;
+            Ok(Counter {
+                count: initial_count,
+            })
+        }
+
+        fn parse_input(input: &str) -> Result<Self::Input, String> {
             match input.trim() {
                 "increment" => Ok(Command::Increment),
                 "decrement" => Ok(Command::Decrement),

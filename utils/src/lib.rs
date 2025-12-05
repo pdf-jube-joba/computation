@@ -8,12 +8,13 @@ pub mod set;
 pub mod variable;
 
 // This trait is implemented by concrete models. It stays generic and not object-safe.
-pub trait IntoWeb {
+pub trait IntoWeb: Sized {
     type Input: Serialize;
     type Output: Serialize;
     type This: Serialize;
 
-    fn parse(input: &str) -> Result<Self::Input, String>;
+    fn parse_self(input: &str) -> Result<Self, String>;
+    fn parse_input(input: &str) -> Result<Self::Input, String>;
     fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String>;
     fn current(&self) -> Self::This;
 }
@@ -39,7 +40,7 @@ where
     T: IntoWeb,
 {
     fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
-        let parsed = <Self as IntoWeb>::parse(input)?;
+        let parsed = <Self as IntoWeb>::parse_input(input)?;
         let output = <Self as IntoWeb>::step(self, parsed)?;
         match output {
             Some(o) => {
