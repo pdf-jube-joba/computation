@@ -22,6 +22,7 @@
 // ヘルパー: <script type="text/plain" class="..."> からデフォルト文字列を取得
 // -------------------------------------
 function extractPlainScript(root, className) {
+  console.log("extractPlainScript");
   const el = root.querySelector(`script.${className}[type="text/plain"]`);
   if (!el) return "";
   return el.textContent || "";
@@ -31,6 +32,7 @@ function extractPlainScript(root, className) {
 // ヘルパー: 子要素を確保 (なければ生成)
 // -------------------------------------
 function ensureChild(root, selector, tagName, className) {
+  console.log("ensureChild");
   let el = root.querySelector(selector);
   if (!el) {
     el = document.createElement(tagName);
@@ -48,6 +50,7 @@ function ensureChild(root, selector, tagName, className) {
 // -------------------------------------
 class ViewModel {
   constructor(root) {
+    console.log("ViewModel.constructor");
     this.root = root;
     this.modelName = root.dataset.model || "default";
 
@@ -60,6 +63,7 @@ class ViewModel {
     this.inputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
     this.codeArea = ensureChild(root, "textarea.wm-code", "textarea", "wm-code");
     this.inputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
+    this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
     this.canvas = ensureChild(root, "canvas.wm-canvas", "canvas", "wm-canvas");
@@ -71,6 +75,9 @@ class ViewModel {
     this.ctx = this.canvas.getContext("2d");
 
     // ラベルが空ならデフォルト文字列
+    if (!this.createButton.textContent) {
+      this.createButton.textContent = "Create";
+    }
     if (!this.stepButton.textContent) {
       this.stepButton.textContent = "Step";
     }
@@ -88,13 +95,20 @@ class ViewModel {
     }
 
     // 並び順を固定（code -> input -> button -> output -> canvas）
-    root.append(this.codeLabel, this.codeArea, this.inputLabel, this.inputArea, this.stepButton, this.outputPre, this.canvas);
+    root.append(this.codeLabel, this.codeArea, this.createButton, this.inputLabel, this.inputArea, this.stepButton, this.outputPre, this.canvas);
 
     // wasm モジュール (glue JS) とその export 群
     this.module = null;
     this.api = null;
+    this.createFn = null;
+    this.stepFn = null;
+    this.currentFn = null;
+    this.initialized = false;
 
     // イベントハンドラ
+    this.createButton.addEventListener("click", () => {
+      this.handleCreateClick().catch(err => console.error(err));
+    });
     this.stepButton.addEventListener("click", () => {
       this.handleStepClick().catch(err => console.error(err));
     });
@@ -102,20 +116,29 @@ class ViewModel {
 
   // wasm モジュール読み込み & 初期化
   async init() {
+    console.log("ViewModel.init");
+
     // 1) wasm モジュール
     const wasmPath = `./wasm_bundle/${this.modelName}.js`;
     this.module = await import(wasmPath);
     this.api = this.module;
+    this.createFn = typeof this.api.create === "function" ? this.api.create : null;
+    this.stepFn = typeof this.api.step_machine === "function" ? this.api.step_machine : null;
+    this.currentFn = typeof this.api.current_machine === "function" ? this.api.current_machine : null;
     // wasm-pack で生成された glue の default() は初期化に必要。
     if (typeof this.module.default === "function") {
       await this.module.default();
     }
     // 各 feature 共通の API: create / step_machine / current_machine
-    if (typeof this.api.create === "function") {
-      const initial = this.defaultInput || this.inputArea.value || "";
-      await Promise.resolve(this.api.create(initial));
-    } else {
-      console.warn(`WASM module for ${this.modelName} does not expose create()`);
+    // codeArea にデフォルト文字列があるときだけ初期化を行う
+    if (this.codeArea.value.trim()) {
+      if (this.createFn) {
+        const initial = this.defaultInput || this.inputArea.value || "";
+        await Promise.resolve(this.createFn(initial));
+        this.initialized = true;
+      } else {
+        console.warn(`WASM module for ${this.modelName} does not expose create()`);
+      }
     }
 
     // 2) renderer モジュール
@@ -129,28 +152,54 @@ class ViewModel {
       this.renderer = null;
     }
 
-    await this.refreshView();
+    // renderer がなければデフォルト renderer を読み込む
+    if (!this.renderer) {
+      try {
+        const def = await import("./renderers/default.js");
+        this.renderer = def.default || def.render || null;
+      } catch (e) {
+        console.warn("No default renderer found", e);
+      }
+    }
+
+    if (this.initialized) {
+      await this.refreshView();
+    }
   }
 
-  // wasm 関数呼び出しのラッパ（関数が存在しない場合は何もしない）
-  async callWasm(funcName, ...args) {
-    if (!this.api || typeof this.api[funcName] !== "function") {
-      return undefined;
+  async handleCreateClick() {
+    console.log("ViewModel.handleCreateClick");
+    if (!this.createFn) {
+      this.outputPre.textContent = "(create is not exported)";
+      return;
     }
-    // 同期関数でも Promise でも扱えるように Promise.resolve で包む
-    return await Promise.resolve(this.api[funcName](...args));
+    try {
+      const codeStr = this.codeArea.value;
+      console.log("Creating machine with code:", codeStr);
+      await Promise.resolve(this.createFn(codeStr));
+      this.initialized = true;
+      await this.refreshView();
+    } catch (e) {
+      console.error(e);
+      this.outputPre.textContent = `Error: ${e}`;
+    }
   }
 
   async handleStepClick() {
-    const inputStr = this.inputArea.value;
-    const stepFn = this.api && this.api.step_machine;
-    if (typeof stepFn !== "function") {
+    console.log("ViewModel.handleStepClick");
+    if (!this.stepFn) {
       this.outputPre.textContent = "(step_machine is not exported)";
+      return;
+    }
+    if (!this.initialized) {
+      this.outputPre.textContent = "(machine not initialized; run Create first)";
       return;
     }
 
     try {
-      const result = await Promise.resolve(stepFn(inputStr));
+      const inputStr = this.inputArea.value;
+      console.log("Stepping machine with input:", inputStr);
+      const result = await Promise.resolve(this.stepFn(inputStr));
       const display = result === undefined ? "(no result)" : JSON.stringify(result, null, 2);
       this.outputPre.textContent = display;
       await this.refreshView();
@@ -161,34 +210,29 @@ class ViewModel {
   }
 
   async refreshView() {
+    console.log("ViewModel.refreshView");
+    if (!this.initialized) return;
     try {
-      const state = await this.callWasm("current_machine");
-      if (state !== undefined) {
-        this.draw(state);
-      }
+      if (!this.currentFn) return;
+      const state = await Promise.resolve(this.currentFn());
+      this.draw(state);
     } catch (e) {
       console.error("current_machine failed:", e);
     }
   }
 
-  // 状態の描画。とりあえずデフォルト実装はカウンタ用を想定。
-  // renderer が提供されていればそれを使い、なければデフォルト描画。
   draw(state) {
+    console.log("ViewModel.draw");
     if (!this.ctx) return;
 
     const { ctx, canvas } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (typeof this.renderer === "function") {
-      this.renderer(state, ctx, canvas, this);
-      return;
+    if (typeof this.renderer !== "function") {
+      throw new Error(`Renderer is missing for model "${this.modelName}"`);
     }
 
-    // fallback: state が { count: number } を持つと仮定
-    const count = (state && typeof state.count === "number") ? state.count : 0;
-    ctx.font = "20px sans-serif";
-    ctx.textBaseline = "top";
-    ctx.fillText(`${this.modelName}: count = ${count}`, 10, 10);
+    this.renderer(state, ctx, canvas, this);
   }
 }
 
@@ -196,6 +240,7 @@ class ViewModel {
 // エントリポイント: ページ内の <div data-model> すべてを初期化
 // -------------------------------------
 async function setupAllModels() {
+  console.log("setupAllModels");
   const roots = document.querySelectorAll("[data-model]");
   const tasks = [];
 
