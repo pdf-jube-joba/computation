@@ -13,8 +13,8 @@ pub fn step_machine(input: &str) -> Result<JsValue, JsValue> {
         let m = machine
             .as_mut()
             .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
-        let result = m.step(input).map_err(|e| JsValue::from_str(&e))?;
-        serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+        m.step(input).map_err(|e| JsValue::from_str(&e))?;
+        Ok(m.current())
     })
 }
 
@@ -25,35 +25,63 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
         let m = machine
             .as_ref()
             .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
-        let result = m.current();
-        serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
+        Ok(m.current())
     })
 }
 
 #[wasm_bindgen]
-pub fn create(input: &str) {
+pub fn create(input: &str) -> Result<(), JsValue> {
     MACHINE.with(|machine| {
         let initial_count = input.trim().parse::<usize>().unwrap_or(15);
-        let m: Box<dyn WebView> = Box::new(example::Counter { count: initial_count });
+        let m: Box<dyn WebView> = Box::new(example::Counter {
+            count: initial_count,
+        });
         let mut machine = machine.borrow_mut();
         *machine = Some(m);
+        Ok(())
     })
 }
 
 mod example {
-    use utils::WebView;
+    use serde::Serialize;
+    use utils::IntoWeb;
 
     pub struct Counter {
         pub count: usize,
     }
-    impl WebView for Counter {
-        fn step(&mut self, input: &str) -> Result<Option<serde_json::Value>, String> {
+
+    #[derive(Serialize)]
+    pub struct Current {
+        count: usize,
+    }
+
+    #[derive(Serialize)]
+    pub enum Command {
+        Increment,
+        Decrement,
+        Unknown,
+    }
+
+    impl IntoWeb for Counter {
+        type Input = Command;
+        type Output = ();
+        type This = Current;
+
+        fn parse(input: &str) -> Self::Input {
             match input.trim() {
-                "increment" => {
+                "increment" => Command::Increment,
+                "decrement" => Command::Decrement,
+                _ => Command::Unknown,
+            }
+        }
+
+        fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String> {
+            match input {
+                Command::Increment => {
                     self.count += 1;
                     Ok(None)
                 }
-                "decrement" => {
+                Command::Decrement => {
                     if self.count == 0 {
                         Err("Count cannot be negative".to_string())
                     } else {
@@ -61,12 +89,12 @@ mod example {
                         Ok(None)
                     }
                 }
-                _ => Err("Invalid input".to_string()),
+                Command::Unknown => Err("Invalid input".to_string()),
             }
         }
 
-        fn current(&self) -> serde_json::Value {
-            serde_json::json!({"count": self.count})
+        fn current(&self) -> Self::This {
+            Current { count: self.count }
         }
     }
 }

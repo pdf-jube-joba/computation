@@ -1,4 +1,5 @@
-use serde_json::Value;
+use serde::Serialize;
+use wasm_bindgen::JsValue;
 
 pub mod alphabet;
 pub mod bool;
@@ -6,17 +7,21 @@ pub mod number;
 pub mod set;
 pub mod variable;
 
-// this trait represents a web view model
-// any model that wants to be used in the web view must implement this trait
+// This trait is implemented by concrete models. It stays generic and not object-safe.
+pub trait IntoWeb {
+    type Input: Serialize;
+    type Output: Serialize;
+    type This: Serialize;
+
+    fn parse(input: &str) -> Self::Input;
+    fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String>;
+    fn current(&self) -> Self::This;
+}
+
+// Object-safe wrapper used at runtime.
 pub trait WebView {
-    // this function is not object safe
-    // => we expect implement individually for each model
-    // fn create(&self) -> Result<Self, String>;
-    
-    // step the model with the given input and return output if terminated
-    fn step(&mut self, input: &str) -> Result<Option<Value>, String>;
-    // get the current state of the model as a Value
-    fn current(&self) -> Value;
+    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String>;
+    fn current(&self) -> JsValue;
 }
 
 pub trait ToJsResult<T> {
@@ -28,3 +33,45 @@ impl<T> ToJsResult<T> for anyhow::Result<T> {
         self.map_err(|e| format!("{e:?}"))
     }
 }
+
+impl<T> WebView for T
+where
+    T: IntoWeb,
+{
+    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
+        let parsed = <Self as IntoWeb>::parse(input);
+        let output = <Self as IntoWeb>::step(self, parsed)?;
+        match output {
+            Some(o) => {
+                let js = serde_wasm_bindgen::to_value(&o).map_err(|e| e.to_string())?;
+                Ok(Some(js))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn current(&self) -> JsValue {
+        serde_wasm_bindgen::to_value(&<Self as IntoWeb>::current(self))
+            .unwrap_or_else(|e| JsValue::from_str(&e.to_string()))
+    }
+}
+
+/*
+pub trait TestA {
+    type T: serde::Serialize;
+    fn get(&self) -> Self::T;
+}
+
+pub trait TestB {
+    fn get(&self) -> JsValue;
+}
+
+impl<T> TestB for T
+where
+    T: TestA,
+{
+    fn get(&self) -> JsValue {
+        serde_wasm_bindgen::to_value(&self.get()).unwrap_or(JsValue::NULL)
+    }
+}
+*/

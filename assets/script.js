@@ -239,6 +239,7 @@ class ViewModel {
     if (this.status !== "machine_setted") return;
     try {
       const state = await Promise.resolve(this.currentFn());
+      console.log("Current state:", state);
       this.draw(state);
     } catch (e) {
       console.error("current_machine failed:", e);
