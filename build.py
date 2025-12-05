@@ -28,6 +28,8 @@ def build_wasm(feature: str | None, release: bool) -> None:
     cmd = [
         "wasm-pack",
         "build",
+        "--out-name",
+        label,
         "--target",
         "web",
         "--mode",
@@ -55,13 +57,13 @@ def rename_and_move(label: str) -> None:
     dest_dir = ASSETS_DIR
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    wasm_src = src_dir / "web_builder_bg.wasm"
+    wasm_src = src_dir / f"{label}_bg.wasm"
     wasm_dest = dest_dir / f"{label}_bg.wasm"
-    shutil.move(str(wasm_src), str(wasm_dest))
-
-    js_src = src_dir / "web_builder.js"
+    js_src = src_dir / f"{label}.js"
     js_dest = dest_dir / f"{label}.js"
-    shutil.move(str(js_src), str(js_dest))
+
+    shutil.copy2(wasm_src, wasm_dest)
+    shutil.copy2(js_src, js_dest)
 
 def main() -> None:
     ensure_wasm_pack()
@@ -72,6 +74,7 @@ def main() -> None:
     # feature accumulate instead of being overwritten on every iteration.
     if ASSETS_DIR.exists():
         shutil.rmtree(ASSETS_DIR)
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
     for feature in targets:
         label = feature_label(feature)

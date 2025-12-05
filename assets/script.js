@@ -56,11 +56,17 @@ class ViewModel {
     this.defaultCode = extractPlainScript(root, "default-code");
 
     // UI 部品を用意（なければ作る）
-    this.inputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
+    this.codeLabel = ensureChild(root, ".wm-code-label", "div", "wm-code-label");
+    this.inputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
     this.codeArea = ensureChild(root, "textarea.wm-code", "textarea", "wm-code");
+    this.inputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
     this.canvas = ensureChild(root, "canvas.wm-canvas", "canvas", "wm-canvas");
+
+    // ラベルテキスト
+    this.codeLabel.textContent = "code";
+    this.inputLabel.textContent = "input";
 
     this.ctx = this.canvas.getContext("2d");
 
@@ -80,6 +86,9 @@ class ViewModel {
     } else if (!this.codeArea.value) {
       this.codeArea.value = "";
     }
+
+    // 並び順を固定（code -> input -> button -> output -> canvas）
+    root.append(this.codeLabel, this.codeArea, this.inputLabel, this.inputArea, this.stepButton, this.outputPre, this.canvas);
 
     // wasm モジュール (glue JS) とその export 群
     this.module = null;
@@ -134,14 +143,16 @@ class ViewModel {
 
   async handleStepClick() {
     const inputStr = this.inputArea.value;
+    const stepFn = this.api && this.api.step_machine;
+    if (typeof stepFn !== "function") {
+      this.outputPre.textContent = "(step_machine is not exported)";
+      return;
+    }
 
     try {
-      const result = await this.callWasm("step_machine", inputStr);
-      if (result !== undefined) {
-        this.outputPre.textContent = JSON.stringify(result, null, 2);
-      } else {
-        this.outputPre.textContent = "(step_machine is not exported)";
-      }
+      const result = await Promise.resolve(stepFn(inputStr));
+      const display = result === undefined ? "(no result)" : JSON.stringify(result, null, 2);
+      this.outputPre.textContent = display;
       await this.refreshView();
     } catch (e) {
       console.error(e);
