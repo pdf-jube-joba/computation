@@ -8,6 +8,9 @@
 
 # テスト
 
+## data-model を使って完全に統一するテスト
+<div data-model="default"> </div>
+
 ## SVG.js と wasm の連携コード
 `src/assets/test.js` を読み込んで、`SVG.js` で書くテスト。
 ```
