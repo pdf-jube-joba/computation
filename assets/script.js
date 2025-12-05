@@ -49,10 +49,13 @@ function ensureChild(root, selector, tagName, className) {
 //   - step_machine / current_machine / output_machine を呼ぶ
 // -------------------------------------
 class ViewModel {
+  static instanceCounter = 0;
+
   constructor(root) {
     console.log("ViewModel.constructor");
     this.root = root;
     this.modelName = root.dataset.model || "default";
+    this.instanceId = ViewModel.instanceCounter++;
 
     // default 値を div 内の <script type="text/plain"> から取得
     this.defaultInput = extractPlainScript(root, "default-input");
@@ -149,7 +152,8 @@ class ViewModel {
 
     try {
       // 1) wasm モジュール
-      const wasmPath = `./wasm_bundle/${this.modelName}.js`;
+      // append a per-instance query to avoid module caching; each widget gets its own wasm instance
+      const wasmPath = `./wasm_bundle/${this.modelName}.js?instance=${this.instanceId}`;
       this.module = await import(wasmPath);
       this.api = this.module;
       this.createFn = typeof this.api.create === "function" ? this.api.create : null;
