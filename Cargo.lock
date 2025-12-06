@@ -1098,10 +1098,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "turing_machine_cui"
-version = "0.1.0"
-
-[[package]]
 name = "turing_machine_web"
 version = "0.1.0"
 dependencies = [
