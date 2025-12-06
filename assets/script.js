@@ -255,7 +255,9 @@ class ViewModel {
     this.outputCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
 
     this.renderer.drawState(state, this.stateCtx, this.stateCanvas);
-    this.renderer.drawOutput(output, this.outputCtx, this.outputCanvas);
+    if (output !== undefined) {
+      this.renderer.drawOutput(output, this.outputCtx, this.outputCanvas);
+    }
   }
 }
 
