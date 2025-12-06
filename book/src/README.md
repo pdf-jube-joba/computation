@@ -10,6 +10,15 @@
 
 ## data-model を使って完全に統一するテスト
 <div data-model="default"> </div>
+二個目の配置
+<div data-model="default">
+<script type="text/plain" class="default-code">
+5
+</script>
+<script type="text/plain" class="default-input">
+increment
+</script>
+</div>
 
 ## SVG.js と wasm の連携コード
 `src/assets/test.js` を読み込んで、`SVG.js` で書くテスト。

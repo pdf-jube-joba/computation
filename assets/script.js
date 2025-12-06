@@ -3,14 +3,10 @@
 // それぞれに対応する wasm モジュール (./wasm_bundle/<model>.js) を動的に読み込み、
 // 簡単な playground UI (textarea + button + output + canvas) を作って動かします。
 
-// Renderer interface (JSDoc for documentation only):
-// /**
-//  * @callback Renderer
-//  * @param {any} state   - current_machine() の結果
-//  * @param {CanvasRenderingContext2D} ctx
-//  * @param {HTMLCanvasElement} canvas
-//  * @param {ViewModel} vm   - ViewModel インスタンス
-//  */
+// Renderer interface (class):
+// - new Renderer(vm)
+// - drawState(state, ctx, canvas)
+// - drawOutput(output, ctx, canvas)
 //
 // WASM module interface (feature共通):
 // - default(): wasm-pack が生成する初期化関数
@@ -22,7 +18,6 @@
 // ヘルパー: <script type="text/plain" class="..."> からデフォルト文字列を取得
 // -------------------------------------
 function extractPlainScript(root, className) {
-  console.log("extractPlainScript");
   const el = root.querySelector(`script.${className}[type="text/plain"]`);
   if (!el) return "";
   return el.textContent || "";
@@ -32,7 +27,6 @@ function extractPlainScript(root, className) {
 // ヘルパー: 子要素を確保 (なければ生成)
 // -------------------------------------
 function ensureChild(root, selector, tagName, className) {
-  console.log("ensureChild");
   let el = root.querySelector(selector);
   if (!el) {
     el = document.createElement(tagName);
@@ -69,13 +63,15 @@ class ViewModel {
     this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
-    this.canvas = ensureChild(root, "canvas.wm-canvas", "canvas", "wm-canvas");
+    this.stateCanvas = ensureChild(root, "canvas.wm-canvas-state", "canvas", "wm-canvas-state");
+    this.outputCanvas = ensureChild(root, "canvas.wm-canvas-output", "canvas", "wm-canvas-output");
 
     // ラベルテキスト
     this.codeLabel.textContent = "code";
     this.inputLabel.textContent = "input";
 
-    this.ctx = this.canvas.getContext("2d");
+    this.stateCtx = this.stateCanvas.getContext("2d");
+    this.outputCtx = this.outputCanvas.getContext("2d");
 
     // ラベルが空ならデフォルト文字列
     if (!this.createButton.textContent) {
@@ -97,8 +93,18 @@ class ViewModel {
       this.codeArea.value = "";
     }
 
-    // 並び順を固定（code -> input -> button -> output -> canvas）
-    root.append(this.codeLabel, this.codeArea, this.createButton, this.inputLabel, this.inputArea, this.stepButton, this.outputPre, this.canvas);
+    // 並び順を固定（code -> input -> button -> output -> canvas(state/output)）
+    root.append(
+      this.codeLabel,
+      this.codeArea,
+      this.createButton,
+      this.inputLabel,
+      this.inputArea,
+      this.stepButton,
+      this.outputPre,
+      this.stateCanvas,
+      this.outputCanvas,
+    );
 
     // wasm モジュール (glue JS) とその export 群
     this.module = null;
@@ -119,7 +125,6 @@ class ViewModel {
   }
 
   async initializeMachine(initial) {
-    console.log("ViewModel.initializeMachine");
     if (this.status === "init_failed") return false;
     if (this.status === "uninitialized") {
       this.outputPre.textContent = "(init not completed)";
@@ -127,9 +132,6 @@ class ViewModel {
     }
     try {
       await Promise.resolve(this.createFn(initial));
-      if (this.currentFn) {
-        await Promise.resolve(this.currentFn());
-      }
       this.status = "machine_setted";
       return true;
     } catch (e) {
@@ -141,7 +143,6 @@ class ViewModel {
   }
 
   disableUI() {
-    console.log("ViewModel.disableUI");
     this.createButton.disabled = true;
     this.stepButton.disabled = true;
   }
@@ -176,9 +177,16 @@ class ViewModel {
       // 2) renderer モジュール
       const rendererPath = `./renderers/${this.modelName}.js`;
       const rmod = await import(rendererPath);
-      this.renderer = rmod.render;
-      if (typeof this.renderer !== "function") {
-        throw new Error(`Renderer not found or invalid for model "${this.modelName}"`);
+      const Renderer = rmod.Renderer;
+      if (typeof Renderer !== "function") {
+        throw new Error(`Renderer class not found for model "${this.modelName}"`);
+      }
+      this.renderer = new Renderer(this);
+      if (
+        typeof this.renderer.drawState !== "function" ||
+        typeof this.renderer.drawOutput !== "function"
+      ) {
+        throw new Error(`Renderer missing drawState/drawOutput for model "${this.modelName}"`);
       }
 
       this.status = "ready";
@@ -206,7 +214,8 @@ class ViewModel {
       console.log("Creating machine with code:", codeStr);
       const ok = await this.initializeMachine(codeStr);
       if (ok) {
-        await this.refreshView();
+        let state = await Promise.resolve(this.currentFn());
+        this.draw(state, undefined);
       }
     } catch (e) {
       console.error(e);
@@ -228,40 +237,25 @@ class ViewModel {
     try {
       const inputStr = this.inputArea.value.trim();
       console.log("Stepping machine with input:", inputStr);
-      const result = await Promise.resolve(this.stepFn(inputStr));
-      const display = result === undefined ? "(no result)" : JSON.stringify(result, null, 2);
-      this.outputPre.textContent = display;
-      await this.refreshView();
+      const output = await Promise.resolve(this.stepFn(inputStr));
+      const state = await Promise.resolve(this.currentFn());
+      this.draw(state, output);
     } catch (e) {
       console.error(e);
       this.outputPre.textContent = `Error: ${e}`;
     }
   }
 
-  async refreshView() {
-    console.log("ViewModel.refreshView");
-    if (this.status !== "machine_setted") return;
-    try {
-      const state = await Promise.resolve(this.currentFn());
-      console.log("Current state:", state);
-      this.draw(state);
-    } catch (e) {
-      console.error("current_machine failed:", e);
-    }
-  }
-
-  draw(state) {
+  draw(state, output) {
     console.log("ViewModel.draw");
-    if (!this.ctx) return;
+    if (!this.stateCtx || !this.outputCtx) return;
 
-    const { ctx, canvas } = this;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // clear canvases
+    this.stateCtx.clearRect(0, 0, this.stateCanvas.width, this.stateCanvas.height);
+    this.outputCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
 
-    if (typeof this.renderer !== "function") {
-      throw new Error(`Renderer is missing for model "${this.modelName}"`);
-    }
-
-    this.renderer(state, ctx, canvas, this);
+    this.renderer.drawState(state, this.stateCtx, this.stateCanvas);
+    this.renderer.drawOutput(output, this.outputCtx, this.outputCanvas);
   }
 }
 

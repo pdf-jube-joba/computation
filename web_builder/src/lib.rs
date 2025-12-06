@@ -13,8 +13,8 @@ pub fn step_machine(input: &str) -> Result<JsValue, JsValue> {
         let m = machine
             .as_mut()
             .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
-        m.step(input).map_err(|e| JsValue::from_str(&e))?;
-        Ok(m.current())
+        let result = m.step(input).map_err(|e| JsValue::from_str(&e))?;
+        Ok(result.unwrap_or(JsValue::UNDEFINED))
     })
 }
 
@@ -66,11 +66,17 @@ mod example {
 
     impl IntoWeb for Counter {
         type Input = Command;
-        type Output = ();
+        type Output = String;
         type This = Current;
 
         fn parse_self(input: &str) -> Result<Self, String> {
-            let initial_count = input.trim().parse::<usize>().map_err(|e| e.to_string())?;
+            let initial_count = input
+                .trim()
+                .parse::<usize>()
+                .map_err(|e| e.to_string())?;
+            if initial_count >= 10 {
+                return Err("Initial count must be less than 10".to_string());
+            }
             Ok(Counter {
                 count: initial_count,
             })
@@ -88,7 +94,11 @@ mod example {
             match input {
                 Command::Increment => {
                     self.count += 1;
-                    Ok(None)
+                    if self.count >= 10 {
+                        Ok(Some("End".to_string()))
+                    } else {
+                        Ok(None)
+                    }
                 }
                 Command::Decrement => {
                     if self.count == 0 {
