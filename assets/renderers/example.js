@@ -1,25 +1,33 @@
 // assets/renderers/example.js
 // Renderer class with drawState/drawOutput
 export class Renderer {
-  constructor(vm) {
+  constructor(vm, stateContainer, outputContainer) {
     this.vm = vm;
+    this.stateContainer = stateContainer;
+    this.outputContainer = outputContainer;
+
+    this.stateContainer.replaceChildren();
+    this.outputContainer.replaceChildren();
+    const stateSpan = document.createElement("span");
+    stateSpan.classList.add("count-view");
+    this.stateContainer.appendChild(stateSpan);
+
+    const outputSpan = document.createElement("span");
+    outputSpan.classList.add("output-view");
+    this.outputContainer.appendChild(outputSpan);
   }
 
-  drawState(state, ctx, canvas) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+  drawState(state) {
+    const target = this.stateContainer.querySelector(".count-view");
+    if (!target) return;
     const raw = state instanceof Map ? state.get("count") : state && state.count;
     const count = typeof raw === "number" ? raw : Number(raw) || 0;
-
-    ctx.font = "20px sans-serif";
-    ctx.textBaseline = "top";
-    ctx.fillText(`count = ${count}`, 10, 10);
+    target.textContent = `count = ${count}`;
   }
 
-  drawOutput(output, ctx, canvas) {
-    if (!output) return;
-    ctx.font = "16px sans-serif";
-    ctx.textBaseline = "top";
-    ctx.fillText(`output: ${output}`, 10, 40);
+  drawOutput(output) {
+    const target = this.outputContainer.querySelector(".output-view");
+    if (!target) return;
+    target.textContent = output ? `output: ${output}` : "";
   }
 }

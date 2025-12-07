@@ -4,9 +4,9 @@
 // 簡単な playground UI (textarea + button + output + canvas) を作って動かします。
 
 // Renderer interface (class):
-// - new Renderer(vm)
-// - drawState(state, ctx, canvas)
-// - drawOutput(output, ctx, canvas)
+// - new Renderer(vm, stateContainer: HTMLElement, outputContainer: HTMLElement)
+// - drawState(state)
+// - drawOutput(output)
 //
 // WASM module interface (feature共通):
 // - default(): wasm-pack が生成する初期化関数
@@ -63,15 +63,12 @@ class ViewModel {
     this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
-    this.stateCanvas = ensureChild(root, "canvas.wm-canvas-state", "canvas", "wm-canvas-state");
-    this.outputCanvas = ensureChild(root, "canvas.wm-canvas-output", "canvas", "wm-canvas-output");
+    this.stateContainer = ensureChild(root, ".wm-state", "div", "wm-state");
+    this.outputContainer = ensureChild(root, ".wm-output-view", "div", "wm-output-view");
 
     // ラベルテキスト
     this.codeLabel.textContent = "code";
     this.inputLabel.textContent = "input";
-
-    this.stateCtx = this.stateCanvas.getContext("2d");
-    this.outputCtx = this.outputCanvas.getContext("2d");
 
     // ラベルが空ならデフォルト文字列
     if (!this.createButton.textContent) {
@@ -93,7 +90,7 @@ class ViewModel {
       this.codeArea.value = "";
     }
 
-    // 並び順を固定（code -> input -> button -> output -> canvas(state/output)）
+    // 並び順を固定（code -> input -> button -> output -> view(state/output)）
     root.append(
       this.codeLabel,
       this.codeArea,
@@ -102,8 +99,8 @@ class ViewModel {
       this.inputArea,
       this.stepButton,
       this.outputPre,
-      this.stateCanvas,
-      this.outputCanvas,
+      this.stateContainer,
+      this.outputContainer,
     );
 
     // wasm モジュール (glue JS) とその export 群
@@ -181,7 +178,7 @@ class ViewModel {
       if (typeof Renderer !== "function") {
         throw new Error(`Renderer class not found for model "${this.modelName}"`);
       }
-      this.renderer = new Renderer(this);
+      this.renderer = new Renderer(this, this.stateContainer, this.outputContainer);
       if (
         typeof this.renderer.drawState !== "function" ||
         typeof this.renderer.drawOutput !== "function"
@@ -248,15 +245,9 @@ class ViewModel {
 
   draw(state, output) {
     console.log("ViewModel.draw");
-    if (!this.stateCtx || !this.outputCtx) return;
-
-    // clear canvases
-    this.stateCtx.clearRect(0, 0, this.stateCanvas.width, this.stateCanvas.height);
-    this.outputCtx.clearRect(0, 0, this.outputCanvas.width, this.outputCanvas.height);
-
-    this.renderer.drawState(state, this.stateCtx, this.stateCanvas);
+    this.renderer.drawState(state);
     if (output !== undefined) {
-      this.renderer.drawOutput(output, this.outputCtx, this.outputCanvas);
+      this.renderer.drawOutput(output);
     }
   }
 }
