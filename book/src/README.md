@@ -9,9 +9,9 @@
 # テスト
 
 ## data-model を使って完全に統一するテスト
-<div data-model="default"> </div>
+<div data-model="example"> </div>
 二個目の配置
-<div data-model="default">
+<div data-model="example">
 <script type="text/plain" class="default-code">
 5
 </script>
