@@ -7,10 +7,12 @@
 - インタプリタとかコンパイラを動かす。
 
 # テスト
+全部を統一したい。
+- create と step で全部なんとかする。
 
-## data-model を使って完全に統一するテスト
 <div data-model="example"> </div>
 二個目の配置
+
 <div data-model="example">
 <script type="text/plain" class="default-code">
 5
@@ -23,6 +25,3 @@ increment
 ## katex で数式
 ### ヘッダーに数式を書く： \(1\)
 `mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)
-
-# references
-- 横内寛文, プログラム意味論

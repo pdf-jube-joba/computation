@@ -62,6 +62,8 @@ class ViewModel {
     this.inputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
     this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
+    this.autoToggleButton = ensureChild(root, "button.wm-auto-toggle", "button", "wm-auto-toggle");
+    this.autoMarginInput = ensureChild(root, "input.wm-auto-margin", "input", "wm-auto-margin");
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
     this.stateContainer = ensureChild(root, ".wm-state", "div", "wm-state");
     this.outputContainer = ensureChild(root, ".wm-output-view", "div", "wm-output-view");
@@ -77,6 +79,17 @@ class ViewModel {
     if (!this.stepButton.textContent) {
       this.stepButton.textContent = "Step";
     }
+    if (!this.autoToggleButton.textContent) {
+      this.autoToggleButton.textContent = "Auto: Off";
+    }
+    this.autoMarginInput.type = "number";
+    this.autoMarginInput.step = "0.1";
+    this.autoMarginInput.min = "0";
+    if (!this.autoMarginInput.value) {
+      this.autoMarginInput.value = "0.5";
+    }
+    this.autoMarginInput.placeholder = "auto margin (s)";
+    this.autoMarginInput.setAttribute("aria-label", "auto margin (s)");
 
     // textarea にデフォルト値をセット
     if (this.defaultInput) {
@@ -98,6 +111,8 @@ class ViewModel {
       this.inputLabel,
       this.inputArea,
       this.stepButton,
+      this.autoToggleButton,
+      this.autoMarginInput,
       this.outputPre,
       this.stateContainer,
       this.outputContainer,
@@ -111,6 +126,8 @@ class ViewModel {
     this.currentFn = null;
     // status: "uninitialized" | "ready" | "machine_setted" | "init_failed"
     this.status = "uninitialized";
+    this.autoEnabled = false;
+    this.autoTimerId = null;
 
     // イベントハンドラ
     this.createButton.addEventListener("click", () => {
@@ -119,6 +136,16 @@ class ViewModel {
     this.stepButton.addEventListener("click", () => {
       this.handleStepClick().catch(err => console.error(err));
     });
+    this.autoToggleButton.addEventListener("click", () => {
+      this.toggleAutoStepping();
+    });
+    this.autoMarginInput.addEventListener("change", () => {
+      if (this.autoEnabled) {
+        this.stopAutoStepping();
+        this.startAutoStepping();
+      }
+    });
+    this.updateAutoUI();
   }
 
   async initializeMachine(initial) {
@@ -142,6 +169,90 @@ class ViewModel {
   disableUI() {
     this.createButton.disabled = true;
     this.stepButton.disabled = true;
+    this.autoToggleButton.disabled = true;
+    this.autoMarginInput.disabled = true;
+    this.stopAutoStepping();
+  }
+
+  updateAutoUI() {
+    this.autoToggleButton.textContent = this.autoEnabled ? "Auto: On" : "Auto: Off";
+    this.autoToggleButton.setAttribute("aria-pressed", this.autoEnabled ? "true" : "false");
+  }
+
+  getAutoIntervalMs() {
+    const value = parseFloat(this.autoMarginInput.value);
+    if (Number.isFinite(value) && value > 0) {
+      return value * 1000;
+    }
+    return 0;
+  }
+
+  toggleAutoStepping() {
+    if (this.autoEnabled) {
+      this.stopAutoStepping();
+      return;
+    }
+    this.startAutoStepping();
+  }
+
+  startAutoStepping() {
+    if (this.autoEnabled) return;
+    if (this.status !== "machine_setted") {
+      this.outputPre.textContent = "(machine not initialized; run Create first)";
+      this.updateAutoUI();
+      return;
+    }
+    const interval = this.getAutoIntervalMs();
+    if (!interval) {
+      this.outputPre.textContent = "(auto margin must be > 0)";
+      this.updateAutoUI();
+      return;
+    }
+    this.autoEnabled = true;
+    this.updateAutoUI();
+    this.scheduleNextAutoStep(interval);
+  }
+
+  stopAutoStepping() {
+    if (!this.autoEnabled) {
+      clearTimeout(this.autoTimerId);
+      this.autoTimerId = null;
+      this.updateAutoUI();
+      return;
+    }
+    this.autoEnabled = false;
+    if (this.autoTimerId) {
+      clearTimeout(this.autoTimerId);
+      this.autoTimerId = null;
+    }
+    this.updateAutoUI();
+  }
+
+  scheduleNextAutoStep(interval) {
+    clearTimeout(this.autoTimerId);
+    this.autoTimerId = window.setTimeout(() => {
+      this.runAutoStep().catch(err => console.error(err));
+    }, interval);
+  }
+
+  async runAutoStep() {
+    if (!this.autoEnabled) return;
+    const result = await this.handleStepClick({ triggeredByAuto: true });
+    if (!this.autoEnabled) return;
+    if (!result?.stepped) {
+      this.stopAutoStepping();
+      return;
+    }
+    if (result.output !== undefined) {
+      this.stopAutoStepping();
+      return;
+    }
+    const interval = this.getAutoIntervalMs();
+    if (!interval) {
+      this.stopAutoStepping();
+      return;
+    }
+    this.scheduleNextAutoStep(interval);
   }
 
   // wasm モジュール読み込み & 初期化
@@ -198,6 +309,7 @@ class ViewModel {
 
   async handleCreateClick() {
     console.log("ViewModel.handleCreateClick");
+    this.stopAutoStepping();
     if (this.status === "init_failed") {
       this.outputPre.textContent = "(init failed; reload required)";
       return;
@@ -220,15 +332,15 @@ class ViewModel {
     }
   }
 
-  async handleStepClick() {
+  async handleStepClick({ triggeredByAuto = false } = {}) {
     console.log("ViewModel.handleStepClick");
     if (this.status === "init_failed") {
       this.outputPre.textContent = "(init failed; reload required)";
-      return;
+      return { output: undefined, stepped: false };
     }
     if (this.status !== "machine_setted") {
       this.outputPre.textContent = "(machine not initialized; run Create first)";
-      return;
+      return { output: undefined, stepped: false };
     }
 
     try {
@@ -237,12 +349,15 @@ class ViewModel {
       const output = await Promise.resolve(this.stepFn(inputStr));
       const state = await Promise.resolve(this.currentFn());
       this.draw(state, output);
+      return { output, stepped: true };
     } catch (e) {
       console.error(e);
       this.outputPre.textContent = `Error: ${e}`;
+      if (triggeredByAuto && this.autoEnabled) {
+        this.stopAutoStepping();
+      }
+      return { output: undefined, stepped: false };
     }
-    // reset inner of textarea to avoid accumulation
-    this.inputArea.value = "";
   }
 
   draw(state, output) {

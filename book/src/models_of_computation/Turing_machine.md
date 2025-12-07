@@ -11,59 +11,40 @@
 
 ## 具体例
 
-1つめの例は、テープにある `1` を全部 `2` に書き換える例。
-2つめの例は、テープにある `0` と `1` の"仕分け"を行う例。
-両方とも、 `step` ボタンを押すと状態が遷移して、 `reset` を押すと一番最初に戻る。
-2つめの例では、自由にテープを書いて試してみて。
-
-<script type="module">
-    import { load, TuringMachineViewModel } from "../assets/generated/turing_machine/turing_machine_glue.js";
-    import { TextAreaSource, TextDefinedSource, UserControls } from "../assets/utils.js";
-    await load();
-
-    let code_input1 = new TextDefinedSource("s \n g \n 1,s,2,s,R \n end,s,end,g,C");
-    let tape_input1 = new TextDefinedSource("0|1|1,1,1,end");
-    let control1 = new UserControls("control1");
-
-    let view1 = new TuringMachineViewModel(code_input1, tape_input1, control1, "view1");
-
-    let res = await fetch("../assets/component/models_of_computation/Turing_machine_sorting_01.txt");
-    let txt = await res.text();
-
-    let code_input2 = new TextDefinedSource(txt);
-    let tape_input2 = new TextAreaSource("user_defined");
-    let control2 = new UserControls("control2");
-
-    let view2 = new TuringMachineViewModel(code_input2, tape_input2, control2, "view2");
+テープにある `1` を全部 `2` に書き換える例。
+<div data-model="turing_machine">
+<script type="text/plain" class="default-code">
+s
+g
+1,s,2,s,R
+end,s,end,g,C
 </script>
-
-<div id="machine1">
-    <div id="control1"></div>
-    <div id="view1">
-    </div>
+<script type="text/plain" class="default-input">
+0|1|1,1,1,end
+</script>
 </div>
 
-<div id="machine2">
-    <div id="control2"></div>
-    <textarea id="user_defined" rows="1" cols="20"> x|0|1,1,0 </textarea>
-    <div id="view2">
-    </div>
-</div>
+テープにある `0` と `1` の"仕分け"を行う例。
 
-```sorting01のメモ
+<div data-model="turing_machine">
+<script type="text/plain" class="default-code">
 s
 g
 1,s,1,s,R
- ,s, ,g,C
+    ,s, ,g,C
 0,s,0,k,R
 0,k,0,k,R
- ,k, ,g,C
+    ,k, ,g,C
 1,k,0,b,L
 0,b,1,r,L
 0,r,0,r,L
 1,r,1,r,L
 x,r,x,s,R
-```
+</script>
+<script type="text/plain" class="default-input">
+x|0|1,1,0
+</script>
+</div>
 
 # チューリングマシン（ちゃんとした解説）
 ここ以降は読まなくても大丈夫。
