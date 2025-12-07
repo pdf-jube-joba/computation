@@ -29,7 +29,7 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
     })
 }
 
-pub fn create_machine<T: utils::IntoWeb + 'static>(input: &str) -> Result<(), JsValue> {
+pub fn create_machine<T: utils::MealyMachine + 'static>(input: &str) -> Result<(), JsValue> {
     let m = T::parse_self(input).map_err(|e| JsValue::from_str(&e))?;
     let boxed: Box<dyn WebView> = Box::new(m);
     MACHINE.with(|machine| {
@@ -47,7 +47,7 @@ pub fn create(input: &str) -> Result<(), JsValue> {
 
 mod example {
     use serde::Serialize;
-    use utils::IntoWeb;
+    use utils::MealyMachine;
 
     pub struct Counter {
         pub count: usize,
@@ -64,7 +64,7 @@ mod example {
         Decrement,
     }
 
-    impl IntoWeb for Counter {
+    impl MealyMachine for Counter {
         type Input = Command;
         type Output = String;
         type This = Current;

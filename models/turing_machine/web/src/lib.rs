@@ -1,101 +1,13 @@
-use anyhow::{bail, Error};
-use std::sync::{LazyLock, Mutex};
-use turing_machine_core::machine::{Sign, State, Tape, TuringMachineDefinition, TuringMachineSet};
-use utils::ToJsResult;
-use wasm_bindgen::prelude::*;
+use serde::{Serialize, Serializer};
+use turing_machine_core::{
+    machine::{CodeEntry as CoreCodeEntry, Sign, Tape, TuringMachineDefinition, TuringMachineSet},
+    manipulation,
+};
+use utils::MealyMachine;
 
-// many global mutable turing machines
-static MACHINES: LazyLock<Mutex<Vec<TuringMachineSet>>> = LazyLock::new(|| Mutex::new(vec![]));
+const TAPE_WINDOW: usize = 7;
 
-#[wasm_bindgen]
-#[derive(Debug, Clone, PartialEq, Eq)]
-// left[0], ..., left[last], head, right[last], ..., right[0]
-pub struct TapeForWeb {
-    left: Vec<String>,
-    head: String,
-    right: Vec<String>,
-}
-
-#[wasm_bindgen]
-impl TapeForWeb {
-    #[wasm_bindgen(constructor)]
-    pub fn new(left: Vec<String>, head: String, right: Vec<String>) -> Self {
-        TapeForWeb { left, head, right }
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn head(&self) -> String {
-        self.head.clone()
-    }
-}
-
-#[wasm_bindgen]
-pub fn tape_left_index(tape: &TapeForWeb, index: usize) -> String {
-    let l = tape.left.len() as isize - index as isize - 1;
-    if l < 0 {
-        String::new()
-    } else {
-        tape.left.get(l as usize).cloned().unwrap_or_default()
-    }
-}
-
-#[wasm_bindgen]
-pub fn tape_right_index(tape: &TapeForWeb, index: usize) -> String {
-    let r = tape.right.len() as isize - index as isize - 1;
-    if r < 0 {
-        String::new()
-    } else {
-        tape.right.get(r as usize).cloned().unwrap_or_default()
-    }
-}
-
-impl TryFrom<TapeForWeb> for Tape {
-    type Error = Error;
-
-    fn try_from(tape_for_web: TapeForWeb) -> Result<Self, Self::Error> {
-        let left: Vec<_> = tape_for_web
-            .left
-            .into_iter()
-            .map(|s| s.as_str().parse())
-            .collect::<Result<_, _>>()?;
-        let head = tape_for_web.head.as_str().parse()?;
-        let right: Vec<_> = tape_for_web
-            .right
-            .into_iter()
-            .map(|s| s.as_str().parse())
-            .collect::<Result<_, _>>()?;
-        Ok(Tape::new(left, head, right))
-    }
-}
-
-impl From<Tape> for TapeForWeb {
-    fn from(tape: Tape) -> Self {
-        TapeForWeb {
-            left: tape.left.into_iter().map(|s| s.to_string()).collect(),
-            head: tape.head.to_string(),
-            right: tape.right.into_iter().map(|s| s.to_string()).collect(),
-        }
-    }
-}
-
-#[wasm_bindgen]
-pub fn parse_tape(tape: &str) -> Result<TapeForWeb, String> {
-    let parts: Vec<&str> = tape.split("|").collect();
-    if parts.len() != 3 {
-        return Err("Invalid tape format | format ... 0,1,2|3|4,5,6".to_string());
-    }
-    let left = parts[0].split(',').map(|s| s.trim().to_string()).collect();
-    let head = parts[1].to_string();
-    let right = parts[2]
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .rev()
-        .collect();
-    Ok(TapeForWeb::new(left, head, right))
-}
-
-#[wasm_bindgen]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CodeEntry {
     key_sign: String,
     key_state: String,
@@ -104,252 +16,194 @@ pub struct CodeEntry {
     direction: String,
 }
 
-impl From<((String, String), (String, String, String))> for CodeEntry {
-    fn from(entry: ((String, String), (String, String, String))) -> Self {
+impl From<CoreCodeEntry> for CodeEntry {
+    fn from(entry: CoreCodeEntry) -> Self {
         CodeEntry {
-            key_sign: entry.0 .0,
-            key_state: entry.0 .1,
-            next_sign: entry.1 .0,
-            next_state: entry.1 .1,
-            direction: entry.1 .2,
+            key_sign: entry.0 .0.to_string(),
+            key_state: entry.0 .1.to_string(),
+            next_sign: entry.1 .0.to_string(),
+            next_state: entry.1 .1.to_string(),
+            direction: entry.1 .2.to_string(),
         }
     }
 }
 
-impl From<CodeEntry> for ((String, String), (String, String, String)) {
-    fn from(entry: CodeEntry) -> Self {
-        (
-            (entry.key_sign, entry.key_state),
-            (entry.next_sign, entry.next_state, entry.direction),
-        )
+#[derive(Debug, Clone, Serialize)]
+pub struct TapeView {
+    left: [String; TAPE_WINDOW],
+    head: String,
+    right: [String; TAPE_WINDOW],
+}
+
+impl Default for TapeView {
+    fn default() -> Self {
+        TapeView {
+            left: std::array::from_fn(|_| String::new()),
+            head: String::new(),
+            right: std::array::from_fn(|_| String::new()),
+        }
     }
 }
 
-#[wasm_bindgen]
-impl CodeEntry {
-    #[wasm_bindgen(constructor)]
-    pub fn new(
-        key_sign: String,
-        key_state: String,
-        next_sign: String,
-        next_state: String,
-        direction: String,
-    ) -> Self {
-        CodeEntry {
-            key_sign,
-            key_state,
-            next_sign,
-            next_state,
-            direction,
+impl TapeView {
+    fn from_tape(tape: &Tape) -> Self {
+        let mut left = std::array::from_fn(|_| String::new());
+        let mut right = std::array::from_fn(|_| String::new());
+        for (idx, sign) in tape.left.iter().rev().take(TAPE_WINDOW).enumerate() {
+            left[idx] = normalize_sign(sign);
+        }
+        for (idx, sign) in tape.right.iter().rev().take(TAPE_WINDOW).enumerate() {
+            right[idx] = normalize_sign(sign);
+        }
+        TapeView {
+            left,
+            head: normalize_sign(&tape.head),
+            right,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Current {
+    code: Vec<CodeEntry>,
+    now: usize,
+    state: String,
+    tape: TapeView,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Output {
+    terminate: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum Input {
+    Start(Tape),
+    Otherwise,
+}
+
+impl Serialize for Input {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Input::Start(_) => serializer.serialize_str("start"),
+            Input::Otherwise => serializer.serialize_str("otherwise"),
+        }
+    }
+}
+
+pub struct TuringMachineWeb {
+    definition: TuringMachineDefinition,
+    code: Vec<CodeEntry>,
+    machine: Option<TuringMachineSet>,
+}
+
+impl MealyMachine for TuringMachineWeb {
+    type Input = Input;
+    type Output = Output;
+    type This = Current;
+
+    fn parse_self(input: &str) -> Result<Self, String> {
+        let definition =
+            manipulation::code::parse_definition(input).map_err(|e| format!("{e:?}"))?;
+        let code = definition.code().clone().into_iter().map(CodeEntry::from).collect();
+        Ok(TuringMachineWeb {
+            definition,
+            code,
+            machine: None,
+        })
+    }
+
+    fn parse_input(input: &str) -> Result<Self::Input, String> {
+        if input.trim() == "()" {
+            Ok(Input::Otherwise)
+        } else {
+            parse_tape(input).map(Input::Start)
         }
     }
 
-    #[wasm_bindgen(getter)]
-    pub fn key_sign(&self) -> String {
-        self.key_sign.clone()
+    fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String> {
+        match input {
+            Input::Start(tape) => {
+                if self.machine.is_some() {
+                    return Err("Machine already started".to_string());
+                }
+                self.machine = Some(TuringMachineSet::new(self.definition.clone(), tape));
+            }
+            Input::Otherwise => {
+                let machine = self
+                    .machine
+                    .as_mut()
+                    .ok_or_else(|| "Machine not started yet".to_string())?;
+                if !machine.is_terminate() {
+                    machine.step(1).map_err(|_| "Step failed".to_string())?;
+                }
+            }
+        }
+        let terminate = self
+            .machine
+            .as_ref()
+            .map(|machine| machine.is_terminate())
+            .unwrap_or(false);
+        Ok(self.machine.as_ref().map(|_| Output { terminate }))
     }
 
-    #[wasm_bindgen(getter)]
-    pub fn key_state(&self) -> String {
-        self.key_state.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn next_sign(&self) -> String {
-        self.next_sign.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn next_state(&self) -> String {
-        self.next_state.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn direction(&self) -> String {
-        self.direction.clone()
-    }
-}
-
-#[wasm_bindgen]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Code {
-    init_state: String,
-    accepted_state: Vec<String>,
-    code: turing_machine_core::machine::Code, // = Vec<((Sign, State), (Sign, State, Direction))>,
-}
-
-#[wasm_bindgen]
-impl Code {
-    #[wasm_bindgen(getter)]
-    pub fn init_state(&self) -> String {
-        self.init_state.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn accepted_state(&self) -> Vec<String> {
-        self.accepted_state.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn code(&self) -> Vec<CodeEntry> {
-        self.code
-            .iter()
-            .map(|entry| CodeEntry {
-                key_sign: entry.0 .0.to_string(),
-                key_state: entry.0 .1.to_string(),
-                next_sign: entry.1 .0.to_string(),
-                next_state: entry.1 .1.to_string(),
-                direction: entry.1 .2.to_string(),
-            })
-            .collect()
+    fn current(&self) -> Self::This {
+        let (now, tape, state) = if let Some(machine) = &self.machine {
+            let now = machine
+                .next_code()
+                .map(|(idx, _)| idx)
+                .unwrap_or(self.code.len());
+            (
+                now,
+                TapeView::from_tape(machine.now_tape()),
+                machine.now_state().to_string(),
+            )
+        } else {
+            (
+                0,
+                TapeView::default(),
+                self.definition.init_state().to_string(),
+            )
+        };
+        Current {
+            code: self.code.clone(),
+            now,
+            state,
+            tape,
+        }
     }
 }
 
-/// Helper function to lock `MACHINES` and retrieve the machine by `id`.
-fn get_machine_by_id(
-    id: usize,
-) -> Result<std::sync::MutexGuard<'static, Vec<TuringMachineSet>>, String> {
-    let machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    if id >= machines.len() {
-        return Err(format!("No Turing machine found with ID {}", id));
+fn parse_tape(tape: &str) -> Result<Tape, String> {
+    let parts: Vec<&str> = tape.split('|').collect();
+    if parts.len() != 3 {
+        return Err("Invalid tape format | format ... 0,1,2|3|4,5,6".to_string());
     }
-
-    Ok(machines)
-}
-
-pub fn construct_turing_machine_definition(code: Code) -> Result<TuringMachineDefinition, Error> {
-    let init_state = code.init_state.parse()?;
-    let accepted_state: Vec<State> = code
-        .accepted_state
-        .iter()
-        .map(|s| s.parse())
+    let left: Vec<Sign> = parts
+        .first()
+        .ok_or_else(|| "Missing left part".to_string())?
+        .split(',')
+        .map(|s| s.trim().parse().map_err(|e| format!("{e}")))
         .collect::<Result<_, _>>()?;
-    let code: turing_machine_core::machine::Code = code.code;
-
-    Ok(TuringMachineDefinition::new(
-        init_state,
-        accepted_state,
-        code,
-    )?)
+    let head: Sign = parts[1].trim().parse().map_err(|e| format!("{e}"))?;
+    let mut right: Vec<Sign> = parts
+        .get(2)
+        .ok_or_else(|| "Missing right part".to_string())?
+        .split(',')
+        .map(|s| s.trim().parse().map_err(|e| format!("{e}")))
+        .collect::<Result<_, _>>()?;
+    right.reverse();
+    Ok(Tape::new(left, head, right))
 }
 
-// make a new Turing machine and add it to the global list
-// return the index of the new machine
-#[wasm_bindgen]
-pub fn new_turing_machine(code: &Code, tape: &TapeForWeb) -> Result<usize, String> {
-    let definition = construct_turing_machine_definition(code.clone()).to_js()?;
-    let tmset: TuringMachineSet = TuringMachineSet::new(
-        definition,
-        tape.clone().try_into().map_err(|e| format!("{e}"))?,
-    );
-
-    let mut machines = MACHINES
-        .lock()
-        .map_err(|_| "Failed to lock MACHINES".to_string())?;
-
-    machines.push(tmset);
-    Ok(machines.len() - 1)
-}
-
-// set a Turing machine by given id
-#[wasm_bindgen]
-pub fn set_turing_machine(id: usize, code: &Code, tape: &TapeForWeb) -> Result<(), String> {
-    let definition = construct_turing_machine_definition(code.clone()).to_js()?;
-
-    let mut machines = get_machine_by_id(id)?;
-    machines[id] = TuringMachineSet::new(definition, tape.clone().try_into().to_js()?);
-
-    Ok(())
-}
-
-#[wasm_bindgen]
-pub fn get_code(id: usize) -> Result<Vec<CodeEntry>, String> {
-    let machines = get_machine_by_id(id)?;
-
-    let code = &machines[id].code();
-    let code_entries: Vec<CodeEntry> = code
-        .iter()
-        .map(
-            |((key_sign, key_state), (next_sign, next_state, direction))| CodeEntry {
-                key_sign: key_sign.to_string(),
-                key_state: key_state.to_string(),
-                next_sign: next_sign.to_string(),
-                next_state: next_state.to_string(),
-                direction: direction.to_string(),
-            },
-        )
-        .collect();
-
-    Ok(code_entries)
-}
-
-#[wasm_bindgen]
-pub fn get_initial_state(id: usize) -> Result<String, String> {
-    let machines = get_machine_by_id(id)?;
-    let initial_state = machines[id].init_state();
-    Ok(initial_state.to_string())
-}
-
-#[wasm_bindgen]
-pub fn get_accepted_state(id: usize) -> Result<Vec<String>, String> {
-    let machines = get_machine_by_id(id)?;
-    let accepted_state = machines[id].accepted_state();
-    Ok(accepted_state.iter().map(|s| s.to_string()).collect())
-}
-
-#[wasm_bindgen]
-pub fn get_now_tape(id: usize) -> Result<TapeForWeb, String> {
-    let machines = get_machine_by_id(id)?;
-    let tape = machines[id].now_tape();
-    Ok(tape.clone().into())
-}
-
-#[wasm_bindgen]
-pub fn get_now_state(id: usize) -> Result<String, String> {
-    let machines = get_machine_by_id(id)?;
-    let state = machines[id].now_state();
-    Ok(state.to_string())
-}
-
-#[wasm_bindgen]
-pub fn step_machine(id: usize) -> Result<(), String> {
-    let mut machines = get_machine_by_id(id)?;
-    let machine = &mut machines[id];
-    machine.step(1).map_err(|_| "Step failed".to_string())?;
-    Ok(())
-}
-
-#[wasm_bindgen]
-pub fn get_next_codeentry_index(id: usize) -> Result<usize, String> {
-    let machines = get_machine_by_id(id)?;
-    let next = machines[id]
-        .next_code()
-        .ok_or_else(|| "No next code available".to_string())?;
-    Ok(next.0)
-}
-
-#[wasm_bindgen]
-pub fn next_direction(id: usize) -> Result<String, String> {
-    let machines = get_machine_by_id(id)?;
-    let next = machines[id]
-        .next_code()
-        .ok_or_else(|| "No next code available".to_string())?;
-    Ok(next.1 .2.to_string())
-}
-
-#[wasm_bindgen]
-pub fn machine_is_terminate(id: usize) -> Result<bool, String> {
-    let machines = get_machine_by_id(id)?;
-    let machine = &machines[id];
-    Ok(machine.is_terminate())
-}
-
-#[wasm_bindgen]
-pub fn machine_is_accepted(id: usize) -> Result<bool, String> {
-    let machines = get_machine_by_id(id)?;
-    let machine = &machines[id];
-    Ok(machine.is_accepted())
+fn normalize_sign(sign: &Sign) -> String {
+    let s = sign.to_string();
+    if s.trim().is_empty() {
+        String::new()
+    } else {
+        s
+    }
 }

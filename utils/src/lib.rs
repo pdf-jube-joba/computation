@@ -8,7 +8,7 @@ pub mod set;
 pub mod variable;
 
 // This trait is implemented by concrete models. It stays generic and not object-safe.
-pub trait IntoWeb: Sized {
+pub trait MealyMachine: Sized {
     type Input: Serialize;
     type Output: Serialize;
     type This: Serialize;
@@ -37,11 +37,11 @@ impl<T> ToJsResult<T> for anyhow::Result<T> {
 
 impl<T> WebView for T
 where
-    T: IntoWeb,
+    T: MealyMachine,
 {
     fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
-        let parsed = <Self as IntoWeb>::parse_input(input)?;
-        let output = <Self as IntoWeb>::step(self, parsed)?;
+        let parsed = <Self as MealyMachine>::parse_input(input)?;
+        let output = <Self as MealyMachine>::step(self, parsed)?;
         match output {
             Some(o) => {
                 let js = serde_wasm_bindgen::to_value(&o).map_err(|e| e.to_string())?;
@@ -52,7 +52,7 @@ where
     }
 
     fn current(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&<Self as IntoWeb>::current(self))
+        serde_wasm_bindgen::to_value(&<Self as MealyMachine>::current(self))
             .unwrap_or_else(|e| JsValue::from_str(&e.to_string()))
     }
 }
