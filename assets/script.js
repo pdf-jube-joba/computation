@@ -241,6 +241,8 @@ class ViewModel {
       console.error(e);
       this.outputPre.textContent = `Error: ${e}`;
     }
+    // reset inner of textarea to avoid accumulation
+    this.inputArea.value = "";
   }
 
   draw(state, output) {

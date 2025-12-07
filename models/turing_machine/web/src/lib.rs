@@ -117,7 +117,7 @@ impl MealyMachine for TuringMachineWeb {
     }
 
     fn parse_input(input: &str) -> Result<Self::Input, String> {
-        if input.trim() == "()" {
+        if input.trim().is_empty() {
             Ok(Input::Otherwise)
         } else {
             parse_tape(input).map(Input::Start)
