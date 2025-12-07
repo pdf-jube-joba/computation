@@ -39,12 +39,13 @@ pub fn create_machine<T: utils::MealyMachine + 'static>(input: &str) -> Result<(
     })
 }
 
-#[cfg(feature = "default")]
+#[cfg(feature = "example")]
 #[wasm_bindgen]
 pub fn create(input: &str) -> Result<(), JsValue> {
     create_machine::<example::Counter>(input)
 }
 
+#[cfg(feature = "example")]
 mod example {
     use serde::Serialize;
     use utils::MealyMachine;
@@ -70,10 +71,7 @@ mod example {
         type This = Current;
 
         fn parse_self(input: &str) -> Result<Self, String> {
-            let initial_count = input
-                .trim()
-                .parse::<usize>()
-                .map_err(|e| e.to_string())?;
+            let initial_count = input.trim().parse::<usize>().map_err(|e| e.to_string())?;
             if initial_count >= 10 {
                 return Err("Initial count must be less than 10".to_string());
             }

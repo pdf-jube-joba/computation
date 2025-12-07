@@ -13,7 +13,7 @@ from pathlib import Path
 WORKSPACE_DIR = Path(__file__).resolve().parent
 WEB_BUILDER_DIR = WORKSPACE_DIR / "web_builder"
 ASSETS_DIR = WORKSPACE_DIR / "assets" / "wasm_bundle"
-FEATURES: list[str] = ["default"]
+FEATURES: list[str] = ["example"]
 
 def ensure_wasm_pack() -> None:
     if shutil.which("wasm-pack") is None:

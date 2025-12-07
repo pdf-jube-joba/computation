@@ -1,4 +1,4 @@
-// assets/renderers/default.js
+// assets/renderers/example.js
 // Renderer class with drawState/drawOutput
 export class Renderer {
   constructor(vm) {
