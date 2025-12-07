@@ -24,6 +24,7 @@ logic_circuit_core = { path = "./models/logic_circuit/core" }
 my_hdl_core = { path = "./models/my_hdl/core" }
 recursive_function_core =  { path = "./models/recursive_function/core" }
 turing_machine_core = { path = "./models/turing_machine/core" }
+turing_machine_web = { path = "./models/turing_machine/web" }
 while_minus_lang_core = { path = "./models/while_minus_lang/core" }
 
 either = "1.0.0"
