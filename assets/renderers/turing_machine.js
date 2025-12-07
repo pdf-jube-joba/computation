@@ -82,8 +82,10 @@ export class Renderer {
 function formatTape(tape) {
   if (!tape) return "(no tape)";
   const toCells = arr => (Array.isArray(arr) ? arr : []);
-  const left = toCells(tape.left).slice().reverse();
-  const right = toCells(tape.right);
-  const parts = [...left, `[${tape.head ?? ""}]`, ...right];
+  const norm = c => (c && c.trim() !== "" ? c : " ");
+  const left = toCells(tape.left).slice().reverse().map(norm);
+  const right = toCells(tape.right).map(norm);
+  const renderCells = cells => cells.map(c => `[${c}]`);
+  const parts = [...renderCells(left), `{${tape.head ?? " "}}`, ...renderCells(right)];
   return parts.join(" ");
 }
