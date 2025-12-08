@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use crate::{
     lambda::{
         base::{Base, BaseStruct, BaseValue},
-        ext::{ext_to_ext_value, num_to_exp, Ext, ExtStruct, ExtValue},
+        ext::{ext_to_ext_value, num_to_exp, Core, ExtStruct, ExtValue},
     },
     traits::{LamFamily, LamFamilySubst, LambdaExt, Step},
 };
@@ -95,26 +95,26 @@ impl Step for Lam<BaseStruct> {
 fn print(t: &Lam<ExtStruct>) -> String {
     let Lam::Base(b) = t;
     match b.as_ref() {
-        Ext::Var { var } => format!("{var}"),
-        Ext::Lam { var, body } => format!("fun {var} => {}", print(body)),
-        Ext::App { e1, e2 } => format!("({} {})", print(e1), print(e2)),
-        Ext::Zero => format!("0"),
-        Ext::Succ { succ } => format!("S {}", print(succ)),
-        Ext::Pred { pred } => format!("P {}", print(pred)),
-        Ext::IfZ { cond, tcase, fcase } => format!(
+        Core::Var { var } => format!("{var}"),
+        Core::Lam { var, body } => format!("fun {var} => {}", print(body)),
+        Core::App { e1, e2 } => format!("({} {})", print(e1), print(e2)),
+        Core::Zero => format!("0"),
+        Core::Succ { succ } => format!("S {}", print(succ)),
+        Core::Pred { pred } => format!("P {}", print(pred)),
+        Core::IfZ { cond, tcase, fcase } => format!(
             "if {} then {} else {}",
             print(cond),
             print(tcase),
             print(fcase)
         ),
-        Ext::Let { var, bind, body } => {
+        Core::Let { var, bind, body } => {
             format!("let {var} = {} in \n {}", print(bind), print(body))
         }
-        Ext::Rec { fix, var, body } => format!("rec {fix} {var} = {}", print(body)),
+        Core::Rec { fix, var, body } => format!("rec {fix} {var} = {}", print(body)),
     }
 }
 
-fn t_to_ext_t(value: Lam<ExtStruct>) -> Option<Ext<Lam<ExtStruct>>> {
+fn t_to_ext_t(value: Lam<ExtStruct>) -> Option<Core<Lam<ExtStruct>>> {
     match value {
         Lam::Base(b) => Some(*b),
     }
@@ -130,28 +130,28 @@ impl Step for Lam<ExtStruct> {
     fn step(self) -> Option<Self> {
         let Lam::Base(b) = self;
         match *b {
-            Ext::Var { var } => None,
-            Ext::Lam { var, body } => None,
-            Ext::App { e1, e2 } => match (e1.is_value(), e2.is_value()) {
+            Core::Var { var } => None,
+            Core::Lam { var, body } => None,
+            Core::App { e1, e2 } => match (e1.is_value(), e2.is_value()) {
                 (Some(ExtValue::Fun { var, body }), Some(_)) => Some(body.subst(var, e2)),
                 (Some(ExtValue::Num(_)), Some(_)) => None,
-                (Some(_), None) => Some(Ext::n_a(e1, e2.step()?).into()),
-                (None, _) => Some(Ext::n_a(e1.step()?, e2).into()),
+                (Some(_), None) => Some(Core::n_a(e1, e2.step()?).into()),
+                (None, _) => Some(Core::n_a(e1.step()?, e2).into()),
             },
-            Ext::Zero => None,
-            Ext::Succ { succ } => {
+            Core::Zero => None,
+            Core::Succ { succ } => {
                 if succ.is_value().is_none() {
-                    Some(Lam::Base(Box::new(Ext::Succ { succ: succ.step()? })))
+                    Some(Lam::Base(Box::new(Core::Succ { succ: succ.step()? })))
                 } else {
                     None
                 }
             }
-            Ext::Pred { pred } => {
+            Core::Pred { pred } => {
                 if let Some(v) = pred.is_value() {
                     match v {
                         ExtValue::Fun { var, body } => None,
                         ExtValue::Num(number) => {
-                            fn a(t: Ext<Lam<ExtStruct>>) -> Lam<ExtStruct> {
+                            fn a(t: Core<Lam<ExtStruct>>) -> Lam<ExtStruct> {
                                 t.into()
                             }
                             let e = num_to_exp(number.pred(), a);
@@ -159,10 +159,10 @@ impl Step for Lam<ExtStruct> {
                         }
                     }
                 } else {
-                    Some(Ext::Pred { pred: pred.step()? }.into())
+                    Some(Core::Pred { pred: pred.step()? }.into())
                 }
             }
-            Ext::IfZ { cond, tcase, fcase } => {
+            Core::IfZ { cond, tcase, fcase } => {
                 if let Some(v) = cond.is_value() {
                     match v {
                         ExtValue::Fun { var, body } => None,
@@ -176,7 +176,7 @@ impl Step for Lam<ExtStruct> {
                     }
                 } else {
                     Some(
-                        Ext::IfZ {
+                        Core::IfZ {
                             cond: cond.step()?,
                             tcase,
                             fcase,
@@ -224,12 +224,12 @@ impl Step for Lam<ExtStruct> {
                 //     ),
                 // }
             }
-            Ext::Let { var, bind, body } => Some(Ext::n_a(Ext::n_l(var, body).into(), bind).into()),
-            Ext::Rec { fix, var, body } => Some(
-                Ext::n_l(
+            Core::Let { var, bind, body } => Some(Core::n_a(Core::n_l(var, body).into(), bind).into()),
+            Core::Rec { fix, var, body } => Some(
+                Core::n_l(
                     var.clone(),
                     body.clone()
-                        .subst(fix.clone(), Ext::Rec { fix, var, body }.into()),
+                        .subst(fix.clone(), Core::Rec { fix, var, body }.into()),
                 )
                 .into(),
             ),
@@ -489,8 +489,8 @@ mod traits {
         }
     }
 
-    impl From<Ext<Lam<ExtStruct>>> for Lam<ExtStruct> {
-        fn from(value: Ext<Lam<ExtStruct>>) -> Self {
+    impl From<Core<Lam<ExtStruct>>> for Lam<ExtStruct> {
+        fn from(value: Core<Lam<ExtStruct>>) -> Self {
             Lam::Base(Box::new(value))
         }
     }

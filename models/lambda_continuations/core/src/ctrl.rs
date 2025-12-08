@@ -1,7 +1,7 @@
 use crate::{
     lambda::{
         base::{Base, BaseFrame, BaseStruct, BaseValue},
-        ext::{Ext, ExtStruct},
+        ext::{Core, ExtStruct},
     },
     traits::{LamFamily, LamFamilySubst, LambdaExt, Step},
 };
@@ -166,7 +166,7 @@ mod tests {
 mod traits {
     use crate::lambda::{
         base::{Base, BaseStruct},
-        ext::{Ext, ExtStruct},
+        ext::{Core, ExtStruct},
     };
 
     use super::AbCt;
@@ -219,8 +219,8 @@ mod traits {
         }
     }
 
-    impl From<Ext<AbCt<ExtStruct>>> for AbCt<ExtStruct> {
-        fn from(value: Ext<AbCt<ExtStruct>>) -> Self {
+    impl From<Core<AbCt<ExtStruct>>> for AbCt<ExtStruct> {
+        fn from(value: Core<AbCt<ExtStruct>>) -> Self {
             AbCt::Base(Box::new(value))
         }
     }
