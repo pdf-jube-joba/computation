@@ -42,7 +42,7 @@ pub fn create_machine<T: utils::MealyMachine + 'static>(input: &str) -> Result<(
 #[cfg(feature = "turing_machine")]
 #[wasm_bindgen]
 pub fn create(input: &str) -> Result<(), JsValue> {
-    create_machine::<turing_machine_web::TuringMachineWeb>(input)
+    create_machine::<turing_machine::web::TuringMachineWeb>(input)
 }
 
 #[cfg(feature = "example")]

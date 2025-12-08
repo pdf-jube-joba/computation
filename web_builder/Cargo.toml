@@ -18,4 +18,4 @@ turing_machine = { path = "../models/turing_machine", optional = true }
 
 [features]
 example = []
-turing_machine_ = ["dep:turing_machine"]
+turing_machine = ["dep:turing_machine"]
