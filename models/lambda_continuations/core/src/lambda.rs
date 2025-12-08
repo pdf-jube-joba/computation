@@ -450,3 +450,101 @@ where
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CoreStruct;
+
+impl<T> LamFamily<T> for CoreStruct {
+    type This = Core<T>;
+}
+
+#[macro_export]
+macro_rules! bvar {
+    ($name:literal) => {
+        $crate::lambda::Core::n_v(utils::variable::Var::from($name)).into()
+    };
+}
+
+#[macro_export]
+macro_rules! blam {
+    ($name:literal, $body:expr) => {
+        $crate::lambda::Core::n_l(utils::variable::Var::from($name), $body).into()
+    };
+}
+
+#[macro_export]
+macro_rules! bapp {
+    ($e1:expr, $e2:expr) => {
+        $crate::lambda::Core::n_a($e1, $e2).into()
+    };
+}
+
+#[macro_export]
+macro_rules! evar {
+    ($name:literal) => {
+        $crate::lambda::Core::n_v(utils::variable::Var::from($name)).into()
+    };
+}
+
+#[macro_export]
+macro_rules! elam {
+    ($name:literal, $body:expr) => {
+        $crate::lambda::Core::n_l(utils::variable::Var::from($name), $body).into()
+    };
+}
+
+#[macro_export]
+macro_rules! eapp {
+    ($e1:expr, $e2:expr) => {
+        $crate::lambda::Core::n_a($e1, $e2).into()
+    };
+}
+
+#[macro_export]
+macro_rules! ezero {
+    () => {
+        $crate::lambda::Core::n_z().into()
+    };
+}
+
+#[macro_export]
+macro_rules! esucc {
+    ($t:expr) => {
+        $crate::lambda::Core::n_s($t).into()
+    };
+}
+
+#[macro_export]
+macro_rules! epred {
+    ($t:expr) => {
+        $crate::lambda::Core::n_p($t).into()
+    };
+}
+
+#[macro_export]
+macro_rules! eif {
+    ($cond:expr, $tcase:expr, $fcase:expr) => {
+        $crate::lambda::Core::n_i($cond, $tcase, $fcase).into()
+    };
+}
+
+#[macro_export]
+macro_rules! elet {
+    ($name:literal, $bind:expr, $body:expr) => {
+        $crate::lambda::Core::n_d(utils::variable::Var::from($name), $bind, $body).into()
+    };
+}
+
+#[macro_export]
+macro_rules! erec {
+    ($fix:literal, $var:literal, $body:expr) => {
+        $crate::lambda::Core::n_r(
+            utils::variable::Var::from($fix),
+            utils::variable::Var::from($var),
+            $body,
+        )
+        .into()
+    };
+}
+
+pub use {bapp, blam, bvar, eapp, eif, elam, elet, epred, erec, esucc, evar, ezero};
