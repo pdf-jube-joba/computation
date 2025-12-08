@@ -182,142 +182,111 @@ pub fn unchecked_subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> Lambda
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Redux {
-    pub var: Var,
-    pub body: LambdaTerm,
-    pub arg: LambdaTerm,
-}
-
-impl Redux {
-    pub fn eval(self) -> LambdaTerm {
-        let new_var: Var = self.var.as_str().into();
-        // first, rename bound variable to a new variable to avoid capture
-        let mut term = unchecked_subst(
-            self.body,
-            self.var.clone(),
-            LambdaTerm::Var(new_var.clone()),
-        );
-        // then, substitute the argument for the new variablef
-        term = unchecked_subst(term, self.var, self.arg);
-        term
-    }
-    pub fn from_term(term: &LambdaTerm) -> Option<Self> {
-        if let LambdaTerm::App(term1, term2) = term {
-            if let LambdaTerm::Abs(var, body) = term1.as_ref() {
-                Some(Redux {
-                    var: var.clone(),
-                    body: *body.clone(),
-                    arg: *term2.clone(),
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-}
-
-impl From<Redux> for LambdaTerm {
-    fn from(redux: Redux) -> Self {
-        LambdaTerm::App(
-            LambdaTerm::Abs(redux.var, redux.body.into()).into(),
-            redux.arg.into(),
-        )
-    }
-}
-
-impl Display for Redux {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(\\{}.{} {})", self.var, self.body, self.arg)
-    }
-}
-
-// it has exactly one redux in it
+// this enumerates all redexes in a term
 #[derive(Debug, Clone, PartialEq)]
 pub enum MarkedTerm {
-    Redux(Redux),
-    Abstraction(Var, Box<MarkedTerm>),
-    ApplicationL(Box<MarkedTerm>, Box<LambdaTerm>),
-    ApplicationR(Box<LambdaTerm>, Box<MarkedTerm>),
+    Var(Var),
+    Abs(Var, Box<MarkedTerm>),
+    App(Box<MarkedTerm>, Box<MarkedTerm>),
+    Red(Var, Box<MarkedTerm>, Box<MarkedTerm>),
 }
 
 impl From<MarkedTerm> for LambdaTerm {
     fn from(marked_term: MarkedTerm) -> Self {
         match marked_term {
-            MarkedTerm::Redux(redux) => LambdaTerm::from(redux),
-            MarkedTerm::Abstraction(var, term) => LambdaTerm::Abs(var, Box::new(term.eval())),
-            MarkedTerm::ApplicationL(term1, term2) => {
-                LambdaTerm::App(Box::new(term1.eval()), term2)
+            MarkedTerm::Var(var) => LambdaTerm::Var(var),
+            MarkedTerm::Abs(var, abs_term) => LambdaTerm::Abs(var, Box::new((*abs_term).into())),
+            MarkedTerm::App(app_term1, app_term2) => {
+                LambdaTerm::App(Box::new((*app_term1).into()), Box::new((*app_term2).into()))
             }
-            MarkedTerm::ApplicationR(term1, term2) => {
-                LambdaTerm::App(term1, Box::new(term2.eval()))
-            }
+            MarkedTerm::Red(var, abs_term, app_term) => LambdaTerm::App(
+                Box::new(LambdaTerm::Abs(var, Box::new((*abs_term).into()))),
+                Box::new((*app_term).into()),
+            ),
         }
     }
 }
 
-impl MarkedTerm {
-    fn eval(self) -> LambdaTerm {
-        match self {
-            MarkedTerm::Redux(redux) => redux.eval(),
-            MarkedTerm::Abstraction(var, term) => LambdaTerm::Abs(var, Box::new(term.eval())),
-            MarkedTerm::ApplicationL(term1, term2) => {
-                LambdaTerm::App(Box::new(term1.eval()), term2)
-            }
-            MarkedTerm::ApplicationR(term1, term2) => {
-                LambdaTerm::App(term1, Box::new(term2.eval()))
-            }
-        }
-    }
-}
-
-impl Display for MarkedTerm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MarkedTerm::Redux(redux) => write!(f, "{}", redux),
-            MarkedTerm::Abstraction(var, term) => write!(f, "\\{var}.{}", term),
-            MarkedTerm::ApplicationL(term1, term2) => write!(f, "({} {})", term1, term2),
-            MarkedTerm::ApplicationR(term1, term2) => write!(f, "({} {})", term1, term2),
-        }
-    }
-}
-
-pub fn listup_marked_term(term: &LambdaTerm) -> Vec<MarkedTerm> {
-    let mut vec = Vec::new();
-    if let Some(redux) = Redux::from_term(term) {
-        vec.push(MarkedTerm::Redux(redux));
-    }
+pub fn mark_redex(term: &LambdaTerm) -> MarkedTerm {
     match term {
-        LambdaTerm::Var(_) => {}
-        LambdaTerm::Abs(var, term) => {
-            for a in listup_marked_term(term.as_ref()) {
-                vec.push(MarkedTerm::Abstraction(var.clone(), Box::new(a)));
-            }
+        LambdaTerm::Var(var) => MarkedTerm::Var(var.clone()),
+        LambdaTerm::Abs(var, abs_term) => {
+            MarkedTerm::Abs(var.clone(), Box::new(mark_redex(abs_term.as_ref())))
         }
-        LambdaTerm::App(term1, term2) => {
-            for a in listup_marked_term(term2.as_ref()) {
-                vec.push(MarkedTerm::ApplicationR(term1.clone(), Box::new(a)));
+        LambdaTerm::App(app_term1, app_term2) => match app_term1.as_ref() {
+            LambdaTerm::Abs(var, abs_term) => MarkedTerm::Red(
+                var.clone(),
+                Box::new(mark_redex(abs_term.as_ref())),
+                Box::new(mark_redex(app_term2.as_ref())),
+            ),
+            _ => MarkedTerm::App(
+                Box::new(mark_redex(app_term1.as_ref())),
+                Box::new(mark_redex(app_term2.as_ref())),
+            ),
+        },
+    }
+}
+
+// step function that reduces the nth redex in the marked term
+// how to count the redexes: left to right, depth first
+// return None if there is no nth redex
+pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
+    fn step_rec(marked_term: &MarkedTerm, num: &mut isize) -> Option<LambdaTerm> {
+        match marked_term {
+            MarkedTerm::Var(var) => Some(LambdaTerm::Var(var.clone())),
+            MarkedTerm::Abs(var, abs_term) => {
+                let body = step_rec(abs_term.as_ref(), num)?;
+                Some(LambdaTerm::Abs(var.clone(), Box::new(body)))
             }
-            for a in listup_marked_term(term1.as_ref()) {
-                vec.push(MarkedTerm::ApplicationL(Box::new(a), term2.clone()));
+            MarkedTerm::App(app_term1, app_term2) => {
+                let left = step_rec(app_term1.as_ref(), num)?;
+                let right = step_rec(app_term2.as_ref(), num)?;
+                Some(LambdaTerm::App(Box::new(left), Box::new(right)))
+            }
+            MarkedTerm::Red(var, abs_term, app_term) => {
+                if *num == 0 {
+                    // reduce this redex
+                    // 1. before substitution, rename bound variables in abs_term to avoid capture
+                    let new_var = Var::from(format!("{}'", var.as_str()));
+
+                    let avoided: LambdaTerm = var_change(
+                        var.clone(),
+                        new_var.clone(),
+                        abs_term.as_ref().clone().into(),
+                    );
+                    let body = unchecked_subst(avoided, new_var, app_term.as_ref().clone().into());
+                    Some(body)
+                } else {
+                    *num -= 1;
+                    let left = step_rec(abs_term.as_ref(), num)?;
+                    let right = step_rec(app_term.as_ref(), num)?;
+                    Some(LambdaTerm::App(
+                        Box::new(LambdaTerm::Abs(var.clone(), Box::new(left))),
+                        Box::new(right),
+                    ))
+                }
             }
         }
     }
-    vec
+
+    let mut n = num as isize;
+    let exp = step_rec(marked_term, &mut n);
+    if n < 0 {
+        exp
+    } else {
+        None
+    }
 }
 
-pub fn is_normal(term: &LambdaTerm) -> bool {
-    listup_marked_term(term).is_empty()
-}
-
-pub fn left_most_marked_term(term: LambdaTerm) -> Option<MarkedTerm> {
-    listup_marked_term(&term).last().cloned()
-}
-
-pub fn left_most_reduction(term: LambdaTerm) -> Option<LambdaTerm> {
-    listup_marked_term(&term).last().map(|x| x.clone().eval())
+pub fn is_normal_form(term: &LambdaTerm) -> bool {
+    match term {
+        LambdaTerm::Var(_) => true,
+        LambdaTerm::Abs(_, abs_term) => is_normal_form(abs_term.as_ref()),
+        LambdaTerm::App(app_term1, app_term2) => match app_term1.as_ref() {
+            LambdaTerm::Abs(_, _) => false,
+            _ => is_normal_form(app_term1.as_ref()) && is_normal_form(app_term2.as_ref()),
+        },
+    }
 }
 
 #[cfg(test)]

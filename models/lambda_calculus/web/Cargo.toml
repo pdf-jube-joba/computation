@@ -9,6 +9,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 lambda_calculus_core = { workspace = true }
 wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+utils = { workspace = true }
 
 [lints]
 workspace = true

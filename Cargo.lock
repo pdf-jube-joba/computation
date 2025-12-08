@@ -532,6 +532,8 @@ name = "lambda_calculus_web"
 version = "0.1.0"
 dependencies = [
  "lambda_calculus_core",
+ "serde",
+ "utils",
  "wasm-bindgen",
 ]
 

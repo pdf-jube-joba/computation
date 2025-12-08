@@ -106,29 +106,47 @@ pub mod parse {
     #[grammar = "parse.pest"]
     pub struct Ps;
 
-    pub fn parse_exp(p: Pair<Rule>) -> Result<LambdaTerm, String> {
+    pub fn parse_exp(p: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<LambdaTerm, String> {
         assert_eq!(p.as_rule(), Rule::exp);
         let mut ps = p.into_inner();
         let term = ps.next().unwrap();
         match term.as_rule() {
             Rule::var => {
-                let var: Var = term.as_str().into();
+                let var_str = term.as_str();
+                let var: Var = ref_vars
+                    .iter()
+                    .rev()
+                    .find_map(|v| {
+                        if v.as_str() == var_str {
+                            Some(v.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(Var::new(var_str));
                 Ok(LambdaTerm::Var(var))
             }
             Rule::abs => {
                 let mut ps = term.into_inner();
-                let mut vars = vec![];
+                let mut count = 0;
                 while ps.peek().map(|p| p.as_rule()) == Some(Rule::var) {
                     let var: Var = ps.next().unwrap().as_str().into();
-                    vars.push(var);
+                    ref_vars.push(var);
+                    count += 1;
                 }
-                let exp = parse_exp(ps.next().unwrap())?;
-                Ok(utility::lambdas(vars, exp))
+                let exp = parse_exp(ps.next().unwrap(), ref_vars)?;
+                let exp = utility::lambdas(ref_vars.clone(), exp);
+                for _ in 0..count {
+                    ref_vars.pop();
+                }
+                Ok(exp)
             }
             Rule::exp_paren => {
                 let mut ps = term.into_inner();
-                let first = parse_exp(ps.next().unwrap())?;
-                let remains = ps.map(|p| parse_exp(p)).collect::<Result<Vec<_>, _>>()?;
+                let first = parse_exp(ps.next().unwrap(), ref_vars)?;
+                let remains = ps
+                    .map(|p| parse_exp(p, ref_vars))
+                    .collect::<Result<Vec<_>, _>>()?;
                 let term = utility::apps(first, remains);
                 Ok(term)
             }
@@ -139,7 +157,7 @@ pub mod parse {
     pub fn parse_lambda(code: &str) -> Result<LambdaTerm, String> {
         let mut code = Ps::parse(Rule::exp, code.trim()).map_err(|e| e.to_string())?;
         let p = code.next().unwrap();
-        parse_exp(p)
+        parse_exp(p, &mut Vec::new())
     }
 
     pub fn parse_lambda_read_to_end(code: &str) -> Result<LambdaTerm, String> {
@@ -149,7 +167,7 @@ pub mod parse {
         let ps: Vec<_> = p
             .into_inner()
             .filter(|p| p.as_rule() == Rule::exp)
-            .map(|p| parse_exp(p))
+            .map(|p| parse_exp(p, &mut Vec::new()))
             .collect::<Result<_, _>>()?;
         debug_assert!(!ps.is_empty());
         Ok(app_with_nonepmty(ps))
