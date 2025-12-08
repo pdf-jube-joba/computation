@@ -1,41 +1,23 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Display,
-};
+use std::{collections::HashSet, fmt::Display};
 use utils::variable::Var;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LambdaTerm {
-    Variable(Var),
-    Abstraction(Var, Box<LambdaTerm>),
-    Application(Box<LambdaTerm>, Box<LambdaTerm>),
-}
-
-impl From<Var> for LambdaTerm {
-    fn from(var: Var) -> Self {
-        LambdaTerm::Variable(var)
-    }
+    Var(Var),
+    Abs(Var, Box<LambdaTerm>),
+    App(Box<LambdaTerm>, Box<LambdaTerm>),
 }
 
 impl LambdaTerm {
-    pub fn var(var: Var) -> Self {
-        LambdaTerm::Variable(var)
-    }
-    pub fn abs(var: Var, term: LambdaTerm) -> Self {
-        LambdaTerm::Abstraction(var, Box::new(term))
-    }
-    pub fn app(term1: LambdaTerm, term2: LambdaTerm) -> Self {
-        LambdaTerm::Application(Box::new(term1), Box::new(term2))
-    }
     pub fn free_variable(&self) -> HashSet<Var> {
         match self {
-            LambdaTerm::Variable(var) => vec![var.clone()].into_iter().collect(),
-            LambdaTerm::Abstraction(var, term) => {
+            LambdaTerm::Var(var) => vec![var.clone()].into_iter().collect(),
+            LambdaTerm::Abs(var, term) => {
                 let mut set: HashSet<_> = term.free_variable();
                 set.remove(var);
                 set
             }
-            LambdaTerm::Application(term1, term2) => {
+            LambdaTerm::App(term1, term2) => {
                 let mut set: HashSet<Var> = term1.free_variable();
                 set.extend(term2.free_variable());
                 set
@@ -45,9 +27,9 @@ impl LambdaTerm {
 
     pub fn bounded_variable(&self) -> HashSet<Var> {
         match self {
-            LambdaTerm::Variable(_) => HashSet::new(),
-            LambdaTerm::Abstraction(var, _) => vec![var.clone()].into_iter().collect(),
-            LambdaTerm::Application(term1, term2) => {
+            LambdaTerm::Var(_) => HashSet::new(),
+            LambdaTerm::Abs(var, _) => vec![var.clone()].into_iter().collect(),
+            LambdaTerm::App(term1, term2) => {
                 let mut set: HashSet<Var> = term1.bounded_variable();
                 set.extend(term2.bounded_variable());
                 set
@@ -59,37 +41,49 @@ impl LambdaTerm {
 impl Display for LambdaTerm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LambdaTerm::Variable(var) => write!(f, "[{var}]"),
-            LambdaTerm::Abstraction(var, term) => {
+            LambdaTerm::Var(var) => write!(f, "[{var}]"),
+            LambdaTerm::Abs(var, term) => {
                 write!(f, "\\{var}.{}", term)
             }
-            LambdaTerm::Application(term1, term2) => {
+            LambdaTerm::App(term1, term2) => {
                 write!(f, "({} {})", term1, term2)
             }
         }
     }
 }
 
+impl From<Var> for LambdaTerm {
+    fn from(var: Var) -> Self {
+        LambdaTerm::Var(var)
+    }
+}
+
+impl From<&Var> for LambdaTerm {
+    fn from(var: &Var) -> Self {
+        LambdaTerm::Var(var.clone())
+    }
+}
+
 pub fn var_change(var_pre: Var, var_post: Var, term: LambdaTerm) -> LambdaTerm {
     match &term {
-        LambdaTerm::Variable(variable) => {
+        LambdaTerm::Var(variable) => {
             if var_pre == *variable {
-                LambdaTerm::Variable(var_post)
+                LambdaTerm::Var(var_post)
             } else {
-                LambdaTerm::Variable(variable.clone())
+                LambdaTerm::Var(variable.clone())
             }
         }
-        LambdaTerm::Abstraction(variable, abs_term) => {
+        LambdaTerm::Abs(variable, abs_term) => {
             if var_pre == *variable {
                 term
             } else {
-                LambdaTerm::Abstraction(
+                LambdaTerm::Abs(
                     variable.clone(),
                     Box::new(var_change(var_pre, var_post, *abs_term.clone())),
                 )
             }
         }
-        LambdaTerm::Application(app_term1, app_term2) => LambdaTerm::Application(
+        LambdaTerm::App(app_term1, app_term2) => LambdaTerm::App(
             Box::new(var_change(
                 var_pre.clone(),
                 var_post.clone(),
@@ -104,111 +98,86 @@ pub fn var_change(var_pre: Var, var_post: Var, term: LambdaTerm) -> LambdaTerm {
     }
 }
 
+pub fn alpha_conversion_rec(term: &LambdaTerm, map: &mut Vec<(Var, Var)>) -> LambdaTerm {
+    match term {
+        LambdaTerm::Var(var) => {
+            if let Some((_, new_var)) = map.iter().find(|(v, _)| v == var) {
+                LambdaTerm::Var(new_var.clone())
+            } else {
+                LambdaTerm::Var(var.clone())
+            }
+        }
+        LambdaTerm::Abs(var, abs_term) => {
+            let new_var: Var = var.as_str().into();
+            map.push((var.clone(), new_var.clone()));
+            let res = LambdaTerm::Abs(new_var, Box::new(alpha_conversion_rec(abs_term, map)));
+            map.pop();
+            res
+        }
+        LambdaTerm::App(app_term1, app_term2) => LambdaTerm::App(
+            Box::new(alpha_conversion_rec(app_term1, map)),
+            Box::new(alpha_conversion_rec(app_term2, map)),
+        ),
+    }
+}
+
 pub fn alpha_eq(term1: &LambdaTerm, term2: &LambdaTerm) -> bool {
-    let new_var = {
-        let mut set = HashSet::new();
-        set.extend(term1.free_variable());
-        set.extend(term1.bounded_variable());
-        set.extend(term2.free_variable());
-        set.extend(term2.bounded_variable());
-        utils::variable::VarSet::from(&set).new_var_modify()
-    };
-    alpha_eq_rec(term1, term2, &HashMap::new(), &HashMap::new(), new_var)
+    alpha_eq_rec(term1, term2, &mut Vec::new(), &mut Vec::new())
 }
 
 fn alpha_eq_rec(
     term1: &LambdaTerm,
     term2: &LambdaTerm,
-    corr1: &HashMap<Var, Var>,
-    corr2: &HashMap<Var, Var>,
-    new_var: Var,
+    corr1: &mut Vec<Var>,
+    corr2: &mut Vec<Var>,
 ) -> bool {
     match (term1, term2) {
-        (LambdaTerm::Variable(var1), LambdaTerm::Variable(var2)) => {
-            match (corr1.get(var1), corr2.get(var2)) {
-                (Some(var1), Some(var2)) => *var1 == *var2,
-                (None, None) => *var1 == *var2,
+        (LambdaTerm::Var(var1), LambdaTerm::Var(var2)) => {
+            let idx1 = corr1.iter().position(|v| v == var1);
+            let idx2 = corr2.iter().position(|v| v == var2);
+            match (idx1, idx2) {
+                (Some(i), Some(j)) => i == j,
+                (None, None) => var1 == var2,
                 _ => false,
             }
         }
-        (LambdaTerm::Abstraction(var1, term1), LambdaTerm::Abstraction(var2, term2)) => {
-            let mut new_corr1 = corr1.clone();
-            new_corr1.insert(var1.clone(), new_var.clone());
-            let mut new_corr2 = corr2.clone();
-            new_corr2.insert(var2.clone(), new_var.clone());
-            alpha_eq_rec(
-                term1,
-                term2,
-                &new_corr1,
-                &new_corr2,
-                utils::variable::VarSet::from(vec![&new_var]).new_var_modify(),
-            )
+        (LambdaTerm::Abs(var1, term1), LambdaTerm::Abs(var2, term2)) => {
+            corr1.push(var1.clone());
+            corr2.push(var2.clone());
+            let res = alpha_eq_rec(term1, term2, corr1, corr2);
+            corr1.pop();
+            corr2.pop();
+            res
         }
-        (LambdaTerm::Application(term11, term12), LambdaTerm::Application(term21, term22)) => {
-            alpha_eq_rec(term11, term21, corr1, corr2, new_var.clone())
-                && alpha_eq_rec(term12, term22, corr1, corr2, new_var)
+        (LambdaTerm::App(term11, term12), LambdaTerm::App(term21, term22)) => {
+            alpha_eq_rec(term11, term21, corr1, corr2) && alpha_eq_rec(term12, term22, corr1, corr2)
         }
         _ => false,
     }
 }
 
 pub fn unchecked_subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
-    match term1.clone() {
-        LambdaTerm::Variable(variable) => {
-            if variable == var {
-                term2
-            } else {
-                term1
-            }
-        }
-        LambdaTerm::Abstraction(variable, abs_term) => {
-            if variable == var {
-                term1
-            } else {
-                LambdaTerm::Abstraction(variable, Box::new(unchecked_subst(*abs_term, var, term2)))
-            }
-        }
-        LambdaTerm::Application(app_term1, app_term2) => LambdaTerm::Application(
-            Box::new(unchecked_subst(*app_term1, var.clone(), term2.clone())),
-            Box::new(unchecked_subst(*app_term2, var, term2)),
-        ),
-    }
-}
-
-pub fn subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> LambdaTerm {
     match term1 {
-        LambdaTerm::Variable(var1) => {
+        LambdaTerm::Var(var1) => {
             if var1 == var {
                 term2
             } else {
-                LambdaTerm::Variable(var1.clone())
+                LambdaTerm::Var(var1.clone())
             }
         }
-        LambdaTerm::Abstraction(var1, term1) => {
+        LambdaTerm::Abs(var1, term1) => {
             if var1 == var {
-                LambdaTerm::Abstraction(var1, term1)
-            } else if !term2.free_variable().contains(&var1) {
-                LambdaTerm::Abstraction(var1, Box::new(subst(*term1, var, term2)))
+                LambdaTerm::Abs(var1.clone(), term1)
             } else {
-                let new_var = {
-                    let mut set = HashSet::new();
-                    set.extend(term1.free_variable());
-                    set.extend(term2.free_variable());
-                    utils::variable::VarSet::from(&set).new_var_modify()
-                };
-                LambdaTerm::Abstraction(
-                    new_var.clone(),
-                    Box::new(subst(
-                        subst(*term1, var1, LambdaTerm::Variable(new_var)),
-                        var,
-                        term2,
-                    )),
+                LambdaTerm::Abs(
+                    var1.clone(),
+                    Box::new(unchecked_subst(*term1, var.clone(), term2.clone())),
                 )
             }
         }
-        LambdaTerm::Application(term_m, term_n) => LambdaTerm::Application(
-            Box::new(subst(*term_m, var.clone(), term2.clone())),
-            Box::new(subst(*term_n, var, term2)),
+        LambdaTerm::App(term_m, term_n) => LambdaTerm::App(
+            Box::new(unchecked_subst(*term_m, var.clone(), term2.clone())),
+            Box::new(unchecked_subst(*term_n, var, term2)),
         ),
     }
 }
@@ -222,13 +191,20 @@ pub struct Redux {
 
 impl Redux {
     pub fn eval(self) -> LambdaTerm {
-        let mut term = self.body;
-        term = subst(term, self.var, self.arg);
+        let new_var: Var = self.var.as_str().into();
+        // first, rename bound variable to a new variable to avoid capture
+        let mut term = unchecked_subst(
+            self.body,
+            self.var.clone(),
+            LambdaTerm::Var(new_var.clone()),
+        );
+        // then, substitute the argument for the new variablef
+        term = unchecked_subst(term, self.var, self.arg);
         term
     }
     pub fn from_term(term: &LambdaTerm) -> Option<Self> {
-        if let LambdaTerm::Application(term1, term2) = term {
-            if let LambdaTerm::Abstraction(var, body) = term1.as_ref() {
+        if let LambdaTerm::App(term1, term2) = term {
+            if let LambdaTerm::Abs(var, body) = term1.as_ref() {
                 Some(Redux {
                     var: var.clone(),
                     body: *body.clone(),
@@ -245,7 +221,10 @@ impl Redux {
 
 impl From<Redux> for LambdaTerm {
     fn from(redux: Redux) -> Self {
-        LambdaTerm::app(LambdaTerm::abs(redux.var, redux.body), redux.arg)
+        LambdaTerm::App(
+            LambdaTerm::Abs(redux.var, redux.body.into()).into(),
+            redux.arg.into(),
+        )
     }
 }
 
@@ -268,14 +247,12 @@ impl From<MarkedTerm> for LambdaTerm {
     fn from(marked_term: MarkedTerm) -> Self {
         match marked_term {
             MarkedTerm::Redux(redux) => LambdaTerm::from(redux),
-            MarkedTerm::Abstraction(var, term) => {
-                LambdaTerm::Abstraction(var, Box::new(term.eval()))
-            }
+            MarkedTerm::Abstraction(var, term) => LambdaTerm::Abs(var, Box::new(term.eval())),
             MarkedTerm::ApplicationL(term1, term2) => {
-                LambdaTerm::Application(Box::new(term1.eval()), term2)
+                LambdaTerm::App(Box::new(term1.eval()), term2)
             }
             MarkedTerm::ApplicationR(term1, term2) => {
-                LambdaTerm::Application(term1, Box::new(term2.eval()))
+                LambdaTerm::App(term1, Box::new(term2.eval()))
             }
         }
     }
@@ -285,14 +262,12 @@ impl MarkedTerm {
     fn eval(self) -> LambdaTerm {
         match self {
             MarkedTerm::Redux(redux) => redux.eval(),
-            MarkedTerm::Abstraction(var, term) => {
-                LambdaTerm::Abstraction(var, Box::new(term.eval()))
-            }
+            MarkedTerm::Abstraction(var, term) => LambdaTerm::Abs(var, Box::new(term.eval())),
             MarkedTerm::ApplicationL(term1, term2) => {
-                LambdaTerm::Application(Box::new(term1.eval()), term2)
+                LambdaTerm::App(Box::new(term1.eval()), term2)
             }
             MarkedTerm::ApplicationR(term1, term2) => {
-                LambdaTerm::Application(term1, Box::new(term2.eval()))
+                LambdaTerm::App(term1, Box::new(term2.eval()))
             }
         }
     }
@@ -315,13 +290,13 @@ pub fn listup_marked_term(term: &LambdaTerm) -> Vec<MarkedTerm> {
         vec.push(MarkedTerm::Redux(redux));
     }
     match term {
-        LambdaTerm::Variable(_) => {}
-        LambdaTerm::Abstraction(var, term) => {
+        LambdaTerm::Var(_) => {}
+        LambdaTerm::Abs(var, term) => {
             for a in listup_marked_term(term.as_ref()) {
                 vec.push(MarkedTerm::Abstraction(var.clone(), Box::new(a)));
             }
         }
-        LambdaTerm::Application(term1, term2) => {
+        LambdaTerm::App(term1, term2) => {
             for a in listup_marked_term(term2.as_ref()) {
                 vec.push(MarkedTerm::ApplicationR(term1.clone(), Box::new(a)));
             }
@@ -351,96 +326,47 @@ mod tests {
 
     #[test]
     fn alpha_eq_test() {
+        fn v(var: &Var) -> LambdaTerm {
+            LambdaTerm::Var(var.clone())
+        }
+        fn abs(var: &Var, body: LambdaTerm) -> LambdaTerm {
+            LambdaTerm::Abs(var.clone(), body.into())
+        }
+        fn app(lhs: LambdaTerm, rhs: LambdaTerm) -> LambdaTerm {
+            LambdaTerm::App(lhs.into(), rhs.into())
+        }
+
+        let x = Var::from("x");
+        let y = Var::from("y");
+        let z = Var::from("z");
+        let w = Var::from("w");
+
+        // new Var instances with the same display text are not equal
+        let another_x = Var::from("x");
+        let another_y = Var::from("y");
+
         let tests = vec![
-            (LambdaTerm::var(0.into()), LambdaTerm::var(0.into()), true),
-            (LambdaTerm::var(0.into()), LambdaTerm::var(1.into()), false),
+            (v(&x), v(&x), true),
+            (v(&x), v(&another_x), false),
+            (abs(&x, v(&x)), abs(&y, v(&y)), true),
+            (abs(&x, app(v(&x), v(&y))), abs(&z, app(v(&z), v(&y))), true),
             (
-                LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
-                LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                true,
-            ),
-            (
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::app(LambdaTerm::var(0.into()), LambdaTerm::var(1.into())),
-                ),
-                LambdaTerm::abs(
-                    2.into(),
-                    LambdaTerm::app(LambdaTerm::var(2.into()), LambdaTerm::var(1.into())),
-                ),
-                true,
-            ),
-            (
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::app(LambdaTerm::var(0.into()), LambdaTerm::var(0.into())),
-                ),
-                LambdaTerm::abs(
-                    2.into(),
-                    LambdaTerm::app(LambdaTerm::var(2.into()), LambdaTerm::var(1.into())),
-                ),
+                abs(&x, app(v(&x), v(&y))),
+                abs(&z, app(v(&z), v(&another_y))),
                 false,
             ),
+            (abs(&x, abs(&y, v(&y))), abs(&z, abs(&w, v(&w))), true),
+            (abs(&x, abs(&y, v(&x))), abs(&z, abs(&w, v(&z))), true),
+            (abs(&x, abs(&y, v(&x))), abs(&z, abs(&w, v(&w))), false),
             (
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(0.into())),
-                ),
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                ),
-                false,
-            ),
-            (
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
-                ),
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                ),
-                true,
-            ),
-            (
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::abs(0.into(), LambdaTerm::var(2.into())),
-                ),
-                LambdaTerm::abs(
-                    0.into(),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(2.into())),
-                ),
-                true,
-            ),
-            (
-                LambdaTerm::app(
-                    LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                ),
-                LambdaTerm::app(
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                ),
-                true,
-            ),
-            (
-                LambdaTerm::app(
-                    LambdaTerm::abs(0.into(), LambdaTerm::var(0.into())),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                ),
-                LambdaTerm::app(
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                    LambdaTerm::abs(1.into(), LambdaTerm::var(1.into())),
-                ),
+                app(abs(&x, v(&x)), abs(&y, v(&y))),
+                app(abs(&z, v(&z)), abs(&w, v(&w))),
                 true,
             ),
         ];
 
-        for (term1, term2, b) in tests {
-            eprintln!("{:?} {:?}", &term1, &term2);
-            assert_eq!(alpha_eq(&term1, &term2), b)
+        for (term1, term2, expected) in tests {
+            assert_eq!(alpha_eq(&term1, &term2), expected);
         }
     }
 }

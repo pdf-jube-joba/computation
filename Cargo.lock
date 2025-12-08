@@ -528,10 +528,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lambda_calculus_cui"
-version = "0.1.0"
-
-[[package]]
 name = "lambda_calculus_web"
 version = "0.1.0"
 dependencies = [
@@ -1255,10 +1251,6 @@ dependencies = [
  "pest_derive",
  "utils",
 ]
-
-[[package]]
-name = "while_minus_lang_cui"
-version = "0.1.0"
 
 [[package]]
 name = "while_minus_lang_web"

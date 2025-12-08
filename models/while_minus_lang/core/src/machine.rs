@@ -27,12 +27,6 @@ impl Environment {
             self.env.push((var.clone(), num));
         }
     }
-
-    pub fn all_written_var(&self) -> Vec<Var> {
-        let mut vec: Vec<Var> = self.env.iter().map(|(v, _)| v.clone()).collect();
-        vec.sort();
-        vec
-    }
 }
 
 impl PartialEq for Environment {
@@ -43,7 +37,6 @@ impl PartialEq for Environment {
             .map(|(v, _)| v.clone())
             .chain(other.env.iter().map(|(v, _)| v.clone()))
             .collect();
-        all_vars.sort();
         all_vars.dedup();
 
         all_vars.iter().all(|var| self.get(var) == other.get(var))
@@ -287,60 +280,70 @@ mod tests {
 
     #[test]
     fn env_eq_tes() {
+        let v0 = Var::from("0");
+        let v1 = Var::from("1");
+
         let env1: Environment = vec![].into();
         let env2: Environment = vec![].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var::U(0), Number(1))].into();
-        let env2: Environment = vec![(Var::U(0), Number(1))].into();
+        let env1: Environment = vec![(v0.clone(), Number(1))].into();
+        let env2: Environment = vec![(v0.clone(), Number(1))].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var::U(0), Number(1)), (Var::U(0), Number(1))].into();
-        let env2: Environment = vec![(Var::U(0), Number(1))].into();
+        let env1: Environment = vec![(v0.clone(), Number(1)), (v0.clone(), Number(1))].into();
+        let env2: Environment = vec![(v0.clone(), Number(1))].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var::U(0), Number(1)), (Var::U(1), Number(2))].into();
-        let env2: Environment = vec![(Var::U(1), Number(2)), (Var::U(0), Number(1))].into();
+        let env1: Environment = vec![(v0.clone(), Number(1)), (v1.clone(), Number(2))].into();
+        let env2: Environment = vec![(v1.clone(), Number(2)), (v0.clone(), Number(1))].into();
         assert_eq!(env1, env2);
 
-        let env1: Environment = vec![(Var::U(0), Number(0))].into();
+        let env1: Environment = vec![(v0.clone(), Number(0))].into();
         let env2: Environment = vec![].into();
         assert_eq!(env1, env2);
     }
 
     #[test]
     fn eval_test() {
+        let v0 = Var::from("0");
+        let v1 = Var::from("1");
+        let v2 = Var::from("2");
+
         let env: Environment = Environment::new();
-        let prog: Vec<WhileStatement> = vec![WhileStatement::inc(Var::U(0))];
+        let prog: Vec<WhileStatement> = vec![WhileStatement::inc(v0.clone())];
         let env_res = eval(&prog, env.clone());
-        let env_exp: Environment = vec![(Var::U(0), Number(1))].into();
+        let env_exp: Environment = vec![(v0.clone(), Number(1))].into();
         assert_eq!(env_exp, env_res);
 
         let env: Environment = Environment::new();
         let prog: Vec<WhileStatement> = vec![
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::cpy(Var::U(1), Var::U(0)),
-            WhileStatement::cpy(Var::U(0), Var::U(2)),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::cpy(v1.clone(), v0.clone()),
+            WhileStatement::cpy(v0.clone(), v2.clone()),
         ];
         let env_res = eval(&prog, env.clone());
-        let env_exp: Environment = vec![(Var::U(1), Number(3))].into();
+        let env_exp: Environment = vec![(v1.clone(), Number(3))].into();
         assert_eq!(env_exp, env_res);
     }
     #[test]
 
     fn eval_test_while() {
+        let v0 = Var::from("0");
+        let v1 = Var::from("1");
+
         let env: Environment = Environment::new();
         let prog: Vec<WhileStatement> = vec![
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::inc(Var::U(0)),
-            WhileStatement::while_not_zero(Var::U(0)),
-            WhileStatement::dec(Var::U(0)),
-            WhileStatement::inc(Var::U(1)),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::inc(v0.clone()),
+            WhileStatement::while_not_zero(v0.clone()),
+            WhileStatement::dec(v0.clone()),
+            WhileStatement::inc(v1.clone()),
             WhileStatement::while_end(),
         ];
 

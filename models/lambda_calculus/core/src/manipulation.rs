@@ -5,7 +5,7 @@ pub mod utility {
     pub fn apps(first: LambdaTerm, remains: Vec<LambdaTerm>) -> LambdaTerm {
         let mut term = first;
         for remain in remains {
-            term = LambdaTerm::app(term, remain);
+            term = LambdaTerm::App(term.into(), remain.into());
         }
         term
     }
@@ -20,22 +20,15 @@ pub mod utility {
     pub fn lambdas(pres: Vec<Var>, last: LambdaTerm) -> LambdaTerm {
         let mut term = last;
         for pre in pres.into_iter().rev() {
-            term = LambdaTerm::abs(pre, term);
+            term = LambdaTerm::Abs(pre, term.into());
         }
         term
     }
 
     #[macro_export]
-    macro_rules! var {
-        ($v:expr) => {
-            utils::variable::Var::from(($v)).into()
-        };
-    }
-
-    #[macro_export]
     macro_rules! lam {
         ($v:expr, $t:expr) => {
-            $crate::machine::LambdaTerm::abs($v, $t)
+            $crate::machine::LambdaTerm::Abs($v, Box::new($t))
         };
     }
 
@@ -50,45 +43,52 @@ pub mod utility {
         };
     }
 
-    pub use {app, lam, var};
+    pub use {app, lam};
 
     #[cfg(test)]
     mod tests {
         use super::*;
         use crate::machine::LambdaTerm;
 
+        fn v(var: &Var) -> LambdaTerm {
+            LambdaTerm::Var(var.clone())
+        }
+        fn abs(var: &Var, body: LambdaTerm) -> LambdaTerm {
+            LambdaTerm::Abs(var.clone(), body.into())
+        }
+        fn app(lhs: LambdaTerm, rhs: LambdaTerm) -> LambdaTerm {
+            LambdaTerm::App(lhs.into(), rhs.into())
+        }
+
         #[test]
         fn test_var() {
-            let term: Var = var!("x");
-            assert_eq!(term, Var::from("x"));
+            let term: Var = "x".into();
+            assert_eq!(term.as_str(), "x");
         }
         #[test]
         fn test_lam() {
-            let term = lam!(var!("x"), var!("y"));
-            assert_eq!(term, LambdaTerm::abs(var!("x"), LambdaTerm::var(var!("y"))));
+            let x = Var::from("x");
+            let y = Var::from("y");
+            let term = lam!(x.clone(), v(&y));
+            assert_eq!(term, abs(&x, v(&y)));
         }
         #[test]
         fn test_app() {
+            let x = Var::from("x");
+            let y = Var::from("y");
+            let z = Var::from("z");
+
             // "x"
-            let term = app!(var!("x"));
-            assert_eq!(term, LambdaTerm::var(var!("x")));
+            let term = app!(v(&x));
+            assert_eq!(term, v(&x));
 
             // "x y"
-            let term = app!(var!("x"), var!("y"));
-            assert_eq!(
-                term,
-                LambdaTerm::app(LambdaTerm::var(var!("x")), LambdaTerm::var(var!("y")))
-            );
+            let term = app!(v(&x), v(&y));
+            assert_eq!(term, app(v(&x), v(&y)));
 
             // "(x y) z"
-            let term = app!(var!("x"), var!("y"), var!("z"));
-            assert_eq!(
-                term,
-                LambdaTerm::app(
-                    LambdaTerm::app(LambdaTerm::var(var!("x")), LambdaTerm::var(var!("y"))),
-                    LambdaTerm::var(var!("z"))
-                )
-            );
+            let term = app!(v(&x), v(&y), v(&z));
+            assert_eq!(term, app(app(v(&x), v(&y)), v(&z)));
         }
     }
 }
@@ -113,7 +113,7 @@ pub mod parse {
         match term.as_rule() {
             Rule::var => {
                 let var: Var = term.as_str().into();
-                Ok(LambdaTerm::var(var))
+                Ok(LambdaTerm::Var(var))
             }
             Rule::abs => {
                 let mut ps = term.into_inner();
@@ -157,62 +157,60 @@ pub mod parse {
 
     #[cfg(test)]
     mod tests {
-        use crate::manipulation::utility::{app, lam, var};
-
         use super::*;
         #[test]
         fn parse_test() {
             let code = "x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, var!("x"));
+            assert_eq!(format!("{}", term), "[x]");
 
             let code = "(x)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, var!("x"));
+            assert_eq!(format!("{}", term), "[x]");
 
             let code = " x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, var!("x"));
+            assert_eq!(format!("{}", term), "[x]");
 
             let code = "\\x.x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, lam!(var!("x"), var!("x")));
+            assert_eq!(format!("{}", term), "\\x.[x]");
 
             let code = "(\\x.x)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, lam!(var!("x"), var!("x")));
+            assert_eq!(format!("{}", term), "\\x.[x]");
 
             let code = "(x y)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, app!(var!("x"), var!("y")));
+            assert_eq!(format!("{}", term), "([x] [y])");
 
             let code = "x y";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, app!(var!("x"), var!("y")));
+            assert_eq!(format!("{}", term), "([x] [y])");
 
             let code = "(x y z)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, app!(var!("x"), var!("y"), var!("z")));
+            assert_eq!(format!("{}", term), "(([x] [y]) [z])");
 
             let code = "x y z";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, app!(var!("x"), var!("y"), var!("z")));
+            assert_eq!(format!("{}", term), "(([x] [y]) [z])");
 
             let code = "(\\x.x y)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, app!(lam!(var!("x"), var!("x")), var!("y")));
+            assert_eq!(format!("{}", term), "(\\x.[x] [y])");
 
             let code = "(\\x.x) y";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, app!(lam!(var!("x"), var!("x")), var!("y")));
+            assert_eq!(format!("{}", term), "(\\x.[x] [y])");
 
             let code = "(\\x. (x y))";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, lam!(var!("x"), app!(var!("x"), var!("y"))));
+            assert_eq!(format!("{}", term), "\\x.([x] [y])");
 
             let code = "\\ x y. x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(term, lam!(var!("x"), lam!(var!("y"), var!("x"))));
+            assert_eq!(format!("{}", term), "\\x.\\y.[x]");
         }
     }
 }
