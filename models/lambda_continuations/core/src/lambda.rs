@@ -47,16 +47,16 @@ impl<T> Core<T> {
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ExtValue<T> {
+pub enum Value<T> {
     Fun { var: Var, body: T },
     Num(Number),
 }
 
-impl<T> From<ExtValue<T>> for Core<T>
+impl<T> From<Value<T>> for Core<T>
 where
     T: From<Core<T>>,
 {
-    fn from(value: ExtValue<T>) -> Self {
+    fn from(value: Value<T>) -> Self {
         fn num_to_exp<T>(n: Number) -> Core<T>
         where
             T: From<Core<T>>,
@@ -70,8 +70,8 @@ where
             }
         }
         match value {
-            ExtValue::Fun { var, body } => Core::Lam { var, body },
-            ExtValue::Num(n) => num_to_exp(n),
+            Value::Fun { var, body } => Core::Lam { var, body },
+            Value::Num(n) => num_to_exp(n),
         }
     }
 }
@@ -102,19 +102,19 @@ where
     }
 }
 
-pub fn ext_to_ext_value<T, F>(value: Core<T>, f: F) -> Option<ExtValue<T>>
+pub fn ext_to_ext_value<T, F>(value: Core<T>, f: F) -> Option<Value<T>>
 where
     F: Fn(T) -> Option<Core<T>>,
 {
     match value {
-        Core::Lam { var, body } => Some(ExtValue::Fun { var, body }),
-        _ => Some(ExtValue::Num(exp_to_num(value, f)?)),
+        Core::Lam { var, body } => Some(Value::Fun { var, body }),
+        _ => Some(Value::Num(exp_to_num(value, f)?)),
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ExtFrame<T> {
-    EvalR { left_value: ExtValue<T> },
+pub enum CoreFrame<T> {
+    EvalR { left_value: Value<T> },
     EvalL { right_exp: T },
     EvalSucc,
     EvalPred,
@@ -122,26 +122,26 @@ pub enum ExtFrame<T> {
     EvalLet { var: Var, body: T },
 }
 
-impl<T> ExtFrame<T>
+impl<T> CoreFrame<T>
 where
     T: Clone + From<Core<T>>,
 {
-    pub fn decomp<F>(t: Core<T>, is_value: F) -> Option<(ExtFrame<T>, T)>
+    pub fn decomp<F>(t: Core<T>, is_value: F) -> Option<(CoreFrame<T>, T)>
     where
-        F: Fn(T) -> Option<ExtValue<T>> + Clone,
+        F: Fn(T) -> Option<Value<T>> + Clone,
     {
         match t {
             Core::Var { var: _ } => None,
             Core::Lam { var: _, body: _ } => None,
             Core::App { e1, e2 } => match is_value(e1.clone()) {
-                Some(value) => Some((ExtFrame::EvalR { left_value: value }, e2)),
-                None => Some((ExtFrame::EvalL { right_exp: e2 }, e1)),
+                Some(value) => Some((CoreFrame::EvalR { left_value: value }, e2)),
+                None => Some((CoreFrame::EvalL { right_exp: e2 }, e1)),
             },
             Core::Zero => None,
-            Core::Succ { succ } => Some((ExtFrame::EvalSucc, succ)),
-            Core::Pred { pred } => Some((ExtFrame::EvalPred, pred)),
-            Core::IfZ { cond, tcase, fcase } => Some((ExtFrame::EvalIf { tcase, fcase }, cond)),
-            Core::Let { var, bind, body } => Some((ExtFrame::EvalLet { var, body }, bind)),
+            Core::Succ { succ } => Some((CoreFrame::EvalSucc, succ)),
+            Core::Pred { pred } => Some((CoreFrame::EvalPred, pred)),
+            Core::IfZ { cond, tcase, fcase } => Some((CoreFrame::EvalIf { tcase, fcase }, cond)),
+            Core::Let { var, bind, body } => Some((CoreFrame::EvalLet { var, body }, bind)),
             Core::Rec {
                 fix: _,
                 var: _,
@@ -151,25 +151,25 @@ where
     }
     pub fn plug(self, t: T) -> Core<T> {
         match self {
-            ExtFrame::EvalR { left_value } => {
+            CoreFrame::EvalR { left_value } => {
                 let v: Core<T> = left_value.into();
                 Core::App {
                     e1: v.into(),
                     e2: t,
                 }
             }
-            ExtFrame::EvalL { right_exp } => Core::App {
+            CoreFrame::EvalL { right_exp } => Core::App {
                 e1: t,
                 e2: right_exp,
             },
-            ExtFrame::EvalSucc => Core::Succ { succ: t },
-            ExtFrame::EvalPred => Core::Pred { pred: t },
-            ExtFrame::EvalIf { tcase, fcase } => Core::IfZ {
+            CoreFrame::EvalSucc => Core::Succ { succ: t },
+            CoreFrame::EvalPred => Core::Pred { pred: t },
+            CoreFrame::EvalIf { tcase, fcase } => Core::IfZ {
                 cond: t,
                 tcase,
                 fcase,
             },
-            ExtFrame::EvalLet { var, body } => Core::Let { var, bind: t, body },
+            CoreFrame::EvalLet { var, body } => Core::Let { var, bind: t, body },
         }
     }
 }
@@ -311,14 +311,6 @@ where
                         var: var2.clone(),
                         body: bind2.clone(),
                     })
-                // {
-                //     let mut set: VarSet = bind1.free_variables();
-                //     set.extend(bind2.free_variables());
-                //     let new_var = Ext::n_v(set.new_var_modify());
-                //     let bind1 = bind1.clone().subst(var1.clone(), new_var.clone().into());
-                //     let bind2 = bind2.clone().subst(var2.clone(), new_var.into());
-                //     bind1.alpha_eq(&bind2)
-                // }
             }
             (
                 Core::Rec {

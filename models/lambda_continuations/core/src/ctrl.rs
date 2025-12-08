@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    lambda::{ext_to_ext_value, Core, CoreStruct, ExtFrame, ExtValue},
+    lambda::{ext_to_ext_value, Core, CoreStruct, CoreFrame, Value},
     traits::{LamFamily, LamFamilySubst, LambdaExt, Step},
 };
 use utils::variable::Var;
@@ -63,7 +63,7 @@ impl LambdaExt for AbCt<CoreStruct> {
 }
 
 impl Step for AbCt<CoreStruct> {
-    type Value = ExtValue<AbCt<CoreStruct>>;
+    type Value = Value<AbCt<CoreStruct>>;
     fn is_value(&self) -> Option<Self::Value> {
         match self {
             AbCt::Base(b) => ext_to_ext_value(b.as_ref().clone(), t_to_core),
@@ -72,7 +72,7 @@ impl Step for AbCt<CoreStruct> {
         }
     }
     fn step(self) -> Option<Self> {
-        let mut stack: Vec<ExtFrame<AbCt<CoreStruct>>> = vec![];
+        let mut stack: Vec<CoreFrame<AbCt<CoreStruct>>> = vec![];
         let mut t = self;
         loop {
             match t {

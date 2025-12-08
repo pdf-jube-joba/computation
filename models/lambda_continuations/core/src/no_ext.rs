@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    lambda::{ext_to_ext_value, num_to_exp, Core, CoreStruct, ExtValue},
+    lambda::{ext_to_ext_value, num_to_exp, Core, CoreStruct, Value},
     traits::{LamFamily, LamFamilySubst, LambdaExt, Step},
 };
 use utils::variable::Var;
@@ -40,7 +40,7 @@ impl LambdaExt for Lam<CoreStruct> {
 }
 
 impl Step for Lam<CoreStruct> {
-    type Value = ExtValue<Lam<CoreStruct>>;
+    type Value = Value<Lam<CoreStruct>>;
     fn is_value(&self) -> Option<Self::Value> {
         let Lam::Base(b) = self;
         ext_to_ext_value(b.as_ref().clone(), t_to_core)
@@ -51,8 +51,8 @@ impl Step for Lam<CoreStruct> {
             Core::Var { .. } => None,
             Core::Lam { .. } => None,
             Core::App { e1, e2 } => match (e1.is_value(), e2.is_value()) {
-                (Some(ExtValue::Fun { var, body }), Some(_)) => Some(body.subst(var, e2)),
-                (Some(ExtValue::Num(_)), Some(_)) => None,
+                (Some(Value::Fun { var, body }), Some(_)) => Some(body.subst(var, e2)),
+                (Some(Value::Num(_)), Some(_)) => None,
                 (Some(_), None) => Some(Core::n_a(e1, e2.step()?).into()),
                 (None, _) => Some(Core::n_a(e1.step()?, e2).into()),
             },
@@ -67,8 +67,8 @@ impl Step for Lam<CoreStruct> {
             Core::Pred { pred } => {
                 if let Some(v) = pred.is_value() {
                     match v {
-                        ExtValue::Fun { .. } => None,
-                        ExtValue::Num(number) => {
+                        Value::Fun { .. } => None,
+                        Value::Num(number) => {
                             fn wrap(t: Core<Lam<CoreStruct>>) -> Lam<CoreStruct> {
                                 t.into()
                             }
@@ -83,8 +83,8 @@ impl Step for Lam<CoreStruct> {
             Core::IfZ { cond, tcase, fcase } => {
                 if let Some(v) = cond.is_value() {
                     match v {
-                        ExtValue::Fun { .. } => None,
-                        ExtValue::Num(number) => {
+                        Value::Fun { .. } => None,
+                        Value::Num(number) => {
                             if number.is_zero() {
                                 Some(tcase)
                             } else {
@@ -103,7 +103,9 @@ impl Step for Lam<CoreStruct> {
                     )
                 }
             }
-            Core::Let { var, bind, body } => Some(Core::n_a(Core::n_l(var, body).into(), bind).into()),
+            Core::Let { var, bind, body } => {
+                Some(Core::n_a(Core::n_l(var, body).into(), bind).into())
+            }
             Core::Rec { fix, var, body } => Some(
                 Core::n_l(
                     var.clone(),
@@ -113,26 +115,6 @@ impl Step for Lam<CoreStruct> {
                 .into(),
             ),
         }
-    }
-}
-
-fn print(t: &Lam<CoreStruct>) -> String {
-    let Lam::Base(b) = t;
-    match b.as_ref() {
-        Core::Var { var } => format!("{var}"),
-        Core::Lam { var, body } => format!("fun {var} => {}", print(body)),
-        Core::App { e1, e2 } => format!("({} {})", print(e1), print(e2)),
-        Core::Zero => "0".to_string(),
-        Core::Succ { succ } => format!("S {}", print(succ)),
-        Core::Pred { pred } => format!("P {}", print(pred)),
-        Core::IfZ { cond, tcase, fcase } => format!(
-            "if {} then {} else {}",
-            print(cond),
-            print(tcase),
-            print(fcase)
-        ),
-        Core::Let { var, bind, body } => format!("let {var} = {} in \n {}", print(bind), print(body)),
-        Core::Rec { fix, var, body } => format!("rec {fix} {var} = {}", print(body)),
     }
 }
 
@@ -280,7 +262,7 @@ mod tests {
         let l: Lam<_> = double();
         let mut l: Lam<_> = eapp!(l, esucc!(esucc!(ezero!())));
         while let Some(l1) = l.step() {
-            println!("{}", print(&l1));
+            println!("{:?}", &l1);
             l = l1;
         }
     }
