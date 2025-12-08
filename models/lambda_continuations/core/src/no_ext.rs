@@ -1,126 +1,93 @@
-use std::{
-    collections::HashSet,
-    fmt::{Debug, Display},
-};
-
 use crate::{
-    lambda::{ext_to_ext_value, num_to_exp, Core, CoreStruct, Value},
-    traits::{LamFamily, LamFamilySubst, LambdaExt, Step},
+    lambda::{lam_to_value, num_to_exp, Lam, LamValue},
+    traits::{LambdaExt, Step},
 };
-use utils::variable::Var;
 
-pub enum Lam<T>
-where
-    T: LamFamily<Lam<T>>,
-{
-    Base(Box<T::This>),
-}
-
-impl LambdaExt for Lam<CoreStruct> {
-    fn free_variables(&self) -> HashSet<Var> {
-        match self {
-            Lam::Base(b) => b.as_ref().free_variables(),
-        }
-    }
-    fn bound_variables(&self) -> HashSet<Var> {
-        match self {
-            Lam::Base(b) => b.bound_variables(),
-        }
-    }
-    fn alpha_eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Lam::Base(b1), Lam::Base(b2)) => b1.alpha_eq(b2),
-        }
-    }
-    fn subst(self, v: Var, t: Self) -> Self {
-        match self {
-            Lam::Base(b) => b.subst_t(v, t),
-        }
-    }
-}
-
-impl Step for Lam<CoreStruct> {
-    type Value = Value<Lam<CoreStruct>>;
+impl Step for Lam {
+    type Value = LamValue;
     fn is_value(&self) -> Option<Self::Value> {
-        let Lam::Base(b) = self;
-        ext_to_ext_value(b.as_ref().clone(), t_to_core)
+        lam_to_value(self.clone())
     }
     fn step(self) -> Option<Self> {
-        let Lam::Base(b) = self;
-        match *b {
-            Core::Var { .. } => None,
-            Core::Lam { .. } => None,
-            Core::App { e1, e2 } => match (e1.is_value(), e2.is_value()) {
-                (Some(Value::Fun { var, body }), Some(_)) => Some(body.subst(var, e2)),
-                (Some(Value::Num(_)), Some(_)) => None,
-                (Some(_), None) => Some(Core::n_a(e1, e2.step()?).into()),
-                (None, _) => Some(Core::n_a(e1.step()?, e2).into()),
-            },
-            Core::Zero => None,
-            Core::Succ { succ } => {
+        match self {
+            Lam::Var { .. } => None,
+            Lam::Lam { .. } => None,
+            Lam::App { e1, e2 } => {
+                let e1 = *e1;
+                let e2 = *e2;
+                match (e1.is_value(), e2.is_value()) {
+                    (Some(LamValue::Fun { var, body }), Some(_)) => Some(body.subst(var, e2)),
+                    (Some(LamValue::Num(_)), Some(_)) => None,
+                    (Some(_), None) => Some(Lam::n_a(e1, e2.step()?)),
+                    (None, _) => Some(Lam::n_a(e1.step()?, e2)),
+                }
+            }
+            Lam::Zero => None,
+            Lam::Succ { succ } => {
+                let succ = *succ;
                 if succ.is_value().is_none() {
-                    Some(Lam::Base(Box::new(Core::Succ { succ: succ.step()? })))
+                    Some(Lam::n_s(succ.step()?))
                 } else {
                     None
                 }
             }
-            Core::Pred { pred } => {
+            Lam::Pred { pred } => {
+                let pred = *pred;
                 if let Some(v) = pred.is_value() {
                     match v {
-                        Value::Fun { .. } => None,
-                        Value::Num(number) => {
-                            fn wrap(t: Core<Lam<CoreStruct>>) -> Lam<CoreStruct> {
-                                t.into()
-                            }
-                            let e = num_to_exp(number.pred(), wrap);
-                            Some(e.into())
-                        }
+                        LamValue::Fun { .. } => None,
+                        LamValue::Num(number) => Some(num_to_exp(number.pred())),
                     }
                 } else {
-                    Some(Core::Pred { pred: pred.step()? }.into())
+                    Some(Lam::n_p(pred.step()?))
                 }
             }
-            Core::IfZ { cond, tcase, fcase } => {
+            Lam::IfZ { cond, tcase, fcase } => {
+                let cond = *cond;
                 if let Some(v) = cond.is_value() {
                     match v {
-                        Value::Fun { .. } => None,
-                        Value::Num(number) => {
+                        LamValue::Fun { .. } => None,
+                        LamValue::Num(number) => {
                             if number.is_zero() {
-                                Some(tcase)
+                                Some(*tcase)
                             } else {
-                                Some(fcase)
+                                Some(*fcase)
                             }
                         }
                     }
                 } else {
                     Some(
-                        Core::IfZ {
-                            cond: cond.step()?,
-                            tcase,
-                            fcase,
-                        }
-                        .into(),
+                        Lam::n_i(
+                            cond.step()?,
+                            *tcase,
+                            *fcase,
+                        ),
                     )
                 }
             }
-            Core::Let { var, bind, body } => {
-                Some(Core::n_a(Core::n_l(var, body).into(), bind).into())
+            Lam::Let { var, bind, body } => Some(Lam::n_a(Lam::n_l(var, *body), *bind)),
+            Lam::Rec { fix, var, body } => {
+                let body_term = (*body).clone();
+                let rec_term = Lam::n_r(fix.clone(), var.clone(), body_term.clone());
+                Some(Lam::n_l(var, body_term.subst(fix, rec_term)))
             }
-            Core::Rec { fix, var, body } => Some(
-                Core::n_l(
-                    var.clone(),
-                    body.clone()
-                        .subst(fix.clone(), Core::Rec { fix, var, body }.into()),
-                )
-                .into(),
-            ),
         }
     }
 }
 
-fn t_to_core(value: Lam<CoreStruct>) -> Option<Core<Lam<CoreStruct>>> {
-    match value {
-        Lam::Base(b) => Some(*b),
+pub fn print(t: &Lam) -> String {
+    match t {
+        Lam::Var { var } => format!("{var}"),
+        Lam::Lam { var, body } => format!("fun {var} => {}", print(body)),
+        Lam::App { e1, e2 } => format!("({} {})", print(e1), print(e2)),
+        Lam::Zero => "0".to_string(),
+        Lam::Succ { succ } => format!("S {}", print(succ)),
+        Lam::Pred { pred } => format!("P {}", print(pred)),
+        Lam::IfZ { cond, tcase, fcase } => {
+            format!("if {} then {} else {}", print(cond), print(tcase), print(fcase))
+        }
+        Lam::Let { var, bind, body } => format!("let {var} = {} in \n {}", print(bind), print(body)),
+        Lam::Rec { fix, var, body } => format!("rec {fix} {var} = {}", print(body)),
     }
 }
 
@@ -131,36 +98,38 @@ mod tests {
 
     #[test]
     fn test_variables() {
-        let l: Lam<CoreStruct> = bvar!("x");
-        assert_eq!(l.free_variables(), vec!["x".into()].into_iter().collect());
-        assert_eq!(l.bound_variables(), HashSet::new());
+        let l: Lam = bvar!("x");
+        assert_eq!(l.free_variables(), vec!["x".to_string()].into_iter().collect());
+        assert_eq!(l.bound_variables(), Default::default());
 
-        let l: Lam<CoreStruct> = blam!("x", bvar!("x"));
-        assert_eq!(l.free_variables(), HashSet::new());
-        assert_eq!(l.bound_variables(), vec!["x".into()].into_iter().collect());
+        let l: Lam = blam!("x", bvar!("x"));
+        assert_eq!(l.free_variables(), Default::default());
+        assert_eq!(l.bound_variables(), vec!["x".to_string()].into_iter().collect());
 
-        let l: Lam<CoreStruct> = blam!("x", bvar!("y"));
-        assert_eq!(l.free_variables(), vec!["y".into()].into_iter().collect());
-        assert_eq!(l.bound_variables(), vec!["x".into()].into_iter().collect());
+        let l: Lam = blam!("x", bvar!("y"));
+        assert_eq!(l.free_variables(), vec!["y".to_string()].into_iter().collect());
+        assert_eq!(l.bound_variables(), vec!["x".to_string()].into_iter().collect());
 
-        let l: Lam<CoreStruct> = bapp!(bvar!("x"), blam!("x", bvar!("z")));
+        let l: Lam = bapp!(bvar!("x"), blam!("x", bvar!("z")));
         assert_eq!(
             l.free_variables(),
-            vec!["x".into(), "z".into()].into_iter().collect()
+            vec!["x".to_string(), "z".to_string()]
+                .into_iter()
+                .collect()
         );
-        assert_eq!(l.bound_variables(), vec!["x".into()].into_iter().collect());
+        assert_eq!(l.bound_variables(), vec!["x".to_string()].into_iter().collect());
     }
 
     #[test]
     fn test_subst_alpha() {
-        let l1: Lam<CoreStruct> = blam!("x", blam!("x", bvar!("x")));
-        let l2: Lam<CoreStruct> = blam!("x", blam!("x", bvar!("y")));
-        let l3: Lam<CoreStruct> = blam!("x", blam!("y", bvar!("x")));
-        let l4: Lam<CoreStruct> = blam!("x", blam!("y", bvar!("y")));
-        let l5: Lam<CoreStruct> = blam!("y", blam!("x", bvar!("x")));
-        let l6: Lam<CoreStruct> = blam!("y", blam!("x", bvar!("y")));
-        let l7: Lam<CoreStruct> = blam!("y", blam!("y", bvar!("x")));
-        let l8: Lam<CoreStruct> = blam!("y", blam!("y", bvar!("y")));
+        let l1: Lam = blam!("x", blam!("x", bvar!("x")));
+        let l2: Lam = blam!("x", blam!("x", bvar!("y")));
+        let l3: Lam = blam!("x", blam!("y", bvar!("x")));
+        let l4: Lam = blam!("x", blam!("y", bvar!("y")));
+        let l5: Lam = blam!("y", blam!("x", bvar!("x")));
+        let l6: Lam = blam!("y", blam!("x", bvar!("y")));
+        let l7: Lam = blam!("y", blam!("y", bvar!("x")));
+        let l8: Lam = blam!("y", blam!("y", bvar!("y")));
 
         let set1 = vec![l1, l4, l5, l8];
         let set2 = vec![l3, l6];
@@ -184,18 +153,18 @@ mod tests {
 
     #[test]
     fn test_value_step() {
-        let l: Lam<_> = bvar!("x");
+        let l: Lam = bvar!("x");
         assert!(l.is_value().is_none());
-        let l: Lam<_> = blam!("x", bvar!("x"));
+        let l: Lam = blam!("x", bvar!("x"));
         assert!(l.is_value().is_some());
 
-        let l: Lam<_> = bapp!(blam!("x", bvar!("x")), blam!("y", blam!("z", bvar!("y"))));
+        let l: Lam = bapp!(blam!("x", bvar!("x")), blam!("y", blam!("z", bvar!("y"))));
         assert!(l.is_value().is_none());
         let l = l.step().unwrap();
         assert!(l.alpha_eq(&blam!("y", blam!("z", bvar!("y")))))
     }
 
-    fn double() -> Lam<CoreStruct> {
+    fn double() -> Lam {
         erec!(
             "f",
             "x",
@@ -209,13 +178,13 @@ mod tests {
 
     #[test]
     fn etest_variables() {
-        let _: Lam<_> = evar!("x");
-        let _: Lam<_> = eapp!(evar!("x"), evar!("x"));
-        let _: Lam<_> = ezero!();
-        let _: Lam<_> = esucc!(evar!("x"));
-        let _: Lam<_> = epred!(esucc!(ezero!()));
-        let _: Lam<_> = elet!("x", ezero!(), esucc!(evar!("x")));
-        let _: Lam<_> = erec!(
+        let _: Lam = evar!("x");
+        let _: Lam = eapp!(evar!("x"), evar!("x"));
+        let _: Lam = ezero!();
+        let _: Lam = esucc!(evar!("x"));
+        let _: Lam = epred!(esucc!(ezero!()));
+        let _: Lam = elet!("x", ezero!(), esucc!(evar!("x")));
+        let _: Lam = erec!(
             "f",
             "x",
             eif!(
@@ -228,14 +197,14 @@ mod tests {
 
     #[test]
     fn etest_subst_alpha() {
-        let l1: Lam<CoreStruct> = elam!("x", elam!("x", evar!("x")));
-        let l2: Lam<CoreStruct> = elam!("x", elam!("x", evar!("y")));
-        let l3: Lam<CoreStruct> = elam!("x", elam!("y", evar!("x")));
-        let l4: Lam<CoreStruct> = elam!("x", elam!("y", evar!("y")));
-        let l5: Lam<CoreStruct> = elam!("y", elam!("x", evar!("x")));
-        let l6: Lam<CoreStruct> = elam!("y", elam!("x", evar!("y")));
-        let l7: Lam<CoreStruct> = elam!("y", elam!("y", evar!("x")));
-        let l8: Lam<CoreStruct> = elam!("y", elam!("y", evar!("y")));
+        let l1: Lam = elam!("x", elam!("x", evar!("x")));
+        let l2: Lam = elam!("x", elam!("x", evar!("y")));
+        let l3: Lam = elam!("x", elam!("y", evar!("x")));
+        let l4: Lam = elam!("x", elam!("y", evar!("y")));
+        let l5: Lam = elam!("y", elam!("x", evar!("x")));
+        let l6: Lam = elam!("y", elam!("x", evar!("y")));
+        let l7: Lam = elam!("y", elam!("y", evar!("x")));
+        let l8: Lam = elam!("y", elam!("y", evar!("y")));
 
         let set1 = vec![l1, l4, l5, l8];
         let set2 = vec![l3, l6];
@@ -259,50 +228,11 @@ mod tests {
 
     #[test]
     fn etest_value_step() {
-        let l: Lam<_> = double();
-        let mut l: Lam<_> = eapp!(l, esucc!(esucc!(ezero!())));
+        let l: Lam = double();
+        let mut l: Lam = eapp!(l, esucc!(esucc!(ezero!())));
         while let Some(l1) = l.step() {
-            println!("{:?}", &l1);
+            println!("{}", print(&l1));
             l = l1;
-        }
-    }
-}
-
-mod traits {
-    use super::*;
-
-    impl Clone for Lam<CoreStruct> {
-        fn clone(&self) -> Self {
-            let Lam::Base(b) = self;
-            Lam::Base(b.clone())
-        }
-    }
-
-    impl PartialEq for Lam<CoreStruct> {
-        fn eq(&self, other: &Self) -> bool {
-            let Lam::Base(b1) = self;
-            let Lam::Base(b2) = other;
-            b1 == b2
-        }
-    }
-
-    impl Debug for Lam<CoreStruct> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let Lam::Base(b) = self;
-            write!(f, "{:?}", b)
-        }
-    }
-
-    impl Display for Lam<CoreStruct> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let Lam::Base(b) = self;
-            write!(f, "{:?}", b)
-        }
-    }
-
-    impl From<Core<Lam<CoreStruct>>> for Lam<CoreStruct> {
-        fn from(value: Core<Lam<CoreStruct>>) -> Self {
-            Lam::Base(Box::new(value))
         }
     }
 }

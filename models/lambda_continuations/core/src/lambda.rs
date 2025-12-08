@@ -1,541 +1,408 @@
 use std::collections::HashSet;
 
-use crate::traits::*;
-use utils::number::Number;
-use utils::variable::Var;
+use crate::traits::LambdaExt;
+use utils::{
+    number::Number,
+    variable::{Var},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Core<T> {
+pub enum Lam {
     Var { var: Var },
-    Lam { var: Var, body: T },
-    App { e1: T, e2: T },
+    Lam { var: Var, body: Box<Lam> },
+    App { e1: Box<Lam>, e2: Box<Lam> },
     Zero,
-    Succ { succ: T },
-    Pred { pred: T },
-    IfZ { cond: T, tcase: T, fcase: T },
-    Let { var: Var, bind: T, body: T },
-    Rec { fix: Var, var: Var, body: T },
+    Succ { succ: Box<Lam> },
+    Pred { pred: Box<Lam> },
+    IfZ { cond: Box<Lam>, tcase: Box<Lam>, fcase: Box<Lam> },
+    Let { var: Var, bind: Box<Lam>, body: Box<Lam> },
+    Rec { fix: Var, var: Var, body: Box<Lam> },
 }
 
-impl<T> Core<T> {
+impl Lam {
     pub fn n_v(var: Var) -> Self {
-        Core::Var { var }
+        Lam::Var { var }
     }
-    pub fn n_l(var: Var, body: T) -> Self {
-        Core::Lam { var, body }
+    pub fn n_l(var: Var, body: Lam) -> Self {
+        Lam::Lam {
+            var,
+            body: Box::new(body),
+        }
     }
-    pub fn n_a(e1: T, e2: T) -> Self {
-        Core::App { e1, e2 }
+    pub fn n_a(e1: Lam, e2: Lam) -> Self {
+        Lam::App {
+            e1: Box::new(e1),
+            e2: Box::new(e2),
+        }
     }
     pub fn n_z() -> Self {
-        Core::Zero
+        Lam::Zero
     }
-    pub fn n_s(succ: T) -> Self {
-        Core::Succ { succ }
+    pub fn n_s(succ: Lam) -> Self {
+        Lam::Succ {
+            succ: Box::new(succ),
+        }
     }
-    pub fn n_p(pred: T) -> Self {
-        Core::Pred { pred }
+    pub fn n_p(pred: Lam) -> Self {
+        Lam::Pred {
+            pred: Box::new(pred),
+        }
     }
-    pub fn n_i(cond: T, tcase: T, fcase: T) -> Self {
-        Core::IfZ { cond, tcase, fcase }
+    pub fn n_i(cond: Lam, tcase: Lam, fcase: Lam) -> Self {
+        Lam::IfZ {
+            cond: Box::new(cond),
+            tcase: Box::new(tcase),
+            fcase: Box::new(fcase),
+        }
     }
-    pub fn n_d(var: Var, bind: T, body: T) -> Self {
-        Core::Let { var, bind, body }
+    pub fn n_d(var: Var, bind: Lam, body: Lam) -> Self {
+        Lam::Let {
+            var,
+            bind: Box::new(bind),
+            body: Box::new(body),
+        }
     }
-    pub fn n_r(fix: Var, var: Var, body: T) -> Self {
-        Core::Rec { fix, var, body }
+    pub fn n_r(fix: Var, var: Var, body: Lam) -> Self {
+        Lam::Rec {
+            fix,
+            var,
+            body: Box::new(body),
+        }
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Value<T> {
-    Fun { var: Var, body: T },
+
+fn same_var(a: &Var, b: &Var) -> bool {
+    a.as_str() == b.as_str()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LamValue {
+    Fun { var: Var, body: Lam },
     Num(Number),
 }
 
-impl<T> From<Value<T>> for Core<T>
-where
-    T: From<Core<T>>,
-{
-    fn from(value: Value<T>) -> Self {
-        fn num_to_exp<T>(n: Number) -> Core<T>
-        where
-            T: From<Core<T>>,
-        {
-            if n == 0.into() {
-                Core::Zero
-            } else {
-                let succ: Core<T> = num_to_exp(n.pred());
-                let succ: T = succ.into();
-                Core::Succ { succ }
-            }
-        }
+impl From<LamValue> for Lam {
+    fn from(value: LamValue) -> Self {
         match value {
-            Value::Fun { var, body } => Core::Lam { var, body },
-            Value::Num(n) => num_to_exp(n),
+            LamValue::Fun { var, body } => Lam::n_l(var, body),
+            LamValue::Num(n) => num_to_exp(n),
         }
     }
 }
 
-pub fn num_to_exp<T, F>(n: Number, f: F) -> Core<T>
-where
-    F: Fn(Core<T>) -> T + Clone,
-{
+pub fn num_to_exp(n: Number) -> Lam {
     if n.is_zero() {
-        Core::Zero
+        Lam::n_z()
     } else {
-        Core::Succ {
-            succ: f(num_to_exp(n.pred(), f.clone())),
-        }
+        Lam::n_s(num_to_exp(n.pred()))
     }
 }
 
-fn exp_to_num<T, F>(t: Core<T>, f: F) -> Option<Number>
-where
-    F: Fn(T) -> Option<Core<T>>,
-{
-    if let Core::Zero = t {
-        Some(0.into())
-    } else if let Core::Succ { succ } = t {
-        Some(exp_to_num(f(succ)?, f)?.succ())
-    } else {
-        None
+fn exp_to_num(t: Lam) -> Option<Number> {
+    match t {
+        Lam::Zero => Some(0.into()),
+        Lam::Succ { succ } => exp_to_num(*succ).map(|n| n.succ()),
+        _ => None,
     }
 }
 
-pub fn ext_to_ext_value<T, F>(value: Core<T>, f: F) -> Option<Value<T>>
-where
-    F: Fn(T) -> Option<Core<T>>,
-{
+pub fn lam_to_value(value: Lam) -> Option<LamValue> {
     match value {
-        Core::Lam { var, body } => Some(Value::Fun { var, body }),
-        _ => Some(Value::Num(exp_to_num(value, f)?)),
+        Lam::Lam { var, body } => Some(LamValue::Fun {
+            var,
+            body: *body,
+        }),
+        other => Some(LamValue::Num(exp_to_num(other)?)),
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum CoreFrame<T> {
-    EvalR { left_value: Value<T> },
-    EvalL { right_exp: T },
-    EvalSucc,
-    EvalPred,
-    EvalIf { tcase: T, fcase: T },
-    EvalLet { var: Var, body: T },
-}
-
-impl<T> CoreFrame<T>
-where
-    T: Clone + From<Core<T>>,
-{
-    pub fn decomp<F>(t: Core<T>, is_value: F) -> Option<(CoreFrame<T>, T)>
-    where
-        F: Fn(T) -> Option<Value<T>> + Clone,
-    {
-        match t {
-            Core::Var { var: _ } => None,
-            Core::Lam { var: _, body: _ } => None,
-            Core::App { e1, e2 } => match is_value(e1.clone()) {
-                Some(value) => Some((CoreFrame::EvalR { left_value: value }, e2)),
-                None => Some((CoreFrame::EvalL { right_exp: e2 }, e1)),
-            },
-            Core::Zero => None,
-            Core::Succ { succ } => Some((CoreFrame::EvalSucc, succ)),
-            Core::Pred { pred } => Some((CoreFrame::EvalPred, pred)),
-            Core::IfZ { cond, tcase, fcase } => Some((CoreFrame::EvalIf { tcase, fcase }, cond)),
-            Core::Let { var, bind, body } => Some((CoreFrame::EvalLet { var, body }, bind)),
-            Core::Rec {
-                fix: _,
-                var: _,
-                body: _,
-            } => None,
-        }
-    }
-    pub fn plug(self, t: T) -> Core<T> {
+impl LambdaExt for Lam {
+    fn free_variables(&self) -> HashSet<String> {
         match self {
-            CoreFrame::EvalR { left_value } => {
-                let v: Core<T> = left_value.into();
-                Core::App {
-                    e1: v.into(),
-                    e2: t,
-                }
+            Lam::Var { var } => {
+                let mut set = HashSet::new();
+                set.insert(var.as_str().to_string());
+                set
             }
-            CoreFrame::EvalL { right_exp } => Core::App {
-                e1: t,
-                e2: right_exp,
-            },
-            CoreFrame::EvalSucc => Core::Succ { succ: t },
-            CoreFrame::EvalPred => Core::Pred { pred: t },
-            CoreFrame::EvalIf { tcase, fcase } => Core::IfZ {
-                cond: t,
-                tcase,
-                fcase,
-            },
-            CoreFrame::EvalLet { var, body } => Core::Let { var, bind: t, body },
-        }
-    }
-}
-
-impl<T> LambdaExt for Core<T>
-where
-    T: LambdaExt + Clone + PartialEq + From<Core<T>>,
-{
-    fn free_variables(&self) -> HashSet<Var> {
-        let mut set = HashSet::default();
-        match self {
-            Core::Var { var } => {
-                set.insert(var.clone());
+            Lam::Lam { var, body } => {
+                let mut set = body.free_variables();
+                set.remove(var.as_str());
+                set
             }
-            Core::Lam { var, body } => {
-                set.extend(body.free_variables());
-                set.remove(var);
-            }
-            Core::App { e1, e2 } => {
-                set.extend(e1.free_variables());
+            Lam::App { e1, e2 } => {
+                let mut set = e1.free_variables();
                 set.extend(e2.free_variables());
+                set
             }
-            Core::Zero => {}
-            Core::Succ { succ } => set.extend(succ.free_variables()),
-            Core::Pred { pred } => {
-                set.extend(pred.free_variables());
-            }
-            Core::IfZ { cond, tcase, fcase } => {
-                set.extend(cond.free_variables());
+            Lam::Zero => HashSet::new(),
+            Lam::Succ { succ } => succ.free_variables(),
+            Lam::Pred { pred } => pred.free_variables(),
+            Lam::IfZ { cond, tcase, fcase } => {
+                let mut set = cond.free_variables();
                 set.extend(tcase.free_variables());
                 set.extend(fcase.free_variables());
+                set
             }
-            Core::Let { var, bind, body } => {
-                set.extend(body.free_variables());
-                set.remove(var);
+            Lam::Let { var, bind, body } => {
+                let mut set = body.free_variables();
+                set.remove(var.as_str());
                 set.extend(bind.free_variables());
+                set
             }
-            Core::Rec { fix, var, body } => {
-                set.extend(body.free_variables());
-                set.remove(fix);
-                set.remove(var);
+            Lam::Rec { fix, var, body } => {
+                let mut set = body.free_variables();
+                set.remove(fix.as_str());
+                set.remove(var.as_str());
+                set
             }
         }
-        set
     }
-    fn bound_variables(&self) -> HashSet<Var> {
-        let mut set = HashSet::default();
+
+    fn bound_variables(&self) -> HashSet<String> {
         match self {
-            Core::Var { var: _ } => {}
-            Core::Lam { var, body } => {
-                set.extend(body.bound_variables());
-                set.insert(var.clone());
+            Lam::Var { .. } => HashSet::new(),
+            Lam::Lam { var, body } => {
+                let mut set = body.bound_variables();
+                set.insert(var.as_str().to_string());
+                set
             }
-            Core::App { e1, e2 } => {
-                set.extend(e1.bound_variables());
+            Lam::App { e1, e2 } => {
+                let mut set = e1.bound_variables();
                 set.extend(e2.bound_variables());
+                set
             }
-            Core::Zero => {}
-            Core::Succ { succ } => set.extend(succ.bound_variables()),
-            Core::Pred { pred } => {
-                set.extend(pred.bound_variables());
-            }
-            Core::IfZ { cond, tcase, fcase } => {
-                set.extend(cond.bound_variables());
+            Lam::Zero => HashSet::new(),
+            Lam::Succ { succ } => succ.bound_variables(),
+            Lam::Pred { pred } => pred.bound_variables(),
+            Lam::IfZ { cond, tcase, fcase } => {
+                let mut set = cond.bound_variables();
                 set.extend(tcase.bound_variables());
                 set.extend(fcase.bound_variables());
+                set
             }
-            Core::Let { var, bind, body } => {
-                set.extend(body.bound_variables());
-                set.insert(var.clone());
+            Lam::Let { var, bind, body } => {
+                let mut set = body.bound_variables();
+                set.insert(var.as_str().to_string());
                 set.extend(bind.bound_variables());
+                set
             }
-            Core::Rec { fix, var, body } => {
-                set.extend(body.bound_variables());
-                set.insert(fix.clone());
-                set.insert(var.clone());
+            Lam::Rec { fix, var, body } => {
+                let mut set = body.bound_variables();
+                set.insert(fix.as_str().to_string());
+                set.insert(var.as_str().to_string());
+                set
             }
         }
-        set
     }
+
     fn alpha_eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Core::Var { var: var1 }, Core::Var { var: var2 }) => var1 == var2,
-            (Core::App { e1: m1, e2: m2 }, Core::App { e1: n1, e2: n2 }) => {
-                m1.alpha_eq(n1) && m2.alpha_eq(n2)
+            (Lam::Var { var: v1 }, Lam::Var { var: v2 }) => same_var(v1, v2),
+            (Lam::App { e1: l1, e2: l2 }, Lam::App { e1: r1, e2: r2 }) => {
+                l1.alpha_eq(r1) && l2.alpha_eq(r2)
             }
-            (
-                Core::Lam {
-                    var: var1,
-                    body: body1,
-                },
-                Core::Lam {
-                    var: var2,
-                    body: body2,
-                },
-            ) => {
+            (Lam::Lam { var: v1, body: b1 }, Lam::Lam { var: v2, body: b2 }) => {
                 let new_var = Var::dummy();
-                let body1 = body1
-                    .clone()
-                    .subst(var1.clone(), Core::n_v(new_var.clone()).into());
-                let body2 = body2
-                    .clone()
-                    .subst(var2.clone(), Core::n_v(new_var.clone()).into());
+                let body1 = b1.as_ref().clone().subst(v1.clone(), Lam::n_v(new_var.clone()));
+                let body2 = b2.as_ref().clone().subst(v2.clone(), Lam::n_v(new_var));
                 body1.alpha_eq(&body2)
             }
-            (Core::Zero, Core::Zero) => true,
-            (Core::Succ { succ: succ1 }, Core::Succ { succ: succ2 }) => succ1.alpha_eq(succ2),
-            (Core::Pred { pred: pred1 }, Core::Pred { pred: pred2 }) => pred1.alpha_eq(pred2),
+            (Lam::Zero, Lam::Zero) => true,
+            (Lam::Succ { succ: l }, Lam::Succ { succ: r }) => l.alpha_eq(r),
+            (Lam::Pred { pred: l }, Lam::Pred { pred: r }) => l.alpha_eq(r),
             (
-                Core::IfZ {
-                    cond: cond1,
-                    tcase: tcase1,
-                    fcase: fcase1,
+                Lam::IfZ {
+                    cond: c1,
+                    tcase: t1,
+                    fcase: f1,
                 },
-                Core::IfZ {
-                    cond: cond2,
-                    tcase: tcase2,
-                    fcase: fcase2,
+                Lam::IfZ {
+                    cond: c2,
+                    tcase: t2,
+                    fcase: f2,
                 },
-            ) => cond1.alpha_eq(cond2) && tcase1.alpha_eq(tcase2) && fcase1.alpha_eq(fcase2),
+            ) => c1.alpha_eq(c2) && t1.alpha_eq(t2) && f1.alpha_eq(f2),
             (
-                Core::Let {
-                    var: var1,
-                    bind: bind1,
+                Lam::Let {
+                    var: v1,
+                    bind: b1,
                     body: body1,
                 },
-                Core::Let {
-                    var: var2,
-                    bind: bind2,
+                Lam::Let {
+                    var: v2,
+                    bind: b2,
                     body: body2,
                 },
             ) => {
                 body1.alpha_eq(body2)
-                    && Core::Lam {
-                        var: var1.clone(),
-                        body: bind1.clone(),
-                    }
-                    .alpha_eq(&Core::Lam {
-                        var: var2.clone(),
-                        body: bind2.clone(),
-                    })
+                    && Lam::n_l(v1.clone(), b1.as_ref().clone())
+                        .alpha_eq(&Lam::n_l(v2.clone(), b2.as_ref().clone()))
             }
             (
-                Core::Rec {
-                    fix: fix1,
-                    var: var1,
-                    body: body1,
+                Lam::Rec {
+                    fix: f1,
+                    var: v1,
+                    body: b1,
                 },
-                Core::Rec {
-                    fix: fix2,
-                    var: var2,
-                    body: body2,
+                Lam::Rec {
+                    fix: f2,
+                    var: v2,
+                    body: b2,
                 },
             ) => {
                 let new_var = Var::dummy();
                 let new_fix = Var::dummy();
-                let body1 = body1
+                let body1 = b1
                     .clone()
-                    .subst(var1.clone(), Core::n_v(new_var.clone()).into())
-                    .subst(fix1.clone(), Core::n_v(new_fix.clone()).into());
-                let body2 = body2
+                    .subst(v1.clone(), Lam::n_v(new_var.clone()))
+                    .subst(f1.clone(), Lam::n_v(new_fix.clone()));
+                let body2 = b2
                     .clone()
-                    .subst(var2.clone(), Core::n_v(new_var.clone()).into())
-                    .subst(fix2.clone(), Core::n_v(new_fix.clone()).into());
+                    .subst(v2.clone(), Lam::n_v(new_var))
+                    .subst(f2.clone(), Lam::n_v(new_fix));
                 body1.alpha_eq(&body2)
             }
             _ => false,
         }
     }
+
     fn subst(self, v: Var, t: Self) -> Self {
         match self {
-            Core::Var { var } => {
-                if var == v {
+            Lam::Var { var } => {
+                if same_var(&var, &v) {
                     t
                 } else {
-                    Core::Var { var }
+                    Lam::Var { var }
                 }
             }
-            Core::Lam { var, body } => {
+            Lam::Lam { var, body } => {
                 let new_var = Var::dummy();
-                Core::n_l(
+                let body = *body;
+                Lam::n_l(
                     new_var.clone(),
-                    body.subst(var, Core::n_v(new_var).into())
-                        .subst(v, t.into()),
+                    body.subst(var, Lam::n_v(new_var)).subst(v, t),
                 )
             }
-            Core::App { e1, e2 } => {
-                Core::n_a(e1.subst(v.clone(), t.clone().into()), e2.subst(v, t.into()))
+            Lam::App { e1, e2 } => {
+                Lam::n_a(
+                    (*e1).subst(v.clone(), t.clone()),
+                    (*e2).subst(v, t),
+                )
             }
-            Core::Zero => Core::n_z(),
-            Core::Succ { succ } => Core::n_s(succ.subst(v, t.into())),
-            Core::Pred { pred } => Core::n_p(pred.subst(v, t.into())),
-            Core::IfZ { cond, tcase, fcase } => Core::n_i(
-                cond.subst(v.clone(), t.clone().into()),
-                tcase.subst(v.clone(), t.clone().into()),
-                fcase.subst(v, t.into()),
+            Lam::Zero => Lam::n_z(),
+            Lam::Succ { succ } => Lam::n_s((*succ).subst(v, t)),
+            Lam::Pred { pred } => Lam::n_p((*pred).subst(v, t)),
+            Lam::IfZ { cond, tcase, fcase } => Lam::n_i(
+                (*cond).subst(v.clone(), t.clone()),
+                (*tcase).subst(v.clone(), t.clone()),
+                (*fcase).subst(v, t),
             ),
-            Core::Let { var, bind, body } => {
+            Lam::Let { var, bind, body } => {
                 let new_var = Var::dummy();
-                let bind = bind.subst(v.clone(), t.clone().into());
+                let bind = (*bind).subst(v.clone(), t.clone());
                 let body = body
-                    .subst(var, Core::n_v(new_var.clone()).into())
-                    .subst(v, t.into());
-                Core::n_d(new_var, bind, body)
+                    .subst(var, Lam::n_v(new_var.clone()))
+                    .subst(v, t);
+                Lam::n_d(new_var, bind, body)
             }
-            Core::Rec { fix, var, body } => {
+            Lam::Rec { fix, var, body } => {
                 let new_fix = Var::dummy();
                 let new_var = Var::dummy();
                 let new_body = body
-                    .subst(fix.clone(), Core::n_v(new_fix.clone()).into())
-                    .subst(var.clone(), Core::n_v(new_var.clone()).into())
-                    .subst(v, t.into());
-                Core::n_r(new_fix, new_var, new_body)
+                    .subst(fix.clone(), Lam::n_v(new_fix.clone()))
+                    .subst(var.clone(), Lam::n_v(new_var.clone()))
+                    .subst(v, t);
+                Lam::n_r(new_fix, new_var, new_body)
             }
         }
     }
-}
-
-impl<T> LamFamilySubst<T> for Core<T>
-where
-    T: LambdaExt + From<Core<T>> + Clone,
-{
-    /// (Ext<T>, Var, T) -> T
-    fn subst_t(self, v: Var, t: T) -> T {
-        match self {
-            Core::Var { var } => {
-                if var == v {
-                    t
-                } else {
-                    Core::Var { var }.into()
-                }
-            }
-            Core::Lam { var, body } => {
-                let new_var = Var::dummy();
-                Core::n_l(
-                    new_var.clone(),
-                    body.subst(var, Core::n_v(new_var).into()).subst(v, t),
-                )
-                .into()
-            }
-            Core::App { e1, e2 } => {
-                Core::n_a(e1.subst(v.clone(), t.clone()), e2.subst(v, t)).into()
-            }
-            Core::Zero => Core::n_z().into(),
-            Core::Succ { succ } => Core::n_s(succ.subst(v, t)).into(),
-            Core::Pred { pred } => Core::n_p(pred.subst(v, t)).into(),
-            Core::IfZ { cond, tcase, fcase } => Core::n_i(
-                cond.subst(v.clone(), t.clone()),
-                tcase.subst(v.clone(), t.clone()),
-                fcase.subst(v, t),
-            )
-            .into(),
-            Core::Let { var, bind, body } => {
-                let new_var = Var::dummy();
-                let bind = bind.subst(v.clone(), t.clone());
-                let body = body
-                    .subst(var, Core::n_v(new_var.clone()).into())
-                    .subst(v, t);
-                Core::n_d(new_var, bind, body).into()
-            }
-            Core::Rec { fix, var, body } => {
-                let new_fix = Var::dummy();
-                let new_var = Var::dummy();
-                let new_body = body
-                    .subst(fix.clone(), Core::n_v(new_fix.clone()).into())
-                    .subst(var.clone(), Core::n_v(new_var.clone()).into())
-                    .subst(v, t);
-                Core::n_r(new_fix, new_var, new_body).into()
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CoreStruct;
-
-impl<T> LamFamily<T> for CoreStruct {
-    type This = Core<T>;
 }
 
 #[macro_export]
 macro_rules! bvar {
     ($name:literal) => {
-        $crate::lambda::Core::n_v(utils::variable::Var::from($name)).into()
+        $crate::lambda::Lam::n_v(::utils::variable::Var::from($name))
     };
 }
 
 #[macro_export]
 macro_rules! blam {
     ($name:literal, $body:expr) => {
-        $crate::lambda::Core::n_l(utils::variable::Var::from($name), $body).into()
+        $crate::lambda::Lam::n_l(::utils::variable::Var::from($name), $body)
     };
 }
 
 #[macro_export]
 macro_rules! bapp {
     ($e1:expr, $e2:expr) => {
-        $crate::lambda::Core::n_a($e1, $e2).into()
-    };
-}
-
-#[macro_export]
-macro_rules! evar {
-    ($name:literal) => {
-        $crate::lambda::Core::n_v(utils::variable::Var::from($name)).into()
-    };
-}
-
-#[macro_export]
-macro_rules! elam {
-    ($name:literal, $body:expr) => {
-        $crate::lambda::Core::n_l(utils::variable::Var::from($name), $body).into()
-    };
-}
-
-#[macro_export]
-macro_rules! eapp {
-    ($e1:expr, $e2:expr) => {
-        $crate::lambda::Core::n_a($e1, $e2).into()
+        $crate::lambda::Lam::n_a($e1, $e2)
     };
 }
 
 #[macro_export]
 macro_rules! ezero {
     () => {
-        $crate::lambda::Core::n_z().into()
+        $crate::lambda::Lam::n_z()
+    };
+}
+
+#[macro_export]
+macro_rules! evar {
+    ($name:literal) => {
+        $crate::lambda::Lam::n_v(::utils::variable::Var::from($name))
+    };
+}
+
+#[macro_export]
+macro_rules! elam {
+    ($name:literal, $body:expr) => {
+        $crate::lambda::Lam::n_l(::utils::variable::Var::from($name), $body)
+    };
+}
+
+#[macro_export]
+macro_rules! eapp {
+    ($e1:expr, $e2:expr) => {
+        $crate::lambda::Lam::n_a($e1, $e2)
     };
 }
 
 #[macro_export]
 macro_rules! esucc {
     ($t:expr) => {
-        $crate::lambda::Core::n_s($t).into()
+        $crate::lambda::Lam::n_s($t)
     };
 }
 
 #[macro_export]
 macro_rules! epred {
     ($t:expr) => {
-        $crate::lambda::Core::n_p($t).into()
+        $crate::lambda::Lam::n_p($t)
     };
 }
 
 #[macro_export]
 macro_rules! eif {
     ($cond:expr, $tcase:expr, $fcase:expr) => {
-        $crate::lambda::Core::n_i($cond, $tcase, $fcase).into()
+        $crate::lambda::Lam::n_i($cond, $tcase, $fcase)
     };
 }
 
 #[macro_export]
 macro_rules! elet {
     ($name:literal, $bind:expr, $body:expr) => {
-        $crate::lambda::Core::n_d(utils::variable::Var::from($name), $bind, $body).into()
+        $crate::lambda::Lam::n_d(::utils::variable::Var::from($name), $bind, $body)
     };
 }
 
 #[macro_export]
 macro_rules! erec {
     ($fix:literal, $var:literal, $body:expr) => {
-        $crate::lambda::Core::n_r(
-            utils::variable::Var::from($fix),
-            utils::variable::Var::from($var),
+        $crate::lambda::Lam::n_r(
+            ::utils::variable::Var::from($fix),
+            ::utils::variable::Var::from($var),
             $body,
         )
-        .into()
     };
 }
 

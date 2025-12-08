@@ -1,5 +1,10 @@
-use std::fmt::Display;
-use std::rc::Rc;
+use std::{
+    fmt::Display,
+    rc::Rc,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
+static DUMMY_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, Clone, Eq, PartialOrd, Ord)]
 pub struct Var(Rc<str>);
@@ -9,7 +14,8 @@ impl Var {
         Var(Rc::from(s))
     }
     pub fn dummy() -> Self {
-        Var(Rc::from("_"))
+        let id = DUMMY_COUNTER.fetch_add(1, Ordering::Relaxed);
+        Var(Rc::from(format!("_dummy_{id}")))
     }
     pub fn as_str(&self) -> &str {
         &self.0
