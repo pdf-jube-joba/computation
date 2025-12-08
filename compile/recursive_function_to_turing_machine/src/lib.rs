@@ -1,4 +1,4 @@
-use turing_machine_core::{machine::*, manipulation::builder::TuringMachineBuilder};
+use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 
 // 最後の edge の番号 = n
 fn accept_end_only(n: usize) -> Vec<Vec<State>> {

@@ -1,4 +1,4 @@
-use turing_machine_core::manipulation::{
+use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
     code::parse_one_code_entry,
     graph_compose::{builder_composition, GraphOfBuilder},

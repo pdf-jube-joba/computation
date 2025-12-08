@@ -1,8 +1,8 @@
-use recursive_function_core::machine::RecursiveFunctions;
-use turing_machine_core::manipulation::builder::TuringMachineBuilder;
+use recursive_function::machine::RecursiveFunctions;
+use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
-    use turing_machine_core::machine::{Sign, Tape};
+    use turing_machine::machine::{Sign, Tape};
     use utils::number::*;
 
     fn partition() -> Sign {

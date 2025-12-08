@@ -1,4 +1,4 @@
-use turing_machine_core::manipulation::{
+use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
     graph_compose::{builder_composition, GraphOfBuilder},
 };
@@ -151,7 +151,7 @@ pub fn mu_recursion(builder: TuringMachineBuilder) -> TuringMachineBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use turing_machine_core::machine::Tape;
+    use turing_machine::machine::Tape;
     #[test]
     fn builder_sage() {
         let _ = start_0();

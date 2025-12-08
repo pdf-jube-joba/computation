@@ -1,5 +1,5 @@
 [package]
-name = "recursive_function_to_lambda_calculus"
+name = "lambda_calculus"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,8 @@ edition = "2021"
 
 [dependencies]
 utils = { workspace = true }
-lambda_calculus = { workspace = true }
-recursive_function = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+anyhow = { workspace = true }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }

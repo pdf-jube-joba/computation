@@ -2,9 +2,7 @@
 resolver = "2"
 members = [
   "utils",
-  "models/*/core",
-  "models/*/cui",
-  "models/*/web",
+  "models/*",
   "compile/*",
   "web_builder",
 ]
@@ -16,16 +14,15 @@ exclude = [
 [workspace.dependencies]
 utils = { path = "./utils" }
 
-counter_machine_core = { path = "./models/counter_machine/core" }
-cpu_emulator_core = { path = "./models/cpu_emulator/core" }
-lambda_calculus_core = { path = "./models/lambda_calculus/core" }
-lambda_continuation_cores = { path = "./models/lambda_continuations/core" }
-logic_circuit_core = { path = "./models/logic_circuit/core" }
-my_hdl_core = { path = "./models/my_hdl/core" }
-recursive_function_core =  { path = "./models/recursive_function/core" }
-turing_machine_core = { path = "./models/turing_machine/core" }
-turing_machine_web = { path = "./models/turing_machine/web" }
-while_minus_lang_core = { path = "./models/while_minus_lang/core" }
+counter_machine = { path = "./models/counter_machine" }
+cpu_emulator = { path = "./models/cpu_emulator" }
+lambda_calculus = { path = "./models/lambda_calculus" }
+lambda_continuation = { path = "./models/lambda_continuations" }
+logic_circuit = { path = "./models/logic_circuit" }
+my_hdl = { path = "./models/my_hdl" }
+recursive_function =  { path = "./models/recursive_function" }
+turing_machine = { path = "./models/turing_machine" }
+while_minus_lang = { path = "./models/while_minus_lang" }
 
 either = "1.0.0"
 anyhow = "1.0.0"

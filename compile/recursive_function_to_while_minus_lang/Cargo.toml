@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 utils = { workspace =  true }
-while_minus_lang_core = { workspace = true }
-recursive_function_core = { workspace = true }
+while_minus_lang = { workspace = true }
+recursive_function = { workspace = true }

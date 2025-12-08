@@ -103,7 +103,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter_machine_core"
+name = "counter_machine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -111,44 +111,15 @@ dependencies = [
  "pest_derive",
  "utils",
 ]
-
-[[package]]
-name = "counter_machine_cui"
-version = "0.1.0"
 
 [[package]]
 name = "counter_machine_to_logic_circuits"
 version = "0.1.0"
 dependencies = [
- "counter_machine_core",
- "logic_circuit_core",
+ "counter_machine",
+ "logic_circuit",
  "utils",
 ]
-
-[[package]]
-name = "counter_machine_web"
-version = "0.1.0"
-
-[[package]]
-name = "cpu_emulator_core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "either",
- "pest",
- "pest_derive",
- "serde",
- "serde_json",
- "utils",
-]
-
-[[package]]
-name = "cpu_emulator_cui"
-version = "0.1.0"
-
-[[package]]
-name = "cpu_emulator_web"
-version = "0.1.0"
 
 [[package]]
 name = "cpufeatures"
@@ -518,27 +489,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "lambda_calculus_core"
+name = "lambda_calculus"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "pest",
  "pest_derive",
- "utils",
-]
-
-[[package]]
-name = "lambda_calculus_web"
-version = "0.1.0"
-dependencies = [
- "lambda_calculus_core",
  "serde",
  "utils",
  "wasm-bindgen",
 ]
 
 [[package]]
-name = "lambda_continuations_core"
+name = "lambda_continuations"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -548,14 +511,6 @@ dependencies = [
  "serde",
  "utils",
 ]
-
-[[package]]
-name = "lambda_continuations_cui"
-version = "0.1.0"
-
-[[package]]
-name = "lambda_continuations_web"
-version = "0.1.0"
 
 [[package]]
 name = "libc"
@@ -570,7 +525,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
-name = "logic_circuit_core"
+name = "logic_circuit"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -579,19 +534,6 @@ dependencies = [
  "pest_derive",
  "serde",
  "utils",
-]
-
-[[package]]
-name = "logic_circuit_cui"
-version = "0.1.0"
-
-[[package]]
-name = "logic_circuit_web"
-version = "0.1.0"
-dependencies = [
- "logic_circuit_core",
- "utils",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -610,7 +552,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "my_hdl_core"
+name = "my_hdl"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -621,14 +563,6 @@ dependencies = [
  "serde_json",
  "utils",
 ]
-
-[[package]]
-name = "my_hdl_cui"
-version = "0.1.0"
-
-[[package]]
-name = "my_hdl_web"
-version = "0.1.0"
 
 [[package]]
 name = "num_cpus"
@@ -819,7 +753,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "recursive_function_core"
+name = "recursive_function"
 version = "0.1.0"
 dependencies = [
  "pest",
@@ -830,15 +764,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "recursive_function_cui"
-version = "0.1.0"
-
-[[package]]
 name = "recursive_function_to_lambda_calculus"
 version = "0.1.0"
 dependencies = [
- "lambda_calculus_core",
- "recursive_function_core",
+ "lambda_calculus",
+ "recursive_function",
  "utils",
 ]
 
@@ -846,8 +776,8 @@ dependencies = [
 name = "recursive_function_to_turing_machine"
 version = "0.1.0"
 dependencies = [
- "recursive_function_core",
- "turing_machine_core",
+ "recursive_function",
+ "turing_machine",
  "utils",
 ]
 
@@ -855,18 +785,9 @@ dependencies = [
 name = "recursive_function_to_while_minus_lang"
 version = "0.1.0"
 dependencies = [
- "recursive_function_core",
+ "recursive_function",
  "utils",
- "while_minus_lang_core",
-]
-
-[[package]]
-name = "recursive_function_web"
-version = "0.1.0"
-dependencies = [
- "recursive_function_core",
- "utils",
- "wasm-bindgen",
+ "while_minus_lang",
 ]
 
 [[package]]
@@ -1088,21 +1009,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "turing_machine_core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "utils",
-]
-
-[[package]]
-name = "turing_machine_web"
+name = "turing_machine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
  "serde_json",
- "turing_machine_core",
  "utils",
  "wasm-bindgen",
 ]
@@ -1234,7 +1146,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
- "turing_machine_web",
+ "turing_machine",
  "utils",
  "wasm-bindgen",
  "web-sys",
@@ -1245,24 +1157,13 @@ name = "while_language"
 version = "0.1.0"
 
 [[package]]
-name = "while_minus_lang_core"
+name = "while_minus_lang"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "pest",
  "pest_derive",
  "utils",
-]
-
-[[package]]
-name = "while_minus_lang_web"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "utils",
- "wasm-bindgen",
- "while_minus_lang_core",
 ]
 
 [[package]]

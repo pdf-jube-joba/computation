@@ -14,8 +14,8 @@ serde-wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 
 utils = { workspace = true }
-turing_machine_web = { path = "../models/turing_machine/web", optional = true }
+turing_machine = { path = "../models/turing_machine", optional = true }
 
 [features]
 example = []
-turing_machine = ["turing_machine_web"]
+turing_machine_ = ["dep:turing_machine"]

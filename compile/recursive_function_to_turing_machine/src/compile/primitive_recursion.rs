@@ -1,4 +1,4 @@
-use turing_machine_core::manipulation::{
+use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
     graph_compose::{builder_composition, GraphOfBuilder},
 };
@@ -311,7 +311,7 @@ pub fn primitive_recursion(
 
 #[cfg(test)]
 mod tests {
-    use turing_machine_core::manipulation::tape::from_vec_and_position;
+    use turing_machine::manipulation::tape::from_vec_and_position;
 
     use super::*;
 
