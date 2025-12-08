@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, PartialOrd, Ord)]
 pub struct Var(Rc<str>);
 
 impl Var {
