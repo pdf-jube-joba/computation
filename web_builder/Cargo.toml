@@ -11,7 +11,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
-web-sys = { workspace = true }
 
 utils = { workspace = true }
 turing_machine = { path = "../models/turing_machine", optional = true }
