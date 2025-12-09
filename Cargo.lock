@@ -418,9 +418,7 @@ dependencies = [
  "anyhow",
  "either",
  "serde",
- "serde-wasm-bindgen",
  "serde_json",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -491,6 +489,7 @@ dependencies = [
 name = "web_builder"
 version = "0.1.0"
 dependencies = [
+ "goto_lang",
  "lambda_calculus",
  "serde",
  "serde-wasm-bindgen",

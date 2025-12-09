@@ -1,5 +1,4 @@
 use serde::Serialize;
-use wasm_bindgen::JsValue;
 
 pub mod alphabet;
 pub mod bool;
@@ -21,7 +20,7 @@ pub trait MealyMachine: Sized {
 
 pub trait OneTime: Sized {
     type Code: Serialize + Clone; // (A)
-    type Input: Serialize;
+    type Input: Serialize + Default;
     type Env: Serialize;
 
     fn parse_code(input: &str) -> Result<Self::Code, String>;
@@ -39,15 +38,6 @@ where
 {
     Machine(T),
     Code(T::Code),
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum OneTimeInput<T>
-where
-    T: OneTime,
-{
-    Input(T::Input),
-    Otherwise,
 }
 
 impl<T> MealyMachine for OneTimeMachine<T>
@@ -86,43 +76,5 @@ where
             OneTimeMachine::Code(_) => panic!("Machine not initialized"),
             OneTimeMachine::Machine(machine) => machine.current_env(),
         }
-    }
-}
-
-// Object-safe wrapper used at runtime.
-pub trait WebView {
-    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String>;
-    fn current(&self) -> JsValue;
-}
-
-pub trait ToJsResult<T> {
-    fn to_js(self) -> Result<T, String>;
-}
-
-impl<T> ToJsResult<T> for anyhow::Result<T> {
-    fn to_js(self) -> Result<T, String> {
-        self.map_err(|e| format!("{e:?}"))
-    }
-}
-
-impl<T> WebView for T
-where
-    T: MealyMachine,
-{
-    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
-        let parsed = <Self as MealyMachine>::parse_input(input)?;
-        let output = <Self as MealyMachine>::step(self, parsed)?;
-        match output {
-            Some(o) => {
-                let js = serde_wasm_bindgen::to_value(&o).map_err(|e| e.to_string())?;
-                Ok(Some(js))
-            }
-            None => Ok(None),
-        }
-    }
-
-    fn current(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&<Self as MealyMachine>::current(self))
-            .unwrap_or_else(|e| JsValue::from_str(&e.to_string()))
     }
 }

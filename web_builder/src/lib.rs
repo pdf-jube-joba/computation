@@ -1,6 +1,32 @@
 use std::cell::RefCell;
-use utils::WebView;
 use wasm_bindgen::prelude::*;
+
+pub trait WebView {
+    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String>;
+    fn current(&self) -> JsValue;
+}
+
+impl<T> WebView for T
+where
+    T: utils::MealyMachine,
+{
+    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
+        let parsed = <Self as utils::MealyMachine>::parse_input(input)?;
+        let output = <Self as utils::MealyMachine>::step(self, parsed)?;
+        match output {
+            Some(o) => {
+                let js = serde_wasm_bindgen::to_value(&o).map_err(|e| e.to_string())?;
+                Ok(Some(js))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn current(&self) -> JsValue {
+        serde_wasm_bindgen::to_value(&<Self as utils::MealyMachine>::current(self))
+            .unwrap_or_else(|e| JsValue::from_str(&e.to_string()))
+    }
+}
 
 thread_local! {
     static MACHINE: RefCell<Option<Box<dyn WebView>>> = RefCell::new(None);
