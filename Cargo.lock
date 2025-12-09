@@ -491,6 +491,7 @@ version = "0.1.0"
 dependencies = [
  "goto_lang",
  "lambda_calculus",
+ "recursive_function",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

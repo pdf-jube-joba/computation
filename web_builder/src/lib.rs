@@ -83,6 +83,12 @@ pub fn create(input: &str) -> Result<(), JsValue> {
     create_machine::<goto_lang::machine::Program>(input)
 }
 
+#[cfg(feature = "recursive_function")]
+#[wasm_bindgen]
+pub fn create(input: &str) -> Result<(), JsValue> {
+    create_machine::<recursive_function::machine::Program>(input)
+}
+
 #[cfg(feature = "example")]
 #[wasm_bindgen]
 pub fn create(input: &str) -> Result<(), JsValue> {
