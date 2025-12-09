@@ -2,6 +2,10 @@ use std::{fmt::Display, rc::Rc};
 
 use serde::Serialize;
 
+// variable for "take fresh variable" language
+// NOTE: variables are compared by pointer equality
+// WARNING: do care when constructing Var from string literals!
+//    Var("x") != Var("x") unless they are from the same allocation!
 #[derive(Debug, Clone, Eq, PartialOrd, Ord)]
 pub struct Var(Rc<str>);
 
@@ -9,6 +13,8 @@ impl Var {
     pub fn new(s: &str) -> Self {
         Var(Rc::from(s))
     }
+    // safe for make a dummy variable at any where (on code) and any time (at runtime)
+    // no overwrapping issue
     pub fn dummy() -> Self {
         Var(Rc::from("_"))
     }
@@ -65,5 +71,22 @@ impl Serialize for Var {
         S: serde::Serializer,
     {
         serializer.serialize_str(&print_var(self))
+    }
+}
+
+// variable for string representation
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct VarStr(String);
+
+impl VarStr {
+    pub fn new<T>(s: T) -> Self
+    where
+        T: AsRef<str>,
+    {
+        VarStr(s.as_ref().to_string())
+    }
+    // no implementation for dummy variable, as string representation should be unique
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }

@@ -7,13 +7,22 @@ use utils::variable::Var;
 #[grammar = "while_minus_language.pest"]
 struct Ps;
 
-pub fn parse_name(ps: Pair<Rule>) -> Var {
+pub fn parse_name(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Var {
     debug_assert!(ps.as_rule() == Rule::name);
     let name = ps.as_str();
-    name.into()
+    let var = ref_vars
+        .iter()
+        .find(|v| v.as_str() == name)
+        .cloned()
+        .unwrap_or_else(|| {
+            let v = Var::from(name);
+            ref_vars.push(v.clone());
+            v
+        });
+    var
 }
 
-pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
+pub fn parse_one_statement(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<WhileStatement> {
     debug_assert!(ps.as_rule() == Rule::statement);
     let mut ps = ps.into_inner();
     let p = ps.next().unwrap();
@@ -22,7 +31,7 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
             let mut p = p.into_inner();
             // take one var
             let var = p.next().unwrap();
-            let var: Var = parse_name(var);
+            let var: Var = parse_name(var, ref_vars);
             WhileStatement::inc(var)
         }
         Rule::dec_statement => {
@@ -30,7 +39,7 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
 
             // take one var
             let var = p.next().unwrap();
-            let var: Var = parse_name(var);
+            let var: Var = parse_name(var, ref_vars);
             WhileStatement::dec(var)
         }
         Rule::clr_statement => {
@@ -38,7 +47,7 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
 
             // take one var
             let var = p.next().unwrap();
-            let var: Var = parse_name(var);
+            let var: Var = parse_name(var, ref_vars);
             WhileStatement::clr(var)
         }
         Rule::cpy_statement => {
@@ -46,9 +55,9 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
 
             // take two var
             let var0 = p.next().unwrap();
-            let var0: Var = parse_name(var0);
+            let var0: Var = parse_name(var0, ref_vars);
             let var1 = p.next().unwrap();
-            let var1: Var = parse_name(var1);
+            let var1: Var = parse_name(var1, ref_vars);
             WhileStatement::cpy(var0, var1)
         }
         Rule::while_statement => {
@@ -56,7 +65,7 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<WhileStatement> {
 
             // while `var``
             let var = p.next().unwrap();
-            let var: Var = parse_name(var);
+            let var: Var = parse_name(var, ref_vars);
             WhileStatement::while_not_zero(var)
         }
         Rule::while_end => {
@@ -79,8 +88,9 @@ pub fn program(code: &str) -> Result<Vec<WhileStatement>> {
     let code = code.next().unwrap();
     let code = code.into_inner();
     let mut statements = vec![];
+    let mut ref_vars = vec![];
     for p in code {
-        let statement = parse_one_statement(p)?;
+        let statement = parse_one_statement(p, &mut ref_vars)?;
         statements.push(statement);
     }
     Ok(statements)
