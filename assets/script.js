@@ -320,6 +320,7 @@ class ViewModel {
     }
     this.outputPre.textContent = "";
     this.renderer.drawOutput(undefined);
+  
     try {
       const codeStr = this.codeArea.value.trim();
       console.log("Creating machine with code:", codeStr);
@@ -368,6 +369,7 @@ class ViewModel {
     if (output !== undefined) {
       this.renderer.drawOutput(output);
     }
+    this.outputPre.textContent = "";
   }
 }
 
