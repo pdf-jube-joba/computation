@@ -1,9 +1,10 @@
+import argparse
+import shutil
+import subprocess
+import sys
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-import shutil
-import sys
-import subprocess
 
 PLAYGROUND_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = PLAYGROUND_DIR.parent
@@ -33,10 +34,27 @@ def serve(port: int) -> None:
     except KeyboardInterrupt:
         print("\n[serve] stopped")
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Serve the lambda calculus playground.")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to bind the HTTP server (default: 8000)",
+    )
+    parser.add_argument(
+        "--no-build",
+        action="store_true",
+        help="Skip build.py execution and asset copy",
+    )
+    return parser.parse_args()
+
 def main() -> None:
-    call_build_script()
-    pull_assets()
-    serve(port=8000)
+    args = parse_args()
+    if not args.no_build:
+        call_build_script()
+        pull_assets()
+    serve(port=args.port)
 
 if __name__ == "__main__":
     main()

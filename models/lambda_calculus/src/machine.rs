@@ -246,7 +246,7 @@ pub fn unmark_redex(marked_term: MarkedTerm) -> LambdaTerm {
 }
 
 // step function that reduces the nth redex in the marked term
-// how to count the redexes: left to right, depth first
+// how to count the redexes: left to right, depth-first
 // return None if there is no nth redex
 pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
     fn step_rec(marked_term: &MarkedTerm, num: &mut isize) -> Option<LambdaTerm> {
@@ -289,7 +289,7 @@ pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
 
     let mut n = num as isize;
     let exp = step_rec(marked_term, &mut n);
-    if n < 0 {
+    if n <= 0 {
         exp
     } else {
         None
@@ -355,5 +355,49 @@ mod tests {
         for (term1, term2, expected) in tests {
             assert_eq!(alpha_eq(&term1, &term2), expected);
         }
+    }
+    #[test]
+    fn step_test() {
+        // (\x. x) y
+        let x_var = Var::from("x");
+        let y_var = Var::from("y");
+        let e =  LambdaTerm::App(
+            Box::new(LambdaTerm::Abs(
+                x_var.clone(),
+                Box::new(LambdaTerm::Var(x_var.clone())),
+            )),
+            Box::new(LambdaTerm::Var(y_var.clone())),
+        );
+        let marked = mark_redex(&e);
+        let stepped = step(&marked, 0).unwrap();
+        let expected = LambdaTerm::Var(y_var.clone());
+        assert_eq!(stepped, expected);
+
+        // (\x. x) ((\y. y) z)
+        let z_var = Var::from("z");
+        let e = LambdaTerm::App(
+            Box::new(LambdaTerm::Abs(
+                x_var.clone(),
+                Box::new(LambdaTerm::Var(x_var.clone())),
+            )),
+            Box::new(LambdaTerm::App(
+                Box::new(LambdaTerm::Abs(
+                    y_var.clone(),
+                    Box::new(LambdaTerm::Var(y_var.clone())),
+                )),
+                Box::new(LambdaTerm::Var(z_var.clone())),
+            )),
+        );
+        let marked = mark_redex(&e);
+        let stepped = step(&marked, 0).unwrap();
+        // expected: (\y. y) z
+        let expected = LambdaTerm::App(
+            Box::new(LambdaTerm::Abs(
+                y_var.clone(),
+                Box::new(LambdaTerm::Var(y_var.clone())),
+            )),
+            Box::new(LambdaTerm::Var(z_var.clone())),
+        );
+        assert_eq!(stepped, expected);
     }
 }

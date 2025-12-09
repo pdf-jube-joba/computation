@@ -32,7 +32,6 @@ def call_build_script() -> None:
     if result.returncode != 0:
         sys.exit(result.returncode)
 
-
 def copy_assets() -> None:
     if ASSETS_DEST.exists():
         shutil.rmtree(ASSETS_DEST)

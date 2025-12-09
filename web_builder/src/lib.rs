@@ -46,6 +46,7 @@ pub fn create(input: &str) -> Result<(), JsValue> {
 }
 
 #[cfg(feature = "lambda_calculus")]
+#[wasm_bindgen]
 pub fn create(input: &str) -> Result<(), JsValue> {
     create_machine::<lambda_calculus::machine::LambdaTerm>(input)
 }
