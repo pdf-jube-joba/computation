@@ -210,15 +210,11 @@ mod tests {
     #[test]
     fn parse_tuple_test() {
         let code = "(1,2,3)";
-        let pairs = Ps::parse(Rule::tuple, code).unwrap();
-        let pair = pairs.into_iter().next().unwrap();
-        let tuple = parse_tuple(pair);
+        let tuple = parse_tuple_str(code).unwrap();
         assert_eq!(tuple, vec![1, 2, 3]);
 
         let code = "()";
-        let pairs = Ps::parse(Rule::tuple, code).unwrap();
-        let pair = pairs.into_iter().next().unwrap();
-        let tuple = parse_tuple(pair);
+        let tuple = parse_tuple_str(code).unwrap();
         assert_eq!(tuple, vec![]);
     }
 }

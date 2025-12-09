@@ -190,7 +190,7 @@ fn prepend_number(number: Number, tail: &[Number]) -> Vec<Number> {
 impl Process {
     pub fn new(func: RecursiveFunctions, args: Vec<Number>) -> Result<Self, String> {
         if args.len() != func.parameter_length() {
-            return Err("length of args is different from function's parameter length".to_string());
+            return Err(format!("length mismatch arg:{} func:{}", args.len(), func.parameter_length()));
         }
         let args = numbers_to_processes(args);
         Ok(Process::Comp {
