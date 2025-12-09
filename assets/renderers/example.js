@@ -26,8 +26,16 @@ export class Renderer {
   }
 
   drawOutput(output) {
+    // if output === undefined, clear the output view
     const target = this.outputContainer.querySelector(".output-view");
     if (!target) return;
+    console.log("Drawing output:", output);
+
+    if (output === undefined) {
+      target.textContent = "";
+      return;
+    }
+
     target.textContent = output ? `output: ${output}` : "";
   }
 }

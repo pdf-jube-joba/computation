@@ -318,6 +318,8 @@ class ViewModel {
       this.outputPre.textContent = "(init not completed)";
       return;
     }
+    this.outputPre.textContent = "";
+    this.renderer.drawOutput(undefined);
     try {
       const codeStr = this.codeArea.value.trim();
       console.log("Creating machine with code:", codeStr);
