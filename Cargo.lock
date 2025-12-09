@@ -503,13 +503,3 @@ dependencies = [
 [[package]]
 name = "while_language"
 version = "0.1.0"
-
-[[package]]
-name = "while_minus_lang"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "pest",
- "pest_derive",
- "utils",
-]

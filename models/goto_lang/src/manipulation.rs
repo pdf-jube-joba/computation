@@ -31,7 +31,7 @@ pub fn parse_one_statement(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Co
             // take one var
             let var = p.next().unwrap();
             let var: Var = parse_name(var, ref_vars);
-            Command::Clr(var)
+            Command::Inc(var)
         }
         Rule::dec_statement => {
             let mut p = p.into_inner();
@@ -120,6 +120,12 @@ pub fn parse_env(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Vec<(Var, Nu
     Ok(env)
 }
 
+pub fn env_read_to_end(code: &str) -> Result<Vec<(Var, Number)>> {
+    let mut code = Ps::parse(Rule::env, code)?;
+    let code = code.next().unwrap();
+    parse_env(code, &mut vec![])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,5 +143,43 @@ mod tests {
         assert_eq!(env[1].1, Number(20));
         assert_eq!(env[2].0.as_str(), "z");
         assert_eq!(env[2].1, Number(30));
+    }
+    #[test]
+    fn test_parse_code() {
+        let code = "
+        inc x
+        dec y
+        clr z
+        cpy x <- y
+        ifz z : 10
+        ";
+        let commands = program_read_to_end(code).unwrap();
+        assert_eq!(commands.len(), 5);
+        match &commands[0] {
+            Command::Inc(v) => assert_eq!(v.as_str(), "x"),
+            _ => panic!("unexpected command"),
+        }
+        match &commands[1] {
+            Command::Dec(v) => assert_eq!(v.as_str(), "y"),
+            _ => panic!("unexpected command"),
+        }
+        match &commands[2] {
+            Command::Clr(v) => assert_eq!(v.as_str(), "z"),
+            _ => panic!("unexpected command"),
+        }
+        match &commands[3] {
+            Command::Cpy(v1, v2) => {
+                assert_eq!(v1.as_str(), "x");
+                assert_eq!(v2.as_str(), "y");
+            }
+            _ => panic!("unexpected command"),
+        }
+        match &commands[4] {
+            Command::Ifz(v, n) => {
+                assert_eq!(v.as_str(), "z");
+                assert_eq!(*n, Number(10));
+            }
+            _ => panic!("unexpected command"),
+        }
     }
 }

@@ -11,7 +11,7 @@ inc_statement = { "inc" ~ name }
 dec_statement = { "dec" ~ name }
 clr_statement = { "clr" ~ name }
 cpy_statement = { "cpy" ~ name ~ "<-" ~  name }
-ifz_statement = { "ifz" ~ name ~ "then" ~ number }
+ifz_statement = { "ifz" ~ name ~ ":" ~ number }
 
 statement = {
     inc_statement
