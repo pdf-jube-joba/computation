@@ -35,6 +35,11 @@ pub mod num_tape {
         }
     }
 
+    pub fn write_usize(tuple: Vec<usize>) -> Tape {
+        let number_tuple: Vec<Number> = tuple.into_iter().map(|x| x.into()).collect();
+        write(number_tuple)
+    }
+
     fn read_one(signs: Vec<Sign>) -> Option<Vec<Number>> {
         let v = signs
             .split(|char| *char == Sign::blank())
@@ -54,6 +59,10 @@ pub mod num_tape {
             .take_while(|sign| **sign == Sign::blank() || **sign == one())
             .cloned();
         read_one(iter.collect())
+    }
+
+    pub fn read_right_one_usize(tape: &Tape) -> Option<Vec<usize>> {
+        read_right_one(tape).map(|vec| vec.into_iter().map(|x| x.0).collect())
     }
 }
 
