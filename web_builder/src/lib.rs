@@ -45,6 +45,11 @@ pub fn create(input: &str) -> Result<(), JsValue> {
     create_machine::<turing_machine::web::TuringMachineWeb>(input)
 }
 
+#[cfg(feature = "lambda_calculus")]
+pub fn create(input: &str) -> Result<(), JsValue> {
+    create_machine::<lambda_calculus::machine::LambdaTerm>(input)
+}
+
 #[cfg(feature = "example")]
 #[wasm_bindgen]
 pub fn create(input: &str) -> Result<(), JsValue> {

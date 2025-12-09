@@ -489,6 +489,7 @@ dependencies = [
 name = "web_builder"
 version = "0.1.0"
 dependencies = [
+ "lambda_calculus",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
