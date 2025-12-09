@@ -4,7 +4,9 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+use serde::Serialize;
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct Number(pub usize);
 
 impl Number {

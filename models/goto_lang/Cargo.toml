@@ -1,0 +1,11 @@
+[package]
+name = "goto_lang"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+utils = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
