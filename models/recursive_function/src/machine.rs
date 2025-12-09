@@ -1,7 +1,8 @@
+use serde::Serialize;
 use std::fmt::Display;
 use utils::number::*;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum RecursiveFunctions {
     ZeroConstant,
     Successor,
@@ -152,7 +153,7 @@ impl Display for RecursiveFunctions {
 // -> Process::Comp { function: f, args: [8, Process::Comp { function: h, args: [5, 2] }, 1] }
 // -> Process::Comp { function: f, args: [8, 3, 1] }
 // -> Process::Result(12)
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Process {
     Comp {
         function: RecursiveFunctions,
@@ -161,24 +162,37 @@ pub enum Process {
     // start: Mu { f, 0, (x0, , .., xn), process}
     MuOpComp {
         now_index: Number,
-        args: NumberTuple,
+        args: Vec<Number>,
         function: RecursiveFunctions,
         process: Box<Process>, // now computation
     },
     Result(Number),
 }
 
-fn tuple_to_vec_process(tuple: NumberTuple) -> Vec<Process> {
-    let tuple: Vec<Number> = tuple.into();
-    tuple.into_iter().map(Process::Result).collect()
+fn numbers_to_processes(numbers: Vec<Number>) -> Vec<Process> {
+    numbers.into_iter().map(Process::Result).collect()
+}
+
+fn split_head(numbers: &[Number]) -> Option<(Number, Vec<Number>)> {
+    numbers
+        .first()
+        .cloned()
+        .map(|head| (head, numbers.get(1..).unwrap_or(&[]).to_vec()))
+}
+
+fn prepend_number(number: Number, tail: &[Number]) -> Vec<Number> {
+    let mut vec = Vec::with_capacity(1 + tail.len());
+    vec.push(number);
+    vec.extend(tail.iter().cloned());
+    vec
 }
 
 impl Process {
-    pub fn new(func: RecursiveFunctions, args: NumberTuple) -> Result<Self, String> {
+    pub fn new(func: RecursiveFunctions, args: Vec<Number>) -> Result<Self, String> {
         if args.len() != func.parameter_length() {
             return Err("length of args is different from function's parameter length".to_string());
         }
-        let args = tuple_to_vec_process(args);
+        let args = numbers_to_processes(args);
         Ok(Process::Comp {
             function: func,
             args,
@@ -197,7 +211,7 @@ impl Process {
 
                 // if args has some arg of which can be eval, then we need to eval one step
                 let mut args = args.clone();
-                let mut args_as_tuple = Vec::new();
+                let mut evaluated_numbers = Vec::new();
                 for arg in args.iter_mut() {
                     if let Some(result) = arg.eval_one_step() {
                         *arg = result;
@@ -206,18 +220,17 @@ impl Process {
                             args: args.clone(),
                         });
                     } else {
-                        args_as_tuple.push(arg.result().unwrap());
+                        evaluated_numbers.push(arg.result().unwrap());
                     }
                 }
-                let args_as_tuple: NumberTuple = args_as_tuple.into();
+                let args_as_tuple = evaluated_numbers;
 
                 // if all args are evaluated, then we can eval the function
                 match function {
                     RecursiveFunctions::ZeroConstant => Some(Process::Result(Number(0))),
                     RecursiveFunctions::Successor => {
-                        let (head, _) = args_as_tuple.split().unwrap();
-                        let result = head.succ();
-                        Some(Process::Result(result))
+                        let (head, _) = split_head(&args_as_tuple).unwrap();
+                        Some(Process::Result(head.succ()))
                     }
                     RecursiveFunctions::Projection {
                         parameter_length,
@@ -235,8 +248,7 @@ impl Process {
                         let inner_processes: Vec<Process> = inner_funcs
                             .iter()
                             .map(|func| {
-                                let inner_args: Vec<Process> =
-                                    tuple_to_vec_process(args_as_tuple.clone());
+                                let inner_args = numbers_to_processes(args_as_tuple.clone());
                                 Process::Comp {
                                     function: func.clone(),
                                     args: inner_args,
@@ -252,23 +264,24 @@ impl Process {
                         zero_func,
                         succ_func,
                     } => {
-                        let (first, cont) = args_as_tuple.split().unwrap();
+                        let (first, cont) = split_head(&args_as_tuple).unwrap();
                         if first.is_zero() {
                             // Prim(fz, fs)(0, ..., xn) = fz(x1, .., xn)
                             Some(Process::Comp {
                                 function: zero_func.as_ref().clone(),
-                                args: tuple_to_vec_process(cont),
+                                args: numbers_to_processes(cont),
                             })
                         } else {
                             // Prim(fz, fs)(x0 + 1, ..., xn) = fs(Prim(fz, fs)(x0, .., xn), x0, .., xn)
                             let pred_process: Process = Process::Comp {
                                 function: function.clone(),
-                                args: tuple_to_vec_process(
-                                    first.clone().pred().concat(cont.clone()),
-                                ),
+                                args: numbers_to_processes(prepend_number(
+                                    first.clone().pred(),
+                                    &cont,
+                                )),
                             };
                             let mut vec = vec![pred_process];
-                            vec.extend(tuple_to_vec_process(first.pred().concat(cont)));
+                            vec.extend(numbers_to_processes(prepend_number(first.pred(), &cont)));
                             Some(Process::Comp {
                                 function: succ_func.as_ref().clone(),
                                 args: vec,
@@ -277,14 +290,14 @@ impl Process {
                     }
                     RecursiveFunctions::MuOperator { mu_func } => {
                         // Mu { f, 0, (x0, .., xn), process == f(0, x0, .., xn) }
-                        let arg = Number::from(0).concat(args_as_tuple.clone());
+                        let arg = prepend_number(Number(0), &args_as_tuple);
                         Some(Process::MuOpComp {
                             now_index: 0.into(),
                             args: args_as_tuple.clone(),
                             function: mu_func.as_ref().clone(),
                             process: Box::new(Process::Comp {
                                 function: mu_func.as_ref().clone(),
-                                args: tuple_to_vec_process(arg),
+                                args: numbers_to_processes(arg),
                             }),
                         })
                     }
@@ -321,14 +334,14 @@ impl Process {
                     Some(Process::Result(now_index.clone()))
                 } else {
                     let next_index = now_index.clone().succ();
-                    let arg = next_index.clone().concat(args.clone());
+                    let arg = prepend_number(next_index.clone(), args);
                     Some(Process::MuOpComp {
                         now_index: next_index,
                         args: args.clone(),
                         function: function.clone(),
                         process: Box::new(Process::Comp {
                             function: function.clone(),
-                            args: tuple_to_vec_process(arg),
+                            args: numbers_to_processes(arg),
                         }),
                     })
                 }
@@ -372,21 +385,21 @@ impl Display for Process {
 // this is a strcut for any functions which may not be recursive functions
 pub struct NaturalFunction {
     parameter_length: usize,
-    func: Box<dyn Fn(NumberTuple) -> Number>,
+    func: Box<dyn Fn(Vec<Number>) -> Number>,
 }
 
 impl NaturalFunction {
     pub fn param(&self) -> usize {
         self.parameter_length
     }
-    pub fn unchecked_subst(&self, num: NumberTuple) -> Number {
-        (self.func)(num)
+    pub fn unchecked_subst(&self, nums: Vec<Number>) -> Number {
+        (self.func)(nums)
     }
-    pub fn checked_subst(&self, num: NumberTuple) -> Option<Number> {
-        if num.len() != self.parameter_length {
+    pub fn checked_subst(&self, nums: Vec<Number>) -> Option<Number> {
+        if nums.len() != self.parameter_length {
             None
         } else {
-            Some(self.unchecked_subst(num))
+            Some(self.unchecked_subst(nums))
         }
     }
 }
@@ -399,16 +412,13 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
         },
         RecursiveFunctions::Successor => NaturalFunction {
             parameter_length: 1,
-            func: Box::new(|vec| {
-                let (f, _) = vec.split().unwrap();
-                f.succ()
-            }),
+            func: Box::new(|vec| vec.first().cloned().unwrap().succ()),
         },
         RecursiveFunctions::Projection { projection_num, .. } => {
             let num = *projection_num;
             NaturalFunction {
                 parameter_length: func.parameter_length(),
-                func: Box::new(move |tuple| tuple.index(num).unwrap().clone()),
+                func: Box::new(move |tuple| tuple[num].clone()),
             }
         }
         RecursiveFunctions::Composition {
@@ -418,12 +428,11 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
         } => {
             let outer_func = interpreter(outer_func);
             let inner_funcs = inner_funcs.iter().map(interpreter).collect::<Vec<_>>();
-            let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |tuple| {
-                let result_vec: NumberTuple = inner_funcs
+            let func: Box<dyn Fn(Vec<Number>) -> Number> = Box::new(move |tuple| {
+                let result_vec: Vec<Number> = inner_funcs
                     .iter()
                     .map(|func| func.unchecked_subst(tuple.clone()))
-                    .collect::<Vec<Number>>()
-                    .into();
+                    .collect();
                 outer_func.unchecked_subst(result_vec)
             });
             NaturalFunction {
@@ -439,16 +448,16 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
             let zero_func = interpreter(zero_func);
             let succ_func = interpreter(succ_func);
             let this_func_clone = func.clone();
-            let function: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
-                let (first, cont) = vector.clone().split().unwrap();
+            let function: Box<dyn Fn(Vec<Number>) -> Number> = Box::new(move |vector| {
+                let (first, cont) = split_head(&vector).unwrap();
                 if first.is_zero() {
                     zero_func.unchecked_subst(cont)
                 } else {
                     let pred_result = {
-                        let pred_input = first.clone().pred().concat(cont.clone());
+                        let pred_input = prepend_number(first.clone().pred(), &cont);
                         interpreter(&this_func_clone).unchecked_subst(pred_input)
                     };
-                    let input = pred_result.concat(first.pred().concat(cont));
+                    let input = prepend_number(pred_result, &prepend_number(first.pred(), &cont));
                     succ_func.unchecked_subst(input)
                 }
             });
@@ -460,10 +469,10 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
         RecursiveFunctions::MuOperator { mu_func } => {
             let length = mu_func.parameter_length() - 1;
             let mu_func = interpreter(mu_func);
-            let func: Box<dyn Fn(NumberTuple) -> Number> = Box::new(move |vector| {
+            let func: Box<dyn Fn(Vec<Number>) -> Number> = Box::new(move |vector| {
                 let mut i = 0;
                 'lp: loop {
-                    let result = mu_func.unchecked_subst(Number(i).concat(vector.clone()));
+                    let result = mu_func.unchecked_subst(prepend_number(Number(i), &vector));
                     if result == Number(0) {
                         break 'lp Number(i);
                     }
@@ -482,18 +491,20 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
 mod tests {
     use std::vec;
 
-    use utils::number::NumberTuple;
-
     use super::{interpreter, RecursiveFunctions};
     use super::{Number, Process};
+
+    fn nums(values: &[usize]) -> Vec<Number> {
+        values.iter().map(|&v| Number(v)).collect()
+    }
 
     #[test]
     fn zero_call() {
         let zero = RecursiveFunctions::zero();
         let zero_func = interpreter(&zero);
-        let result = zero_func.checked_subst(Vec::<usize>::new().into());
+        let result = zero_func.checked_subst(Vec::<Number>::new());
         assert_eq!(result, Some(Number(0)));
-        let result = zero_func.checked_subst(vec![0].into());
+        let result = zero_func.checked_subst(nums(&[0]));
         assert_eq!(result, None);
     }
     #[test]
@@ -501,7 +512,7 @@ mod tests {
         let succ = RecursiveFunctions::succ();
         let succ_func = interpreter(&succ);
         for i in 0..5 {
-            let result = succ_func.checked_subst(vec![i].into());
+            let result = succ_func.checked_subst(nums(&[i]));
             assert_eq!(result, Some(Number(i + 1)))
         }
     }
@@ -509,14 +520,14 @@ mod tests {
     fn proj_call() {
         let proj = RecursiveFunctions::projection(1, 0).unwrap();
         let proj_func = interpreter(&proj);
-        let result = proj_func.checked_subst(vec![0].into());
+        let result = proj_func.checked_subst(nums(&[0]));
         assert_eq!(result, Some(Number(0)));
-        let result = proj_func.checked_subst(vec![0, 1].into());
+        let result = proj_func.checked_subst(nums(&[0, 1]));
         assert_eq!(result, None);
 
         let proj = RecursiveFunctions::projection(3, 0).unwrap();
         let proj_func = interpreter(&proj);
-        let result = proj_func.checked_subst(vec![0, 1, 2].into());
+        let result = proj_func.checked_subst(nums(&[0, 1, 2]));
         assert_eq!(result, Some(Number(0)));
     }
     #[test]
@@ -527,7 +538,7 @@ mod tests {
         )
         .unwrap();
         let succcc_func = interpreter(&succcc);
-        let result = succcc_func.checked_subst(vec![0].into());
+        let result = succcc_func.checked_subst(nums(&[0]));
         assert_eq!(result, Some(Number(2)));
         assert!(RecursiveFunctions::composition(RecursiveFunctions::succ(), vec![]).is_err());
         assert!(RecursiveFunctions::composition(
@@ -550,7 +561,7 @@ mod tests {
         )
         .unwrap();
         let func = interpreter(&snd_succ);
-        assert_eq!(func.checked_subst(vec![0].into()), Some(Number(1)));
+        assert_eq!(func.checked_subst(nums(&[0])), Some(Number(1)));
 
         let snd_succ = RecursiveFunctions::composition(
             RecursiveFunctions::projection(4, 1).unwrap(),
@@ -563,7 +574,7 @@ mod tests {
         )
         .unwrap();
         let func = interpreter(&snd_succ);
-        assert_eq!(func.checked_subst(vec![0, 1, 2].into()), Some(Number(1)))
+        assert_eq!(func.checked_subst(nums(&[0, 1, 2])), Some(Number(1)))
     }
     #[test]
     fn prim_call() {
@@ -575,12 +586,12 @@ mod tests {
         .unwrap();
         let add = RecursiveFunctions::primitive_recursion(zero_func, succ_func).unwrap();
         let add_func = interpreter(&add);
-        assert_eq!(add_func.checked_subst(vec![0, 0].into()), Some(Number(0)));
-        assert_eq!(add_func.checked_subst(vec![0, 1].into()), Some(Number(1)));
-        assert_eq!(add_func.checked_subst(vec![1, 0].into()), Some(Number(1)));
-        assert_eq!(add_func.checked_subst(vec![1, 1].into()), Some(Number(2)));
-        assert_eq!(add_func.checked_subst(vec![2, 2].into()), Some(Number(4)));
-        assert_eq!(add_func.checked_subst(vec![2, 3].into()), Some(Number(5)));
+        assert_eq!(add_func.checked_subst(nums(&[0, 0])), Some(Number(0)));
+        assert_eq!(add_func.checked_subst(nums(&[0, 1])), Some(Number(1)));
+        assert_eq!(add_func.checked_subst(nums(&[1, 0])), Some(Number(1)));
+        assert_eq!(add_func.checked_subst(nums(&[1, 1])), Some(Number(2)));
+        assert_eq!(add_func.checked_subst(nums(&[2, 2])), Some(Number(4)));
+        assert_eq!(add_func.checked_subst(nums(&[2, 3])), Some(Number(5)));
     }
     fn pred_func() -> RecursiveFunctions {
         RecursiveFunctions::primitive_recursion(
@@ -592,10 +603,10 @@ mod tests {
     #[test]
     fn pred_well() {
         let pred_func = interpreter(&pred_func());
-        assert_eq!(pred_func.checked_subst(vec![0].into()), Some(Number(0)));
-        assert_eq!(pred_func.checked_subst(vec![1].into()), Some(Number(0)));
-        assert_eq!(pred_func.checked_subst(vec![2].into()), Some(Number(1)));
-        assert_eq!(pred_func.checked_subst(vec![3].into()), Some(Number(2)));
+        assert_eq!(pred_func.checked_subst(nums(&[0])), Some(Number(0)));
+        assert_eq!(pred_func.checked_subst(nums(&[1])), Some(Number(0)));
+        assert_eq!(pred_func.checked_subst(nums(&[2])), Some(Number(1)));
+        assert_eq!(pred_func.checked_subst(nums(&[3])), Some(Number(2)));
     }
     fn inv_monus() -> RecursiveFunctions {
         RecursiveFunctions::primitive_recursion(
@@ -621,14 +632,14 @@ mod tests {
     #[test]
     fn monus_call() {
         let monus = interpreter(&monus());
-        assert_eq!(monus.checked_subst(vec![0, 0].into()), Some(Number(0)));
-        assert_eq!(monus.checked_subst(vec![0, 1].into()), Some(Number(0)));
-        assert_eq!(monus.checked_subst(vec![0, 2].into()), Some(Number(0)));
-        assert_eq!(monus.checked_subst(vec![1, 0].into()), Some(Number(1)));
-        assert_eq!(monus.checked_subst(vec![2, 0].into()), Some(Number(2)));
-        assert_eq!(monus.checked_subst(vec![1, 1].into()), Some(Number(0)));
-        assert_eq!(monus.checked_subst(vec![2, 2].into()), Some(Number(0)));
-        assert_eq!(monus.checked_subst(vec![2, 1].into()), Some(Number(1)));
+        assert_eq!(monus.checked_subst(nums(&[0, 0])), Some(Number(0)));
+        assert_eq!(monus.checked_subst(nums(&[0, 1])), Some(Number(0)));
+        assert_eq!(monus.checked_subst(nums(&[0, 2])), Some(Number(0)));
+        assert_eq!(monus.checked_subst(nums(&[1, 0])), Some(Number(1)));
+        assert_eq!(monus.checked_subst(nums(&[2, 0])), Some(Number(2)));
+        assert_eq!(monus.checked_subst(nums(&[1, 1])), Some(Number(0)));
+        assert_eq!(monus.checked_subst(nums(&[2, 2])), Some(Number(0)));
+        assert_eq!(monus.checked_subst(nums(&[2, 1])), Some(Number(1)));
     }
     fn id_from_inv_monus() -> RecursiveFunctions {
         RecursiveFunctions::muoperator(inv_monus()).unwrap()
@@ -636,15 +647,15 @@ mod tests {
     #[test]
     fn muop_call() {
         let id = interpreter(&id_from_inv_monus());
-        assert_eq!(id.checked_subst(vec![0].into()), Some(Number(0)));
-        assert_eq!(id.checked_subst(vec![1].into()), Some(Number(1)));
-        assert_eq!(id.checked_subst(vec![2].into()), Some(Number(2)));
-        assert_eq!(id.checked_subst(vec![3].into()), Some(Number(3)));
+        assert_eq!(id.checked_subst(nums(&[0])), Some(Number(0)));
+        assert_eq!(id.checked_subst(nums(&[1])), Some(Number(1)));
+        assert_eq!(id.checked_subst(nums(&[2])), Some(Number(2)));
+        assert_eq!(id.checked_subst(nums(&[3])), Some(Number(3)));
     }
     #[test]
     fn process_test_zero() {
         let zero = RecursiveFunctions::zero();
-        let mut process = Process::new(zero, NumberTuple::unit()).unwrap();
+        let mut process = Process::new(zero, vec![]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -657,7 +668,7 @@ mod tests {
     #[test]
     fn process_test_succ() {
         let succ = RecursiveFunctions::succ();
-        let mut process = Process::new(succ.clone(), vec![Number(0)].into()).unwrap();
+        let mut process = Process::new(succ.clone(), vec![Number(0)]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -667,7 +678,7 @@ mod tests {
         };
         assert_eq!(res, Number(1));
 
-        let mut process = Process::new(succ, vec![Number(1)].into()).unwrap();
+        let mut process = Process::new(succ, vec![Number(1)]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -684,7 +695,7 @@ mod tests {
             vec![RecursiveFunctions::succ()],
         )
         .unwrap();
-        let mut process = Process::new(succ_succ.clone(), vec![Number(0)].into()).unwrap();
+        let mut process = Process::new(succ_succ.clone(), vec![Number(0)]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -703,7 +714,7 @@ mod tests {
         )
         .unwrap();
         let add = RecursiveFunctions::primitive_recursion(zero_func, succ_func).unwrap();
-        let mut process = Process::new(add.clone(), vec![Number(2), Number(3)].into()).unwrap();
+        let mut process = Process::new(add.clone(), vec![Number(2), Number(3)]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -716,7 +727,7 @@ mod tests {
     #[test]
     fn process_test_muop() {
         let id = RecursiveFunctions::muoperator(inv_monus()).unwrap();
-        let mut process = Process::new(id.clone(), vec![Number(3)].into()).unwrap();
+        let mut process = Process::new(id.clone(), vec![Number(3)]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {

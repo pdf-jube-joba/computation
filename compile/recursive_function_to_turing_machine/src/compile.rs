@@ -17,7 +17,7 @@ pub mod num_tape {
         (0..num.into()).map(|_| one()).collect()
     }
 
-    pub fn write(tuple: NumberTuple) -> Tape {
+    pub fn write(tuple: Vec<Number>) -> Tape {
         let vec: Vec<Number> = tuple.into();
         let mut signs: Vec<Sign> = vec
             .into_iter()
@@ -35,15 +35,15 @@ pub mod num_tape {
         }
     }
 
-    fn read_one(signs: Vec<Sign>) -> Option<NumberTuple> {
+    fn read_one(signs: Vec<Sign>) -> Option<Vec<Number>> {
         let v = signs
             .split(|char| *char == Sign::blank())
-            .map(|vec| vec.len())
+            .map(|vec| vec.len().into())
             .skip(1);
-        Some(v.collect::<Vec<_>>().into())
+        Some(v.collect::<Vec<_>>())
     }
 
-    pub fn read_right_one(tape: &Tape) -> Option<NumberTuple> {
+    pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
         if tape.head != partition() {
             return None;
         }
