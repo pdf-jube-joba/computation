@@ -135,4 +135,10 @@ impl OneTime for Program {
     fn current_env(&self) -> Self::Env {
         self.clone()
     }
+    
+    fn get_code(&self) -> Self::Code {
+        self.commands.clone()
+    }
+
+    
 }

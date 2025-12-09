@@ -1,5 +1,7 @@
 // assets/renderers/goto_lang.js
-// Renderer for goto_lang that shows commands with the current PC and an Environment table.
+// Renderer for goto_lang using the new OneTime interface semantics.
+// Shows the code as an ordered list (perfect for PC highlighting) and
+// renders the Environment as a table.
 
 export class Renderer {
   constructor(vm, stateContainer, outputContainer) {
@@ -13,19 +15,18 @@ export class Renderer {
     this.metaLine = document.createElement("div");
     this.metaLine.className = "goto-meta";
 
-    this.codeWrapper = document.createElement("div");
-    this.codeWrapper.className = "goto-code-wrapper";
-    const codeLabel = document.createElement("div");
-    codeLabel.textContent = "Program";
+    const codeSection = document.createElement("section");
+    codeSection.className = "goto-section goto-code-section";
+    const codeHeading = document.createElement("h4");
+    codeHeading.textContent = "Program";
+    this.codeList = document.createElement("ol");
+    this.codeList.className = "goto-code-list";
+    codeSection.append(codeHeading, this.codeList);
 
-    this.codePre = document.createElement("pre");
-    this.codePre.className = "goto-code";
-    this.codeElement = document.createElement("code");
-    this.codePre.appendChild(this.codeElement);
-    this.codeWrapper.append(codeLabel, this.codePre);
-
-    const envLabel = document.createElement("div");
-    envLabel.textContent = "Environment";
+    const envSection = document.createElement("section");
+    envSection.className = "goto-section goto-env-section";
+    const envHeading = document.createElement("h4");
+    envHeading.textContent = "Environment";
     this.envTable = document.createElement("table");
     this.envTable.className = "goto-env-table";
     const head = this.envTable.createTHead();
@@ -34,8 +35,9 @@ export class Renderer {
       headRow.insertCell().textContent = text;
     });
     this.envBody = this.envTable.createTBody();
+    envSection.append(envHeading, this.envTable);
 
-    this.stateContainer.append(this.metaLine, this.codeWrapper, envLabel, this.envTable);
+    this.stateContainer.append(this.metaLine, codeSection, envSection, this.hintLine);
 
     this.outputMessage = document.createElement("div");
     this.outputMessage.className = "goto-output";
@@ -83,24 +85,25 @@ export class Renderer {
   }
 
   renderCode(state) {
-    if (!this.codeElement) return;
-    this.codeElement.replaceChildren();
+    if (!this.codeList) return;
+    this.codeList.replaceChildren();
     const commands = state && Array.isArray(state.commands) ? state.commands : [];
     if (!commands.length) {
-      this.codeElement.textContent = "(empty program)";
+      const placeholder = document.createElement("li");
+      placeholder.textContent = "(empty program)";
+      this.codeList.appendChild(placeholder);
       return;
     }
     const pc = this.coerceNumber(state && state.pc);
 
     commands.forEach((command, idx) => {
-      const line = document.createElement("div");
+      const line = document.createElement("li");
       line.className = "goto-code-line";
-      line.textContent = `${idx}: ${this.describeCommand(command)}`;
+      line.textContent = this.describeCommand(command);
       if (pc === idx) {
-        line.style.color = "red";
-        line.style.fontWeight = "bold";
+        line.classList.add("goto-code-current");
       }
-      this.codeElement.appendChild(line);
+      this.codeList.appendChild(line);
     });
   }
 

@@ -77,6 +77,12 @@ pub fn create(input: &str) -> Result<(), JsValue> {
     create_machine::<lambda_calculus::machine::LambdaTerm>(input)
 }
 
+#[cfg(feature = "goto_lang")]
+#[wasm_bindgen]
+pub fn create(input: &str) -> Result<(), JsValue> {
+    create_machine::<goto_lang::machine::Program>(input)
+}
+
 #[cfg(feature = "example")]
 #[wasm_bindgen]
 pub fn create(input: &str) -> Result<(), JsValue> {
