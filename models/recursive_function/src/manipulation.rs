@@ -94,6 +94,23 @@ pub fn parse(str: &str) -> Result<RecursiveFunctions, String> {
     Ok(main_func)
 }
 
+fn parse_tuple(pair: Pair<Rule>) -> Vec<usize> {
+    debug_assert!(pair.as_rule() == Rule::tuple);
+    let mut result = Vec::new();
+    for p in pair.into_inner() {
+        debug_assert!(p.as_rule() == Rule::number);
+        let num = p.as_str().parse::<usize>().unwrap();
+        result.push(num);
+    }
+    result
+}
+
+pub fn parse_tuple_str(str: &str) -> Result<Vec<usize>, String> {
+    let mut pairs = Ps::parse(Rule::tuple, str).map_err(|err| format!("{err}"))?;
+    let pair = pairs.next().unwrap();
+    Ok(parse_tuple(pair))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,5 +206,19 @@ mod tests {
             )
             .unwrap()
         );
+    }
+    #[test]
+    fn parse_tuple_test() {
+        let code = "(1,2,3)";
+        let pairs = Ps::parse(Rule::tuple, code).unwrap();
+        let pair = pairs.into_iter().next().unwrap();
+        let tuple = parse_tuple(pair);
+        assert_eq!(tuple, vec![1, 2, 3]);
+
+        let code = "()";
+        let pairs = Ps::parse(Rule::tuple, code).unwrap();
+        let pair = pairs.into_iter().next().unwrap();
+        let tuple = parse_tuple(pair);
+        assert_eq!(tuple, vec![]);
     }
 }

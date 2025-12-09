@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::fmt::Display;
-use utils::number::*;
+use utils::{number::*, OneTime};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum RecursiveFunctions {
@@ -484,6 +484,55 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
                 func,
             }
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Program {
+    pub function: RecursiveFunctions,
+    pub input: Vec<Number>,
+    pub process: Process,
+}
+
+impl OneTime for Program {
+    type Code = RecursiveFunctions;
+    type Input = Vec<Number>;
+    type Env = Process;
+
+    fn parse_code(input: &str) -> Result<Self::Code, String> {
+        crate::manipulation::parse(input)
+    }
+
+    fn parse_input(input: &str) -> Result<Self::Input, String> {
+        let tuple = crate::manipulation::parse_tuple_str(input)?;
+        Ok(tuple.into_iter().map(Number).collect())
+    }
+
+    fn setup(code: Self::Code, input: Self::Input) -> Result<Self, String> {
+        let process = Process::new(code.clone(), input.clone())?;
+        Ok(Program {
+            function: code,
+            input,
+            process,
+        })
+    }
+
+    fn run_onestep(&mut self) {
+        if let Some(next) = self.process.eval_one_step() {
+            self.process = next;
+        }
+    }
+
+    fn is_terminated(&self) -> bool {
+        matches!(self.process, Process::Result(_))
+    }
+
+    fn current_env(&self) -> Self::Env {
+        self.process.clone()
+    }
+
+    fn get_code(&self) -> Self::Code {
+        self.function.clone()
     }
 }
 

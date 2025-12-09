@@ -33,3 +33,5 @@ let_statement = { "let" ~ name ~ "=" ~ func ~ "." }
 program = {
     let_statement* ~ func ~ EOI
 }
+
+tuple = { "(" ~ (number ~ ("," ~ number)*)? ~ ")"}
