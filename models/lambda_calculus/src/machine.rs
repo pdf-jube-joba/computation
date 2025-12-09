@@ -1,7 +1,8 @@
 use std::{collections::HashSet, fmt::Display};
+use serde::Serialize;
 use utils::variable::Var;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum LambdaTerm {
     Var(Var),
     Abs(Var, Box<LambdaTerm>),
@@ -183,7 +184,7 @@ pub fn unchecked_subst(term1: LambdaTerm, var: Var, term2: LambdaTerm) -> Lambda
 }
 
 // this enumerates all redexes in a term
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum MarkedTerm {
     Var(Var),
     Abs(Var, Box<MarkedTerm>),
@@ -224,6 +225,23 @@ pub fn mark_redex(term: &LambdaTerm) -> MarkedTerm {
                 Box::new(mark_redex(app_term2.as_ref())),
             ),
         },
+    }
+}
+
+pub fn unmark_redex(marked_term: MarkedTerm) -> LambdaTerm {
+    match marked_term {
+        MarkedTerm::Var(var) => LambdaTerm::Var(var),
+        MarkedTerm::Abs(var, abs_term) => {
+            LambdaTerm::Abs(var, Box::new(unmark_redex(*abs_term)))
+        }
+        MarkedTerm::App(app_term1, app_term2) => LambdaTerm::App(
+            Box::new(unmark_redex(*app_term1)),
+            Box::new(unmark_redex(*app_term2)),
+        ),
+        MarkedTerm::Red(var, abs_term, app_term) => LambdaTerm::App(
+            Box::new(LambdaTerm::Abs(var, Box::new(unmark_redex(*abs_term)))),
+            Box::new(unmark_redex(*app_term)),
+        ),
     }
 }
 
