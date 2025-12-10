@@ -144,8 +144,8 @@ mod example {
 
         fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
             match rinput.trim() {
-                "Increment" => Ok(Command::Increment),
-                "Decrement" => Ok(Command::Decrement),
+                "inc" => Ok(Command::Increment),
+                "dec" => Ok(Command::Decrement),
                 _ => Err("Invalid command".to_string()),
             }
         }

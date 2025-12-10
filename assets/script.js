@@ -10,7 +10,7 @@
 //
 // WASM module interface (feature共通):
 // - default(): wasm-pack が生成する初期化関数
-// - create(input: string): machine を初期化
+// - create(code: string, ainput: string): machine を初期化
 // - step_machine(input: string): Step 実行
 // - current_machine(): 現在状態を返す
 
@@ -53,12 +53,15 @@ class ViewModel {
 
     // default 値を div 内の <script type="text/plain"> から取得
     this.defaultInput = extractPlainScript(root, "default-input");
+    this.defaultAInput = extractPlainScript(root, "default-ainput");
     this.defaultCode = extractPlainScript(root, "default-code");
 
     // UI 部品を用意（なければ作る）
     this.codeLabel = ensureChild(root, ".wm-code-label", "div", "wm-code-label");
+    this.ainputLabel = ensureChild(root, ".wm-ainput-label", "div", "wm-ainput-label");
     this.inputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
     this.codeArea = ensureChild(root, "textarea.wm-code", "textarea", "wm-code");
+    this.ainputArea = ensureChild(root, "textarea.wm-ainput", "textarea", "wm-ainput");
     this.inputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
     this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
@@ -70,6 +73,7 @@ class ViewModel {
 
     // ラベルテキスト
     this.codeLabel.textContent = "code";
+    this.ainputLabel.textContent = "ahead-of-time input";
     this.inputLabel.textContent = "input";
 
     // ラベルが空ならデフォルト文字列
@@ -92,6 +96,11 @@ class ViewModel {
     this.autoMarginInput.setAttribute("aria-label", "auto margin (s)");
 
     // textarea にデフォルト値をセット
+    if (this.defaultAInput) {
+      this.ainputArea.value = this.defaultAInput;
+    } else if (!this.ainputArea.value) {
+      this.ainputArea.value = "";
+    }
     if (this.defaultInput) {
       this.inputArea.value = this.defaultInput;
     } else if (!this.inputArea.value) {
@@ -103,10 +112,12 @@ class ViewModel {
       this.codeArea.value = "";
     }
 
-    // 並び順を固定（code -> input -> button -> output -> view(state/output)）
+    // 並び順を固定（code -> ahead-of-time input -> create -> runtime input -> button -> output -> view(state/output)）
     root.append(
       this.codeLabel,
       this.codeArea,
+      this.ainputLabel,
+      this.ainputArea,
       this.createButton,
       this.inputLabel,
       this.inputArea,
@@ -148,14 +159,14 @@ class ViewModel {
     this.updateAutoUI();
   }
 
-  async initializeMachine(initial) {
+  async initializeMachine(codeStr, ainputStr) {
     if (this.status === "init_failed") return false;
     if (this.status === "uninitialized") {
       this.outputPre.textContent = "(init not completed)";
       return false;
     }
     try {
-      await Promise.resolve(this.createFn(initial));
+      await Promise.resolve(this.createFn(codeStr, ainputStr));
       this.status = "machine_setted";
       return true;
     } catch (e) {
@@ -323,8 +334,9 @@ class ViewModel {
   
     try {
       const codeStr = this.codeArea.value.trim();
-      console.log("Creating machine with code:", codeStr);
-      const ok = await this.initializeMachine(codeStr);
+      const ainputStr = this.ainputArea.value.trim();
+      console.log("Creating machine with code:", codeStr, "ainput:", ainputStr);
+      const ok = await this.initializeMachine(codeStr, ainputStr);
       if (ok) {
         let state = await Promise.resolve(this.currentFn());
         this.draw(state, undefined);
