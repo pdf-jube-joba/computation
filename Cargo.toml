@@ -14,7 +14,6 @@ exclude = [
 [workspace.dependencies]
 utils = { path = "./utils" }
 
-counter_machine = { path = "./models/counter_machine" }
 goto_lang = { path = "./models/goto_lang" }
 lambda_calculus = { path = "./models/lambda_calculus" }
 lambda_continuation = { path = "./models/lambda_continuations" }

@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
+use serde::Serialize;
+
 // string consists of ascii, number, underscore, hyphen,
 // but not empty
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Alphabet(String);
 
 impl TryFrom<&str> for Alphabet {

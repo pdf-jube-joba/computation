@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::fmt::Display;
-use utils::{number::*, OneTime};
+use utils::{number::*, Machine};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum RecursiveFunctions {
@@ -190,7 +190,11 @@ fn prepend_number(number: Number, tail: &[Number]) -> Vec<Number> {
 impl Process {
     pub fn new(func: RecursiveFunctions, args: Vec<Number>) -> Result<Self, String> {
         if args.len() != func.parameter_length() {
-            return Err(format!("length mismatch arg:{} func:{}", args.len(), func.parameter_length()));
+            return Err(format!(
+                "length mismatch arg:{} func:{}",
+                args.len(),
+                func.parameter_length()
+            ));
         }
         let args = numbers_to_processes(args);
         Ok(Process::Comp {
@@ -494,45 +498,52 @@ pub struct Program {
     pub process: Process,
 }
 
-impl OneTime for Program {
+impl Machine for Program {
     type Code = RecursiveFunctions;
-    type Input = Vec<Number>;
-    type Env = Process;
+    type AInput = Vec<Number>;
+    type This = Program;
+    type RInput = ();
+    type Output = Number;
 
-    fn parse_code(input: &str) -> Result<Self::Code, String> {
-        crate::manipulation::parse(input)
+    fn parse_code(code: &str) -> Result<Self::Code, String> {
+        crate::manipulation::parse(code)
     }
 
-    fn parse_input(input: &str) -> Result<Self::Input, String> {
-        let tuple = crate::manipulation::parse_tuple_str(input)?;
+    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
+        let tuple = crate::manipulation::parse_tuple_str(ainput)?;
         Ok(tuple.into_iter().map(Number).collect())
     }
 
-    fn setup(code: Self::Code, input: Self::Input) -> Result<Self, String> {
-        let process = Process::new(code.clone(), input.clone())?;
+    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
+        if rinput.trim().is_empty() {
+            Ok(())
+        } else {
+            Err("Recursive function machine does not take runtime input".to_string())
+        }
+    }
+
+    fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
+        let process = Process::new(code.clone(), ainput.clone())?;
         Ok(Program {
             function: code,
-            input,
+            input: ainput,
             process,
         })
     }
 
-    fn run_onestep(&mut self) {
+    fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
         if let Some(next) = self.process.eval_one_step() {
             self.process = next;
+            Ok(None)
+        } else if let Some(result) = self.process.result() {
+            Ok(Some(result))
+        } else {
+            Err("Process is in an invalid state".to_string())
         }
     }
 
-    fn is_terminated(&self) -> bool {
-        matches!(self.process, Process::Result(_))
-    }
-
-    fn current_env(&self) -> Self::Env {
-        self.process.clone()
-    }
-
-    fn get_code(&self) -> Self::Code {
-        self.function.clone()
+    fn current(&self) -> Self::This {
+        self.clone()
     }
 }
 

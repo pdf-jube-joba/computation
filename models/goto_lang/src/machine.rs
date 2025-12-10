@@ -1,5 +1,5 @@
 use serde::Serialize;
-use utils::OneTime;
+use utils::Machine;
 use utils::number::Number;
 use utils::variable::Var;
 
@@ -66,79 +66,35 @@ pub struct Program {
     pub env: Environment,
 }
 
-impl OneTime for Program {
+impl Machine for Program {
     type Code = Vec<Command>;
-    type Input = Environment;
-    type Env = Program;
+    type AInput = Environment;
+    type This = Program;
+    type RInput = ();
 
-    fn parse_code(input: &str) -> Result<Self::Code, String> {
-        let code = crate::manipulation::program_read_to_end(input).map_err(|e| e.to_string())?;
-        Ok(code)
+    type Output = Environment;
+
+    fn parse_code(code: &str) -> Result<Self::Code, String> {
+        todo!()
     }
 
-    fn parse_input(input: &str) -> Result<Self::Input, String> {
-        let env = crate::manipulation::env_read_to_end(input).map_err(|e| e.to_string())?;
-        Ok(Environment { env })
+    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
+        todo!()
     }
 
-    fn setup(code: Self::Code, input: Self::Input) -> Result<Self, String> {
-        Ok(Program {
-            commands: code,
-            pc: Number(0),
-            env: input,
-        })
+    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
+        todo!()
     }
 
-    fn run_onestep(&mut self) {
-        match self.commands.get(self.pc.0) {
-            Some(command) => match command {
-                Command::Clr(v) => {
-                    self.env.write(v, Number(0));
-                    self.pc.0 += 1;
-                }
-                Command::Inc(v) => {
-                    let val = self.env.get(v).clone();
-                    self.env.write(v, Number(val.0 + 1));
-                    self.pc.0 += 1;
-                }
-                Command::Dec(v) => {
-                    let val = self.env.get(v).clone();
-                    if val.0 > 0 {
-                        self.env.write(v, Number(val.0 - 1));
-                    }
-                    self.pc.0 += 1;
-                }
-                Command::Cpy(v1, v2) => {
-                    let val = self.env.get(v2).clone();
-                    self.env.write(v1, val);
-                    self.pc.0 += 1;
-                }
-                Command::Ifz(v, n) => {
-                    let val = self.env.get(v).clone();
-                    if val.0 == 0 {
-                        self.pc = n.clone();
-                    } else {
-                        self.pc.0 += 1;
-                    }
-                }
-            },
-            None => {
-                // Do nothing if pc is out of bounds
-            }
-        }
+    fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
+        todo!()
     }
 
-    fn is_terminated(&self) -> bool {
-        self.pc.0 >= self.commands.len()
+    fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
+        todo!()
     }
 
-    fn current_env(&self) -> Self::Env {
-        self.clone()
+    fn current(&self) -> Self::This {
+        todo!()
     }
-    
-    fn get_code(&self) -> Self::Code {
-        self.commands.clone()
-    }
-
-    
 }

@@ -1,8 +1,9 @@
+use serde::Serialize;
 use std::{fmt::Display, str::FromStr};
 use utils::alphabet::Alphabet; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Direction {
     Right,
     Constant,
@@ -35,7 +36,7 @@ impl Display for Direction {
 // テープで扱う記号の定義
 // 空白記号（None）と制御記号の含まれない文字列を記号として扱う
 // Alphabet は空白ではない
-#[derive(Debug, Default, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Hash, Eq, Serialize)]
 pub struct Sign(Option<Alphabet>);
 
 impl Sign {
@@ -74,7 +75,7 @@ impl FromStr for Sign {
 // ヘッド部分の読み書きと左右への移動のみが許される
 // テープの左右端には空白記号が無限に並んでいるものとする
 // left[0] が左端で right[0] が右端 => テープとしては、 left[0] ... left[n] [head] right[m] ... right[0]
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Tape {
     pub left: Vec<Sign>,
     pub head: Sign,
@@ -167,7 +168,7 @@ impl Tape {
 
 // マシンの持つ状態の定義
 // テープの記号と同じ
-#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize)]
 pub struct State(Alphabet);
 
 impl Display for State {
@@ -186,7 +187,7 @@ impl FromStr for State {
 pub type CodeEntry = ((Sign, State), (Sign, State, Direction));
 pub type Code = Vec<CodeEntry>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TuringMachineDefinition {
     init_state: State,
     accepted_state: Vec<State>,
@@ -258,7 +259,7 @@ impl TuringMachineDefinition {
 }
 
 // TuringMachine の計算過程を表す。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TuringMachineState {
     state: State,
     tape: Tape,
