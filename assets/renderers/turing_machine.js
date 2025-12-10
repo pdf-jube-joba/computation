@@ -81,11 +81,34 @@ export class Renderer {
 
 function formatTape(tape) {
   if (!tape) return "(no tape)";
-  const toCells = arr => (Array.isArray(arr) ? arr : []);
-  const norm = c => (c && c.trim() !== "" ? c : " ");
-  const left = toCells(tape.left).slice().reverse().map(norm);
-  const right = toCells(tape.right).map(norm);
-  const renderCells = cells => cells.map(c => `[${c}]`);
-  const parts = [...renderCells(left), `{${tape.head ?? " "}}`, ...renderCells(right)];
-  return parts.join(" ");
+  const WINDOW = 7;
+  const mid = Math.floor(WINDOW / 2);
+  const norm = c => {
+    const s = (c ?? "").toString();
+    return s.trim() === "" ? " " : s;
+  };
+  const left = Array.isArray(tape.left) ? tape.left : [];
+  const right = Array.isArray(tape.right) ? tape.right : [];
+  const cells = Array.from({ length: WINDOW }, () => " ");
+
+  // fill left side (closest to head to the left)
+  for (let i = 1; i <= mid; i++) {
+    const val = left[left.length - i];
+    if (val !== undefined) {
+      cells[mid - i] = norm(val);
+    }
+  }
+
+  // fill right side (closest to head to the right)
+  for (let i = 1; i < WINDOW - mid; i++) {
+    const val = right[right.length - i];
+    if (val !== undefined) {
+      cells[mid + i] = norm(val);
+    }
+  }
+
+  const head = norm(tape.head);
+  return cells
+    .map((c, idx) => (idx === mid ? `{${head}}` : `[${c}]`))
+    .join(" ");
 }

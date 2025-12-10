@@ -53,7 +53,7 @@ def main() -> None:
     args = parse_args()
     if not args.no_build:
         call_build_script()
-        pull_assets()
+    pull_assets()
     serve(port=args.port)
 
 if __name__ == "__main__":

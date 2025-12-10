@@ -75,26 +75,69 @@ impl Machine for Program {
     type Output = Environment;
 
     fn parse_code(code: &str) -> Result<Self::Code, String> {
-        todo!()
+        crate::manipulation::program_read_to_end(code).map_err(|e| e.to_string())
     }
 
     fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
-        todo!()
+        let v = crate::manipulation::env_read_to_end(ainput).map_err(|e| e.to_string())?;
+        Ok(Environment::from(v))
     }
 
     fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
-        todo!()
+        if rinput.trim().is_empty() {
+            Ok(())
+        } else {
+            Err("This machine does not take any runtime input.".to_string())
+        }
     }
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
-        todo!()
+        Ok(Program {
+            commands: code,
+            pc: Number(0),
+            env: ainput,
+        })
     }
 
     fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        todo!()
+        if (self.pc).0 as usize >= self.commands.len() {
+            return Ok(Some(self.env.clone()));
+        }
+
+        let command = &self.commands[(self.pc).0 as usize];
+        match command {
+            Command::Clr(var) => {
+                self.env.write(var, Number(0));
+                self.pc.0 += 1;
+            }
+            Command::Inc(var) => {
+                let val = self.env.get(var).0 + 1;
+                self.env.write(var, Number(val));
+                self.pc.0 += 1;
+            }
+            Command::Dec(var) => {
+                let val = self.env.get(var).0.saturating_sub(1);
+                self.env.write(var, Number(val));
+                self.pc.0 += 1;
+            }
+            Command::Cpy(src, dest) => {
+                let val = self.env.get(src).clone();
+                self.env.write(dest, val);
+                self.pc.0 += 1;
+            }
+            Command::Ifz(var, target) => {
+                if self.env.get(var).0 == 0 {
+                    self.pc = target.clone();
+                } else {
+                    self.pc.0 += 1;
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     fn current(&self) -> Self::This {
-        todo!()
+        self.clone()
     }
 }
