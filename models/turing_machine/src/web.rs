@@ -3,7 +3,7 @@ use crate::{
     manipulation,
 };
 use serde::{Serialize, Serializer};
-use utils::MealyMachine;
+use utils::Machine;
 
 const TAPE_WINDOW: usize = 7;
 
@@ -100,12 +100,12 @@ pub struct TuringMachineWeb {
     machine: Option<TuringMachineSet>,
 }
 
-impl MealyMachine for TuringMachineWeb {
-    type Input = Input;
+impl Machine for TuringMachineWeb {
+    type RInput = Input;
     type Output = Output;
     type This = Current;
 
-    fn parse_self(input: &str) -> Result<Self, String> {
+    fn parse_code(input: &str) -> Result<Self, String> {
         let definition =
             manipulation::code::parse_definition(input).map_err(|e| format!("{e:?}"))?;
         let code = definition
@@ -121,7 +121,7 @@ impl MealyMachine for TuringMachineWeb {
         })
     }
 
-    fn parse_input(input: &str) -> Result<Self::Input, String> {
+    fn parse_input(input: &str) -> Result<Self::RInput, String> {
         if input.trim().is_empty() {
             Ok(Input::Otherwise)
         } else {
@@ -129,7 +129,7 @@ impl MealyMachine for TuringMachineWeb {
         }
     }
 
-    fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String> {
+    fn step(&mut self, input: Self::RInput) -> Result<Option<Self::Output>, String> {
         match input {
             Input::Start(tape) => {
                 if self.machine.is_some() {

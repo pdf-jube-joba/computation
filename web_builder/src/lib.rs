@@ -8,11 +8,11 @@ pub trait WebView {
 
 impl<T> WebView for T
 where
-    T: utils::MealyMachine,
+    T: utils::Machine,
 {
     fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
-        let parsed = <Self as utils::MealyMachine>::parse_input(input)?;
-        let output = <Self as utils::MealyMachine>::step(self, parsed)?;
+        let parsed = <Self as utils::Machine>::parse_rinput(input)?;
+        let output = <Self as utils::Machine>::step(self, parsed)?;
         match output {
             Some(o) => {
                 let js = serde_wasm_bindgen::to_value(&o).map_err(|e| e.to_string())?;
@@ -23,7 +23,7 @@ where
     }
 
     fn current(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&<Self as utils::MealyMachine>::current(self))
+        serde_wasm_bindgen::to_value(&<Self as utils::Machine>::current(self))
             .unwrap_or_else(|e| JsValue::from_str(&e.to_string()))
     }
 }
@@ -33,13 +33,13 @@ thread_local! {
 }
 
 #[wasm_bindgen]
-pub fn step_machine(input: &str) -> Result<JsValue, JsValue> {
+pub fn step_machine(rinput: &str) -> Result<JsValue, JsValue> {
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         let m = machine
             .as_mut()
             .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
-        let result = m.step(input).map_err(|e| JsValue::from_str(&e))?;
+        let result = m.step(rinput).map_err(|e| JsValue::from_str(&e))?;
         Ok(result.unwrap_or(JsValue::UNDEFINED))
     })
 }
@@ -55,9 +55,14 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
     })
 }
 
-pub fn create_machine<T: utils::MealyMachine + 'static>(input: &str) -> Result<(), JsValue> {
-    let m = T::parse_self(input).map_err(|e| JsValue::from_str(&e))?;
-    let boxed: Box<dyn WebView> = Box::new(m);
+pub fn create_machine<T: utils::Machine + 'static>(
+    code: &str,
+    ainput: &str,
+) -> Result<(), JsValue> {
+    let code = T::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
+    let ainput = T::parse_ainput(ainput).map_err(|e| JsValue::from_str(&e))?;
+    let machine = T::make(code, ainput).map_err(|e| JsValue::from_str(&e))?;
+    let boxed: Box<dyn WebView> = Box::new(machine);
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         *machine = Some(boxed);
@@ -67,38 +72,38 @@ pub fn create_machine<T: utils::MealyMachine + 'static>(input: &str) -> Result<(
 
 #[cfg(feature = "turing_machine")]
 #[wasm_bindgen]
-pub fn create(input: &str) -> Result<(), JsValue> {
+pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<turing_machine::web::TuringMachineWeb>(input)
 }
 
 #[cfg(feature = "lambda_calculus")]
 #[wasm_bindgen]
-pub fn create(input: &str) -> Result<(), JsValue> {
+pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<lambda_calculus::machine::LambdaTerm>(input)
 }
 
 #[cfg(feature = "goto_lang")]
 #[wasm_bindgen]
-pub fn create(input: &str) -> Result<(), JsValue> {
+pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<goto_lang::machine::Program>(input)
 }
 
 #[cfg(feature = "recursive_function")]
 #[wasm_bindgen]
-pub fn create(input: &str) -> Result<(), JsValue> {
+pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<recursive_function::machine::Program>(input)
 }
 
 #[cfg(feature = "example")]
 #[wasm_bindgen]
-pub fn create(input: &str) -> Result<(), JsValue> {
+pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<example::Counter>(input)
 }
 
 #[cfg(feature = "example")]
 mod example {
     use serde::Serialize;
-    use utils::MealyMachine;
+    use utils::Machine;
 
     pub struct Counter {
         pub count: usize,

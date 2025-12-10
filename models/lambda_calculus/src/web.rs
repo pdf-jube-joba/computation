@@ -1,16 +1,16 @@
 use crate::machine::{LambdaTerm, MarkedTerm};
-use utils::MealyMachine;
+use utils::Machine;
 
-impl MealyMachine for LambdaTerm {
-    type Input = usize;
+impl Machine for LambdaTerm {
+    type RInput = usize;
     type Output = ();
     type This = MarkedTerm;
 
-    fn parse_self(input: &str) -> Result<Self, String> {
+    fn parse_code(input: &str) -> Result<Self, String> {
         crate::manipulation::parse::parse_lambda_read_to_end(input)
     }
 
-    fn parse_input(input: &str) -> Result<Self::Input, String> {
+    fn parse_input(input: &str) -> Result<Self::RInput, String> {
         if input.is_empty() {
             Ok(0)
         } else {
@@ -21,7 +21,7 @@ impl MealyMachine for LambdaTerm {
         }
     }
 
-    fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String> {
+    fn step(&mut self, input: Self::RInput) -> Result<Option<Self::Output>, String> {
         let marked = crate::machine::mark_redex(self);
         let lambda =
             crate::machine::step(&marked, input).ok_or("No redex found at the given index")?;
