@@ -73,7 +73,7 @@ pub fn create_machine<T: utils::Machine + 'static>(
 #[cfg(feature = "turing_machine")]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<turing_machine::web::TuringMachineWeb>(input, ainput)
+    create_machine::<turing_machine::machine::TuringMachineSet>(input, ainput)
 }
 
 #[cfg(feature = "lambda_calculus")]
