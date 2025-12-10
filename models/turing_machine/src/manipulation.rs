@@ -79,7 +79,6 @@ pub mod builder {
         init_state: Option<State>,
         accepted_state: Vec<State>,
         code: Vec<CodeEntry>,
-        input: Option<Tape>,
     }
 
     impl TuringMachineBuilder {
@@ -92,11 +91,10 @@ pub mod builder {
                 init_state: None,
                 accepted_state: Vec::new(),
                 code: Vec::new(),
-                input: None,
             })
         }
 
-        pub fn build(&self) -> Result<TuringMachineSet> {
+        pub fn build(&self, tape: Tape) -> Result<TuringMachineSet> {
             let init_state = self
                 .init_state
                 .clone()
@@ -104,16 +102,7 @@ pub mod builder {
             let code = self.code.clone();
             let machine =
                 TuringMachineDefinition::new(init_state, self.accepted_state.clone(), code)?;
-            let input_tape = self
-                .input
-                .clone()
-                .ok_or_else(|| anyhow!("Input tape is empty"))?;
-            Ok(TuringMachineSet::new(machine, input_tape))
-        }
-
-        pub fn input(&mut self, input: Tape) -> &mut Self {
-            self.input = Some(input);
-            self
+            Ok(TuringMachineSet::new(machine, tape))
         }
 
         pub fn init_state(&mut self, state: State) -> &mut Self {
@@ -311,7 +300,7 @@ pub mod graph_compose {
 #[cfg(test)]
 mod tests {
     use super::{builder, code};
-    use crate::machine::State;
+    use crate::machine::{State, Tape};
 
     static CODE_STR: &str = "
         -, start, -, end, C
@@ -326,7 +315,7 @@ mod tests {
     #[test]
     fn builder() {
         let mut builder = builder::TuringMachineBuilder::new("test").unwrap();
-        assert!(builder.build().is_err());
+        assert!(builder.build(Tape::from_vec(vec![], 0)).is_err());
 
         let start_state: State = "start".parse().unwrap();
         builder.init_state(start_state.clone());

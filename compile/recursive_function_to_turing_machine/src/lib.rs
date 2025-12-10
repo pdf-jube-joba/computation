@@ -40,7 +40,7 @@ fn builder_test(builder: &mut TuringMachineBuilder, step: usize, tests: Vec<(Tap
     eprintln!("test start");
     for (input, result) in tests {
         eprintln!("input: {}", input);
-        let mut machine = builder.input(input).build().unwrap();
+        let mut machine = builder.build(input).unwrap();
         eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
         for _ in 0..step {
             let _ = machine.step(1);
@@ -62,7 +62,7 @@ fn builder_test_predicate(
 ) {
     eprintln!("test start");
     for (input, result) in tests {
-        let mut machine = builder.input(input).build().unwrap();
+        let mut machine = builder.build(input).unwrap();
         eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
         for _ in 0..step {
             let _ = machine.step(1);

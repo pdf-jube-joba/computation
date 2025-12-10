@@ -36,9 +36,8 @@ fn tuple_read_write() {
 #[test]
 
 fn test_zero() {
-    let mut zero_builder = zero_builder();
-    zero_builder.input(num_tape::write_usize(vec![]));
-    let mut machine = zero_builder.build().unwrap();
+    let zero_builder = zero_builder();
+    let mut machine = zero_builder.build(num_tape::write_usize(vec![])).unwrap();
     loop {
         let _ = machine.step(1);
         eprintln!("{}", machine.now_tape());
@@ -52,11 +51,10 @@ fn test_zero() {
 }
 #[test]
 fn succ_zero() {
-    let mut succ_builder = succ_builder();
+    let succ_builder = succ_builder();
 
     for i in 0..5 {
-        succ_builder.input(num_tape::write_usize(vec![i]));
-        let mut machine = succ_builder.build().unwrap();
+        let mut machine = succ_builder.build(num_tape::write_usize(vec![i])).unwrap();
         loop {
             let _ = machine.step(1);
             print_process(&machine);
@@ -70,28 +68,10 @@ fn succ_zero() {
 }
 #[test]
 fn projection_test() {
-    let mut builder = projection::projection(2, 0);
+    let builder = projection::projection(2, 0);
     let input: Tape = num_tape::write_usize(vec![1, 2]);
-    builder.input(input);
 
-    let mut machine = builder.build().unwrap();
-
-    loop {
-        let _ = machine.step(1);
-        print_process(&machine);
-        if machine.is_terminate() {
-            break;
-        }
-    }
-
-    let result = num_tape::read_right_one_usize(machine.now_tape());
-    assert_eq!(result, Some(vec![1]));
-
-    let mut builder = projection::projection(3, 0);
-    let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
-    builder.input(input);
-
-    let mut machine = builder.build().unwrap();
+    let mut machine = builder.build(input).unwrap();
 
     loop {
         let _ = machine.step(1);
@@ -104,11 +84,26 @@ fn projection_test() {
     let result = num_tape::read_right_one_usize(machine.now_tape());
     assert_eq!(result, Some(vec![1]));
 
-    let mut builder = projection::projection(3, 1);
+    let builder = projection::projection(3, 0);
     let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
-    builder.input(input);
 
-    let mut machine = builder.build().unwrap();
+    let mut machine = builder.build(input).unwrap();
+
+    loop {
+        let _ = machine.step(1);
+        print_process(&machine);
+        if machine.is_terminate() {
+            break;
+        }
+    }
+
+    let result = num_tape::read_right_one_usize(machine.now_tape());
+    assert_eq!(result, Some(vec![1]));
+
+    let builder = projection::projection(3, 1);
+    let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
+
+    let mut machine = builder.build(input).unwrap();
 
     loop {
         let _ = machine.step(1);
@@ -121,11 +116,10 @@ fn projection_test() {
     let result = num_tape::read_right_one_usize(machine.now_tape());
     assert_eq!(result, Some(vec![2]));
 
-    let mut builder = projection::projection(3, 2);
+    let builder = projection::projection(3, 2);
     let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
-    builder.input(input);
 
-    let mut machine = builder.build().unwrap();
+    let mut machine = builder.build(input).unwrap();
 
     loop {
         let _ = machine.step(1);
@@ -140,11 +134,10 @@ fn projection_test() {
 }
 #[test]
 fn composition_test() {
-    let mut builder = composition::composition(vec![zero_builder()], succ_builder());
+    let builder = composition::composition(vec![zero_builder()], succ_builder());
     let input: Tape = num_tape::write_usize(Vec::<usize>::new());
-    builder.input(input);
 
-    let mut machine = builder.build().unwrap();
+    let mut machine = builder.build(input).unwrap();
 
     loop {
         let _ = machine.step(1);
@@ -156,7 +149,7 @@ fn composition_test() {
     let result = num_tape::read_right_one_usize(machine.now_tape());
     assert_eq!(result, Some(vec![1]));
 
-    let mut builder = composition::composition(
+    let builder = composition::composition(
         vec![
             projection::projection(3, 2),
             projection::projection(3, 1),
@@ -165,9 +158,8 @@ fn composition_test() {
         projection(3, 0),
     );
     let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
-    builder.input(input);
 
-    let mut machine = builder.build().unwrap();
+    let mut machine = builder.build(input).unwrap();
     print_process(&machine);
 
     loop {
@@ -182,13 +174,13 @@ fn composition_test() {
 }
 #[test]
 fn primitive_recursion_test() {
-    let mut builder = primitive_recursion::primitive_recursion(
+    let builder = primitive_recursion::primitive_recursion(
         zero_builder(),
         composition::composition(vec![projection::projection(2, 0)], succ_builder()),
     );
     for i in 0..5 {
         let input = num_tape::write_usize(vec![i]);
-        let mut machine = builder.input(input).build().unwrap();
+        let mut machine = builder.build(input).unwrap();
 
         loop {
             let _ = machine.step(1);
@@ -202,9 +194,9 @@ fn primitive_recursion_test() {
 }
 #[test]
 fn mu_recursion_test() {
-    let mut builder = mu_recursion::mu_recursion(basic::id());
+    let builder = mu_recursion::mu_recursion(basic::id());
     let input = num_tape::write_usize(Vec::<usize>::new());
-    let mut machine = builder.input(input).build().unwrap();
+    let mut machine = builder.build(input).unwrap();
 
     loop {
         let _ = machine.step(1);
@@ -277,9 +269,9 @@ fn zero_from_mul() -> RecursiveFunctions {
 }
 
 fn func_test(fun: &RecursiveFunctions, tests: Vec<(Vec<usize>, Vec<usize>)>) {
-    let mut builder = compile(fun);
+    let builder = compile(fun);
     for (input, expect) in tests {
-        let mut machine = builder.input(num_tape::write_usize(input)).build().unwrap();
+        let mut machine = builder.build(num_tape::write_usize(input)).unwrap();
         let mut loop_num = 0;
         loop {
             let _ = machine.step(1);
