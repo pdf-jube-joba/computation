@@ -18,8 +18,7 @@ pub mod num_tape {
     }
 
     pub fn write(tuple: Vec<Number>) -> Tape {
-        let vec: Vec<Number> = tuple.into();
-        let mut signs: Vec<Sign> = vec
+        let mut signs: Vec<Sign> = tuple
             .into_iter()
             .flat_map(|num: Number| {
                 let mut vec = vec![Sign::blank()];
@@ -96,7 +95,7 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
             projection_num,
         } => projection::projection(*parameter_length, *projection_num),
         RecursiveFunctions::Composition {
-            parameter_length,
+            parameter_length: _,
             outer_func,
             inner_funcs,
         } => {

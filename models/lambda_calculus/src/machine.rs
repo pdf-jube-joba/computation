@@ -307,6 +307,17 @@ pub fn is_normal_form(term: &LambdaTerm) -> bool {
     }
 }
 
+pub fn normalize(term: &LambdaTerm) -> LambdaTerm {
+    let mut marked = mark_redex(term);
+    loop {
+        if let Some(next) = step(&marked, 0) {
+            marked = mark_redex(&next);
+        } else {
+            return unmark_redex(marked);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

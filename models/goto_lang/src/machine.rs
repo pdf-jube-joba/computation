@@ -99,12 +99,12 @@ impl Machine for Program {
         })
     }
 
-    fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        if (self.pc).0 as usize >= self.commands.len() {
+    fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
+        if (self.pc).0 >= self.commands.len() {
             return Ok(Some(self.env.clone()));
         }
 
-        let command = &self.commands[(self.pc).0 as usize];
+        let command = &self.commands[(self.pc).0];
         match command {
             Command::Clr(var) => {
                 self.env.write(var, Number(0));
