@@ -3,6 +3,9 @@
 [README](README.md)
 
 - [メモ](./01_notes/TODO.md)
+    - [mdbookについて](./01_notes/notes/mdbookについて.md)
+    - [全体を書き直したい](./01_notes/notes/全体を書き直したい.md)
+- [状態機械とか](./状態機械とか.md)
 - [計算モデルと計算について](./models_of_computation.md)
     - [チューリングマシン](./models_of_computation/Turing_machine.md)
     - [While(minus) 言語](./models_of_computation/While_minus_lang.md)

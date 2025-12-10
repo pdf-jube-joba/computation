@@ -1,6 +1,4 @@
 # book
-## 全体
-## models of computation
 - [ ] 参考にした文献を列挙する。
 
 # models
@@ -9,7 +7,7 @@
 ## lambda continutations
 - [ ] parse をできるようにする
 
-## logic circuirs
+## logic circuit
 - [ ] js を書く
 
 ## my_hdl

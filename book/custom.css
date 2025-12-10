@@ -1,0 +1,5 @@
+dd:has(+ dd), dd + dd {
+    /* Use flex display to help with positioning the numbers when there is a p
+    tag inside the definition. */
+    display: block;
+}
