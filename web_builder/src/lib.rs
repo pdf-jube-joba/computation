@@ -120,30 +120,41 @@ mod example {
         Decrement,
     }
 
-    impl MealyMachine for Counter {
-        type Input = Command;
+    impl Machine for Counter {
+        type Code = usize;
+        type AInput = ();
+        type RInput = Command;
         type Output = String;
         type This = Current;
 
-        fn parse_self(input: &str) -> Result<Self, String> {
-            let initial_count = input.trim().parse::<usize>().map_err(|e| e.to_string())?;
+        fn parse_code(code: &str) -> Result<Self::Code, String> {
+            let initial_count = code.trim().parse::<usize>().map_err(|e| e.to_string())?;
             if initial_count >= 10 {
                 return Err("Initial count must be less than 10".to_string());
             }
-            Ok(Counter {
-                count: initial_count,
-            })
+            Ok(initial_count)
         }
 
-        fn parse_input(input: &str) -> Result<Self::Input, String> {
-            match input.trim() {
-                "increment" => Ok(Command::Increment),
-                "decrement" => Ok(Command::Decrement),
-                _ => Err("Invalid input".to_string()),
+        fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
+            if !ainput.trim().is_empty() {
+                return Err("AInput must be empty".to_string());
+            }
+            Ok(())
+        }
+
+        fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
+            match rinput.trim() {
+                "Increment" => Ok(Command::Increment),
+                "Decrement" => Ok(Command::Decrement),
+                _ => Err("Invalid command".to_string()),
             }
         }
 
-        fn step(&mut self, input: Self::Input) -> Result<Option<Self::Output>, String> {
+        fn make(code: Self::Code, _ainput: Self::AInput) -> Result<Self, String> {
+            Ok(Counter { count: code })
+        }
+
+        fn step(&mut self, input: Self::RInput) -> Result<Option<Self::Output>, String> {
             match input {
                 Command::Increment => {
                     self.count += 1;
