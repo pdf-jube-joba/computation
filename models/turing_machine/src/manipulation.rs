@@ -69,18 +69,6 @@ pub mod code {
     }
 }
 
-pub mod tape {
-    use super::*;
-    pub fn from_vec_and_position(v: Vec<Sign>, position: usize) -> Tape {
-        let (left, right) = v.split_at(position);
-        Tape {
-            left: left.to_owned(),
-            head: right[0].clone(),
-            right: right[1..].iter().rev().cloned().collect(),
-        }
-    }
-}
-
 pub mod builder {
     use crate::machine::*;
     use anyhow::{anyhow, Result};

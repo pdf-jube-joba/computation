@@ -39,11 +39,12 @@ pub fn succ_builder() -> TuringMachineBuilder {
 fn builder_test(builder: &mut TuringMachineBuilder, step: usize, tests: Vec<(Tape, Tape)>) {
     eprintln!("test start");
     for (input, result) in tests {
+        eprintln!("input: {}", input);
         let mut machine = builder.input(input).build().unwrap();
         eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
         for _ in 0..step {
             let _ = machine.step(1);
-            eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
+            eprintln!("__{:?}\n    {}", machine.now_state(), machine.now_tape());
             if machine.is_terminate() {
                 break;
             }
@@ -65,7 +66,7 @@ fn builder_test_predicate(
         eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
         for _ in 0..step {
             let _ = machine.step(1);
-            eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
+            eprintln!("__{:?}\n    {}", machine.now_state(), machine.now_tape());
             if machine.is_terminate() {
                 break;
             }

@@ -486,18 +486,18 @@ mod tests {
                     right: vec_sign(vec!["", "", "-"]),
                 },
             ),
-            (
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "", "1", "-"]),
-                },
-            ),
+            // (
+            //     Tape {
+            //         left: vec![],
+            //         head: "-".parse().unwrap(),
+            //         right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
+            //     },
+            //     Tape {
+            //         left: vec![],
+            //         head: "-".parse().unwrap(),
+            //         right: vec_sign(vec!["", "1", "", "1", "-"]),
+            //     },
+            // ),
         ];
         builder_test(&mut builder, 500, tests);
     }

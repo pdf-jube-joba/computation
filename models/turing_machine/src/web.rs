@@ -90,19 +90,17 @@ fn parse_tape(tape: &str) -> Result<Tape, String> {
     if parts.len() != 3 {
         return Err("Invalid tape format | format ... 0,1,2|3|4,5,6".to_string());
     }
-    let left: Vec<Sign> = parts
-        .first()
-        .ok_or_else(|| "Missing left part".to_string())?
-        .split(',')
-        .map(|s| s.trim().parse().map_err(|e| format!("{e}")))
-        .collect::<Result<_, _>>()?;
+    let mut v = vec![];
+    for s in parts[0].split(',') {
+        let sign: Sign = s.trim().parse().map_err(|e| format!("{e}"))?;
+        v.push(sign);
+    }
+    let pos = v.len();
     let head: Sign = parts[1].trim().parse().map_err(|e| format!("{e}"))?;
-    let mut right: Vec<Sign> = parts
-        .get(2)
-        .ok_or_else(|| "Missing right part".to_string())?
-        .split(',')
-        .map(|s| s.trim().parse().map_err(|e| format!("{e}")))
-        .collect::<Result<_, _>>()?;
-    right.reverse();
-    Ok(Tape::new(left, head, right))
+    v.push(head.clone());
+    for s in parts[2].split(',') {
+        let sign: Sign = s.trim().parse().map_err(|e| format!("{e}"))?;
+        v.push(sign);
+    }
+    Ok(Tape::from_vec(v, pos))
 }

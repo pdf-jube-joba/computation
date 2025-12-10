@@ -61,7 +61,7 @@ impl FromStr for Sign {
         match value.try_into() {
             Ok(alphabet) => Ok(Sign(Some(alphabet))),
             Err(err) => {
-                if value.is_empty() {
+                if value.trim().is_empty() {
                     Ok(Sign::blank())
                 } else {
                     Err(anyhow::anyhow!(err))
@@ -77,17 +77,28 @@ impl FromStr for Sign {
 // left[0] が左端で right[0] が右端 => テープとしては、 left[0] ... left[n] [head] right[m] ... right[0]
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct Tape {
-    pub left: Vec<Sign>,
-    pub head: Sign,
-    pub right: Vec<Sign>,
+    left: Vec<Sign>,
+    head: Sign,
+    right: Vec<Sign>,
 }
 
 impl PartialEq for Tape {
     // 空白記号のみの部分は無視して比較する
     fn eq(&self, other: &Self) -> bool {
         fn same_except_last_blanks(vec1: &[Sign], vec2: &[Sign]) -> bool {
-            let iter1 = vec1.iter().rev().skip_while(|sign| **sign == Sign::blank());
-            let iter2 = vec2.iter().rev().skip_while(|sign| **sign == Sign::blank());
+            let max_len = vec1.len().max(vec2.len());
+            let blank = Sign::blank();
+
+            let iter1 = vec1
+                .iter()
+                .rev()
+                .chain(std::iter::repeat(&blank))
+                .take(max_len);
+            let iter2 = vec2
+                .iter()
+                .rev()
+                .chain(std::iter::repeat(&blank))
+                .take(max_len);
             iter1.eq(iter2)
         }
         let Tape {
@@ -114,17 +125,17 @@ impl Display for Tape {
         let mut str = String::new();
         left.iter().for_each(|sign| {
             if *sign == Sign::blank() {
-                str.push(' ');
+                str.push('_')
             } else {
-                str.push_str(&format!("{sign}"));
+                str.push_str(&format!("[{sign}]"));
             }
         });
-        str.push_str(&format!("[{head}]",));
+        str.push_str(&format!("{{{head}}}",));
         right.iter().rev().for_each(|sign| {
             if *sign == Sign::blank() {
-                str.push(' ');
+                str.push('_')
             } else {
-                str.push_str(&format!("{sign}"));
+                str.push_str(&format!("[{sign}]"));
             }
         });
         write!(f, "{}", str)
@@ -132,16 +143,13 @@ impl Display for Tape {
 }
 
 impl Tape {
-    pub fn new(
-        left: impl IntoIterator<Item = Sign>,
-        head: Sign,
-        right: impl IntoIterator<Item = Sign>,
-    ) -> Self {
-        Self {
-            left: left.into_iter().collect(),
-            head,
-            right: right.into_iter().collect(),
-        }
+    pub fn from_vec(v: impl IntoIterator<Item = Sign>, pos: usize) -> Self {
+        let v: Vec<Sign> = v.into_iter().collect();
+        let left = v[..pos].to_vec();
+        let head = v.get(pos).cloned().unwrap_or_default();
+        let mut right = v[pos + 1..].to_vec();
+        right.reverse();
+        Self { left, head, right }
     }
     pub fn head_read(&self) -> &Sign {
         &self.head
