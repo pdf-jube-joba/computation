@@ -60,9 +60,11 @@ impl Machine for TuringMachineSet {
     }
 
     fn step(&mut self, _input: Self::RInput) -> Result<Option<Self::Output>, String> {
-        match self.step(1) {
-            Ok(_) => Ok(None),
-            Err(err) => Err(format!("{err}")),
+        let _ = self.step(1);
+        if self.is_terminate() {
+            Ok(Some(()))
+        } else {
+            Ok(None)
         }
     }
 

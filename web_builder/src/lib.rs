@@ -73,31 +73,31 @@ pub fn create_machine<T: utils::Machine + 'static>(
 #[cfg(feature = "turing_machine")]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<turing_machine::web::TuringMachineWeb>(input)
+    create_machine::<turing_machine::web::TuringMachineWeb>(input, ainput)
 }
 
 #[cfg(feature = "lambda_calculus")]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<lambda_calculus::machine::LambdaTerm>(input)
+    create_machine::<lambda_calculus::machine::LambdaTerm>(input, ainput)
 }
 
 #[cfg(feature = "goto_lang")]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<goto_lang::machine::Program>(input)
+    create_machine::<goto_lang::machine::Program>(input, ainput)
 }
 
 #[cfg(feature = "recursive_function")]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<recursive_function::machine::Program>(input)
+    create_machine::<recursive_function::machine::Program>(input, ainput)
 }
 
 #[cfg(feature = "example")]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<example::Counter>(input)
+    create_machine::<example::Counter>(input, ainput)
 }
 
 #[cfg(feature = "example")]
