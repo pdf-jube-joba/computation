@@ -16,3 +16,4 @@ macros = "macros.txt"
 
 [preprocessor.build-assets]
 command = "python3 build_assets.py"
+build = false

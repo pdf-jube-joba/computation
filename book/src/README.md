@@ -24,6 +24,17 @@ increment
 </script>
 </div>
 
+## a
+
 # katex で数式
 ## ヘッダーに数式を書く： \(1\)
 `mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)
+
+# mdbook の新しい拡張
+term
+  : 定義をここに書く
+  : 複数行
+  書くこともできる（空白が入る扱い？）
+
+> [!TIP]
+> admonition がデフォルトで入った。

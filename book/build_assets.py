@@ -52,9 +52,11 @@ def process_item(item):
         process_item(sub)
 
 def preprocess() -> None:
-    call_build_script()
-    copy_assets()
     context, book = json.load(sys.stdin)
+    build_flag = context["config"]["preprocessor"]["build-assets"]["build"]
+    if build_flag:
+        call_build_script()
+    copy_assets()
     for top in book['items']:
         process_item(top)
     json.dump(book, sys.stdout)
