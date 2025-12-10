@@ -1,5 +1,23 @@
 use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 
+struct Builder<'a> {
+    name: String,
+    code: Vec<&'a str>,
+}
+
+impl<'a> From<Builder<'a>> for TuringMachineBuilder {
+    fn from(builder: Builder) -> Self {
+        let mut tm_builder = TuringMachineBuilder::new(&builder.name).unwrap();
+        tm_builder.init_state("start".parse().unwrap());
+        tm_builder.accepted_state(vec!["end".parse().unwrap()]);
+        for entry in builder.code {
+            let entry = turing_machine::manipulation::code::parse_one_code_entry(&entry).unwrap();
+            tm_builder.code_push(entry);
+        }
+        tm_builder
+    }
+}
+
 // 最後の edge の番号 = n
 fn accept_end_only(n: usize) -> Vec<Vec<State>> {
     let mut v = vec![vec![]; n];

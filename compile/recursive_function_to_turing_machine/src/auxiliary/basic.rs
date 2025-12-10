@@ -10,9 +10,14 @@ use turing_machine::{
 use crate::*;
 
 pub fn id() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("id").unwrap();
-    builder.from_source(include_str!("id.txt")).unwrap();
-    builder
+    // let mut builder = TuringMachineBuilder::new("id").unwrap();
+    // builder.from_source(include_str!("id.txt")).unwrap();
+    // builder
+    Builder {
+        name: "id".to_string(),
+        code: vec!["-", "start", "-", "end", "C"],
+    }
+    .into()
 }
 
 pub fn id_end(str: &str) -> TuringMachineBuilder {
@@ -34,9 +39,21 @@ pub fn id_end(str: &str) -> TuringMachineBuilder {
 }
 
 pub fn move_right() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("move_right").unwrap();
-    builder.from_source(include_str!("move_right.txt")).unwrap();
-    builder
+    // let mut builder = TuringMachineBuilder::new("move_right").unwrap();
+    // builder.from_source(include_str!("move_right.txt")).unwrap();
+    // builder
+    Builder {
+        name: "move_right".to_string(),
+        code: vec![
+            "-, start, -, till, R",
+            " , start,  , till, R",
+            "1, start, 1, till, R",
+            " ,  till,  , till, R",
+            "1,  till, 1, till, R",
+            "-,  till, -,  end, C",
+        ],
+    }
+    .into()
 }
 
 pub fn move_rights(n: usize) -> TuringMachineBuilder {
@@ -55,9 +72,20 @@ pub fn move_rights(n: usize) -> TuringMachineBuilder {
 }
 
 pub fn move_left() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("move_left").unwrap();
-    builder.from_source(include_str!("move_left.txt")).unwrap();
-    builder
+    // let mut builder = TuringMachineBuilder::new("move_left").unwrap();
+    // builder.from_source(include_str!("move_left.txt")).unwrap();
+    // builder
+    Builder {
+        name: "move_left".to_string(),
+        code: vec![
+            "-, start, -, till, L",
+            " , start,  , till, L",
+            "1, start, 1, till, L",
+            " ,  till,  , till, L",
+            "1,  till, 1, till, L",
+            "-,  till, -,  end, C",
+        ],
+    }.into()
 }
 
 pub fn move_lefts(n: usize) -> TuringMachineBuilder {
