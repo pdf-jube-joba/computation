@@ -163,16 +163,18 @@ mod tests {
     fn start_0_test() {
         let mut builder = start_0();
         let tests = vec![(
-            Tape {
-                left: vec![],
-                head: "-".parse().unwrap(),
-                right: vec_sign(vec!["-"]),
-            },
-            Tape {
-                left: vec![],
-                head: "-".parse().unwrap(),
-                right: vec_sign(vec!["-", "", "-"]),
-            },
+            // Tape {
+            //     left: vec![],
+            //     head: "-".parse().unwrap(),
+            //     right: vec_sign(vec!["-"]),
+            // },
+            Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
+            // Tape {
+            //     left: vec![],
+            //     head: "-".parse().unwrap(),
+            //     right: vec_sign(vec!["-", "", "-"]),
+            // },
+            Tape::from_vec(vec_sign(vec!["-", "-", "", "-"]), 0),
         )];
         builder_test(&mut builder, 100, tests);
     }
@@ -181,40 +183,46 @@ mod tests {
         let mut builder = setting();
         let tests = vec![
             (
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-", "", "-"]),
-                },
-                Tape {
-                    left: vec_sign(vec!["", "-", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "-"]),
-                },
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-", "", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "-", "", "-"]), 0),
+                // Tape {
+                //     left: vec_sign(vec!["", "-", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["", "-", "-", "-", "", "-"]), 3),
             ),
             (
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-", "", "1", "-"]),
-                },
-                Tape {
-                    left: vec_sign(vec!["1", "", "-", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "-"]),
-                },
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-", "", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "-", "", "1", "-"]), 0),
+                // Tape {
+                //     left: vec_sign(vec!["1", "", "-", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["1", "", "-", "-", "-", "", "1", "-"]), 4),
             ),
             (
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "-", "", "-"]),
-                },
-                Tape {
-                    left: vec_sign(vec!["", "-", "1", "", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "", "1", "-"]),
-                },
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "-", "", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "-"]), 0),
+                // Tape {
+                //     left: vec_sign(vec!["", "-", "1", "", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["", "-", "1", "", "-", "-", "", "1", "-"]), 5),
             ),
             // (
             //     Tape {
@@ -238,40 +246,46 @@ mod tests {
         let mut builder = increment();
         let tests = vec![
             (
-                Tape {
-                    left: vec_sign(vec!["", "-", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-", "", "1", "-"]),
-                },
+                // Tape {
+                //     left: vec_sign(vec!["", "-", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["", "-", "-", "-", "-"]), 3),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-", "", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "-", "", "1", "-"]), 0),
             ),
             (
-                Tape {
-                    left: vec_sign(vec!["", "-", "1", "", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "1", "-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
-                },
+                // Tape {
+                //     left: vec_sign(vec!["", "-", "1", "", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["", "-", "1", "", "-", "-", "", "1", "1", "-"]), 5),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "1", "-"]), 0),
             ),
             (
-                Tape {
-                    left: vec_sign(vec!["1", "1", "", "-", "1", "", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "-", "", "1", "1", "1", "-"]),
-                },
+                // Tape {
+                //     left: vec_sign(vec!["1", "1", "", "-", "1", "", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["1", "1", "", "-", "1", "", "-", "-", "-"]), 7),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "-", "", "1", "1", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "1", "1", "1", "-"]), 0),
             ),
         ];
         builder_test(&mut builder, 600, tests);
@@ -282,40 +296,46 @@ mod tests {
         let mut builder = remove();
         let tests = vec![
             (
-                Tape {
-                    left: vec_sign(vec!["", "-", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "-"]),
-                },
+                // Tape {
+                //     left: vec_sign(vec!["", "-", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["", "-", "-", "-", "-"]), 3),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "-"]), 0),
             ),
             (
-                Tape {
-                    left: vec_sign(vec!["", "-", "1", "", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "1", "-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "-"]),
-                },
+                // Tape {
+                //     left: vec_sign(vec!["", "-", "1", "", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["", "-", "1", "", "-", "-", "", "1", "1", "-"]), 5),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "-"]), 0),
             ),
             (
-                Tape {
-                    left: vec_sign(vec!["1", "1", "", "-", "1", "", "-"]),
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "1", "-"]),
-                },
+                // Tape {
+                //     left: vec_sign(vec!["1", "1", "", "-", "1", "", "-"]),
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["1", "1", "", "-", "1", "", "-", "-", "-"]), 7),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "-"]), 0),
             ),
         ];
         builder_test(&mut builder, 600, tests);

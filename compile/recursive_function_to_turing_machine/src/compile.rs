@@ -18,20 +18,31 @@ pub mod num_tape {
     }
 
     pub fn write(tuple: Vec<Number>) -> Tape {
-        let mut signs: Vec<Sign> = tuple
-            .into_iter()
-            .flat_map(|num: Number| {
-                let mut vec = vec![Sign::blank()];
-                vec.extend_from_slice(&num_sings(num));
-                vec
-            })
-            .collect();
-        signs.extend_from_slice(&[partition()]);
-        Tape {
-            left: vec![],
-            head: partition(),
-            right: signs,
+        // let mut signs: Vec<Sign> = tuple
+        //     .into_iter()
+        //     .flat_map(|num: Number| {
+        //         let mut vec = vec![Sign::blank()];
+        //         vec.extend_from_slice(&num_sings(num));
+        //         vec
+        //     })
+        //     .collect();
+        // signs.extend_from_slice(&[partition()]);
+        // Tape {
+        //     left: vec![],
+        //     head: partition(),
+        //     right: signs,
+        // }
+
+        let mut signs: Vec<Sign> = vec![];
+        signs.push(partition());
+
+        for num in tuple {
+            signs.push(Sign::blank());
+            signs.extend_from_slice(&num_sings(num));
+            signs.push(Sign::blank());
         }
+
+        Tape::from_vec(signs, 0)
     }
 
     pub fn write_usize(tuple: Vec<usize>) -> Tape {
@@ -48,15 +59,22 @@ pub mod num_tape {
     }
 
     pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
-        if tape.head != partition() {
+        let (v, p) = tape.into_vec();
+        // if *tape.head_read() != partition() {
+        //     return None;
+        // }
+        // let iter = tape
+        //     .right
+        //     .iter()
+        //     .take_while(|sign| **sign == Sign::blank() || **sign == one())
+        //     .cloned();
+        // read_one(iter.collect())
+
+        if v[p] != partition() {
             return None;
         }
-        eprintln!("hello");
-        let iter = tape
-            .right
-            .iter()
-            .take_while(|sign| **sign == Sign::blank() || **sign == one())
-            .cloned();
+
+        let iter = v.into_iter().skip(p);
         read_one(iter.collect())
     }
 

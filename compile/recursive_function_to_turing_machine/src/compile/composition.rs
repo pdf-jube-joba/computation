@@ -77,28 +77,32 @@ mod tests {
         let mut builder = format(3);
         let tests = vec![
             (
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-", "-", "-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["-"]),
-                },
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-", "-", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "-", "-", "-"]), 0),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
             ),
             (
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "-", "", "1", "-", "", "1", "-"]),
-                },
-                Tape {
-                    left: vec![],
-                    head: "-".parse().unwrap(),
-                    right: vec_sign(vec!["", "1", "", "1", "", "1", "-"]),
-                },
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "-", "", "1", "-", "", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "1", "-", "", "1", "-"]), 0),
+                // Tape {
+                //     left: vec![],
+                //     head: "-".parse().unwrap(),
+                //     right: vec_sign(vec!["", "1", "", "1", "", "1", "-"]),
+                // },
+                Tape::from_vec(vec_sign(vec!["-", "", "1", "", "1", "", "1", "-"]), 0),
             ),
         ];
         builder_test(&mut builder, 500, tests);

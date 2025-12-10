@@ -122,23 +122,15 @@ impl PartialEq for Tape {
 impl Display for Tape {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Tape { left, head, right } = &self;
-        let mut str = String::new();
-        left.iter().for_each(|sign| {
-            if *sign == Sign::blank() {
-                str.push('_')
-            } else {
-                str.push_str(&format!("[{sign}]"));
-            }
-        });
-        str.push_str(&format!("{{{head}}}",));
-        right.iter().rev().for_each(|sign| {
-            if *sign == Sign::blank() {
-                str.push('_')
-            } else {
-                str.push_str(&format!("[{sign}]"));
-            }
-        });
-        write!(f, "{}", str)
+
+        for sign in left {
+            write!(f, "[{}]", sign)?;
+        }
+        write!(f, "{{{}}}", head)?;
+        for sign in right.iter().rev() {
+            write!(f, "[{}]", sign)?;
+        }
+        Ok(())
     }
 }
 
@@ -171,6 +163,15 @@ impl Tape {
             }
             Direction::Constant => {}
         }
+    }
+    pub fn into_vec(&self) -> (Vec<Sign>, usize) {
+        let mut v = self.left.clone();
+        let pos = v.len();
+        v.push(self.head.clone());
+        let mut right = self.right.clone();
+        right.reverse();
+        v.extend(right);
+        (v, pos)
     }
 }
 
