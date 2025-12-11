@@ -2,25 +2,38 @@
 
 [README](README.md)
 
+# 計算モデルと計算について
 - [計算モデルと計算について](./models_of_computation/_models_of_computation.md)
-    - [チューリングマシン](./models_of_computation/Turing_machine.md)
-    - [goto lang 言語](./models_of_computation/goto_lang.md)
-    - [ラムダ計算](./models_of_computation/Lambda_calculus.md)
-    - [再帰関数](./models_of_computation/Recursive_function.md)
+- [チューリングマシン](./models_of_computation/Turing_machine.md)
+- [goto lang 言語](./models_of_computation/goto_lang.md)
+- [ラムダ計算](./models_of_computation/Lambda_calculus.md)
+- [再帰関数](./models_of_computation/Recursive_function.md)
+
+# 小さな言語など
 - [他の計算モデル](./small_models/_small_models.md)
-    - [Turing tarpit](./small_models/turing_tarpit.md)
+- [Turing tarpit](./small_models/turing_tarpit.md)
+
+# 論理回路から抽象機械へ
 - [論理回路から抽象機械へ](./logic_circuits_to_machine/_logic_circuits_to_machine.md)
-    - [論理回路](./logic_circuits_to_machine/Logic_circuit.md)
-        - [基本的な回路](./logic_circuits_to_machine/component.md)
-    - [ハードウェアの記述](./logic_circuits_to_machine/hardware_description_language.md)
-    - [機械語を動かす](./logic_circuits_to_machine/computer.md)
+- [論理回路](./logic_circuits_to_machine/Logic_circuit.md)
+    - [基本的な回路](./logic_circuits_to_machine/component.md)
+- [ハードウェアの記述](./logic_circuits_to_machine/hardware_description_language.md)
+- [機械語を動かす](./logic_circuits_to_machine/computer.md)
+
+# ラムダ計算の拡張
 - [ラムダ計算の拡張](./extensions_of_lambda_calculus/_extensions_of_lambda_calculus.md)
     - [継続概念について](./extensions_of_lambda_calculus/continuation.md)
-- [Appendix A: 強さの比較について](./comparison/_comparison.md)
-    - [チューリングマシンの構成例](./comparison/Turing_machine_construction.md)
-    - [再帰関数の計算可能性](./comparison/Computability_of_recursive_function.md)
-    - [万能チューリングマシン](./comparison/Universal_Turing_machine.md)
-    - [ラムダ計算で再帰関数を計算する](./comparison/lambda_calculus_computability.md)
+
+---
+
+# Appendix: 強さの比較
+- [Appendix: 強さの比較について](./comparison/_comparison.md)
+- [チューリングマシンの構成例](./comparison/Turing_machine_construction.md)
+- [再帰関数の計算可能性](./comparison/Computability_of_recursive_function.md)
+- [万能チューリングマシン](./comparison/Universal_Turing_machine.md)
+- [ラムダ計算で再帰関数を計算する](./comparison/lambda_calculus_computability.md)
+
+# その他メモ
 - [メモ](./01_notes/TODO.md)
     - [mdbookについて](./01_notes/notes/mdbookについて.md)
     - [全体を書き直したい](./01_notes/notes/全体を書き直したい.md)

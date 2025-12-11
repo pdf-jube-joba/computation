@@ -20,3 +20,4 @@ build = false
 
 [output.html]
 additional-css = ["custom.css"]
+no-section-label = true

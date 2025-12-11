@@ -38,8 +38,6 @@
 これらは簡単に作れるし、（＊）の条件を満たすように作れることがわかる。
 実際に作ったものが以下になる。
 
-<component id="turing_machine_basic">
-
 ### 補助的なマシン
 合成関数に対応するマシンを計算するにあたり、
 次のマシンがあるとよい。
@@ -110,8 +108,6 @@
 - 足し算
 - 掛け算を用いた \(m \in \mathbb{N} \mapsto 0 \in \mathbb{N}\)
 
-<component id="turing_machine_other">
-
 ## 計算不可能な関数の例
 自然数 \(n\) に対して、記号 \(\{\mathbb{B}, 1\}\) の上で動く \(n\) 記号チューリングマシンのうち、まっさらなテープの状態から始まると停止するチューリングマシンが停止した際にテープに書かれた \(1\) の個数を考え、その個数の最大を \(\sigma n\) とする。
 これは well-defined に定まる。すなわち最大値が存在する。
@@ -128,5 +124,3 @@
 ## playground
 
 以下では再帰関数を書くとそれに対応したチューリングマシンを作る。
-
-<component id="recursive_function_to_turing_machine_playground">

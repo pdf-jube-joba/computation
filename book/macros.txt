@@ -8,4 +8,6 @@
 \true:{\top}
 \false:{\bot}
 
+\comp:{\circ}
+
 \txtop:{\mathop{\text{#1}}}
