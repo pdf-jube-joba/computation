@@ -3,21 +3,21 @@ use utils::Machine;
 
 impl Machine for LambdaTerm {
     type Code = LambdaTerm;
-    type AInput = ();
+    type AInput = Vec<LambdaTerm>;
     type This = MarkedTerm;
     type RInput = usize;
-    type Output = ();
+    type Output = LambdaTerm;
 
     fn parse_code(code: &str) -> Result<Self::Code, String> {
         crate::manipulation::parse::parse_lambda_read_to_end(code)
     }
 
     fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
-        if ainput.trim().is_empty() {
-            Ok(())
-        } else {
-            Err("Lambda calculus machine does not take ahead-of-time input".to_string())
-        }
+        ainput
+            .split(",")
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| crate::manipulation::parse::parse_lambda_read_to_end(s.trim()))
+            .collect()
     }
 
     fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
@@ -31,8 +31,9 @@ impl Machine for LambdaTerm {
         }
     }
 
-    fn make(code: Self::Code, _ainput: Self::AInput) -> Result<Self, String> {
-        Ok(code)
+    fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
+        let term = crate::machine::assoc_app(code, ainput);
+        Ok(term)
     }
 
     fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
@@ -40,7 +41,7 @@ impl Machine for LambdaTerm {
         let lambda =
             crate::machine::step(&marked, rinput).ok_or("No redex found at the given index")?;
         *self = lambda;
-        Ok(Some(()))
+        Ok(Some(self.clone()))
     }
 
     fn current(&self) -> Self::This {

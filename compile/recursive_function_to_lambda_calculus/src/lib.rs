@@ -1,7 +1,7 @@
 use lambda_calculus::machine::LambdaTerm;
 use recursive_function::machine::RecursiveFunctions;
-use utils::number::*;
 use utils::variable::Var;
+use utils::{number::*, Compiler};
 
 fn v(var: &Var) -> LambdaTerm {
     LambdaTerm::Var(var.clone())
@@ -33,23 +33,23 @@ fn if_lambda(l: LambdaTerm, m: LambdaTerm, n: LambdaTerm) -> LambdaTerm {
 
 // \f.(\x.f(xx))(\x.f(xx))
 fn y_combinator() -> LambdaTerm {
-    let x = Var::from("0");
-    let f = Var::from("1");
+    let x = Var::from("f");
+    let f = Var::from("x");
     let inner = abs(&x, app(v(&f), app(v(&x), v(&x))));
     abs(&f, app(inner.clone(), inner))
 }
 
 // \xy.x
 fn true_lambda() -> LambdaTerm {
-    let x = Var::from("0");
-    let y = Var::from("1");
+    let x = Var::from("x");
+    let y = Var::from("y");
     abs(&x, abs(&y, v(&x)))
 }
 
 // \xy.y
 fn false_lambda() -> LambdaTerm {
-    let x = Var::from("0");
-    let y = Var::from("1");
+    let x = Var::from("x");
+    let y = Var::from("y");
     abs(&x, abs(&y, v(&y)))
 }
 
@@ -107,12 +107,12 @@ pub fn lambda_term_to_number(term: LambdaTerm) -> Option<Number> {
 
 // \xyz.x(\pq.q(py))(\v.z)(\v.v) = \xyz.xMNL
 pub fn pred() -> LambdaTerm {
-    let v0 = Var::from("0");
-    let v1 = Var::from("1");
-    let v2 = Var::from("2");
-    let v3 = Var::from("3");
-    let v4 = Var::from("4");
-    let v5 = Var::from("5");
+    let v0 = Var::from("x");
+    let v1 = Var::from("y");
+    let v2 = Var::from("z");
+    let v3 = Var::from("p");
+    let v4 = Var::from("q");
+    let v5 = Var::from("v");
 
     let m = abs(&v3, abs(&v4, app(v(&v4), app(v(&v3), v(&v0)))));
     let n = abs(&v5, v(&v1));
@@ -255,6 +255,47 @@ pub fn compile(func: &RecursiveFunctions) -> LambdaTerm {
         ),
         RecursiveFunctions::MuOperator { mu_func } => {
             mu_recursion(mu_func.parameter_length(), compile(mu_func.as_ref()))
+        }
+    }
+}
+
+pub struct Rec2LamCompiler {}
+
+impl Compiler for Rec2LamCompiler {
+    type Source = recursive_function::machine::Program;
+    type Target = LambdaTerm;
+
+    fn compile(
+        source: <<Self as Compiler>::Source as utils::Machine>::Code,
+    ) -> Result<<<Self as Compiler>::Target as utils::Machine>::Code, String> {
+        Ok(compile(&source))
+    }
+
+    fn encode_ainput(
+        ainput: <<Self as Compiler>::Source as utils::Machine>::AInput,
+    ) -> Result<<<Self as Compiler>::Target as utils::Machine>::AInput, String> {
+        let encoded = ainput
+            .into_iter()
+            .map(number_to_lambda_term)
+            .collect::<Vec<LambdaTerm>>();
+        Ok(encoded)
+    }
+
+    fn encode_rinput(
+        rinput: <<Self as Compiler>::Source as utils::Machine>::RInput,
+    ) -> Result<<<Self as Compiler>::Target as utils::Machine>::RInput, String> {
+        let _: () = rinput;
+        // leftmost outermost reduction
+        Ok(0)
+    }
+
+    fn decode_output(
+        output: <<Self as Compiler>::Target as utils::Machine>::Output,
+    ) -> Result<<<Self as Compiler>::Source as utils::Machine>::Output, String> {
+        if let Some(num) = lambda_term_to_number(output) {
+            Ok(num)
+        } else {
+            Err("Failed to decode output lambda term to number".to_string())
         }
     }
 }

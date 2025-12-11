@@ -250,6 +250,7 @@ pub fn unmark_redex(marked_term: MarkedTerm) -> LambdaTerm {
 // return None if there is no nth redex
 pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
     fn step_rec(marked_term: &MarkedTerm, num: &mut isize) -> Option<LambdaTerm> {
+        println!("Stepping on term: {:?}, num: {}", marked_term, num);
         match marked_term {
             MarkedTerm::Var(var) => Some(LambdaTerm::Var(var.clone())),
             MarkedTerm::Abs(var, abs_term) => {
@@ -273,6 +274,7 @@ pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
                         abs_term.as_ref().clone().into(),
                     );
                     let body = unchecked_subst(avoided, new_var, app_term.as_ref().clone().into());
+                    *num = -1; // indicate that we have performed the reduction
                     Some(body)
                 } else {
                     *num -= 1;
@@ -305,6 +307,12 @@ pub fn is_normal_form(term: &LambdaTerm) -> bool {
             _ => is_normal_form(app_term1.as_ref()) && is_normal_form(app_term2.as_ref()),
         },
     }
+}
+
+pub fn assoc_app(f: LambdaTerm, args: Vec<LambdaTerm>) -> LambdaTerm {
+    args.into_iter().fold(f, |acc, arg| {
+        LambdaTerm::App(Box::new(acc), Box::new(arg))
+    })
 }
 
 pub fn normalize(term: &LambdaTerm) -> LambdaTerm {
@@ -410,5 +418,39 @@ mod tests {
             Box::new(LambdaTerm::Var(z_var.clone())),
         );
         assert_eq!(stepped, expected);
+    }
+    #[test]
+    fn step_multiple_redex_test() {
+        let x_var = Var::from("x");
+        let y_var = Var::from("y");
+
+        let e1 = LambdaTerm::App(
+            Box::new(LambdaTerm::Abs(
+                x_var.clone(),
+                Box::new(LambdaTerm::Var(x_var.clone())),
+            )),
+            Box::new(LambdaTerm::Var(y_var.clone())),
+        );
+
+        // ((\x. x) y) ((\x. x) y)
+        let e = {
+            LambdaTerm::App(Box::new(e1.clone()), Box::new(e1.clone()))
+        };
+        let marked = mark_redex(&e);
+        let stepped = step(&marked, 0).unwrap();
+        // expected: y ((\x. x) y)
+        let expected = LambdaTerm::App(
+            Box::new(LambdaTerm::Var(y_var.clone())),
+            Box::new(e1.clone()),
+        );
+        assert_eq!(stepped, expected);
+
+        let stepped2 = step(&marked, 1).unwrap();
+        // expected : ((\x. x) y) y
+        let expected2 = LambdaTerm::App(
+            Box::new(e1.clone()),
+            Box::new(LambdaTerm::Var(y_var.clone())),
+        );
+        assert_eq!(stepped2, expected2);
     }
 }
