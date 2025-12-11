@@ -1,11 +1,11 @@
 use serde::Serialize;
 use utils::Machine;
 use utils::number::Number;
-use utils::variable::Var;
+use utils::variable::VarStr;
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct Environment {
-    pub env: Vec<(Var, Number)>,
+    pub env: Vec<(VarStr, Number)>,
 }
 
 impl Environment {
@@ -13,15 +13,14 @@ impl Environment {
         Environment { env: vec![] }
     }
 
-    pub fn get(&self, var: &Var) -> &Number {
+    pub fn get(&self, var: &VarStr) -> &Number {
         self.env
             .iter()
-            .find(|(v, _)| v == var)
-            .map(|(_, num)| num)
+            .find_map(|(v, num)| if v == var { Some(num) } else { None })
             .unwrap_or(&Number(0))
     }
 
-    pub fn write(&mut self, var: &Var, num: Number) {
+    pub fn write(&mut self, var: &VarStr, num: Number) {
         if let Some((_, existing_num)) = self.env.iter_mut().find(|(v, _)| v == var) {
             *existing_num = num;
         } else {
@@ -32,7 +31,7 @@ impl Environment {
 
 impl PartialEq for Environment {
     fn eq(&self, other: &Self) -> bool {
-        let mut all_vars: Vec<Var> = self
+        let mut all_vars: Vec<VarStr> = self
             .env
             .iter()
             .map(|(v, _)| v.clone())
@@ -44,19 +43,19 @@ impl PartialEq for Environment {
     }
 }
 
-impl From<Vec<(Var, Number)>> for Environment {
-    fn from(value: Vec<(Var, Number)>) -> Self {
+impl From<Vec<(VarStr, Number)>> for Environment {
+    fn from(value: Vec<(VarStr, Number)>) -> Self {
         Environment { env: value }
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Command {
-    Clr(Var),
-    Inc(Var),
-    Dec(Var),
-    Cpy(Var, Var),
-    Ifz(Var, Number),
+    Clr(VarStr),
+    Inc(VarStr),
+    Dec(VarStr),
+    Cpy(VarStr, VarStr),
+    Ifnz(VarStr, Number),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -120,13 +119,13 @@ impl Machine for Program {
                 self.env.write(var, Number(val));
                 self.pc.0 += 1;
             }
-            Command::Cpy(src, dest) => {
+            Command::Cpy(dest, src) => {
                 let val = self.env.get(src).clone();
                 self.env.write(dest, val);
                 self.pc.0 += 1;
             }
-            Command::Ifz(var, target) => {
-                if self.env.get(var).0 == 0 {
+            Command::Ifnz(var, target) => {
+                if self.env.get(var).0 != 0 {
                     self.pc = target.clone();
                 } else {
                     self.pc.0 += 1;

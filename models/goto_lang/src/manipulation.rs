@@ -1,27 +1,19 @@
 use crate::machine::Command;
 use anyhow::Result;
 use pest::{Parser, iterators::Pair};
-use utils::{number::Number, variable::Var};
+use utils::{number::Number, variable::VarStr as Var};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "goto_lang.pest"]
 struct Ps;
 
-pub fn parse_name(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Var {
+pub fn parse_name(ps: Pair<Rule>) -> Var {
     debug_assert!(ps.as_rule() == Rule::name);
     let name = ps.as_str();
-    ref_vars
-        .iter()
-        .find(|v| v.as_str() == name)
-        .cloned()
-        .unwrap_or_else(|| {
-            let v = Var::from(name);
-            ref_vars.push(v.clone());
-            v
-        })
+    Var::new(name)
 }
 
-pub fn parse_one_statement(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Command> {
+pub fn parse_one_statement(ps: Pair<Rule>) -> Result<Command> {
     debug_assert!(ps.as_rule() == Rule::statement);
     let mut ps = ps.into_inner();
     let p = ps.next().unwrap();
@@ -30,7 +22,7 @@ pub fn parse_one_statement(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Co
             let mut p = p.into_inner();
             // take one var
             let var = p.next().unwrap();
-            let var: Var = parse_name(var, ref_vars);
+            let var: Var = parse_name(var);
             Command::Inc(var)
         }
         Rule::dec_statement => {
@@ -38,7 +30,7 @@ pub fn parse_one_statement(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Co
 
             // take one var
             let var = p.next().unwrap();
-            let var: Var = parse_name(var, ref_vars);
+            let var: Var = parse_name(var);
             Command::Dec(var)
         }
         Rule::clr_statement => {
@@ -46,7 +38,7 @@ pub fn parse_one_statement(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Co
 
             // take one var
             let var = p.next().unwrap();
-            let var: Var = parse_name(var, ref_vars);
+            let var: Var = parse_name(var);
             Command::Clr(var)
         }
         Rule::cpy_statement => {
@@ -54,21 +46,21 @@ pub fn parse_one_statement(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Co
 
             // take two var
             let var0 = p.next().unwrap();
-            let var0: Var = parse_name(var0, ref_vars);
+            let var0: Var = parse_name(var0);
             let var1 = p.next().unwrap();
-            let var1: Var = parse_name(var1, ref_vars);
+            let var1: Var = parse_name(var1);
             Command::Cpy(var0, var1)
         }
-        Rule::ifz_statement => {
+        Rule::ifnz_statement => {
             let mut p = p.into_inner();
 
             // take var and number
             let var = p.next().unwrap();
-            let var: Var = parse_name(var, ref_vars);
+            let var: Var = parse_name(var);
             let num = p.next().unwrap();
             let num: usize = num.as_str().parse().unwrap();
             let num: Number = num.into();
-            Command::Ifz(var, num)
+            Command::Ifnz(var, num)
         }
         _ => {
             return Err(anyhow::anyhow!(
@@ -86,9 +78,8 @@ pub fn program(code: &str) -> Result<Vec<Command>> {
     let code = code.next().unwrap();
     let code = code.into_inner();
     let mut statements = vec![];
-    let mut ref_vars = vec![];
     for p in code {
-        let statement = parse_one_statement(p, &mut ref_vars)?;
+        let statement = parse_one_statement(p)?;
         statements.push(statement);
     }
     Ok(statements)
@@ -104,14 +95,14 @@ pub fn program_read_to_end(code: &str) -> Result<Vec<Command>> {
     program(p.as_str())
 }
 
-pub fn parse_env(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Vec<(Var, Number)>> {
+pub fn parse_env(ps: Pair<Rule>) -> Result<Vec<(Var, Number)>> {
     debug_assert!(ps.as_rule() == Rule::env);
     let mut env = vec![];
     for p in ps.into_inner() {
         debug_assert!(p.as_rule() == Rule::env_one);
         let mut p = p.into_inner();
         let name = p.next().unwrap();
-        let name: Var = parse_name(name, ref_vars);
+        let name: Var = parse_name(name);
         let number = p.next().unwrap();
         let number: usize = number.as_str().parse()?;
         let number: Number = number.into();
@@ -123,19 +114,28 @@ pub fn parse_env(ps: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<Vec<(Var, Nu
 pub fn env_read_to_end(code: &str) -> Result<Vec<(Var, Number)>> {
     let mut code = Ps::parse(Rule::env, code)?;
     let code = code.next().unwrap();
-    parse_env(code, &mut vec![])
+    parse_env(code)
 }
 
 #[cfg(test)]
 mod tests {
+    use utils::Machine;
+
+    fn print_env(env: &crate::machine::Environment) -> String {
+        let mut s = String::new();
+        for (var, num) in &env.env {
+            s.push_str(&format!("{} = {} ", var.as_str(), num.0));
+        }
+        s
+    }
+
     use super::*;
     #[test]
     fn test_parse_env() {
         let code = "x = 10 y = 20 z = 30";
-        let mut ref_vars = vec![];
         let mut ps = Ps::parse(Rule::env, code).unwrap();
         let ps = ps.next().unwrap();
-        let env = parse_env(ps, &mut ref_vars).unwrap();
+        let env = parse_env(ps).unwrap();
         assert_eq!(env.len(), 3);
         assert_eq!(env[0].0.as_str(), "x");
         assert_eq!(env[0].1, Number(10));
@@ -151,7 +151,7 @@ mod tests {
         dec y
         clr z
         cpy x <- y
-        ifz z : 10
+        ifnz z : 0
         ";
         let commands = program_read_to_end(code).unwrap();
         assert_eq!(commands.len(), 5);
@@ -175,11 +175,46 @@ mod tests {
             _ => panic!("unexpected command"),
         }
         match &commands[4] {
-            Command::Ifz(v, n) => {
+            Command::Ifnz(v, n) => {
                 assert_eq!(v.as_str(), "z");
-                assert_eq!(*n, Number(10));
+                assert_eq!(*n, Number(0));
             }
             _ => panic!("unexpected command"),
+        }
+    }
+    #[test]
+    fn test2() {
+        let code = "
+cpy y2 <- y
+inc z
+dec y2
+ifnz y2 : 1
+dec x
+ifnz x : 0
+";
+        let commands = program_read_to_end(code).unwrap();
+        assert_eq!(commands.len(), 6);
+        for c in &commands {
+            println!("{:?}", c);
+        }
+
+        let env = "x = 2 y = 3 z = 0";
+        let env = env_read_to_end(env).unwrap();
+        for (v, n) in &env {
+            println!("{} = {}", v.as_str(), n.0);
+        }
+
+        println!("--- Running Program ---");
+
+        let mut program = crate::machine::Program {
+            commands,
+            pc: Number(0),
+            env: crate::machine::Environment::from(env),
+        };
+
+        for _ in 0..100 {
+            let _ = program.step(());
+            println!("pc: {}, env: {}", program.pc.0, print_env(&program.env));
         }
     }
 }

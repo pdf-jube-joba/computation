@@ -75,7 +75,7 @@ impl Serialize for Var {
 }
 
 // variable for string representation
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub struct VarStr(String);
 
 impl VarStr {

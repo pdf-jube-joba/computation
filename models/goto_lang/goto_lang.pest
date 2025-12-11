@@ -5,20 +5,20 @@ COMMENT = _{ COMMENT_MULTILINE | COMMENT_ONELINE }
 
 symbol = { "-" | "_" }
 name = @{ (ASCII_ALPHA | symbol) ~ (ASCII_ALPHA | ASCII_DIGIT | symbol)* }
-number = @{ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+number = @{ ASCII_DIGIT+ }
 
 inc_statement = { "inc" ~ name }
 dec_statement = { "dec" ~ name }
 clr_statement = { "clr" ~ name }
 cpy_statement = { "cpy" ~ name ~ "<-" ~  name }
-ifz_statement = { "ifz" ~ name ~ ":" ~ number }
+ifnz_statement = { "ifnz" ~ name ~ ":" ~ number }
 
 statement = {
     inc_statement
     | dec_statement
     | clr_statement
     | cpy_statement
-    | ifz_statement
+    | ifnz_statement
 }
 
 program = { (WHITESPACE | COMMENT)* ~ statement* }

@@ -4,7 +4,7 @@
 
 - [計算モデルと計算について](./models_of_computation/_models_of_computation.md)
     - [チューリングマシン](./models_of_computation/Turing_machine.md)
-    - [While(minus) 言語](./models_of_computation/While_minus_lang.md)
+    - [goto lang 言語](./models_of_computation/goto_lang.md)
     - [ラムダ計算](./models_of_computation/Lambda_calculus.md)
     - [再帰関数](./models_of_computation/Recursive_function.md)
 - [他の計算モデル](./small_models/_small_models.md)
@@ -20,6 +20,7 @@
     - [チューリングマシンの構成例](./comparison/Turing_machine_construction.md)
     - [再帰関数の計算可能性](./comparison/Computability_of_recursive_function.md)
     - [万能チューリングマシン](./comparison/Universal_Turing_machine.md)
+    - [ラムダ計算で再帰関数を計算する](./comparison/lambda_calculus_computability.md)
 - [メモ](./01_notes/TODO.md)
     - [mdbookについて](./01_notes/notes/mdbookについて.md)
     - [全体を書き直したい](./01_notes/notes/全体を書き直したい.md)

@@ -7,3 +7,5 @@
 \Bool:{\mathbb{B}}
 \true:{\top}
 \false:{\bot}
+
+\txtop:{\mathop{\text{#1}}}
