@@ -37,19 +37,77 @@ function ensureChild(root, selector, tagName, className) {
 }
 
 // -------------------------------------
+// MachineWrapper: wasm モジュールのロードとラップ
+//   - wasm_bundle/<model>.js の import とエクスポート検査を担当
+//   - create / step_machine / current_machine を外部に提供
+// -------------------------------------
+class MachineWrapper {
+  static instanceCounter = 0;
+
+  constructor(modelName) {
+    this.modelName = modelName;
+    this.instanceId = MachineWrapper.instanceCounter++;
+    this.module = null;
+    this.createFn = null;
+    this.stepFn = null;
+    this.currentFn = null;
+  }
+
+  async init() {
+    if (this.module) return;
+
+    // append a per-instance query to avoid module caching; each widget gets its own wasm instance
+    const wasmPath = `./wasm_bundle/${this.modelName}.js?instance=${this.instanceId}`;
+    const module = await import(wasmPath);
+    this.module = module;
+    this.createFn = typeof module.create === "function" ? module.create : null;
+    this.stepFn = typeof module.step_machine === "function" ? module.step_machine : null;
+    this.currentFn = typeof module.current_machine === "function" ? module.current_machine : null;
+    const missing = [];
+    if (!this.createFn) missing.push("create");
+    if (!this.stepFn) missing.push("step_machine");
+    if (!this.currentFn) missing.push("current_machine");
+    if (missing.length) {
+      throw new Error(`WASM module is missing exports: ${missing.join(", ")}`);
+    }
+    if (typeof module.default === "function") {
+      await module.default();
+    }
+  }
+
+  assertReady() {
+    if (!this.module) {
+      throw new Error(`Machine "${this.modelName}" is not initialized`);
+    }
+  }
+
+  async createMachine(codeStr, ainputStr) {
+    this.assertReady();
+    return Promise.resolve(this.createFn(codeStr, ainputStr));
+  }
+
+  async stepMachine(runtimeInputStr) {
+    this.assertReady();
+    return Promise.resolve(this.stepFn(runtimeInputStr));
+  }
+
+  async currentState() {
+    this.assertReady();
+    return Promise.resolve(this.currentFn());
+  }
+}
+
+// -------------------------------------
 // ViewModel: 1つの <div data-model="..."> に対応
-//   - wasm_bundle/<model>.js を動的 import
+//   - data-model をもとに MachineWrapper と Renderer を初期化
 //   - default() で wasm 初期化
 //   - step_machine / current_machine / output_machine を呼ぶ
 // -------------------------------------
 class ViewModel {
-  static instanceCounter = 0;
-
   constructor(root) {
     console.log("ViewModel.constructor");
     this.root = root;
-    this.modelName = root.dataset.model || "default";
-    this.instanceId = ViewModel.instanceCounter++;
+    this.modelName = root.dataset.model;
 
     // default 値を div 内の <script type="text/plain"> から取得
     this.defaultRInput = extractPlainScript(root, "default-rinput");
@@ -129,12 +187,8 @@ class ViewModel {
       this.outputContainer,
     );
 
-    // wasm モジュール (glue JS) とその export 群
-    this.module = null;
-    this.api = null;
-    this.createFn = null;
-    this.stepFn = null;
-    this.currentFn = null;
+    // wasm モジュール wrapper
+    this.machine = null;
     // status: "uninitialized" | "ready" | "machine_setted" | "init_failed"
     this.status = "uninitialized";
     this.autoEnabled = false;
@@ -166,11 +220,11 @@ class ViewModel {
       return false;
     }
     try {
-      await Promise.resolve(this.createFn(codeStr, ainputStr));
+      await this.machine.createMachine(codeStr, ainputStr);
       this.status = "machine_setted";
       return true;
     } catch (e) {
-      this.status = "ready";
+      this.status = "init_failed";
       console.error("initializeMachine failed:", e);
       this.outputPre.textContent = `Error: ${e}`;
       return false;
@@ -271,27 +325,9 @@ class ViewModel {
     console.log("ViewModel.init");
 
     try {
-      // 1) wasm モジュール
-      // append a per-instance query to avoid module caching; each widget gets its own wasm instance
-      const wasmPath = `./wasm_bundle/${this.modelName}.js?instance=${this.instanceId}`;
-      this.module = await import(wasmPath);
-      this.api = this.module;
-      this.createFn = typeof this.api.create === "function" ? this.api.create : null;
-      this.stepFn = typeof this.api.step_machine === "function" ? this.api.step_machine : null;
-      this.currentFn = typeof this.api.current_machine === "function" ? this.api.current_machine : null;
-      const missing = [];
-
-      // 必須 export チェック
-      if (!this.createFn) missing.push("create");
-      if (!this.stepFn) missing.push("step_machine");
-      if (!this.currentFn) missing.push("current_machine");
-      if (missing.length) {
-        throw new Error(`WASM module is missing exports: ${missing.join(", ")}`);
-      }
-      // wasm-pack で生成された glue の default() は初期化に必要。
-      if (typeof this.module.default === "function") {
-        await this.module.default();
-      }
+      // 1) wasm モジュール wrapper
+      this.machine = new MachineWrapper(this.modelName);
+      await this.machine.init();
 
       // 2) renderer モジュール
       const rendererPath = `./renderers/${this.modelName}.js`;
@@ -338,7 +374,7 @@ class ViewModel {
       console.log("Creating machine with code:", codeStr, "ainput:", ainputStr);
       const ok = await this.initializeMachine(codeStr, ainputStr);
       if (ok) {
-        let state = await Promise.resolve(this.currentFn());
+        let state = await this.machine.currentState();
         this.draw(state, undefined);
       }
     } catch (e) {
@@ -361,8 +397,8 @@ class ViewModel {
     try {
       const runtimeInputStr = this.rinputArea.value.trim();
       console.log("Stepping machine with runtime input:", runtimeInputStr);
-      const output = await Promise.resolve(this.stepFn(runtimeInputStr));
-      const state = await Promise.resolve(this.currentFn());
+      const output = await this.machine.stepMachine(runtimeInputStr);
+      const state = await this.machine.currentState();
       this.draw(state, output);
       return { output, stepped: true };
     } catch (e) {
