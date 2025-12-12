@@ -39,7 +39,7 @@ impl Machine for TuringMachineSet {
     type AInput = Tape;
     type RInput = ();
     type Output = ();
-    type This = Current;
+    type SnapShot = Current;
 
     fn parse_code(input: &str) -> Result<Self::Code, String> {
         let definition =
@@ -68,7 +68,7 @@ impl Machine for TuringMachineSet {
         }
     }
 
-    fn current(&self) -> Self::This {
+    fn current(&self) -> Self::SnapShot {
         let now = self
             .next_code()
             .map(|(idx, _)| idx)

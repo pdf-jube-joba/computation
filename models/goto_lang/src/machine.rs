@@ -68,7 +68,7 @@ pub struct Program {
 impl Machine for Program {
     type Code = Vec<Command>;
     type AInput = Environment;
-    type This = Program;
+    type SnapShot = Program;
     type RInput = ();
 
     type Output = Environment;
@@ -136,7 +136,7 @@ impl Machine for Program {
         Ok(None)
     }
 
-    fn current(&self) -> Self::This {
+    fn current(&self) -> Self::SnapShot {
         self.clone()
     }
 }

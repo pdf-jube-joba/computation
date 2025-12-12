@@ -501,7 +501,7 @@ pub struct Program {
 impl Machine for Program {
     type Code = RecursiveFunctions;
     type AInput = Vec<Number>;
-    type This = Program;
+    type SnapShot = Program;
     type RInput = ();
     type Output = Number;
 
@@ -542,7 +542,7 @@ impl Machine for Program {
         }
     }
 
-    fn current(&self) -> Self::This {
+    fn current(&self) -> Self::SnapShot {
         self.clone()
     }
 }

@@ -4,7 +4,7 @@ use utils::Machine;
 impl Machine for LambdaTerm {
     type Code = LambdaTerm;
     type AInput = Vec<LambdaTerm>;
-    type This = MarkedTerm;
+    type SnapShot = MarkedTerm;
     type RInput = usize;
     type Output = LambdaTerm;
 
@@ -44,7 +44,7 @@ impl Machine for LambdaTerm {
         Ok(Some(self.clone()))
     }
 
-    fn current(&self) -> Self::This {
+    fn current(&self) -> Self::SnapShot {
         crate::machine::mark_redex(self)
     }
 }
