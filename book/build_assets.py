@@ -38,20 +38,21 @@ def copy_assets() -> None:
     shutil.copytree(ASSETS_SRC, ASSETS_DEST)
 
 def process_item(item):
+    # print to stderr for debugging
     if 'Chapter' not in item:
         return
 
     chapter = item['Chapter']
     # Adjust the asset path based on the chapter depth so nested chapters resolve correctly
     name = chapter['name']
-    path = chapter.get('path', '')
-    # print to stderr for debugging
-    print(f'Processing chapter {name} at path: {path}', file=sys.stderr)
+    print(f'Processing chapter {name}', file=sys.stderr)
 
-    if chapter['content'] is "":
-        print(f'  Warning: Chapter {name} has empty content', file=sys.stderr)
+    # draft chapters does not have a path
+    if chapter.get('path') is None:
+        print(f'  Warning: Chapter {name} has no path', file=sys.stderr)
         return
 
+    path = chapter.get('path', '')
     depth = path.count('/')  # number of path separators indicates nesting level
     prefix = '../' * depth
     chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
