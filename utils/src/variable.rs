@@ -9,6 +9,13 @@ use serde::Serialize;
 #[derive(Debug, Clone, Eq, PartialOrd, Ord)]
 pub struct Var(Rc<str>);
 
+/// JSON-friendly view of `Var` for the web side.
+#[derive(Debug, Clone, Serialize)]
+pub struct VarView {
+    pub name: String,
+    pub ptr: usize,
+}
+
 impl Var {
     pub fn new(s: &str) -> Self {
         Var(Rc::from(s))
@@ -20,6 +27,10 @@ impl Var {
     }
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+
+    pub fn view(&self) -> VarView {
+        VarView::from(self)
     }
 }
 
@@ -51,18 +62,8 @@ impl std::hash::Hash for Var {
 }
 
 pub fn print_var(var: &Var) -> String {
-    // format!("{}[{}]", content, lower 32 bit to base62 encoding)
-    let content = var.as_str();
-
-    let base62_chars = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    let mut ptr: u32 = ((var.0.as_ptr() as usize) & 0xffff_ffff) as u32;
-    let mut encoded: [u8; 6] = [0; 6];
-
-    for i in (0..6).rev() {
-        encoded[i] = base62_chars[(ptr % 62) as usize];
-        ptr /= 62;
-    }
-    format!("{}[{}]", content, std::str::from_utf8(&encoded).unwrap())
+    let view = var.view();
+    format!("{}[{:#x}]", view.name, view.ptr)
 }
 
 impl Serialize for Var {
@@ -70,7 +71,17 @@ impl Serialize for Var {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&print_var(self))
+        VarView::from(self).serialize(serializer)
+    }
+}
+
+impl From<&Var> for VarView {
+    fn from(var: &Var) -> Self {
+        let ptr = Rc::as_ptr(&var.0).addr();
+        VarView {
+            name: var.as_str().to_string(),
+            ptr,
+        }
     }
 }
 

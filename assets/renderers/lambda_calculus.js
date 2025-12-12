@@ -80,7 +80,7 @@ export class Renderer {
     const { tag, value } = variant;
     switch (tag) {
       case "Var":
-        return this.textSpan(value ?? "?");
+        return this.renderVar(value);
       case "Abs":
         return this.renderAbstraction(value, counter);
       case "App":
@@ -98,7 +98,7 @@ export class Renderer {
     span.className = "lambda-abs";
     span.append("(");
     span.append(this.textSpan("\\"));
-    span.append(this.textSpan(String(varName ?? "?"), "lambda-var"));
+    span.append(this.renderVar(varName));
     span.append(this.textSpan(". "));
     span.append(this.renderTerm(body, counter));
     span.append(")");
@@ -160,6 +160,25 @@ export class Renderer {
     if (className) span.classList.add(className);
     span.textContent = text;
     return span;
+  }
+
+  renderVar(value) {
+    const { text, title } = this.formatVar(value);
+    const span = this.textSpan(text, "lambda-var");
+    if (title) span.title = title;
+    return span;
+  }
+
+  formatVar(value) {
+    if (value && typeof value === "object") {
+      const name = value.name ?? "?";
+      // we omit value.ptr
+      const text = String(name);
+      const title =
+        ptr !== undefined ? `unique id based on pointer: ${ptr}` : undefined;
+      return { text, title };
+    }
+    return { text: String(value ?? "?"), title: undefined };
   }
 
   safeStringify(value) {
