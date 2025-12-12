@@ -43,7 +43,15 @@ def process_item(item):
 
     chapter = item['Chapter']
     # Adjust the asset path based on the chapter depth so nested chapters resolve correctly
+    name = chapter['name']
     path = chapter.get('path', '')
+    # print to stderr for debugging
+    print(f'Processing chapter {name} at path: {path}', file=sys.stderr)
+
+    if chapter['content'] is "":
+        print(f'  Warning: Chapter {name} has empty content', file=sys.stderr)
+        return
+
     depth = path.count('/')  # number of path separators indicates nesting level
     prefix = '../' * depth
     chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
