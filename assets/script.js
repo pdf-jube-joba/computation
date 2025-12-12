@@ -11,7 +11,7 @@
 // WASM module interface (feature共通):
 // - default(): wasm-pack が生成する初期化関数
 // - create(code: string, ainput: string): machine を初期化
-// - step_machine(input: string): Step 実行
+// - step_machine(runtimeInput: string): Step 実行
 // - current_machine(): 現在状態を返す
 
 // -------------------------------------
@@ -52,17 +52,17 @@ class ViewModel {
     this.instanceId = ViewModel.instanceCounter++;
 
     // default 値を div 内の <script type="text/plain"> から取得
-    this.defaultInput = extractPlainScript(root, "default-input");
+    this.defaultRInput = extractPlainScript(root, "default-rinput");
     this.defaultAInput = extractPlainScript(root, "default-ainput");
     this.defaultCode = extractPlainScript(root, "default-code");
 
     // UI 部品を用意（なければ作る）
     this.codeLabel = ensureChild(root, ".wm-code-label", "div", "wm-code-label");
     this.ainputLabel = ensureChild(root, ".wm-ainput-label", "div", "wm-ainput-label");
-    this.inputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
+    this.rInputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
     this.codeArea = ensureChild(root, "textarea.wm-code", "textarea", "wm-code");
     this.ainputArea = ensureChild(root, "textarea.wm-ainput", "textarea", "wm-ainput");
-    this.inputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
+    this.rinputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
     this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
     this.autoToggleButton = ensureChild(root, "button.wm-auto-toggle", "button", "wm-auto-toggle");
@@ -74,7 +74,7 @@ class ViewModel {
     // ラベルテキスト
     this.codeLabel.textContent = "code";
     this.ainputLabel.textContent = "ahead-of-time input";
-    this.inputLabel.textContent = "input";
+    this.rInputLabel.textContent = "runtime input";
 
     // ラベルが空ならデフォルト文字列
     if (!this.createButton.textContent) {
@@ -101,10 +101,10 @@ class ViewModel {
     } else if (!this.ainputArea.value) {
       this.ainputArea.value = "";
     }
-    if (this.defaultInput) {
-      this.inputArea.value = this.defaultInput;
-    } else if (!this.inputArea.value) {
-      this.inputArea.value = "";
+    if (this.defaultRInput) {
+      this.rinputArea.value = this.defaultRInput;
+    } else if (!this.rinputArea.value) {
+      this.rinputArea.value = "";
     }
     if (this.defaultCode) {
       this.codeArea.value = this.defaultCode;
@@ -119,8 +119,8 @@ class ViewModel {
       this.ainputLabel,
       this.ainputArea,
       this.createButton,
-      this.inputLabel,
-      this.inputArea,
+      this.rInputLabel,
+      this.rinputArea,
       this.stepButton,
       this.autoToggleButton,
       this.autoMarginInput,
@@ -359,9 +359,9 @@ class ViewModel {
     }
 
     try {
-      const inputStr = this.inputArea.value.trim();
-      console.log("Stepping machine with input:", inputStr);
-      const output = await Promise.resolve(this.stepFn(inputStr));
+      const runtimeInputStr = this.rinputArea.value.trim();
+      console.log("Stepping machine with runtime input:", runtimeInputStr);
+      const output = await Promise.resolve(this.stepFn(runtimeInputStr));
       const state = await Promise.resolve(this.currentFn());
       this.draw(state, output);
       return { output, stepped: true };
