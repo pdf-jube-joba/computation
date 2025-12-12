@@ -11,7 +11,7 @@
 // WASM module interface (feature共通):
 // - default(): wasm-pack が生成する初期化関数
 // - create(code: string, ainput: string): machine を初期化
-// - step_machine(input: string): Step 実行
+// - step_machine(runtimeInput: string): Step 実行
 // - current_machine(): 現在状態を返す
 
 // -------------------------------------
@@ -37,32 +37,90 @@ function ensureChild(root, selector, tagName, className) {
 }
 
 // -------------------------------------
+// MachineWrapper: wasm モジュールのロードとラップ
+//   - wasm_bundle/<model>.js の import とエクスポート検査を担当
+//   - create / step_machine / current_machine を外部に提供
+// -------------------------------------
+class MachineWrapper {
+  static instanceCounter = 0;
+
+  constructor(modelName) {
+    this.modelName = modelName;
+    this.instanceId = MachineWrapper.instanceCounter++;
+    this.module = null;
+    this.createFn = null;
+    this.stepFn = null;
+    this.currentFn = null;
+  }
+
+  async init() {
+    if (this.module) return;
+
+    // append a per-instance query to avoid module caching; each widget gets its own wasm instance
+    const wasmPath = `./wasm_bundle/${this.modelName}.js?instance=${this.instanceId}`;
+    const module = await import(wasmPath);
+    this.module = module;
+    this.createFn = typeof module.create === "function" ? module.create : null;
+    this.stepFn = typeof module.step_machine === "function" ? module.step_machine : null;
+    this.currentFn = typeof module.current_machine === "function" ? module.current_machine : null;
+    const missing = [];
+    if (!this.createFn) missing.push("create");
+    if (!this.stepFn) missing.push("step_machine");
+    if (!this.currentFn) missing.push("current_machine");
+    if (missing.length) {
+      throw new Error(`WASM module is missing exports: ${missing.join(", ")}`);
+    }
+    if (typeof module.default === "function") {
+      await module.default();
+    }
+  }
+
+  assertReady() {
+    if (!this.module) {
+      throw new Error(`Machine "${this.modelName}" is not initialized`);
+    }
+  }
+
+  async createMachine(codeStr, ainputStr) {
+    this.assertReady();
+    return Promise.resolve(this.createFn(codeStr, ainputStr));
+  }
+
+  async stepMachine(runtimeInputStr) {
+    this.assertReady();
+    return Promise.resolve(this.stepFn(runtimeInputStr));
+  }
+
+  async currentState() {
+    this.assertReady();
+    return Promise.resolve(this.currentFn());
+  }
+}
+
+// -------------------------------------
 // ViewModel: 1つの <div data-model="..."> に対応
-//   - wasm_bundle/<model>.js を動的 import
+//   - data-model をもとに MachineWrapper と Renderer を初期化
 //   - default() で wasm 初期化
 //   - step_machine / current_machine / output_machine を呼ぶ
 // -------------------------------------
 class ViewModel {
-  static instanceCounter = 0;
-
   constructor(root) {
     console.log("ViewModel.constructor");
     this.root = root;
-    this.modelName = root.dataset.model || "default";
-    this.instanceId = ViewModel.instanceCounter++;
+    this.modelName = root.dataset.model;
 
     // default 値を div 内の <script type="text/plain"> から取得
-    this.defaultInput = extractPlainScript(root, "default-input");
+    this.defaultRInput = extractPlainScript(root, "default-rinput");
     this.defaultAInput = extractPlainScript(root, "default-ainput");
     this.defaultCode = extractPlainScript(root, "default-code");
 
     // UI 部品を用意（なければ作る）
     this.codeLabel = ensureChild(root, ".wm-code-label", "div", "wm-code-label");
     this.ainputLabel = ensureChild(root, ".wm-ainput-label", "div", "wm-ainput-label");
-    this.inputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
+    this.rInputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
     this.codeArea = ensureChild(root, "textarea.wm-code", "textarea", "wm-code");
     this.ainputArea = ensureChild(root, "textarea.wm-ainput", "textarea", "wm-ainput");
-    this.inputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
+    this.rinputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
     this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
     this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
     this.autoToggleButton = ensureChild(root, "button.wm-auto-toggle", "button", "wm-auto-toggle");
@@ -74,7 +132,7 @@ class ViewModel {
     // ラベルテキスト
     this.codeLabel.textContent = "code";
     this.ainputLabel.textContent = "ahead-of-time input";
-    this.inputLabel.textContent = "input";
+    this.rInputLabel.textContent = "runtime input";
 
     // ラベルが空ならデフォルト文字列
     if (!this.createButton.textContent) {
@@ -101,10 +159,10 @@ class ViewModel {
     } else if (!this.ainputArea.value) {
       this.ainputArea.value = "";
     }
-    if (this.defaultInput) {
-      this.inputArea.value = this.defaultInput;
-    } else if (!this.inputArea.value) {
-      this.inputArea.value = "";
+    if (this.defaultRInput) {
+      this.rinputArea.value = this.defaultRInput;
+    } else if (!this.rinputArea.value) {
+      this.rinputArea.value = "";
     }
     if (this.defaultCode) {
       this.codeArea.value = this.defaultCode;
@@ -119,8 +177,8 @@ class ViewModel {
       this.ainputLabel,
       this.ainputArea,
       this.createButton,
-      this.inputLabel,
-      this.inputArea,
+      this.rInputLabel,
+      this.rinputArea,
       this.stepButton,
       this.autoToggleButton,
       this.autoMarginInput,
@@ -129,12 +187,8 @@ class ViewModel {
       this.outputContainer,
     );
 
-    // wasm モジュール (glue JS) とその export 群
-    this.module = null;
-    this.api = null;
-    this.createFn = null;
-    this.stepFn = null;
-    this.currentFn = null;
+    // wasm モジュール wrapper
+    this.machine = null;
     // status: "uninitialized" | "ready" | "machine_setted" | "init_failed"
     this.status = "uninitialized";
     this.autoEnabled = false;
@@ -166,11 +220,11 @@ class ViewModel {
       return false;
     }
     try {
-      await Promise.resolve(this.createFn(codeStr, ainputStr));
+      await this.machine.createMachine(codeStr, ainputStr);
       this.status = "machine_setted";
       return true;
     } catch (e) {
-      this.status = "ready";
+      this.status = "init_failed";
       console.error("initializeMachine failed:", e);
       this.outputPre.textContent = `Error: ${e}`;
       return false;
@@ -271,27 +325,9 @@ class ViewModel {
     console.log("ViewModel.init");
 
     try {
-      // 1) wasm モジュール
-      // append a per-instance query to avoid module caching; each widget gets its own wasm instance
-      const wasmPath = `./wasm_bundle/${this.modelName}.js?instance=${this.instanceId}`;
-      this.module = await import(wasmPath);
-      this.api = this.module;
-      this.createFn = typeof this.api.create === "function" ? this.api.create : null;
-      this.stepFn = typeof this.api.step_machine === "function" ? this.api.step_machine : null;
-      this.currentFn = typeof this.api.current_machine === "function" ? this.api.current_machine : null;
-      const missing = [];
-
-      // 必須 export チェック
-      if (!this.createFn) missing.push("create");
-      if (!this.stepFn) missing.push("step_machine");
-      if (!this.currentFn) missing.push("current_machine");
-      if (missing.length) {
-        throw new Error(`WASM module is missing exports: ${missing.join(", ")}`);
-      }
-      // wasm-pack で生成された glue の default() は初期化に必要。
-      if (typeof this.module.default === "function") {
-        await this.module.default();
-      }
+      // 1) wasm モジュール wrapper
+      this.machine = new MachineWrapper(this.modelName);
+      await this.machine.init();
 
       // 2) renderer モジュール
       const rendererPath = `./renderers/${this.modelName}.js`;
@@ -338,7 +374,7 @@ class ViewModel {
       console.log("Creating machine with code:", codeStr, "ainput:", ainputStr);
       const ok = await this.initializeMachine(codeStr, ainputStr);
       if (ok) {
-        let state = await Promise.resolve(this.currentFn());
+        let state = await this.machine.currentState();
         this.draw(state, undefined);
       }
     } catch (e) {
@@ -359,10 +395,10 @@ class ViewModel {
     }
 
     try {
-      const inputStr = this.inputArea.value.trim();
-      console.log("Stepping machine with input:", inputStr);
-      const output = await Promise.resolve(this.stepFn(inputStr));
-      const state = await Promise.resolve(this.currentFn());
+      const runtimeInputStr = this.rinputArea.value.trim();
+      console.log("Stepping machine with runtime input:", runtimeInputStr);
+      const output = await this.machine.stepMachine(runtimeInputStr);
+      const state = await this.machine.currentState();
       this.draw(state, output);
       return { output, stepped: true };
     } catch (e) {

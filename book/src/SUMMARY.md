@@ -20,9 +20,22 @@
 - [ハードウェアの記述](./logic_circuits_to_machine/hardware_description_language.md)
 - [機械語を動かす](./logic_circuits_to_machine/computer.md)
 
+# プログラムの構造化
+- [式の追加]()
+- [制御構造をいろいろ]()
+- [手続きとスコープ]()
+
+# 型システム
+- [単純型付きラムダ計算]()
+- [単純型付きラムダ計算の拡張]()
+- [帰納型の追加]()
+- [system F とか Omega とか P とか]()
+
 # ラムダ計算の拡張
 - [ラムダ計算の拡張](./extensions_of_lambda_calculus/_extensions_of_lambda_calculus.md)
     - [継続概念について](./extensions_of_lambda_calculus/continuation.md)
+    - [CBPV]()
+    - [linear type]()
 
 ---
 
