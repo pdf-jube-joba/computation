@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use wasm_bindgen::prelude::*;
 
 pub trait WebView {
-    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String>;
+    fn step(&mut self, rinput: &str) -> Result<Option<JsValue>, String>;
     fn current(&self) -> JsValue;
 }
 
@@ -10,8 +10,8 @@ impl<T> WebView for T
 where
     T: utils::Machine,
 {
-    fn step(&mut self, input: &str) -> Result<Option<JsValue>, String> {
-        let parsed = <Self as utils::Machine>::parse_rinput(input)?;
+    fn step(&mut self, rinput: &str) -> Result<Option<JsValue>, String> {
+        let parsed = <Self as utils::Machine>::parse_rinput(rinput)?;
         let output = <Self as utils::Machine>::step(self, parsed)?;
         match output {
             Some(o) => {
