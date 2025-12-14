@@ -163,6 +163,15 @@ fn decode_output_for<T: Compiler>(output: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
+#[cfg(feature = "compiler")]
+#[wasm_bindgen]
+#[allow(unused)]
+pub fn decode_output(input: &str) -> Result<String, JsValue> {
+    Err(JsValue::from_str(
+        "No compiler type selected. Please enable a feature flag.",
+    ))
+}
+
 #[cfg(feature = "example")]
 mod example {
     use serde::Serialize;
