@@ -1,18 +1,5 @@
 // assets/script.js
-// このスクリプトは、ページ内の <div data-model="..."> を探して、
-// それぞれに対応する wasm モジュール (./wasm_bundle/<model>.js) を動的に読み込み、
-// 簡単な playground UI (textarea + button + output + canvas) を作って動かします。
-
-// Renderer interface (class):
-// - new Renderer(vm, stateContainer: HTMLElement, outputContainer: HTMLElement)
-// - drawState(state)
-// - drawOutput(output)
-//
-// WASM module interface (feature共通):
-// - default(): wasm-pack が生成する初期化関数
-// - create(code: string, ainput: string): machine を初期化
-// - step_machine(runtimeInput: string): Step 実行
-// - current_machine(): 現在状態を返す
+// モデルごとの wasm バンドルとレンダラーを読み込み、簡単な UI を構築する。
 
 // -------------------------------------
 // ヘルパー: <script type="text/plain" class="..."> からデフォルト文字列を取得
@@ -202,8 +189,6 @@ class Control {
 
 // -------------------------------------
 // MachineWrapper: wasm モジュールのロードとラップ
-//   - wasm_bundle/<model>.js の import とエクスポート検査を担当
-//   - create / step_machine / current_machine を外部に提供
 // -------------------------------------
 class MachineWrapper {
   static instanceCounter = 0;
@@ -220,7 +205,6 @@ class MachineWrapper {
   async init() {
     if (this.module) return;
 
-    // append a per-instance query to avoid module caching; each widget gets its own wasm instance
     const wasmPath = `./wasm_bundle/${this.modelName}.js?instance=${this.instanceId}`;
     const module = await import(wasmPath);
     this.module = module;
@@ -262,23 +246,17 @@ class MachineWrapper {
 }
 
 // -------------------------------------
-// ViewModel: 1つの <div data-model="..."> に対応
-//   - data-model をもとに MachineWrapper と Renderer を初期化
-//   - default() で wasm 初期化
-//   - step_machine / current_machine / output_machine を呼ぶ
+// ViewModel
 // -------------------------------------
 class ViewModel {
   constructor(root) {
-    console.log("ViewModel.constructor");
     this.root = root;
     this.modelName = root.dataset.model;
 
-    // default 値を div 内の <script type="text/plain"> から取得
     const defaultRInput = extractPlainScript(root, "default-rinput");
     const defaultAInput = extractPlainScript(root, "default-ainput");
     const defaultCode = extractPlainScript(root, "default-code");
 
-    // UI 部品
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
     this.stateContainer = ensureChild(root, ".wm-state", "div", "wm-state");
     this.outputContainer = ensureChild(root, ".wm-output-view", "div", "wm-output-view");
@@ -295,13 +273,10 @@ class ViewModel {
       onStep: opts => this.handleStepClick(opts),
     });
 
-    // 並び順: (textareas 内で code/ainput/rinput) -> control -> output/state
     root.append(this.outputPre, this.stateContainer, this.outputContainer);
 
-    // wasm モジュール wrapper
     this.machine = null;
-    // status: "uninitialized" | "ready" | "machine_setted" | "init_failed"
-    this.status = "uninitialized";
+    this.status = "uninitialized"; // "ready" | "machine_setted" | "init_failed"
   }
 
   async initializeMachine(codeStr, ainputStr) {
@@ -326,28 +301,22 @@ class ViewModel {
     this.control.disable();
   }
 
-  // wasm モジュール読み込み & 初期化
   async init() {
-    console.log("ViewModel.init");
-
     try {
-      // 1) wasm モジュール wrapper
       this.machine = new MachineWrapper(this.modelName);
       await this.machine.init();
 
-      // 2) renderer モジュール
       const rendererPath = `./renderers/${this.modelName}.js`;
       const rmod = await import(rendererPath);
-      const Renderer = rmod.Renderer;
-      if (typeof Renderer !== "function") {
-        throw new Error(`Renderer class not found for model "${this.modelName}"`);
+      const SnapshotRenderer = rmod.SnapshotRenderer;
+      const OutputRenderer = rmod.OutputRenderer;
+      if (typeof SnapshotRenderer !== "function" || typeof OutputRenderer !== "function") {
+        throw new Error(`SnapshotRenderer/OutputRenderer not found for model "${this.modelName}"`);
       }
-      this.renderer = new Renderer(this, this.stateContainer, this.outputContainer);
-      if (
-        typeof this.renderer.drawState !== "function" ||
-        typeof this.renderer.drawOutput !== "function"
-      ) {
-        throw new Error(`Renderer missing drawState/drawOutput for model "${this.modelName}"`);
+      this.snapshotRenderer = new SnapshotRenderer(this.stateContainer);
+      this.outputRenderer = new OutputRenderer(this.outputContainer);
+      if (typeof this.snapshotRenderer.draw !== "function" || typeof this.outputRenderer.draw !== "function") {
+        throw new Error(`Renderer missing draw() for model "${this.modelName}"`);
       }
 
       this.status = "ready";
@@ -361,7 +330,6 @@ class ViewModel {
   }
 
   async handleCreateClick() {
-    console.log("ViewModel.handleCreateClick");
     this.control.stopAuto();
     if (this.status === "init_failed") {
       this.outputPre.textContent = "(init failed; reload required)";
@@ -372,15 +340,14 @@ class ViewModel {
       return;
     }
     this.outputPre.textContent = "";
-    this.renderer.drawOutput(undefined);
+    this.outputRenderer.draw(undefined);
 
     try {
       const codeStr = this.textareas.code;
       const ainputStr = this.textareas.ainput;
-      console.log("Creating machine with code:", codeStr, "ainput:", ainputStr);
       const ok = await this.initializeMachine(codeStr, ainputStr);
       if (ok) {
-        let state = await this.machine.currentState();
+        const state = await this.machine.currentState();
         this.draw(state, undefined);
       }
     } catch (e) {
@@ -390,7 +357,6 @@ class ViewModel {
   }
 
   async handleStepClick({ triggeredByAuto = false } = {}) {
-    console.log("ViewModel.handleStepClick");
     if (this.status === "init_failed") {
       this.outputPre.textContent = "(init failed; reload required)";
       return { output: undefined, stepped: false };
@@ -402,7 +368,6 @@ class ViewModel {
 
     try {
       const runtimeInputStr = this.textareas.rinput;
-      console.log("Stepping machine with runtime input:", runtimeInputStr);
       const output = await this.machine.stepMachine(runtimeInputStr);
       const state = await this.machine.currentState();
       this.draw(state, output);
@@ -418,20 +383,18 @@ class ViewModel {
   }
 
   draw(state, output) {
-    console.log("ViewModel.draw");
-    this.renderer.drawState(state);
+    this.snapshotRenderer.draw(state);
     if (output !== undefined) {
-      this.renderer.drawOutput(output);
+      this.outputRenderer.draw(output);
     }
     this.outputPre.textContent = "";
   }
 }
 
 // -------------------------------------
-// エントリポイント: ページ内の <div data-model> すべてを初期化
+// エントリポイント
 // -------------------------------------
 async function setupAllModels() {
-  console.log("setupAllModels");
   const roots = document.querySelectorAll("[data-model]");
   const tasks = [];
 
@@ -440,11 +403,9 @@ async function setupAllModels() {
     tasks.push(vm.init());
   });
 
-  // まとめて await（個々のエラーは catch でログが出る）
   await Promise.all(tasks);
 }
 
-// DOMContentLoaded 後に実行
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
     setupAllModels().catch(err => console.error(err));

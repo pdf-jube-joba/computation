@@ -1,22 +1,24 @@
-// assets/renderers/mod_counter.js
-// Renderer for mod_counter machine
-export class Renderer {
-  constructor(vm, stateContainer, outputContainer) {
-    this.vm = vm;
+export class SnapshotRenderer {
+  constructor(stateContainer) {
     this.stateContainer = stateContainer;
-    this.outputContainer = outputContainer;
     stateContainer.replaceChildren();
-    outputContainer.replaceChildren();
   }
 
-  drawState(state) {
+  draw(state) {
     if (!state) return;
     const remainder = typeof state.remainder === "number" ? state.remainder : Number(state.remainder) || 0;
     const count = typeof state.count === "number" ? state.count : Number(state.count) || 0;
     this.stateContainer.textContent = `count = ${count}, remainder = ${remainder}`;
   }
+}
 
-  drawOutput(output) {
+export class OutputRenderer {
+  constructor(outputContainer) {
+    this.outputContainer = outputContainer;
+    outputContainer.replaceChildren();
+  }
+
+  draw(output) {
     if (output === undefined) {
       this.outputContainer.textContent = "";
       return;
