@@ -113,12 +113,7 @@ mod example {
             };
             Ok(Counter { count: counter })
         }
-
-        fn print(&self) -> String {
-            self.count.to_string()
-        }
-
-        fn fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
             write!(f, "{}", self.count)
         }
     }
@@ -138,17 +133,10 @@ mod example {
             }
         }
 
-        fn print(&self) -> String {
+        fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
             match self {
-                Command::Increment => "inc".to_string(),
-                Command::Decrement => "dec".to_string(),
-            }
-        }
-
-        fn fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
-            match self {
-                Command::Increment => f.write_str("inc"),
-                Command::Decrement => f.write_str("dec"),
+                Command::Increment => write!(f, "inc"),
+                Command::Decrement => write!(f, "dec"),
             }
         }
     }
