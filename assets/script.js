@@ -27,14 +27,14 @@ function ensureChild(root, selector, tagName, className) {
 // TextAreaTriple: code / ahead-of-time / runtime をまとめて扱う
 // -------------------------------------
 class TextAreaTriple {
-  constructor(root, { defaultCode = "", defaultAInput = "", defaultRInput = "" } = {}) {
-    this.root = root;
-    this.codeLabel = ensureChild(root, ".wm-code-label", "div", "wm-code-label");
-    this.ainputLabel = ensureChild(root, ".wm-ainput-label", "div", "wm-ainput-label");
-    this.rInputLabel = ensureChild(root, ".wm-input-label", "div", "wm-input-label");
-    this.codeArea = ensureChild(root, "textarea.wm-code", "textarea", "wm-code");
-    this.ainputArea = ensureChild(root, "textarea.wm-ainput", "textarea", "wm-ainput");
-    this.rinputArea = ensureChild(root, "textarea.wm-input", "textarea", "wm-input");
+  constructor(host, { defaultCode = "", defaultAInput = "", defaultRInput = "" } = {}) {
+    this.host = host;
+    this.codeLabel = ensureChild(host, ".wm-code-label", "div", "wm-code-label");
+    this.ainputLabel = ensureChild(host, ".wm-ainput-label", "div", "wm-ainput-label");
+    this.rInputLabel = ensureChild(host, ".wm-input-label", "div", "wm-input-label");
+    this.codeArea = ensureChild(host, "textarea.wm-code", "textarea", "wm-code");
+    this.ainputArea = ensureChild(host, "textarea.wm-ainput", "textarea", "wm-ainput");
+    this.rinputArea = ensureChild(host, "textarea.wm-input", "textarea", "wm-input");
 
     this.codeLabel.textContent = "code";
     this.ainputLabel.textContent = "ahead-of-time input";
@@ -44,7 +44,14 @@ class TextAreaTriple {
     if (defaultAInput && !this.ainputArea.value) this.ainputArea.value = defaultAInput;
     if (defaultRInput && !this.rinputArea.value) this.rinputArea.value = defaultRInput;
 
-    root.append(this.codeLabel, this.codeArea, this.ainputLabel, this.ainputArea, this.rInputLabel, this.rinputArea);
+    host.append(
+      this.codeLabel,
+      this.codeArea,
+      this.ainputLabel,
+      this.ainputArea,
+      this.rInputLabel,
+      this.rinputArea,
+    );
   }
 
   get code() {
@@ -345,14 +352,58 @@ class ViewModel {
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
     this.stateContainer = ensureChild(root, ".wm-state", "div", "wm-state");
 
-    this.textareas = new TextAreaTriple(root, {
-      defaultCode,
-      defaultAInput,
-      defaultRInput,
-    });
-    this.targetTextareas = this.isCompiler
-      ? new TextAreaTriple(root, { defaultCode: "", defaultAInput: "", defaultRInput: "" })
-      : null;
+    // always prepare a container for the machine-side inputs
+    this.machineContainer = ensureChild(root, ".wm-machine", "div", "wm-machine");
+
+    if (this.isCompiler) {
+      // compiler: source inputs live in a dedicated container
+      const sourceContainer = ensureChild(root, ".wm-source", "div", "wm-source");
+      const sourceHeading = ensureChild(
+        sourceContainer,
+        ".wm-source-heading",
+        "div",
+        "wm-source-heading",
+      );
+      sourceHeading.textContent = "Source (compile input)";
+      this.textareas = new TextAreaTriple(sourceContainer, {
+        defaultCode,
+        defaultAInput,
+        defaultRInput,
+      });
+
+      // compile buttons per input kind
+      this.compileButtons = {
+        code: ensureChild(sourceContainer, "button.wm-compile-code", "button", "wm-compile-code"),
+        ainput: ensureChild(sourceContainer, "button.wm-compile-ainput", "button", "wm-compile-ainput"),
+        rinput: ensureChild(sourceContainer, "button.wm-compile-rinput", "button", "wm-compile-rinput"),
+      };
+      this.compileButtons.code.textContent = "Compile code → target";
+      this.compileButtons.ainput.textContent = "Compile AInput → target";
+      this.compileButtons.rinput.textContent = "Compile RInput → target";
+      this.compileButtons.code.addEventListener("click", () => this.runCompile("code"));
+      this.compileButtons.ainput.addEventListener("click", () => this.runCompile("ainput"));
+      this.compileButtons.rinput.addEventListener("click", () => this.runCompile("rinput"));
+
+      const targetHeading = ensureChild(
+        this.machineContainer,
+        ".wm-target-heading",
+        "div",
+        "wm-target-heading",
+      );
+      targetHeading.textContent = "Compiled target";
+      this.targetTextareas = new TextAreaTriple(this.machineContainer, {
+        defaultCode: "",
+        defaultAInput: "",
+        defaultRInput: "",
+      });
+    } else {
+      this.textareas = new TextAreaTriple(this.machineContainer, {
+        defaultCode,
+        defaultAInput,
+        defaultRInput,
+      });
+      this.targetTextareas = null;
+    }
     this.control = new Control(root, {
       onCreate: () => {
         this.handleCreateClick().catch(err => console.error(err));
@@ -367,6 +418,9 @@ class ViewModel {
     this.status = "uninitialized"; // "ready" | "machine_setted" | "init_failed"
     this.targetModelName = this.isCompiler ? this.modelName.split("-").slice(-1)[0] : this.modelName;
     this.renderer = new RendererWrapper(this.targetModelName, this.stateContainer);
+
+    console.log(`ViewModel for model "${this.modelName}" isCompiler: "${this.isCompiler}"`);
+
   }
 
   async initializeMachine(codeStr, ainputStr) {
@@ -428,25 +482,12 @@ class ViewModel {
     this.outputPre.textContent = "";
 
     try {
-      if (this.isCompiler) {
-        const srcCode = this.textareas.code;
-        const srcAInput = this.textareas.ainput;
-        const compiledCode = await this.compiler.compileCode(srcCode);
-        const compiledAInput = await this.compiler.compileAInput(srcAInput);
-        this.targetTextareas.code = compiledCode;
-        this.targetTextareas.ainput = compiledAInput;
-        await this.machine.createMachine(compiledCode, compiledAInput);
-        this.status = "machine_setted";
+      const codeStr = (this.targetTextareas ?? this.textareas).code;
+      const ainputStr = (this.targetTextareas ?? this.textareas).ainput;
+      const ok = await this.initializeMachine(codeStr, ainputStr);
+      if (ok) {
         const state = await this.machine.currentState();
         this.draw(state);
-      } else {
-        const codeStr = this.textareas.code;
-        const ainputStr = this.textareas.ainput;
-        const ok = await this.initializeMachine(codeStr, ainputStr);
-        if (ok) {
-          const state = await this.machine.currentState();
-          this.draw(state);
-        }
       }
     } catch (e) {
       console.error(e);
@@ -465,22 +506,13 @@ class ViewModel {
     }
 
     try {
-      if (this.isCompiler) {
-        const srcRInput = this.textareas.rinput;
-        const compiledRInput = await this.compiler.compileRInput(srcRInput);
-        this.targetTextareas.rinput = compiledRInput;
-        const outputTarget = await this.machine.stepMachine(compiledRInput);
-        const outputSource = outputTarget ? await this.compiler.decodeOutput(outputTarget) : "";
-        const state = await this.machine.currentState();
-        this.draw(state, outputSource);
-        return { output: outputSource, stepped: true };
-      } else {
-        const runtimeInputStr = this.textareas.rinput;
-        const output = await this.machine.stepMachine(runtimeInputStr);
-        const state = await this.machine.currentState();
-        this.draw(state, output);
-        return { output, stepped: true };
-      }
+      const runtimeInputStr = (this.targetTextareas ?? this.textareas).rinput;
+      const outputTarget = await this.machine.stepMachine(runtimeInputStr);
+      const decodedOutput =
+        this.compiler && outputTarget ? await this.compiler.decodeOutput(outputTarget) : outputTarget;
+      const state = await this.machine.currentState();
+      this.draw(state, decodedOutput);
+      return { output: decodedOutput, stepped: true };
     } catch (e) {
       console.error(e);
       this.outputPre.textContent = `Error: ${e}`;
@@ -497,6 +529,36 @@ class ViewModel {
       this.outputPre.textContent = output;
     } else {
       this.outputPre.textContent = "";
+    }
+  }
+
+  async runCompile(kind) {
+    if (!this.isCompiler || !this.compiler) {
+      this.outputPre.textContent = "(compiler not available)";
+      return;
+    }
+    if (this.status === "init_failed") {
+      this.outputPre.textContent = "(init failed; reload required)";
+      return;
+    }
+    if (this.status === "uninitialized") {
+      this.outputPre.textContent = "(init not completed)";
+      return;
+    }
+    try {
+      if (kind === "code") {
+        const compiled = await this.compiler.compileCode(this.textareas.code);
+        this.targetTextareas.code = compiled;
+      } else if (kind === "ainput") {
+        const compiled = await this.compiler.compileAInput(this.textareas.ainput);
+        this.targetTextareas.ainput = compiled;
+      } else if (kind === "rinput") {
+        const compiled = await this.compiler.compileRInput(this.textareas.rinput);
+        this.targetTextareas.rinput = compiled;
+      }
+    } catch (e) {
+      console.error(e);
+      this.outputPre.textContent = `Compile error: ${e}`;
     }
   }
 }
