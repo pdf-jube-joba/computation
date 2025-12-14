@@ -15,6 +15,7 @@ WORKSPACE_DIR = Path(__file__).resolve().parent
 WEB_BUILDER_DIR = WORKSPACE_DIR / "web_builder"
 WEB_COMPILER_DIR = WORKSPACE_DIR / "web_compiler"
 ASSETS_DIR = WORKSPACE_DIR / "assets" / "wasm_bundle"
+RELEASE = False
 
 def ensure_wasm_pack() -> None:
     if shutil.which("wasm-pack") is None:
@@ -60,6 +61,8 @@ def build_wasm(crate_dir: Path, feature: str, release: bool) -> None:
 
     if release:
         cmd.insert(2, "--release")
+    else:
+        cmd.extend(["--no-opt"])
 
     cmd.extend(["--features", feature])
 
@@ -98,11 +101,11 @@ def main() -> None:
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
     for feature in builder_features:
-        build_wasm(WEB_BUILDER_DIR, feature, release=True)
+        build_wasm(WEB_BUILDER_DIR, feature, release=RELEASE)
         rename_and_move(WEB_BUILDER_DIR, feature)
 
     for feature in compiler_features:
-        build_wasm(WEB_COMPILER_DIR, feature, release=True)
+        build_wasm(WEB_COMPILER_DIR, feature, release=RELEASE)
         rename_and_move(WEB_COMPILER_DIR, feature)
 
 if __name__ == "__main__":
