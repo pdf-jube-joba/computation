@@ -218,7 +218,7 @@ pub mod graph_compose {
                 "{index}-{}-{state}",
                 assign_vertex_to_builder[index].get_name()
             );
-            str.as_str().parse::<State>().map_err(|_| ()).unwrap()
+            str.as_str().parse::<State>().unwrap()
         };
 
         builder.init_state(init_state.clone());

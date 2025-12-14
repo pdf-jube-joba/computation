@@ -250,7 +250,6 @@ pub fn unmark_redex(marked_term: MarkedTerm) -> LambdaTerm {
 // return None if there is no nth redex
 pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
     fn step_rec(marked_term: &MarkedTerm, num: &mut isize) -> Option<LambdaTerm> {
-        println!("Stepping on term: {:?}, num: {}", marked_term, num);
         match marked_term {
             MarkedTerm::Var(var) => Some(LambdaTerm::Var(var.clone())),
             MarkedTerm::Abs(var, abs_term) => {
