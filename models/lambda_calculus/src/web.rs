@@ -1,45 +1,67 @@
 use crate::machine::{LambdaTerm, MarkedTerm};
-use utils::Machine;
+use serde::Serialize;
+use utils::{number::Number, Machine, TextCodec};
+
+impl TextCodec for LambdaTerm {
+    fn parse(text: &str) -> Result<Self, String> {
+        crate::manipulation::parse::parse_lambda_read_to_end(text)
+    }
+
+    fn print(data: &Self) -> String {
+        match data {
+            LambdaTerm::Var(var) => var.as_str().to_string(),
+            LambdaTerm::Abs(var, lambda_term) => {
+                let body = LambdaTerm::print(lambda_term);
+                format!("\\{}. {}", var.as_str(), body)
+            }
+            LambdaTerm::App(lambda_term, lambda_term1) => {
+                let lhs = LambdaTerm::print(lambda_term);
+                let rhs = LambdaTerm::print(lambda_term1);
+                format!("({} {})", lhs, rhs)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Serialize)]
+pub struct AInput(pub Vec<LambdaTerm>);
+
+impl TextCodec for AInput {
+    fn parse(text: &str) -> Result<Self, String> {
+        let mut v = vec![];
+        for txt in text.split(",") {
+            let term = crate::manipulation::parse::parse_lambda_read_to_end(txt.trim())?;
+            v.push(term);
+        }
+        Ok(AInput(v))
+    }
+
+    fn print(data: &Self) -> String {
+        let mut strs = vec![];
+        for term in &data.0 {
+            let s = LambdaTerm::print(term);
+            strs.push(s);
+        }
+        strs.join(", ")
+    }
+}
 
 impl Machine for LambdaTerm {
     type Code = LambdaTerm;
-    type AInput = Vec<LambdaTerm>;
+    type AInput = AInput;
     type SnapShot = MarkedTerm;
-    type RInput = usize;
+    type RInput = Number;
     type Output = LambdaTerm;
 
-    fn parse_code(code: &str) -> Result<Self::Code, String> {
-        crate::manipulation::parse::parse_lambda_read_to_end(code)
-    }
-
-    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
-        ainput
-            .split(",")
-            .filter(|s| !s.trim().is_empty())
-            .map(|s| crate::manipulation::parse::parse_lambda_read_to_end(s.trim()))
-            .collect()
-    }
-
-    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
-        if rinput.is_empty() {
-            Ok(0)
-        } else {
-            rinput
-                .trim()
-                .parse::<usize>()
-                .map_err(|e| format!("Failed to parse input '{}': {}", rinput, e))
-        }
-    }
-
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
-        let term = crate::machine::assoc_app(code, ainput);
+        let term = crate::machine::assoc_app(code, ainput.0);
         Ok(term)
     }
 
     fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
         let marked = crate::machine::mark_redex(self);
         let lambda =
-            crate::machine::step(&marked, rinput).ok_or("No redex found at the given index")?;
+            crate::machine::step(&marked, rinput.0).ok_or("No redex found at the given index")?;
         *self = lambda;
         Ok(Some(self.clone()))
     }

@@ -1,4 +1,5 @@
 use pest::{iterators::Pair, Parser};
+use utils::TextCodec;
 use std::collections::HashMap;
 
 use crate::machine::RecursiveFunctions;
@@ -94,21 +95,14 @@ pub fn parse(str: &str) -> Result<RecursiveFunctions, String> {
     Ok(main_func)
 }
 
-fn parse_tuple(pair: Pair<Rule>) -> Vec<usize> {
-    debug_assert!(pair.as_rule() == Rule::tuple);
-    let mut result = Vec::new();
-    for p in pair.into_inner() {
-        debug_assert!(p.as_rule() == Rule::number);
-        let num = p.as_str().parse::<usize>().unwrap();
-        result.push(num);
+impl TextCodec for RecursiveFunctions {
+    fn parse(text: &str) -> Result<Self, String> {
+        parse(text)
     }
-    result
-}
 
-pub fn parse_tuple_str(str: &str) -> Result<Vec<usize>, String> {
-    let mut pairs = Ps::parse(Rule::tuple, str).map_err(|err| format!("{err}"))?;
-    let pair = pairs.next().unwrap();
-    Ok(parse_tuple(pair))
+    fn print(data: &Self) -> String {
+        data.to_string()
+    }
 }
 
 #[cfg(test)]
@@ -206,15 +200,5 @@ mod tests {
             )
             .unwrap()
         );
-    }
-    #[test]
-    fn parse_tuple_test() {
-        let code = "(1,2,3)";
-        let tuple = parse_tuple_str(code).unwrap();
-        assert_eq!(tuple, vec![1, 2, 3]);
-
-        let code = "()";
-        let tuple = parse_tuple_str(code).unwrap();
-        assert_eq!(tuple, vec![]);
     }
 }

@@ -485,9 +485,14 @@ dependencies = [
 name = "web_compiler"
 version = "0.1.0"
 dependencies = [
+ "goto_lang",
+ "lambda_calculus",
+ "recursive_function",
+ "recursive_function_to_lambda_calculus",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "turing_machine",
  "utils",
  "wasm-bindgen",
 ]

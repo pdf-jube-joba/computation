@@ -129,6 +129,8 @@ mod tests {
         s
     }
 
+    use crate::machine::Code;
+
     use super::*;
     #[test]
     fn test_parse_env() {
@@ -207,7 +209,7 @@ ifnz x : 0
         println!("--- Running Program ---");
 
         let mut program = crate::machine::Program {
-            commands,
+            commands: Code(commands),
             pc: Number(0),
             env: crate::machine::Environment::from(env),
         };

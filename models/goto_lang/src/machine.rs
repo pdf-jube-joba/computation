@@ -1,7 +1,7 @@
 use serde::Serialize;
-use utils::Machine;
 use utils::number::Number;
 use utils::variable::VarStr;
+use utils::{Machine, TextCodec};
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct Environment {
@@ -26,6 +26,22 @@ impl Environment {
         } else {
             self.env.push((var.clone(), num));
         }
+    }
+}
+
+impl TextCodec for Environment {
+    fn parse(text: &str) -> Result<Self, String> {
+        let env = crate::manipulation::env_read_to_end(text).map_err(|e| e.to_string())?;
+        Ok(Environment { env })
+    }
+
+    fn print(data: &Self) -> String {
+        let mut str = String::new();
+        for (var, num) in &data.env {
+            let line = format!("{} = {}\n", var.as_str(), num.0);
+            str.push_str(&line);
+        }
+        str
     }
 }
 
@@ -59,36 +75,44 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct Code(pub Vec<Command>);
+
+impl TextCodec for Code {
+    fn parse(text: &str) -> Result<Self, String> {
+        let code = crate::manipulation::program_read_to_end(text).map_err(|e| e.to_string())?;
+        Ok(Code(code))
+    }
+
+    fn print(data: &Self) -> String {
+        let mut str = String::new();
+        for command in &data.0 {
+            let line = match command {
+                Command::Clr(var) => format!("clr {}\n", var.as_str()),
+                Command::Inc(var) => format!("inc {}\n", var.as_str()),
+                Command::Dec(var) => format!("dec {}\n", var.as_str()),
+                Command::Cpy(dest, src) => format!("cpy {} {}\n", dest.as_str(), src.as_str()),
+                Command::Ifnz(var, target) => format!("ifnz {} {}\n", var.as_str(), target),
+            };
+            str.push_str(&line);
+        }
+        str
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct Program {
-    pub commands: Vec<Command>,
+    pub commands: Code,
     pub pc: Number,
     pub env: Environment,
 }
 
 impl Machine for Program {
-    type Code = Vec<Command>;
+    type Code = Code;
     type AInput = Environment;
     type SnapShot = Program;
     type RInput = ();
 
     type Output = Environment;
-
-    fn parse_code(code: &str) -> Result<Self::Code, String> {
-        crate::manipulation::program_read_to_end(code).map_err(|e| e.to_string())
-    }
-
-    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
-        let v = crate::manipulation::env_read_to_end(ainput).map_err(|e| e.to_string())?;
-        Ok(Environment::from(v))
-    }
-
-    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
-        if rinput.trim().is_empty() {
-            Ok(())
-        } else {
-            Err("This machine does not take any runtime input.".to_string())
-        }
-    }
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         Ok(Program {
@@ -99,11 +123,11 @@ impl Machine for Program {
     }
 
     fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        if (self.pc).0 >= self.commands.len() {
+        if (self.pc).0 >= self.commands.0.len() {
             return Ok(Some(self.env.clone()));
         }
 
-        let command = &self.commands[(self.pc).0];
+        let command = &self.commands.0[(self.pc).0];
         match command {
             Command::Clr(var) => {
                 self.env.write(var, Number(0));

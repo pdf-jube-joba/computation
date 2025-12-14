@@ -505,23 +505,6 @@ impl Machine for Program {
     type RInput = ();
     type Output = Number;
 
-    fn parse_code(code: &str) -> Result<Self::Code, String> {
-        crate::manipulation::parse(code)
-    }
-
-    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
-        let tuple = crate::manipulation::parse_tuple_str(ainput)?;
-        Ok(tuple.into_iter().map(Number).collect())
-    }
-
-    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
-        if rinput.trim().is_empty() {
-            Ok(())
-        } else {
-            Err("Recursive function machine does not take runtime input".to_string())
-        }
-    }
-
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         let process = Process::new(code.clone(), ainput.clone())?;
         Ok(Program {

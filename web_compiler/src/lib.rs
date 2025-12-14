@@ -9,14 +9,6 @@ fn compile_code_for<T: Compiler>(code: &str) -> Result<String, JsValue> {
     Ok(<<<T as Compiler>::Target as Machine>::Code as TextCodec>::print(&target_code))
 }
 
-#[wasm_bindgen]
-#[allow(unused)]
-pub fn compile_code(input: &str) -> Result<String, JsValue> {
-    Err(JsValue::from_str(
-        "No compiler type selected. Please enable a feature flag.",
-    ))
-}
-
 #[allow(dead_code)]
 fn compile_ainput_for<T: Compiler>(ainput: &str) -> Result<String, JsValue> {
     let source_ainput =
@@ -66,3 +58,5 @@ macro_rules! compiler_api {
         }
     };
 }
+
+compiler_api!{"recursive_function-lambda_calculus", recursive_function_to_lambda_calculus::Rec2LamCompiler}

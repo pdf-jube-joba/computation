@@ -3,7 +3,7 @@ use crate::{
     manipulation,
 };
 use serde::Serialize;
-use utils::Machine;
+use utils::{Machine, TextCodec};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CodeEntry {
@@ -32,6 +32,58 @@ pub struct Current {
     now: usize,
     state: String,
     tape: Tape,
+}
+
+impl TextCodec for TuringMachineDefinition {
+    fn parse(text: &str) -> Result<Self, String> {
+        let definition =
+            manipulation::code::parse_definition(text).map_err(|e| format!("{e:?}"))?;
+        Ok(definition)
+    }
+
+    fn print(data: &Self) -> String {
+        let init_state = data.init_state();
+        let accepted_states = data.accepted_state();
+        let code = data.code();
+
+        let mut s = String::new();
+        s.push_str(&format!("{}\n", init_state));
+        s.push_str(&format!(
+            "{}\n",
+            accepted_states
+                .iter()
+                .map(|st| st.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        ));
+        for entry in code {
+            let line = format!(
+                "{},{},{},{},{}\n",
+                entry.0 .0, entry.0 .1, entry.1 .0, entry.1 .1, entry.1 .2
+            );
+            s.push_str(&line);
+        }
+        s.trim_end().to_string()
+    }
+}
+
+impl TextCodec for Tape {
+    fn parse(text: &str) -> Result<Self, String> {
+        parse_tape(text)
+    }
+
+    fn print(data: &Self) -> String {
+        let (tapes, pos) = data.into_vec();
+        let mut s = String::new();
+        for (i, sign) in tapes.iter().enumerate() {
+            if i == pos {
+                s.push_str(&format!("|{}|", sign));
+            } else {
+                s.push_str(&format!("{},", sign));
+            }
+        }
+        s.trim_end_matches(',').to_string()
+    }
 }
 
 impl Machine for TuringMachineSet {

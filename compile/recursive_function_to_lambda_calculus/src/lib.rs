@@ -278,7 +278,7 @@ impl Compiler for Rec2LamCompiler {
             .into_iter()
             .map(number_to_lambda_term)
             .collect::<Vec<LambdaTerm>>();
-        Ok(encoded)
+        Ok(lambda_calculus::web::AInput(encoded))
     }
 
     fn encode_rinput(
@@ -286,7 +286,7 @@ impl Compiler for Rec2LamCompiler {
     ) -> Result<<<Self as Compiler>::Target as utils::Machine>::RInput, String> {
         let _: () = rinput;
         // leftmost outermost reduction
-        Ok(0)
+        Ok(0.into())
     }
 
     fn decode_output(
