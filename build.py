@@ -13,7 +13,29 @@ from pathlib import Path
 WORKSPACE_DIR = Path(__file__).resolve().parent
 WEB_BUILDER_DIR = WORKSPACE_DIR / "web_builder"
 ASSETS_DIR = WORKSPACE_DIR / "assets" / "wasm_bundle"
-FEATURES: list[str] = ["example", "turing_machine", "lambda_calculus", "goto_lang", "recursive_function"]
+FEATURES: list[str] = []
+
+def load_features() -> list[str]:
+    """Read feature keys from the `[features]` section of Cargo.toml without full TOML parsing."""
+    features: list[str] = []
+    in_features = False
+    cargo_toml = (WEB_BUILDER_DIR / "Cargo.toml").read_text().splitlines()
+    for line in cargo_toml:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped == "[features]":
+            in_features = True
+            continue
+        if in_features and stripped.startswith("["):
+            break  # reached the next section
+        if not in_features:
+            continue
+        if "=" in stripped:
+            name = stripped.split("=", 1)[0].strip()
+            if name and name not in ("default",):
+                features.append(name)
+    return features
 
 def ensure_wasm_pack() -> None:
     if shutil.which("wasm-pack") is None:
@@ -61,6 +83,9 @@ def rename_and_move(label: str) -> None:
 
 def main() -> None:
     ensure_wasm_pack()
+    # Load features from Cargo.toml so we don't have to maintain this list manually.
+    global FEATURES
+    FEATURES = load_features()
 
     # Reset output dir once before building all targets so artifacts for each
     # feature accumulate instead of being overwritten on every iteration.

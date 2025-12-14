@@ -141,10 +141,16 @@ pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<recursive_function::machine::Program>(input, ainput)
 }
 
-#[cfg(feature = "example")]
+#[cfg(all(feature = "example", not(feature = "compiler-example-to-example")))]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<example::Counter>(input, ainput)
+}
+
+#[cfg(feature = "compiler-example-to-example")]
+#[wasm_bindgen]
+pub fn create(input: &str, ainput: &str) -> Result<JsValue, JsValue> {
+    create_compiler::<example_compiler::ExampleIdentityCompiler>(input, ainput)
 }
 
 #[cfg(feature = "example")]
@@ -229,6 +235,42 @@ mod example {
 
         fn current(&self) -> Self::SnapShot {
             self.clone()
+        }
+    }
+}
+
+#[cfg(feature = "compiler-example-to-example")]
+mod example_compiler {
+    use utils::{Compiler, Machine};
+
+    pub struct ExampleIdentityCompiler;
+
+    impl Compiler for ExampleIdentityCompiler {
+        type Source = super::example::Counter;
+        type Target = super::example::Counter;
+
+        fn compile(
+            source: <<Self as Compiler>::Source as Machine>::Code,
+        ) -> Result<<<Self as Compiler>::Target as Machine>::Code, String> {
+            Ok(source)
+        }
+
+        fn encode_ainput(
+            ainput: <<Self as Compiler>::Source as Machine>::AInput,
+        ) -> Result<<<Self as Compiler>::Target as Machine>::AInput, String> {
+            Ok(ainput)
+        }
+
+        fn encode_rinput(
+            rinput: <<Self as Compiler>::Source as Machine>::RInput,
+        ) -> Result<<<Self as Compiler>::Target as Machine>::RInput, String> {
+            Ok(rinput)
+        }
+
+        fn decode_output(
+            output: <<Self as Compiler>::Target as Machine>::Output,
+        ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String> {
+            Ok(output)
         }
     }
 }
