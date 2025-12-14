@@ -1,16 +1,12 @@
 // assets/renderers/lambda_calculus.js
-// Renderer for lambda calculus marked terms with simple redex highlighting
+// SnapshotRenderer for lambda calculus marked terms with simple redex highlighting
 
 const REDEX_COLORS = ["#ffe7c2", "#ffd4db", "#e4f2ff", "#e9ffd0", "#f5d0ff"];
 
-export class Renderer {
-  constructor(vm, stateContainer, outputContainer) {
-    this.vm = vm;
+export class SnapshotRenderer {
+  constructor(stateContainer) {
     this.stateContainer = stateContainer;
-    this.outputContainer = outputContainer;
-
     this.stateContainer.replaceChildren();
-    this.outputContainer.replaceChildren();
 
     this.infoLabel = document.createElement("div");
     this.infoLabel.className = "lambda-help";
@@ -21,13 +17,9 @@ export class Renderer {
     this.termContainer.className = "lambda-term";
 
     this.stateContainer.append(this.infoLabel, this.termContainer);
-
-    this.outputMessage = document.createElement("div");
-    this.outputMessage.className = "lambda-output-message";
-    this.outputContainer.append(this.outputMessage);
   }
 
-  drawState(state) {
+  draw(state) {
     if (!this.termContainer) return;
     this.termContainer.replaceChildren();
     if (!state || typeof state !== "object") {
@@ -57,19 +49,6 @@ export class Renderer {
         })`;
       }
     }
-  }
-
-  drawOutput(output) {
-    if (!this.outputMessage) return;
-    if (output === undefined) {
-      this.outputMessage.textContent = "";
-      return;
-    }
-    if (output === null) {
-      this.outputMessage.textContent = "Beta reduction applied.";
-      return;
-    }
-    this.outputMessage.textContent = `output: ${this.safeStringify(output)}`;
   }
 
   renderTerm(node, counter) {
@@ -172,20 +151,11 @@ export class Renderer {
   formatVar(value) {
     if (value && typeof value === "object") {
       const name = value.name ?? "?";
-      // we omit value.ptr
+      const ptr = value.ptr;
       const text = String(name);
-      const title =
-        ptr !== undefined ? `unique id based on pointer: ${ptr}` : undefined;
+      const title = ptr !== undefined ? `unique id based on pointer: ${ptr}` : undefined;
       return { text, title };
     }
     return { text: String(value ?? "?"), title: undefined };
-  }
-
-  safeStringify(value) {
-    try {
-      return JSON.stringify(value);
-    } catch (_) {
-      return String(value);
-    }
   }
 }

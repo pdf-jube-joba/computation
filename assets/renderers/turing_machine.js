@@ -1,13 +1,10 @@
 // assets/renderers/turing_machine.js
-// Renderer for Turing machine state/output
-export class Renderer {
-  constructor(vm, stateContainer, outputContainer) {
-    this.vm = vm;
+// SnapshotRenderer for Turing machine state/output
+export class SnapshotRenderer {
+  constructor(stateContainer) {
     this.stateContainer = stateContainer;
-    this.outputContainer = outputContainer;
 
     this.stateContainer.replaceChildren();
-    this.outputContainer.replaceChildren();
 
     this.statusDiv = document.createElement("div");
     this.tapeDiv = document.createElement("div");
@@ -20,12 +17,9 @@ export class Renderer {
     });
 
     this.stateContainer.append(this.statusDiv, this.tapeDiv, this.codeTable);
-
-    this.outputLabel = document.createElement("div");
-    this.outputContainer.append(this.outputLabel);
   }
 
-  drawState(state) {
+  draw(state) {
     if (!state) {
       this.statusDiv.textContent = "(no state)";
       this.tapeDiv.textContent = "";
@@ -42,14 +36,6 @@ export class Renderer {
 
     this.tapeDiv.textContent = formatTape(state.tape);
     this.fillCodeTable(state.code || [], now);
-  }
-
-  drawOutput(output) {
-    if (!output) {
-      this.outputLabel.textContent = "";
-      return;
-    }
-    this.outputLabel.textContent = `output: ${JSON.stringify(output)}`;
   }
 
   clearTableBody() {

@@ -1,16 +1,11 @@
 // assets/renderers/goto_lang.js
-// Renderer for goto_lang using the new OneTime interface semantics.
-// Shows the code as an ordered list (perfect for PC highlighting) and
-// renders the Environment as a table.
+// SnapshotRenderer for goto_lang: program listing + environment table.
 
-export class Renderer {
-  constructor(vm, stateContainer, outputContainer) {
-    this.vm = vm;
+export class SnapshotRenderer {
+  constructor(stateContainer) {
     this.stateContainer = stateContainer;
-    this.outputContainer = outputContainer;
 
     this.stateContainer.replaceChildren();
-    this.outputContainer.replaceChildren();
 
     this.metaLine = document.createElement("div");
     this.metaLine.className = "goto-meta";
@@ -37,32 +32,17 @@ export class Renderer {
     this.envBody = this.envTable.createTBody();
     envSection.append(envHeading, this.envTable);
 
-    this.stateContainer.append(this.metaLine, codeSection, envSection, this.hintLine);
+    this.hintLine = document.createElement("div");
+    this.hintLine.className = "goto-hint";
+    this.hintLine.textContent = "PC is highlighted; program shows decoded commands.";
 
-    this.outputMessage = document.createElement("div");
-    this.outputMessage.className = "goto-output";
-    this.outputContainer.appendChild(this.outputMessage);
+    this.stateContainer.append(this.metaLine, codeSection, envSection, this.hintLine);
   }
 
-  drawState(state) {
+  draw(state) {
     this.renderMeta(state);
     this.renderCode(state);
     this.renderEnvironment(state);
-  }
-
-  drawOutput(output) {
-    if (!this.outputMessage) return;
-    if (output === undefined) {
-      this.outputMessage.textContent = "";
-      return;
-    }
-    if (output === true) {
-      this.outputMessage.textContent = "Terminated.";
-    } else if (output === false) {
-      this.outputMessage.textContent = "Running...";
-    } else {
-      this.outputMessage.textContent = `output: ${this.safeStringify(output)}`;
-    }
   }
 
   renderMeta(state) {
@@ -151,9 +131,9 @@ export class Renderer {
         const [dst, src] = this.asTuple(value, 2);
         return `cpy ${this.formatVar(dst)} <- ${this.formatVar(src)}`;
       }
-      case "Ifz": {
+      case "Ifnz": {
         const [varName, target] = this.asTuple(value, 2);
-        return `ifz ${this.formatVar(varName)} : ${this.coerceNumber(target) ?? "?"}`;
+        return `ifnz ${this.formatVar(varName)} : ${this.coerceNumber(target) ?? "?"}`;
       }
       default:
         return `[${tag}]`;

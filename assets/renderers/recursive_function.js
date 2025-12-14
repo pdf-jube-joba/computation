@@ -1,28 +1,14 @@
 // assets/renderers/recursive_function.js
-// Renderer for recursive_function machines: shows source code, tuple input hints, and the current Process tree.
+// SnapshotRenderer for recursive_function machines: shows current Process tree.
 
-export class Renderer {
-  constructor(vm, stateContainer, outputContainer) {
-    this.vm = vm;
+export class SnapshotRenderer {
+  constructor(stateContainer) {
     this.stateContainer = stateContainer;
-    this.outputContainer = outputContainer;
 
     this.stateContainer.replaceChildren();
-    this.outputContainer.replaceChildren();
 
     this.statusLine = document.createElement("div");
     this.statusLine.className = "rf-status";
-
-    const codeSection = document.createElement("section");
-    codeSection.className = "rf-section";
-    const codeHeading = document.createElement("h4");
-    codeHeading.textContent = "Function Definition";
-    this.codeBlock = document.createElement("pre");
-    this.codeBlock.className = "rf-code";
-    codeSection.append(codeHeading, this.codeBlock);
-
-    this.tupleLine = document.createElement("div");
-    this.tupleLine.className = "rf-tuple";
 
     const processSection = document.createElement("section");
     processSection.className = "rf-section";
@@ -32,33 +18,12 @@ export class Renderer {
     this.processContainer.className = "rf-process";
     processSection.append(processHeading, this.processContainer);
 
-    this.stateContainer.append(this.statusLine, codeSection, this.tupleLine, processSection);
-
-    this.outputMessage = document.createElement("div");
-    this.outputMessage.className = "rf-output";
-    this.outputContainer.appendChild(this.outputMessage);
+    this.stateContainer.append(this.statusLine, processSection);
   }
 
-  drawState(state) {
+  draw(state) {
     this.renderStatus(state);
-    this.renderCode();
-    this.renderTupleHint();
     this.renderProcess(state);
-  }
-
-  drawOutput(output) {
-    if (!this.outputMessage) return;
-    if (output === undefined) {
-      this.outputMessage.textContent = "";
-      return;
-    }
-    if (output === true) {
-      this.outputMessage.textContent = "Process finished.";
-    } else if (output === false) {
-      this.outputMessage.textContent = "Process is still running.";
-    } else {
-      this.outputMessage.textContent = `output: ${this.safeStringify(output)}`;
-    }
   }
 
   renderStatus(state) {
@@ -71,23 +36,6 @@ export class Renderer {
     const tag = variant?.tag ?? "?";
     this.statusLine.textContent =
       tag === "Result" ? "status: terminated" : `status: evaluating (${tag})`;
-  }
-
-  renderCode() {
-    if (!this.codeBlock) return;
-    const src = this.vm?.codeArea?.value ?? "";
-    this.codeBlock.textContent = src.trim() ? src : "(no code loaded)";
-  }
-
-  renderTupleHint() {
-    if (!this.tupleLine) return;
-    const tupleText = this.vm?.inputArea?.value ?? "";
-    if (!tupleText.trim()) {
-      this.tupleLine.textContent =
-        'Input: enter a tuple like "(0, 1, 2)" to reset, leave empty to step.';
-    } else {
-      this.tupleLine.textContent = `Input tuple: ${tupleText.trim()}`;
-    }
   }
 
   renderProcess(state) {
