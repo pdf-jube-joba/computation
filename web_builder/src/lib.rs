@@ -142,15 +142,26 @@ pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
 #[cfg(feature = "example")]
 mod example {
     use serde::Serialize;
-    use utils::Machine;
+    use utils::{Machine, TextCodec};
 
+    #[derive(Clone, Serialize)]
     pub struct Counter {
         pub count: usize,
     }
 
-    #[derive(Serialize)]
-    pub struct Current {
-        count: usize,
+    impl TextCodec for Counter {
+        fn parse(text: &str) -> Result<Self, String> {
+            let counter: usize = if text.trim().is_empty() {
+                0
+            } else {
+                text.trim().parse::<usize>().map_err(|e| e.to_string())?
+            };
+            Ok(Counter { count: counter })
+        }
+
+        fn print(data: &Self) -> Result<String, String> {
+            Ok(data.count.to_string())
+        }
     }
 
     #[derive(Serialize)]
@@ -159,38 +170,32 @@ mod example {
         Decrement,
     }
 
-    impl Machine for Counter {
-        type Code = usize;
-        type AInput = ();
-        type RInput = Command;
-        type Output = String;
-        type This = Current;
-
-        fn parse_code(code: &str) -> Result<Self::Code, String> {
-            let initial_count = code.trim().parse::<usize>().map_err(|e| e.to_string())?;
-            if initial_count >= 10 {
-                return Err("Initial count must be less than 10".to_string());
-            }
-            Ok(initial_count)
-        }
-
-        fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
-            if !ainput.trim().is_empty() {
-                return Err("AInput must be empty".to_string());
-            }
-            Ok(())
-        }
-
-        fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
-            match rinput.trim() {
+    impl TextCodec for Command {
+        fn parse(text: &str) -> Result<Self, String> {
+            match text.trim() {
                 "inc" => Ok(Command::Increment),
                 "dec" => Ok(Command::Decrement),
                 _ => Err("Invalid command".to_string()),
             }
         }
 
+        fn print(data: &Self) -> Result<String, String> {
+            match data {
+                Command::Increment => Ok("inc".to_string()),
+                Command::Decrement => Ok("dec".to_string()),
+            }
+        }
+    }
+
+    impl Machine for Counter {
+        type Code = Counter;
+        type AInput = ();
+        type RInput = Command;
+        type Output = String;
+        type SnapShot = Counter;
+
         fn make(code: Self::Code, _ainput: Self::AInput) -> Result<Self, String> {
-            Ok(Counter { count: code })
+            Ok(code)
         }
 
         fn step(&mut self, input: Self::RInput) -> Result<Option<Self::Output>, String> {
@@ -214,8 +219,8 @@ mod example {
             }
         }
 
-        fn current(&self) -> Self::This {
-            Current { count: self.count }
+        fn current(&self) -> Self::SnapShot {
+            self.clone()
         }
     }
 }

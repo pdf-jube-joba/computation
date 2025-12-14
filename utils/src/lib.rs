@@ -13,6 +13,19 @@ pub trait TextCodec: Sized {
     // but not necessarily "is identity" (something lossy is allowed)
 }
 
+impl TextCodec for () {
+    fn parse(text: &str) -> Result<Self, String> {
+        if text.trim().is_empty() {
+            Ok(())
+        } else {
+            Err("Expected empty input".to_string())
+        }
+    }
+    fn print(_data: &Self) -> Result<String, String> {
+        Ok("".to_string())
+    }
+}
+
 pub trait Machine: Sized {
     type Code: Serialize + TextCodec; // static code
     type AInput: Serialize + TextCodec; // ahead of time input
