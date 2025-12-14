@@ -55,7 +55,8 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
     })
 }
 
-pub fn create_machine<T: Machine + 'static>(code: &str, ainput: &str) -> Result<(), JsValue> {
+#[allow(dead_code)]
+fn create_machine<T: Machine + 'static>(code: &str, ainput: &str) -> Result<(), JsValue> {
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         *machine = None;
@@ -74,7 +75,8 @@ pub fn create_machine<T: Machine + 'static>(code: &str, ainput: &str) -> Result<
 // return { "code": code, "ainput": ainput }
 // where code = print(compile(code)), ainput = encode_ainput(ainput)
 // contains target machine
-pub fn create_compiler<T: Compiler + 'static>(
+#[allow(dead_code)]
+fn create_compiler<T: Compiler + 'static>(
     code: &str,
     ainput: &str,
 ) -> Result<JsValue, JsValue> {
@@ -117,6 +119,14 @@ pub fn create_compiler<T: Compiler + 'static>(
     Ok(return_value)
 }
 
+fn encode_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
+    let source_rinput = <T::Source as Machine>::parse_rinput(rinput)
+        .map_err(|e| JsValue::from_str(&e))?;
+    let target_rinput = T::encode_rinput(source_rinput).map_err(|e| JsValue::from_str(&e))?;
+    <<<T as Compiler>::Target as Machine>::RInput as TextCodec>::print(&target_rinput)
+        .map_err(|e| JsValue::from_str(&e))
+}
+
 #[cfg(feature = "turing_machine")]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
@@ -151,6 +161,12 @@ pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<JsValue, JsValue> {
     create_compiler::<example_compiler::ExampleIdentityCompiler>(input, ainput)
+}
+
+#[cfg(feature = "compiler-example-to-example")]
+#[wasm_bindgen]
+pub fn display_encode_rinput(rinput: &str) -> Result<String, JsValue> {
+    encode_rinput_for::<example_compiler::ExampleIdentityCompiler>(rinput)
 }
 
 #[cfg(feature = "example")]
