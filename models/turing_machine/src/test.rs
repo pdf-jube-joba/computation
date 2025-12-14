@@ -19,8 +19,8 @@ fn test_tape_eq() {
 fn test_tape_lr() {
     let v = map_v(vec!["0", "1", "2", "3", "4", "5", "6"]);
 
-    let mut tape = Tape::from_vec(v.clone(), 3);
+    let mut tape = Tape::from_vec(v.clone(), 3).unwrap();
     tape.move_to(&Direction::Left);
-    let tape2 = Tape::from_vec(v.clone(), 2);
+    let tape2 = Tape::from_vec(v.clone(), 2).unwrap();
     assert!(tape.eq(&tape2));
 }

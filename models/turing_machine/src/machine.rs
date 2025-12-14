@@ -135,13 +135,16 @@ impl Display for Tape {
 }
 
 impl Tape {
-    pub fn from_vec(v: impl IntoIterator<Item = Sign>, pos: usize) -> Self {
+    pub fn from_vec(v: impl IntoIterator<Item = Sign>, pos: usize) -> Result<Self, String> {
         let v: Vec<Sign> = v.into_iter().collect();
+        if pos > v.len() {
+            return Err("Position out of bounds".to_string());
+        }
         let left = v[..pos].to_vec();
         let head = v.get(pos).cloned().unwrap_or_default();
         let mut right = v[pos + 1..].to_vec();
         right.reverse();
-        Self { left, head, right }
+        Ok(Self { left, head, right })
     }
     pub fn head_read(&self) -> &Sign {
         &self.head

@@ -42,7 +42,7 @@ pub mod num_tape {
             signs.push(Sign::blank());
         }
 
-        Tape::from_vec(signs, 0)
+        Tape::from_vec(signs, 0).unwrap()
     }
 
     pub fn write_usize(tuple: Vec<usize>) -> Tape {

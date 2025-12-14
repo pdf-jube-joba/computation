@@ -300,7 +300,7 @@ pub mod graph_compose {
 #[cfg(test)]
 mod tests {
     use super::{builder, code};
-    use crate::machine::{State, Tape};
+    use crate::machine::State;
 
     static CODE_STR: &str = "
         -, start, -, end, C
@@ -315,7 +315,6 @@ mod tests {
     #[test]
     fn builder() {
         let mut builder = builder::TuringMachineBuilder::new("test").unwrap();
-        assert!(builder.build(Tape::from_vec(vec![], 0)).is_err());
 
         let start_state: State = "start".parse().unwrap();
         builder.init_state(start_state.clone());

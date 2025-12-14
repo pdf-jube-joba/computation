@@ -153,5 +153,5 @@ fn parse_tape(tape: &str) -> Result<Tape, String> {
         let sign: Sign = s.trim().parse().map_err(|e| format!("{e}"))?;
         v.push(sign);
     }
-    Ok(Tape::from_vec(v, pos))
+    Tape::from_vec(v, pos)
 }

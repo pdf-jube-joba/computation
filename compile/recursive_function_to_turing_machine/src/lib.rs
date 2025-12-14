@@ -11,7 +11,7 @@ impl<'a> From<Builder<'a>> for TuringMachineBuilder {
         tm_builder.init_state("start".parse().unwrap());
         tm_builder.accepted_state(vec!["end".parse().unwrap()]);
         for entry in builder.code {
-            let entry = turing_machine::manipulation::code::parse_one_code_entry(&entry).unwrap();
+            let entry = turing_machine::manipulation::code::parse_one_code_entry(entry).unwrap();
             tm_builder.code_push(entry);
         }
         tm_builder
@@ -54,9 +54,11 @@ pub fn succ_builder() -> TuringMachineBuilder {
 }
 
 #[cfg(test)]
-fn builder_test(builder: &mut TuringMachineBuilder, step: usize, tests: Vec<(Tape, Tape)>) {
+fn builder_test(builder: &mut TuringMachineBuilder, step: usize, tests: Vec<(Result<Tape, String>, Result<Tape, String>)>) {
     eprintln!("test start");
-    for (input, result) in tests {
+    for (input, expect) in tests {
+        let input = input.unwrap();
+        let expect = expect.unwrap();
         eprintln!("input: {}", input);
         let mut machine = builder.build(input).unwrap();
         eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
@@ -68,7 +70,7 @@ fn builder_test(builder: &mut TuringMachineBuilder, step: usize, tests: Vec<(Tap
             }
         }
         assert!(machine.is_accepted());
-        assert!(machine.now_tape().eq(&result));
+        assert!(machine.now_tape().eq(&expect));
     }
 }
 
@@ -76,10 +78,11 @@ fn builder_test(builder: &mut TuringMachineBuilder, step: usize, tests: Vec<(Tap
 fn builder_test_predicate(
     builder: &mut TuringMachineBuilder,
     step: usize,
-    tests: Vec<(Tape, State)>,
+    tests: Vec<(Result<Tape, String>, State)>,
 ) {
     eprintln!("test start");
     for (input, result) in tests {
+        let input = input.unwrap();
         let mut machine = builder.build(input).unwrap();
         eprintln!("{:?}\n    {}", machine.now_state(), machine.now_tape());
         for _ in 0..step {
