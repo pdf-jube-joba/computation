@@ -10,7 +10,7 @@ pub mod variable;
 
 pub trait TextCodec: Sized {
     fn parse(text: &str) -> Result<Self, String>;
-    fn print(data: &Self) -> Result<String, String>;
+    fn print(data: &Self) -> String;
     // we expect print(parse(x)).is_ok() && print(parse(x)).is_ok()
     // but not necessarily "is identity" (something lossy is allowed)
 }
@@ -23,8 +23,8 @@ impl TextCodec for () {
             Err("Expected empty input".to_string())
         }
     }
-    fn print(_data: &Self) -> Result<String, String> {
-        Ok("".to_string())
+    fn print(_data: &Self) -> String {
+        "".to_string()
     }
 }
 
@@ -33,8 +33,8 @@ impl TextCodec for Number {
         let n = text.trim().parse::<usize>().map_err(|e| e.to_string())?;
         Ok(Number::from(n))
     }
-    fn print(data: &Self) -> Result<String, String> {
-        Ok(data.to_string())
+    fn print(data: &Self) -> String {
+        data.to_string()
     }
 }
 
@@ -42,8 +42,8 @@ impl TextCodec for String {
     fn parse(text: &str) -> Result<Self, String> {
         Ok(text.to_string())
     }
-    fn print(data: &Self) -> Result<String, String> {
-        Ok(data.clone())
+    fn print(data: &Self) -> String {
+        data.clone()
     }
 }
 

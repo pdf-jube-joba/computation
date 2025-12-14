@@ -15,7 +15,7 @@ where
         let output = <Self as utils::Machine>::step(self, parsed)?;
         match output {
             Some(o) => {
-                let printed = <Self as utils::Machine>::Output::print(&o)?;
+                let printed = <Self as utils::Machine>::Output::print(&o);
                 Ok(Some(printed))
             }
             None => Ok(None),
