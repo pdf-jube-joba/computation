@@ -482,5 +482,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "web_compiler"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "utils",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "while_language"
 version = "0.1.0"

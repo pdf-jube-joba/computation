@@ -19,10 +19,8 @@ goto_lang = { path = "../models/goto_lang", optional = true }
 recursive_function = { path = "../models/recursive_function", optional = true }
 
 [features]
-compiler = []
 example = []
 turing_machine = ["dep:turing_machine"]
 lambda_calculus = [ "dep:lambda_calculus" ]
 goto_lang = [ "dep:goto_lang" ]
 recursive_function = [ "dep:recursive_function" ]
-recursive_function_to_lambda_calculus = ["compiler", "dep:recursive_function", "lambda_calculus" ]

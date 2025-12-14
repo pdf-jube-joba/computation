@@ -5,6 +5,7 @@ members = [
   "models/*",
   "compile/*",
   "web_builder",
+  "web_compiler",
 ]
 
 exclude = [
