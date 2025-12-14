@@ -246,12 +246,97 @@ class MachineWrapper {
 }
 
 // -------------------------------------
+// CompilerWrapper: compiler wasm モジュールのロードとラップ
+// -------------------------------------
+class CompilerWrapper {
+  static instanceCounter = 0;
+
+  constructor(compilerName) {
+    this.compilerName = compilerName;
+    this.instanceId = CompilerWrapper.instanceCounter++;
+    this.module = null;
+    this.compileCodeFn = null;
+    this.compileAInputFn = null;
+    this.compileRInputFn = null;
+    this.decodeOutputFn = null;
+  }
+
+  async init() {
+    if (this.module) return;
+    const wasmPath = `./wasm_bundle/${this.compilerName}.js?instance=${this.instanceId}`;
+    const module = await import(wasmPath);
+    this.module = module;
+    this.compileCodeFn = typeof module.compile_code === "function" ? module.compile_code : null;
+    this.compileAInputFn = typeof module.compile_ainput === "function" ? module.compile_ainput : null;
+    this.compileRInputFn = typeof module.compile_rinput === "function" ? module.compile_rinput : null;
+    this.decodeOutputFn = typeof module.decode_output === "function" ? module.decode_output : null;
+    const missing = [];
+    if (!this.compileCodeFn) missing.push("compile_code");
+    if (!this.compileAInputFn) missing.push("compile_ainput");
+    if (!this.compileRInputFn) missing.push("compile_rinput");
+    if (!this.decodeOutputFn) missing.push("decode_output");
+    if (missing.length) {
+      throw new Error(`Compiler WASM is missing exports: ${missing.join(", ")}`);
+    }
+    if (typeof module.default === "function") {
+      await module.default();
+    }
+  }
+
+  async compileCode(code) {
+    return Promise.resolve(this.compileCodeFn(code));
+  }
+
+  async compileAInput(ainput) {
+    return Promise.resolve(this.compileAInputFn(ainput));
+  }
+
+  async compileRInput(rinput) {
+    return Promise.resolve(this.compileRInputFn(rinput));
+  }
+
+  async decodeOutput(output) {
+    return Promise.resolve(this.decodeOutputFn(output));
+  }
+}
+
+// -------------------------------------
+// RendererWrapper: renderer をロードして SnapshotRenderer を得る
+// -------------------------------------
+class RendererWrapper {
+  constructor(modelName, stateContainer) {
+    this.modelName = modelName;
+    this.stateContainer = stateContainer;
+    this.snapshotRenderer = null;
+  }
+
+  async init() {
+    const rendererPath = `./renderers/${this.modelName}.js`;
+    const rmod = await import(rendererPath);
+    const SnapshotRenderer = rmod.SnapshotRenderer;
+    if (typeof SnapshotRenderer !== "function") {
+      throw new Error(`SnapshotRenderer not found for model "${this.modelName}"`);
+    }
+    this.snapshotRenderer = new SnapshotRenderer(this.stateContainer);
+    if (typeof this.snapshotRenderer.draw !== "function") {
+      throw new Error(`SnapshotRenderer missing draw() for model "${this.modelName}"`);
+    }
+  }
+
+  draw(state) {
+    this.snapshotRenderer.draw(state);
+  }
+}
+
+// -------------------------------------
 // ViewModel
 // -------------------------------------
 class ViewModel {
   constructor(root) {
     this.root = root;
     this.modelName = root.dataset.model;
+    this.isCompiler = this.modelName.includes("-");
+    this.compilerName = this.isCompiler ? this.modelName : null;
 
     const defaultRInput = extractPlainScript(root, "default-rinput");
     const defaultAInput = extractPlainScript(root, "default-ainput");
@@ -259,13 +344,15 @@ class ViewModel {
 
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
     this.stateContainer = ensureChild(root, ".wm-state", "div", "wm-state");
-    this.outputContainer = ensureChild(root, ".wm-output-view", "div", "wm-output-view");
 
     this.textareas = new TextAreaTriple(root, {
       defaultCode,
       defaultAInput,
       defaultRInput,
     });
+    this.targetTextareas = this.isCompiler
+      ? new TextAreaTriple(root, { defaultCode: "", defaultAInput: "", defaultRInput: "" })
+      : null;
     this.control = new Control(root, {
       onCreate: () => {
         this.handleCreateClick().catch(err => console.error(err));
@@ -273,10 +360,13 @@ class ViewModel {
       onStep: opts => this.handleStepClick(opts),
     });
 
-    root.append(this.outputPre, this.stateContainer, this.outputContainer);
+    root.append(this.outputPre, this.stateContainer);
 
     this.machine = null;
+    this.compiler = null;
     this.status = "uninitialized"; // "ready" | "machine_setted" | "init_failed"
+    this.targetModelName = this.isCompiler ? this.modelName.split("-").slice(-1)[0] : this.modelName;
+    this.renderer = new RendererWrapper(this.targetModelName, this.stateContainer);
   }
 
   async initializeMachine(codeStr, ainputStr) {
@@ -303,20 +393,16 @@ class ViewModel {
 
   async init() {
     try {
-      this.machine = new MachineWrapper(this.modelName);
-      await this.machine.init();
+      await this.renderer.init();
 
-      const rendererPath = `./renderers/${this.modelName}.js`;
-      const rmod = await import(rendererPath);
-      const SnapshotRenderer = rmod.SnapshotRenderer;
-      const OutputRenderer = rmod.OutputRenderer;
-      if (typeof SnapshotRenderer !== "function" || typeof OutputRenderer !== "function") {
-        throw new Error(`SnapshotRenderer/OutputRenderer not found for model "${this.modelName}"`);
-      }
-      this.snapshotRenderer = new SnapshotRenderer(this.stateContainer);
-      this.outputRenderer = new OutputRenderer(this.outputContainer);
-      if (typeof this.snapshotRenderer.draw !== "function" || typeof this.outputRenderer.draw !== "function") {
-        throw new Error(`Renderer missing draw() for model "${this.modelName}"`);
+      if (this.isCompiler) {
+        this.compiler = new CompilerWrapper(this.compilerName);
+        await this.compiler.init();
+        this.machine = new MachineWrapper(this.targetModelName);
+        await this.machine.init();
+      } else {
+        this.machine = new MachineWrapper(this.modelName);
+        await this.machine.init();
       }
 
       this.status = "ready";
@@ -340,15 +426,27 @@ class ViewModel {
       return;
     }
     this.outputPre.textContent = "";
-    this.outputRenderer.draw(undefined);
 
     try {
-      const codeStr = this.textareas.code;
-      const ainputStr = this.textareas.ainput;
-      const ok = await this.initializeMachine(codeStr, ainputStr);
-      if (ok) {
+      if (this.isCompiler) {
+        const srcCode = this.textareas.code;
+        const srcAInput = this.textareas.ainput;
+        const compiledCode = await this.compiler.compileCode(srcCode);
+        const compiledAInput = await this.compiler.compileAInput(srcAInput);
+        this.targetTextareas.code = compiledCode;
+        this.targetTextareas.ainput = compiledAInput;
+        await this.machine.createMachine(compiledCode, compiledAInput);
+        this.status = "machine_setted";
         const state = await this.machine.currentState();
-        this.draw(state, undefined);
+        this.draw(state);
+      } else {
+        const codeStr = this.textareas.code;
+        const ainputStr = this.textareas.ainput;
+        const ok = await this.initializeMachine(codeStr, ainputStr);
+        if (ok) {
+          const state = await this.machine.currentState();
+          this.draw(state);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -367,11 +465,22 @@ class ViewModel {
     }
 
     try {
-      const runtimeInputStr = this.textareas.rinput;
-      const output = await this.machine.stepMachine(runtimeInputStr);
-      const state = await this.machine.currentState();
-      this.draw(state, output);
-      return { output, stepped: true };
+      if (this.isCompiler) {
+        const srcRInput = this.textareas.rinput;
+        const compiledRInput = await this.compiler.compileRInput(srcRInput);
+        this.targetTextareas.rinput = compiledRInput;
+        const outputTarget = await this.machine.stepMachine(compiledRInput);
+        const outputSource = outputTarget ? await this.compiler.decodeOutput(outputTarget) : "";
+        const state = await this.machine.currentState();
+        this.draw(state, outputSource);
+        return { output: outputSource, stepped: true };
+      } else {
+        const runtimeInputStr = this.textareas.rinput;
+        const output = await this.machine.stepMachine(runtimeInputStr);
+        const state = await this.machine.currentState();
+        this.draw(state, output);
+        return { output, stepped: true };
+      }
     } catch (e) {
       console.error(e);
       this.outputPre.textContent = `Error: ${e}`;
@@ -383,11 +492,12 @@ class ViewModel {
   }
 
   draw(state, output) {
-    this.snapshotRenderer.draw(state);
+    this.renderer.draw(state);
     if (output !== undefined) {
-      this.outputRenderer.draw(output);
+      this.outputPre.textContent = output;
+    } else {
+      this.outputPre.textContent = "";
     }
-    this.outputPre.textContent = "";
   }
 }
 
