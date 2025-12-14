@@ -6,16 +6,29 @@ pub mod number;
 pub mod set;
 pub mod variable;
 
+pub trait TextCodec: Sized {
+    fn parse(text: &str) -> Result<Self, String>;
+    fn print(data: &Self) -> Result<String, String>;
+    // we expect print(parse(x)).is_ok() && print(parse(x)).is_ok()
+    // but not necessarily "is identity" (something lossy is allowed)
+}
+
 pub trait Machine: Sized {
-    type Code: Serialize; // static code
-    type AInput: Serialize; // ahead of time input
+    type Code: Serialize + TextCodec; // static code
+    type AInput: Serialize + TextCodec; // ahead of time input
     type SnapShot: Serialize; // representation of the current state
-    type RInput: Serialize; // runtime input
+    type RInput: Serialize + TextCodec; // runtime input
     type Output: Serialize; // output after a step
 
-    fn parse_code(code: &str) -> Result<Self::Code, String>;
-    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String>;
-    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String>;
+    fn parse_code(code: &str) -> Result<Self::Code, String> {
+        Self::Code::parse(code)
+    }
+    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
+        Self::AInput::parse(ainput)
+    }
+    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
+        Self::RInput::parse(rinput)
+    }
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String>;
     fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String>;
     fn current(&self) -> Self::SnapShot;
