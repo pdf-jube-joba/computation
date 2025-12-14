@@ -72,6 +72,29 @@ fn create_machine<T: Machine + 'static>(code: &str, ainput: &str) -> Result<(), 
     })
 }
 
+#[wasm_bindgen]
+#[allow(unused)]
+pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
+    #[cfg(feature = "example")]
+    return create_machine::<example::Counter>(input, ainput);
+
+    #[cfg(feature = "turing_machine")]
+    return create_machine::<turing_machine::machine::TuringMachineSet>(input, ainput);
+
+    #[cfg(feature = "lambda_calculus")]
+    return create_machine::<lambda_calculus::machine::LambdaTerm>(input, ainput);
+
+    #[cfg(feature = "goto_lang")]
+    return create_machine::<goto_lang::machine::Program>(input, ainput);
+
+    #[cfg(feature = "recursive_function")]
+    return create_machine::<recursive_function::machine::Program>(input, ainput);
+
+    Err(JsValue::from_str(
+        "No machine type selected. Please enable a feature flag.",
+    ))
+}
+
 #[allow(dead_code)]
 fn compile_code_for<T: Compiler>(code: &str) -> Result<String, JsValue> {
     let source_code =
@@ -79,6 +102,14 @@ fn compile_code_for<T: Compiler>(code: &str) -> Result<String, JsValue> {
     let target_code = T::compile(source_code).map_err(|e| JsValue::from_str(&e))?;
     <<<T as Compiler>::Target as Machine>::Code as TextCodec>::print(&target_code)
         .map_err(|e| JsValue::from_str(&e))
+}
+
+#[wasm_bindgen]
+#[allow(unused)]
+pub fn compile_code(input: &str) -> Result<String, JsValue> {
+    Err(JsValue::from_str(
+        "No compiler type selected. Please enable a feature flag.",
+    ))
 }
 
 #[allow(dead_code)]
@@ -90,6 +121,14 @@ fn compile_ainput_for<T: Compiler>(ainput: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
+#[wasm_bindgen]
+#[allow(unused)]
+pub fn compile_ainput(input: &str) -> Result<String, JsValue> {
+    Err(JsValue::from_str(
+        "No compiler type selected. Please enable a feature flag.",
+    ))
+}
+
 #[allow(dead_code)]
 fn compile_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
     let source_rinput =
@@ -99,34 +138,12 @@ fn compile_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
-#[cfg(feature = "turing_machine")]
 #[wasm_bindgen]
-pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<turing_machine::machine::TuringMachineSet>(input, ainput)
-}
-
-#[cfg(feature = "lambda_calculus")]
-#[wasm_bindgen]
-pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<lambda_calculus::machine::LambdaTerm>(input, ainput)
-}
-
-#[cfg(feature = "goto_lang")]
-#[wasm_bindgen]
-pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<goto_lang::machine::Program>(input, ainput)
-}
-
-#[cfg(feature = "recursive_function")]
-#[wasm_bindgen]
-pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<recursive_function::machine::Program>(input, ainput)
-}
-
-#[cfg(feature = "example")]
-#[wasm_bindgen]
-pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
-    create_machine::<example::Counter>(input, ainput)
+#[allow(unused)]
+pub fn compile_rinput(input: &str) -> Result<String, JsValue> {
+    Err(JsValue::from_str(
+        "No compiler type selected. Please enable a feature flag.",
+    ))
 }
 
 #[cfg(feature = "example")]
