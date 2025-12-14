@@ -10,9 +10,12 @@ pub mod variable;
 
 pub trait TextCodec: Sized {
     fn parse(text: &str) -> Result<Self, String>;
-    fn print(data: &Self) -> String;
-    // we expect print(parse(x)).is_ok() && print(parse(x)).is_ok()
-    // but not necessarily "is identity" (something lossy is allowed)
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result;
+    fn print(self) -> String {
+        let mut s = String::new();
+        self.write_fmt(&mut s).unwrap();
+        s
+    }
 }
 
 pub trait Machine: Sized {
@@ -64,8 +67,9 @@ impl TextCodec for () {
             Err("Expected empty input".to_string())
         }
     }
-    fn print(_data: &Self) -> String {
-        "".to_string()
+
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        write!(f, "")
     }
 }
 
@@ -74,8 +78,8 @@ impl TextCodec for Number {
         let n = text.trim().parse::<usize>().map_err(|e| e.to_string())?;
         Ok(Number::from(n))
     }
-    fn print(data: &Self) -> String {
-        data.to_string()
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -83,8 +87,8 @@ impl TextCodec for String {
     fn parse(text: &str) -> Result<Self, String> {
         Ok(text.to_string())
     }
-    fn print(data: &Self) -> String {
-        data.clone()
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        write!(f, "{}", self)
     }
 }
 
@@ -104,8 +108,14 @@ impl TextCodec for Vec<Number> {
         Ok(result)
     }
 
-    fn print(data: &Self) -> String {
-        let parts: Vec<String> = data.iter().map(|n| n.to_string()).collect();
-        format!("({})", parts.join(", "))
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        write!(
+            f,
+            "({})",
+            self.iter()
+                .map(|n| n.0.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
     }
 }

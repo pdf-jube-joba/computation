@@ -6,7 +6,7 @@ fn compile_code_for<T: Compiler>(code: &str) -> Result<String, JsValue> {
     let source_code =
         <T::Source as Machine>::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
     let target_code = T::compile(source_code).map_err(|e| JsValue::from_str(&e))?;
-    Ok(<<<T as Compiler>::Target as Machine>::Code as TextCodec>::print(&target_code))
+    Ok(target_code.print())
 }
 
 #[allow(dead_code)]
@@ -14,7 +14,7 @@ fn compile_ainput_for<T: Compiler>(ainput: &str) -> Result<String, JsValue> {
     let source_ainput =
         <T as Compiler>::Source::parse_ainput(ainput).map_err(|e| JsValue::from_str(&e))?;
     let target_ainput = T::encode_ainput(source_ainput).map_err(|e| JsValue::from_str(&e))?;
-    Ok(<<<T as Compiler>::Target as Machine>::AInput as TextCodec>::print(&target_ainput))
+    Ok(target_ainput.print())
 }
 
 #[allow(dead_code)]
@@ -22,7 +22,7 @@ fn compile_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
     let source_rinput =
         <T as Compiler>::Source::parse_rinput(rinput).map_err(|e| JsValue::from_str(&e))?;
     let target_rinput = T::encode_rinput(source_rinput).map_err(|e| JsValue::from_str(&e))?;
-    Ok(<<<T as Compiler>::Target as Machine>::RInput as TextCodec>::print(&target_rinput))
+    Ok(target_rinput.print())
 }
 
 #[allow(dead_code)]
@@ -30,7 +30,7 @@ fn decode_output_for<T: Compiler>(output: &str) -> Result<String, JsValue> {
     let output_target = <<<T as Compiler>::Target as Machine>::Output as TextCodec>::parse(output)
         .map_err(|e| JsValue::from_str(&e))?;
     let output_source = T::decode_output(output_target).map_err(|e| JsValue::from_str(&e))?;
-    Ok(<<<T as Compiler>::Source as Machine>::Output as TextCodec>::print(&output_source))
+    Ok(output_source.print())
 }
 
 #[allow(unused_macros)]

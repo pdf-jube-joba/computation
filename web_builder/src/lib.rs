@@ -15,8 +15,7 @@ where
         let output = <Self as utils::Machine>::step(self, parsed)?;
         match output {
             Some(o) => {
-                let printed = <Self as utils::Machine>::Output::print(&o);
-                Ok(Some(printed))
+                Ok(Some(o.print()))
             }
             None => Ok(None),
         }
@@ -115,8 +114,12 @@ mod example {
             Ok(Counter { count: counter })
         }
 
-        fn print(data: &Self) -> Result<String, String> {
-            Ok(data.count.to_string())
+        fn print(&self) -> String {
+            self.count.to_string()
+        }
+
+        fn fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+            write!(f, "{}", self.count)
         }
     }
 
@@ -135,10 +138,17 @@ mod example {
             }
         }
 
-        fn print(data: &Self) -> Result<String, String> {
-            match data {
-                Command::Increment => Ok("inc".to_string()),
-                Command::Decrement => Ok("dec".to_string()),
+        fn print(&self) -> String {
+            match self {
+                Command::Increment => "inc".to_string(),
+                Command::Decrement => "dec".to_string(),
+            }
+        }
+
+        fn fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+            match self {
+                Command::Increment => f.write_str("inc"),
+                Command::Decrement => f.write_str("dec"),
             }
         }
     }

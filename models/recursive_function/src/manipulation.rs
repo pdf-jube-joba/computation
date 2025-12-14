@@ -99,9 +99,8 @@ impl TextCodec for RecursiveFunctions {
     fn parse(text: &str) -> Result<Self, String> {
         parse(text)
     }
-
-    fn print(data: &Self) -> String {
-        data.to_string()
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        write!(f, "{}", self)
     }
 }
 

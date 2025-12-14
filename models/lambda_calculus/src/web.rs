@@ -7,17 +7,19 @@ impl TextCodec for LambdaTerm {
         crate::manipulation::parse::parse_lambda_read_to_end(text)
     }
 
-    fn print(data: &Self) -> String {
-        match data {
-            LambdaTerm::Var(var) => var.as_str().to_string(),
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        match self {
+            LambdaTerm::Var(var) => write!(f, "{}", var.as_str()),
             LambdaTerm::Abs(var, lambda_term) => {
-                let body = LambdaTerm::print(lambda_term);
-                format!("\\{}. {}", var.as_str(), body)
+                write!(f, "\\{}. ", var.as_str())?;
+                lambda_term.write_fmt(f)
             }
             LambdaTerm::App(lambda_term, lambda_term1) => {
-                let lhs = LambdaTerm::print(lambda_term);
-                let rhs = LambdaTerm::print(lambda_term1);
-                format!("({} {})", lhs, rhs)
+                write!(f, "(")?;
+                lambda_term.write_fmt(f)?;
+                write!(f, " ")?;
+                lambda_term1.write_fmt(f)?;
+                write!(f, ")")
             }
         }
     }
@@ -35,14 +37,16 @@ impl TextCodec for AInput {
         }
         Ok(AInput(v))
     }
-
-    fn print(data: &Self) -> String {
-        let mut strs = vec![];
-        for term in &data.0 {
-            let s = LambdaTerm::print(term);
-            strs.push(s);
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        let mut first = true;
+        for term in &self.0 {
+            if !first {
+                write!(f, ", ")?;
+            }
+            term.write_fmt(f)?;
+            first = false;
         }
-        strs.join(", ")
+        Ok(())
     }
 }
 

@@ -35,13 +35,11 @@ impl TextCodec for Environment {
         Ok(Environment { env })
     }
 
-    fn print(data: &Self) -> String {
-        let mut str = String::new();
-        for (var, num) in &data.env {
-            let line = format!("{} = {}\n", var.as_str(), num.0);
-            str.push_str(&line);
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        for (var, num) in &self.env {
+            writeln!(f, "{} = {}", var.as_str(), num.0)?;
         }
-        str
+        Ok(())
     }
 }
 
@@ -83,9 +81,8 @@ impl TextCodec for Code {
         Ok(Code(code))
     }
 
-    fn print(data: &Self) -> String {
-        let mut str = String::new();
-        for command in &data.0 {
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        for command in &self.0 {
             let line = match command {
                 Command::Clr(var) => format!("clr {}\n", var.as_str()),
                 Command::Inc(var) => format!("inc {}\n", var.as_str()),
@@ -93,9 +90,9 @@ impl TextCodec for Code {
                 Command::Cpy(dest, src) => format!("cpy {} {}\n", dest.as_str(), src.as_str()),
                 Command::Ifnz(var, target) => format!("ifnz {} {}\n", var.as_str(), target),
             };
-            str.push_str(&line);
+            f.write_str(&line)?;
         }
-        str
+        Ok(())
     }
 }
 

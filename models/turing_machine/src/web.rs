@@ -41,29 +41,29 @@ impl TextCodec for TuringMachineDefinition {
         Ok(definition)
     }
 
-    fn print(data: &Self) -> String {
-        let init_state = data.init_state();
-        let accepted_states = data.accepted_state();
-        let code = data.code();
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        let init_state = self.init_state();
+        let accepted_states = self.accepted_state();
+        let code = self.code();
 
-        let mut s = String::new();
-        s.push_str(&format!("{}\n", init_state));
-        s.push_str(&format!(
-            "{}\n",
+        writeln!(f, "{}", init_state)?;
+        writeln!(
+            f,
+            "{}",
             accepted_states
                 .iter()
                 .map(|st| st.to_string())
                 .collect::<Vec<String>>()
                 .join(", ")
-        ));
+        )?;
         for entry in code {
             let line = format!(
-                "{},{},{},{},{}\n",
+                "{},{},{},{},{}",
                 entry.0 .0, entry.0 .1, entry.1 .0, entry.1 .1, entry.1 .2
             );
-            s.push_str(&line);
+            writeln!(f, "{}", line)?;
         }
-        s.trim_end().to_string()
+        Ok(())
     }
 }
 
@@ -72,17 +72,16 @@ impl TextCodec for Tape {
         parse_tape(text)
     }
 
-    fn print(data: &Self) -> String {
-        let (tapes, pos) = data.into_vec();
-        let mut s = String::new();
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        let (tapes, pos) = self.into_vec();
         for (i, sign) in tapes.iter().enumerate() {
             if i == pos {
-                s.push_str(&format!("|{}|", sign));
+                write!(f, "|{}|", sign)?;
             } else {
-                s.push_str(&format!("{},", sign));
+                write!(f, "{},", sign)?;
             }
         }
-        s.trim_end_matches(',').to_string()
+        Ok(())
     }
 }
 
