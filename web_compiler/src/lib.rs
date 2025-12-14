@@ -27,14 +27,6 @@ fn compile_ainput_for<T: Compiler>(ainput: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
-#[wasm_bindgen]
-#[allow(unused)]
-pub fn compile_ainput(input: &str) -> Result<String, JsValue> {
-    Err(JsValue::from_str(
-        "No compiler type selected. Please enable a feature flag.",
-    ))
-}
-
 #[allow(dead_code)]
 fn compile_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
     let source_rinput =
@@ -42,14 +34,6 @@ fn compile_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
     let target_rinput = T::encode_rinput(source_rinput).map_err(|e| JsValue::from_str(&e))?;
     <<<T as Compiler>::Target as Machine>::RInput as TextCodec>::print(&target_rinput)
         .map_err(|e| JsValue::from_str(&e))
-}
-
-#[wasm_bindgen]
-#[allow(unused)]
-pub fn compile_rinput(input: &str) -> Result<String, JsValue> {
-    Err(JsValue::from_str(
-        "No compiler type selected. Please enable a feature flag.",
-    ))
 }
 
 #[allow(dead_code)]
@@ -61,10 +45,28 @@ fn decode_output_for<T: Compiler>(output: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
-#[wasm_bindgen]
-#[allow(unused)]
-pub fn decode_output(input: &str) -> Result<String, JsValue> {
-    Err(JsValue::from_str(
-        "No compiler type selected. Please enable a feature flag.",
-    ))
+#[allow(unused_macros)]
+macro_rules! compiler_api {
+    ($feature: literal, $path: path) => {
+        #[cfg(feature = $feature)]
+        #[wasm_bindgen]
+        pub fn compile_code(input: &str) -> Result<String, JsValue> {
+            compile_code_for::<$path>(input)
+        }
+        #[cfg(feature = $feature)]
+        #[wasm_bindgen]
+        pub fn compile_ainput(ainput: &str) -> Result<String, JsValue> {
+            compile_ainput_for::<$path>(ainput)
+        }
+        #[cfg(feature = $feature)]
+        #[wasm_bindgen]
+        pub fn compile_rinput(rinput: &str) -> Result<String, JsValue> {
+            compile_rinput_for::<$path>(rinput)
+        }
+        #[cfg(feature = $feature)]
+        #[wasm_bindgen]
+        pub fn decode_output(output: &str) -> Result<String, JsValue> {
+            decode_output_for::<$path>(output)
+        }
+    };
 }

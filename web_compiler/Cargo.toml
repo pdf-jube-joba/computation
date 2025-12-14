@@ -14,3 +14,10 @@ wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 
 utils = { workspace = true }
+
+[features]
+compiler = []
+example = []
+mod_counter = []
+compiler-example-example = ["example"]
+compiler-example-mod_counter = ["example", "mod_counter"]
