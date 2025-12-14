@@ -119,6 +119,7 @@ fn create_compiler<T: Compiler + 'static>(
     Ok(return_value)
 }
 
+#[allow(dead_code)]
 fn encode_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
     let source_rinput = <T::Source as Machine>::parse_rinput(rinput)
         .map_err(|e| JsValue::from_str(&e))?;
@@ -151,7 +152,16 @@ pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<recursive_function::machine::Program>(input, ainput)
 }
 
-#[cfg(all(feature = "example", not(feature = "compiler-example-to-example")))]
+#[cfg(all(feature = "mod_counter", not(feature = "compiler-example-to-mod_counter")))]
+#[wasm_bindgen]
+pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
+    create_machine::<mod_counter::ModCounter>(input, ainput)
+}
+
+#[cfg(all(
+    feature = "example",
+    not(any(feature = "compiler-example-to-example", feature = "compiler-example-to-mod_counter"))
+))]
 #[wasm_bindgen]
 pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     create_machine::<example::Counter>(input, ainput)
@@ -167,6 +177,18 @@ pub fn create(input: &str, ainput: &str) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn display_encode_rinput(rinput: &str) -> Result<String, JsValue> {
     encode_rinput_for::<example_compiler::ExampleIdentityCompiler>(rinput)
+}
+
+#[cfg(feature = "compiler-example-to-mod_counter")]
+#[wasm_bindgen]
+pub fn create(input: &str, ainput: &str) -> Result<JsValue, JsValue> {
+    create_compiler::<compiler_example_to_mod_counter::ExampleToModCounter>(input, ainput)
+}
+
+#[cfg(feature = "compiler-example-to-mod_counter")]
+#[wasm_bindgen]
+pub fn display_encode_rinput(rinput: &str) -> Result<String, JsValue> {
+    encode_rinput_for::<compiler_example_to_mod_counter::ExampleToModCounter>(rinput)
 }
 
 #[cfg(feature = "example")]
@@ -255,6 +277,148 @@ mod example {
     }
 }
 
+#[cfg(any(feature = "mod_counter", feature = "compiler-example-to-mod_counter"))]
+mod mod_counter {
+    use serde::Serialize;
+    use utils::{Machine, TextCodec};
+
+    #[derive(Clone, Serialize)]
+    pub struct Code {
+        pub modulus: usize,
+        pub init: usize,
+    }
+
+    pub type AInput = ();
+
+    #[derive(Clone, Serialize)]
+    pub struct SnapShot {
+        pub count: usize,
+        pub remainder: usize,
+    }
+
+    #[derive(Clone, Serialize)]
+    pub struct Output {
+        pub count: usize,
+        pub wrapped: bool,
+    }
+
+    #[derive(Clone, Serialize)]
+    pub enum Command {
+        Increment(usize),
+        Decrement(usize),
+    }
+
+    impl TextCodec for Code {
+        fn parse(text: &str) -> Result<Self, String> {
+            if text.trim().is_empty() {
+                return Err("expected: <modulus> [init]".to_string());
+            }
+            let mut parts = text.split_whitespace();
+            let modulus = parts
+                .next()
+                .ok_or_else(|| "missing modulus".to_string())?
+                .parse::<usize>()
+                .map_err(|e| e.to_string())?;
+            if modulus < 2 {
+                return Err("modulus must be >= 2".to_string());
+            }
+            let init = parts
+                .next()
+                .map(|s| s.parse::<usize>().map_err(|e| e.to_string()))
+                .transpose()?
+                .unwrap_or(0);
+            Ok(Code { modulus, init })
+        }
+
+        fn print(data: &Self) -> Result<String, String> {
+            Ok(format!("{} {}", data.modulus, data.init))
+        }
+    }
+
+    impl TextCodec for Command {
+        fn parse(text: &str) -> Result<Self, String> {
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                return Err("empty command".to_string());
+            }
+            let mut parts = trimmed.split_whitespace();
+            let head = parts.next().unwrap_or_default();
+            let amount = parts
+                .next()
+                .map(|s| s.parse::<usize>().map_err(|e| e.to_string()))
+                .transpose()?
+                .unwrap_or(1);
+            match head {
+                "inc" | "+" => Ok(Command::Increment(amount)),
+                "dec" | "-" => Ok(Command::Decrement(amount)),
+                _ => Err("command must be inc|dec".to_string()),
+            }
+        }
+
+        fn print(data: &Self) -> Result<String, String> {
+            match data {
+                Command::Increment(n) => Ok(format!("inc {}", n)),
+                Command::Decrement(n) => Ok(format!("dec {}", n)),
+            }
+        }
+    }
+
+    pub struct ModCounter {
+        modulus: usize,
+        count: usize,
+    }
+
+    impl ModCounter {
+        fn wrapped(old: usize, new: usize, modulus: usize) -> bool {
+            old / modulus != new / modulus
+        }
+    }
+
+    impl Machine for ModCounter {
+        type Code = Code;
+        type AInput = AInput;
+        type SnapShot = SnapShot;
+        type RInput = Command;
+        type Output = Output;
+
+        fn make(code: Self::Code, _ainput: Self::AInput) -> Result<Self, String> {
+            Ok(ModCounter {
+                modulus: code.modulus,
+                count: code.init % code.modulus,
+            })
+        }
+
+        fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
+            let old = self.count;
+            match rinput {
+                Command::Increment(n) => {
+                    self.count = self.count.saturating_add(n);
+                }
+                Command::Decrement(n) => {
+                    self.count = self.count.saturating_sub(n);
+                }
+            }
+            let wrapped = Self::wrapped(old, self.count, self.modulus);
+            let output = Output {
+                count: self.count,
+                wrapped,
+            };
+            if wrapped {
+                Ok(Some(output))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn current(&self) -> Self::SnapShot {
+            SnapShot {
+                count: self.count,
+                remainder: self.count % self.modulus,
+            }
+        }
+    }
+}
+
 #[cfg(feature = "compiler-example-to-example")]
 mod example_compiler {
     use utils::{Compiler, Machine};
@@ -287,6 +451,50 @@ mod example_compiler {
             output: <<Self as Compiler>::Target as Machine>::Output,
         ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String> {
             Ok(output)
+        }
+    }
+}
+
+#[cfg(feature = "compiler-example-to-mod_counter")]
+mod compiler_example_to_mod_counter {
+    use utils::{Compiler, Machine};
+
+    pub struct ExampleToModCounter;
+
+    impl Compiler for ExampleToModCounter {
+        type Source = super::example::Counter;
+        type Target = super::mod_counter::ModCounter;
+
+        fn compile(
+            source: <<Self as Compiler>::Source as Machine>::Code,
+        ) -> Result<<<Self as Compiler>::Target as Machine>::Code, String> {
+            let modulus = if source.count < 2 { 2 } else { source.count + 2 };
+            Ok(super::mod_counter::Code {
+                modulus,
+                init: source.count % modulus,
+            })
+        }
+
+        fn encode_ainput(
+            _ainput: <<Self as Compiler>::Source as Machine>::AInput,
+        ) -> Result<<<Self as Compiler>::Target as Machine>::AInput, String> {
+            Ok(())
+        }
+
+        fn encode_rinput(
+            rinput: <<Self as Compiler>::Source as Machine>::RInput,
+        ) -> Result<<<Self as Compiler>::Target as Machine>::RInput, String> {
+            let mapped = match rinput {
+                super::example::Command::Increment => super::mod_counter::Command::Increment(1),
+                super::example::Command::Decrement => super::mod_counter::Command::Decrement(1),
+            };
+            Ok(mapped)
+        }
+
+        fn decode_output(
+            output: <<Self as Compiler>::Target as Machine>::Output,
+        ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String> {
+            Ok(format!("wrapped at {}", output.count))
         }
     }
 }
