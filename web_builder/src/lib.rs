@@ -1,10 +1,9 @@
 use std::cell::RefCell;
-use utils::{Compiler, Machine, TextCodec};
+use utils::{Compiler, CompilerWrapper, Machine, TextCodec};
 use wasm_bindgen::prelude::*;
-
 pub trait WebView {
     fn step(&mut self, rinput: &str) -> Result<Option<JsValue>, String>;
-    fn current(&self) -> JsValue;
+    fn current(&self) -> Result<JsValue, JsValue>;
 }
 
 impl<T> WebView for T
@@ -23,9 +22,9 @@ where
         }
     }
 
-    fn current(&self) -> JsValue {
+    fn current(&self) -> Result<JsValue, JsValue> {
         serde_wasm_bindgen::to_value(&<Self as utils::Machine>::current(self))
-            .unwrap_or_else(|e| JsValue::from_str(&e.to_string()))
+            .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 }
 
@@ -52,11 +51,15 @@ pub fn current_machine() -> Result<JsValue, JsValue> {
         let m = machine
             .as_ref()
             .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
-        Ok(m.current())
+        m.current()
     })
 }
 
 pub fn create_machine<T: Machine + 'static>(code: &str, ainput: &str) -> Result<(), JsValue> {
+    MACHINE.with(|machine| {
+        let mut machine = machine.borrow_mut();
+        *machine = None;
+    });
     let code = T::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
     let ainput = T::parse_ainput(ainput).map_err(|e| JsValue::from_str(&e))?;
     let machine = T::make(code, ainput).map_err(|e| JsValue::from_str(&e))?;
@@ -75,6 +78,10 @@ pub fn create_compiler<T: Compiler + 'static>(
     code: &str,
     ainput: &str,
 ) -> Result<JsValue, JsValue> {
+    MACHINE.with(|machine| {
+        let mut machine = machine.borrow_mut();
+        *machine = None;
+    });
     let code_source =
         <T as Compiler>::Source::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
     let code_target = T::compile(code_source).map_err(|e| JsValue::from_str(&e))?;
@@ -94,19 +101,20 @@ pub fn create_compiler<T: Compiler + 'static>(
         "ainput": print_ainput_target,
     });
 
-    let js_value = serde_wasm_bindgen::to_value(&return_json)
+    let return_value: JsValue = serde_wasm_bindgen::to_value(&return_json)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    let machine = <T::Target as Machine>::make(code_target, ainput_target)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let target_machine =
+        <T::Target as Machine>::make(code_target, ainput_target).map_err(|e| JsValue::from_str(&e))?;
+    let machine = CompilerWrapper::<T>::from_target(target_machine);
+
     let boxed: Box<dyn WebView> = Box::new(machine);
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         *machine = Some(boxed);
         Ok::<(), String>(())
     })?;
-
-    Ok(js_value)
+    Ok(return_value)
 }
 
 #[cfg(feature = "turing_machine")]

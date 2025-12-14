@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use crate::number::Number;
+
 pub mod alphabet;
 pub mod bool;
 pub mod number;
@@ -23,6 +25,16 @@ impl TextCodec for () {
     }
     fn print(_data: &Self) -> Result<String, String> {
         Ok("".to_string())
+    }
+}
+
+impl TextCodec for Number {
+    fn parse(text: &str) -> Result<Self, String> {
+        let n = text.trim().parse::<usize>().map_err(|e| e.to_string())?;
+        Ok(Number::from(n))
+    }
+    fn print(data: &Self) -> Result<String, String> {
+        Ok(data.to_string())
     }
 }
 
@@ -63,4 +75,45 @@ pub trait Compiler: Sized {
     fn decode_output(
         output: <<Self as Compiler>::Target as Machine>::Output,
     ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String>;
+}
+
+pub struct CompilerWrapper<T: Compiler> {
+    machine: T::Target,
+}
+
+impl<T: Compiler> Machine for CompilerWrapper<T> {
+    type Code = <T::Source as Machine>::Code;
+    type AInput = <T::Source as Machine>::AInput;
+    type SnapShot = <T::Target as Machine>::SnapShot;
+    type RInput = <T::Source as Machine>::RInput;
+    type Output = <T::Source as Machine>::Output;
+
+    fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
+        let target_code = T::compile(code)?;
+        let target_ainput = T::encode_ainput(ainput)?;
+        let machine = T::Target::make(target_code, target_ainput)?;
+        Ok(CompilerWrapper { machine })
+    }
+
+    fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
+        let target_rinput = T::encode_rinput(rinput)?;
+        let target_output = self.machine.step(target_rinput)?;
+        match target_output {
+            Some(output) => {
+                let source_output = T::decode_output(output)?;
+                Ok(Some(source_output))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn current(&self) -> Self::SnapShot {
+        self.machine.current()
+    }
+}
+
+impl<T: Compiler> CompilerWrapper<T> {
+    pub fn from_target(machine: T::Target) -> Self {
+        CompilerWrapper { machine }
+    }
 }
