@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use utils::{Compiler, Machine, TextCodec};
 use wasm_bindgen::prelude::*;
 pub trait WebView {
-    fn step(&mut self, rinput: &str) -> Result<Option<JsValue>, String>;
+    fn step(&mut self, rinput: &str) -> Result<Option<String>, String>;
     fn current(&self) -> Result<JsValue, JsValue>;
 }
 
@@ -10,13 +10,13 @@ impl<T> WebView for T
 where
     T: utils::Machine,
 {
-    fn step(&mut self, rinput: &str) -> Result<Option<JsValue>, String> {
+    fn step(&mut self, rinput: &str) -> Result<Option<String>, String> {
         let parsed = <Self as utils::Machine>::parse_rinput(rinput)?;
         let output = <Self as utils::Machine>::step(self, parsed)?;
         match output {
             Some(o) => {
-                let js = serde_wasm_bindgen::to_value(&o).map_err(|e| e.to_string())?;
-                Ok(Some(js))
+                let printed = <Self as utils::Machine>::Output::print(&o)?;
+                Ok(Some(printed))
             }
             None => Ok(None),
         }
@@ -33,14 +33,14 @@ thread_local! {
 }
 
 #[wasm_bindgen]
-pub fn step_machine(rinput: &str) -> Result<JsValue, JsValue> {
+pub fn step_machine(rinput: &str) -> Result<Option<String>, JsValue> {
     MACHINE.with(|machine| {
         let mut machine = machine.borrow_mut();
         let m = machine
             .as_mut()
             .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
         let result = m.step(rinput).map_err(|e| JsValue::from_str(&e))?;
-        Ok(result.unwrap_or(JsValue::UNDEFINED))
+        Ok(result)
     })
 }
 
@@ -104,9 +104,15 @@ fn compile_code_for<T: Compiler>(code: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
+#[cfg(feature = "compiler")]
 #[wasm_bindgen]
 #[allow(unused)]
 pub fn compile_code(input: &str) -> Result<String, JsValue> {
+    // #[cfg(feature =  = "recursive_function_to_lambda_calculus")]
+    // return compile_code_for::<
+    //     recursive_function_to_lambda_calculus::compiler::RecursiveFunctionToLambdaCalculus,
+    // >(input);
+
     Err(JsValue::from_str(
         "No compiler type selected. Please enable a feature flag.",
     ))
@@ -121,6 +127,7 @@ fn compile_ainput_for<T: Compiler>(ainput: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
+#[cfg(feature = "compiler")]
 #[wasm_bindgen]
 #[allow(unused)]
 pub fn compile_ainput(input: &str) -> Result<String, JsValue> {
@@ -138,12 +145,22 @@ fn compile_rinput_for<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e))
 }
 
+#[cfg(feature = "compiler")]
 #[wasm_bindgen]
 #[allow(unused)]
 pub fn compile_rinput(input: &str) -> Result<String, JsValue> {
     Err(JsValue::from_str(
         "No compiler type selected. Please enable a feature flag.",
     ))
+}
+
+#[allow(dead_code)]
+fn decode_output_for<T: Compiler>(output: &str) -> Result<String, JsValue> {
+    let output_target = <<<T as Compiler>::Target as Machine>::Output as TextCodec>::parse(output)
+        .map_err(|e| JsValue::from_str(&e))?;
+    let output_source = T::decode_output(output_target).map_err(|e| JsValue::from_str(&e))?;
+    <<<T as Compiler>::Source as Machine>::Output as TextCodec>::print(&output_source)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 #[cfg(feature = "example")]

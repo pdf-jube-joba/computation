@@ -38,12 +38,21 @@ impl TextCodec for Number {
     }
 }
 
+impl TextCodec for String {
+    fn parse(text: &str) -> Result<Self, String> {
+        Ok(text.to_string())
+    }
+    fn print(data: &Self) -> Result<String, String> {
+        Ok(data.clone())
+    }
+}
+
 pub trait Machine: Sized {
     type Code: Serialize + TextCodec; // static code
     type AInput: Serialize + TextCodec; // ahead of time input
     type SnapShot: Serialize; // representation of the current state
     type RInput: Serialize + TextCodec; // runtime input
-    type Output: Serialize; // output after a step
+    type Output: Serialize + TextCodec; // output after a step
 
     fn parse_code(code: &str) -> Result<Self::Code, String> {
         Self::Code::parse(code)
