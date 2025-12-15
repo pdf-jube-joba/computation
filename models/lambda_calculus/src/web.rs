@@ -82,3 +82,14 @@ impl Machine for LambdaTerm {
         crate::machine::mark_redex(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn parse_test() {
+        let code = r"\x. \y. y";
+        let e = LambdaTerm::parse(code).unwrap();
+        eprintln!("Parsed term: {}", e);
+    }
+}

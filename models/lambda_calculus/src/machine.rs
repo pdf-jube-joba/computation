@@ -1,5 +1,5 @@
-use std::{collections::HashSet, fmt::Display};
 use serde::Serialize;
+use std::{collections::HashSet, fmt::Display};
 use utils::variable::Var;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -44,7 +44,7 @@ impl Display for LambdaTerm {
         match self {
             LambdaTerm::Var(var) => write!(f, "[{var}]"),
             LambdaTerm::Abs(var, term) => {
-                write!(f, "\\{var}.{}", term)
+                write!(f, "(\\{var}.{})", term)
             }
             LambdaTerm::App(term1, term2) => {
                 write!(f, "({} {})", term1, term2)
@@ -235,9 +235,7 @@ pub fn mark_redex(term: &LambdaTerm) -> MarkedTerm {
 pub fn unmark_redex(marked_term: MarkedTerm) -> LambdaTerm {
     match marked_term {
         MarkedTerm::Var(var) => LambdaTerm::Var(var),
-        MarkedTerm::Abs(var, abs_term) => {
-            LambdaTerm::Abs(var, Box::new(unmark_redex(*abs_term)))
-        }
+        MarkedTerm::Abs(var, abs_term) => LambdaTerm::Abs(var, Box::new(unmark_redex(*abs_term))),
         MarkedTerm::App(app_term1, app_term2) => LambdaTerm::App(
             Box::new(unmark_redex(*app_term1)),
             Box::new(unmark_redex(*app_term2)),
@@ -266,21 +264,21 @@ pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
                 Some(LambdaTerm::App(Box::new(left), Box::new(right)))
             }
             MarkedTerm::Red(var, abs_term, app_term) => {
+                *num -= 1; // mark that we are at a redex
                 if *num == 0 {
                     // reduce this redex
                     // 1. before substitution, rename bound variables in abs_term to avoid capture
-                    let new_var = Var::from(format!("{}'", var.as_str()));
+                    let new_var = Var::from(var.as_str());
 
-                    let avoided: LambdaTerm = var_change(
+                    let abs_avoided: LambdaTerm = var_change(
                         var.clone(),
                         new_var.clone(),
                         abs_term.as_ref().clone().into(),
                     );
-                    let body = unchecked_subst(avoided, new_var, app_term.as_ref().clone().into());
-                    *num = -1; // indicate that we have performed the reduction
+                    let body =
+                        unchecked_subst(abs_avoided, new_var, app_term.as_ref().clone().into());
                     Some(body)
                 } else {
-                    *num -= 1;
                     let left = step_rec(abs_term.as_ref(), num)?;
                     let right = step_rec(app_term.as_ref(), num)?;
                     Some(LambdaTerm::App(
@@ -292,10 +290,11 @@ pub fn step(marked_term: &MarkedTerm, num: usize) -> Option<LambdaTerm> {
         }
     }
 
-    let mut n = num as isize;
-    let exp = step_rec(marked_term, &mut n);
+    let mut n = num as isize + 1;
+    let exp = step_rec(marked_term, &mut n)?;
+    let exp = alpha_conversion(&exp);
     if n <= 0 {
-        exp
+        Some(exp)
     } else {
         None
     }
@@ -313,9 +312,8 @@ pub fn is_normal_form(term: &LambdaTerm) -> bool {
 }
 
 pub fn assoc_app(f: LambdaTerm, args: Vec<LambdaTerm>) -> LambdaTerm {
-    args.into_iter().fold(f, |acc, arg| {
-        LambdaTerm::App(Box::new(acc), Box::new(arg))
-    })
+    args.into_iter()
+        .fold(f, |acc, arg| LambdaTerm::App(Box::new(acc), Box::new(arg)))
 }
 
 pub fn normalize(term: &LambdaTerm) -> LambdaTerm {
@@ -397,7 +395,7 @@ mod tests {
         // (\x. x) y
         let x_var = Var::from("x");
         let y_var = Var::from("y");
-        let e =  LambdaTerm::App(
+        let e = LambdaTerm::App(
             Box::new(LambdaTerm::Abs(
                 x_var.clone(),
                 Box::new(LambdaTerm::Var(x_var.clone())),
@@ -407,7 +405,7 @@ mod tests {
         let marked = mark_redex(&e);
         let stepped = step(&marked, 0).unwrap();
         let expected = LambdaTerm::Var(y_var.clone());
-        assert_eq!(stepped, expected);
+        assert!(alpha_eq(&stepped, &expected));
 
         // (\x. x) ((\y. y) z)
         let z_var = Var::from("z");
@@ -434,7 +432,32 @@ mod tests {
             )),
             Box::new(LambdaTerm::Var(z_var.clone())),
         );
-        assert_eq!(stepped, expected);
+        assert!(alpha_eq(&stepped, &expected));
+    }
+    #[test]
+    fn step_test2() {
+        // \x. (x x)
+        let x_var = Var::from("x");
+        let e1 = LambdaTerm::Abs(
+            x_var.clone(),
+            Box::new(LambdaTerm::App(
+                Box::new(LambdaTerm::Var(x_var.clone())),
+                Box::new(LambdaTerm::Var(x_var.clone())),
+            )),
+        );
+        // \y. (y y)
+        let y_var = Var::from("y");
+        let e2 = LambdaTerm::Abs(
+            y_var.clone(),
+            Box::new(LambdaTerm::App(
+                Box::new(LambdaTerm::Var(y_var.clone())),
+                Box::new(LambdaTerm::Var(y_var.clone())),
+            )),
+        );
+        let e = LambdaTerm::App(Box::new(e1.clone()), Box::new(e2.clone()));
+        let marked = mark_redex(&e);
+        let stepped = step(&marked, 0).unwrap();
+        eprintln!("stepped: {:?}", stepped);
     }
     #[test]
     fn step_multiple_redex_test() {
@@ -450,9 +473,7 @@ mod tests {
         );
 
         // ((\x. x) y) ((\x. x) y)
-        let e = {
-            LambdaTerm::App(Box::new(e1.clone()), Box::new(e1.clone()))
-        };
+        let e = { LambdaTerm::App(Box::new(e1.clone()), Box::new(e1.clone())) };
         let marked = mark_redex(&e);
         let stepped = step(&marked, 0).unwrap();
         // expected: y ((\x. x) y)
@@ -460,7 +481,7 @@ mod tests {
             Box::new(LambdaTerm::Var(y_var.clone())),
             Box::new(e1.clone()),
         );
-        assert_eq!(stepped, expected);
+        assert!(alpha_eq(&stepped, &expected));
 
         let stepped2 = step(&marked, 1).unwrap();
         // expected : ((\x. x) y) y
@@ -468,7 +489,7 @@ mod tests {
             Box::new(e1.clone()),
             Box::new(LambdaTerm::Var(y_var.clone())),
         );
-        assert_eq!(stepped2, expected2);
+        assert!(alpha_eq(&stepped2, &expected2));
     }
     #[test]
     fn test_normal() {
@@ -488,10 +509,7 @@ mod tests {
         );
         // (\x. `e1`) (f f)
         let e2 = LambdaTerm::App(
-            Box::new(LambdaTerm::Abs(
-                x_var.clone(),
-                Box::new(e1.clone()),
-            )),
+            Box::new(LambdaTerm::Abs(x_var.clone(), Box::new(e1.clone()))),
             Box::new(LambdaTerm::App(
                 Box::new(LambdaTerm::Var(f_var.clone())),
                 Box::new(LambdaTerm::Var(f_var.clone())),
@@ -512,6 +530,5 @@ mod tests {
 
         let marked = mark_redex(&e);
         eprintln!("marked: {:?}", marked);
-
     }
 }

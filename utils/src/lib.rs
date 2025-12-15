@@ -106,6 +106,12 @@ impl TextCodec for Vec<Number> {
         }
         let inner = &trimmed[1..trimmed.len() - 1];
         let mut result = vec![];
+
+        // unit case
+        if inner.trim().is_empty() {
+            return Ok(result);
+        }
+
         for part in inner.split(',') {
             let n = part.trim().parse::<usize>().map_err(|e| e.to_string())?;
             result.push(Number::from(n));

@@ -135,7 +135,10 @@ pub mod parse {
                     count += 1;
                 }
                 let exp = parse_exp(ps.next().unwrap(), ref_vars)?;
-                let exp = utility::lambdas(ref_vars.clone(), exp);
+                let exp = utility::lambdas(
+                    ref_vars[ref_vars.len() - count..ref_vars.len()].to_vec(),
+                    exp,
+                );
                 for _ in 0..count {
                     ref_vars.pop();
                 }
