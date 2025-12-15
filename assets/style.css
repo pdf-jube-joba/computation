@@ -1,0 +1,62 @@
+/* Layout helpers for the web machines UI */
+
+/* lay out labels/inputs in a responsive grid */
+/* containers */
+.wm-source,
+.wm-machine {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.wm-source {
+  border: 1px solid #b5d8ff;
+}
+
+.wm-machine {
+  border: 1px solid #b5d8ff;
+}
+
+.wm-compile-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border: 1px solid #9dd59d;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 8px 0 12px;
+}
+
+.wm-control {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #ffdf80;
+  border-radius: 8px;
+}
+
+/* form layout */
+.wm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 12px;
+  align-items: start;
+}
+
+.wm-form-grid .wm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wm-form-grid .wm-field label {
+  font-weight: 600;
+}
+
+.wm-form-grid textarea {
+  width: 100%;
+  min-height: 120px;
+  box-sizing: border-box;
+}

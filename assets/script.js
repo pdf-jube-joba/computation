@@ -2,6 +2,21 @@
 // モデルごとの wasm バンドルとレンダラーを読み込み、簡単な UI を構築する。
 
 // -------------------------------------
+// ヘルパー: style.css を一度だけ適用
+// -------------------------------------
+function ensureStyleSheet() {
+  const already = document.querySelector('link[data-wm-style="true"]');
+  if (already) return;
+  const href = new URL("./style.css", import.meta.url).href;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  link.dataset.wmStyle = "true";
+  document.head.appendChild(link);
+}
+ensureStyleSheet();
+
+// -------------------------------------
 // ヘルパー: <script type="text/plain" class="..."> からデフォルト文字列を取得
 // -------------------------------------
 function extractPlainScript(root, className) {
@@ -29,29 +44,33 @@ function ensureChild(root, selector, tagName, className) {
 class TextAreaTriple {
   constructor(host, { defaultCode = "", defaultAInput = "", defaultRInput = "" } = {}) {
     this.host = host;
-    this.codeLabel = ensureChild(host, ".wm-code-label", "div", "wm-code-label");
-    this.ainputLabel = ensureChild(host, ".wm-ainput-label", "div", "wm-ainput-label");
-    this.rInputLabel = ensureChild(host, ".wm-input-label", "div", "wm-input-label");
-    this.codeArea = ensureChild(host, "textarea.wm-code", "textarea", "wm-code");
-    this.ainputArea = ensureChild(host, "textarea.wm-ainput", "textarea", "wm-ainput");
-    this.rinputArea = ensureChild(host, "textarea.wm-input", "textarea", "wm-input");
+    const grid = ensureChild(host, ".wm-form-grid", "div", "wm-form-grid");
 
-    this.codeLabel.textContent = "code";
-    this.ainputLabel.textContent = "ahead-of-time input";
-    this.rInputLabel.textContent = "runtime input";
+    // code
+    const codeField = ensureChild(grid, ".wm-field-code", "div", "wm-field");
+    const codeLabel = ensureChild(codeField, "label.wm-code-label", "label", "wm-code-label");
+    codeLabel.textContent = "code";
+    const codeArea = ensureChild(codeField, "textarea.wm-code", "textarea", "wm-code");
 
-    if (defaultCode && !this.codeArea.value) this.codeArea.value = defaultCode;
-    if (defaultAInput && !this.ainputArea.value) this.ainputArea.value = defaultAInput;
-    if (defaultRInput && !this.rinputArea.value) this.rinputArea.value = defaultRInput;
+    // ahead-of-time input
+    const ainputField = ensureChild(grid, ".wm-field-ainput", "div", "wm-field");
+    const ainputLabel = ensureChild(ainputField, "label.wm-ainput-label", "label", "wm-ainput-label");
+    ainputLabel.textContent = "ahead-of-time input";
+    const ainputArea = ensureChild(ainputField, "textarea.wm-ainput", "textarea", "wm-ainput");
 
-    host.append(
-      this.codeLabel,
-      this.codeArea,
-      this.ainputLabel,
-      this.ainputArea,
-      this.rInputLabel,
-      this.rinputArea,
-    );
+    // runtime input
+    const rinputField = ensureChild(grid, ".wm-field-rinput", "div", "wm-field");
+    const rInputLabel = ensureChild(rinputField, "label.wm-input-label", "label", "wm-input-label");
+    rInputLabel.textContent = "runtime input";
+    const rinputArea = ensureChild(rinputField, "textarea.wm-input", "textarea", "wm-input");
+
+    if (defaultCode && !codeArea.value) codeArea.value = defaultCode;
+    if (defaultAInput && !ainputArea.value) ainputArea.value = defaultAInput;
+    if (defaultRInput && !rinputArea.value) rinputArea.value = defaultRInput;
+
+    this.codeArea = codeArea;
+    this.ainputArea = ainputArea;
+    this.rinputArea = rinputArea;
   }
 
   get code() {
@@ -87,10 +106,12 @@ class Control {
     this.onCreate = onCreate;
     this.onStep = onStep;
 
-    this.createButton = ensureChild(root, "button.wm-create", "button", "wm-create");
-    this.stepButton = ensureChild(root, "button.wm-step", "button", "wm-step");
-    this.autoToggleButton = ensureChild(root, "button.wm-auto-toggle", "button", "wm-auto-toggle");
-    this.autoMarginInput = ensureChild(root, "input.wm-auto-margin", "input", "wm-auto-margin");
+    const controlContainer = ensureChild(root, ".wm-control", "div", "wm-control");
+
+    this.createButton = ensureChild(controlContainer, "button.wm-create", "button", "wm-create");
+    this.stepButton = ensureChild(controlContainer, "button.wm-step", "button", "wm-step");
+    this.autoToggleButton = ensureChild(controlContainer, "button.wm-auto-toggle", "button", "wm-auto-toggle");
+    this.autoMarginInput = ensureChild(controlContainer, "input.wm-auto-margin", "input", "wm-auto-margin");
 
     if (!this.createButton.textContent) this.createButton.textContent = "Create";
     if (!this.stepButton.textContent) this.stepButton.textContent = "Step";
@@ -117,7 +138,7 @@ class Control {
     });
 
     this.updateAutoUI();
-    root.append(this.createButton, this.stepButton, this.autoToggleButton, this.autoMarginInput);
+    controlContainer.append(this.createButton, this.stepButton, this.autoToggleButton, this.autoMarginInput);
   }
 
   disable() {
@@ -376,10 +397,11 @@ class ViewModel {
 
     if (this.isCompiler) {
       // compile buttons per input kind
+      const compileStrip = ensureChild(sourceContainer, ".wm-compile-strip", "div", "wm-compile-strip");
       this.compileButtons = {
-        code: ensureChild(sourceContainer, "button.wm-compile-code", "button", "wm-compile-code"),
-        ainput: ensureChild(sourceContainer, "button.wm-compile-ainput", "button", "wm-compile-ainput"),
-        rinput: ensureChild(sourceContainer, "button.wm-compile-rinput", "button", "wm-compile-rinput"),
+        code: ensureChild(compileStrip, "button.wm-compile-code", "button", "wm-compile-code"),
+        ainput: ensureChild(compileStrip, "button.wm-compile-ainput", "button", "wm-compile-ainput"),
+        rinput: ensureChild(compileStrip, "button.wm-compile-rinput", "button", "wm-compile-rinput"),
       };
       this.compileButtons.code.textContent = "Compile code → target";
       this.compileButtons.ainput.textContent = "Compile AInput → target";
