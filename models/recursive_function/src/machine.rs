@@ -130,7 +130,7 @@ impl Display for RecursiveFunctions {
                     .map(|func| format!("{func}"))
                     .reduce(|str1, str2| str1 + &str2)
                     .unwrap_or("no function".to_string());
-                format!("COMP[{outer_func},{}]", inner)
+                format!("COMP[{outer_func}: {}]", inner)
             }
             RecursiveFunctions::PrimitiveRecursion {
                 zero_func,

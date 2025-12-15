@@ -12,9 +12,7 @@ keyword = { "ZERO" | "SUCC" | "PROJ" | "COMP" | "PRIM" | "MUOP" | "let" }
 zero = { "ZERO" }
 succ = { "SUCC" }
 proj = { "PROJ" ~ "[" ~ number ~ "," ~ number ~ "]" }
-comp = { "COMP" ~ "[" ~  func ~ ":" ~ "("
-    ~ func ~ ("," ~ func)* ~ ","* ~
-    ")" ~ "]" }
+comp = { "COMP" ~ "[" ~  func ~ ":" ~ func ~ ("," ~ func)* ~ ","* ~ "]" }
 prim = { "PRIM" ~ "[" ~ "z:" ~ func ~ "s:" ~ func ~ "]" }
 muop = { "MUOP" ~ "[" ~ func ~ "]" }
 

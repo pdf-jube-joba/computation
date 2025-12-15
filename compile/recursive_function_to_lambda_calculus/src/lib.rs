@@ -30,7 +30,8 @@ fn if_lambda(l: LambdaTerm, m: LambdaTerm, n: LambdaTerm) -> LambdaTerm {
     app(app(l, m), n)
 }
 
-// \f.(\x.f(xx))(\x.f(xx))
+// \f.(\x.f(xx))(\x.f(xx)) =: Y
+// Y (f) = f (Y f)
 fn y_combinator() -> LambdaTerm {
     let x = Var::from("f");
     let f = Var::from("x");
@@ -136,42 +137,36 @@ pub fn is_zero() -> LambdaTerm {
     abs(&n, fold_left(vec![v(&n), f, true_lambda()]))
 }
 
-// \x1,,,xn.xi
+// \x_0,,,x_{n-1}.x_i
 pub fn projection(n: usize, i: usize) -> Option<LambdaTerm> {
     let vars: Vec<Var> = (0..n).map(|idx| Var::from(format!("x{idx}"))).collect();
     let target = vars.get(i)?.clone();
     Some(abs_vs(vars, v(&target)))
 }
 
-// \x1,,,xn. outer (inner[0] x1,,,xn) ,,, (inner[k] x1,,,xn)
+// \x_0,,,x_{n-1}. outer (inner[0] x_0,,,x_{n-1}) ,,, (inner[k] x_0,,,x_{n-1})
 pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> LambdaTerm {
-    let vars: Vec<Var> = (0..n).map(|idx| Var::from(format!("v{idx}"))).collect();
+    let vars: Vec<Var> = (0..n).map(|idx| Var::from(format!("x{idx}"))).collect();
+
     let mut v = vec![outer];
-    for i in inner {
-        let mut v2 = vec![i];
+    for inner_func in inner {
+        let mut v2 = vec![inner_func];
         v2.extend(vars.iter().map(|var| var.into()));
         v.push(fold_left(v2));
     }
-    // v.extend(inner.into_iter().map(|term| {
-    //     fold_left({
-    //         let mut v2 = vec![term];
-    //         v2.extend(vars.iter().map(|var| var.into()));
-    //         v2
-    //     })
-    // }));
-    let fold = fold_left(v);
-    abs_vs(vars, fold)
+
+    abs_vs(vars, fold_left(v))
 }
 
-// THIS 0,,,xn = f x1,,,xn
-// THIS (succ x0) x1,,,xn = g (THIS x0 x1,,,xn) x0 x1,,,xn
-// THIS = \x0,,,xn. "if" (iszero x0) (f x1,,,xn) (g (THIS (pred x0) x1,,,xn) (pred x0) x1,,,xn)
-//   given by Y (\THIS. \x0,,,xn. "if" ...)
+// THIS 0        x_1,,,x_n = f x_1,,,x_n
+// THIS (succ x) x_1,,,x_n = g (THIS x x_1,,,x_n) x x_1,,,x_n
+// ... => THIS x_0,,,x_n = "if" (iszero x_0) (f x_1,,,x_n) (g (THIS (pred x_0) x_1,,,x_n) (pred x_0) x_1,,,x_n)
+//   given by Y (\THIS. \x_0,,,x_n. "if" ...)
 pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm {
-    let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("v{idx}"))).collect();
+    let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("x{idx}"))).collect();
     let this = Var::from("THIS");
 
-    // is_zero 0
+    // is_zero x_0
     let is_zero = app(is_zero(), v(&vars[0]));
 
     // f x1 ... xn =: f_new
@@ -203,34 +198,33 @@ pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm
     app(y_combinator(), abs_vs(abs_vars, fix))
 }
 
-// THIS x0,,,xn = x where 0 == f x x0,,,xn (new variable x)
+// THIS x_1,,,x_n = x where 0 == f x x_1,,,x_n (new variable x)
 // how to implement:
-// INC x,x1,,,xn = if (iszero (f x x1,,,xn)) x (INC (succ x) x1,,,xn)
-//   given by Y (\INC x,x1,,,xn. "right hand of INC")
-// THIS = \x0,,,xn. INC 0 x0,,,xn (there is no x)
+// INC x_0,x_1,,,x_n = if (iszero (f x_0 x_1,,,x_n)) x_0 (INC (succ x_0) x_1,,,x_n)
+//   given by Y (\INC x_0,x_1,,,x_n. "right hand of INC")
+// THIS = \x_0,,,x_n. INC 0 x_0,,,x_n (there is no x)
 pub fn mu_recursion(n: usize, f: LambdaTerm) -> LambdaTerm {
     let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("v{idx}"))).collect();
-    let x_var = Var::from("x");
     let inc = Var::from("INC");
 
-    // iszero (f x x1,,,xn)
+    // iszero (f x_0 x_1,,,x_n)
     let is_zero_f = {
-        let mut v = vec![f, v(&x_var)];
-        v.extend(vars.iter().skip(1).map(|var| var.into()));
+        let mut v = vec![f];
+        v.extend(vars.iter().map(|var| var.into()));
         app(is_zero(), fold_left(v))
     };
 
-    // INC (succ x) x1,,,xn
+    // INC (succ x_0) x_1,,,x_n
     let else_clause = {
-        let mut v = vec![v(&inc), app(succ(), v(&x_var))];
+        let mut v = vec![v(&inc), app(succ(), v(&vars[0]))];
         v.extend(vars.iter().skip(1).map(|var| var.into()));
         fold_left(v)
     };
 
-    let right_hand_of_inc = if_lambda(is_zero_f, v(&x_var), else_clause);
+    let right_hand_of_inc = if_lambda(is_zero_f, v(&vars[0]), else_clause);
 
-    let mut abs_vars = vec![inc.clone(), x_var.clone()];
-    abs_vars.extend(vars.iter().skip(1).cloned());
+    let mut abs_vars = vec![inc.clone()];
+    abs_vars.extend(vars.iter().cloned());
     let inc_term = app(y_combinator(), abs_vs(abs_vars, right_hand_of_inc));
 
     // INC 0 x1,,,xn
@@ -321,6 +315,7 @@ mod tests {
     fn normalize(term: &LambdaTerm, limit: usize) -> LambdaTerm {
         let mut marked = mark_redex(term);
         for _ in 0..limit {
+            eprintln!("marked: {}", unmark_redex(marked.clone()));
             if let Some(next) = step(&marked, 0) {
                 marked = mark_redex(&next);
             } else {
@@ -331,6 +326,22 @@ mod tests {
     }
 
     use super::*;
+    #[test]
+    fn test_y_combinator() {
+        let f = Var::from("f_test");
+        let y = y_combinator();
+        let applied = app(y.clone(), f.into());
+        eprintln!("applied: {}", applied);
+        let mut marked = mark_redex(&applied);
+        for _ in 0..5 {
+            eprintln!("marked: {}", unmark_redex(marked.clone()));
+            if let Some(next) = step(&marked, 0) {
+                marked = mark_redex(&next);
+            } else {
+                break;
+            }
+        }
+    }
     #[test]
     fn test1() {
         // is_zero test
@@ -360,6 +371,7 @@ mod tests {
             eprintln!("expected: {}", expected);
             assert!(alpha_eq(&normalized, &expected))
         }
+
         // pred_test
         let pred_exp = pred();
         // alpha_eq(pred (n + 1), n)
@@ -372,5 +384,45 @@ mod tests {
             eprintln!("expected: {}", expected);
             assert!(alpha_eq(&normalized, &expected))
         }
+    }
+    #[test]
+    fn compile_primitive_recursion() {
+        let f = Var::from("f");
+        let g = Var::from("g");
+        // THIS 0 = f
+        // THIS (succ(x)) = g (THIS x) x
+        let e = primitive_recursion(1, v(&f), v(&g));
+
+        // test THIS 0 = f
+        let e_app0 = app(e.clone(), number_to_lambda_term(0.into()));
+        let normal = normalize(&e_app0, 200);
+        eprintln!("normalized: {}", normal);
+        let expected = v(&f);
+        eprintln!("expected: {}", expected);
+        assert!(alpha_eq(&normal, &expected));
+
+        let e_app1 = app(e.clone(), number_to_lambda_term(1.into()));
+        let normal = normalize(&e_app1, 200);
+        eprintln!("normalized: {}", normal);
+    }
+    #[test]
+    fn compile_test() {
+        let code = r"PRIM[z:PROJ[1,0] s:COMP[SUCC: PROJ[3,0]]]";
+        let program = recursive_function::manipulation::parse(code).unwrap();
+        let lambda_term = compile(&program);
+        let arg = vec![1.into(), 1.into()]
+            .into_iter()
+            .map(number_to_lambda_term)
+            .collect::<Vec<LambdaTerm>>();
+        let applied = fold_left({
+            let mut v = vec![lambda_term];
+            v.extend(arg);
+            v
+        });
+        eprintln!("applied: {}", applied);
+        let normalized = normalize(&applied, 200);
+        let expected = number_to_lambda_term(2.into());
+        eprintln!("expected: {}", expected);
+        assert!(alpha_eq(&normalized, &expected))
     }
 }
