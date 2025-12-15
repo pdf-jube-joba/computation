@@ -1,4 +1,4 @@
-use std::{fmt::Display, rc::Rc};
+use std::{fmt::{Debug, Display}, rc::Rc};
 
 use serde::Serialize;
 
@@ -6,8 +6,14 @@ use serde::Serialize;
 // NOTE: variables are compared by pointer equality
 // WARNING: do care when constructing Var from string literals!
 //    Var("x") != Var("x") unless they are from the same allocation!
-#[derive(Debug, Clone, Eq, PartialOrd, Ord)]
+#[derive(Clone, Eq, PartialOrd, Ord)]
 pub struct Var(Rc<str>);
+
+impl Debug for Var {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Var({})[{:#x}]", self.as_str(), Rc::as_ptr(&self.0).addr())
+    }
+}
 
 /// JSON-friendly view of `Var` for the web side.
 #[derive(Debug, Clone, Serialize)]

@@ -99,10 +99,10 @@ pub fn var_change(var_pre: Var, var_post: Var, term: LambdaTerm) -> LambdaTerm {
     }
 }
 
-pub fn alpha_conversion_rec(term: &LambdaTerm, map: &mut Vec<(Var, Var)>) -> LambdaTerm {
+fn alpha_conversion_rec(term: &LambdaTerm, map: &mut Vec<(Var, Var)>) -> LambdaTerm {
     match term {
         LambdaTerm::Var(var) => {
-            if let Some((_, new_var)) = map.iter().find(|(v, _)| v == var) {
+            if let Some((_, new_var)) = map.iter().rev().find(|(v, _)| v == var) {
                 LambdaTerm::Var(new_var.clone())
             } else {
                 LambdaTerm::Var(var.clone())
@@ -120,6 +120,10 @@ pub fn alpha_conversion_rec(term: &LambdaTerm, map: &mut Vec<(Var, Var)>) -> Lam
             Box::new(alpha_conversion_rec(app_term2, map)),
         ),
     }
+}
+
+pub fn alpha_conversion(term: &LambdaTerm) -> LambdaTerm {
+    alpha_conversion_rec(term, &mut Vec::new())
 }
 
 pub fn alpha_eq(term1: &LambdaTerm, term2: &LambdaTerm) -> bool {
@@ -328,6 +332,20 @@ pub fn normalize(term: &LambdaTerm) -> LambdaTerm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn alpha_conversion_test() {
+        let x = Var::from("x");
+        // \x. \x. x should be converted to \x'. \x''. x''
+        let term = LambdaTerm::Abs(
+            x.clone(),
+            Box::new(LambdaTerm::Abs(
+                x.clone(),
+                Box::new(LambdaTerm::Var(x.clone())),
+            )),
+        );
+        let converted = alpha_conversion(&term);
+        eprintln!("converted: {:?}", converted);
+    }
 
     #[test]
     fn alpha_eq_test() {
@@ -451,5 +469,49 @@ mod tests {
             Box::new(LambdaTerm::Var(y_var.clone())),
         );
         assert_eq!(stepped2, expected2);
+    }
+    #[test]
+    fn test_normal() {
+        // (\f. (\x. {\f. (x (f f))}) (f f))
+        let f_var = Var::from("f");
+        let x_var = Var::from("x");
+        // (\f. (x (f f)))
+        let e1 = LambdaTerm::Abs(
+            f_var.clone(),
+            Box::new(LambdaTerm::App(
+                Box::new(LambdaTerm::Var(x_var.clone())),
+                Box::new(LambdaTerm::App(
+                    Box::new(LambdaTerm::Var(f_var.clone())),
+                    Box::new(LambdaTerm::Var(f_var.clone())),
+                )),
+            )),
+        );
+        // (\x. `e1`) (f f)
+        let e2 = LambdaTerm::App(
+            Box::new(LambdaTerm::Abs(
+                x_var.clone(),
+                Box::new(e1.clone()),
+            )),
+            Box::new(LambdaTerm::App(
+                Box::new(LambdaTerm::Var(f_var.clone())),
+                Box::new(LambdaTerm::Var(f_var.clone())),
+            )),
+        );
+        // \f. `e2`
+        let e = LambdaTerm::Abs(
+            f_var.clone(),
+            Box::new(LambdaTerm::App(
+                Box::new(e2.clone()),
+                Box::new(LambdaTerm::App(
+                    Box::new(LambdaTerm::Var(f_var.clone())),
+                    Box::new(LambdaTerm::Var(f_var.clone())),
+                )),
+            )),
+        );
+        assert!(!is_normal_form(&e));
+
+        let marked = mark_redex(&e);
+        eprintln!("marked: {:?}", marked);
+
     }
 }

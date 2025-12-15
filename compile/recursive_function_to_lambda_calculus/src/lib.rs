@@ -62,8 +62,8 @@ pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
         }
     }
 
-    let zero = Var::from("0");
-    let one = Var::from("1");
+    let zero = Var::from("v0");
+    let one = Var::from("v1");
     abs(&zero, abs(&one, term(num, &zero, &one)))
 }
 
@@ -121,8 +121,8 @@ pub fn pred() -> LambdaTerm {
 }
 
 pub fn is_zero() -> LambdaTerm {
-    let v0 = Var::from("0");
-    let v1 = Var::from("1");
+    let v0 = Var::from("v0");
+    let v1 = Var::from("v1");
     abs(
         &v0,
         app(app(v(&v0), abs(&v1, false_lambda())), true_lambda()),
@@ -131,9 +131,9 @@ pub fn is_zero() -> LambdaTerm {
 
 // \xyz.y(xyz)
 pub fn succ() -> LambdaTerm {
-    let v0 = Var::from("0");
-    let v1 = Var::from("1");
-    let v2 = Var::from("2");
+    let v0 = Var::from("v0");
+    let v1 = Var::from("v1");
+    let v2 = Var::from("v2");
     abs(
         &v2,
         abs(&v0, abs(&v1, app(v(&v0), app(app(v(&v2), v(&v0)), v(&v1))))),
@@ -145,7 +145,7 @@ pub fn projection(n: usize, i: usize) -> Option<LambdaTerm> {
     if n < i {
         None
     } else {
-        let vars: Vec<Var> = (0..n).map(|idx| Var::from(idx.to_string())).collect();
+        let vars: Vec<Var> = (0..n).map(|idx| Var::from(format!("v{idx}"))).collect();
         let target = vars.get(i)?.clone();
         Some(take_n_abs(vars, v(&target)))
     }
@@ -153,7 +153,7 @@ pub fn projection(n: usize, i: usize) -> Option<LambdaTerm> {
 
 // \x1,,,xn. outer (inner x1,,,xn) ,,, (inner x1,,,xn)
 pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> LambdaTerm {
-    let vars: Vec<Var> = (0..n).map(|idx| Var::from(idx.to_string())).collect();
+    let vars: Vec<Var> = (0..n).map(|idx| Var::from(format!("v{idx}"))).collect();
     let mut v = vec![outer];
     v.extend(inner.into_iter().map(|term| {
         fold_left({
@@ -168,8 +168,8 @@ pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> Lambd
 
 // THIS = \x0,,,xn. if (iszero x0) (f x1,,,xn) (g (THIS (pred x0) x1,,,xn) (pred x0) x1,,,xn)
 pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm {
-    let vars: Vec<Var> = (0..=n).map(|idx| Var::from(idx.to_string())).collect();
-    let n_plus_one = Var::from((n + 1).to_string());
+    let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("v{idx}"))).collect();
+    let n_plus_one = Var::from(format!("v{}", n + 1));
 
     // is_zero 0
     let is_zero = app(is_zero(), v(&vars[0]));
@@ -204,8 +204,8 @@ pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm
 }
 
 pub fn mu_recursion(n: usize, f: LambdaTerm) -> LambdaTerm {
-    let vars: Vec<Var> = (0..=n).map(|idx| Var::from(idx.to_string())).collect();
-    let n_plus_one = Var::from((n + 1).to_string());
+    let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("v{idx}"))).collect();
+    let n_plus_one = Var::from(format!("v{}", n + 1));
 
     let is_zero = take_n_abs(
         vars.clone(),
@@ -292,10 +292,10 @@ impl Compiler for Rec2LamCompiler {
     fn decode_output(
         output: <<Self as Compiler>::Target as utils::Machine>::Output,
     ) -> Result<<<Self as Compiler>::Source as utils::Machine>::Output, String> {
-        if let Some(num) = lambda_term_to_number(output) {
+        if let Some(num) = lambda_term_to_number(output.clone()) {
             Ok(num)
         } else {
-            Err("Failed to decode output lambda term to number".to_string())
+            Err(format!("failed to decode: {output:?}"))
         }
     }
 }

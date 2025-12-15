@@ -1,4 +1,4 @@
-use crate::machine::{LambdaTerm, MarkedTerm};
+use crate::machine::{LambdaTerm, MarkedTerm, is_normal_form};
 use serde::Serialize;
 use utils::{number::Number, Machine, TextCodec};
 
@@ -31,6 +31,10 @@ pub struct AInput(pub Vec<LambdaTerm>);
 impl TextCodec for AInput {
     fn parse(text: &str) -> Result<Self, String> {
         let mut v = vec![];
+        if text.trim().is_empty() {
+            return Ok(AInput(v));
+        }
+
         for txt in text.split(",") {
             let term = crate::manipulation::parse::parse_lambda_read_to_end(txt.trim())?;
             v.push(term);
@@ -67,7 +71,11 @@ impl Machine for LambdaTerm {
         let lambda =
             crate::machine::step(&marked, rinput.0).ok_or("No redex found at the given index")?;
         *self = lambda;
-        Ok(Some(self.clone()))
+        if is_normal_form(self) {
+            Ok(Some(self.clone()))
+        } else {
+            Ok(None)
+        }
     }
 
     fn current(&self) -> Self::SnapShot {

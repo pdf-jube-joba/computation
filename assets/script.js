@@ -223,7 +223,7 @@ class MachineWrapper {
     if (!this.stepFn) missing.push("step_machine");
     if (!this.currentFn) missing.push("current_machine");
     if (missing.length) {
-      throw new Error(`WASM module is missing exports: ${missing.join(", ")}`);
+      throw new Error(`WASM module ${this.modelName} is missing exports: ${missing.join(", ")}`);
     }
     if (typeof module.default === "function") {
       await module.default();
@@ -352,25 +352,29 @@ class ViewModel {
     this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
     this.stateContainer = ensureChild(root, ".wm-state", "div", "wm-state");
 
-    // always prepare a container for the machine-side inputs
+    // Source inputs: always present for readability and consistency
+    const sourceContainer = ensureChild(root, ".wm-source", "div", "wm-source");
+    const sourceHeading = ensureChild(
+      sourceContainer,
+      ".wm-source-heading",
+      "div",
+      "wm-source-heading",
+    );
+    sourceHeading.textContent = this.isCompiler ? "Source (compile input)" : "Source";
+    const sourceTextareas = new TextAreaTriple(sourceContainer, {
+      defaultCode,
+      defaultAInput,
+      defaultRInput,
+    });
+    this.sourceInputs = sourceTextareas;
+
+    // Machine/target side container (used for compiled outputs or direct execution)
     this.machineContainer = ensureChild(root, ".wm-machine", "div", "wm-machine");
 
-    if (this.isCompiler) {
-      // compiler: source inputs live in a dedicated container
-      const sourceContainer = ensureChild(root, ".wm-source", "div", "wm-source");
-      const sourceHeading = ensureChild(
-        sourceContainer,
-        ".wm-source-heading",
-        "div",
-        "wm-source-heading",
-      );
-      sourceHeading.textContent = "Source (compile input)";
-      this.textareas = new TextAreaTriple(sourceContainer, {
-        defaultCode,
-        defaultAInput,
-        defaultRInput,
-      });
+    // by default, targetInputs points to sourceInputs
+    this.targetInputs = this.sourceInputs;
 
+    if (this.isCompiler) {
       // compile buttons per input kind
       this.compileButtons = {
         code: ensureChild(sourceContainer, "button.wm-compile-code", "button", "wm-compile-code"),
@@ -391,18 +395,12 @@ class ViewModel {
         "wm-target-heading",
       );
       targetHeading.textContent = "Compiled target";
-      this.targetTextareas = new TextAreaTriple(this.machineContainer, {
+      const targetTextareas = new TextAreaTriple(this.machineContainer, {
         defaultCode: "",
         defaultAInput: "",
         defaultRInput: "",
       });
-    } else {
-      this.textareas = new TextAreaTriple(this.machineContainer, {
-        defaultCode,
-        defaultAInput,
-        defaultRInput,
-      });
-      this.targetTextareas = null;
+      this.targetInputs = targetTextareas;
     }
     this.control = new Control(root, {
       onCreate: () => {
@@ -426,7 +424,7 @@ class ViewModel {
   async initializeMachine(codeStr, ainputStr) {
     if (this.status === "init_failed") return false;
     if (this.status === "uninitialized") {
-      this.outputPre.textContent = "(init not completed)";
+      this.setError("(init not completed)");
       return false;
     }
     try {
@@ -435,8 +433,7 @@ class ViewModel {
       return true;
     } catch (e) {
       this.status = "init_failed";
-      console.error("initializeMachine failed:", e);
-      this.outputPre.textContent = `Error: ${e}`;
+      this.setError(`init_fail: ${e}`);
       return false;
     }
   }
@@ -460,9 +457,9 @@ class ViewModel {
       }
 
       this.status = "ready";
+      this.setOutput("");
     } catch (e) {
-      console.error("init failed:", e);
-      this.outputPre.textContent = `Init error: ${e}`;
+      this.setError(`Init error: ${e}`);
       this.disableUI();
       this.status = "init_failed";
       return;
@@ -472,50 +469,50 @@ class ViewModel {
   async handleCreateClick() {
     this.control.stopAuto();
     if (this.status === "init_failed") {
-      this.outputPre.textContent = "(init failed; reload required)";
+      this.setError("(init failed; reload required)");
       return;
     }
     if (this.status === "uninitialized") {
-      this.outputPre.textContent = "(init not completed)";
+      this.setError("(init not completed)");
       return;
     }
-    this.outputPre.textContent = "";
+    this.setOutput("");
 
     try {
-      const codeStr = (this.targetTextareas ?? this.textareas).code;
-      const ainputStr = (this.targetTextareas ?? this.textareas).ainput;
+      const codeStr = this.targetInputs.code;
+      const ainputStr = this.targetInputs.ainput;
       const ok = await this.initializeMachine(codeStr, ainputStr);
       if (ok) {
         const state = await this.machine.currentState();
-        this.draw(state);
+        this.renderer.draw(state);
       }
     } catch (e) {
-      console.error(e);
-      this.outputPre.textContent = `Error: ${e}`;
+      this.setOutput(`${e}`);
     }
   }
 
   async handleStepClick({ triggeredByAuto = false } = {}) {
     if (this.status === "init_failed") {
-      this.outputPre.textContent = "(init failed; reload required)";
+      this.setOutput("(init failed; reload required)");
       return { output: undefined, stepped: false };
     }
     if (this.status !== "machine_setted") {
-      this.outputPre.textContent = "(machine not initialized; run Create first)";
+      this.setOutput("(machine not initialized; run Create first)");
       return { output: undefined, stepped: false };
     }
 
     try {
-      const runtimeInputStr = (this.targetTextareas ?? this.textareas).rinput;
+      const runtimeInputStr = this.targetInputs.rinput;
       const outputTarget = await this.machine.stepMachine(runtimeInputStr);
+      const state = await this.machine.currentState();
+      this.renderer.draw(state);
       const decodedOutput =
         this.compiler && outputTarget ? await this.compiler.decodeOutput(outputTarget) : outputTarget;
-      const state = await this.machine.currentState();
-      this.draw(state, decodedOutput);
+      this.setOutput(decodedOutput === undefined ? "" : decodedOutput);
       return { output: decodedOutput, stepped: true };
     } catch (e) {
-      console.error(e);
-      this.outputPre.textContent = `Error: ${e}`;
+      this.setError(`${e}`);
+      // Even on step error, try to render the latest state.
       if (triggeredByAuto && this.control.autoEnabled) {
         this.control.stopAuto();
       }
@@ -523,42 +520,43 @@ class ViewModel {
     }
   }
 
-  draw(state, output) {
-    this.renderer.draw(state);
-    if (output !== undefined) {
-      this.outputPre.textContent = output;
-    } else {
-      this.outputPre.textContent = "";
-    }
+  setOutput(output) {
+    this.outputPre.style.color = "";
+    this.outputPre.textContent = output ?? "";
+  }
+
+  setError(message) {
+    this.outputPre.style.color = "red";
+    this.outputPre.textContent = message ?? "";
   }
 
   async runCompile(kind) {
     if (!this.isCompiler || !this.compiler) {
-      this.outputPre.textContent = "(compiler not available)";
+      this.setError("(compiler not available)");
       return;
     }
     if (this.status === "init_failed") {
-      this.outputPre.textContent = "(init failed; reload required)";
+      this.setError("(init failed; reload required)");
       return;
     }
     if (this.status === "uninitialized") {
-      this.outputPre.textContent = "(init not completed)";
+      this.setError("(init not completed)");
       return;
     }
     try {
       if (kind === "code") {
-        const compiled = await this.compiler.compileCode(this.textareas.code);
-        this.targetTextareas.code = compiled;
+        const compiled = await this.compiler.compileCode(this.sourceInputs.code);
+        this.targetInputs.code = compiled;
       } else if (kind === "ainput") {
-        const compiled = await this.compiler.compileAInput(this.textareas.ainput);
-        this.targetTextareas.ainput = compiled;
+        const compiled = await this.compiler.compileAInput(this.sourceInputs.ainput);
+        this.targetInputs.ainput = compiled;
       } else if (kind === "rinput") {
-        const compiled = await this.compiler.compileRInput(this.textareas.rinput);
-        this.targetTextareas.rinput = compiled;
+        const compiled = await this.compiler.compileRInput(this.sourceInputs.rinput);
+        this.targetInputs.rinput = compiled;
       }
     } catch (e) {
       console.error(e);
-      this.outputPre.textContent = `Compile error: ${e}`;
+      this.setError(`Compile error: ${e}`);
     }
   }
 }

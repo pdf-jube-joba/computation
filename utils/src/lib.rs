@@ -75,7 +75,12 @@ impl TextCodec for () {
 
 impl TextCodec for Number {
     fn parse(text: &str) -> Result<Self, String> {
-        let n = text.trim().parse::<usize>().map_err(|e| e.to_string())?;
+        let trimed = text.trim();
+        let n = if trimed.is_empty() {
+            0
+        } else {
+            trimed.parse::<usize>().map_err(|e| e.to_string())?
+        };
         Ok(Number::from(n))
     }
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
