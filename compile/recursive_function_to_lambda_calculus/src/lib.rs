@@ -163,7 +163,9 @@ pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> Lambd
 // ... => THIS x_0,,,x_n = "if" (iszero x_0) (f x_1,,,x_n) (g (THIS (pred x_0) x_1,,,x_n) (pred x_0) x_1,,,x_n)
 //   given by Y (\THIS. \x_0,,,x_n. "if" ...)
 pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm {
-    let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("x{idx}"))).collect();
+    // AI によると `0..=n` ではなくて `0..n` で良いらしい
+    // 確かにそれで動いていて、ちょっとわからなかった。
+    let vars: Vec<Var> = (0..n).map(|idx| Var::from(format!("x{idx}"))).collect();
     let this = Var::from("THIS");
 
     // is_zero x_0
@@ -393,7 +395,7 @@ mod tests {
         // THIS (succ(x)) = g (THIS x) x
         let e = primitive_recursion(1, v(&f), v(&g));
 
-        // test THIS 0 = f
+        // THIS 0 = f
         let e_app0 = app(e.clone(), number_to_lambda_term(0.into()));
         let normal = normalize(&e_app0, 200);
         eprintln!("normalized: {}", normal);
@@ -401,7 +403,13 @@ mod tests {
         eprintln!("expected: {}", expected);
         assert!(alpha_eq(&normal, &expected));
 
+        // THIS 1 = g (THIS 0) 0 = g f 0
         let e_app1 = app(e.clone(), number_to_lambda_term(1.into()));
+        let normal = normalize(&e_app1, 200);
+        eprintln!("normalized: {}", normal);
+
+        // THIS 2 = g (THIS 1) 1 = g (g f 0) 1
+        let e_app1 = app(e.clone(), number_to_lambda_term(2.into()));
         let normal = normalize(&e_app1, 200);
         eprintln!("normalized: {}", normal);
     }
