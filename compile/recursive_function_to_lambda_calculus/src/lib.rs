@@ -104,9 +104,9 @@ pub fn succ() -> LambdaTerm {
     let x = Var::from("x_succ");
     let y = Var::from("y_succ");
     let z = Var::from("z_succ");
-    abs(
-        &x,
-        abs(&y, abs(&z, app(v(&y), app(app(v(&x), v(&y)), v(&z))))),
+    abs_vs(
+        vec![x.clone(), y.clone(), z.clone()],
+        app(v(&y), fold_left(vec![v(&x), v(&y), v(&z)])),
     )
 }
 
@@ -122,7 +122,10 @@ pub fn pred() -> LambdaTerm {
     let m = abs(&p, abs(&q, app(v(&q), app(v(&p), v(&y)))));
     let n = abs(&v_var, v(&z));
     let l = abs(&v_var, v(&v_var));
-    abs(&x, abs(&y, abs(&z, app(app(app(v(&x), m), n), l))))
+    abs_vs(
+        vec![x.clone(), y.clone(), z.clone()],
+        fold_left(vec![v(&x), m, n, l]),
+    )
 }
 
 // \n. n (\_.false) true
@@ -130,7 +133,7 @@ pub fn is_zero() -> LambdaTerm {
     let n = Var::from("n");
     // \_. false
     let f = abs(&Var::dummy(), false_lambda());
-    abs(&n, app(f, true_lambda()))
+    abs(&n, fold_left(vec![v(&n), f, true_lambda()]))
 }
 
 // \x1,,,xn.xi
@@ -140,81 +143,103 @@ pub fn projection(n: usize, i: usize) -> Option<LambdaTerm> {
     Some(abs_vs(vars, v(&target)))
 }
 
-// \x1,,,xn. outer (inner x1,,,xn) ,,, (inner x1,,,xn)
+// \x1,,,xn. outer (inner[0] x1,,,xn) ,,, (inner[k] x1,,,xn)
 pub fn composition(n: usize, inner: Vec<LambdaTerm>, outer: LambdaTerm) -> LambdaTerm {
     let vars: Vec<Var> = (0..n).map(|idx| Var::from(format!("v{idx}"))).collect();
     let mut v = vec![outer];
-    v.extend(inner.into_iter().map(|term| {
-        fold_left({
-            let mut v2 = vec![term];
-            v2.extend(vars.iter().map(|var| var.into()));
-            v2
-        })
-    }));
+    for i in inner {
+        let mut v2 = vec![i];
+        v2.extend(vars.iter().map(|var| var.into()));
+        v.push(fold_left(v2));
+    }
+    // v.extend(inner.into_iter().map(|term| {
+    //     fold_left({
+    //         let mut v2 = vec![term];
+    //         v2.extend(vars.iter().map(|var| var.into()));
+    //         v2
+    //     })
+    // }));
     let fold = fold_left(v);
     abs_vs(vars, fold)
 }
 
-// THIS = \x0,,,xn. if (iszero x0) (f x1,,,xn) (g (THIS (pred x0) x1,,,xn) (pred x0) x1,,,xn)
+// THIS 0,,,xn = f x1,,,xn
+// THIS (succ x0) x1,,,xn = g (THIS x0 x1,,,xn) x0 x1,,,xn
+// THIS = \x0,,,xn. "if" (iszero x0) (f x1,,,xn) (g (THIS (pred x0) x1,,,xn) (pred x0) x1,,,xn)
+//   given by Y (\THIS. \x0,,,xn. "if" ...)
 pub fn primitive_recursion(n: usize, f: LambdaTerm, g: LambdaTerm) -> LambdaTerm {
     let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("v{idx}"))).collect();
-    let n_plus_one = Var::from(format!("v{}", n + 1));
+    let this = Var::from("THIS");
 
     // is_zero 0
     let is_zero = app(is_zero(), v(&vars[0]));
 
-    // f x1 ... xn
+    // f x1 ... xn =: f_new
     let f_new = fold_left({
         let mut v = vec![f];
         v.extend(vars.iter().skip(1).map(|var| var.into()));
         v
     });
 
-    // g (x{n+1} (pred x0) x1 ... xn) (pred x0) x1 ... xn
+    // g (THIS (pred x0) x1 ... xn) (pred x0) x1 ... xn =: g_new
     let g_new = {
         let pred_0 = app(pred(), v(&vars[0]));
-        let p = {
-            let mut v = vec![v(&n_plus_one), pred_0.clone()];
+        // THIS (pred x0) x1 ... xn =: g_first
+        let g_first = {
+            let mut v = vec![v(&this), pred_0.clone()];
             v.extend(vars.iter().skip(1).map(|var| var.into()));
             fold_left(v)
         };
-        let mut t = vec![g, p, pred_0];
+        let mut t = vec![g, g_first, pred_0];
         t.extend(vars.iter().skip(1).map(v));
         fold_left(t)
     };
     let fix = if_lambda(is_zero, f_new, g_new);
 
-    // Y (\n+1 1...n. if_lambda is_zero f g) =>
-    // n+1 <=> H として H x0 x1 ... xn = if_lambda is_zero f g
-    let mut abs_vars = Vec::with_capacity(n + 2);
-    abs_vars.push(n_plus_one.clone());
+    // Y (\THIS x0...xn. if_lambda is_zero f g) =>
+    // THIS <=> H として H x0 x1 ... xn = if_lambda is_zero f g
+    let mut abs_vars = vec![this.clone()];
     abs_vars.extend(vars);
     app(y_combinator(), abs_vs(abs_vars, fix))
 }
 
+// THIS x0,,,xn = x where 0 == f x x0,,,xn (new variable x)
+// how to implement:
+// INC x,x1,,,xn = if (iszero (f x x1,,,xn)) x (INC (succ x) x1,,,xn)
+//   given by Y (\INC x,x1,,,xn. "right hand of INC")
+// THIS = \x0,,,xn. INC 0 x0,,,xn (there is no x)
 pub fn mu_recursion(n: usize, f: LambdaTerm) -> LambdaTerm {
     let vars: Vec<Var> = (0..=n).map(|idx| Var::from(format!("v{idx}"))).collect();
-    let n_plus_one = Var::from(format!("v{}", n + 1));
+    let x_var = Var::from("x");
+    let inc = Var::from("INC");
 
-    let is_zero = abs_vs(
-        vars.clone(),
-        fold_left({
-            let mut v = vec![f];
-            v.extend(vars.iter().map(|var| var.into()));
-            v
-        }),
-    );
-    let rec = fold_left({
-        let mut v = vec![v(&n_plus_one), app(succ(), v(&vars[0]))];
+    // iszero (f x x1,,,xn)
+    let is_zero_f = {
+        let mut v = vec![f, v(&x_var)];
         v.extend(vars.iter().skip(1).map(|var| var.into()));
-        v
-    });
-    let fix = if_lambda(is_zero, v(&vars[0]), rec);
+        app(is_zero(), fold_left(v))
+    };
 
-    let mut abs_vars = Vec::with_capacity(n + 2);
-    abs_vars.push(n_plus_one.clone());
-    abs_vars.extend(vars);
-    app(y_combinator(), abs_vs(abs_vars, fix))
+    // INC (succ x) x1,,,xn
+    let else_clause = {
+        let mut v = vec![v(&inc), app(succ(), v(&x_var))];
+        v.extend(vars.iter().skip(1).map(|var| var.into()));
+        fold_left(v)
+    };
+
+    let right_hand_of_inc = if_lambda(is_zero_f, v(&x_var), else_clause);
+
+    let mut abs_vars = vec![inc.clone(), x_var.clone()];
+    abs_vars.extend(vars.iter().skip(1).cloned());
+    let inc_term = app(y_combinator(), abs_vs(abs_vars, right_hand_of_inc));
+
+    // INC 0 x1,,,xn
+    let inc = {
+        let mut v = vec![inc_term, number_to_lambda_term(0.into())];
+        v.extend(vars.iter().skip(1).map(|var| var.into()));
+        fold_left(v)
+    };
+    abs_vs(vars.iter().skip(1).cloned().collect(), inc)
 }
 
 pub fn compile(func: &RecursiveFunctions) -> LambdaTerm {
@@ -308,35 +333,42 @@ mod tests {
     use super::*;
     #[test]
     fn test1() {
+        // is_zero test
+        let is_zero_exp = is_zero();
+        for i in 0..3 {
+            let i_exp = number_to_lambda_term(i.into());
+            let applied = app(is_zero_exp.clone(), i_exp);
+            eprintln!("applied: {}", applied);
+            let normalized = normalize(&applied, 100);
+            let expected = if i == 0 {
+                true_lambda()
+            } else {
+                false_lambda()
+            };
+            eprintln!("expected: {}", expected);
+            assert!(alpha_eq(&normalized, &expected))
+        }
+
+        // succ test
+        let succ_exp = succ();
         for i in 0..4 {
             let i_exp = number_to_lambda_term(i.into());
-            let succ_exp = succ();
-            let applied = app(succ_exp, i_exp);
+            let applied = app(succ_exp.clone(), i_exp);
             eprintln!("applied: {}", applied);
             let normalized = normalize(&applied, 100);
             let expected = number_to_lambda_term((i + 1).into());
             eprintln!("expected: {}", expected);
             assert!(alpha_eq(&normalized, &expected))
         }
-        // alpha_eq(pred 0, 0)
-        {
-            let zero = number_to_lambda_term(0.into());
-            let pred_exp = pred();
-            let applied = app(pred_exp, zero);
-            eprintln!("applied: {}", applied);
-            let normalized = normalize(&applied, 100);
-            let expected = number_to_lambda_term(0.into());
-            eprintln!("expected: {}", expected);
-            assert!(alpha_eq(&normalized, &expected))
-        }
+        // pred_test
+        let pred_exp = pred();
         // alpha_eq(pred (n + 1), n)
-        for i in 1..4 {
+        for i in 0..4 {
             let i_exp = number_to_lambda_term(i.into());
-            let pred_exp = pred();
-            let applied = app(pred_exp, i_exp);
+            let applied = app(pred_exp.clone(), i_exp);
             eprintln!("applied: {}", applied);
             let normalized = normalize(&applied, 100);
-            let expected = number_to_lambda_term((i - 1).into());
+            let expected = number_to_lambda_term((if i == 0 { 0 } else { i - 1 }).into());
             eprintln!("expected: {}", expected);
             assert!(alpha_eq(&normalized, &expected))
         }
