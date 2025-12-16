@@ -15,6 +15,7 @@
 - [再帰関数の計算可能性](./comparison/Computability_of_recursive_function.md)
 - [万能チューリングマシン](./comparison/Universal_Turing_machine.md)
 - [ラムダ計算で再帰関数を計算する](./comparison/lambda_calculus_computability.md)
+- [計算可能性について](./comparison/incomputable.md)
 
 # 小さな言語など(small models)
 - [他の計算モデル](./small_models/_small_models.md)

@@ -75,3 +75,18 @@ term
 term
   : short
   : Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+## 定義と定理について
+definition-list の中で listing を使うべきではないという指摘を（AIから）受けました。
+
+今の使い方
+```
+定義というよりはラベル付け？
+: 定義の前提条件とか
+  - 必要な前提条件の列挙1
+  - 必要な前提条件の列挙2
+  - 「次の条件を満たす」
+    - foobar
+```
+
+確かに、用語の定義みたいな使い方ができてない。
