@@ -2,18 +2,25 @@
 
 [README](README.md)
 
-# 計算モデルと計算について
+# 計算モデルと計算について(models of computation)
 - [計算モデルと計算について](./models_of_computation/_models_of_computation.md)
 - [チューリングマシン](./models_of_computation/Turing_machine.md)
 - [goto lang 言語](./models_of_computation/goto_lang.md)
 - [ラムダ計算](./models_of_computation/Lambda_calculus.md)
 - [再帰関数](./models_of_computation/Recursive_function.md)
 
-# 小さな言語など
+# 計算の抽象化と universality
+- [計算モデルとエミュレーション](./comparison/_comparison.md)
+- [チューリングマシンの構成例](./comparison/Turing_machine_construction.md)
+- [再帰関数の計算可能性](./comparison/Computability_of_recursive_function.md)
+- [万能チューリングマシン](./comparison/Universal_Turing_machine.md)
+- [ラムダ計算で再帰関数を計算する](./comparison/lambda_calculus_computability.md)
+
+# 小さな言語など(small models)
 - [他の計算モデル](./small_models/_small_models.md)
 - [Turing tarpit](./small_models/turing_tarpit.md)
 
-# 論理回路から抽象機械へ
+# 論理回路から抽象機械へ(logic circuits to machine)
 - [論理回路から抽象機械へ](./logic_circuits_to_machine/_logic_circuits_to_machine.md)
 - [論理回路](./logic_circuits_to_machine/Logic_circuit.md)
     - [基本的な回路](./logic_circuits_to_machine/component.md)
@@ -21,7 +28,7 @@
 - [機械語を動かす](./logic_circuits_to_machine/computer.md)
 
 # プログラムの構造化
-- [式の追加]()
+- [式の追加とラベル]()
 - [制御構造をいろいろ]()
 - [手続きとスコープ]()
 
@@ -38,13 +45,6 @@
     - [linear type]()
 
 ---
-
-# Appendix: 強さの比較
-- [Appendix: 強さの比較について](./comparison/_comparison.md)
-- [チューリングマシンの構成例](./comparison/Turing_machine_construction.md)
-- [再帰関数の計算可能性](./comparison/Computability_of_recursive_function.md)
-- [万能チューリングマシン](./comparison/Universal_Turing_machine.md)
-- [ラムダ計算で再帰関数を計算する](./comparison/lambda_calculus_computability.md)
 
 # その他メモ
 - [メモ](./01_notes/TODO.md)

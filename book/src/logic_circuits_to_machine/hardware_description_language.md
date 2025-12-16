@@ -1,5 +1,7 @@
 # ステートマシンを中心にしたハードウェア記述言語
-生で論理回路を書くのは厳しいので、ここからは論理回路にコンパイルされるような計算モデルを考えて、それで論理回路の記述としたい。
+生で論理回路を書くのは厳しいので、一般に（論理回路に還元されるような）電子回路を考えるときは、hardware description language というものでシステムを書き、回路にコンパイルすることが多い。
+
+ここからは論理回路にコンパイルされるような計算モデルを考えて、それで論理回路の記述としたい。
 ほしい機能を入れたらとても長くなった。
 
 - 回路を流れる値
@@ -16,7 +18,7 @@
     - | \(\langle S \rangle\) where \(S\) is finite set of \(\String\)
 - 型付け規則
     - 見ての通り
-    - ただし、 \(s \in S_1 \cap S_2\) なら \(\langle s \rangle: \langle S_1 \rangle \) かつ \(\langle s\ rangle: \langle S_2 \rangle\) であるので、型は一意ではない。
+    - ただし、 \(s \in S_1 \cap S_2\) なら \(\langle s \rangle: \langle S_1 \rangle \) かつ \(\langle s \rangle: \langle S_2 \rangle\) であるので、型は一意ではない。
     - 判定はアルゴリズム的にできそう。
 
 型は記述には使うが意味論には使わない。
@@ -55,12 +57,12 @@
 また、 VarEnv は List (Variable, Value) のこととする。
 
 - 組み合わせ回路の意味
-  - eval-comb: CombEnv \(\times\) VarEnv \(\times\) Exp \(\partfunction\) Value :=  eval-comb E G exp \(|->\)
+  - eval-comb: CombEnv \(\times\) VarEnv \(\times\) Exp \(\partfunction\) Value :=  eval-comb E G exp \(\mapsto\)
     - \(v\) if
       - \(v\) = exp where \(v\): Value
     - \(v\) if
       - \(x\) = exp where \(x\): Variable
-      - \((x, v) in G\)
+      - \((x, v) \in G\)
     - \(v_1 \vee v_2\) if
       - e_1 `||` e_2 = exp
       - eval-comb E G e_i = \(v_i\)
@@ -118,12 +120,13 @@
 - すでにあるものを合成する
 - 繰り返しにより合成する
 の \(3\) つを用意する。
+
 ステートマシンは入力と出力は \(\text{Value}\) とし、状態は構成に応じて定義する。
 つまりステートマシンは
 - 状態の全体 (\(S\)): Set
 - 初期状態: \(S\)
-- 遷移関数: \(S times \text{Value} \partfunction S\)
-- 出力計算: \(S\ partfunction \text{Value}\)
+- 遷移関数: \(S \times \text{Value} \partfunction S\)
+- 出力計算: \(S \partfunction \text{Value}\)
 
 ステートマシンとその名称の組のリスト \((\String, \text{SM})\) を SMEnv と書くことにする。
 
@@ -131,12 +134,12 @@
 - 記述
   - \(s\): `state` (`IN`: \(t_I\)`;` `STATE`: \((v_0: t_S)\)`;`, `OUT`: \(t_O\)) `transition=`e_1`;` `output`=e_2`;` where \(s: \String, t_I, t_S, t_O: \text{Type}, e_i\): Exp, \( v_0: \text{Value}\)
   - つまり単純ステートマシン SimpSM は \((\String, \text{Value}, \text{Exp}, \text{Exp})\) のこと
-- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) SimpSM \(\partfunction\) ステートマシン := \(\text{toSM} E S (s, v, e_1, e_2) |->\)
+- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) SimpSM \(\partfunction\) ステートマシン := \(\text{toSM} E S (s, v, e_1, e_2) \mapsto\)
   - 状態の全体は \(\text{Value}\) 
   - 初期状態 := \(v_0\)
-  - 遷移関数 := \((v, i) |-> v^\prime\) where
+  - 遷移関数 := \((v, i) \mapsto v^\prime\) where
     - \(\text{eval-comb} E [("IN", i), ("STATE", v)] e_1 = v^\prime\)
-  - 出力計算 := \(v |-> o\) where
+  - 出力計算 := \(v \mapsto o\) where
     - \(\text{eval-comb} E [("STATE", v)] e_2 = o\)
   - \(s\) はこの後の他のマシン宣言時に使う、 \(S\) は参照しない。
 
@@ -146,16 +149,16 @@
 - 記述
   - \(s\): `graph` (`IN`: \(t_I\)`;` `MACHINE`: \((s_1: N_1, ..., s_n: N_n)\)`;`, `OUT`: \(t_O\)) `transition=`e_1`;` `output`=e_2`;` where \(s: \String, t_I, t_S, t_O: \text{Type}, e_i\): Exp, \( v_0: \text{Value}\)
   - つまりグラフ構成 GraphSM は \((\String, \text{Set of} \, (\String \times \String), \text{Exp}, \text{Exp})\) のこと
-- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) GraphSM \(\partfunction\) ステートマシン := \(\text{toSM} E S (s, (s_i: S_i), e_1, e_2) |->\)
+- 意味論 ... \(\text{toSM}\): CombEnv \(\times\) SMEnv \(\times\) GraphSM \(\partfunction\) ステートマシン := \(\text{toSM} E S (s, (s_i: S_i), e_1, e_2) \mapsto\)
   - \((S_i, v_i, \delta_i, r_i)\) := \((N_i, (S_i, v_i, \delta_i, r_i)) \in S\)
   - 状態の全体 := \((S_1, \ldots, S_n)\)
   - 初期状態 := \((v_1, \ldots, v_n)\)
-  - 遷移関数 := \(((v_i)_i, i) |-> (v^\prime_i)_i\) where
+  - 遷移関数 := \(((v_i)_i, i) \mapsto (v^\prime_i)_i\) where
     - \(o_i\) := \(r_i v_i\)
     - \(v\) := eval-comb E [("IN", \(i\)), (\(s_i\), \(o_i\)) ] e_1
     - \({s_i: i_i} = v\)
     - \(v^\prime_i = \delta_i (s_i, i_i)\)
-  - 出力 := \((v_i)_i |-> o\) where
+  - 出力 := \((v_i)_i \mapsto o\) where
     - \(o_i\) := \(r_i v_i\)
     - \(o\) := eval-comb E [, (\(s_i\), \(o_i\)) ] e_2
 
@@ -167,12 +170,12 @@
   - \((S, v, \delta, r)\) := \((N, (S, v, \delta, r)) \in S\)
   - 状態の全体 := \((S)_{i \in \Nat}\)
   - 初期状態 := \((v)_{i \in \Nat}\)
-  - 遷移関数 := \(((v_i)_{i \in \Nat}, i) |-> (v^\prime_i)_i\) where
+  - 遷移関数 := \(((v_i)_{i \in \Nat}, i) \mapsto (v^\prime_i)_i\) where
     - \(o_{-1}\) := eval-comb E [("IN", \(i\))] \(e_{\text{in}}\)
     - \(o_i\) := \(r v_i\)
     - \(i_i\) := eval-comb \(E\) [("PREV", \(o_{i-1}\)), ("THIS", \(o_i\)), ("NEXT", \(o_{i+1}\))] \(e\)
     - \(v^\prime_i\) := \(\delta (v_i, i_i)\)
-  - 出力 := \((v_i)_{i \in \Nat} |-> o\)
+  - 出力 := \((v_i)_{i \in \Nat} \mapsto o\)
     - \(o_0\) := \(r v_0\)
     - \(o\) := eval-comb \(E\) [("OUT", \(o_0\))] \(e_2\)
 
