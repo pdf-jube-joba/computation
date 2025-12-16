@@ -17,12 +17,19 @@
 5
 </script>
 <script type="text/plain" class="default-rinput">
-increment
+inc
 </script>
 </div>
 
 二個目の配置
-<div data-model="example"> </div>
+<div data-model="example">
+<script type="text/plain" class="default-code">
+8
+</script>
+<script type="text/plain" class="default-rinput">
+inc
+</script>
+</div>
 
 ## katex で数式
 ### ヘッダーに数式を書く： \(1\)

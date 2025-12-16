@@ -35,7 +35,7 @@
 <div data-model="recursive_function">
 <script type="text/plain" class="default-code">
 let zf = PROJ[1,0].
-let sf = COMP[SUCC: (PROJ[3,0])].
+let sf = COMP[SUCC: PROJ[3,0]].
 let add = PRIM[z: zf s: sf].
 add
 </script>

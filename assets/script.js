@@ -390,7 +390,10 @@ class ViewModel {
     this.sourceInputs = sourceTextareas;
 
     // Machine/target side container (used for compiled outputs or direct execution)
-    this.machineContainer = ensureChild(root, ".wm-machine", "div", "wm-machine");
+    // Non-compiler: reuse the source container to avoid duplicate frames.
+    this.machineContainer = this.isCompiler
+      ? ensureChild(root, ".wm-machine", "div", "wm-machine")
+      : sourceContainer;
 
     // by default, targetInputs points to sourceInputs
     this.targetInputs = this.sourceInputs;
