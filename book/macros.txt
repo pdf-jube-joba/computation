@@ -10,4 +10,4 @@
 
 \comp:{\circ}
 
-\txtop:\mathop{\text{#1}}
+\txtop:\operatorname{#1}
