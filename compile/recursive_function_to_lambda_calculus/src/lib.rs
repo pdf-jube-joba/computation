@@ -60,7 +60,7 @@ pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
 
     let mut body = v(&one);
 
-    for _ in 0_usize..num.into() {
+    for _ in 0_usize..num.as_usize() {
         body = app(v(&zero), body);
     }
 

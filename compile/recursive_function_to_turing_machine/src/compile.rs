@@ -14,7 +14,7 @@ pub mod num_tape {
     }
 
     fn num_sings(num: Number) -> Vec<Sign> {
-        (0..num.into()).map(|_| one()).collect()
+        (0..num.as_usize()).map(|_| one()).collect()
     }
 
     pub fn write(tuple: Vec<Number>) -> Tape {
@@ -79,7 +79,7 @@ pub mod num_tape {
     }
 
     pub fn read_right_one_usize(tape: &Tape) -> Option<Vec<usize>> {
-        read_right_one(tape).map(|vec| vec.into_iter().map(|x| x.0).collect())
+        read_right_one(tape).map(|vec| vec.into_iter().map(|x| x.as_usize()).collect())
     }
 }
 
