@@ -45,7 +45,7 @@
     - 値域については \(\text{Im} \delta = \text{Im} \delta_1 \cup \text{Im} \delta^2 \cup \{q_{\text{init}}^2\} \times \Sigma \times \{L,R,C\}\) から正しい。
     - 定義については、 \(Q - Q_{\text{fin}} = (\sqcup (Q_1 - Q_{\text{fin}}^1)) \cup \{q\}\) に注意すると、 \(\text{dom} \delta = \text{dom}\delta_1 \cup \text{dom} \delta_2 \cup \{q\} \times \Sigma \subset Q_1 - Q_{\text{fin}}^1 \times \Sigma \cup Q_2 - Q_{\text{fin}}^2 \times \Sigma \cup \{q\} \times \Sigma = Q - Q_{\text{fin}} \times \Sigma\) よいよい。
 - \(\delta\) が部分関数になっているかを確かめる。
-    - 確認するのは \((q, s, \_, \_, \_) \in \delta\) が \((q,s)\) に対して高々一つしかないことである。
+    - 確認するのは \((q, s, q', s', d) \in \delta\) が \((q,s)\) に対して高々一つしかないことである。
     - \(\delta_1, \delta_2 \delta_{\text{glue}}\) の値域がそれぞれ交わらないことに注意すればわかる。
 
 いまこうして作られるチューリングマシンを \(M_1 \rightarrow_{s} M_2\) のように書く。
