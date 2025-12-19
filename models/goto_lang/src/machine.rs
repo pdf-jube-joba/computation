@@ -88,7 +88,7 @@ impl TextCodec for Code {
                 Command::Inc(var) => format!("inc {}\n", var.as_str()),
                 Command::Dec(var) => format!("dec {}\n", var.as_str()),
                 Command::Cpy(dest, src) => format!("cpy {} {}\n", dest.as_str(), src.as_str()),
-                Command::Ifnz(var, target) => format!("ifnz {} {}\n", var.as_str(), target),
+                Command::Ifnz(var, target) => format!("ifnz {} {}\n", var.as_str(), target.print()),
             };
             f.write_str(&line)?;
         }

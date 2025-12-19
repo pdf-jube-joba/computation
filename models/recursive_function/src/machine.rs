@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::fmt::Display;
-use utils::{number::*, Machine};
+use utils::{number::*, Machine, TextCodec};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum RecursiveFunctions {
@@ -380,8 +380,12 @@ impl Display for Process {
                 args,
                 function,
                 process,
-            } => write!(f, "Mu[{function},{args:?}:{now_index}]({process})"),
-            Process::Result(num) => write!(f, "{num}"),
+            } => write!(
+                f,
+                "Mu[{function},{args:?}:{}]({process})",
+                now_index.print()
+            ),
+            Process::Result(num) => write!(f, "{}", num.print()),
         }
     }
 }

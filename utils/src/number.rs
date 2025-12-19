@@ -1,116 +1,115 @@
-use std::{
-    fmt::Display,
-    ops::{Add, AddAssign, Sub, SubAssign},
-};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use serde::Serialize;
 
+// Natural number represented in little-endian byte array
+// i.e., least significant byte first
+// n = \sum_{i=0}^{len-1} bytes[i] * 256^i
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
-pub struct Number(usize);
+pub struct Number(Vec<u8>);
 
 impl Number {
     pub fn is_zero(&self) -> bool {
-        self.0 == 0
+        self.0.is_empty() || self.0.iter().all(|&b| b == 0)
     }
-    pub fn succ(self) -> Self {
-        Number(self.0 + 1)
+    pub fn succ(&self) -> Self {
+        let one = Number(vec![1]);
+        self.clone() + one
     }
-    pub fn pred(self) -> Self {
-        if self.is_zero() {
-            Number(0)
-        } else {
-            Number(self.0 - 1)
-        }
+    pub fn pred(&self) -> Self {
+        let one = Number(vec![1]);
+        self.clone() - one
     }
     pub fn as_usize(&self) -> usize {
-        self.0
+        let mut bytes = [0u8; 8];
+        for (i, &b) in self.0.iter().take(8).enumerate() {
+            bytes[i] = b;
+        }
+        usize::from_le_bytes(bytes)
+    }
+    pub fn as_u8array(&self) -> &[u8] {
+        &self.0
     }
 }
 
 impl From<usize> for Number {
     fn from(value: usize) -> Self {
-        Number(value)
-    }
-}
-
-impl From<Number> for [u8; 8] {
-    fn from(value: Number) -> Self {
-        let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(&value.0.to_le_bytes()[..8]);
-        bytes
-    }
-}
-
-impl Display for Number {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        Number(value.to_le_bytes().to_vec())
     }
 }
 
 impl Add for Number {
     type Output = Number;
     fn add(self, rhs: Self) -> Self::Output {
-        Number(self.0 + rhs.0)
+        let mut v = vec![];
+        let mut carry = 0;
+        for i in 0..std::cmp::max(self.0.len(), rhs.0.len()) {
+            let a = if i < self.0.len() { self.0[i] } else { 0 };
+            let b = if i < rhs.0.len() { rhs.0[i] } else { 0 };
+            let sum = a as u16 + b as u16 + carry;
+            v.push((sum & 0xFF) as u8);
+            carry = sum >> 8;
+        }
+        Number(v)
     }
 }
 
 impl Add<usize> for Number {
     type Output = Number;
     fn add(self, rhs: usize) -> Self::Output {
-        Number(self.0 + rhs)
+        self + Number::from(rhs)
     }
 }
 
 impl AddAssign for Number {
     fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0
+        *self = self.clone() + rhs
     }
 }
 
 impl AddAssign<usize> for Number {
     fn add_assign(&mut self, rhs: usize) {
-        self.0 += rhs
+        *self = self.clone() + rhs
     }
 }
 
+// saturating subtraction
 impl Sub for Number {
     type Output = Number;
     fn sub(self, rhs: Self) -> Self::Output {
-        if self.0 > rhs.0 {
-            Number(self.0 - rhs.0)
-        } else {
-            Number(0)
+        let mut v = vec![];
+        let mut borrow = 0;
+        for i in 0..std::cmp::max(self.0.len(), rhs.0.len()) {
+            let a = if i < self.0.len() { self.0[i] } else { 0 };
+            let b = if i < rhs.0.len() { rhs.0[i] } else { 0 };
+            let sub = (a as i16) - (b as i16) - (borrow as i16);
+            if sub < 0 {
+                v.push((sub + 256) as u8);
+                borrow = 1;
+            } else {
+                v.push(sub as u8);
+                borrow = 0;
+            }
         }
+        Number(v)
     }
 }
 
 impl Sub<usize> for Number {
     type Output = Number;
     fn sub(self, rhs: usize) -> Self::Output {
-        if self.0 > rhs {
-            Number(self.0 - rhs)
-        } else {
-            Number(0)
-        }
+        self - Number::from(rhs)
     }
 }
 
 impl SubAssign for Number {
     fn sub_assign(&mut self, rhs: Self) {
-        if self.0 > rhs.0 {
-            self.0 -= rhs.0;
-        } else {
-            self.0 = 0;
-        }
+        *self = self.clone() - rhs
     }
 }
 
 impl SubAssign<usize> for Number {
     fn sub_assign(&mut self, rhs: usize) {
-        if self.0 > rhs {
-            self.0 -= rhs;
-        } else {
-            self.0 = 0;
-        }
+        *self = self.clone() - rhs
     }
 }
