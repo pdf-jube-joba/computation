@@ -3,7 +3,6 @@ use serde::Serialize;
 pub mod alphabet;
 pub mod bool;
 pub mod number;
-pub mod set;
 pub mod variable;
 pub mod parse;
 
