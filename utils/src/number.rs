@@ -6,7 +6,7 @@ use std::{
 use serde::Serialize;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
-pub struct Number(pub usize);
+pub struct Number(usize);
 
 impl Number {
     pub fn is_zero(&self) -> bool {
@@ -22,6 +22,9 @@ impl Number {
             Number(self.0 - 1)
         }
     }
+    pub fn as_usize(&self) -> usize {
+        self.0
+    }
 }
 
 impl From<usize> for Number {
@@ -30,9 +33,11 @@ impl From<usize> for Number {
     }
 }
 
-impl From<Number> for usize {
+impl From<Number> for [u8; 8] {
     fn from(value: Number) -> Self {
-        value.0
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(&value.0.to_le_bytes()[..8]);
+        bytes
     }
 }
 

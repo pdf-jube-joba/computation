@@ -231,7 +231,7 @@ impl Process {
 
                 // if all args are evaluated, then we can eval the function
                 match function {
-                    RecursiveFunctions::ZeroConstant => Some(Process::Result(Number(0))),
+                    RecursiveFunctions::ZeroConstant => Some(Process::Result(0.into())),
                     RecursiveFunctions::Successor => {
                         let (head, _) = split_head(&args_as_tuple).unwrap();
                         Some(Process::Result(head.succ()))
@@ -294,7 +294,7 @@ impl Process {
                     }
                     RecursiveFunctions::MuOperator { mu_func } => {
                         // Mu { f, 0, (x0, .., xn), process == f(0, x0, .., xn) }
-                        let arg = prepend_number(Number(0), &args_as_tuple);
+                        let arg = prepend_number(0.into(), &args_as_tuple);
                         Some(Process::MuOpComp {
                             now_index: 0.into(),
                             args: args_as_tuple.clone(),
@@ -412,7 +412,7 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
     match func {
         RecursiveFunctions::ZeroConstant => NaturalFunction {
             parameter_length: 0,
-            func: Box::new(|_| Number(0)),
+            func: Box::new(|_| 0.into()),
         },
         RecursiveFunctions::Successor => NaturalFunction {
             parameter_length: 1,
@@ -476,9 +476,9 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
             let func: Box<dyn Fn(Vec<Number>) -> Number> = Box::new(move |vector| {
                 let mut i = 0;
                 'lp: loop {
-                    let result = mu_func.unchecked_subst(prepend_number(Number(i), &vector));
-                    if result == Number(0) {
-                        break 'lp Number(i);
+                    let result = mu_func.unchecked_subst(prepend_number(i.into(), &vector));
+                    if result == 0.into() {
+                        break 'lp i.into();
                     }
                     i += 1;
                 }
@@ -538,7 +538,7 @@ mod tests {
     use super::{Number, Process};
 
     fn nums(values: &[usize]) -> Vec<Number> {
-        values.iter().map(|&v| Number(v)).collect()
+        values.iter().map(|&v| v.into()).collect()
     }
 
     #[test]
@@ -546,7 +546,7 @@ mod tests {
         let zero = RecursiveFunctions::zero();
         let zero_func = interpreter(&zero);
         let result = zero_func.checked_subst(Vec::<Number>::new());
-        assert_eq!(result, Some(Number(0)));
+        assert_eq!(result, Some(0.into()));
         let result = zero_func.checked_subst(nums(&[0]));
         assert_eq!(result, None);
     }
@@ -556,7 +556,7 @@ mod tests {
         let succ_func = interpreter(&succ);
         for i in 0..5 {
             let result = succ_func.checked_subst(nums(&[i]));
-            assert_eq!(result, Some(Number(i + 1)))
+            assert_eq!(result, Some((i + 1).into()))
         }
     }
     #[test]
@@ -564,14 +564,14 @@ mod tests {
         let proj = RecursiveFunctions::projection(1, 0).unwrap();
         let proj_func = interpreter(&proj);
         let result = proj_func.checked_subst(nums(&[0]));
-        assert_eq!(result, Some(Number(0)));
+        assert_eq!(result, Some(0.into()));
         let result = proj_func.checked_subst(nums(&[0, 1]));
         assert_eq!(result, None);
 
         let proj = RecursiveFunctions::projection(3, 0).unwrap();
         let proj_func = interpreter(&proj);
         let result = proj_func.checked_subst(nums(&[0, 1, 2]));
-        assert_eq!(result, Some(Number(0)));
+        assert_eq!(result, Some(0.into()));
     }
     #[test]
     fn comp_call() {
@@ -582,7 +582,7 @@ mod tests {
         .unwrap();
         let succcc_func = interpreter(&succcc);
         let result = succcc_func.checked_subst(nums(&[0]));
-        assert_eq!(result, Some(Number(2)));
+        assert_eq!(result, Some(2.into()));
         assert!(RecursiveFunctions::composition(RecursiveFunctions::succ(), vec![]).is_err());
         assert!(RecursiveFunctions::composition(
             RecursiveFunctions::zero(),
@@ -604,7 +604,7 @@ mod tests {
         )
         .unwrap();
         let func = interpreter(&snd_succ);
-        assert_eq!(func.checked_subst(nums(&[0])), Some(Number(1)));
+        assert_eq!(func.checked_subst(nums(&[0])), Some(1.into()));
 
         let snd_succ = RecursiveFunctions::composition(
             RecursiveFunctions::projection(4, 1).unwrap(),
@@ -617,7 +617,7 @@ mod tests {
         )
         .unwrap();
         let func = interpreter(&snd_succ);
-        assert_eq!(func.checked_subst(nums(&[0, 1, 2])), Some(Number(1)))
+        assert_eq!(func.checked_subst(nums(&[0, 1, 2])), Some(1.into()))
     }
     #[test]
     fn prim_call() {
@@ -629,12 +629,12 @@ mod tests {
         .unwrap();
         let add = RecursiveFunctions::primitive_recursion(zero_func, succ_func).unwrap();
         let add_func = interpreter(&add);
-        assert_eq!(add_func.checked_subst(nums(&[0, 0])), Some(Number(0)));
-        assert_eq!(add_func.checked_subst(nums(&[0, 1])), Some(Number(1)));
-        assert_eq!(add_func.checked_subst(nums(&[1, 0])), Some(Number(1)));
-        assert_eq!(add_func.checked_subst(nums(&[1, 1])), Some(Number(2)));
-        assert_eq!(add_func.checked_subst(nums(&[2, 2])), Some(Number(4)));
-        assert_eq!(add_func.checked_subst(nums(&[2, 3])), Some(Number(5)));
+        assert_eq!(add_func.checked_subst(nums(&[0, 0])), Some(0.into()));
+        assert_eq!(add_func.checked_subst(nums(&[0, 1])), Some(1.into()));
+        assert_eq!(add_func.checked_subst(nums(&[1, 0])), Some(1.into()));
+        assert_eq!(add_func.checked_subst(nums(&[1, 1])), Some(2.into()));
+        assert_eq!(add_func.checked_subst(nums(&[2, 2])), Some(4.into()));
+        assert_eq!(add_func.checked_subst(nums(&[2, 3])), Some(5.into()));
     }
     fn pred_func() -> RecursiveFunctions {
         RecursiveFunctions::primitive_recursion(
@@ -646,10 +646,10 @@ mod tests {
     #[test]
     fn pred_well() {
         let pred_func = interpreter(&pred_func());
-        assert_eq!(pred_func.checked_subst(nums(&[0])), Some(Number(0)));
-        assert_eq!(pred_func.checked_subst(nums(&[1])), Some(Number(0)));
-        assert_eq!(pred_func.checked_subst(nums(&[2])), Some(Number(1)));
-        assert_eq!(pred_func.checked_subst(nums(&[3])), Some(Number(2)));
+        assert_eq!(pred_func.checked_subst(nums(&[0])), Some(0.into()));
+        assert_eq!(pred_func.checked_subst(nums(&[1])), Some(0.into()));
+        assert_eq!(pred_func.checked_subst(nums(&[2])), Some(1.into()));
+        assert_eq!(pred_func.checked_subst(nums(&[3])), Some(2.into()));
     }
     fn inv_monus() -> RecursiveFunctions {
         RecursiveFunctions::primitive_recursion(
@@ -675,14 +675,14 @@ mod tests {
     #[test]
     fn monus_call() {
         let monus = interpreter(&monus());
-        assert_eq!(monus.checked_subst(nums(&[0, 0])), Some(Number(0)));
-        assert_eq!(monus.checked_subst(nums(&[0, 1])), Some(Number(0)));
-        assert_eq!(monus.checked_subst(nums(&[0, 2])), Some(Number(0)));
-        assert_eq!(monus.checked_subst(nums(&[1, 0])), Some(Number(1)));
-        assert_eq!(monus.checked_subst(nums(&[2, 0])), Some(Number(2)));
-        assert_eq!(monus.checked_subst(nums(&[1, 1])), Some(Number(0)));
-        assert_eq!(monus.checked_subst(nums(&[2, 2])), Some(Number(0)));
-        assert_eq!(monus.checked_subst(nums(&[2, 1])), Some(Number(1)));
+        assert_eq!(monus.checked_subst(nums(&[0, 0])), Some(0.into()));
+        assert_eq!(monus.checked_subst(nums(&[0, 1])), Some(0.into()));
+        assert_eq!(monus.checked_subst(nums(&[0, 2])), Some(0.into()));
+        assert_eq!(monus.checked_subst(nums(&[1, 0])), Some(1.into()));
+        assert_eq!(monus.checked_subst(nums(&[2, 0])), Some(2.into()));
+        assert_eq!(monus.checked_subst(nums(&[1, 1])), Some(0.into()));
+        assert_eq!(monus.checked_subst(nums(&[2, 2])), Some(0.into()));
+        assert_eq!(monus.checked_subst(nums(&[2, 1])), Some(1.into()));
     }
     fn id_from_inv_monus() -> RecursiveFunctions {
         RecursiveFunctions::muoperator(inv_monus()).unwrap()
@@ -690,10 +690,10 @@ mod tests {
     #[test]
     fn muop_call() {
         let id = interpreter(&id_from_inv_monus());
-        assert_eq!(id.checked_subst(nums(&[0])), Some(Number(0)));
-        assert_eq!(id.checked_subst(nums(&[1])), Some(Number(1)));
-        assert_eq!(id.checked_subst(nums(&[2])), Some(Number(2)));
-        assert_eq!(id.checked_subst(nums(&[3])), Some(Number(3)));
+        assert_eq!(id.checked_subst(nums(&[0])), Some(0.into()));
+        assert_eq!(id.checked_subst(nums(&[1])), Some(1.into()));
+        assert_eq!(id.checked_subst(nums(&[2])), Some(2.into()));
+        assert_eq!(id.checked_subst(nums(&[3])), Some(3.into()));
     }
     #[test]
     fn process_test_zero() {
@@ -706,12 +706,12 @@ mod tests {
             }
             process = process.eval_one_step().unwrap();
         };
-        assert_eq!(res, Number(0));
+        assert_eq!(res, 0.into());
     }
     #[test]
     fn process_test_succ() {
         let succ = RecursiveFunctions::succ();
-        let mut process = Process::new(succ.clone(), vec![Number(0)]).unwrap();
+        let mut process = Process::new(succ.clone(), vec![0.into()]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -719,9 +719,9 @@ mod tests {
             }
             process = process.eval_one_step().unwrap();
         };
-        assert_eq!(res, Number(1));
+        assert_eq!(res, 1.into());
 
-        let mut process = Process::new(succ, vec![Number(1)]).unwrap();
+        let mut process = Process::new(succ, vec![1.into()]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -729,7 +729,7 @@ mod tests {
             }
             process = process.eval_one_step().unwrap();
         };
-        assert_eq!(res, Number(2));
+        assert_eq!(res, 2.into());
     }
     #[test]
     fn process_test_comp() {
@@ -738,7 +738,7 @@ mod tests {
             vec![RecursiveFunctions::succ()],
         )
         .unwrap();
-        let mut process = Process::new(succ_succ.clone(), vec![Number(0)]).unwrap();
+        let mut process = Process::new(succ_succ.clone(), vec![0.into()]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -746,7 +746,7 @@ mod tests {
             }
             process = process.eval_one_step().unwrap();
         };
-        assert_eq!(res, Number(2));
+        assert_eq!(res, 2.into());
     }
     #[test]
     fn process_test_prim() {
@@ -757,7 +757,7 @@ mod tests {
         )
         .unwrap();
         let add = RecursiveFunctions::primitive_recursion(zero_func, succ_func).unwrap();
-        let mut process = Process::new(add.clone(), vec![Number(2), Number(3)]).unwrap();
+        let mut process = Process::new(add.clone(), vec![2.into(), 3.into()]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -765,12 +765,12 @@ mod tests {
             }
             process = process.eval_one_step().unwrap();
         };
-        assert_eq!(res, Number(5));
+        assert_eq!(res, 5.into());
     }
     #[test]
     fn process_test_muop() {
         let id = RecursiveFunctions::muoperator(inv_monus()).unwrap();
-        let mut process = Process::new(id.clone(), vec![Number(3)]).unwrap();
+        let mut process = Process::new(id.clone(), vec![3.into()]).unwrap();
         let res = loop {
             eprintln!("{process}");
             if let Some(r) = process.result() {
@@ -778,6 +778,6 @@ mod tests {
             }
             process = process.eval_one_step().unwrap();
         };
-        assert_eq!(res, Number(3));
+        assert_eq!(res, 3.into());
     }
 }

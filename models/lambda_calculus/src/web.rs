@@ -69,7 +69,7 @@ impl Machine for LambdaTerm {
     fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
         let marked = crate::machine::mark_redex(self);
         let lambda =
-            crate::machine::step(&marked, rinput.0).ok_or("No redex found at the given index")?;
+            crate::machine::step(&marked, rinput.as_usize()).ok_or("No redex found at the given index")?;
         *self = lambda;
         if is_normal_form(self) {
             Ok(Some(self.clone()))

@@ -119,12 +119,12 @@ pub fn env_read_to_end(code: &str) -> Result<Vec<(Var, Number)>> {
 
 #[cfg(test)]
 mod tests {
-    use utils::Machine;
+    use utils::{Machine, TextCodec};
 
     fn print_env(env: &crate::machine::Environment) -> String {
         let mut s = String::new();
         for (var, num) in &env.env {
-            s.push_str(&format!("{} = {} ", var.as_str(), num.0));
+            s.push_str(&format!("{} = {} ", var.as_str(), num.print()));
         }
         s
     }
@@ -140,11 +140,11 @@ mod tests {
         let env = parse_env(ps).unwrap();
         assert_eq!(env.len(), 3);
         assert_eq!(env[0].0.as_str(), "x");
-        assert_eq!(env[0].1, Number(10));
+        assert_eq!(env[0].1, 10.into());
         assert_eq!(env[1].0.as_str(), "y");
-        assert_eq!(env[1].1, Number(20));
+        assert_eq!(env[1].1, 20.into());
         assert_eq!(env[2].0.as_str(), "z");
-        assert_eq!(env[2].1, Number(30));
+        assert_eq!(env[2].1, 30.into());
     }
     #[test]
     fn test_parse_code() {
@@ -179,7 +179,7 @@ mod tests {
         match &commands[4] {
             Command::Ifnz(v, n) => {
                 assert_eq!(v.as_str(), "z");
-                assert_eq!(*n, Number(0));
+                assert_eq!(*n, 0.into());
             }
             _ => panic!("unexpected command"),
         }
@@ -203,20 +203,24 @@ ifnz x : 0
         let env = "x = 2 y = 3 z = 0";
         let env = env_read_to_end(env).unwrap();
         for (v, n) in &env {
-            println!("{} = {}", v.as_str(), n.0);
+            println!("{} = {}", v.as_str(), n.print());
         }
 
         println!("--- Running Program ---");
 
         let mut program = crate::machine::Program {
             commands: Code(commands),
-            pc: Number(0),
+            pc: 0.into(),
             env: crate::machine::Environment::from(env),
         };
 
         for _ in 0..100 {
             let _ = program.step(());
-            println!("pc: {}, env: {}", program.pc.0, print_env(&program.env));
+            println!(
+                "pc: {}, env: {}",
+                program.pc.print(),
+                print_env(&program.env)
+            );
         }
     }
 }
