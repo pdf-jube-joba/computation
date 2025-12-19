@@ -167,7 +167,7 @@ fn eval_to_val(
             }
         }
         CombExpVal::ArrayAcc(e, n) => {
-            let ln: usize = n.clone().into();
+            let ln: usize = n.clone().as_usize();
             let v = eval_to_val(mod_env, var_env, e)?;
             match v {
                 Value::Array(v) => {

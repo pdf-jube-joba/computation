@@ -13,11 +13,11 @@ impl Environment {
         Environment { env: vec![] }
     }
 
-    pub fn get(&self, var: &VarStr) -> &Number {
+    pub fn get(&self, var: &VarStr) -> Number {
         self.env
             .iter()
-            .find_map(|(v, num)| if v == var { Some(num) } else { None })
-            .unwrap_or(&Number(0))
+            .find_map(|(v, num)| if v == var { Some(num.clone()) } else { None })
+            .unwrap_or_default()
     }
 
     pub fn write(&mut self, var: &VarStr, num: Number) {
@@ -37,7 +37,7 @@ impl TextCodec for Environment {
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         for (var, num) in &self.env {
-            writeln!(f, "{} = {}", var.as_str(), num.0)?;
+            writeln!(f, "{} = {}", var.as_str(), num.as_usize())?;
         }
         Ok(())
     }
@@ -114,42 +114,42 @@ impl Machine for Program {
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         Ok(Program {
             commands: code,
-            pc: Number(0),
+            pc: 0.into(),
             env: ainput,
         })
     }
 
     fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        if (self.pc).0 >= self.commands.0.len() {
+        if (self.pc).as_usize() >= self.commands.0.len() {
             return Ok(Some(self.env.clone()));
         }
 
-        let command = &self.commands.0[(self.pc).0];
+        let command = &self.commands.0[(self.pc).as_usize()];
         match command {
             Command::Clr(var) => {
-                self.env.write(var, Number(0));
-                self.pc.0 += 1;
+                self.env.write(var, 0.into());
+                self.pc += 1;
             }
             Command::Inc(var) => {
-                let val = self.env.get(var).0 + 1;
-                self.env.write(var, Number(val));
-                self.pc.0 += 1;
+                let val = self.env.get(var) + 1;
+                self.env.write(var, val);
+                self.pc += 1;
             }
             Command::Dec(var) => {
-                let val = self.env.get(var).0.saturating_sub(1);
-                self.env.write(var, Number(val));
-                self.pc.0 += 1;
+                let val = self.env.get(var) - 1;
+                self.env.write(var, val);
+                self.pc += 1;
             }
             Command::Cpy(dest, src) => {
                 let val = self.env.get(src).clone();
                 self.env.write(dest, val);
-                self.pc.0 += 1;
+                self.pc += 1;
             }
             Command::Ifnz(var, target) => {
-                if self.env.get(var).0 != 0 {
+                if !self.env.get(var).is_zero() {
                     self.pc = target.clone();
                 } else {
-                    self.pc.0 += 1;
+                    self.pc += 1;
                 }
             }
         }

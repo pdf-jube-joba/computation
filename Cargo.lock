@@ -364,6 +364,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tiny_isa"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "pest",
+ "pest_derive",
+ "serde",
+ "utils",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "turing_machine"
 version = "0.1.0"
 dependencies = [
