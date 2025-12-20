@@ -36,5 +36,13 @@
 - jmprel imm: pc += imm
 - jltrel rd rs imm: pc += imm if rd < rd
 
+その他
+- nop: 何もせずに次に行く
+- halt: 停止する
+
+レジスタは4つとして、
+最初の 8 bit のうち、 4 bit で opcode, 2 bit, 2 bit でレジスタを表すことにする。
+残りの bit を全部自然数にして引数と考える。
+
 hdl に落とすのは、自然数の入ったメモリの転送さえクリアできれば大丈夫そう。
 これは、n bit のチャンクで扱う？

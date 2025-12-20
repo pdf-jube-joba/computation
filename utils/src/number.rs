@@ -21,8 +21,9 @@ impl Number {
         self.clone() - one
     }
     pub fn as_usize(&self) -> usize {
-        let mut bytes = [0u8; 8];
-        for (i, &b) in self.0.iter().take(8).enumerate() {
+        static SIZE: usize = size_of::<usize>();
+        let mut bytes = [0u8; SIZE];
+        for (i, &b) in self.0.iter().take(SIZE).enumerate() {
             bytes[i] = b;
         }
         usize::from_le_bytes(bytes)

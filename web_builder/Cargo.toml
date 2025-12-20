@@ -18,6 +18,7 @@ turing_machine = { path = "../models/turing_machine", optional = true }
 lambda_calculus = { path = "../models/lambda_calculus", optional = true }
 goto_lang = { path = "../models/goto_lang", optional = true }
 recursive_function = { path = "../models/recursive_function", optional = true }
+tiny_isa = { path = "../models/tiny_isa", optional = true }
 
 [features]
 example = []
@@ -25,3 +26,4 @@ turing_machine = ["dep:turing_machine"]
 lambda_calculus = [ "dep:lambda_calculus" ]
 goto_lang = [ "dep:goto_lang" ]
 recursive_function = [ "dep:recursive_function" ]
+tiny_isa = [ "dep:tiny_isa" ]

@@ -1,7 +1,7 @@
 use serde::Serialize;
 use utils::{Machine, TextCodec, number::Number};
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Copy, Serialize)]
 pub enum Register {
     R0,
     R1,
@@ -42,6 +42,8 @@ fn which_register(n: Register) -> usize {
 // following bytes are Number arguments
 #[derive(Clone, Serialize)]
 pub enum Instruction {
+    Nop,
+    Halt,
     // rd <-- imm
     LoadImm {
         rd: Register,
@@ -72,12 +74,24 @@ pub enum Instruction {
         rd: Register,
         rs: Register,
     },
+    // rd <- pc
+    ReadPc {
+        rd: Register,
+    },
     // pc <-- rs
     JmpReg {
         rd: Register,
     },
+    // pc <-- imm
+    JmpImm {
+        imm: Number,
+    },
+    // pc <-- pc + rd
+    JmpRelReg {
+        rd: Register,
+    },
     // pc <-- pc + imm
-    JmpRel {
+    JmpRelImm {
         imm: Number,
     },
     // if rd < rs then pc <-- pc + imm
@@ -86,8 +100,6 @@ pub enum Instruction {
         rs: Register,
         imm: Number,
     },
-    Halt,
-    Nop,
 }
 
 #[derive(Clone, Serialize)]
@@ -109,8 +121,8 @@ pub fn decode_instruction(n: Number) -> Result<Instruction, String> {
 
     // decode first 4 bit =>
     match opcode {
-        0x0 => Ok(Instruction::Halt),
-        0x1 => Ok(Instruction::Nop),
+        0x0 => Ok(Instruction::Nop),
+        0x1 => Ok(Instruction::Halt),
         // LoadImm
         0x2 => {
             let rd = decode_register(op_reg1)?;
@@ -147,18 +159,33 @@ pub fn decode_instruction(n: Number) -> Result<Instruction, String> {
             let rs = decode_register(op_reg2)?;
             Ok(Instruction::Sub { rd, rs })
         }
-        // JmpReg
+        // ReadPc
         0x8 => {
+            let rd = decode_register(op_reg1)?;
+            Ok(Instruction::ReadPc { rd })
+        }
+        // JmpReg
+        0x9 => {
             let rd = decode_register(op_reg1)?;
             Ok(Instruction::JmpReg { rd })
         }
-        // JmpRel
-        0x9 => {
+        // JmpImm
+        0xA => {
             let imm = remain;
-            Ok(Instruction::JmpRel { imm })
+            Ok(Instruction::JmpImm { imm })
+        }
+        // JmpRelReg
+        0xB => {
+            let rd = decode_register(op_reg1)?;
+            Ok(Instruction::JmpRelReg { rd })
+        }
+        // JmpRelImm
+        0xC => {
+            let imm = remain;
+            Ok(Instruction::JmpRelImm { imm })
         }
         // JltRel
-        0xA => {
+        0xD => {
             let rd = decode_register(op_reg1)?;
             let rs = decode_register(op_reg2)?;
             let imm = remain;
@@ -171,6 +198,18 @@ pub fn decode_instruction(n: Number) -> Result<Instruction, String> {
 pub fn encode_instruction(inst: &Instruction) -> Number {
     let mut bytes = vec![];
     match inst {
+        Instruction::Nop => {
+            let opcode: u8 = 0x0 << 4;
+            let first_byte = opcode;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::Halt => {
+            let opcode: u8 = 0x1 << 4;
+            let first_byte = opcode;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
         Instruction::LoadImm { rd, imm } => {
             let opcode: u8 = 0x2 << 4;
             let reg_code = encode_register(rd) << 2;
@@ -219,37 +258,48 @@ pub fn encode_instruction(inst: &Instruction) -> Number {
             bytes.push(first_byte);
             Number::from_u8array(&bytes)
         }
-        Instruction::JmpReg { rd } => {
+        Instruction::ReadPc { rd } => {
             let opcode: u8 = 0x8 << 4;
             let reg_code = encode_register(rd) << 2;
             let first_byte = opcode | reg_code;
             bytes.push(first_byte);
             Number::from_u8array(&bytes)
         }
-        Instruction::JmpRel { imm } => {
+        Instruction::JmpReg { rd } => {
             let opcode: u8 = 0x9 << 4;
+            let reg_code = encode_register(rd) << 2;
+            let first_byte = opcode | reg_code;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::JmpImm { imm } => {
+            let opcode: u8 = 0xA << 4;
+            let first_byte = opcode;
+            bytes.push(first_byte);
+            bytes.extend(imm.as_u8array());
+            Number::from_u8array(&bytes)
+        }
+        Instruction::JmpRelReg { rd } => {
+            let opcode: u8 = 0xB << 4;
+            let reg_code = encode_register(rd) << 2;
+            let first_byte = opcode | reg_code;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::JmpRelImm { imm } => {
+            let opcode: u8 = 0xC << 4;
             let first_byte = opcode;
             bytes.push(first_byte);
             bytes.extend(imm.as_u8array());
             Number::from_u8array(&bytes)
         }
         Instruction::JltRel { rd, rs, imm } => {
-            let opcode: u8 = 0xA << 4;
+            let opcode: u8 = 0xD << 4;
             let reg1_code = encode_register(rd) << 2;
             let reg2_code = encode_register(rs);
             let first_byte = opcode | reg1_code | reg2_code;
             bytes.push(first_byte);
             bytes.extend(imm.as_u8array());
-            Number::from_u8array(&bytes)
-        }
-        Instruction::Halt => {
-            let opcode: u8 = 0x0 << 4;
-            bytes.push(opcode);
-            Number::from_u8array(&bytes)
-        }
-        Instruction::Nop => {
-            let opcode: u8 = 0x1 << 4;
-            bytes.push(opcode);
             Number::from_u8array(&bytes)
         }
     }
@@ -330,66 +380,78 @@ impl Machine for Environment {
 
         // execute instruction
         match inst {
-            Instruction::Halt => {
-                return Ok(Some(vec![]));
-            }
             Instruction::Nop => {
+                // Do nothing
                 self.pc += 1;
             }
+            Instruction::Halt => {
+                // Halt the machine and return the current memory as output
+                return Ok(Some(self.memory.clone()));
+            }
             Instruction::LoadImm { rd, imm } => {
-                let rd_index = which_register(rd);
-                self.registers[rd_index] = imm;
+                // Load immediate value into register
+                self.registers[which_register(rd)] = imm;
                 self.pc += 1;
             }
             Instruction::Load { rd, addr } => {
-                let rd_index = which_register(rd);
+                // Load value from memory into register
                 let addr_usize = addr.as_usize();
                 if addr_usize >= self.memory.len() {
                     return Err("Memory address out of bounds".to_string());
                 }
-                self.registers[rd_index] = self.memory[addr_usize].clone();
+                self.registers[which_register(rd)] = self.memory[addr_usize].clone();
                 self.pc += 1;
             }
             Instruction::Store { rs, addr } => {
-                let rs_index = which_register(rs);
+                // Store value from register into memory
                 let addr_usize = addr.as_usize();
                 if addr_usize >= self.memory.len() {
                     return Err("Memory address out of bounds".to_string());
                 }
-                self.memory[addr_usize] = self.registers[rs_index].clone();
+                self.memory[addr_usize] = self.registers[which_register(rs)].clone();
                 self.pc += 1;
             }
             Instruction::Mov { rd, rs } => {
-                let rd_index = which_register(rd);
-                let rs_index = which_register(rs);
-                self.registers[rd_index] = self.registers[rs_index].clone();
+                // Move value from one register to another
+                self.registers[which_register(rd)] = self.registers[which_register(rs)].clone();
                 self.pc += 1;
             }
             Instruction::Add { rd, rs } => {
-                let rd_index = which_register(rd);
-                let rs_index = which_register(rs);
-                self.registers[rd_index] =
-                    self.registers[rd_index].clone() + self.registers[rs_index].clone();
+                // Add values of two registers and store in destination register
+                self.registers[which_register(rd)] += self.registers[which_register(rs)].clone();
                 self.pc += 1;
             }
             Instruction::Sub { rd, rs } => {
-                let rd_index = which_register(rd);
-                let rs_index = which_register(rs);
-                self.registers[rd_index] =
-                    self.registers[rd_index].clone() - self.registers[rs_index].clone();
+                // Subtract value of one register from another with saturation at 0
+                let result = self.registers[which_register(rd)].clone()
+                    - (self.registers[which_register(rs)].clone());
+                self.registers[which_register(rd)] = result;
+                self.pc += 1;
+            }
+            Instruction::ReadPc { rd } => {
+                // Read the program counter into a register
+                self.registers[which_register(rd)] = self.pc.clone();
                 self.pc += 1;
             }
             Instruction::JmpReg { rd } => {
-                let rd_index = which_register(rd);
-                self.pc = self.registers[rd_index].clone();
+                // Jump to the address in the specified register
+                self.pc = self.registers[which_register(rd)].clone();
             }
-            Instruction::JmpRel { imm } => {
+            Instruction::JmpImm { imm } => {
+                // Jump to the immediate address
+                self.pc = imm;
+            }
+            Instruction::JmpRelReg { rd } => {
+                // Jump relative to the current PC by the value in the specified register
+                self.pc += self.registers[which_register(rd)].clone();
+            }
+            Instruction::JmpRelImm { imm } => {
+                // Jump relative to the current PC by the immediate value
                 self.pc += imm;
             }
             Instruction::JltRel { rd, rs, imm } => {
-                let rd_index = which_register(rd);
-                let rs_index = which_register(rs);
-                if self.registers[rd_index] < self.registers[rs_index] {
+                // If the value in one register is less than another, jump relative by the immediate value
+                if self.registers[which_register(rd)] < self.registers[which_register(rs)] {
                     self.pc += imm;
                 } else {
                     self.pc += 1;

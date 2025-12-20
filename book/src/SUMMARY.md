@@ -28,8 +28,10 @@
 - [ハードウェアの記述](./logic_circuits_to_machine/hardware_description_language.md)
 - [機械語を動かす](./logic_circuits_to_machine/computer.md)
 
-# プログラムの構造化
-- [式の追加とラベル]()
+# プログラムの構造化とコンパイル
+- [プログラムの構造化とコンパイル](./structured_programming/_structured_programming.md)
+- [ラベルとか名前の追加](./structured_programming/add_name.md)
+- [変数の無限化と式の追加]
 - [制御構造をいろいろ]()
 - [手続きとスコープ]()
 - [メモリの区別のための型]()

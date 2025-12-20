@@ -89,6 +89,9 @@ pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     #[cfg(feature = "recursive_function")]
     return create_machine::<recursive_function::machine::Program>(input, ainput);
 
+    #[cfg(feature = "tiny_isa")]
+    return create_machine::<tiny_isa::Environment>(input, ainput);
+
     Err(JsValue::from_str(
         "No machine type selected. Please enable a feature flag.",
     ))

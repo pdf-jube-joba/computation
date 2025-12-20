@@ -1,5 +1,5 @@
 [package]
-name = "tiny_isa"
+name = "symbolic_asm"
 version = "0.1.0"
 edition = "2024"
 
