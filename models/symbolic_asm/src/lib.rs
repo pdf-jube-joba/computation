@@ -1,6 +1,8 @@
 use serde::Serialize;
 use utils::{Machine, TextCodec, alphabet::Alphabet, number::Number, parse::ParseTextCodec};
 
+pub mod assemble;
+
 #[derive(Clone, Copy, Serialize)]
 pub enum Register {
     R0,
@@ -214,7 +216,33 @@ impl TextCodec for ImR {
     }
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
-        todo!()
+        match self {
+            ImR::Nop => write!(f, "NOP"),
+            ImR::Halt => write!(f, "HLT"),
+            ImR::LoadImm { dest, value } => write!(f, "LDI {} {}", dest.print(), value.print()),
+            ImR::Load { dest, addr } => write!(f, "LD {} {}", dest.print(), addr.print()),
+            ImR::LoadLabel { dest, label } => write!(f, "LDL {} {}", dest.print(), label.print()),
+            ImR::Store { src, value } => write!(f, "ST {} {}", src.print(), value.print()),
+            ImR::StoreLabel { src, label } => write!(f, "STL {} {}", src.print(), label.print()),
+            ImR::Mov { dest, src } => write!(f, "MOV {} {}", dest.print(), src.print()),
+            ImR::Add { dest, src } => write!(f, "ADD {} {}", dest.print(), src.print()),
+            ImR::Sub { dest, src } => write!(f, "SUB {} {}", dest.print(), src.print()),
+            ImR::ReadPc { dest } => write!(f, "RPC {}", dest.print()),
+            ImR::JmpReg { target } => write!(f, "JMPR {}", target.print()),
+            ImR::JmpImm { value } => write!(f, "JMP {}", value.print()),
+            ImR::JmpLabel { label } => write!(f, "JMPL {}", label.print()),
+            ImR::JmpRelReg { r } => write!(f, "JMRR {}", r.print()),
+            ImR::JmpRelImm { imm } => write!(f, "JMRI {}", imm.print()),
+            ImR::JLtLabel { rl, rr, addr } => {
+                write!(f, "JLTL {} {} {}", rl.print(), rr.print(), addr.print())
+            }
+            ImR::JltRel { rl, rr, imm } => {
+                write!(f, "JLTI {} {} {}", rl.print(), rr.print(), imm.print())
+            }
+            ImR::JltRelBack { rl, rr, imm } => {
+                write!(f, "JLTR {} {} {}", rl.print(), rr.print(), imm.print())
+            }
+        }
     }
 }
 

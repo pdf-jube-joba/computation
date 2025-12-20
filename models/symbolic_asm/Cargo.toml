@@ -8,3 +8,5 @@ utils = { workspace = true }
 anyhow = { workspace = true }
 wasm-bindgen = { workspace = true }
 serde = { workspace = true }
+
+tiny_isa = { path = "../tiny_isa" }
