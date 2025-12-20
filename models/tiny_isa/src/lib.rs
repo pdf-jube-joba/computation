@@ -20,7 +20,7 @@ fn read_register(n: u8) -> Result<Register, String> {
 // Number is "natural number", there is no limit
 // first byte is opcode (4 bit) + u8 arguments (4 bit)
 // following bytes are Number arguments
-// 
+//
 pub enum Instruction {
     // rd <-- imm
     LoadImm {
@@ -83,6 +83,7 @@ pub fn decode_instruction(n: Number) -> Result<Instruction, String> {
     let opcode = (op & 0b1111_0000) >> 4;
     let op_reg1 = (op & 0b0000_1100) >> 2;
     let op_reg2 = op & 0b0000_0011;
+    let remain: Number = n.as_u8array()[1..].to_vec().into();
 
     // decode first 4 bit =>
     match (op & 0b1111_0000) >> 4 {
@@ -90,9 +91,27 @@ pub fn decode_instruction(n: Number) -> Result<Instruction, String> {
         0x1 => Ok(Instruction::Nop),
         // LoadImm
         0x2 => {
-            let rd = read_register(op & 0x0F)?;
-            let imm = (n.as_usize() >> 8).into();
+            let rd = read_register(op_reg1)?;
+            let imm = remain;
             Ok(Instruction::LoadImm { rd, imm })
+        }
+        // Load
+        0x3 => {
+            let rd = read_register(op_reg1)?;
+            let addr = remain;
+            Ok(Instruction::Load { rd, addr })
+        }
+        // Store
+        0x4 => {
+            let rs = read_register(op_reg1)?;
+            let addr = remain;
+            Ok(Instruction::Store { rs, addr })
+        }
+        // Mov
+        0x5 => {
+            let rd = read_register(op_reg1)?;
+            let rs = read_register(op_reg2)?;
+            Ok(Instruction::Mov { rd, rs })
         }
         _ => Err(format!("invalid opcode: {}", op)),
     }

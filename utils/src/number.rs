@@ -38,6 +38,12 @@ impl From<usize> for Number {
     }
 }
 
+impl From<Vec<u8>> for Number {
+    fn from(value: Vec<u8>) -> Self {
+        Number(value)
+    }
+}
+
 impl Add for Number {
     type Output = Number;
     fn add(self, rhs: Self) -> Self::Output {
