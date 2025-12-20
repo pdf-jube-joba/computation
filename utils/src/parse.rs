@@ -1,4 +1,14 @@
-use crate::TextCodec;
+use crate::{alphabet::Alphabet, TextCodec};
+
+pub trait ParseTextCodec {
+    fn parse_tc<T: TextCodec>(&self) -> Result<T, String>;
+}
+
+impl<T: AsRef<str>> ParseTextCodec for T {
+    fn parse_tc<U: TextCodec>(&self) -> Result<U, String> {
+        U::parse(self.as_ref())
+    }
+}
 
 // Implementations for common types
 impl TextCodec for () {
@@ -36,6 +46,15 @@ impl TextCodec for String {
     }
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl TextCodec for Alphabet {
+    fn parse(text: &str) -> Result<Self, String> {
+        Alphabet::new(text).map_err(|e| e.to_string())
+    }
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 

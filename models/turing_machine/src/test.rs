@@ -1,12 +1,15 @@
-use crate::machine::{Sign, Tape, Direction};
+use utils::TextCodec;
+
+use crate::machine::{Direction, Sign, Tape};
 
 fn map_v(v: Vec<&str>) -> Vec<Sign> {
-    v.into_iter().map(|s| s.parse().unwrap()).collect()
+    v.into_iter()
+        .map(|s| <Sign as TextCodec>::parse(s).unwrap())
+        .collect()
 }
 
 #[test]
 fn test_tape_eq() {
-
     // every thing is the same  ..., "", ["-"], "-", "", ...
     let v1 = Tape::from_vec(map_v(vec!["-", "-"]), 0);
     let v2 = Tape::from_vec(map_v(vec!["-", "-", ""]), 0);

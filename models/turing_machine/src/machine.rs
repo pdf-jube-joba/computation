@@ -1,5 +1,4 @@
 use serde::Serialize;
-use std::{fmt::Display, str::FromStr};
 use utils::alphabet::Alphabet; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
@@ -10,64 +9,15 @@ pub enum Direction {
     Left,
 }
 
-impl TryFrom<&str> for Direction {
-    type Error = anyhow::Error; // Changed from String to anyhow::Error
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value = value.trim();
-        match value {
-            "R" => Ok(Direction::Right),
-            "L" => Ok(Direction::Left),
-            "C" => Ok(Direction::Constant),
-            _ => Err(anyhow::anyhow!("Invalid direction")),
-        }
-    }
-}
-
-impl Display for Direction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Direction::Right => write!(f, "R"),
-            Direction::Constant => write!(f, "C"),
-            Direction::Left => write!(f, "L"),
-        }
-    }
-}
-
 // テープで扱う記号の定義
 // 空白記号（None）と制御記号の含まれない文字列を記号として扱う
 // Alphabet は空白ではない
 #[derive(Debug, Default, Clone, PartialEq, Hash, Eq, Serialize)]
-pub struct Sign(Option<Alphabet>);
+pub struct Sign(pub(crate) Option<Alphabet>);
 
 impl Sign {
     pub fn blank() -> Sign {
         Sign(None)
-    }
-}
-
-impl Display for Sign {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.0 {
-            Some(alphabet) => write!(f, "{}", alphabet),
-            None => write!(f, " "),
-        }
-    }
-}
-
-// 空文字列は空白記号として扱う
-impl FromStr for Sign {
-    type Err = anyhow::Error; // Changed from String to anyhow::Error
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value.try_into() {
-            Ok(alphabet) => Ok(Sign(Some(alphabet))),
-            Err(err) => {
-                if value.trim().is_empty() {
-                    Ok(Sign::blank())
-                } else {
-                    Err(anyhow::anyhow!(err))
-                }
-            }
-        }
     }
 }
 
@@ -114,23 +64,6 @@ impl PartialEq for Tape {
         same_except_last_blanks(left1, left2)
             && head1 == head2
             && same_except_last_blanks(right1, right2)
-    }
-}
-
-/// left = l0, l1, l2, ... , ln, right = r0, r1, r2, ... , rm, head = h のとき
-/// l0, ..., ln [h] rn, ..., r0 と表示される
-impl Display for Tape {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Tape { left, head, right } = &self;
-
-        for sign in left {
-            write!(f, "[{}]", sign)?;
-        }
-        write!(f, "{{{}}}", head)?;
-        for sign in right.iter().rev() {
-            write!(f, "[{}]", sign)?;
-        }
-        Ok(())
     }
 }
 
@@ -181,20 +114,7 @@ impl Tape {
 // マシンの持つ状態の定義
 // テープの記号と同じ
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize)]
-pub struct State(Alphabet);
-
-impl Display for State {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl FromStr for State {
-    type Err = anyhow::Error; // Changed from String to anyhow::Error
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(State(value.try_into()?))
-    }
-}
+pub struct State(pub(crate)Alphabet);
 
 pub type CodeEntry = ((Sign, State), (Sign, State, Direction));
 pub type Code = Vec<CodeEntry>;
@@ -360,16 +280,5 @@ impl TuringMachineSet {
             return Err(anyhow::anyhow!("not terminated"));
         }
         Ok(self.now_tape().clone())
-    }
-}
-
-impl Display for TuringMachineSet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "code:")?;
-        for ((k1, k2), (v1, v2, v3)) in self.machine_definition.code.iter() {
-            writeln!(f, "{k1}, {k2}, {v1}, {v2}, {v3:?}")?;
-        }
-        writeln!(f, "state: {}", self.machine_state.state)?;
-        writeln!(f, "tape: {:?}", self.machine_state.tape)
     }
 }

@@ -1,77 +1,10 @@
 use crate::machine::*;
 use std::collections::HashSet;
 
-pub mod code {
-    use crate::machine::{CodeEntry, State, TuringMachineDefinition};
-    use anyhow::Result;
-
-    pub fn parse_one_code_entry(code: &str) -> Result<CodeEntry> {
-        let v: Vec<_> = code.split(',').collect();
-        if v.len() < 5 {
-            anyhow::bail!("Invalid code entry: {}", code);
-        }
-        // .trim() で parse 用に成形する
-        Ok((
-            (v[0].trim().parse()?, v[1].trim().parse()?),
-            (
-                v[2].trim().parse()?,
-                v[3].trim().parse()?,
-                v[4].trim().try_into()?,
-            ),
-        ))
-    }
-
-    pub fn parse_code(code: &str) -> Result<Vec<CodeEntry>> {
-        let vec: Vec<CodeEntry> = code
-            .lines()
-            .enumerate()
-            .filter(|(_, line)| !line.is_empty() && !line.starts_with('#') && line.contains(","))
-            .map(|(index, line)| match parse_one_code_entry(line) {
-                Ok(entry) => Ok(entry),
-                Err(err) => {
-                    anyhow::bail!("Error parsing code entry at line {}: {}", index + 1, err)
-                }
-            })
-            .collect::<Result<Vec<CodeEntry>>>()?;
-        Ok(vec)
-    }
-
-    pub fn parse_definition(code: &str) -> Result<TuringMachineDefinition> {
-        // get init state from first line
-        let mut lines = code.lines();
-
-        let Some(init_state_line) = lines.next() else {
-            anyhow::bail!("Missing initial state line")
-        };
-
-        let init_state: State = init_state_line.trim().parse()?;
-
-        let Some(accepted_state_line) = lines.next() else {
-            anyhow::bail!("Missing accepted states line")
-        };
-
-        let accepted_state: Vec<State> = accepted_state_line
-            .split(',')
-            .map(|s| s.trim().parse())
-            .collect::<Result<_>>()?;
-
-        let code: Vec<_> = lines
-            .enumerate()
-            .filter(|(_, line)| !line.is_empty() && !line.starts_with('#') && line.contains(","))
-            .map(|(index, line)| {
-                parse_one_code_entry(line).map_err(|err| {
-                    anyhow::anyhow!("Error parsing code entry at line {}: {}", index + 1, err)
-                })
-            })
-            .collect::<Result<_>>()?;
-
-        TuringMachineDefinition::new(init_state, accepted_state, code)
-    }
-}
-
 pub mod builder {
     use crate::machine::*;
     use anyhow::{anyhow, Result};
+    use utils::parse::ParseTextCodec;
 
     #[derive(Clone, PartialEq)]
     pub struct TuringMachineBuilder {
@@ -162,7 +95,7 @@ pub mod builder {
         }
 
         pub fn from_source(&mut self, str: &str) -> Result<&mut Self> {
-            let definition: TuringMachineDefinition = super::code::parse_definition(str)?;
+            let definition: TuringMachineDefinition = str.parse_tc().map_err(|e| anyhow!(e))?;
             self.init_state(definition.init_state().clone());
             self.accepted_state(definition.accepted_state().clone());
             self.code = definition.code().clone();
@@ -174,6 +107,7 @@ pub mod builder {
 pub mod graph_compose {
     use super::{builder::TuringMachineBuilder, *};
     use anyhow::{anyhow, Result};
+    use utils::{parse::ParseTextCodec, TextCodec};
 
     pub struct GraphOfBuilder {
         pub name: String,
@@ -215,10 +149,11 @@ pub mod graph_compose {
 
         let format_name = |index: usize, state: State| {
             let str = format!(
-                "{index}-{}-{state}",
-                assign_vertex_to_builder[index].get_name()
+                "{index}-{}-{}",
+                assign_vertex_to_builder[index].get_name(),
+                state.print()
             );
-            str.as_str().parse::<State>().unwrap()
+            str.parse_tc().unwrap()
         };
 
         builder.init_state(init_state.clone());
@@ -294,33 +229,5 @@ pub mod graph_compose {
             .accepted_state(acceptable.into_iter().flatten())
             .code_new(code);
         Ok(builder)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{builder, code};
-    use crate::machine::State;
-
-    static CODE_STR: &str = "
-        -, start, -, end, C
-        ";
-
-    #[test]
-    fn parse_code() {
-        let code = code::parse_code(CODE_STR);
-        assert!(code.is_ok());
-    }
-
-    #[test]
-    fn builder() {
-        let mut builder = builder::TuringMachineBuilder::new("test").unwrap();
-
-        let start_state: State = "start".parse().unwrap();
-        builder.init_state(start_state.clone());
-        assert_eq!(builder.get_init_state(), Some(start_state));
-
-        let accepted_state: Vec<State> = vec!["end".parse().unwrap()];
-        builder.accepted_state(accepted_state);
     }
 }

@@ -592,7 +592,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
 }
 
 pub fn num_to_ident(n: usize) -> Identifier {
-    Identifier::new_system(&format!("{n}"))
+    Identifier::new_user(&format!("_{n}_")).unwrap()
 }
 
 #[derive(Debug, Clone, PartialEq)]

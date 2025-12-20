@@ -2,37 +2,35 @@ use std::fmt::Display;
 
 use serde::Serialize;
 
-// string consists of ascii, number, underscore, hyphen,
-// but not empty
+// string consists of
+// (ASCII_CHAR | '_') ~ (ASCII_CHAR | DIGIT | '_' | '-')*
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct Alphabet(String);
 
-impl TryFrom<&str> for Alphabet {
-    type Error = anyhow::Error; // Changed from String to anyhow::Error
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Alphabet::try_from(s.to_string())
-    }
-}
-
-impl TryFrom<String> for Alphabet {
-    type Error = anyhow::Error; // Changed from String to anyhow::Error
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        if s.is_empty() {
+impl Alphabet {
+    pub fn new(name: &str) -> Result<Self, anyhow::Error> {
+        if name.is_empty() {
             return Err(anyhow::anyhow!("alphabet cannot be empty"));
         }
-        if s.chars()
+
+        if !name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+            return Err(anyhow::anyhow!(format!(
+                "invalid alphabet start:[{}]",
+                name
+            )));
+        }
+
+        if !name
+            .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
-            Ok(Alphabet(s))
-        } else {
-            Err(anyhow::anyhow!(format!("invalid alphabet:[{}]", s)))
+            return Err(anyhow::anyhow!(format!("invalid alphabet:[{}]", name)));
         }
-    }
-}
 
-impl Display for Alphabet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        Ok(Alphabet(name.to_string()))
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
