@@ -1,7 +1,7 @@
 use crate::machine::Command;
 use anyhow::Result;
 use pest::{Parser, iterators::Pair};
-use utils::{number::Number, variable::VarStr as Var};
+use utils::{alphabet::Alphabet as Var, number::Number, parse::ParseTextCodec};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "goto_lang.pest"]
@@ -10,7 +10,7 @@ struct Ps;
 pub fn parse_name(ps: Pair<Rule>) -> Var {
     debug_assert!(ps.as_rule() == Rule::name);
     let name = ps.as_str();
-    Var::new(name)
+    name.parse_tc().unwrap()
 }
 
 pub fn parse_one_statement(ps: Pair<Rule>) -> Result<Command> {

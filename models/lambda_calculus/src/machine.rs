@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::{collections::HashSet, fmt::Display};
+use std::collections::HashSet;
 use utils::variable::Var;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -34,20 +34,6 @@ impl LambdaTerm {
                 let mut set: HashSet<Var> = term1.bounded_variable();
                 set.extend(term2.bounded_variable());
                 set
-            }
-        }
-    }
-}
-
-impl Display for LambdaTerm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LambdaTerm::Var(var) => write!(f, "[{var}]"),
-            LambdaTerm::Abs(var, term) => {
-                write!(f, "(\\{var}.{})", term)
-            }
-            LambdaTerm::App(term1, term2) => {
-                write!(f, "({} {})", term1, term2)
             }
         }
     }

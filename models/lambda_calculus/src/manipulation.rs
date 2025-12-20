@@ -178,60 +178,62 @@ pub mod parse {
 
     #[cfg(test)]
     mod tests {
+        use utils::TextCodec;
+
         use super::*;
         #[test]
         fn parse_test() {
             let code = "x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "[x]");
+            assert_eq!(format!("{}", term.print()), "[x]");
 
             let code = "(x)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "[x]");
+            assert_eq!(format!("{}", term.print()), "[x]");
 
             let code = " x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "[x]");
+            assert_eq!(format!("{}", term.print()), "[x]");
 
             let code = "\\x.x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "\\x.[x]");
+            assert_eq!(format!("{}", term.print()), "\\x.[x]");
 
             let code = "(\\x.x)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "\\x.[x]");
+            assert_eq!(format!("{}", term.print()), "\\x.[x]");
 
             let code = "(x y)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "([x] [y])");
+            assert_eq!(format!("{}", term.print()), "([x] [y])");
 
             let code = "x y";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "([x] [y])");
+            assert_eq!(format!("{}", term.print()), "([x] [y])");
 
             let code = "(x y z)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "(([x] [y]) [z])");
+            assert_eq!(format!("{}", term.print()), "(([x] [y]) [z])");
 
             let code = "x y z";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "(([x] [y]) [z])");
+            assert_eq!(format!("{}", term.print()), "(([x] [y]) [z])");
 
             let code = "(\\x.x y)";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "(\\x.[x] [y])");
+            assert_eq!(format!("{}", term.print()), "(\\x.[x] [y])");
 
             let code = "(\\x.x) y";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "(\\x.[x] [y])");
+            assert_eq!(format!("{}", term.print()), "(\\x.[x] [y])");
 
             let code = "(\\x. (x y))";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "\\x.([x] [y])");
+            assert_eq!(format!("{}", term.print()), "\\x.([x] [y])");
 
             let code = "\\ x y. x";
             let term = parse_lambda_read_to_end(code).unwrap();
-            assert_eq!(format!("{}", term), "\\x.\\y.[x]");
+            assert_eq!(format!("{}", term.print()), "\\x.\\y.[x]");
         }
     }
 }

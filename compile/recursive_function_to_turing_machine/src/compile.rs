@@ -3,14 +3,14 @@ use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
     use turing_machine::machine::{Sign, Tape};
-    use utils::number::*;
+    use utils::{number::*, parse::ParseTextCodec};
 
     fn partition() -> Sign {
-        "-".parse().unwrap()
+        "_".parse_tc().unwrap()
     }
 
     fn one() -> Sign {
-        "1".parse().unwrap()
+        "1".parse_tc().unwrap()
     }
 
     fn num_sings(num: Number) -> Vec<Sign> {

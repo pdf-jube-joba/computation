@@ -90,6 +90,6 @@ mod tests {
     fn parse_test() {
         let code = r"\x. \y. y";
         let e = LambdaTerm::parse(code).unwrap();
-        eprintln!("Parsed term: {}", e);
+        eprintln!("Parsed term: {}", e.print());
     }
 }

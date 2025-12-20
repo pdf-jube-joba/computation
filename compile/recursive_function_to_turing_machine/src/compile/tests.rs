@@ -1,5 +1,6 @@
 use turing_machine::machine::*;
 use utils::number::*;
+use utils::TextCodec;
 
 use crate::compile::projection::projection;
 
@@ -7,9 +8,9 @@ use crate::auxiliary::basic;
 use crate::compile::*;
 
 fn print_process(machine: &TuringMachineSet) {
-    let state_str = machine.now_state().to_string();
+    let state_str = machine.now_state().print();
     if state_str.contains("start") || state_str.contains("end") {
-        eprintln!("{}\n   {}", machine.now_state(), machine.now_tape());
+        eprintln!("{}\n   {}", machine.now_state().print(), machine.now_tape().print());
     }
 }
 
@@ -40,7 +41,7 @@ fn test_zero() {
     let mut machine = zero_builder.build(num_tape::write_usize(vec![])).unwrap();
     loop {
         let _ = machine.step(1);
-        eprintln!("{}", machine.now_tape());
+        eprintln!("{}", machine.now_tape().print());
         print_process(&machine);
         if machine.is_terminate() {
             break;

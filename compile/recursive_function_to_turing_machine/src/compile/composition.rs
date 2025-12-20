@@ -13,7 +13,7 @@ fn format(n: usize) -> TuringMachineBuilder {
     }
     let graph = GraphOfBuilder {
         name: format!("format_{n}"),
-        init_state: "start".parse().unwrap(),
+        init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             vec![basic::move_rights(n - 2)],
             vec![vec![basic::concat(), basic::move_left()]; n - 2]
@@ -38,7 +38,7 @@ pub fn composition(
     let num = inner_builder.len();
     let graph = GraphOfBuilder {
         name: "compose".to_string(),
-        init_state: "start".parse().unwrap(),
+        init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             vec![copy::n_times_iter(num)],
             inner_builder

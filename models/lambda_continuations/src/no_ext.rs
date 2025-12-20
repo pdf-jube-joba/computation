@@ -56,13 +56,7 @@ impl Step for Lam {
                         }
                     }
                 } else {
-                    Some(
-                        Lam::n_i(
-                            cond.step()?,
-                            *tcase,
-                            *fcase,
-                        ),
-                    )
+                    Some(Lam::n_i(cond.step()?, *tcase, *fcase))
                 }
             }
             Lam::Let { var, bind, body } => Some(Lam::n_a(Lam::n_l(var, *body), *bind)),
@@ -77,17 +71,31 @@ impl Step for Lam {
 
 pub fn print(t: &Lam) -> String {
     match t {
-        Lam::Var { var } => format!("{var}"),
-        Lam::Lam { var, body } => format!("fun {var} => {}", print(body)),
+        Lam::Var { var } => var.as_str().to_string(),
+        Lam::Lam { var, body } => format!("fun {} => {}", var.as_str(), print(body)),
         Lam::App { e1, e2 } => format!("({} {})", print(e1), print(e2)),
         Lam::Zero => "0".to_string(),
         Lam::Succ { succ } => format!("S {}", print(succ)),
         Lam::Pred { pred } => format!("P {}", print(pred)),
         Lam::IfZ { cond, tcase, fcase } => {
-            format!("if {} then {} else {}", print(cond), print(tcase), print(fcase))
+            format!(
+                "if {} then {} else {}",
+                print(cond),
+                print(tcase),
+                print(fcase)
+            )
         }
-        Lam::Let { var, bind, body } => format!("let {var} = {} in \n {}", print(bind), print(body)),
-        Lam::Rec { fix, var, body } => format!("rec {fix} {var} = {}", print(body)),
+        Lam::Let { var, bind, body } => {
+            format!(
+                "let {} = {} in \n {}",
+                var.as_str(),
+                print(bind),
+                print(body)
+            )
+        }
+        Lam::Rec { fix, var, body } => {
+            format!("rec {} {} = {}", fix.as_str(), var.as_str(), print(body))
+        }
     }
 }
 
@@ -99,25 +107,38 @@ mod tests {
     #[test]
     fn test_variables() {
         let l: Lam = bvar!("x");
-        assert_eq!(l.free_variables(), vec!["x".to_string()].into_iter().collect());
+        assert_eq!(
+            l.free_variables(),
+            vec!["x".to_string()].into_iter().collect()
+        );
         assert_eq!(l.bound_variables(), Default::default());
 
         let l: Lam = blam!("x", bvar!("x"));
         assert_eq!(l.free_variables(), Default::default());
-        assert_eq!(l.bound_variables(), vec!["x".to_string()].into_iter().collect());
+        assert_eq!(
+            l.bound_variables(),
+            vec!["x".to_string()].into_iter().collect()
+        );
 
         let l: Lam = blam!("x", bvar!("y"));
-        assert_eq!(l.free_variables(), vec!["y".to_string()].into_iter().collect());
-        assert_eq!(l.bound_variables(), vec!["x".to_string()].into_iter().collect());
+        assert_eq!(
+            l.free_variables(),
+            vec!["y".to_string()].into_iter().collect()
+        );
+        assert_eq!(
+            l.bound_variables(),
+            vec!["x".to_string()].into_iter().collect()
+        );
 
         let l: Lam = bapp!(bvar!("x"), blam!("x", bvar!("z")));
         assert_eq!(
             l.free_variables(),
-            vec!["x".to_string(), "z".to_string()]
-                .into_iter()
-                .collect()
+            vec!["x".to_string(), "z".to_string()].into_iter().collect()
         );
-        assert_eq!(l.bound_variables(), vec!["x".to_string()].into_iter().collect());
+        assert_eq!(
+            l.bound_variables(),
+            vec!["x".to_string()].into_iter().collect()
+        );
     }
 
     #[test]

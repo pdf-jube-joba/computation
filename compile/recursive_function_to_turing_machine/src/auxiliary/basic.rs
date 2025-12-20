@@ -2,10 +2,11 @@ use turing_machine::{
     machine::*,
     manipulation::{
         builder::TuringMachineBuilder,
-        code::parse_one_code_entry,
         graph_compose::{builder_composition, GraphOfBuilder},
     },
+    parse::parse_one_code_entry,
 };
+use utils::TextCodec;
 
 use crate::*;
 
@@ -23,8 +24,8 @@ pub fn id() -> TuringMachineBuilder {
 pub fn id_end(str: &str) -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new(&format!("id_{str}")).unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec![str.parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec![str.parse_tc().unwrap()])
         .code_new(
             vec![
                 format!("-, start, -, {str}, C"),
@@ -62,7 +63,7 @@ pub fn move_rights(n: usize) -> TuringMachineBuilder {
     } else {
         let graph = GraphOfBuilder {
             name: format!("moveR_{n}"),
-            init_state: "start".parse().unwrap(),
+            init_state: "start".parse_tc().unwrap(),
             assign_vertex_to_builder: vec![move_right(); n],
             assign_edge_to_state: series_edge_end_only(n - 1),
             acceptable: accept_end_only(n - 1),
@@ -85,7 +86,8 @@ pub fn move_left() -> TuringMachineBuilder {
             "1,  till, 1, till, L",
             "-,  till, -,  end, C",
         ],
-    }.into()
+    }
+    .into()
 }
 
 pub fn move_lefts(n: usize) -> TuringMachineBuilder {
@@ -94,7 +96,7 @@ pub fn move_lefts(n: usize) -> TuringMachineBuilder {
     } else {
         let graph = GraphOfBuilder {
             name: format!("moveL_{n}"),
-            init_state: "start".parse().unwrap(),
+            init_state: "start".parse_tc().unwrap(),
             assign_vertex_to_builder: vec![move_left(); n],
             assign_edge_to_state: series_edge_end_only(n - 1),
             acceptable: accept_end_only(n - 1),
@@ -112,8 +114,8 @@ pub fn bor1orbar() -> TuringMachineBuilder {
 pub fn putb() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("putB").unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
                 "-, start,  , end, C",
@@ -130,8 +132,8 @@ pub fn putb() -> TuringMachineBuilder {
 pub fn put1() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("put1").unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
                 "-, start, 1, end, C",
@@ -148,8 +150,8 @@ pub fn put1() -> TuringMachineBuilder {
 pub fn putbar() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("putbar").unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
                 " , start, -, end, C",
@@ -166,8 +168,8 @@ pub fn putbar() -> TuringMachineBuilder {
 pub fn right_one() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("rightone").unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
                 " , start,  , end, R",
@@ -184,8 +186,8 @@ pub fn right_one() -> TuringMachineBuilder {
 pub fn left_one() -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("leftone").unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
                 " , start,  , end, L",
@@ -203,14 +205,14 @@ pub fn left_one() -> TuringMachineBuilder {
 pub fn shift_left_to_right_fill(x: Sign) -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("shift_left_to_right_fill").unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
                 "-, start, -, putx, L",
-                &format!(" , putx, {x},  putb, L"),
-                &format!("1, putx, {x},  put1, L"),
-                &format!("-, putx, {x},   end, L"),
+                &format!(" , putx, {},  putb, L", x.print()),
+                &format!("1, putx, {},  put1, L", x.print()),
+                &format!("-, putx, {},   end, L", x.print()),
                 " ,  putb,  , putb, L",
                 "1,  putb,  , put1, L",
                 "-,  putb,  ,  end, L",
@@ -227,17 +229,18 @@ pub fn shift_left_to_right_fill(x: Sign) -> TuringMachineBuilder {
 
 // -yX1-...-Xn[-] を [y]X1-...-Xnx- にする
 pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new(&format!("shift_left_to_rights^{x}_{n}")).unwrap();
+    let mut builder =
+        TuringMachineBuilder::new(&format!("shift_left_to_rights^{}_{n}", x.print())).unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new({
             vec![
                 vec![
                     "-, start, -, put_x, L".to_string(),
-                    format!(" , put_x, {x},   put^1_b, L"),
-                    format!("1, put_x, {x},   put^1_1, L"),
-                    format!("-, put_x, {x}, put^2_bar, L"),
+                    format!(" , put_x, {},   put^1_b, L", x.print()),
+                    format!("1, put_x, {},   put^1_1, L", x.print()),
+                    format!("-, put_x, {}, put^2_bar, L", x.print()),
                 ],
                 (1..n)
                     .flat_map(|i| {
@@ -278,14 +281,14 @@ pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
 pub fn shift_right_to_left_fill(x: Sign) -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("shift_right_to_left_fill").unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
                 "-, start, -, putx, R",
-                &format!(" , putx, {x},  putb, R"),
-                &format!("1, putx, {x},  put1, R"),
-                &format!("-, putx, {x},   end, R"),
+                &format!(" , putx, {},  putb, R", x.print()),
+                &format!("1, putx, {},  put1, R", x.print()),
+                &format!("-, putx, {},   end, R", x.print()),
                 " ,  putb,  , putb, R",
                 "1,  putb,  , put1, R",
                 "-,  putb,  ,  end, R",
@@ -302,17 +305,18 @@ pub fn shift_right_to_left_fill(x: Sign) -> TuringMachineBuilder {
 
 // [-]X1-...-Xn- を -X1-...-Xn[x] にする
 pub fn shift_right_to_lefts(x: Sign, n: usize) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new(&format!("shift_right_to_lefts^{x}_{n}")).unwrap();
+    let mut builder =
+        TuringMachineBuilder::new(&format!("shift_right_to_lefts^{}_{n}", x.print())).unwrap();
     builder
-        .init_state("start".parse().unwrap())
-        .accepted_state(vec!["end".parse().unwrap()])
+        .init_state("start".parse_tc().unwrap())
+        .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new({
             vec![
                 vec![
                     "-, start, -, put_x, R".to_string(),
-                    format!(" , put_x, {x},   put^1_b, R"),
-                    format!("1, put_x, {x},   put^1_1, R"),
-                    format!("-, put_x, {x}, put^2_bar, R"),
+                    format!(" , put_x, {},   put^1_b, R", x.print()),
+                    format!("1, put_x, {},   put^1_1, R", x.print()),
+                    format!("-, put_x, {}, put^2_bar, R", x.print()),
                 ],
                 (1..n)
                     .flat_map(|i| {
@@ -352,7 +356,7 @@ pub fn shift_right_to_lefts(x: Sign, n: usize) -> TuringMachineBuilder {
 pub fn annihilate() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "annihilate".to_string(),
-        init_state: "start".parse().unwrap(),
+        init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             move_right(),
             putb(),
@@ -364,15 +368,15 @@ pub fn annihilate() -> TuringMachineBuilder {
             left_one(),
         ],
         assign_edge_to_state: vec![
-            ((0, 1), "end".parse().unwrap()),
-            ((1, 2), "end".parse().unwrap()),
-            ((2, 3), "end".parse().unwrap()),
-            ((3, 4), "end1".parse().unwrap()),
-            ((3, 4), "endB".parse().unwrap()),
-            ((3, 5), "endbar".parse().unwrap()),
-            ((4, 2), "end".parse().unwrap()),
-            ((5, 6), "end".parse().unwrap()),
-            ((6, 7), "end".parse().unwrap()),
+            ((0, 1), "end".parse_tc().unwrap()),
+            ((1, 2), "end".parse_tc().unwrap()),
+            ((2, 3), "end".parse_tc().unwrap()),
+            ((3, 4), "end1".parse_tc().unwrap()),
+            ((3, 4), "endB".parse_tc().unwrap()),
+            ((3, 5), "endbar".parse_tc().unwrap()),
+            ((4, 2), "end".parse_tc().unwrap()),
+            ((5, 6), "end".parse_tc().unwrap()),
+            ((6, 7), "end".parse_tc().unwrap()),
         ]
         .into_iter()
         .collect(),
@@ -384,10 +388,10 @@ pub fn annihilate() -> TuringMachineBuilder {
 pub fn concat() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "concat".to_string(),
-        init_state: "start".parse().unwrap(),
+        init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             move_rights(2),
-            shift_left_to_right_fill("-".parse().unwrap()),
+            shift_left_to_right_fill("-".parse_tc().unwrap()),
             move_rights(2),
             putb(),
             move_lefts(2), // 16
@@ -403,7 +407,7 @@ pub fn concat() -> TuringMachineBuilder {
 pub fn is_tuple_zero() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "is_first_of_tuple_zero".to_string(),
-        init_state: "start".parse().unwrap(),
+        init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             right_one(), // 0
             bor1orbar(),
@@ -419,20 +423,20 @@ pub fn is_tuple_zero() -> TuringMachineBuilder {
             id_end("endT"), // 11
         ],
         assign_edge_to_state: vec![
-            ((0, 1), "end".parse().unwrap()),
-            ((1, 2), "end1".parse().unwrap()),
-            ((1, 9), "endbar".parse().unwrap()),
-            ((1, 3), "endB".parse().unwrap()),
-            ((2, 9), "end".parse().unwrap()),
-            ((9, 11), "end".parse().unwrap()),
-            ((3, 4), "end".parse().unwrap()),
-            ((4, 5), "end1".parse().unwrap()),
-            ((4, 7), "endbar".parse().unwrap()),
-            ((4, 7), "endB".parse().unwrap()),
-            ((5, 6), "end".parse().unwrap()),
-            ((6, 10), "end".parse().unwrap()),
-            ((7, 8), "end".parse().unwrap()),
-            ((8, 11), "end".parse().unwrap()),
+            ((0, 1), "end".parse_tc().unwrap()),
+            ((1, 2), "end1".parse_tc().unwrap()),
+            ((1, 9), "endbar".parse_tc().unwrap()),
+            ((1, 3), "endB".parse_tc().unwrap()),
+            ((2, 9), "end".parse_tc().unwrap()),
+            ((9, 11), "end".parse_tc().unwrap()),
+            ((3, 4), "end".parse_tc().unwrap()),
+            ((4, 5), "end1".parse_tc().unwrap()),
+            ((4, 7), "endbar".parse_tc().unwrap()),
+            ((4, 7), "endB".parse_tc().unwrap()),
+            ((5, 6), "end".parse_tc().unwrap()),
+            ((6, 10), "end".parse_tc().unwrap()),
+            ((7, 8), "end".parse_tc().unwrap()),
+            ((8, 11), "end".parse_tc().unwrap()),
         ],
         acceptable: vec![
             vec![],
@@ -445,8 +449,8 @@ pub fn is_tuple_zero() -> TuringMachineBuilder {
             vec![],
             vec![],
             vec![],
-            vec!["endF".parse().unwrap()],
-            vec!["endT".parse().unwrap()],
+            vec!["endF".parse_tc().unwrap()],
+            vec!["endT".parse_tc().unwrap()],
         ],
     };
     builder_composition(graph).unwrap()
@@ -469,8 +473,8 @@ mod tests {
         let _ = putbar();
         let _ = right_one();
         let _ = left_one();
-        let _ = shift_left_to_right_fill("-".parse().unwrap());
-        let _ = shift_right_to_left_fill("-".parse().unwrap());
+        let _ = shift_left_to_right_fill("-".parse_tc().unwrap());
+        let _ = shift_right_to_left_fill("-".parse_tc().unwrap());
         let _ = annihilate();
         let _ = concat();
     }
@@ -481,12 +485,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-", "-"]),
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 0),
@@ -495,12 +499,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "-", "-"]),
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "-", "-"]), 0),
@@ -509,12 +513,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "-", "", "-"]),
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "-", "", "-"]), 0),
@@ -523,12 +527,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "1", "", "1", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "1", "-"]), 0),
@@ -539,13 +543,13 @@ mod tests {
     }
     #[test]
     fn shift_left_to_right_fill_test() {
-        let mut builder = shift_left_to_right_fill("-".parse().unwrap());
+        let mut builder = shift_left_to_right_fill("-".parse_tc().unwrap());
         let tests = vec![
             // `[-][ ]{-}` -> `[ ]{-}[-]`
             // (
             //     // Tape {
             //     //     left: vec_sign(vec!["-", ""]),
-            //     //     head: "-".parse().unwrap(),
+            //     //     head: "-".parse_tc().unwrap(),
             //     //     right: vec![],
             //     // },
             //     // Tape {
@@ -559,12 +563,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec_sign(vec!["-", "-"]),
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec![],
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 2),
@@ -573,7 +577,7 @@ mod tests {
             (
                 // Tape {
                 //     left: vec_sign(vec!["", "1", "1", "-", ""]),
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec![],
                 // },
                 // Tape {
@@ -589,17 +593,17 @@ mod tests {
     }
     #[test]
     fn shift_left_to_rights_test() {
-        let mut builder = shift_left_to_rights("1".parse().unwrap(), 3);
+        let mut builder = shift_left_to_rights("1".parse_tc().unwrap(), 3);
         let tests = vec![
             (
                 // Tape {
                 //     left: vec_sign(vec!["-", "-", "-"]),
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec![],
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-", "1", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "-", "-", "-"]), 3),
@@ -608,12 +612,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec_sign(vec!["", "-", "1", "-", "1", "-"]),
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec![],
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "1".parse().unwrap(),
+                //     head: "1".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-", "1", "-", "", "1", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["", "-", "1", "-", "1", "-", "-"]), 6),
@@ -624,17 +628,17 @@ mod tests {
     }
     #[test]
     fn shift_right_to_lefts_test() {
-        let mut builder = shift_right_to_lefts("1".parse().unwrap(), 3);
+        let mut builder = shift_right_to_lefts("1".parse_tc().unwrap(), 3);
         let tests = vec![
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-", "-", "-"]),
                 // },
                 // Tape {
                 //     left: vec_sign(vec!["-", "1", "-"]),
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec![],
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "-", "-", "-"]), 0),
@@ -643,12 +647,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "-", "1", "-", "1", "-"]),
                 // },
                 // Tape {
                 //     left: vec_sign(vec!["-", "1", "-", "", "1", "-"]),
-                //     head: "1".parse().unwrap(),
+                //     head: "1".parse_tc().unwrap(),
                 //     right: vec![],
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "-", "1", "-", "1", "-"]), 0),
@@ -664,12 +668,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "1", "1", "-"]),
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "-"]), 0),
@@ -678,12 +682,12 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "1", "", "1", "", "", "1", "-"]),
                 // },
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "1", "", "1", "", "", "1", "-"]), 0),
@@ -699,38 +703,38 @@ mod tests {
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
-                "endT".parse().unwrap(),
+                "endT".parse_tc().unwrap(),
             ),
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "-"]), 0),
-                "endT".parse().unwrap(),
+                "endT".parse_tc().unwrap(),
             ),
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "", "1", "-"]), 0),
-                "endF".parse().unwrap(),
+                "endF".parse_tc().unwrap(),
             ),
             (
                 // Tape {
                 //     left: vec![],
-                //     head: "-".parse().unwrap(),
+                //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "", "1", "-"]),
                 // },
                 Tape::from_vec(vec_sign(vec!["-", "", "", "1", "-"]), 0),
-                "endT".parse().unwrap(),
+                "endT".parse_tc().unwrap(),
             ),
         ];
         builder_test_predicate(&mut builder, 100, tests);

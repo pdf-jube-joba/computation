@@ -1,11 +1,11 @@
 use serde::Serialize;
 use utils::number::Number;
-use utils::variable::VarStr;
+use utils::alphabet::Alphabet;
 use utils::{Machine, TextCodec};
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct Environment {
-    pub env: Vec<(VarStr, Number)>,
+    pub env: Vec<(Alphabet, Number)>,
 }
 
 impl Environment {
@@ -13,14 +13,14 @@ impl Environment {
         Environment { env: vec![] }
     }
 
-    pub fn get(&self, var: &VarStr) -> Number {
+    pub fn get(&self, var: &Alphabet) -> Number {
         self.env
             .iter()
             .find_map(|(v, num)| if v == var { Some(num.clone()) } else { None })
             .unwrap_or_default()
     }
 
-    pub fn write(&mut self, var: &VarStr, num: Number) {
+    pub fn write(&mut self, var: &Alphabet, num: Number) {
         if let Some((_, existing_num)) = self.env.iter_mut().find(|(v, _)| v == var) {
             *existing_num = num;
         } else {
@@ -45,7 +45,7 @@ impl TextCodec for Environment {
 
 impl PartialEq for Environment {
     fn eq(&self, other: &Self) -> bool {
-        let mut all_vars: Vec<VarStr> = self
+        let mut all_vars: Vec<Alphabet> = self
             .env
             .iter()
             .map(|(v, _)| v.clone())
@@ -57,19 +57,19 @@ impl PartialEq for Environment {
     }
 }
 
-impl From<Vec<(VarStr, Number)>> for Environment {
-    fn from(value: Vec<(VarStr, Number)>) -> Self {
+impl From<Vec<(Alphabet, Number)>> for Environment {
+    fn from(value: Vec<(Alphabet, Number)>) -> Self {
         Environment { env: value }
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub enum Command {
-    Clr(VarStr),
-    Inc(VarStr),
-    Dec(VarStr),
-    Cpy(VarStr, VarStr),
-    Ifnz(VarStr, Number),
+    Clr(Alphabet),
+    Inc(Alphabet),
+    Dec(Alphabet),
+    Cpy(Alphabet, Alphabet),
+    Ifnz(Alphabet, Number),
 }
 
 #[derive(Debug, Clone, Serialize)]

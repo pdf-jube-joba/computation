@@ -1,4 +1,4 @@
-use std::{fmt::{Debug, Display}, rc::Rc};
+use std::{fmt::Debug, rc::Rc};
 
 use serde::Serialize;
 
@@ -11,7 +11,12 @@ pub struct Var(Rc<str>);
 
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Var({})[{:#x}]", self.as_str(), Rc::as_ptr(&self.0).addr())
+        write!(
+            f,
+            "Var({})[{:#x}]",
+            self.as_str(),
+            Rc::as_ptr(&self.0).addr()
+        )
     }
 }
 
@@ -49,12 +54,6 @@ where
     }
 }
 
-impl Display for Var {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 impl PartialEq for Var {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
@@ -88,22 +87,5 @@ impl From<&Var> for VarView {
             name: var.as_str().to_string(),
             ptr,
         }
-    }
-}
-
-// variable for string representation
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
-pub struct VarStr(String);
-
-impl VarStr {
-    pub fn new<T>(s: T) -> Self
-    where
-        T: AsRef<str>,
-    {
-        VarStr(s.as_ref().to_string())
-    }
-    // no implementation for dummy variable, as string representation should be unique
-    pub fn as_str(&self) -> &str {
-        &self.0
     }
 }

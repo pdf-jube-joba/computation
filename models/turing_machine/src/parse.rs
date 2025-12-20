@@ -89,23 +89,24 @@ impl TextCodec for State {
     }
 }
 
+pub fn parse_one_code_entry(code: &str) -> Result<CodeEntry, String> {
+    let v: Vec<_> = code.split(',').collect();
+    if v.len() < 5 {
+        return Err(format!("Invalid code entry: {}", code));
+    }
+    // .trim() で parse 用に成形する
+    Ok((
+        (v[0].trim().parse_tc()?, v[1].trim().parse_tc()?),
+        (
+            v[2].trim().parse_tc()?,
+            v[3].trim().parse_tc()?,
+            v[4].trim().parse_tc()?,
+        ),
+    ))
+}
+
 impl TextCodec for TuringMachineDefinition {
     fn parse(text: &str) -> Result<Self, String> {
-        fn parse_one_code_entry(code: &str) -> Result<CodeEntry, String> {
-            let v: Vec<_> = code.split(',').collect();
-            if v.len() < 5 {
-                return Err(format!("Invalid code entry: {}", code));
-            }
-            // .trim() で parse 用に成形する
-            Ok((
-                (v[0].trim().parse_tc()?, v[1].trim().parse_tc()?),
-                (
-                    v[2].trim().parse_tc()?,
-                    v[3].trim().parse_tc()?,
-                    v[4].trim().parse_tc()?,
-                ),
-            ))
-        }
 
         let mut lines = text.lines();
 

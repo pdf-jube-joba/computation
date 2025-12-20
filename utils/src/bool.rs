@@ -1,8 +1,6 @@
-use std::{
-    fmt::Display,
-    ops::{BitAnd, BitOr, Not},
-    str::FromStr,
-};
+use std::ops::{BitAnd, BitOr, Not};
+
+use crate::TextCodec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Bool {
@@ -41,31 +39,28 @@ impl BitOr for Bool {
     }
 }
 
-impl FromStr for Bool {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "T" => Ok(Bool::T),
-            "F" => Ok(Bool::F),
-            _ => Err(anyhow::anyhow!("fail to parse {s}")),
-        }
-    }
-}
-
-impl Display for Bool {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Bool::T => write!(f, "T"),
-            Bool::F => write!(f, "F"),
-        }
-    }
-}
-
 impl From<Bool> for bool {
     fn from(b: Bool) -> Self {
         match b {
             Bool::T => true,
             Bool::F => false,
+        }
+    }
+}
+
+impl TextCodec for Bool {
+    fn parse(text: &str) -> Result<Self, String> {
+        match text.trim() {
+            "T" | "true" | "1" => Ok(Bool::T),
+            "F" | "false" | "0" => Ok(Bool::F),
+            other => Err(format!("Invalid boolean text: {}", other)),
+        }
+    }
+
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        match self {
+            Bool::T => write!(f, "T"),
+            Bool::F => write!(f, "F"),
         }
     }
 }

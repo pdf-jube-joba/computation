@@ -313,11 +313,12 @@ impl Compiler for Rec2LamCompiler {
 #[cfg(test)]
 mod tests {
     use lambda_calculus::machine::{alpha_eq, mark_redex, step, unmark_redex};
+    use utils::TextCodec;
 
     fn normalize(term: &LambdaTerm, limit: usize) -> LambdaTerm {
         let mut marked = mark_redex(term);
         for _ in 0..limit {
-            eprintln!("marked: {}", unmark_redex(marked.clone()));
+            eprintln!("marked: {}", unmark_redex(marked.clone()).print());
             if let Some(next) = step(&marked, 0) {
                 marked = mark_redex(&next);
             } else {
@@ -333,10 +334,10 @@ mod tests {
         let f = Var::from("f_test");
         let y = y_combinator();
         let applied = app(y.clone(), f.into());
-        eprintln!("applied: {}", applied);
+        eprintln!("applied: {}", applied.print());
         let mut marked = mark_redex(&applied);
         for _ in 0..5 {
-            eprintln!("marked: {}", unmark_redex(marked.clone()));
+            eprintln!("marked: {}", unmark_redex(marked.clone()).print());
             if let Some(next) = step(&marked, 0) {
                 marked = mark_redex(&next);
             } else {
@@ -351,14 +352,14 @@ mod tests {
         for i in 0..3 {
             let i_exp = number_to_lambda_term(i.into());
             let applied = app(is_zero_exp.clone(), i_exp);
-            eprintln!("applied: {}", applied);
+            eprintln!("applied: {}", applied.print());
             let normalized = normalize(&applied, 100);
             let expected = if i == 0 {
                 true_lambda()
             } else {
                 false_lambda()
             };
-            eprintln!("expected: {}", expected);
+            eprintln!("expected: {}", expected.print());
             assert!(alpha_eq(&normalized, &expected))
         }
 
@@ -367,10 +368,10 @@ mod tests {
         for i in 0..4 {
             let i_exp = number_to_lambda_term(i.into());
             let applied = app(succ_exp.clone(), i_exp);
-            eprintln!("applied: {}", applied);
+            eprintln!("applied: {}", applied.print());
             let normalized = normalize(&applied, 100);
             let expected = number_to_lambda_term((i + 1).into());
-            eprintln!("expected: {}", expected);
+            eprintln!("expected: {}", expected.print());
             assert!(alpha_eq(&normalized, &expected))
         }
 
@@ -380,10 +381,10 @@ mod tests {
         for i in 0..4 {
             let i_exp = number_to_lambda_term(i.into());
             let applied = app(pred_exp.clone(), i_exp);
-            eprintln!("applied: {}", applied);
+            eprintln!("applied: {}", applied.print());
             let normalized = normalize(&applied, 100);
             let expected = number_to_lambda_term((if i == 0 { 0 } else { i - 1 }).into());
-            eprintln!("expected: {}", expected);
+            eprintln!("expected: {}", expected.print());
             assert!(alpha_eq(&normalized, &expected))
         }
     }
@@ -398,20 +399,20 @@ mod tests {
         // THIS 0 = f
         let e_app0 = app(e.clone(), number_to_lambda_term(0.into()));
         let normal = normalize(&e_app0, 200);
-        eprintln!("normalized: {}", normal);
+        eprintln!("normalized: {}", normal.print());
         let expected = v(&f);
-        eprintln!("expected: {}", expected);
+        eprintln!("expected: {}", expected.print());
         assert!(alpha_eq(&normal, &expected));
 
         // THIS 1 = g (THIS 0) 0 = g f 0
         let e_app1 = app(e.clone(), number_to_lambda_term(1.into()));
         let normal = normalize(&e_app1, 200);
-        eprintln!("normalized: {}", normal);
+        eprintln!("normalized: {}", normal.print());
 
         // THIS 2 = g (THIS 1) 1 = g (g f 0) 1
         let e_app1 = app(e.clone(), number_to_lambda_term(2.into()));
         let normal = normalize(&e_app1, 200);
-        eprintln!("normalized: {}", normal);
+        eprintln!("normalized: {}", normal.print());
     }
     #[test]
     fn compile_test() {
@@ -427,10 +428,10 @@ mod tests {
             v.extend(arg);
             v
         });
-        eprintln!("applied: {}", applied);
+        eprintln!("applied: {}", applied.print());
         let normalized = normalize(&applied, 200);
         let expected = number_to_lambda_term(2.into());
-        eprintln!("expected: {}", expected);
+        eprintln!("expected: {}", expected.print());
         assert!(alpha_eq(&normalized, &expected))
     }
 }
