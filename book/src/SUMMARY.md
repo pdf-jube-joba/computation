@@ -31,10 +31,10 @@
 # プログラムの構造化とコンパイル
 - [プログラムの構造化とコンパイル](./structured_programming/_structured_programming.md)
 - [ラベルとか名前の追加](./structured_programming/add_name.md)
-- [変数の無限化と式の追加]
-- [制御構造をいろいろ]()
-- [手続きとスコープ]()
-- [メモリの区別のための型]()
+- [変数の無限化](./structured_programming/variable.md)
+- [式と制御構造](./structured_programming/expr.md)
+- [手続きとスコープ](./structured_programming/procedure.md)
+- [メモリの区別のための型](./structured_programming/data.md)
 
 # 型システム
 - [単純型付きラムダ計算]()

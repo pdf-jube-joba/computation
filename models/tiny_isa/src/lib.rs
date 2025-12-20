@@ -100,6 +100,12 @@ pub enum Instruction {
         rs: Register,
         imm: Number,
     },
+    // if rd < rs then pc <-- pc - imm
+    JLtRelBack {
+        rd: Register,
+        rs: Register,
+        imm: Number,
+    },
 }
 
 #[derive(Clone, Serialize)]
@@ -190,6 +196,13 @@ pub fn decode_instruction(n: Number) -> Result<Instruction, String> {
             let rs = decode_register(op_reg2)?;
             let imm = remain;
             Ok(Instruction::JltRel { rd, rs, imm })
+        }
+        // JLtRelback
+        0xE => {
+            let rd = decode_register(op_reg1)?;
+            let rs = decode_register(op_reg2)?;
+            let imm = remain;
+            Ok(Instruction::JLtRelBack { rd, rs, imm })
         }
         _ => Err(format!("invalid opcode: {}", op)),
     }
@@ -295,6 +308,15 @@ pub fn encode_instruction(inst: &Instruction) -> Number {
         }
         Instruction::JltRel { rd, rs, imm } => {
             let opcode: u8 = 0xD << 4;
+            let reg1_code = encode_register(rd) << 2;
+            let reg2_code = encode_register(rs);
+            let first_byte = opcode | reg1_code | reg2_code;
+            bytes.push(first_byte);
+            bytes.extend(imm.as_u8array());
+            Number::from_u8array(&bytes)
+        }
+        Instruction::JLtRelBack { rd, rs, imm } => {
+            let opcode: u8 = 0xE << 4;
             let reg1_code = encode_register(rd) << 2;
             let reg2_code = encode_register(rs);
             let first_byte = opcode | reg1_code | reg2_code;
@@ -453,6 +475,14 @@ impl Machine for Environment {
                 // If the value in one register is less than another, jump relative by the immediate value
                 if self.registers[which_register(rd)] < self.registers[which_register(rs)] {
                     self.pc += imm;
+                } else {
+                    self.pc += 1;
+                }
+            }
+            Instruction::JLtRelBack { rd, rs, imm } => {
+                // If the value in one register is less than another, jump back relative by the immediate value
+                if self.registers[which_register(rd)] < self.registers[which_register(rs)] {
+                    self.pc -= imm;
                 } else {
                     self.pc += 1;
                 }
