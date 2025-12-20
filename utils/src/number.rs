@@ -30,6 +30,9 @@ impl Number {
     pub fn as_u8array(&self) -> &[u8] {
         &self.0
     }
+    pub fn from_u8array(arr: &[u8]) -> Self {
+        Number(arr.to_vec())
+    }
 }
 
 impl From<usize> for Number {
