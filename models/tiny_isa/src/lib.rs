@@ -28,6 +28,15 @@ fn encode_register(reg: &Register) -> u8 {
     }
 }
 
+fn which_register(n: Register) -> usize {
+    match n {
+        Register::R0 => 0,
+        Register::R1 => 1,
+        Register::R2 => 2,
+        Register::R3 => 3,
+    }
+}
+
 // Number is "natural number", there is no limit
 // first byte is opcode (4 bit) + u8 arguments (4 bit)
 // following bytes are Number arguments
@@ -83,6 +92,7 @@ pub enum Instruction {
 
 #[derive(Clone, Serialize)]
 pub struct Environment {
+    pub code_len: Number,
     pub memory: Vec<Number>,
     pub registers: [Number; 4], // 2^2 registers
     pub pc: Number,
@@ -169,16 +179,79 @@ pub fn encode_instruction(inst: &Instruction) -> Number {
             bytes.extend(imm.as_u8array());
             Number::from_u8array(&bytes)
         }
-        Instruction::Load { rd, addr } => todo!(),
-        Instruction::Store { rs, addr } => todo!(),
-        Instruction::Mov { rd, rs } => todo!(),
-        Instruction::Add { rd, rs } => todo!(),
-        Instruction::Sub { rd, rs } => todo!(),
-        Instruction::JmpReg { rd } => todo!(),
-        Instruction::JmpRel { imm } => todo!(),
-        Instruction::JltRel { rd, rs, imm } => todo!(),
-        Instruction::Halt => todo!(),
-        Instruction::Nop => todo!(),
+        Instruction::Load { rd, addr } => {
+            let opcode: u8 = 0x3 << 4;
+            let reg_code = encode_register(rd) << 2;
+            let first_byte = opcode | reg_code;
+            bytes.push(first_byte);
+            bytes.extend(addr.as_u8array());
+            Number::from_u8array(&bytes)
+        }
+        Instruction::Store { rs, addr } => {
+            let opcode: u8 = 0x4 << 4;
+            let reg_code = encode_register(rs) << 2;
+            let first_byte = opcode | reg_code;
+            bytes.push(first_byte);
+            bytes.extend(addr.as_u8array());
+            Number::from_u8array(&bytes)
+        }
+        Instruction::Mov { rd, rs } => {
+            let opcode: u8 = 0x5 << 4;
+            let reg1_code = encode_register(rd) << 2;
+            let reg2_code = encode_register(rs);
+            let first_byte = opcode | reg1_code | reg2_code;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::Add { rd, rs } => {
+            let opcode: u8 = 0x6 << 4;
+            let reg1_code = encode_register(rd) << 2;
+            let reg2_code = encode_register(rs);
+            let first_byte = opcode | reg1_code | reg2_code;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::Sub { rd, rs } => {
+            let opcode: u8 = 0x7 << 4;
+            let reg1_code = encode_register(rd) << 2;
+            let reg2_code = encode_register(rs);
+            let first_byte = opcode | reg1_code | reg2_code;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::JmpReg { rd } => {
+            let opcode: u8 = 0x8 << 4;
+            let reg_code = encode_register(rd) << 2;
+            let first_byte = opcode | reg_code;
+            bytes.push(first_byte);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::JmpRel { imm } => {
+            let opcode: u8 = 0x9 << 4;
+            let first_byte = opcode;
+            bytes.push(first_byte);
+            bytes.extend(imm.as_u8array());
+            Number::from_u8array(&bytes)
+        }
+        Instruction::JltRel { rd, rs, imm } => {
+            let opcode: u8 = 0xA << 4;
+            let reg1_code = encode_register(rd) << 2;
+            let reg2_code = encode_register(rs);
+            let first_byte = opcode | reg1_code | reg2_code;
+            bytes.push(first_byte);
+            bytes.extend(imm.as_u8array());
+            Number::from_u8array(&bytes)
+        }
+        Instruction::Halt => {
+            let opcode: u8 = 0x0 << 4;
+            bytes.push(opcode);
+            Number::from_u8array(&bytes)
+        }
+        Instruction::Nop => {
+            let opcode: u8 = 0x1 << 4;
+            bytes.push(opcode);
+            Number::from_u8array(&bytes)
+        }
     }
 }
 
@@ -229,24 +302,105 @@ impl TextCodec for Code {
 
 impl Machine for Environment {
     type Code = Code;
-
-    type AInput = ();
-
+    type AInput = Vec<Number>;
     type SnapShot = Environment;
-
     type RInput = ();
-
-    type Output = ();
+    type Output = Vec<Number>;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
-        todo!()
+        let mut array: Vec<Number> = vec![];
+        array.extend(code.0.iter().map(encode_instruction));
+        array.extend(ainput);
+        Ok(Environment {
+            code_len: code.0.len().into(),
+            memory: array,
+            registers: std::array::from_fn(|_| 0.into()),
+            pc: 0.into(),
+        })
     }
 
-    fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        todo!()
+    fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
+        // fetch instruction
+        let pc_usize = self.pc.as_usize();
+        if pc_usize >= self.memory.len() {
+            return Err("PC out of bounds".to_string());
+        }
+        let inst_n = self.memory[pc_usize].clone();
+        let inst = decode_instruction(inst_n)?;
+
+        // execute instruction
+        match inst {
+            Instruction::Halt => {
+                return Ok(Some(vec![]));
+            }
+            Instruction::Nop => {
+                self.pc += 1;
+            }
+            Instruction::LoadImm { rd, imm } => {
+                let rd_index = which_register(rd);
+                self.registers[rd_index] = imm;
+                self.pc += 1;
+            }
+            Instruction::Load { rd, addr } => {
+                let rd_index = which_register(rd);
+                let addr_usize = addr.as_usize();
+                if addr_usize >= self.memory.len() {
+                    return Err("Memory address out of bounds".to_string());
+                }
+                self.registers[rd_index] = self.memory[addr_usize].clone();
+                self.pc += 1;
+            }
+            Instruction::Store { rs, addr } => {
+                let rs_index = which_register(rs);
+                let addr_usize = addr.as_usize();
+                if addr_usize >= self.memory.len() {
+                    return Err("Memory address out of bounds".to_string());
+                }
+                self.memory[addr_usize] = self.registers[rs_index].clone();
+                self.pc += 1;
+            }
+            Instruction::Mov { rd, rs } => {
+                let rd_index = which_register(rd);
+                let rs_index = which_register(rs);
+                self.registers[rd_index] = self.registers[rs_index].clone();
+                self.pc += 1;
+            }
+            Instruction::Add { rd, rs } => {
+                let rd_index = which_register(rd);
+                let rs_index = which_register(rs);
+                self.registers[rd_index] =
+                    self.registers[rd_index].clone() + self.registers[rs_index].clone();
+                self.pc += 1;
+            }
+            Instruction::Sub { rd, rs } => {
+                let rd_index = which_register(rd);
+                let rs_index = which_register(rs);
+                self.registers[rd_index] =
+                    self.registers[rd_index].clone() - self.registers[rs_index].clone();
+                self.pc += 1;
+            }
+            Instruction::JmpReg { rd } => {
+                let rd_index = which_register(rd);
+                self.pc = self.registers[rd_index].clone();
+            }
+            Instruction::JmpRel { imm } => {
+                self.pc += imm;
+            }
+            Instruction::JltRel { rd, rs, imm } => {
+                let rd_index = which_register(rd);
+                let rs_index = which_register(rs);
+                if self.registers[rd_index] < self.registers[rs_index] {
+                    self.pc += imm;
+                } else {
+                    self.pc += 1;
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     fn current(&self) -> Self::SnapShot {
-        todo!()
+        self.clone()
     }
 }
