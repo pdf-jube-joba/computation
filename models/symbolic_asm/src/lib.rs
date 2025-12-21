@@ -247,9 +247,9 @@ impl TextCodec for ImR {
 }
 
 #[derive(Clone, Serialize)]
-pub struct Code(Vec<(Label, Vec<ImR>)>);
+pub struct Text(Vec<(Label, Vec<ImR>)>);
 
-impl TextCodec for Code {
+impl TextCodec for Text {
     fn parse(text: &str) -> Result<Self, String> {
         let mut code = vec![];
         let mut lines = text
@@ -282,7 +282,7 @@ impl TextCodec for Code {
         }
 
         code.push((current_label, v));
-        Ok(Code(code))
+        Ok(Text(code))
     }
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
@@ -296,7 +296,7 @@ impl TextCodec for Code {
     }
 }
 
-impl Code {
+impl Text {
     fn get_addr_from_label(&self, label: Label) -> Result<Number, String> {
         let mut addr = 0;
         for (lbl, instrs) in &self.0 {
@@ -310,9 +310,9 @@ impl Code {
 }
 
 #[derive(Clone, Serialize)]
-pub struct Dat(Vec<(Label, Number)>);
+pub struct Data(Vec<(Label, Number)>);
 
-impl TextCodec for Dat {
+impl TextCodec for Data {
     fn parse(text: &str) -> Result<Self, String> {
         let mut data = vec![];
 
@@ -334,7 +334,7 @@ impl TextCodec for Dat {
             let value = value_str.parse_tc()?;
             data.push((label, value));
         }
-        Ok(Dat(data))
+        Ok(Data(data))
     }
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
@@ -347,10 +347,11 @@ impl TextCodec for Dat {
 
 #[derive(Clone, Serialize)]
 pub struct Environment {
-    pub dat: Dat,
-    pub code: Code,
     pub registers: [Number; 4],
     pub pc: Number,
+    pub code: Text,
+    pub named_data: Data,
+    pub data: Vec<Number>,
 }
 
 impl Environment {
@@ -364,13 +365,16 @@ impl Environment {
     }
     fn get_data_mut_number(&mut self, addr: Number) -> Result<&mut Number, String> {
         let index = addr.as_usize();
-        if index >= self.dat.0.len() {
-            return Err("data address out of bounds".to_string());
+        if index < self.named_data.0.len() {
+            Ok(&mut self.named_data.0[index].1)
+        } else if index - self.named_data.0.len() < self.data.len() {
+            Ok(&mut self.data[index - self.named_data.0.len()])
+        } else {
+            Err("data address out of bounds".to_string())
         }
-        Ok(&mut self.dat.0[index].1)
     }
     fn get_data_mut_label(&mut self, label: Label) -> Result<&mut Number, String> {
-        for (lbl, value) in &mut self.dat.0 {
+        for (lbl, value) in &mut self.named_data.0 {
             if lbl.0 == label.0 {
                 return Ok(value);
             }
@@ -382,23 +386,58 @@ impl Environment {
 // we need to implement Machine for asm
 // i.e. we need to define semantics for this assembly language (independently from the VM)
 
+#[derive(Clone, Serialize)]
+pub struct Code {
+    pub code: Text,
+    pub dat: Data,
+}
+
+impl TextCodec for Code {
+    fn parse(text: &str) -> Result<Self, String> {
+        // ".data" and ".code" sections
+        let sections = text.split(".data").collect::<Vec<_>>();
+        if sections.len() != 2 {
+            return Err("input must contain .data section".to_string());
+        }
+        let data_and_code = sections[1];
+        let sections = data_and_code.split(".code").collect::<Vec<_>>();
+        if sections.len() != 2 {
+            return Err("input must contain .code section".to_string());
+        }
+        let data_section = sections[0];
+        let code_section = sections[1];
+        let dat = Data::parse(data_section)?;
+        let code = Text::parse(code_section)?;
+        Ok(Code { code, dat })
+    }
+
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        writeln!(f, ".data")?;
+        self.dat.write_fmt(f)?;
+        writeln!(f, ".code")?;
+        self.code.write_fmt(f)?;
+        Ok(())
+    }
+}
+
 impl Machine for Environment {
     type Code = Code;
 
-    type AInput = Dat;
+    type AInput = Vec<Number>;
 
     type SnapShot = Environment;
 
     type RInput = ();
 
-    type Output = Dat;
+    type Output = Vec<Number>;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         Ok(Environment {
-            dat: ainput,
-            code,
             registers: std::array::from_fn(|_| Number::from(0)),
             pc: Number::from(0),
+            code: code.code,
+            named_data: code.dat,
+            data: ainput,
         })
     }
 
@@ -415,7 +454,7 @@ impl Machine for Environment {
                 self.pc += 1;
                 Ok(None)
             }
-            ImR::Halt => Ok(Some(self.dat.clone())),
+            ImR::Halt => Ok(Some(self.data.clone())),
             ImR::LoadImm { dest, ref value } => {
                 *self.get_register_mut(dest) = value.clone();
                 self.pc += 1;
