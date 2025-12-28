@@ -51,13 +51,12 @@ export class SnapshotRenderer {
       this.metaLine.textContent = "state: (none)";
       return;
     }
-    const pc = this.coerceNumber(state.pc);
-    const pcText = this.formatNumber(state.pc);
-    const terminated = this.booleanFrom(state.is_terminated ?? (state.terminated ?? null));
-    const status = [];
-    status.push(`pc: ${pcText}`);
-    if (typeof state.commands === "object" && Array.isArray(state.commands)) {
-      status.push(`len: ${state.commands.length}`);
+    const pcText = formatNumber(state.pc, "?");
+    const terminated = booleanFrom(state.is_terminated ?? state.terminated ?? null);
+    const status = [`pc: ${pcText}`];
+    const commands = this.extractCommands(state);
+    if (commands.length) {
+      status.push(`len: ${commands.length}`);
     }
     if (terminated === true) {
       status.push("(terminated)");
@@ -68,14 +67,14 @@ export class SnapshotRenderer {
   renderCode(state) {
     if (!this.codeList) return;
     this.codeList.replaceChildren();
-    const commands = state && Array.isArray(state.commands) ? state.commands : [];
+    const commands = this.extractCommands(state);
     if (!commands.length) {
       const placeholder = document.createElement("li");
       placeholder.textContent = "(empty program)";
       this.codeList.appendChild(placeholder);
       return;
     }
-    const pc = this.coerceNumber(state && state.pc);
+    const pc = toIndex(state && state.pc, commands.length);
 
     commands.forEach((command, idx) => {
       const line = document.createElement("li");
@@ -93,8 +92,7 @@ export class SnapshotRenderer {
     while (this.envBody.firstChild) {
       this.envBody.removeChild(this.envBody.firstChild);
     }
-    const envEntries =
-      state && state.env && Array.isArray(state.env.env) ? state.env.env : [];
+    const envEntries = state && state.env && Array.isArray(state.env.env) ? state.env.env : [];
 
     if (!envEntries.length) {
       const row = this.envBody.insertRow();
@@ -108,16 +106,30 @@ export class SnapshotRenderer {
     envEntries.forEach(entry => {
       const [rawVar, rawValue] = Array.isArray(entry) ? entry : [null, null];
       const row = this.envBody.insertRow();
-      row.insertCell().textContent = rawVar ?? "";
+      row.insertCell().textContent = this.formatVar(rawVar);
       const valueCell = row.insertCell();
-      valueCell.textContent = this.formatNumber(rawValue, "");
+      valueCell.textContent = formatNumber(rawValue, "");
     });
   }
 
+  extractCommands(state) {
+    if (!state) return [];
+    const raw = state.commands;
+    if (Array.isArray(raw)) {
+      if (raw.length === 1 && Array.isArray(raw[0])) return raw[0];
+      return raw;
+    }
+    if (raw && typeof raw === "object") {
+      if (Array.isArray(raw[0])) return raw[0];
+      if (Array.isArray(raw["0"])) return raw["0"];
+    }
+    return [];
+  }
+
   describeCommand(command) {
-    const variant = this.extractVariant(command);
+    const variant = extractVariant(command);
     if (!variant) {
-      return this.safeStringify(command);
+      return safeStringify(command);
     }
     const { tag, value } = variant;
     switch (tag) {
@@ -128,134 +140,88 @@ export class SnapshotRenderer {
       case "Dec":
         return `dec ${this.formatVar(value)}`;
       case "Cpy": {
-        const [dst, src] = this.asTuple(value, 2);
+        const [dst, src] = asTuple(value, 2);
         return `cpy ${this.formatVar(dst)} <- ${this.formatVar(src)}`;
       }
       case "Ifnz": {
-        const [varName, target] = this.asTuple(value, 2);
-        return `ifnz ${this.formatVar(varName)} : ${this.formatNumber(target)}`;
+        const [varName, target] = asTuple(value, 2);
+        return `ifnz ${this.formatVar(varName)} : ${formatNumber(target, "?")}`;
       }
       default:
         return `[${tag}]`;
     }
   }
 
-  extractVariant(node) {
-    if (!node || typeof node !== "object") return null;
-    const keys = Object.keys(node);
-    if (keys.length !== 1) return null;
-    return { tag: keys[0], value: node[keys[0]] };
-  }
-
-  asTuple(value, len) {
-    if (Array.isArray(value) && value.length >= len) {
-      return value;
-    }
-    if (len === 1) {
-      return [value];
-    }
-    return Array(len).fill(undefined);
-  }
-
   formatVar(raw) {
     if (typeof raw === "string") {
       return raw;
     }
+    if (Array.isArray(raw) && typeof raw[0] === "string") {
+      return raw[0];
+    }
     if (raw == null) return "?";
     return String(raw);
   }
+}
 
-  coerceNumber(raw) {
-    if (typeof raw === "number" && Number.isFinite(raw)) {
-      return raw;
-    }
-    if (typeof raw === "bigint") {
-      return raw <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(raw) : undefined;
-    }
-    const bytes = this.extractBytes(raw);
-    if (bytes) {
-      const value = this.bytesToBigInt(bytes);
-      if (value <= BigInt(Number.MAX_SAFE_INTEGER)) {
-        return Number(value);
-      }
-      return undefined;
-    }
-    if (Array.isArray(raw) && raw.length === 1) {
-      return this.coerceNumber(raw[0]);
-    }
-    if (raw && typeof raw === "object") {
-      if ("Number" in raw) {
-        return this.coerceNumber(raw.Number);
-      }
-      if ("pc" in raw) {
-        return this.coerceNumber(raw.pc);
-      }
-    }
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
+function extractVariant(node) {
+  if (!node || typeof node !== "object") return null;
+  const keys = Object.keys(node);
+  if (keys.length !== 1) return null;
+  return { tag: keys[0], value: node[keys[0]] };
+}
 
-  formatNumber(raw, fallback = "?") {
-    const asNumber = this.coerceNumber(raw);
-    if (asNumber !== undefined) {
-      return String(asNumber);
-    }
-    const asBig = this.coerceBigInt(raw);
-    if (asBig !== undefined) {
-      return asBig.toString();
-    }
-    return fallback;
-  }
-
-  coerceBigInt(raw) {
-    if (typeof raw === "bigint") return raw;
-    const bytes = this.extractBytes(raw);
-    if (bytes) {
-      return this.bytesToBigInt(bytes);
-    }
-    return undefined;
-  }
-
-  extractBytes(raw) {
-    if (raw instanceof Uint8Array) {
-      return Array.from(raw);
-    }
-    if (raw instanceof ArrayBuffer) {
-      return Array.from(new Uint8Array(raw));
-    }
-    if (Array.isArray(raw) && raw.every(this.isByte)) {
-      return raw;
-    }
-    if (raw && typeof raw === "object" && raw.type === "Buffer" && Array.isArray(raw.data)) {
-      return raw.data;
-    }
-    return undefined;
-  }
-
-  isByte(value) {
-    return Number.isInteger(value) && value >= 0 && value <= 255;
-  }
-
-  bytesToBigInt(bytes) {
-    let value = 0n;
-    for (let i = bytes.length - 1; i >= 0; i -= 1) {
-      value = (value << 8n) + BigInt(bytes[i]);
-    }
+function asTuple(value, len) {
+  if (Array.isArray(value) && value.length >= len) {
     return value;
   }
-
-  booleanFrom(raw) {
-    if (typeof raw === "boolean") return raw;
-    if (raw === 1) return true;
-    if (raw === 0) return false;
-    return undefined;
+  if (len === 1) {
+    return [value];
   }
+  return Array(len).fill(undefined);
+}
 
-  safeStringify(value) {
+function formatNumber(raw, fallback) {
+  const big = toBigInt(raw);
+  return big == null ? fallback : big.toString(10);
+}
+
+function toIndex(raw, maxLen) {
+  const big = toBigInt(raw);
+  if (big == null || maxLen <= 0) return undefined;
+  if (big < 0n || big >= BigInt(maxLen)) return undefined;
+  return Number(big);
+}
+
+function toBigInt(raw) {
+  if (typeof raw === "bigint") return raw;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return BigInt(Math.trunc(raw));
+  }
+  if (typeof raw === "string" && raw.trim() !== "") {
     try {
-      return JSON.stringify(value);
+      return BigInt(raw);
     } catch (_) {
-      return String(value);
+      return null;
     }
+  }
+  if (raw && typeof raw === "object" && "Number" in raw) {
+    return toBigInt(raw.Number);
+  }
+  return null;
+}
+
+function booleanFrom(raw) {
+  if (typeof raw === "boolean") return raw;
+  if (raw === 1) return true;
+  if (raw === 0) return false;
+  return undefined;
+}
+
+function safeStringify(value) {
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return String(value);
   }
 }

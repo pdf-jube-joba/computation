@@ -27,15 +27,15 @@ export class SnapshotRenderer {
       return;
     }
 
-    const terminateFlag = state.output && state.output.terminate === true;
     const now = typeof state.now === "number" ? state.now : null;
+    const code = Array.isArray(state.code) ? state.code : [];
     const statusParts = [`state: ${state.state ?? "-"}`];
     if (now !== null) statusParts.push(`now: ${now}`);
-    if (terminateFlag) statusParts.push("(terminated)");
+    if (now !== null && now >= code.length) statusParts.push("(terminated)");
     this.statusDiv.textContent = statusParts.join(" | ");
 
     this.tapeDiv.textContent = formatTape(state.tape);
-    this.fillCodeTable(state.code || [], now);
+    this.fillCodeTable(code, now);
   }
 
   clearTableBody() {
@@ -69,16 +69,16 @@ function formatTape(tape) {
   if (!tape) return "(no tape)";
   const WINDOW = 7;
   const mid = Math.floor(WINDOW / 2);
-  const norm = c => {
-    const s = (c ?? "").toString();
-    return s.trim() === "" ? " " : s;
+  const norm = s => {
+    const text = signText(s);
+    return text.trim() === "" ? " " : text;
   };
   const left = Array.isArray(tape.left) ? tape.left : [];
   const right = Array.isArray(tape.right) ? tape.right : [];
   const cells = Array.from({ length: WINDOW }, () => " ");
 
   // fill left side (closest to head to the left)
-  for (let i = 1; i <= mid; i++) {
+  for (let i = 1; i <= mid; i += 1) {
     const val = left[left.length - i];
     if (val !== undefined) {
       cells[mid - i] = norm(val);
@@ -86,7 +86,7 @@ function formatTape(tape) {
   }
 
   // fill right side (closest to head to the right)
-  for (let i = 1; i < WINDOW - mid; i++) {
+  for (let i = 1; i < WINDOW - mid; i += 1) {
     const val = right[right.length - i];
     if (val !== undefined) {
       cells[mid + i] = norm(val);
@@ -94,7 +94,20 @@ function formatTape(tape) {
   }
 
   const head = norm(tape.head);
-  return cells
-    .map((c, idx) => (idx === mid ? `{${head}}` : `[${c}]`))
-    .join(" ");
+  return cells.map((c, idx) => (idx === mid ? `{${head}}` : `[${c}]`)).join(" ");
+}
+
+function signText(raw) {
+  const val = signValue(raw);
+  if (val == null) return " ";
+  return String(val);
+}
+
+function signValue(raw) {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) return raw[0] ?? null;
+  if (typeof raw === "object" && ("0" in raw || 0 in raw)) {
+    return raw[0] ?? raw["0"] ?? null;
+  }
+  return raw;
 }

@@ -52,7 +52,7 @@ export class SnapshotRenderer {
   }
 
   renderTerm(node, counter) {
-    const variant = this.extractVariant(node);
+    const variant = extractVariant(node);
     if (!variant) {
       return this.textSpan(String(node ?? ""));
     }
@@ -126,14 +126,6 @@ export class SnapshotRenderer {
     return wrapper;
   }
 
-  extractVariant(node) {
-    if (!node || typeof node !== "object") return null;
-    const keys = Object.keys(node);
-    if (keys.length !== 1) return null;
-    const tag = keys[0];
-    return { tag, value: node[tag] };
-  }
-
   textSpan(text, className) {
     const span = document.createElement("span");
     if (className) span.classList.add(className);
@@ -142,20 +134,28 @@ export class SnapshotRenderer {
   }
 
   renderVar(value) {
-    const { text, title } = this.formatVar(value);
+    const { text, title } = formatVar(value);
     const span = this.textSpan(text, "lambda-var");
     if (title) span.title = title;
     return span;
   }
+}
 
-  formatVar(value) {
-    if (value && typeof value === "object") {
-      const name = value.name ?? "?";
-      const ptr = value.ptr;
-      const text = String(name);
-      const title = ptr !== undefined ? `unique id based on pointer: ${ptr}` : undefined;
-      return { text, title };
-    }
-    return { text: String(value ?? "?"), title: undefined };
+function extractVariant(node) {
+  if (!node || typeof node !== "object") return null;
+  const keys = Object.keys(node);
+  if (keys.length !== 1) return null;
+  const tag = keys[0];
+  return { tag, value: node[tag] };
+}
+
+function formatVar(value) {
+  if (value && typeof value === "object") {
+    const name = value.name ?? "?";
+    const ptr = value.ptr;
+    const text = String(name);
+    const title = ptr !== undefined ? `unique id based on pointer: ${ptr}` : undefined;
+    return { text, title };
   }
+  return { text: String(value ?? "?"), title: undefined };
 }

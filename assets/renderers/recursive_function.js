@@ -32,10 +32,19 @@ export class SnapshotRenderer {
       this.statusLine.textContent = "state: (not initialized)";
       return;
     }
-    const variant = this.extractVariant(state);
-    const tag = variant?.tag ?? "?";
-    this.statusLine.textContent =
-      tag === "Result" ? "status: terminated" : `status: evaluating (${tag})`;
+    const functionText = describeFunction(state.function) ?? "(unknown)";
+    const inputText = Array.isArray(state.input)
+      ? state.input.map(n => formatNumber(n, "?")).join(", ")
+      : "";
+    const process = state.process ?? state;
+    const variant = extractVariant(process);
+    const parts = [`function: ${functionText}`, `input: (${inputText})`];
+    if (variant?.tag === "Result") {
+      parts.push(`result: ${formatNumber(variant.value, "?")}`);
+    } else if (variant?.tag) {
+      parts.push(`status: evaluating (${variant.tag})`);
+    }
+    this.statusLine.textContent = parts.join(" | ");
   }
 
   renderProcess(state) {
@@ -45,24 +54,25 @@ export class SnapshotRenderer {
       this.processContainer.textContent = "(no process)";
       return;
     }
-    this.processContainer.appendChild(this.renderProcessNode(state));
+    const process = state.process ?? state;
+    this.processContainer.appendChild(this.renderProcessNode(process));
   }
 
   renderProcessNode(node) {
-    const variant = this.extractVariant(node);
+    const variant = extractVariant(node);
     if (!variant) {
-      return this.makeTextNode(this.safeStringify(node ?? "(unknown)"));
+      return this.makeTextNode(safeStringify(node ?? "(unknown)"));
     }
     const { tag, value } = variant;
     switch (tag) {
       case "Result":
-        return this.makeLeaf(`Result: ${this.formatNumber(value)}`);
+        return this.makeLeaf(`Result: ${formatNumber(value, "?")}`);
       case "Comp":
         return this.renderCompNode(value);
       case "MuOpComp":
         return this.renderMuNode(value);
       default:
-        return this.makeLeaf(`[${tag}] ${this.safeStringify(value)}`);
+        return this.makeLeaf(`[${tag}] ${safeStringify(value)}`);
     }
   }
 
@@ -71,7 +81,7 @@ export class SnapshotRenderer {
     wrapper.className = "rf-comp";
     const title = document.createElement("div");
     title.className = "rf-comp-title";
-    title.textContent = `Call ${this.describeFunction(value?.function)} (${(value?.args || []).length} args)`;
+    title.textContent = `Call ${describeFunction(value?.function)} (${(value?.args || []).length} args)`;
     wrapper.appendChild(title);
 
     if (Array.isArray(value?.args) && value.args.length > 0) {
@@ -98,13 +108,15 @@ export class SnapshotRenderer {
     wrapper.className = "rf-mu";
     const headline = document.createElement("div");
     headline.className = "rf-mu-title";
-    const idx = this.formatNumber(value?.now_index);
-    const args = Array.isArray(value?.args) ? value.args.map(n => this.formatNumber(n)).join(", ") : "";
-    headline.textContent = `MuOp index=${idx ?? "?"} args=(${args})`;
+    const idx = formatNumber(value?.now_index, "?");
+    const args = Array.isArray(value?.args)
+      ? value.args.map(n => formatNumber(n, "?")).join(", ")
+      : "";
+    headline.textContent = `MuOp index=${idx} args=(${args})`;
     wrapper.appendChild(headline);
 
     const funcLine = document.createElement("div");
-    funcLine.textContent = `Function: ${this.describeFunction(value?.function)}`;
+    funcLine.textContent = `Function: ${describeFunction(value?.function)}`;
     wrapper.appendChild(funcLine);
 
     if (value?.process) {
@@ -117,52 +129,6 @@ export class SnapshotRenderer {
     return wrapper;
   }
 
-  describeFunction(node) {
-    if (!node) return "(unknown)";
-    if (typeof node === "string") return this.prettyName(node);
-    const keys = Object.keys(node);
-    if (keys.length !== 1) {
-      return this.safeStringify(node);
-    }
-    const tag = keys[0];
-    const value = node[tag];
-    switch (tag) {
-      case "ZeroConstant":
-        return "ZERO";
-      case "Successor":
-        return "SUCC";
-      case "Projection":
-        return `PROJ[${value?.parameter_length}, ${value?.projection_num}]`;
-      case "Composition": {
-        const outer = this.describeFunction(value?.outer_func);
-        const inner = Array.isArray(value?.inner_funcs)
-          ? value.inner_funcs.map(func => this.describeFunction(func)).join(", ")
-          : "";
-        return `COMP[${outer}: (${inner})]`;
-      }
-      case "PrimitiveRecursion": {
-        const zero = this.describeFunction(value?.zero_func);
-        const succ = this.describeFunction(value?.succ_func);
-        return `PRIM[z: ${zero}, s: ${succ}]`;
-      }
-      case "MuOperator":
-        return `MU[${this.describeFunction(value?.mu_func)}]`;
-      default:
-        return `[${tag}]`;
-    }
-  }
-
-  prettyName(name) {
-    switch (name) {
-      case "ZeroConstant":
-        return "ZERO";
-      case "Successor":
-        return "SUCC";
-      default:
-        return name;
-    }
-  }
-
   makeLeaf(text) {
     const span = document.createElement("span");
     span.className = "rf-leaf";
@@ -173,35 +139,93 @@ export class SnapshotRenderer {
   makeTextNode(text) {
     return document.createTextNode(text);
   }
+}
 
-  extractVariant(node) {
-    if (!node || typeof node !== "object") {
-      if (typeof node === "string") {
-        return { tag: node, value: node };
-      }
+function extractVariant(node) {
+  if (!node || typeof node !== "object") {
+    if (typeof node === "string") {
+      return { tag: node, value: node };
+    }
+    return null;
+  }
+  const keys = Object.keys(node);
+  if (keys.length !== 1) return null;
+  return { tag: keys[0], value: node[keys[0]] };
+}
+
+function describeFunction(node) {
+  if (!node) return "(unknown)";
+  if (typeof node === "string") return prettyName(node);
+  const keys = Object.keys(node);
+  if (keys.length !== 1) {
+    return safeStringify(node);
+  }
+  const tag = keys[0];
+  const value = node[tag];
+  switch (tag) {
+    case "ZeroConstant":
+      return "ZERO";
+    case "Successor":
+      return "SUCC";
+    case "Projection":
+      return `PROJ[${value?.parameter_length}, ${value?.projection_num}]`;
+    case "Composition": {
+      const outer = describeFunction(value?.outer_func);
+      const inner = Array.isArray(value?.inner_funcs)
+        ? value.inner_funcs.map(func => describeFunction(func)).join(", ")
+        : "";
+      return `COMP[${outer}: (${inner})]`;
+    }
+    case "PrimitiveRecursion": {
+      const zero = describeFunction(value?.zero_func);
+      const succ = describeFunction(value?.succ_func);
+      return `PRIM[z: ${zero}, s: ${succ}]`;
+    }
+    case "MuOperator":
+      return `MU[${describeFunction(value?.mu_func)}]`;
+    default:
+      return `[${tag}]`;
+  }
+}
+
+function prettyName(name) {
+  switch (name) {
+    case "ZeroConstant":
+      return "ZERO";
+    case "Successor":
+      return "SUCC";
+    default:
+      return name;
+  }
+}
+
+function formatNumber(raw, fallback) {
+  const big = toBigInt(raw);
+  return big == null ? fallback : big.toString(10);
+}
+
+function toBigInt(raw) {
+  if (typeof raw === "bigint") return raw;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return BigInt(Math.trunc(raw));
+  }
+  if (typeof raw === "string" && raw.trim() !== "") {
+    try {
+      return BigInt(raw);
+    } catch (_) {
       return null;
     }
-    const keys = Object.keys(node);
-    if (keys.length !== 1) return null;
-    return { tag: keys[0], value: node[keys[0]] };
   }
-
-  formatNumber(raw) {
-    if (typeof raw === "number" && Number.isFinite(raw)) {
-      return raw;
-    }
-    if (raw && typeof raw === "object" && "Number" in raw) {
-      return this.formatNumber(raw.Number);
-    }
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : raw;
+  if (raw && typeof raw === "object" && "Number" in raw) {
+    return toBigInt(raw.Number);
   }
+  return null;
+}
 
-  safeStringify(value) {
-    try {
-      return JSON.stringify(value);
-    } catch (_) {
-      return String(value);
-    }
+function safeStringify(value) {
+  try {
+    return JSON.stringify(value);
+  } catch (_) {
+    return String(value);
   }
 }
