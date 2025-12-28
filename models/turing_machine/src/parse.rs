@@ -26,11 +26,11 @@ impl TextCodec for Sign {
     fn parse(text: &str) -> Result<Self, String> {
         match <Alphabet as TextCodec>::parse(text) {
             Ok(alphabet) => Ok(Sign(Some(alphabet))),
-            Err(_) => {
-                if text.trim().is_empty() {
+            Err(err) => {
+                if text.trim() == "-" {
                     Ok(Sign::blank())
                 } else {
-                    Err(format!("Invalid sign: {}", text))
+                    Err(format!("Invalid sign: {}, {}", text, err))
                 }
             }
         }
@@ -39,7 +39,7 @@ impl TextCodec for Sign {
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         match &self.0 {
             Some(alphabet) => alphabet.write_fmt(f),
-            None => write!(f, " "),
+            None => write!(f, "-"),
         }
     }
 }
@@ -67,15 +67,34 @@ impl TextCodec for Tape {
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         let (tapes, pos) = self.into_vec();
-        for (i, sign) in tapes.iter().enumerate() {
-            if i == pos {
-                write!(f, "|{}|", sign.print())?;
-            } else {
-                write!(f, "{},", sign.print())?;
+        for i in 0..pos {
+            if i > 0 {
+                write!(f, ",")?;
             }
+            write!(f, "{}", tapes[i].print())?;
+        }
+
+        write!(f, "|")?;
+        write!(f, "{}", tapes[pos].print())?;
+        write!(f, "|")?;
+
+        for i in pos + 1..tapes.len() {
+            if i > pos + 1 {
+                write!(f, ",")?;
+            }
+            write!(f, "{}", tapes[i].print())?;
         }
         Ok(())
     }
+}
+
+#[test]
+fn test_tape_text_codec() {
+    let tape_str = "-|d|e,f,g";
+    let tape: Tape = tape_str.parse_tc().unwrap();
+    let mut output = String::new();
+    tape.write_fmt(&mut output).unwrap();
+    assert_eq!(tape_str, output);
 }
 
 impl TextCodec for State {
@@ -107,7 +126,6 @@ pub fn parse_one_code_entry(code: &str) -> Result<CodeEntry, String> {
 
 impl TextCodec for TuringMachineDefinition {
     fn parse(text: &str) -> Result<Self, String> {
-
         let mut lines = text.lines();
 
         let Some(init_state_line) = lines.next() else {

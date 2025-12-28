@@ -60,7 +60,9 @@ pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
 
     let mut body = v(&one);
 
-    for _ in 0_usize..num.as_usize() {
+    let num = num.as_usize().map_err(|_| "number too large".to_string()).unwrap();
+
+    for _ in 0_usize..num {
         body = app(v(&zero), body);
     }
 
@@ -296,7 +298,7 @@ impl Compiler for Rec2LamCompiler {
     ) -> Result<<<Self as Compiler>::Target as utils::Machine>::RInput, String> {
         let _: () = rinput;
         // leftmost outermost reduction
-        Ok(0.into())
+        Ok(0)
     }
 
     fn decode_output(

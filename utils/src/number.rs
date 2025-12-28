@@ -5,7 +5,7 @@ use serde::Serialize;
 // Natural number represented in little-endian byte array
 // i.e., least significant byte first
 // n = \sum_{i=0}^{len-1} bytes[i] * 256^i
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Number(Vec<u8>);
 
 impl Number {
@@ -20,19 +20,62 @@ impl Number {
         let one = Number(vec![1]);
         self.clone() - one
     }
-    pub fn as_usize(&self) -> usize {
-        static SIZE: usize = size_of::<usize>();
-        let mut bytes = [0u8; SIZE];
-        for (i, &b) in self.0.iter().take(SIZE).enumerate() {
-            bytes[i] = b;
+    pub fn as_usize(&self) -> Result<usize, String> {
+        let bytes = self.trimmed_bytes();
+        if bytes.len() > size_of::<usize>() {
+            return Err("Number too large to fit in usize".to_string());
         }
-        usize::from_le_bytes(bytes)
+        const SIZE: usize = size_of::<usize>();
+        let mut buf = [0u8; SIZE];
+        for (i, &b) in bytes.iter().take(SIZE).enumerate() {
+            buf[i] = b;
+        }
+        Ok(usize::from_le_bytes(buf))
+    }
+    pub fn as_u64(&self) -> Option<u64> {
+        let bytes = self.trimmed_bytes();
+        if bytes.len() > size_of::<u64>() {
+            return None;
+        }
+        let mut buf = [0u8; size_of::<u64>()];
+        for (i, &b) in bytes.iter().enumerate() {
+            buf[i] = b;
+        }
+        Some(u64::from_le_bytes(buf))
+    }
+    pub fn to_decimal_string(&self) -> String {
+        let mut bytes = self.trimmed_bytes();
+        if bytes.is_empty() {
+            return "0".to_string();
+        }
+        let mut digits = Vec::new();
+        while !bytes.is_empty() {
+            let mut carry = 0u16;
+            for i in (0..bytes.len()).rev() {
+                let cur = (carry << 8) + bytes[i] as u16;
+                bytes[i] = (cur / 10) as u8;
+                carry = cur % 10;
+            }
+            digits.push((carry as u8 + b'0') as char);
+            while bytes.last() == Some(&0) {
+                bytes.pop();
+            }
+        }
+        digits.iter().rev().collect()
     }
     pub fn as_u8array(&self) -> &[u8] {
         &self.0
     }
     pub fn from_u8array(arr: &[u8]) -> Self {
         Number(arr.to_vec())
+    }
+
+    fn trimmed_bytes(&self) -> Vec<u8> {
+        let mut bytes = self.0.clone();
+        while bytes.last() == Some(&0) {
+            bytes.pop();
+        }
+        bytes
     }
 }
 
@@ -121,5 +164,18 @@ impl SubAssign for Number {
 impl SubAssign<usize> for Number {
     fn sub_assign(&mut self, rhs: usize) {
         *self = self.clone() - rhs
+    }
+}
+
+impl Serialize for Number {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        if let Some(value) = self.as_u64() {
+            serializer.serialize_u64(value)
+        } else {
+            serializer.serialize_str(&self.to_decimal_string())
+        }
     }
 }

@@ -37,7 +37,7 @@ impl TextCodec for Environment {
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         for (var, num) in &self.env {
-            writeln!(f, "{} = {}", var.as_str(), num.as_usize())?;
+            writeln!(f, "{} = {}", var.as_str(), num.to_decimal_string())?;
         }
         Ok(())
     }
@@ -120,11 +120,12 @@ impl Machine for Program {
     }
 
     fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        if (self.pc).as_usize() >= self.commands.0.len() {
+        let pc = self.pc.as_usize()?;
+        if pc >= self.commands.0.len() {
             return Ok(Some(self.env.clone()));
         }
 
-        let command = &self.commands.0[(self.pc).as_usize()];
+        let command = &self.commands.0[pc];
         match command {
             Command::Clr(var) => {
                 self.env.write(var, 0.into());

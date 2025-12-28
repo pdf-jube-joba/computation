@@ -52,9 +52,10 @@ export class SnapshotRenderer {
       return;
     }
     const pc = this.coerceNumber(state.pc);
+    const pcText = this.formatNumber(state.pc);
     const terminated = this.booleanFrom(state.is_terminated ?? (state.terminated ?? null));
     const status = [];
-    status.push(`pc: ${pc ?? "?"}`);
+    status.push(`pc: ${pcText}`);
     if (typeof state.commands === "object" && Array.isArray(state.commands)) {
       status.push(`len: ${state.commands.length}`);
     }
@@ -109,8 +110,7 @@ export class SnapshotRenderer {
       const row = this.envBody.insertRow();
       row.insertCell().textContent = rawVar ?? "";
       const valueCell = row.insertCell();
-      const value = this.coerceNumber(rawValue);
-      valueCell.textContent = value ?? "";
+      valueCell.textContent = this.formatNumber(rawValue, "");
     });
   }
 
@@ -133,7 +133,7 @@ export class SnapshotRenderer {
       }
       case "Ifnz": {
         const [varName, target] = this.asTuple(value, 2);
-        return `ifnz ${this.formatVar(varName)} : ${this.coerceNumber(target) ?? "?"}`;
+        return `ifnz ${this.formatVar(varName)} : ${this.formatNumber(target)}`;
       }
       default:
         return `[${tag}]`;
@@ -169,6 +169,17 @@ export class SnapshotRenderer {
     if (typeof raw === "number" && Number.isFinite(raw)) {
       return raw;
     }
+    if (typeof raw === "bigint") {
+      return raw <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(raw) : undefined;
+    }
+    const bytes = this.extractBytes(raw);
+    if (bytes) {
+      const value = this.bytesToBigInt(bytes);
+      if (value <= BigInt(Number.MAX_SAFE_INTEGER)) {
+        return Number(value);
+      }
+      return undefined;
+    }
     if (Array.isArray(raw) && raw.length === 1) {
       return this.coerceNumber(raw[0]);
     }
@@ -182,6 +193,55 @@ export class SnapshotRenderer {
     }
     const parsed = Number(raw);
     return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  formatNumber(raw, fallback = "?") {
+    const asNumber = this.coerceNumber(raw);
+    if (asNumber !== undefined) {
+      return String(asNumber);
+    }
+    const asBig = this.coerceBigInt(raw);
+    if (asBig !== undefined) {
+      return asBig.toString();
+    }
+    return fallback;
+  }
+
+  coerceBigInt(raw) {
+    if (typeof raw === "bigint") return raw;
+    const bytes = this.extractBytes(raw);
+    if (bytes) {
+      return this.bytesToBigInt(bytes);
+    }
+    return undefined;
+  }
+
+  extractBytes(raw) {
+    if (raw instanceof Uint8Array) {
+      return Array.from(raw);
+    }
+    if (raw instanceof ArrayBuffer) {
+      return Array.from(new Uint8Array(raw));
+    }
+    if (Array.isArray(raw) && raw.every(this.isByte)) {
+      return raw;
+    }
+    if (raw && typeof raw === "object" && raw.type === "Buffer" && Array.isArray(raw.data)) {
+      return raw.data;
+    }
+    return undefined;
+  }
+
+  isByte(value) {
+    return Number.isInteger(value) && value >= 0 && value <= 255;
+  }
+
+  bytesToBigInt(bytes) {
+    let value = 0n;
+    for (let i = bytes.length - 1; i >= 0; i -= 1) {
+      value = (value << 8n) + BigInt(bytes[i]);
+    }
+    return value;
   }
 
   booleanFrom(raw) {

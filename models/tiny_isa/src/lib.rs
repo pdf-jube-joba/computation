@@ -393,7 +393,7 @@ impl Machine for Environment {
 
     fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
         // fetch instruction
-        let pc_usize = self.pc.as_usize();
+        let pc_usize = self.pc.as_usize().map_err(|e| e.to_string())?;
         if pc_usize >= self.memory.len() {
             return Err("PC out of bounds".to_string());
         }
@@ -417,7 +417,7 @@ impl Machine for Environment {
             }
             Instruction::Load { rd, addr } => {
                 // Load value from memory into register
-                let addr_usize = addr.as_usize();
+                let addr_usize = addr.as_usize().map_err(|e| e.to_string())?;
                 if addr_usize >= self.memory.len() {
                     return Err("Memory address out of bounds".to_string());
                 }
@@ -426,7 +426,7 @@ impl Machine for Environment {
             }
             Instruction::Store { rs, addr } => {
                 // Store value from register into memory
-                let addr_usize = addr.as_usize();
+                let addr_usize = addr.as_usize().map_err(|e| e.to_string())?;
                 if addr_usize >= self.memory.len() {
                     return Err("Memory address out of bounds".to_string());
                 }

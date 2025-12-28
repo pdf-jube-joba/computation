@@ -1,6 +1,6 @@
 use crate::machine::{LambdaTerm, MarkedTerm, is_normal_form};
 use serde::Serialize;
-use utils::{number::Number, Machine, TextCodec};
+use utils::{Machine, TextCodec};
 
 impl TextCodec for LambdaTerm {
     fn parse(text: &str) -> Result<Self, String> {
@@ -58,7 +58,7 @@ impl Machine for LambdaTerm {
     type Code = LambdaTerm;
     type AInput = AInput;
     type SnapShot = MarkedTerm;
-    type RInput = Number;
+    type RInput = usize;
     type Output = LambdaTerm;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
@@ -69,7 +69,7 @@ impl Machine for LambdaTerm {
     fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
         let marked = crate::machine::mark_redex(self);
         let lambda =
-            crate::machine::step(&marked, rinput.as_usize()).ok_or("No redex found at the given index")?;
+            crate::machine::step(&marked, rinput).ok_or("No redex found at the given index")?;
         *self = lambda;
         if is_normal_form(self) {
             Ok(Some(self.clone()))

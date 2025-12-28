@@ -1,5 +1,4 @@
 use crate::machine::Command;
-use anyhow::Result;
 use pest::{Parser, iterators::Pair};
 use utils::{alphabet::Alphabet as Var, number::Number, parse::ParseTextCodec};
 
@@ -13,7 +12,7 @@ pub fn parse_name(ps: Pair<Rule>) -> Var {
     name.parse_tc().unwrap()
 }
 
-pub fn parse_one_statement(ps: Pair<Rule>) -> Result<Command> {
+pub fn parse_one_statement(ps: Pair<Rule>) -> Result<Command, String> {
     debug_assert!(ps.as_rule() == Rule::statement);
     let mut ps = ps.into_inner();
     let p = ps.next().unwrap();
@@ -57,24 +56,18 @@ pub fn parse_one_statement(ps: Pair<Rule>) -> Result<Command> {
             // take var and number
             let var = p.next().unwrap();
             let var: Var = parse_name(var);
-            let num = p.next().unwrap();
-            let num: usize = num.as_str().parse().unwrap();
-            let num: Number = num.into();
+            let num: Number = p.next().unwrap().as_str().parse_tc().unwrap();
             Command::Ifnz(var, num)
         }
         _ => {
-            return Err(anyhow::anyhow!(
-                "unreachable {} {:?}",
-                p.as_str(),
-                p.as_rule()
-            ));
+            return Err(format!("unreachable {} {:?}", p.as_str(), p.as_rule()));
         }
     };
     Ok(statement)
 }
 
-pub fn program(code: &str) -> Result<Vec<Command>> {
-    let mut code = Ps::parse(Rule::program, code)?;
+pub fn program(code: &str) -> Result<Vec<Command>, String> {
+    let mut code = Ps::parse(Rule::program, code).map_err(|e| e.to_string())?;
     let code = code.next().unwrap();
     let code = code.into_inner();
     let mut statements = vec![];
@@ -85,8 +78,8 @@ pub fn program(code: &str) -> Result<Vec<Command>> {
     Ok(statements)
 }
 
-pub fn program_read_to_end(code: &str) -> Result<Vec<Command>> {
-    let mut code = Ps::parse(Rule::program_read_to_end, code)?;
+pub fn program_read_to_end(code: &str) -> Result<Vec<Command>, String> {
+    let mut code = Ps::parse(Rule::program_read_to_end, code).map_err(|e| e.to_string())?;
     let code = code.next().unwrap();
     let mut code = code.into_inner();
     let p = code.next().unwrap();
@@ -95,7 +88,7 @@ pub fn program_read_to_end(code: &str) -> Result<Vec<Command>> {
     program(p.as_str())
 }
 
-pub fn parse_env(ps: Pair<Rule>) -> Result<Vec<(Var, Number)>> {
+pub fn parse_env(ps: Pair<Rule>) -> Result<Vec<(Var, Number)>, String> {
     debug_assert!(ps.as_rule() == Rule::env);
     let mut env = vec![];
     for p in ps.into_inner() {
@@ -103,16 +96,14 @@ pub fn parse_env(ps: Pair<Rule>) -> Result<Vec<(Var, Number)>> {
         let mut p = p.into_inner();
         let name = p.next().unwrap();
         let name: Var = parse_name(name);
-        let number = p.next().unwrap();
-        let number: usize = number.as_str().parse()?;
-        let number: Number = number.into();
+        let number = p.next().unwrap().as_str().parse_tc().unwrap();
         env.push((name, number));
     }
     Ok(env)
 }
 
-pub fn env_read_to_end(code: &str) -> Result<Vec<(Var, Number)>> {
-    let mut code = Ps::parse(Rule::env, code)?;
+pub fn env_read_to_end(code: &str) -> Result<Vec<(Var, Number)>, String> {
+    let mut code = Ps::parse(Rule::env, code).map_err(|e| e.to_string())?;
     let code = code.next().unwrap();
     parse_env(code)
 }

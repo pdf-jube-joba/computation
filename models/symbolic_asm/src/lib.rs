@@ -364,7 +364,7 @@ impl Environment {
         }
     }
     fn get_data_mut_number(&mut self, addr: Number) -> Result<&mut Number, String> {
-        let index = addr.as_usize();
+        let index = addr.as_usize().map_err(|e| e.to_string())?;
         if index < self.named_data.0.len() {
             Ok(&mut self.named_data.0[index].1)
         } else if index - self.named_data.0.len() < self.data.len() {
@@ -442,12 +442,13 @@ impl Machine for Environment {
     }
 
     fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
+        let pc = self.pc.as_usize().map_err(|e| e.to_string())?;
         let inst: &ImR = self
             .code
             .0
             .iter()
             .flat_map(|(_, instrs)| instrs)
-            .nth(self.pc.as_usize())
+            .nth(pc)
             .ok_or("PC out of bounds")?;
         match *inst {
             ImR::Nop => {

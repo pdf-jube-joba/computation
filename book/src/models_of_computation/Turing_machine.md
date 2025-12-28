@@ -12,38 +12,40 @@ Turing machineの構成要素はだいたい以下の通り
 
 ## 具体例
 
-テープにある `1` を全部 `2` に書き換える例。
+テープにある `a` を全部 `b` に書き換える例。
+テープの最後には `c` をつけること。
 <div data-model="turing_machine">
 <script type="text/plain" class="default-code">
-s
-g
-1,s,2,s,R
-end,s,end,g,C
+start
+goal
+a,start,b,start,R
+b,start,b,start,R
+c,start,c,goal,C
 </script>
 <script type="text/plain" class="default-ainput">
-0|1|1,1,1,end
+-|a|b,a,b,b,c
 </script>
 </div>
 
-テープにある `0` と `1` の"仕分け"を行う例。
+テープにある `a` と `b` の"仕分け"を行う例。
 
 <div data-model="turing_machine">
 <script type="text/plain" class="default-code">
 s
 g
-1,s,1,s,R
- ,s, ,g,C
-0,s,0,k,R
-0,k,0,k,R
- ,k, ,g,C
-1,k,0,b,L
-0,b,1,r,L
-0,r,0,r,L
-1,r,1,r,L
+a,s,a,s,R
+-,s,-,g,C
+b,s,b,k,R
+b,k,b,k,R
+-,k,-,g,C
+a,k,b,b,L
+b,b,a,r,L
+b,r,b,r,L
+a,r,a,r,L
 x,r,x,s,R
 </script>
 <script type="text/plain" class="default-ainput">
-x|0|1,1,0
+x|b|a,a,b
 </script>
 </div>
 
@@ -63,6 +65,7 @@ x|0|1,1,0
 > この空白記号もTuring machineの定義に含める議論も多いが、にもかかわらず、
 > 異なるマシンで空白記号が共有されているかのような議論が多かったため、ここでは固定した。
 > 空白記号を含めて定義する場合、基点付き集合として記号の集合を定義するのが良いかもしれない。
+> ここでは hyphen (`-`) を使っている。
 
 Turing machine
   : 次の組をTuring machineと言う。
