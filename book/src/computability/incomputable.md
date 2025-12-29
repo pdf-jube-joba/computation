@@ -1,4 +1,132 @@
 ## 計算可能性について
+普通のやり方を使えば、
+自然数をテープに符号化して「どれぐらいの自然数部分関数が計算できるか」
+はだいたい再帰関数に一致する。
+普通じゃないやり方の例：符号化の際に偶数しか出てこないようにしてしまう、途中で計算不可能な関数をかませる。
+
+チューリングマシンを見てもわかるように、計算能力のカンストは意外と簡単である。
+だいたい、次のことが満たされていればよい。
+- ループっぽいことができる
+- メモリが有限なものは全部扱える
+
+### チューリングマシンは何をしている？
+\(\Sigma = \{\mathbb{B}, 0, -\}\) を固定する。
+\(\Nat\) で自然数全体を表す。
+
+- チューリングマシンについて
+  - \(\Sigma\) 上の Tape 全体を \(T_{\Sigma}\) とする
+  - \(\Sigma\) 上のチューリングマシン全体を \(C\) とする。
+  - \(\text{ev}: C \to (T_{\Sigma} \partfunction T_{\Sigma})\)
+- 再帰関数について
+  - 再帰関数全体の集合 := \(\text{Rec}\)
+  - \(\text{Rec}\) は \(\Nat \partfunction \Nat\) の部分集合であり、包含写像を \(i\) とする。
+- 符号化について
+  - 符号化 \(s_1: \Nat \to T_{\Sigma}\) と 符号化 \(s_2: T_{\Sigma} \partfunction \Nat\) がある。
+  - 関係式として \(s1 * s2 \sim \text{id}\), \(s2 * s1 \sim \text{id}\) が成り立つ。
+  - 写像間の encode の定義： \(\text{encode}^{\Nat}_{T_{\Sigma}}: (T_{\Sigma} \partfunction T_{\Sigma}) \partfunction (\Nat \partfunction \Nat)\) と逆も
+- 翻訳について
+  - 再帰関数のチューリングマシンへの翻訳 \(\text{cp}: \text{Rec} \to C\) がある。
+  - ただし次を満たす： \(s_2 * \text{ev}(\text{cp}(f)) * s_1 = f\)
+  - もうちょっと式を整理： \(\text{Rec} \overset{\text{cp}}{\to} C \overset{\text{ev}}{\to} (T_{\Sigma} \partfunction T_{\Sigma}) \overset{\text{encode}}{\to} (\Nat \partfunction \Nat)\) と \(\text{Rec} \overset{i}{\to} (\Nat \partfunction \Nat)\) が一致する。
+- 計算可能な関数の全体とは \(\txtop{Im} (\text{encode} * \text{ev})\) のことである。
+
+これが、再帰関数がチューリングマシンによってあらわせたという状況の整理である。
+
+> [!Note]
+> 一般に、チューリングマシンを帰納関数から再現することを行う場合、符号化を変える必要がある。
+> ただ、チューリングマシンと帰納関数の場合、符号化が部分関数になっているのはこっちの都合というか、
+> 頑張れば符号化の部分は部分関数じゃない全域で定義された関数を使うことができそう。
+> 理由は、符号化の部分は本質的には"計算"ではないから。
+
+### Universal なチューリングマシン？
+同じ感じで universal についても議論ができる。
+ただ、 PDF を読むと、チューリングマシンの符号化自体はやっていなくて、 \(\exists\) でやっている？
+それと、 parting ができること（全域な関数 \(\Sigma^* \times \Sigma^* \to \Sigma^*\) があること）が重要みたい。
+
+- チューリングマシンの符号化 \(\text{emb}: C \to T_{\Sigma}\)
+- テープの paring \(\text{pair}: T_{\Sigma} \times T_{\Sigma} \to T_{\Sigma}\)
+
+universal Turing machine の存在
+: 次の条件を満たす universal Turing machine \(U \in C\) がある。
+  - 任意の \(M \in C\) に対して、ある \(e \in T_{\Sigma}\) が存在して、任意の \(t \in T_{\Sigma}\) に対して、 \(\text{ev}(U)\text{pair}(e, t) = \text{ev}(M) t\)
+  - さらに、この \(\exists\) の対応はさっきの符号化の下で行える：\(\text{ev}(U)(\text{pair}(\text{emb}(M), t)) = \text{ev}(M) t\) が任意の \(M \in T\) と \(t \in T_{\Sigma}\) で成り立つ。
+
+符号化があるおかげで、チューリングマシンはチューリングマシン自体に言及することができるし、 universal Turing machine があるおかげで、単なるデータ \(e \in T_\Sigma\) をチューリングマシン（かもしれない）ととらえて計算ができるようになる。
+だから、もし万能な Turing machine を固定すれば、\(T_\Sigma\) 自体が、それ自身に作用しているように思える： \(e \in T_{\Sigma} \cdot t \in T_{\Sigma} = \text{ev}(U) \text{pair} (e, t)\) によって、ラムダ計算みたいに、 \(T_\Sigma\) を apply できる。
+
+## 一般論？
+この議論をすごい単純に考えるとこんな感じ
+- \((C: \SET, I: \SET, O: \SET, f: C \times I \partfunction O)\) の組が計算モデル。
+- 2つの計算モデル \(M_i\) に対して、 \(m: C_0 \to C_1, s: I_0 \to I_1, s': O_1 \partfunction O_0\) が翻訳になる
+  - ここで、 \(s\) が \(C_0\) ごとには決まっていないというのが、"問題ごとに符号化を変更しない"ことになる。
+- 翻訳の well-def は \(s' \comp f_1 (m(c), s(i)) = f_0(c, i)\) だけ
+- universal なものの存在は、 code と input を含めた embedding \(k: C \times I \to I\) に対して、 \(f(u, k(c, i)) = f(c, i)\)
+
+> [!Note]
+> 符号化が余計な仕事をしていないかが気になる。
+> 例えば、実質的に符号化が Turing 完全な仕事をしていることもありうる。
+> それをどう弾くべきかがわからない。
+> というか、定義がやっぱり虚無過ぎる。
+> Input, Output である\(I, O\) は、\(\Nat\) や有限集合 \(\Sigma\) 上の語 \(\Sigma^*\) とするのがいいが、
+> 符号化の際には、個々に有限な部分だけしか見てはいけない。
+> Code である \(C\) も \(I\) に埋め込める以上可算でないといけない。
+
+今のやり方は次の意味ではいいと思える。
+- 各問題ごとに"コード"を与えて、問題の入力ごとに"データ"を与える形式になっている
+  - もし各問題・入力の組に対して何かを与えるのだとしたら、
+    符号化の時点で問題を実質的に解いてしまうのも可能になるから。
+    例：どんな入力が与えられるかが先に知らされている atcoder は意味がない。それと同じ。
+    足し算という問題に対して、足し算を行うプログラムを与えて、そのプログラムに 2, 3 を入れると 5 が返ってくる。
+    初めに足し算という問題と 2, 3 という入力が与えられた状態から始まると、最初から5だけ出力するプログラムが書けてしまう。
+- コンパイルは、コード同士・データ同士のコンパイルにする。
+  - これも同じ理由で、コードとデータの組を与えてコンパイルできるようにすると意味がない。
+- コードとデータから initial configuration を作り出して、残りは Mealy machine による意味論にする。
+  - 直観的な"動作"を表している。
+
+## 一般の system を調べる場合
+### Mealy machine / Moore machine
+次のものは同じ。
+- 有限集合: 状態 \(S\), 入力 \(I\), 出力 \(O\)
+- 状態遷移 \(S \times I \to S\)
+出力をどう計算するかが違う。
+
+Mealy machine
+: \(S \times I \to O\) が出力
+
+Moore machine
+: \(S \to O\) が出力
+
+回路とか "system" っぽいものの一般論に使われる。
+ただし、入力・出力がリアルタイムに入ってくる想定に近い。
+
+集合の有限性の仮定を外してしまえば一般のシステムが記述できる。
+
+> [!Note]
+> 有限性の仮定を外すことはいいが、"次の状態"が確実に計算できないといけない。
+> 状態遷移で partial を許すことはできないし、
+> \(S\) が無限の場合に"全体を見渡して"計算することも許されない。
+> ただし、そういう制限自体がうまく定義できれば、
+> 各計算モデルに対して対応する Machine が存在するように作れてもよさそう。
+> つまり、「 \(I \partfunction O\) が部分関数にならざるを得ないのは、"無限ステップ"かかるから」を定式化できる？
+
+### universal coalgebra
+[universal coalgebra] を呼んだが、ちょっと関係なかったかも。
+確かに Mealy machine を含めたいろんな系が議論できるのはわかるが、"計算"の話とはちょっとずれてる？
+主に、系の発展と bisimulation の話を一般論でやるための設定っぽい。
+
+## Tombstone diagram
+もともとは言語処理系の系譜を説明するために使われた、ある言語処理系の動作と、それが何言語で書かれているかを書いた図のこと。
+
+I diagram
+  : interpreter は、メタ言語 Lm で書かれたプログラムが言語 L の処理系になる。
+  これを I の形にして、下側に Lm、 上側に L を書く。
+
+T diagram
+  : compiler は、 メタ言語 Lm で書かれたプログラムが言語 L1 を入力として受け取って言語 L2 を出力する。
+  これを T の形にして、下側に Lm、左に L1、右にL2を書く。
+
+これの別の表し方として、 J diagram というのが
+[digram for composing compilers] とかで紹介されている。
 
 ## 計算不可能な関数の例
 busy beaver 関数と呼ばれる関数は計算不可能である。
@@ -16,4 +144,13 @@ busy beaver 関数
 > （つまり、排中律を用いた場合分けを暗に使うなどしている。）
 > 特に、この関数は coq などでは axiom なしには作れなそう？
 > つまり、数学的立場として「何が構成してよいオブジェクトなのか」をどれぐらい認めるかによって上の定義の妥当性が変わる。
-> 追記：いい加減なことを書いたかもしれない。 coq で実装するとして、証明項が prop に落ちないようにすればいい？
+> 追記：いい加減なことを書いたかもしれない。
+
+---
+[universal coalgebra]: https://ir.cwi.nl/pub/48/0048D.pdf
+[Intro Turing cat]: https://www.sciencedirect.com/science/article/pii/S0168007208000948
+[digram for composing compilers]: https://johnwickerson.github.io/papers/jdiagrams.pdf
+[Tombstone diagram]: https://en.wikipedia.org/wiki/Tombstone_diagram
+[is there a fourth]: https://gwern.net/doc/cs/algorithm/2009-gluck.pdf
+[fixpoint theorem in computability]: https://www.math.ru.nl/~terwijn/publications/surveyrecthm.pdf
+- https://arxiv.org/pdf/2204.03553
