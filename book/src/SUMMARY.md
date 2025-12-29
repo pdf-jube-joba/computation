@@ -10,12 +10,11 @@
 - [再帰関数](./models_of_computation/Recursive_function.md)
 
 # 計算の抽象化と universality
-- [計算モデルとエミュレーション](./comparison/_comparison.md)
-- [チューリングマシンの構成例](./comparison/Turing_machine_construction.md)
-- [再帰関数の計算可能性](./comparison/Computability_of_recursive_function.md)
-- [万能チューリングマシン](./comparison/Universal_Turing_machine.md)
-- [ラムダ計算で再帰関数を計算する](./comparison/lambda_calculus_computability.md)
-- [計算可能性について](./comparison/incomputable.md)
+- [計算モデルとエミュレーション](./computability/_computability.md)
+- [チューリングマシンで計算する](./computability/Turing_machine_computability.md)
+- [ラムダ計算で再帰関数を計算する](./computability/lambda_calculus_computability.md)
+- [万能チューリングマシン](./computability/Universal_Turing_machine.md)
+- [計算不可能な関数の例](./computability/incomputable.md)
 
 # 小さな言語など(small models)
 - [他の計算モデル](./small_models/_small_models.md)
