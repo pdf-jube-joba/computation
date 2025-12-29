@@ -52,5 +52,4 @@
 # その他メモ
 - [メモ](./01_notes/TODO.md)
     - [mdbookについて](./01_notes/notes/mdbookについて.md)
-    - [全体を書き直したい](./01_notes/notes/全体を書き直したい.md)
     - [状態機械とか](./01_notes/notes/状態機械とか.md)

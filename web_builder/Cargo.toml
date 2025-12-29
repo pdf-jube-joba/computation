@@ -19,6 +19,7 @@ lambda_calculus = { path = "../models/lambda_calculus", optional = true }
 goto_lang = { path = "../models/goto_lang", optional = true }
 recursive_function = { path = "../models/recursive_function", optional = true }
 tiny_isa = { path = "../models/tiny_isa", optional = true }
+symbolic_asm = { path = "../models/symbolic_asm", optional = true }
 
 [features]
 example = []
@@ -27,3 +28,4 @@ lambda_calculus = [ "dep:lambda_calculus" ]
 goto_lang = [ "dep:goto_lang" ]
 recursive_function = [ "dep:recursive_function" ]
 tiny_isa = [ "dep:tiny_isa" ]
+symbolic_asm = [ "dep:symbolic_asm" ]

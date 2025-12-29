@@ -92,6 +92,9 @@ pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
     #[cfg(feature = "tiny_isa")]
     return create_machine::<tiny_isa::Environment>(input, ainput);
 
+    #[cfg(feature = "symbolic_asm")]
+    return create_machine::<symbolic_asm::Environment>(input, ainput);
+
     Err(JsValue::from_str(
         "No machine type selected. Please enable a feature flag.",
     ))

@@ -497,6 +497,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "symbolic_asm",
  "tiny_isa",
  "turing_machine",
  "utils",
