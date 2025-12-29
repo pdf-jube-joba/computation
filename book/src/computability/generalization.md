@@ -128,7 +128,10 @@ T diagram
 これの別の表し方として、 J diagram というのが
 [digram for composing compilers] とかで紹介されている。
 
-## 計算不可能な関数の例
+## 計算可能以外の話
+### 半計算可能
+
+### 計算不可能な関数
 busy beaver 関数と呼ばれる関数は計算不可能である。
 
 busy beaver 関数

@@ -14,7 +14,7 @@
 - [チューリングマシンで計算する](./computability/Turing_machine_computability.md)
 - [ラムダ計算で再帰関数を計算する](./computability/lambda_calculus_computability.md)
 - [万能チューリングマシン](./computability/Universal_Turing_machine.md)
-- [計算不可能な関数の例](./computability/incomputable.md)
+- [計算不可能な関数の例](./computability/generalization.md)
 
 # 小さな言語など(small models)
 - [他の計算モデル](./small_models/_small_models.md)
