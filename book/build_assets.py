@@ -20,15 +20,11 @@ BUILD_SCRIPT = WORKSPACE_DIR / "build.py"
 
 def call_build_script() -> None:
     result = subprocess.run(
-        [sys.executable, str(BUILD_SCRIPT)],
+        [sys.executable, "-u", str(BUILD_SCRIPT)],
         cwd=WORKSPACE_DIR,
-        capture_output=True,
-        text=True,
+        stdout=sys.stderr,
+        stderr=sys.stderr,
     )
-    if result.stdout:
-        sys.stderr.write(result.stdout)
-    if result.stderr:
-        sys.stderr.write(result.stderr)
     if result.returncode != 0:
         sys.exit(result.returncode)
 
