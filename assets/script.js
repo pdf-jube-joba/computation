@@ -17,6 +17,23 @@ function ensureStyleSheet() {
 ensureStyleSheet();
 
 // -------------------------------------
+// ヘルパー: textarea フォーカス中は mdbook の矢印ナビを無効化
+// -------------------------------------
+function disableArrowNavWhileTyping() {
+  const blockedKeys = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
+  document.addEventListener(
+    "keydown",
+    event => {
+      if (!(event.target instanceof HTMLTextAreaElement)) return;
+      if (!blockedKeys.has(event.key)) return;
+      event.stopPropagation();
+    },
+    true,
+  );
+}
+disableArrowNavWhileTyping();
+
+// -------------------------------------
 // ヘルパー: <script type="text/plain" class="..."> からデフォルト文字列を取得
 // -------------------------------------
 function extractPlainScript(root, className) {
