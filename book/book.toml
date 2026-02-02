@@ -13,10 +13,12 @@ use-default-preprocessors = false
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 macros = "macros.txt"
+output = "mathml"
+no-css = true
 
 [preprocessor.build-assets]
 command = "python3 build_assets.py"
-build = true
+build = false
 
 [output.html]
 additional-css = ["custom.css"]
