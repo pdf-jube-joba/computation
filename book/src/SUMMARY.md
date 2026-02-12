@@ -31,9 +31,9 @@
 - [プログラムの構造化とコンパイル](./structured_programming/_structured_programming.md)
 - [ラベルとか名前の追加](./structured_programming/assembly.md)
 - [変数の無限化](./structured_programming/variable.md)
-- [メモリの区別のための型](./structured_programming/data.md)
-- [式と制御構造](./structured_programming/expr.md)
 - [手続きとスコープ](./structured_programming/procedure.md)
+- [式と制御構造](./structured_programming/expr.md)
+- [データ型](./structured_programming/data.md)
 
 # 型システム
 - [単純型付きラムダ計算]()

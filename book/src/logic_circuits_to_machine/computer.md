@@ -21,27 +21,35 @@
 - 命令は最初の n bit で（どのレジスタを操作するかも含めて） opcode みたいにして、 operand は残りのビット列（自然数）にする。
     - 「どのレジスタを使うか」が有限で扱えるので、引数は残りのビット列全部にできる。
 
+フラグがあった方がいい。
+
 データの転送
-- loadimm rd imm: rd <- imm
-- load rd addr : rd <- M[ addr ]
-- store rs addr : M [ addr ] <- rs
-- mov rd rs : レジスタ間
+- ldi rd ..imm : rd <- imm
+- mov rd rs : rd <- rs
+- ld rd rb : rd <- M[ rb ]
+- st rs rb : M [ rb ] <- rs
 
 算術
-- add rd rs: 加算
-- sub rd rs: 飽和で減算
+- add rd rs : rd <- rd + rs
+- sub rd rs : rd <- rd - rs ... 0 で飽和する
+
+比較
+- eq rd rs: rd == rs => eq-flag
+- lt rd rs: rd < rs => lt-flag
 
 条件分岐
-- jmpreg rd: pc := rd
-- jmprel imm: pc += imm
-- jltrel rd rs imm: pc += imm if rd < rd
+- jmp rb : pc <- rb
+- jeq rb : pc <- rb ... if eq-flag 
+- jlt rb : pc <- rb ... if lt-flag
 
 その他
 - nop: 何もせずに次に行く
 - halt: 停止する
+- reset: flag を reset する
+- readpc rd: rd <- pc
 
 レジスタは4つとして、
-最初の 8 bit のうち、 4 bit で opcode, 2 bit, 2 bit でレジスタを表すことにする。
+最初の 8 bit でレジスタ指定を含めた部分を記述する。
 残りの bit を全部自然数にして引数と考える。
 
 hdl に落とすのは、自然数の入ったメモリの転送さえクリアできれば大丈夫そう。

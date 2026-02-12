@@ -103,7 +103,7 @@ pub enum ImR {
     JmpRelImm {
         imm: Number,
     },
-    JLtLabel {
+    JltLabel {
         rl: Register,
         rr: Register,
         addr: Label,
@@ -197,7 +197,7 @@ impl TextCodec for ImR {
                 let rl: Register = words.next().ok_or("missing left register")?.parse_tc()?;
                 let rr: Register = words.next().ok_or("missing right register")?.parse_tc()?;
                 let addr: Label = words.next().ok_or("missing label")?.parse_tc()?;
-                Ok(ImR::JLtLabel { rl, rr, addr })
+                Ok(ImR::JltLabel { rl, rr, addr })
             }
             "JLTI" => {
                 let rl: Register = words.next().ok_or("missing left register")?.parse_tc()?;
@@ -233,7 +233,7 @@ impl TextCodec for ImR {
             ImR::JmpLabel { label } => write!(f, "JMPL {}", label.print()),
             ImR::JmpRelReg { r } => write!(f, "JMRR {}", r.print()),
             ImR::JmpRelImm { imm } => write!(f, "JMRI {}", imm.print()),
-            ImR::JLtLabel { rl, rr, addr } => {
+            ImR::JltLabel { rl, rr, addr } => {
                 write!(f, "JLTL {} {} {}", rl.print(), rr.print(), addr.print())
             }
             ImR::JltRel { rl, rr, imm } => {
@@ -541,7 +541,7 @@ impl Machine for Environment {
                 self.pc = self.pc.clone() + imm.clone();
                 Ok(None)
             }
-            ImR::JLtLabel { rl, rr, ref addr } => {
+            ImR::JltLabel { rl, rr, ref addr } => {
                 let label = addr.clone();
                 let val_l = self.get_register_mut(rl).clone();
                 let val_r = self.get_register_mut(rr).clone();

@@ -74,7 +74,7 @@ pub enum Instruction {
         rd: Register,
         rs: Register,
     },
-    // rd <- pc
+    // rd <-- pc
     ReadPc {
         rd: Register,
     },
