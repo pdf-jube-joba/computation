@@ -86,9 +86,4 @@ impl Machine for Counter {
     }
 }
 
-utils::web_model!(Counter);
-
-// これができるようになってしまう。
-#[wasm_bindgen]
-pub fn test(){
-}
+utils::web_model!(crate::Counter);

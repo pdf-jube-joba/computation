@@ -7,6 +7,7 @@ pub mod variable;
 // ここら辺がないと動かないが、
 // utils 側でも import をしておかないと、 `#[wasm_bindgen]` マクロが動かない。
 pub use serde_wasm_bindgen;
+pub use wasm_bindgen;
 
 pub trait TextCodec: Sized {
     fn parse(text: &str) -> Result<Self, String>;
@@ -58,7 +59,3 @@ pub trait Compiler: Sized {
 }
 
 mod web_util;
-
-pub mod wasm_bindgen {
-    pub use ::wasm_bindgen::*;
-}
