@@ -69,7 +69,6 @@ name = "example_counter"
 version = "0.1.0"
 dependencies = [
  "serde",
- "serde-wasm-bindgen",
  "utils",
  "wasm-bindgen",
 ]
@@ -408,7 +407,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
- "serde-wasm-bindgen",
  "serde_json",
  "utils",
  "wasm-bindgen",
@@ -439,7 +437,9 @@ dependencies = [
  "anyhow",
  "either",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
+ "wasm-bindgen",
 ]
 
 [[package]]

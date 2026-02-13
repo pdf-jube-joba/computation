@@ -6,6 +6,10 @@ pub mod number;
 pub mod parse;
 pub mod variable;
 
+// ここら辺がないと動かないが、
+// utils 側でも import をしておかないと、 `#[wasm_bindgen]` マクロが動かない。
+pub use serde_wasm_bindgen;
+
 pub trait TextCodec: Sized {
     fn parse(text: &str) -> Result<Self, String>;
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result;
@@ -60,7 +64,7 @@ macro_rules! web_model {
     ($machine:ty) => {
         fn main() {}
 
-        use wasm_bindgen::prelude::JsValue;
+        use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
         pub trait WebView {
             fn step(&mut self, rinput: &str) -> Result<Option<String>, String>;
@@ -84,7 +88,7 @@ macro_rules! web_model {
             }
 
             fn current(&self) -> Result<JsValue, JsValue> {
-                serde_wasm_bindgen::to_value(&<Self as $crate::Machine>::current(self))
+                $crate::serde_wasm_bindgen::to_value(&<Self as $crate::Machine>::current(self))
                     .map_err(|e| JsValue::from_str(&e.to_string()))
             }
         }
@@ -93,7 +97,7 @@ macro_rules! web_model {
             static MACHINE: std::cell::RefCell<Option<Box<dyn WebView>>> = std::cell::RefCell::new(None);
         }
 
-        #[wasm_bindgen::prelude::wasm_bindgen]
+        #[wasm_bindgen]
         pub fn step_machine(rinput: &str) -> Result<Option<String>, JsValue> {
             MACHINE.with(|machine| {
                 let mut machine = machine.borrow_mut();
@@ -105,7 +109,7 @@ macro_rules! web_model {
             })
         }
 
-        #[wasm_bindgen::prelude::wasm_bindgen]
+        #[wasm_bindgen]
         pub fn current_machine() -> Result<JsValue, JsValue> {
             MACHINE.with(|machine| {
                 let machine = machine.borrow();
@@ -136,7 +140,7 @@ macro_rules! web_model {
             })
         }
 
-        #[wasm_bindgen::prelude::wasm_bindgen]
+        #[wasm_bindgen]
         pub fn create(input: &str, ainput: &str) -> Result<(), JsValue> {
             create_machine::<$machine>(input, ainput)
         }
