@@ -1,98 +1,106 @@
 #!/usr/bin/env python3
 """
-Build `web_builder` WASM bundle using `wasm-pack`.
-And locates the built files in `assets/`.
-This files doen not serve any HTML or JS files (just builds the WASM bundle).
+Build WASM bundles for each model crate and copy them into assets/wasm_bundle.
 """
 
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
 
 WORKSPACE_DIR = Path(__file__).resolve().parent
-WEB_BUILDER_DIR = WORKSPACE_DIR / "web_builder"
-WEB_COMPILER_DIR = WORKSPACE_DIR / "web_compiler"
+MODELS_DIR = WORKSPACE_DIR / "models"
 ASSETS_DIR = WORKSPACE_DIR / "assets" / "wasm_bundle"
 RELEASE = False
 
-def ensure_wasm_pack() -> None:
-    if shutil.which("wasm-pack") is None:
-        sys.exit("wasm-pack is required but not found on PATH. Install it via `cargo install wasm-pack` or from https://rustwasm.github.io/wasm-pack/installer/ .")
+def ensure_wasm_bindgen() -> None:
+    if shutil.which("wasm-bindgen") is None:
+        sys.exit(
+            "wasm-bindgen is required but not found on PATH. "
+            "Install it via `cargo install wasm-bindgen-cli`."
+        )
 
 
-def load_features(cargo_dir: Path) -> list[str]:
-    """Read feature keys from the `[features]` section of Cargo.toml without full TOML parsing."""
-    features: list[str] = []
-    in_features = False
-    cargo_toml = (cargo_dir / "Cargo.toml").read_text().splitlines()
-    for line in cargo_toml:
+def find_model_packages() -> list[tuple[str, Path]]:
+    packages: list[tuple[str, Path]] = []
+    if not MODELS_DIR.exists():
+        return packages
+    for cargo_toml in MODELS_DIR.glob("*/Cargo.toml"):
+        name = read_package_name(cargo_toml)
+        if name:
+            packages.append((name, cargo_toml.parent))
+    return packages
+
+
+def read_package_name(cargo_toml: Path) -> str | None:
+    in_package = False
+    for line in cargo_toml.read_text().splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        if stripped == "[features]":
-            in_features = True
+        if stripped == "[package]":
+            in_package = True
             continue
-        if in_features and stripped.startswith("["):
-            break  # reached the next section
-        if not in_features:
-            continue
-        if "=" in stripped:
-            name = stripped.split("=", 1)[0].strip()
-            if name and name not in ("default",):
-                features.append(name)
-    return features
+        if in_package and stripped.startswith("["):
+            break
+        if in_package and stripped.startswith("name"):
+            _, value = stripped.split("=", 1)
+            return value.strip().strip('"')
+    return None
 
 
-def build_wasm(crate_dir: Path, feature: str, release: bool) -> None:
-    cmd = [
-        "wasm-pack",
-        "build",
-        "--out-name",
-        feature,
+def resolve_bin_name(crate_dir: Path, package_name: str) -> str | None:
+    if (crate_dir / "src" / "main.rs").exists():
+        return package_name
+    return None
+
+
+def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, cwd=cwd)
+
+
+def build_model_wasm(package_name: str, crate_dir: Path, release: bool) -> bool:
+    bin_name = resolve_bin_name(crate_dir, package_name)
+    if not bin_name:
+        print(f"[skip] {package_name}: no web entry (main.rs or bin/web.rs not found)")
+        return False
+
+    cmd = ["cargo", "build", "--package", package_name, "--target", "wasm32-unknown-unknown", "--bin", bin_name]
+    if release:
+        cmd.append("--release")
+    print(f"[build] package={package_name} bin={bin_name}")
+    result = run(cmd, cwd=WORKSPACE_DIR)
+    if result.returncode != 0:
+        print(f"[error] cargo build failed for {package_name} (bin={bin_name})")
+        return False
+
+    profile = "release" if release else "debug"
+    wasm_path = WORKSPACE_DIR / "target" / "wasm32-unknown-unknown" / profile / f"{bin_name}.wasm"
+    if not wasm_path.exists():
+        print(f"[error] wasm output missing for {package_name}: {wasm_path}")
+        return False
+
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    bindgen_cmd = [
+        "wasm-bindgen",
         "--target",
         "web",
-        "--mode",
-        "no-install",
+        "--out-dir",
+        str(ASSETS_DIR),
         "--no-typescript",
-        "--no-pack",
+        "--out-name",
+        package_name,
+        str(wasm_path),
     ]
-
-    if release:
-        cmd.insert(2, "--release")
-    else:
-        cmd.extend(["--no-opt"])
-
-    cmd.extend(["--features", feature])
-
-    print(f"[build] crate={crate_dir.name} feature={feature}")
-    run(cmd, cwd=crate_dir)
-
-
-def run(cmd: list[str], cwd: Path) -> None:
-    result = subprocess.run(cmd, cwd=cwd)
+    print(f"[bindgen] package={package_name} -> {ASSETS_DIR}")
+    result = run(bindgen_cmd)
     if result.returncode != 0:
-        sys.exit(result.returncode)
-
-
-def rename_and_move(crate_dir: Path, label: str) -> None:
-    src_dir = crate_dir / "pkg"
-    dest_dir = ASSETS_DIR
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    wasm_src = src_dir / f"{label}_bg.wasm"
-    wasm_dest = dest_dir / f"{label}_bg.wasm"
-    js_src = src_dir / f"{label}.js"
-    js_dest = dest_dir / f"{label}.js"
-
-    shutil.copy2(wasm_src, wasm_dest)
-    shutil.copy2(js_src, js_dest)
+        print(f"[error] wasm-bindgen failed for {package_name}")
+        return False
+    return True
 
 def main() -> None:
-    ensure_wasm_pack()
-    builder_features = [f for f in load_features(WEB_BUILDER_DIR)]
-    compiler_features = [f for f in load_features(WEB_COMPILER_DIR)]
+    ensure_wasm_bindgen()
 
     # Reset output dir once before building all targets so artifacts for each
     # feature accumulate instead of being overwritten on every iteration.
@@ -100,13 +108,8 @@ def main() -> None:
         shutil.rmtree(ASSETS_DIR)
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    for feature in builder_features:
-        build_wasm(WEB_BUILDER_DIR, feature, release=RELEASE)
-        rename_and_move(WEB_BUILDER_DIR, feature)
-
-    for feature in compiler_features:
-        build_wasm(WEB_COMPILER_DIR, feature, release=RELEASE)
-        rename_and_move(WEB_COMPILER_DIR, feature)
+    for package_name, crate_dir in find_model_packages():
+        build_model_wasm(package_name, crate_dir, release=RELEASE)
 
 if __name__ == "__main__":
     main()
