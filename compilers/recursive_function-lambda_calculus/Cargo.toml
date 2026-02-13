@@ -1,5 +1,5 @@
 [package]
-name = "recursive_function_to_turing_machine"
+name = "recursive_function-lambda_calculus"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 utils = { workspace = true }
-turing_machine = { workspace = true }
+lambda_calculus = { workspace = true }
 recursive_function = { workspace = true }
+wasm-bindgen = { workspace = true }

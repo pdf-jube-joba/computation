@@ -4,7 +4,6 @@ members = [
   "utils",
   "models/*",
   "compilers/*",
-  "web_compiler",
 ]
 
 exclude = [

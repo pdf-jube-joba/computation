@@ -1,5 +1,4 @@
 use serde::Serialize;
-use utils::{Machine, TextCodec};
 
 #[derive(Clone, Serialize)]
 pub struct Counter {

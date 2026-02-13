@@ -266,16 +266,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "recursive_function_to_lambda_calculus"
+name = "recursive_function-lambda_calculus"
 version = "0.1.0"
 dependencies = [
  "lambda_calculus",
  "recursive_function",
  "utils",
+ "wasm-bindgen",
 ]
 
 [[package]]
-name = "recursive_function_to_turing_machine"
+name = "recursive_function-turing_machine"
 version = "0.1.0"
 dependencies = [
  "recursive_function",
@@ -504,22 +505,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a05d73b933a847d6cccdda8f838a22ff101ad9bf93e33684f39c1f5f0eece3d"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "web_compiler"
-version = "0.1.0"
-dependencies = [
- "goto_lang",
- "lambda_calculus",
- "recursive_function",
- "recursive_function_to_lambda_calculus",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "turing_machine",
- "utils",
- "wasm-bindgen",
 ]
 
 [[package]]
