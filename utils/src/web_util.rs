@@ -1,10 +1,12 @@
 #[macro_export]
 macro_rules! web_model {
     ($machine:path) => {
-        fn main() {}
-
+        pub mod wasm_bindgen {
+            pub use ::wasm_bindgen::*;
+        }
         use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
-        use $crate::{Machine, TextCodec};
+
+        fn main() {}
 
         pub trait WebView {
             fn step(&mut self, rinput: &str) -> Result<Option<String>, String>;
@@ -14,6 +16,7 @@ macro_rules! web_model {
         impl<T> WebView for T
         where
             T: $crate::Machine,
+            <T as $crate::Machine>::SnapShot: Into<serde_json::Value>,
         {
             fn step(&mut self, rinput: &str) -> Result<Option<String>, String> {
                 let parsed = <Self as $crate::Machine>::parse_rinput(rinput)?;
@@ -28,7 +31,9 @@ macro_rules! web_model {
             }
 
             fn current(&self) -> Result<JsValue, JsValue> {
-                $crate::serde_wasm_bindgen::to_value(&<Self as $crate::Machine>::current(self))
+                let snapshot = <Self as $crate::Machine>::current(self);
+                let json: serde_json::Value = snapshot.into();
+                $crate::serde_wasm_bindgen::to_value(&json)
                     .map_err(|e| JsValue::from_str(&e.to_string()))
             }
         }
@@ -90,10 +95,15 @@ macro_rules! web_model {
 #[macro_export]
 macro_rules! web_compiler {
     ($compiler:path) => {
-        fn main() {}
 
+        pub mod wasm_bindgen {
+            pub use ::wasm_bindgen::*;
+        }
         use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
         use $crate::{Machine, TextCodec};
+    
+        fn main() {}
+
 
         #[allow(dead_code)]
         fn compile_code_for<T: $crate::Compiler>(code: &str) -> Result<String, JsValue> {

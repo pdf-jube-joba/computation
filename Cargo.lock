@@ -69,6 +69,7 @@ name = "example_counter"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "utils",
  "wasm-bindgen",
 ]
@@ -95,6 +96,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+ "serde_json",
  "utils",
 ]
 
@@ -122,6 +124,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+ "serde_json",
  "utils",
  "wasm-bindgen",
 ]
@@ -356,6 +359,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde_json",
  "tiny_isa",
  "utils",
  "wasm-bindgen",
@@ -398,6 +402,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde_json",
  "utils",
  "wasm-bindgen",
 ]
@@ -410,7 +415,6 @@ dependencies = [
  "serde",
  "serde_json",
  "utils",
- "wasm-bindgen",
 ]
 
 [[package]]

@@ -9,3 +9,4 @@ pest = { workspace = true }
 pest_derive = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }

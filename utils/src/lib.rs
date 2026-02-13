@@ -1,5 +1,3 @@
-use serde::Serialize;
-
 pub mod alphabet;
 pub mod bool;
 pub mod number;
@@ -21,11 +19,11 @@ pub trait TextCodec: Sized {
 }
 
 pub trait Machine: Sized {
-    type Code: Serialize + TextCodec; // static code
-    type AInput: Serialize + TextCodec; // ahead of time input
-    type SnapShot: Serialize; // representation of the current state
-    type RInput: Serialize + TextCodec; // runtime input
-    type Output: Serialize + TextCodec; // output after a step
+    type Code: TextCodec; // static code
+    type AInput: TextCodec; // ahead of time input
+    type SnapShot: Into<serde_json::Value>; // representation of the current state
+    type RInput: TextCodec; // runtime input
+    type Output: TextCodec; // output after a step
 
     fn parse_code(code: &str) -> Result<Self::Code, String> {
         Self::Code::parse(code)

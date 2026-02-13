@@ -7,3 +7,4 @@ edition = "2024"
 utils = { workspace = true }
 serde = { workspace = true }
 wasm-bindgen = { workspace = true }
+serde_json = { workspace = true }

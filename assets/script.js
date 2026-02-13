@@ -346,34 +346,6 @@ class CompilerWrapper {
 }
 
 // -------------------------------------
-// RendererWrapper: renderer をロードして SnapshotRenderer を得る
-// -------------------------------------
-class RendererWrapper {
-  constructor(modelName, stateContainer) {
-    this.modelName = modelName;
-    this.stateContainer = stateContainer;
-    this.snapshotRenderer = null;
-  }
-
-  async init() {
-    const rendererPath = `./renderers/${this.modelName}.js`;
-    const rmod = await import(rendererPath);
-    const SnapshotRenderer = rmod.SnapshotRenderer;
-    if (typeof SnapshotRenderer !== "function") {
-      throw new Error(`SnapshotRenderer not found for model "${this.modelName}"`);
-    }
-    this.snapshotRenderer = new SnapshotRenderer(this.stateContainer);
-    if (typeof this.snapshotRenderer.draw !== "function") {
-      throw new Error(`SnapshotRenderer missing draw() for model "${this.modelName}"`);
-    }
-  }
-
-  draw(state) {
-    this.snapshotRenderer.draw(state);
-  }
-}
-
-// -------------------------------------
 // ViewModel
 // -------------------------------------
 class ViewModel {
@@ -455,9 +427,9 @@ class ViewModel {
 
     this.machine = null;
     this.compiler = null;
+    this.renderer = null;
     this.status = "uninitialized"; // "ready" | "machine_setted" | "init_failed"
     this.targetModelName = this.isCompiler ? this.modelName.split("-").slice(-1)[0] : this.modelName;
-    this.renderer = new RendererWrapper(this.targetModelName, this.stateContainer);
 
     console.log(`ViewModel for model "${this.modelName}" isCompiler: "${this.isCompiler}"`);
 
@@ -486,7 +458,15 @@ class ViewModel {
 
   async init() {
     try {
-      await this.renderer.init();
+      const rmod = await import("./renderer.js");
+      const Renderer = rmod.Renderer;
+      if (typeof Renderer !== "function") {
+        throw new Error('Renderer not found (expected export "Renderer")');
+      }
+      this.renderer = new Renderer(this.stateContainer);
+      if (typeof this.renderer.draw !== "function") {
+        throw new Error("Renderer missing draw()");
+      }
 
       if (this.isCompiler) {
         this.compiler = new CompilerWrapper(this.compilerName);
