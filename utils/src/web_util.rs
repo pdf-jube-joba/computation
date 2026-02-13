@@ -97,8 +97,8 @@ macro_rules! web_compiler {
 
         #[allow(dead_code)]
         fn compile_code_for<T: $crate::Compiler>(code: &str) -> Result<String, JsValue> {
-            let source_code =
-                <T::Source as $crate::Machine>::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
+            let source_code = <T::Source as $crate::Machine>::parse_code(code)
+                .map_err(|e| JsValue::from_str(&e))?;
             let target_code = T::compile(source_code).map_err(|e| JsValue::from_str(&e))?;
             Ok(target_code.print())
         }
@@ -110,8 +110,8 @@ macro_rules! web_compiler {
 
         #[allow(dead_code)]
         fn compile_ainput_for<T: $crate::Compiler>(ainput: &str) -> Result<String, JsValue> {
-            let source_ainput =
-                <T as $crate::Compiler>::Source::parse_ainput(ainput).map_err(|e| JsValue::from_str(&e))?;
+            let source_ainput = <T as $crate::Compiler>::Source::parse_ainput(ainput)
+                .map_err(|e| JsValue::from_str(&e))?;
             let target_ainput =
                 T::encode_ainput(source_ainput).map_err(|e| JsValue::from_str(&e))?;
             Ok(target_ainput.print())
@@ -124,8 +124,8 @@ macro_rules! web_compiler {
 
         #[allow(dead_code)]
         fn compile_rinput_for<T: $crate::Compiler>(rinput: &str) -> Result<String, JsValue> {
-            let source_rinput =
-                <T as $crate::Compiler>::Source::parse_rinput(rinput).map_err(|e| JsValue::from_str(&e))?;
+            let source_rinput = <T as $crate::Compiler>::Source::parse_rinput(rinput)
+                .map_err(|e| JsValue::from_str(&e))?;
             let target_rinput =
                 T::encode_rinput(source_rinput).map_err(|e| JsValue::from_str(&e))?;
             Ok(target_rinput.print())
@@ -139,8 +139,10 @@ macro_rules! web_compiler {
         #[allow(dead_code)]
         fn decode_output_for<T: $crate::Compiler>(output: &str) -> Result<String, JsValue> {
             let output_target =
-                <<<T as $crate::Compiler>::Target as $crate::Machine>::Output as TextCodec>::parse(output)
-                    .map_err(|e| JsValue::from_str(&e))?;
+                <<<T as $crate::Compiler>::Target as $crate::Machine>::Output as TextCodec>::parse(
+                    output,
+                )
+                .map_err(|e| JsValue::from_str(&e))?;
             let output_source =
                 T::decode_output(output_target).map_err(|e| JsValue::from_str(&e))?;
             Ok(output_source.print())

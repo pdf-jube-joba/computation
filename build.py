@@ -10,6 +10,7 @@ from pathlib import Path
 
 WORKSPACE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = WORKSPACE_DIR / "models"
+COMPILERS_DIR = WORKSPACE_DIR / "compilers"
 ASSETS_DIR = WORKSPACE_DIR / "assets" / "wasm_bundle"
 RELEASE = False
 
@@ -21,11 +22,11 @@ def ensure_wasm_bindgen() -> None:
         )
 
 
-def find_model_packages() -> list[tuple[str, Path]]:
+def find_packages(root_dir: Path) -> list[tuple[str, Path]]:
     packages: list[tuple[str, Path]] = []
-    if not MODELS_DIR.exists():
+    if not root_dir.exists():
         return packages
-    for cargo_toml in MODELS_DIR.glob("*/Cargo.toml"):
+    for cargo_toml in root_dir.glob("*/Cargo.toml"):
         name = read_package_name(cargo_toml)
         if name:
             packages.append((name, cargo_toml.parent))
@@ -62,7 +63,7 @@ def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
 def build_model_wasm(package_name: str, crate_dir: Path, release: bool) -> bool:
     bin_name = resolve_bin_name(crate_dir, package_name)
     if not bin_name:
-        print(f"[skip] {package_name}: no web entry (main.rs or bin/web.rs not found)")
+        print(f"[skip] {package_name}: no web entry (main.rs not found)")
         return False
 
     cmd = ["cargo", "build", "--package", package_name, "--target", "wasm32-unknown-unknown", "--bin", bin_name]
@@ -108,7 +109,10 @@ def main() -> None:
         shutil.rmtree(ASSETS_DIR)
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    for package_name, crate_dir in find_model_packages():
+    for package_name, crate_dir in find_packages(MODELS_DIR):
+        build_model_wasm(package_name, crate_dir, release=RELEASE)
+
+    for package_name, crate_dir in find_packages(COMPILERS_DIR):
         build_model_wasm(package_name, crate_dir, release=RELEASE)
 
 if __name__ == "__main__":
