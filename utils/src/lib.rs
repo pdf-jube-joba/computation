@@ -58,3 +58,7 @@ pub trait Compiler: Sized {
 }
 
 mod web_util;
+
+pub mod wasm_bindgen {
+    pub use ::wasm_bindgen::*;
+}

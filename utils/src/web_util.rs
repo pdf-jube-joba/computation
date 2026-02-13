@@ -2,7 +2,7 @@
 macro_rules! web_model {
     ($machine:path) => {
         pub mod wasm_bindgen {
-            pub use ::wasm_bindgen::*;
+            pub use $crate::wasm_bindgen::*;
         }
         use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 

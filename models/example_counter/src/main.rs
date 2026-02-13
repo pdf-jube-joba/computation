@@ -1,6 +1,7 @@
-use serde::Serialize;
+use serde_json::json;
+use utils::{Machine, TextCodec};
 
-#[derive(Clone, Serialize)]
+#[derive(Clone)]
 pub struct Counter {
     pub count: usize,
 }
@@ -20,7 +21,12 @@ impl TextCodec for Counter {
     }
 }
 
-#[derive(Serialize)]
+impl From<Counter> for serde_json::Value {
+    fn from(counter: Counter) -> Self {
+        json!({ "text": counter.count })
+    }
+}
+
 pub enum Command {
     Increment,
     Decrement,
@@ -81,3 +87,8 @@ impl Machine for Counter {
 }
 
 utils::web_model!(Counter);
+
+// これができるようになってしまう。
+#[wasm_bindgen]
+pub fn test(){
+}
