@@ -8,4 +8,3 @@ utils = { workspace = true }
 serde = { workspace = true }
 wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
-web_builder = { path = "../../web_builder" }

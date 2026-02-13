@@ -81,4 +81,4 @@ impl Machine for Counter {
     }
 }
 
-web_builder::web_model!(Counter);
+utils::web_model!(Counter);
