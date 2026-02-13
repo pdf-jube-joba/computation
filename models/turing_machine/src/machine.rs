@@ -114,7 +114,7 @@ impl Tape {
 // マシンの持つ状態の定義
 // テープの記号と同じ
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize)]
-pub struct State(pub(crate)Alphabet);
+pub struct State(pub(crate) Alphabet);
 
 pub type CodeEntry = ((Sign, State), (Sign, State, Direction));
 pub type Code = Vec<CodeEntry>;
@@ -137,7 +137,7 @@ impl TuringMachineDefinition {
         let code: Code = code
             .into_iter()
             .map(|entry| {
-                if accepted_state.contains(&entry.0 .1) {
+                if accepted_state.contains(&entry.0.1) {
                     Err(anyhow::anyhow!("Code contains accepted state"))
                 } else {
                     Ok(entry)
