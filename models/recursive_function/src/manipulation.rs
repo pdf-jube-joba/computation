@@ -1,6 +1,6 @@
 use pest::{iterators::Pair, Parser};
-use utils::TextCodec;
 use std::collections::HashMap;
+use utils::TextCodec;
 
 use crate::machine::RecursiveFunctions;
 

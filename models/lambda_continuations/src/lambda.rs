@@ -1,22 +1,43 @@
 use std::collections::HashSet;
 
 use crate::traits::LambdaExt;
-use utils::{
-    number::Number,
-    variable::{Var},
-};
+use utils::{number::Number, variable::Var};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Lam {
-    Var { var: Var },
-    Lam { var: Var, body: Box<Lam> },
-    App { e1: Box<Lam>, e2: Box<Lam> },
+    Var {
+        var: Var,
+    },
+    Lam {
+        var: Var,
+        body: Box<Lam>,
+    },
+    App {
+        e1: Box<Lam>,
+        e2: Box<Lam>,
+    },
     Zero,
-    Succ { succ: Box<Lam> },
-    Pred { pred: Box<Lam> },
-    IfZ { cond: Box<Lam>, tcase: Box<Lam>, fcase: Box<Lam> },
-    Let { var: Var, bind: Box<Lam>, body: Box<Lam> },
-    Rec { fix: Var, var: Var, body: Box<Lam> },
+    Succ {
+        succ: Box<Lam>,
+    },
+    Pred {
+        pred: Box<Lam>,
+    },
+    IfZ {
+        cond: Box<Lam>,
+        tcase: Box<Lam>,
+        fcase: Box<Lam>,
+    },
+    Let {
+        var: Var,
+        bind: Box<Lam>,
+        body: Box<Lam>,
+    },
+    Rec {
+        fix: Var,
+        var: Var,
+        body: Box<Lam>,
+    },
 }
 
 impl Lam {
@@ -108,10 +129,7 @@ fn exp_to_num(t: Lam) -> Option<Number> {
 
 pub fn lam_to_value(value: Lam) -> Option<LamValue> {
     match value {
-        Lam::Lam { var, body } => Some(LamValue::Fun {
-            var,
-            body: *body,
-        }),
+        Lam::Lam { var, body } => Some(LamValue::Fun { var, body: *body }),
         other => Some(LamValue::Num(exp_to_num(other)?)),
     }
 }
@@ -203,7 +221,10 @@ impl LambdaExt for Lam {
             }
             (Lam::Lam { var: v1, body: b1 }, Lam::Lam { var: v2, body: b2 }) => {
                 let new_var = Var::dummy();
-                let body1 = b1.as_ref().clone().subst(v1.clone(), Lam::n_v(new_var.clone()));
+                let body1 = b1
+                    .as_ref()
+                    .clone()
+                    .subst(v1.clone(), Lam::n_v(new_var.clone()));
                 let body2 = b2.as_ref().clone().subst(v2.clone(), Lam::n_v(new_var));
                 body1.alpha_eq(&body2)
             }
@@ -283,12 +304,7 @@ impl LambdaExt for Lam {
                     body.subst(var, Lam::n_v(new_var)).subst(v, t),
                 )
             }
-            Lam::App { e1, e2 } => {
-                Lam::n_a(
-                    (*e1).subst(v.clone(), t.clone()),
-                    (*e2).subst(v, t),
-                )
-            }
+            Lam::App { e1, e2 } => Lam::n_a((*e1).subst(v.clone(), t.clone()), (*e2).subst(v, t)),
             Lam::Zero => Lam::n_z(),
             Lam::Succ { succ } => Lam::n_s((*succ).subst(v, t)),
             Lam::Pred { pred } => Lam::n_p((*pred).subst(v, t)),
@@ -300,9 +316,7 @@ impl LambdaExt for Lam {
             Lam::Let { var, bind, body } => {
                 let new_var = Var::dummy();
                 let bind = (*bind).subst(v.clone(), t.clone());
-                let body = body
-                    .subst(var, Lam::n_v(new_var.clone()))
-                    .subst(v, t);
+                let body = body.subst(var, Lam::n_v(new_var.clone())).subst(v, t);
                 Lam::n_d(new_var, bind, body)
             }
             Lam::Rec { fix, var, body } => {

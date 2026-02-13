@@ -59,4 +59,4 @@ macro_rules! compiler_api {
     };
 }
 
-compiler_api!{"recursive_function-lambda_calculus", recursive_function_to_lambda_calculus::Rec2LamCompiler}
+compiler_api! {"recursive_function-lambda_calculus", recursive_function_to_lambda_calculus::Rec2LamCompiler}

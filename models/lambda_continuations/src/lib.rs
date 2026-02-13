@@ -18,10 +18,9 @@ pub mod traits {
         fn is_value(&self) -> Option<Self::Value>;
         fn step(self) -> Option<Self>;
     }
-
 }
 
+pub mod ctrl;
 pub mod lambda;
 pub mod no_ext;
-pub mod ctrl;
 pub mod parse;

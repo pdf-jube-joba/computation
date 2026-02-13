@@ -96,7 +96,10 @@ mod tests {
                 //     head: "-".parse().unwrap(),
                 //     right: vec_sign(vec!["", "1", "-", "", "1", "-", "", "1", "-"]),
                 // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "1", "-", "", "1", "-"]), 0),
+                Tape::from_vec(
+                    vec_sign(vec!["-", "", "1", "-", "", "1", "-", "", "1", "-"]),
+                    0,
+                ),
                 // Tape {
                 //     left: vec![],
                 //     head: "-".parse().unwrap(),

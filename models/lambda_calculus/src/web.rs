@@ -1,4 +1,4 @@
-use crate::machine::{LambdaTerm, MarkedTerm, is_normal_form};
+use crate::machine::{is_normal_form, LambdaTerm, MarkedTerm};
 use serde::Serialize;
 use utils::{Machine, TextCodec};
 

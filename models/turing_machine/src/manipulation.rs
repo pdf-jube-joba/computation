@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 pub mod builder {
     use crate::machine::*;
-    use anyhow::{anyhow, Result};
+    use anyhow::{Result, anyhow};
     use utils::parse::ParseTextCodec;
 
     #[derive(Clone, PartialEq)]
@@ -106,8 +106,8 @@ pub mod builder {
 
 pub mod graph_compose {
     use super::{builder::TuringMachineBuilder, *};
-    use anyhow::{anyhow, Result};
-    use utils::{parse::ParseTextCodec, TextCodec};
+    use anyhow::{Result, anyhow};
+    use utils::{TextCodec, parse::ParseTextCodec};
 
     pub struct GraphOfBuilder {
         pub name: String,

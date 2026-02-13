@@ -1,6 +1,6 @@
 use serde::Serialize;
-use utils::number::Number;
 use utils::alphabet::Alphabet;
+use utils::number::Number;
 use utils::{Machine, TextCodec};
 
 #[derive(Debug, Default, Clone, Serialize)]

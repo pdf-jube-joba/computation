@@ -1,7 +1,7 @@
 use crate::machine::*;
+use utils::TextCodec;
 use utils::alphabet::Alphabet;
 use utils::parse::ParseTextCodec;
-use utils::TextCodec;
 
 impl TextCodec for Direction {
     fn parse(text: &str) -> Result<Self, String> {
@@ -167,15 +167,15 @@ impl TextCodec for TuringMachineDefinition {
         }
         writeln!(f)?;
         for entry in self.code() {
-            entry.0 .0.write_fmt(f)?;
+            entry.0.0.write_fmt(f)?;
             write!(f, ",")?;
-            entry.0 .1.write_fmt(f)?;
+            entry.0.1.write_fmt(f)?;
             write!(f, ",")?;
-            entry.1 .0.write_fmt(f)?;
+            entry.1.0.write_fmt(f)?;
             write!(f, ",")?;
-            entry.1 .1.write_fmt(f)?;
+            entry.1.1.write_fmt(f)?;
             write!(f, ",")?;
-            entry.1 .2.write_fmt(f)?;
+            entry.1.2.write_fmt(f)?;
             writeln!(f)?;
         }
         Ok(())

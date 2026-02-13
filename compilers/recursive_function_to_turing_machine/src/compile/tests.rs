@@ -10,7 +10,11 @@ use crate::compile::*;
 fn print_process(machine: &TuringMachineSet) {
     let state_str = machine.now_state().print();
     if state_str.contains("start") || state_str.contains("end") {
-        eprintln!("{}\n   {}", machine.now_state().print(), machine.now_tape().print());
+        eprintln!(
+            "{}\n   {}",
+            machine.now_state().print(),
+            machine.now_tape().print()
+        );
     }
 }
 

@@ -1,21 +1,43 @@
 use std::collections::HashSet;
 
-use crate::{
-    traits::{LambdaExt, Step},
-};
+use crate::traits::{LambdaExt, Step};
 use utils::{number::Number, variable::Var};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AbCt {
-    Var { var: Var },
-    Lam { var: Var, body: Box<AbCt> },
-    App { e1: Box<AbCt>, e2: Box<AbCt> },
+    Var {
+        var: Var,
+    },
+    Lam {
+        var: Var,
+        body: Box<AbCt>,
+    },
+    App {
+        e1: Box<AbCt>,
+        e2: Box<AbCt>,
+    },
     Zero,
-    Succ { succ: Box<AbCt> },
-    Pred { pred: Box<AbCt> },
-    IfZ { cond: Box<AbCt>, tcase: Box<AbCt>, fcase: Box<AbCt> },
-    Let { var: Var, bind: Box<AbCt>, body: Box<AbCt> },
-    Rec { fix: Var, var: Var, body: Box<AbCt> },
+    Succ {
+        succ: Box<AbCt>,
+    },
+    Pred {
+        pred: Box<AbCt>,
+    },
+    IfZ {
+        cond: Box<AbCt>,
+        tcase: Box<AbCt>,
+        fcase: Box<AbCt>,
+    },
+    Let {
+        var: Var,
+        bind: Box<AbCt>,
+        body: Box<AbCt>,
+    },
+    Rec {
+        fix: Var,
+        var: Var,
+        body: Box<AbCt>,
+    },
     Abort(Box<AbCt>),
     Control(Box<AbCt>),
 }
@@ -107,10 +129,7 @@ fn num_to_abct(n: Number) -> AbCt {
 
 fn abct_to_value(term: AbCt) -> Option<AbCtValue> {
     match term {
-        AbCt::Lam { var, body } => Some(AbCtValue::Fun {
-            var,
-            body: *body,
-        }),
+        AbCt::Lam { var, body } => Some(AbCtValue::Fun { var, body: *body }),
         other => Some(AbCtValue::Num(exp_to_num(other)?)),
     }
 }
@@ -214,7 +233,10 @@ impl LambdaExt for AbCt {
             }
             (AbCt::Lam { var: v1, body: b1 }, AbCt::Lam { var: v2, body: b2 }) => {
                 let new_var = Var::dummy();
-                let body1 = b1.as_ref().clone().subst(v1.clone(), AbCt::n_v(new_var.clone()));
+                let body1 = b1
+                    .as_ref()
+                    .clone()
+                    .subst(v1.clone(), AbCt::n_v(new_var.clone()));
                 let body2 = b2.as_ref().clone().subst(v2.clone(), AbCt::n_v(new_var));
                 body1.alpha_eq(&body2)
             }
@@ -297,10 +319,7 @@ impl LambdaExt for AbCt {
                     body.subst(var, AbCt::n_v(new_var)).subst(v, t),
                 )
             }
-            AbCt::App { e1, e2 } => AbCt::n_a(
-                e1.subst(v.clone(), t.clone()),
-                e2.subst(v, t),
-            ),
+            AbCt::App { e1, e2 } => AbCt::n_a(e1.subst(v.clone(), t.clone()), e2.subst(v, t)),
             AbCt::Zero => AbCt::n_z(),
             AbCt::Succ { succ } => AbCt::n_s(succ.subst(v, t)),
             AbCt::Pred { pred } => AbCt::n_p(pred.subst(v, t)),
@@ -312,9 +331,7 @@ impl LambdaExt for AbCt {
             AbCt::Let { var, bind, body } => {
                 let new_var = Var::dummy();
                 let bind = bind.subst(v.clone(), t.clone());
-                let body = body
-                    .subst(var, AbCt::n_v(new_var.clone()))
-                    .subst(v, t);
+                let body = body.subst(var, AbCt::n_v(new_var.clone())).subst(v, t);
                 AbCt::n_d(new_var, bind, body)
             }
             AbCt::Rec { fix, var, body } => {

@@ -265,7 +265,10 @@ mod tests {
                 //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "1", "1", "-"]),
                 // },
-                Tape::from_vec(vec_sign(vec!["", "-", "1", "", "-", "-", "", "1", "1", "-"]), 5),
+                Tape::from_vec(
+                    vec_sign(vec!["", "-", "1", "", "-", "-", "", "1", "1", "-"]),
+                    5,
+                ),
                 // Tape {
                 //     left: vec![],
                 //     head: "-".parse_tc().unwrap(),
@@ -315,7 +318,10 @@ mod tests {
                 //     head: "-".parse_tc().unwrap(),
                 //     right: vec_sign(vec!["", "1", "1", "-"]),
                 // },
-                Tape::from_vec(vec_sign(vec!["", "-", "1", "", "-", "-", "", "1", "1", "-"]), 5),
+                Tape::from_vec(
+                    vec_sign(vec!["", "-", "1", "", "-", "-", "", "1", "1", "-"]),
+                    5,
+                ),
                 // Tape {
                 //     left: vec![],
                 //     head: "-".parse_tc().unwrap(),

@@ -60,7 +60,10 @@ pub fn number_to_lambda_term(num: Number) -> LambdaTerm {
 
     let mut body = v(&one);
 
-    let num = num.as_usize().map_err(|_| "number too large".to_string()).unwrap();
+    let num = num
+        .as_usize()
+        .map_err(|_| "number too large".to_string())
+        .unwrap();
 
     for _ in 0_usize..num {
         body = app(v(&zero), body);
