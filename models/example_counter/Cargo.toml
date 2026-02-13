@@ -1,14 +1,11 @@
 [package]
-name = "turing_machine"
+name = "example_counter"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 utils = { workspace = true }
-anyhow = { workspace = true }
-wasm-bindgen = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
+wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
-
-web_builder = { workspace = true }
+web_builder = { path = "../../web_builder" }

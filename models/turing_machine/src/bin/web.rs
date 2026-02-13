@@ -1,5 +1,7 @@
-use crate::machine::{CodeEntry as CoreCodeEntry, Tape, TuringMachineDefinition, TuringMachineSet};
 use serde::Serialize;
+use turing_machine::machine::{
+    CodeEntry as CoreCodeEntry, Tape, TuringMachineDefinition, TuringMachineSet,
+};
 use utils::{Machine, TextCodec};
 
 #[derive(Debug, Clone, Serialize)]
@@ -31,7 +33,9 @@ pub struct Current {
     tape: Tape,
 }
 
-impl Machine for TuringMachineSet {
+pub struct TuringMachine(TuringMachineSet);
+
+impl Machine for TuringMachine {
     type Code = TuringMachineDefinition;
     type AInput = Tape;
     type RInput = ();
@@ -39,12 +43,12 @@ impl Machine for TuringMachineSet {
     type SnapShot = Current;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
-        Ok(TuringMachineSet::new(code, ainput))
+        Ok(TuringMachine(TuringMachineSet::new(code, ainput)))
     }
 
     fn step(&mut self, _input: Self::RInput) -> Result<Option<Self::Output>, String> {
-        let _ = self.step(1);
-        if self.is_terminate() {
+        let _ = self.0.step(1);
+        if self.0.is_terminate() {
             Ok(Some(()))
         } else {
             Ok(None)
@@ -53,17 +57,19 @@ impl Machine for TuringMachineSet {
 
     fn current(&self) -> Self::SnapShot {
         let now = self
+            .0
             .next_code()
             .map(|(idx, _)| idx)
-            .unwrap_or(self.code().len());
-        let tape = self.now_tape().clone();
-        let state = self.now_state().print();
-
+            .unwrap_or(self.0.code().len());
+        let tape = self.0.now_tape().clone();
+        let state = self.0.now_state().print();
         Current {
-            code: self.code().iter().cloned().map(CodeEntry::from).collect(),
+            code: self.0.code().iter().cloned().map(CodeEntry::from).collect(),
             now,
             state,
             tape,
         }
     }
 }
+
+web_builder::web_model!(TuringMachine);

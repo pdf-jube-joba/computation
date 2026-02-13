@@ -3,9 +3,6 @@ name = "web_builder"
 version = "0.1.0"
 edition = "2024"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -13,19 +10,3 @@ wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 
 utils = { workspace = true }
-
-turing_machine = { path = "../models/turing_machine", optional = true }
-lambda_calculus = { path = "../models/lambda_calculus", optional = true }
-goto_lang = { path = "../models/goto_lang", optional = true }
-recursive_function = { path = "../models/recursive_function", optional = true }
-tiny_isa = { path = "../models/tiny_isa", optional = true }
-symbolic_asm = { path = "../models/symbolic_asm", optional = true }
-
-[features]
-example = []
-turing_machine = ["dep:turing_machine"]
-lambda_calculus = [ "dep:lambda_calculus" ]
-goto_lang = [ "dep:goto_lang" ]
-recursive_function = [ "dep:recursive_function" ]
-tiny_isa = [ "dep:tiny_isa" ]
-symbolic_asm = [ "dep:symbolic_asm" ]

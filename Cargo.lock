@@ -65,6 +65,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
+name = "example_counter"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde-wasm-bindgen",
+ "utils",
+ "wasm-bindgen",
+ "web_builder",
+]
+
+[[package]]
 name = "flow_ir"
 version = "0.1.0"
 
@@ -398,9 +409,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "utils",
  "wasm-bindgen",
+ "web_builder",
 ]
 
 [[package]]
@@ -499,15 +512,9 @@ dependencies = [
 name = "web_builder"
 version = "0.1.0"
 dependencies = [
- "goto_lang",
- "lambda_calculus",
- "recursive_function",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
- "symbolic_asm",
- "tiny_isa",
- "turing_machine",
  "utils",
  "wasm-bindgen",
 ]

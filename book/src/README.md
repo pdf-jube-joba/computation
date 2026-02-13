@@ -12,7 +12,7 @@
 全部を統一したい。
 - create と step で全部なんとかする。
 
-<div data-model="example">
+<div data-model="example_counter">
 <script type="text/plain" class="default-code">
 5
 </script>
@@ -22,7 +22,7 @@ inc
 </div>
 
 二個目の配置
-<div data-model="example">
+<div data-model="example_counter">
 <script type="text/plain" class="default-code">
 8
 </script>
