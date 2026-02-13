@@ -20,7 +20,7 @@ lambda_calculus = { path = "../models/lambda_calculus", optional = true }
 goto_lang = { path = "../models/goto_lang", optional = true }
 recursive_function = { path = "../models/recursive_function", optional = true }
 
-recursive_function_to_lambda_calculus = { path = "../compile/recursive_function_to_lambda_calculus", optional = true }
+recursive_function_to_lambda_calculus = { path = "../compilers/recursive_function_to_lambda_calculus", optional = true }
 
 [features]
 recursive_function-lambda_calculus = [ "dep:recursive_function_to_lambda_calculus" ]

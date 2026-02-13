@@ -3,7 +3,7 @@ resolver = "2"
 members = [
   "utils",
   "models/*",
-  "compile/*",
+  "compilers/*",
   "web_builder",
   "web_compiler",
 ]
