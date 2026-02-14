@@ -3,6 +3,7 @@ macro_rules! web_model {
     ($machine:path) => {
         mod __web_model {
             use $crate::{Machine, TextCodec};
+            use serde::Serialize;
             use serde_json::Value;
             use $crate::wasm_bindgen::prelude::JsValue;
 
@@ -34,7 +35,7 @@ macro_rules! web_model {
                 fn current(&self) -> Result<JsValue, JsValue> {
                     let snapshot = <Self as $crate::Machine>::current(self);
                     let json: Value = snapshot.into();
-                    $crate::serde_wasm_bindgen::to_value(&json)
+                    json.serialize(&$crate::serde_wasm_bindgen::Serializer::json_compatible())
                         .map_err(|e| JsValue::from_str(&e.to_string()))
                 }
             }
