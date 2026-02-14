@@ -1,3 +1,32 @@
+## レンダリングお試し
+
+<textarea rows=15 cols=40 id="input">[
+  { "kind": "text", "title": "Hello", "text": "renderer test" },
+  {
+    "kind": "container",
+    "orientation": "horizontal",
+    "children": [
+      { "kind": "text", "text": "left" },
+      { "kind": "text", "text": "right" }
+    ]
+  }
+]</textarea>
+<button id="render">Render</button>
+<div id="state"></div>
+<script type="module">
+  import { Renderer } from "../../assets/renderer.js";
+  const renderer = new Renderer(document.getElementById("state"));
+  document.getElementById("render").addEventListener("click", () => {
+    const input = document.getElementById("input").value;
+    try {
+      const data = JSON.parse(input);
+      renderer.draw(data);
+    } catch (err) {
+      renderer.draw([{ kind: "text", text: String(err) }]);
+    }
+  });
+</script>
+
 ## mdbook と `<script>` タグについて
 mdbook では、 book.toml に次のように書くと自動で生成時に追記してくれる。
 ```book.toml
@@ -10,7 +39,7 @@ additional-js = [
 ただ、 `type="module"` はつかないので、これでやる場合は気を付けること。
 つまり、 `export` をするような `js` ファイルはこれで読み込んじゃダメ。
 
-# html のパーサーの問題？
+## html のパーサーの問題？
 markdown の中でタグを配置するときの注意
 ```markdown
 <div id="canvas"></div>
