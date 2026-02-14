@@ -1,9 +1,27 @@
 site_name: Computations
 
 docs_dir: docs
-out_dir: site
 hooks:
   - mkdocs_hooks.py
+
+plugins:
+  - search
+  - gh-admonitions
+
+markdown_extensions:
+  - admonition
+  - def_list
+
+theme:
+  name: material
+
+extra_css:
+  - assets/vendor/katex.min.css
+
+extra_javascript:
+  - assets/vendor/katex.min.js
+  - assets/vendor/contrib/auto-render.min.js
+  - assets/katex-init.js
 
 extra:
   rust-build:

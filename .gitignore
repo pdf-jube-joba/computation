@@ -3,6 +3,11 @@ __pycache__
 
 site
 
+fonts
+katex.min.js
+katex.min.css
+auto-render.min.js
+
 wasm_bundle
 docs/assets
 docs/models
