@@ -7,6 +7,7 @@ hooks:
 plugins:
   - search
   - gh-admonitions
+  - awesome-pages
 
 markdown_extensions:
   - admonition
