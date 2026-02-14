@@ -5,9 +5,25 @@
   {
     "kind": "container",
     "orientation": "horizontal",
+    "display": "block",
     "children": [
       { "kind": "text", "text": "left" },
       { "kind": "text", "text": "right" }
+    ]
+  },
+  {
+    "kind": "table",
+    "columns": [
+      { "kind": "text", "text": "Hello" },
+      { "kind": "text", "text": "World!" }
+    ],
+    "rows": [
+      {
+        "cells": [
+          { "kind": "text", "text": "Hello" },
+          { "kind": "text", "text": "World!" }
+        ]
+      }
     ]
   }
 ]</textarea>

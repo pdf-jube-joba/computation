@@ -20,6 +20,8 @@ export class Renderer {
   }
 
   draw(state) {
+    console.log("Rendering state:", state);
+
     if (!this.stateContainer) return;
     this.stateContainer.replaceChildren();
 
@@ -128,7 +130,17 @@ export class Renderer {
     children.forEach(child => {
       const node = this.renderBlock(child);
       if (node) {
-        container.appendChild(node);
+        if (block.display === "block") {
+          const item = document.createElement("div");
+          item.className = "wm-container-item";
+          item.style.border = "1px solid #000";
+          item.style.padding = "8px";
+          item.style.margin = "8px 0";
+          item.appendChild(node);
+          container.appendChild(item);
+        } else {
+          container.appendChild(node);
+        }
       }
     });
     wrapper.appendChild(container);
