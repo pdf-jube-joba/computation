@@ -70,7 +70,7 @@ macro_rules! web_model {
             fn create_machine<T: $crate::Machine + 'static>(
                 code: &str,
                 ainput: &str,
-            ) -> Result<(), JsValue> {
+            ) -> Result<(), JsValue> where <T as $crate::Machine>::SnapShot: Into<Value> {
                 MACHINE.with(|machine| {
                     let mut machine = machine.borrow_mut();
                     *machine = None;
@@ -103,7 +103,7 @@ macro_rules! web_compiler {
     ($compiler:path) => {
         mod __web_compiler {
             use $crate::{Machine, TextCodec};
-            use $crate::wasm_bindgen_prelude::JsValue;
+            use $crate::wasm_bindgen::prelude::JsValue;
 
             #[allow(dead_code)]
             fn compile_code_for<T: $crate::Compiler>(code: &str) -> Result<String, JsValue> {
@@ -113,7 +113,7 @@ macro_rules! web_compiler {
                 Ok(target_code.print())
             }
 
-            #[$crate::wasm_bindgen_prelude::wasm_bindgen]
+            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
             pub fn compile_code(input: &str) -> Result<String, JsValue> {
                 compile_code_for::<$compiler>(input)
             }
@@ -127,7 +127,7 @@ macro_rules! web_compiler {
                 Ok(target_ainput.print())
             }
 
-            #[$crate::wasm_bindgen_prelude::wasm_bindgen]
+            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
             pub fn compile_ainput(ainput: &str) -> Result<String, JsValue> {
                 compile_ainput_for::<$compiler>(ainput)
             }
@@ -141,7 +141,7 @@ macro_rules! web_compiler {
                 Ok(target_rinput.print())
             }
 
-            #[$crate::wasm_bindgen_prelude::wasm_bindgen]
+            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
             pub fn compile_rinput(rinput: &str) -> Result<String, JsValue> {
                 compile_rinput_for::<$compiler>(rinput)
             }
@@ -158,7 +158,7 @@ macro_rules! web_compiler {
                 Ok(output_source.print())
             }
 
-            #[$crate::wasm_bindgen_prelude::wasm_bindgen]
+            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
             pub fn decode_output(output: &str) -> Result<String, JsValue> {
                 decode_output_for::<$compiler>(output)
             }

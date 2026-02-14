@@ -23,7 +23,7 @@ impl TextCodec for Counter {
 
 impl From<Counter> for serde_json::Value {
     fn from(counter: Counter) -> Self {
-        json!({ "text": counter.count })
+        json!([{ "kind": "text", "text": counter.count }])
     }
 }
 

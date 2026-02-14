@@ -1,17 +1,16 @@
 // assets/renderer.js
 // Draft: common renderer prototype. Expects an array of JSON blocks.
 //
-// Supported block kinds (initial sketch):
-// - text: { kind: "text", text: "..." }
-// - kv: { kind: "kv", title?: "...", items: [{ key, value }] }
-// - table: { kind: "table", title?: "...", columns: [""], rows: [[...]] }
-// - code: { kind: "code", title?: "...", lines: [""], highlightIndex?: number }
-// - list: { kind: "list", title?: "...", items: [""|object] }
-// - tree: { kind: "tree", title?: "...", root: { label, children?: [...] } }
-// Unsupported block kinds
-// - graph: { kind: "graph", title?: "...", nodes: [{ id, label }], edges: [{ from, to }] }
-// - stack: { kind: "stack", title?: "...", frames: [{ text }] }
-// - grid: { kind: "grid", title?: "...", cells: [[{ text }]] }
+// Supported block kinds: title, className, style are optional for all block types.
+// - text: { kind: "text", text: string }
+//   # simple text block
+// - table: { kind: "table", columns: [block], rows: [{ className?, cells: [block] }] }
+//   # a table with optional header and rows. each cell can be a block.
+// - container: { kind: "tree", children: [block], orientation: "vertical" | "horizontal", display: "inline" | "block"}
+//   # a flat displayed container for grouping blocks. orientation defaults to vertical, display defaults to block.
+// Unsupported (for now):
+// - graph: { kind: "graph", nodes: [{ id: number, inner: block }], edges: [{ from: number, to: number, inner: block }] }
+// - grid: { kind: "grid", cells: [[{ text }]] }
 // Blocks may include optional layout hints:
 // - order: number (for CSS ordering)
 // - className: string (extra CSS class)

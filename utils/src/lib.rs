@@ -22,7 +22,7 @@ pub trait TextCodec: Sized {
 pub trait Machine: Sized {
     type Code: TextCodec; // static code
     type AInput: TextCodec; // ahead of time input
-    type SnapShot: Into<serde_json::Value>; // representation of the current state
+    type SnapShot; // representation of the current state
     type RInput: TextCodec; // runtime input
     type Output: TextCodec; // output after a step
 
