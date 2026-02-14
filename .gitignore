@@ -1,11 +1,9 @@
 /target
-integration/book/out/
-out/
-dist
-pkg
-generated
-assets/wasm_bundle
-playground/assets
-book/src/assets
 __pycache__
+
 site
+
+wasm_bundle
+docs/assets
+docs/models
+docs/compilers

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 WORKSPACE_DIR = Path(__file__).resolve().parent
+_MACROS_CACHE: dict[Path, tuple[float, dict[str, str]]] = {}
 
 
 def _get_build_options(config) -> tuple[bool, bool]:
@@ -169,6 +171,96 @@ def _sync_markdown_tree(src_root: Path, dest_root: Path) -> None:
         shutil.copy2(path, target)
 
 
+def _parse_katex_macros(macros_path: Path) -> dict[str, str]:
+    macros: dict[str, str] = {}
+    for raw_line in macros_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if ":" not in line:
+            continue
+        name, body = line.split(":", 1)
+        name = name.strip()
+        body = body.strip()
+        if not name or not body:
+            continue
+        macros[name] = body
+    return macros
+
+
+def _load_macros(macros_path: Path) -> dict[str, str]:
+    if not macros_path.exists():
+        return {}
+    mtime = macros_path.stat().st_mtime
+    cached = _MACROS_CACHE.get(macros_path)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    macros = _parse_katex_macros(macros_path)
+    _MACROS_CACHE[macros_path] = (mtime, macros)
+    return macros
+
+
+def _replace_macros_in_text(text: str, macros: dict[str, str]) -> str:
+    if not macros:
+        return text
+    macros_with_args = {
+        name: body for name, body in macros.items() if "#1" in body
+    }
+    macros_no_args = {
+        name: body for name, body in macros.items() if "#1" not in body
+    }
+    for name, body in macros_no_args.items():
+        pattern = re.compile(rf"(?<!\\){re.escape(name)}(?![A-Za-z])")
+        text = pattern.sub(body, text)
+    for name, body in macros_with_args.items():
+        pattern = re.compile(rf"(?<!\\){re.escape(name)}\{{([^}}]+)\}}")
+        text = pattern.sub(lambda m: body.replace("#1", m.group(1)), text)
+    return text
+
+
+def _convert_dollar_delimiters(text: str) -> str:
+    text = re.sub(r"\$\$([\s\S]+?)\$\$", r"\\[\1\\]", text)
+    text = re.sub(r"(?<!\\)\$([^\n$]+?)\$(?!\$)", r"\\(\1\\)", text)
+    return text
+
+
+def _inject_script_tag(markdown: str, src_path: str | None) -> str:
+    if "assets/script.js" in markdown:
+        return markdown
+    depth = src_path.count("/") if src_path else 0
+    prefix = "../" * depth
+    return (
+        f'<script type="module" src="{prefix}assets/script.js"></script>\n'
+        +
+        markdown
+    )
+
+
+def _transform_non_code(text: str, macros: dict[str, str]) -> str:
+    parts = re.split(r"(`[^`]*`)", text)
+    for i, part in enumerate(parts):
+        if part.startswith("`") and part.endswith("`"):
+            continue
+        parts[i] = _convert_dollar_delimiters(_replace_macros_in_text(part, macros))
+    return "".join(parts)
+
+
+def _transform_markdown(
+    markdown: str,
+    macros: dict[str, str],
+    src_path: str | None,
+) -> str:
+    fence_pattern = re.compile(r"(^```[\s\S]*?^```|^~~~[\s\S]*?^~~~)", re.MULTILINE)
+    pieces: list[str] = []
+    last = 0
+    for match in fence_pattern.finditer(markdown):
+        pieces.append(_transform_non_code(markdown[last : match.start()], macros))
+        pieces.append(match.group(0))
+        last = match.end()
+    pieces.append(_transform_non_code(markdown[last:], macros))
+    return _inject_script_tag("".join(pieces), src_path)
+
+
 def on_pre_build(config) -> None:
     docs_dir = _resolve_docs_dir(config)
     _sync_assets(WORKSPACE_DIR, docs_dir)
@@ -179,3 +271,10 @@ def on_pre_build(config) -> None:
         print("[build] skipped (extra.build is false)")
         return
     _build_wasm_bundles(WORKSPACE_DIR, release=release)
+
+
+def on_page_markdown(markdown, page, config, files):
+    src_path = page.file.src_path if page and page.file else None
+    docs_dir = _resolve_docs_dir(config)
+    macros = _load_macros(docs_dir / "macros.txt")
+    return _transform_markdown(markdown, macros, src_path)
