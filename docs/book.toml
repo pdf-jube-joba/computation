@@ -21,5 +21,6 @@ command = "python3 build_assets.py"
 build = true
 
 [output.html]
-additional-css = ["custom.css"]
+theme = "theme"
 no-section-label = true
+hash-files = false

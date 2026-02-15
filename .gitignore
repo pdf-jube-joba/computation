@@ -1,4 +1,5 @@
 /target
-out/
+AGENTS.md
+out
 wasm_bundle
-book/src/assets
+docs/src/assets
