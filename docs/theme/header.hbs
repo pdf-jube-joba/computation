@@ -185,16 +185,22 @@
       );
     }
 
+    function showSidebar() {
+      document.documentElement.classList.add('nav-ready');
+    }
+
     fetch(navUrl, { cache: 'no-store' })
       .then(response => {
         if (!response.ok) {
           console.log('[nav] navigation.json missing', response.status);
+          showSidebar();
           return null;
         }
         return response.json();
       })
       .then(data => {
         if (!data) {
+          showSidebar();
           return;
         }
         console.log('[nav] navigation.json loaded', data);
@@ -202,6 +208,7 @@
         const items = normalizeItems(data);
         if (!items) {
           console.log('[nav] navigation.json invalid format');
+          showSidebar();
           return;
         }
         const list = buildList(items, true);
@@ -214,9 +221,11 @@
           hidePrevNext();
           disableArrowNavigation();
         }
+        showSidebar();
       })
       .catch(error => {
         console.log('[nav] navigation.json error', error);
+        showSidebar();
       });
   })();
 
