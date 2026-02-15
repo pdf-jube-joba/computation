@@ -1,9 +1,4 @@
 /target
-integration/book/out/
 out/
-dist
-pkg
-generated
-assets/wasm_bundle
-playground/assets
+wasm_bundle
 book/src/assets
