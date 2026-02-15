@@ -78,7 +78,8 @@ listing
 <button id="render">Render</button>
 <div id="state"></div>
 <script type="module">
-  import { Renderer } from "../../assets/renderer.js";
+  const rendererUrl = new URL(`${path_to_root}_assets/renderer.js`, location.href);
+  const { Renderer } = await import(rendererUrl.href);
   const renderer = new Renderer(document.getElementById("state"));
   document.getElementById("render").addEventListener("click", () => {
     const input = document.getElementById("input").value;
@@ -102,6 +103,17 @@ additional-js = [
 こう書くと、生成される `html` の全部で、 `<script src="assets/vendor/svg.js"> </script>` とかがついている。
 ただ、 `type="module"` はつかないので、これでやる場合は気を付けること。
 つまり、 `export` をするような `js` ファイルはこれで読み込んじゃダメ。
+
+## mdbook と変数について
+`index.hbs` を使う中で `path_to_root` という変数がグローバルで定義されるらしい。
+なので、 `<script>` タグの中でそういう変数を使える。
+例えば上のコード：
+```html
+<script type="module">
+  const rendererUrl = new URL(`${path_to_root}_assets/renderer.js`, location.href);
+  const { Renderer } = await import(rendererUrl.href);
+  const renderer = new Renderer(document.getElementById("state"));
+```
 
 ## html のパーサーの問題？
 markdown の中でタグを配置するときの注意

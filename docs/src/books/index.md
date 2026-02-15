@@ -1,6 +1,4 @@
-# Summary
-
-[README](README.md)
+全部を1つの流れに沿ってやるべきではないので、分割したい。
 
 # 計算モデルと計算について(models of computation)
 - [計算モデルと計算について](./models_of_computation/index.md)
@@ -15,10 +13,6 @@
 - [ラムダ計算で再帰関数を計算する](./computability/lambda_calculus_computability.md)
 - [万能チューリングマシン](./computability/Universal_Turing_machine.md)
 - [計算不可能な関数の例](./computability/generalization.md)
-
-# 小さな言語など(small models)
-- [他の計算モデル](./small_models/_small_models.md)
-- [Turing tarpit](./small_models/turing_tarpit.md)
 
 # 論理回路から抽象機械へ(logic circuits to machine)
 - [論理回路から抽象機械へ](./logic_circuits_to_machine/_logic_circuits_to_machine.md)
@@ -46,10 +40,3 @@
     - [継続概念について](./extensions_of_lambda_calculus/continuation.md)
     - [CBPV]()
     - [linear type]()
-
----
-
-# その他メモ
-- [メモ](./01_notes/TODO.md)
-    - [mdbookについて](./01_notes/notes/mdbookについて.md)
-    - [状態機械とか](./01_notes/notes/状態機械とか.md)
