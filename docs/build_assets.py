@@ -16,10 +16,7 @@ BOOK_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = BOOK_DIR.parent
 MODELS_DIR = WORKSPACE_DIR / "models"
 COMPILERS_DIR = WORKSPACE_DIR / "compilers"
-ASSETS_DIR = BOOK_DIR / "assets" / "wasm_bundle"
-ASSETS_SRC = WORKSPACE_DIR / "assets"
-ASSETS_DEST = BOOK_DIR / "assets"
-RELEASE = False
+WASM_ASSETS_DIR = BOOK_DIR / "src" / "assets" / "wasm_bundle"
 
 def ensure_wasm_bindgen() -> None:
     if shutil.which("wasm-bindgen") is None:
@@ -83,32 +80,24 @@ def build_model_wasm(package_name: str, crate_dir: Path, release: bool) -> bool:
         print(f"[error] wasm output missing for {package_name}: {wasm_path}", file=sys.stderr)
         return False
 
-    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    WASM_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
     bindgen_cmd = [
         "wasm-bindgen",
         "--target",
         "web",
         "--out-dir",
-        str(ASSETS_DIR),
+        str(WASM_ASSETS_DIR),
         "--no-typescript",
         "--out-name",
         package_name,
         str(wasm_path),
     ]
-    print(f"[bindgen] package={package_name} -> {ASSETS_DIR}", file=sys.stderr)
+    print(f"[bindgen] package={package_name} -> {WASM_ASSETS_DIR}", file=sys.stderr)
     result = run(bindgen_cmd)
     if result.returncode != 0:
         print(f"[error] wasm-bindgen failed for {package_name}", file=sys.stderr)
         return False
     return True
-
-def copy_assets() -> None:
-    ASSETS_DEST.mkdir(parents=True, exist_ok=True)
-    for entry in ASSETS_SRC.iterdir():
-        if entry.name == "wasm_bundle":
-            continue
-        if entry.is_file():
-            shutil.copy2(entry, ASSETS_DEST / entry.name)
 
 def process_item(item):
     # print to stderr for debugging
@@ -127,7 +116,7 @@ def process_item(item):
 
     path = chapter.get('path', '')
     depth = path.count('/')  # number of path separators indicates nesting level
-    prefix = '../' * (depth + 2)
+    prefix = '../' * depth
     chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
 
     for sub in chapter.get('sub_items', []):
@@ -136,24 +125,27 @@ def process_item(item):
 def preprocess() -> None:
     context, book = json.load(sys.stdin)
     build_flag = context["config"]["preprocessor"]["build-assets"]["build"]
+    release_flag = context["config"]["preprocessor"]["build-assets"]["release"]
+    print(f"[config] build={build_flag} release={release_flag}", file=sys.stderr)
     if build_flag:
         ensure_wasm_bindgen()
-        if ASSETS_DIR.exists():
-            shutil.rmtree(ASSETS_DIR)
-        ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        if WASM_ASSETS_DIR.exists():
+            shutil.rmtree(WASM_ASSETS_DIR)
+        WASM_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
         for package_name, crate_dir in find_packages(MODELS_DIR):
-            build_model_wasm(package_name, crate_dir, release=RELEASE)
+            build_model_wasm(package_name, crate_dir, release=release_flag)
 
         for package_name, crate_dir in find_packages(COMPILERS_DIR):
-            build_model_wasm(package_name, crate_dir, release=RELEASE)
-    copy_assets()
+            build_model_wasm(package_name, crate_dir, release=release_flag)
     for top in book['items']:
         process_item(top)
     json.dump(book, sys.stdout)
 
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "supports":
+        renderer = sys.argv[2] if len(sys.argv) > 2 else "html"
+        print("true" if renderer == "html" else "false")
         return
     preprocess()
 
