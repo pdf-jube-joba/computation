@@ -1,6 +1,13 @@
 {
   "items": [
-    { "title": "models_of_computation", "href": "models_of_computation/index.html" }
+    {
+      "title": "book/model of computation",
+      "href": "books/models_of_computation/index.html"
+    },
+    {
+      "title": "mdbook memo",
+      "href": "memo_on_mdbook.html"
+    }
   ],
   "prev_next": false
 }

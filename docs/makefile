@@ -3,7 +3,7 @@ MDBOOK ?= mdbook
 
 .PHONY: summary build serve
 summary:
-	$(PYTHON) "$(CURDIR)/generate_summary.py"
+	$(PYTHON) "$(CURDIR)/generate_summary_readme.py"
 
 build: summary
 	$(MDBOOK) build "$(CURDIR)"
