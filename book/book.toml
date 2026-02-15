@@ -1,0 +1,25 @@
+[book]
+authors = ["pdf-jube-joba"]
+language = "jp"
+src = "src"
+title = "computations"
+
+[build]
+build-dir = "./out"
+create-missing = false
+use-default-preprocessors = false
+
+[preprocessor.katex]
+inline-delimiter = { left = "\\(", right = "\\)" }
+block-delimiter = { left = "\\[", right = "\\]" }
+macros = "macros.txt"
+output = "mathml"
+no-css = true
+
+[preprocessor.build-assets]
+command = "python3 build_assets.py"
+build = true
+
+[output.html]
+additional-css = ["custom.css"]
+no-section-label = true
