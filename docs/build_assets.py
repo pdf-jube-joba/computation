@@ -99,6 +99,7 @@ def build_model_wasm(package_name: str, crate_dir: Path, release: bool) -> bool:
         return False
     return True
 
+# this function does nothing, but we'll keep this code.
 def process_item(item):
     # print to stderr for debugging
     if 'Chapter' not in item:
@@ -113,11 +114,6 @@ def process_item(item):
     if chapter.get('path') is None:
         print(f'  Warning: Chapter {name} has no path', file=sys.stderr)
         return
-
-    # path = chapter.get('path', '')
-    # depth = path.count('/')  # number of path separators indicates nesting level
-    # prefix = '../' * depth
-    # chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
 
     for sub in chapter.get('sub_items', []):
         process_item(sub)
