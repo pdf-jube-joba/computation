@@ -5,7 +5,15 @@
       "href": "books/models_of_computation/index.html"
     },
     {
-      "title": "mdbook memo",
+      "title": "計算モデル集",
+      "href": "models/index.html"
+    },
+    {
+      "title": "コンパイラ集",
+      "href": "compilers/index.html"
+    },
+    {
+      "title": "mdbook のメモ",
       "href": "memo_on_mdbook.html"
     }
   ],
