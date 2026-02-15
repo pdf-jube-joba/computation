@@ -23,6 +23,7 @@ release = false
 
 [output.html]
 additional-css = ["src/_assets/custom.css", "src/_assets/style.css"]
+additional-js = ["src/_assets/toc.js"]
 theme = "theme"
 no-section-label = true
 hash-files = false
