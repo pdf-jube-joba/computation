@@ -1,8 +1,8 @@
 {
   "items": [
-    { "title": "計算モデルと計算について", "href": "_models_of_computation.html" },
-    { "title": "チューリングマシン", "href": "Turing_machine.html" },
+    { "title": "計算モデルと計算について", "href": "index.html" },
     { "title": "goto lang 言語", "href": "goto_lang.html" },
+    { "title": "チューリングマシン", "href": "Turing_machine.html" },
     { "title": "ラムダ計算", "href": "Lambda_calculus.html" },
     { "title": "再帰関数", "href": "Recursive_function.html" }
   ]

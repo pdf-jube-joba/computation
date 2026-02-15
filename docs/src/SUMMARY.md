@@ -3,7 +3,7 @@
 [README](README.md)
 
 # 計算モデルと計算について(models of computation)
-- [計算モデルと計算について](./models_of_computation/_models_of_computation.md)
+- [計算モデルと計算について](./models_of_computation/index.md)
 - [チューリングマシン](./models_of_computation/Turing_machine.md)
 - [goto lang 言語](./models_of_computation/goto_lang.md)
 - [ラムダ計算](./models_of_computation/Lambda_calculus.md)

@@ -86,6 +86,104 @@
     });
   }
 
+  function collectNavItems(items, acc) {
+    items.forEach(item => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
+      if (item.type === 'part' || item.part === true) {
+        if (Array.isArray(item.children)) {
+          collectNavItems(item.children, acc);
+        }
+        return;
+      }
+
+      const href = item.href || item.link || item.url;
+      const title = item.title || item.text || '';
+      if (href) {
+        acc.push({ href, title });
+      }
+      if (Array.isArray(item.children) && item.children.length > 0) {
+        collectNavItems(item.children, acc);
+      }
+    });
+  }
+
+  function updateNavLink(link, target, label) {
+    if (!link) {
+      console.log(`[nav] ${label} link not found`);
+      return;
+    }
+    if (!target) {
+      link.hidden = true;
+      link.classList.add('hidden');
+      link.setAttribute('aria-disabled', 'true');
+      return;
+    }
+    const resolved = new URL(target.href, window.location.href).href;
+    link.hidden = false;
+    link.classList.remove('hidden');
+    link.setAttribute('aria-disabled', 'false');
+    link.setAttribute('href', resolved);
+    if (target.title) {
+      link.setAttribute('title', target.title);
+      link.setAttribute('aria-label', target.title);
+    }
+  }
+
+  function updatePrevNext(items) {
+    const flat = [];
+    collectNavItems(items, flat);
+    const current = window.location.href.toString().split('#')[0].split('?')[0];
+    const index = flat.findIndex(item => {
+      const resolved = new URL(item.href, window.location.href).href;
+      return resolved === current;
+    });
+    if (index === -1) {
+      console.log('[nav] current page not found in navigation.json');
+      return;
+    }
+    const prev = index > 0 ? flat[index - 1] : null;
+    const next = index + 1 < flat.length ? flat[index + 1] : null;
+
+    updateNavLink(document.querySelector('a.mobile-nav-chapters.previous'), prev, 'mobile previous');
+    updateNavLink(document.querySelector('a.mobile-nav-chapters.next'), next, 'mobile next');
+    updateNavLink(document.querySelector('a.nav-chapters.previous'), prev, 'wide previous');
+    updateNavLink(document.querySelector('a.nav-chapters.next'), next, 'wide next');
+  }
+
+  function hidePrevNext() {
+    updateNavLink(document.querySelector('a.mobile-nav-chapters.previous'), null, 'mobile previous');
+    updateNavLink(document.querySelector('a.mobile-nav-chapters.next'), null, 'mobile next');
+    updateNavLink(document.querySelector('a.nav-chapters.previous'), null, 'wide previous');
+    updateNavLink(document.querySelector('a.nav-chapters.next'), null, 'wide next');
+  }
+
+  function shouldIgnoreKeyTarget(target) {
+    if (!(target instanceof Element)) {
+      return false;
+    }
+    return !!target.closest('input, textarea, select, [contenteditable="true"]');
+  }
+
+  function disableArrowNavigation() {
+    const blockedKeys = new Set(['ArrowLeft', 'ArrowRight']);
+    document.addEventListener(
+      'keydown',
+      event => {
+        if (!blockedKeys.has(event.key)) {
+          return;
+        }
+        if (shouldIgnoreKeyTarget(event.target)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+      },
+      true,
+    );
+  }
+
   fetch(navUrl, { cache: 'no-store' })
     .then(response => {
       if (!response.ok) {
@@ -99,6 +197,7 @@
         return;
       }
       console.log('[nav] navigation.json loaded', data);
+      const navEnabled = !(data && data.prev_next === false);
       const items = normalizeItems(data);
       if (!items) {
         console.log('[nav] navigation.json invalid format');
@@ -108,6 +207,12 @@
       sidebar.innerHTML = '';
       sidebar.appendChild(list);
       markActive(sidebar);
+      if (navEnabled) {
+        updatePrevNext(items);
+      } else {
+        hidePrevNext();
+        disableArrowNavigation();
+      }
     })
     .catch(error => {
       console.log('[nav] navigation.json error', error);
