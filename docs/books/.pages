@@ -1,0 +1,9 @@
+nav:
+  - index.md
+  - models_of_computation
+  - computability
+  - logic_circuits_to_machine
+  - small_models
+  - structured_programming
+  - extensions_of_lambda_calculus
+  - 01_notes

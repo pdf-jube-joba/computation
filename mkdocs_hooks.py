@@ -158,12 +158,17 @@ def _sync_assets(workspace_dir: Path, docs_dir: Path) -> None:
         shutil.copytree(src, dest)
 
 
-def _sync_markdown_tree(src_root: Path, dest_root: Path) -> None:
+def _sync_doc_tree(src_root: Path, dest_root: Path) -> None:
     if dest_root.exists():
         shutil.rmtree(dest_root)
     if not src_root.exists():
         return
     for path in src_root.rglob("*.md"):
+        rel = path.relative_to(src_root)
+        target = dest_root / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, target)
+    for path in src_root.rglob(".pages"):
         rel = path.relative_to(src_root)
         target = dest_root / rel
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -220,8 +225,8 @@ def _transform_markdown(
 def on_pre_build(config) -> None:
     docs_dir = _resolve_docs_dir(config)
     _sync_assets(WORKSPACE_DIR, docs_dir)
-    _sync_markdown_tree(WORKSPACE_DIR / "models", docs_dir / "models")
-    _sync_markdown_tree(WORKSPACE_DIR / "compilers", docs_dir / "compilers")
+    _sync_doc_tree(WORKSPACE_DIR / "models", docs_dir / "models")
+    _sync_doc_tree(WORKSPACE_DIR / "compilers", docs_dir / "compilers")
     enabled, release = _get_build_options(config)
     if not enabled:
         print("[build] skipped (extra.build is false)")

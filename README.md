@@ -21,10 +21,12 @@
   - `mkdocs-material`: これはなくても見れそう。
   - `mkdocs-github-admonitions-plugin`: github flavored な admonition の処理
   - `pymdown-extension`
+  - `awesome-pages`
   - こんなコードでいいらしい
     ```
     pipx install mkdocs
     pipx inject mkdocs mkdocs-github-admonitions-plugin
     pipx inject mkdocs mkdocs-material
     pipx inject mkdocs pymdown-extensions
+    pipx inject mkdocs mkdocs-awesome-pages-plugin
     ```
