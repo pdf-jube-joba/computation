@@ -16,7 +16,7 @@ BOOK_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = BOOK_DIR.parent
 MODELS_DIR = WORKSPACE_DIR / "models"
 COMPILERS_DIR = WORKSPACE_DIR / "compilers"
-WASM_ASSETS_DIR = BOOK_DIR / "src" / "assets" / "wasm_bundle"
+WASM_ASSETS_DIR = BOOK_DIR / "src" / "_assets" / "wasm_bundle"
 
 def ensure_wasm_bindgen() -> None:
     if shutil.which("wasm-bindgen") is None:
