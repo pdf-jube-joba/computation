@@ -22,6 +22,7 @@ build = true
 release = false
 
 [output.html]
+additional-css = ["src/assets/custom.css", "src/assets/style.css"]
 theme = "theme"
 no-section-label = true
 hash-files = false

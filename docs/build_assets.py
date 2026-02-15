@@ -114,10 +114,10 @@ def process_item(item):
         print(f'  Warning: Chapter {name} has no path', file=sys.stderr)
         return
 
-    path = chapter.get('path', '')
-    depth = path.count('/')  # number of path separators indicates nesting level
-    prefix = '../' * depth
-    chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
+    # path = chapter.get('path', '')
+    # depth = path.count('/')  # number of path separators indicates nesting level
+    # prefix = '../' * depth
+    # chapter['content'] += f'\n<script type="module" src="{prefix}assets/script.js"></script>\n'
 
     for sub in chapter.get('sub_items', []):
         process_item(sub)
