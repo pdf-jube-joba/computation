@@ -141,3 +141,6 @@ mdbook のビルドでは見えないが、以下がちゃんとしたリンク
 [is there a fourth]: https://gwern.net/doc/cs/algorithm/2009-gluck.pdf
 [fixpoint theorem in computability]: https://www.math.ru.nl/~terwijn/publications/surveyrecthm.pdf
 - https://arxiv.org/pdf/2204.03553
+
+[名古屋大学の計算可能性についてのノート]: (https://www.math.mi.i.nagoya-u.ac.jp/~kihara/pdf/teach/computability2017fall-final.pdf
+[とりマセ]: https://recursion-theory.blogspot.com/2018/11/q.html
