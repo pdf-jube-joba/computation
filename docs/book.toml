@@ -18,7 +18,7 @@ no-css = true
 
 [preprocessor.build-assets]
 command = "python3 build_assets.py"
-build = false
+build = true
 release = false
 
 [output.html]

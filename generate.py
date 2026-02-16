@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate docs/src/SUMMARY.md by recursively listing markdown files,
-then copy the repo root README.md to docs/src/README.md.
+Generate dist/ from docs/, then overlay models/ and compilers/ into dist/src/.
 """
 
 from __future__ import annotations
@@ -9,9 +8,11 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-DOCS_DIR = Path(__file__).resolve().parent
-REPO_ROOT = DOCS_DIR.parent
+REPO_ROOT = Path(__file__).resolve().parent
+DOCS_DIR = REPO_ROOT / "docs"
+DIST_DIR = REPO_ROOT / "dist"
 BOOK_SRC_DIR = DOCS_DIR / "src"
+DIST_SRC_DIR = DIST_DIR / "src"
 
 
 def copy_md_tree(src_root: Path, dest_root: Path) -> list[str]:
@@ -42,30 +43,30 @@ def write_navigation_json(dest_root: Path, rel_paths: list[str]) -> None:
 
 
 def main() -> int:
-    # copying models/ and compilers/
+    if DIST_DIR.exists():
+        shutil.rmtree(DIST_DIR)
+    shutil.copytree(DOCS_DIR, DIST_DIR)
+
     models_path = REPO_ROOT / "models"
     compilers_path = REPO_ROOT / "compilers"
-    docs_models = BOOK_SRC_DIR / "models"
-    docs_compilers = BOOK_SRC_DIR / "compilers"
+    dist_models = DIST_SRC_DIR / "models"
+    dist_compilers = DIST_SRC_DIR / "compilers"
 
-    models_md = copy_md_tree(models_path, docs_models)
-    compilers_md = copy_md_tree(compilers_path, docs_compilers)
-    write_navigation_json(docs_models, models_md)
-    write_navigation_json(docs_compilers, compilers_md)
+    models_md = copy_md_tree(models_path, dist_models)
+    compilers_md = copy_md_tree(compilers_path, dist_compilers)
+    write_navigation_json(dist_models, models_md)
+    write_navigation_json(dist_compilers, compilers_md)
 
-    # copying readme.md to src
     root_readme = REPO_ROOT / "README.md"
     if root_readme.exists():
-        shutil.copy2(root_readme, BOOK_SRC_DIR / "README.md")
+        shutil.copy2(root_readme, DIST_SRC_DIR / "README.md")
 
-    # generate entire
-    summary_path = BOOK_SRC_DIR / "SUMMARY.md"
-
+    summary_path = DIST_SRC_DIR / "SUMMARY.md"
     md_files = []
-    for path in BOOK_SRC_DIR.rglob("*.md"):
+    for path in DIST_SRC_DIR.rglob("*.md"):
         if not path.is_file():
             continue
-        rel = path.relative_to(BOOK_SRC_DIR).as_posix()
+        rel = path.relative_to(DIST_SRC_DIR).as_posix()
         md_files.append(rel)
 
     md_files.sort()

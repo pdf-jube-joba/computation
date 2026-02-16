@@ -2,8 +2,4 @@
 AGENTS.md
 out
 wasm_bundle
-docs/src/assets/wasm_bundle
-docs/src/SUMMARY.md
-docs/src/README.md
-docs/src/models
-docs/src/compilers
+dist
