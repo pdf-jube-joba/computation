@@ -11,7 +11,7 @@ fn start_0() -> TuringMachineBuilder {
         name: "start_0".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            basic::move_right(),
+            basic::move_right_till_x(),
             basic::right_one(),
             basic::right_one(),
             basic::putx(),
@@ -29,9 +29,9 @@ fn setting() -> TuringMachineBuilder {
         name: "setting".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            basic::move_right(), // 0
+            basic::move_right_till_x(), // 0
             copy::copy(),
-            basic::move_left(),
+            basic::move_left_till_x(),
             rotate::rotate(3),
             basic::move_rights(2),
             copy::copy(),
@@ -59,7 +59,7 @@ fn increment() -> TuringMachineBuilder {
             basic::check_current(),
             basic::putb(),
             basic::putb(),
-            basic::move_left(),
+            basic::move_left_till_x(),
             basic::putl(),
             basic::right_one(),
             basic::putx(),
@@ -90,7 +90,7 @@ fn remove() -> TuringMachineBuilder {
         assign_vertex_to_builder: vec![
             basic::move_lefts(2),
             rotate::rotate(3),
-            basic::move_right(),
+            basic::move_right_till_x(),
             basic::right_one(),
             basic::check_current(),
             basic::putb(),

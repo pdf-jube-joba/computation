@@ -58,6 +58,9 @@ pub mod num_tape {
     }
 }
 
+
+// ... [x] x - - ...
+// ... [x] - x - - ...
 pub fn zero_builder() -> TuringMachineBuilder {
     crate::Builder {
         name: "move_right".to_string(),
@@ -71,17 +74,19 @@ pub fn zero_builder() -> TuringMachineBuilder {
     .into()
 }
 
+// ... [x] - A x - ... where A: list of 'l'
+// ... [x] - A l x - - ... where A: list of 'l'
 pub fn succ_builder() -> TuringMachineBuilder {
     crate::Builder {
         name: "succ_adder".to_string(),
         code: vec![
-            "x, start, x, next,  R",
-            "-,  next, -, till,  R",
-            "l,  till, l, till,  R",
+            "x, start, x, next, R",
+            "-,  next, -, till, R",
+            "l,  till, l, till, R",
             "x,  till, l, write, R",
-            "-, write, x, back,  L",
-            "l,  back, l, back,  L",
-            "-,  back, -, end,   L",
+            "-, write, x, back, L",
+            "l,  back, l, back, L",
+            "-,  back, -, end, L",
         ],
     }
     .into()

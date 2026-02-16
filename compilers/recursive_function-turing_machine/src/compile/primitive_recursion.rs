@@ -63,7 +63,7 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
         name: "shrink".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            basic::move_right(),
+            basic::move_right_till_x(),
             basic::putb(),
             basic::left_one(),
             basic::check_current(),
@@ -119,7 +119,7 @@ fn expand_aux_remove_zero() -> TuringMachineBuilder {
         name: "shrink".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            basic::move_right(),
+            basic::move_right_till_x(),
             basic::putb(),
             basic::left_one(),
             basic::check_current(),
@@ -228,7 +228,7 @@ fn expand() -> TuringMachineBuilder {
             basic::is_tuple_zero(), // 5
             expand_aux_shrink(),
             copy::copy(),
-            basic::move_right(),
+            basic::move_right_till_x(),
             expand_aux_remove_zero(), //9
         ],
         assign_edge_to_state: vec![
@@ -254,7 +254,7 @@ fn format() -> TuringMachineBuilder {
         name: "format".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            basic::move_right(),
+            basic::move_right_till_x(),
             basic::shift_l2r_fill(crate::symbols::partition_sign()),
             basic::putx(),
             basic::move_rights(2),
@@ -286,7 +286,7 @@ pub fn primitive_recursion(
             expand(), // 0
             zero_case,
             is_left_sig(),
-            basic::move_left(),
+            basic::move_left_till_x(),
             rotate::rotate(2),
             basic::concat(),
             succ_case,

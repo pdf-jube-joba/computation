@@ -37,7 +37,10 @@ pub fn id_end(str: &str) -> TuringMachineBuilder {
     builder
 }
 
-pub fn move_right() -> TuringMachineBuilder {
+//  ... [?_1] ?_2 ... ?_n ...
+//  ... ?_1 ?_2 ... [?_n] ...
+//  where ?_i in {'-', 'l'} for i < n, ?_n = 'x'
+pub fn move_right_till_x() -> TuringMachineBuilder {
     Builder {
         name: "move_right".to_string(),
         code: vec![
@@ -56,11 +59,14 @@ pub fn move_rights(n: usize) -> TuringMachineBuilder {
     if n == 0 {
         id()
     } else {
-        chain_builders(format!("moveR_{n}"), vec![move_right(); n])
+        chain_builders(format!("moveR_{n}"), vec![move_right_till_x(); n])
     }
 }
 
-pub fn move_left() -> TuringMachineBuilder {
+//  ... ?_1 ?_2 ... [?_n] ...
+//  ... [?_1] ?_2 ... ?_n ...
+//  where ?_i in {'-', 'l'} for 1 < i, ?_1 = 'x'
+pub fn move_left_till_x() -> TuringMachineBuilder {
     Builder {
         name: "move_left".to_string(),
         code: vec![
@@ -79,10 +85,11 @@ pub fn move_lefts(n: usize) -> TuringMachineBuilder {
     if n == 0 {
         id()
     } else {
-        chain_builders(format!("moveL_{n}"), vec![move_left(); n])
+        chain_builders(format!("moveL_{n}"), vec![move_left_till_x(); n])
     }
 }
 
+//  ... [?] ... ->
 pub fn check_current() -> TuringMachineBuilder {
     Builder {
         name: "check_current".to_string(),
@@ -156,7 +163,9 @@ pub fn left_one() -> TuringMachineBuilder {
     .into()
 }
 
-// yxX[x] を [y]Xax にする
+// ... ? x A [x] ...
+// ... [?] A x a ...
+// A: list of {'-', 'l'}, may empty
 pub fn shift_l2r_fill(a: Sign) -> TuringMachineBuilder {
     let mut builder = TuringMachineBuilder::new("shift_l2r_fill").unwrap();
     builder
@@ -164,10 +173,10 @@ pub fn shift_l2r_fill(a: Sign) -> TuringMachineBuilder {
         .accepted_state(vec!["end".parse_tc().unwrap()])
         .code_new(
             vec![
-                "x, start, x, putx, L",
-                &format!("-, putx, {},  putb, L", a.print()),
-                &format!("l, putx, {},  put1, L", a.print()),
-                &format!("x, putx, {},   end, L", a.print()),
+                &format!("x, start, {}, putx, L", a.print()),
+                "-, putx, x,  putb, L",
+                "l, putx, x,  put1, L",
+                "x, putx, x,   end, L",
                 "-,  putb, -, putb, L",
                 "l,  putb, -, put1, L",
                 "x,  putb, -,  end, L",
@@ -314,7 +323,7 @@ pub fn annihilate() -> TuringMachineBuilder {
         name: "annihilate".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            move_right(),
+            move_right_till_x(),
             putb(),
             left_one(),
             check_current(),
@@ -415,10 +424,10 @@ mod tests {
     fn builder_safe() {
         let _ = id();
         let _ = id_end("end");
-        let _ = move_right();
+        let _ = move_right_till_x();
         let _ = move_rights(1);
         let _ = move_rights(2);
-        let _ = move_left();
+        let _ = move_left_till_x();
         let _ = check_current();
         let _ = putl();
         let _ = putb();

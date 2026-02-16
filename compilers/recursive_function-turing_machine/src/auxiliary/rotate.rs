@@ -3,109 +3,27 @@ use turing_machine::manipulation::{
     graph_compose::{builder_composition, GraphOfBuilder},
 };
 
-use super::basic::*;
 use crate::symbols;
-use crate::*;
 
-// [-]X1-...-Xn- を [x]X2-...-Xn-X1- にする
+// ... [x] - A_1 - A_2 - ... - A_{n-1} - A_n - x - - ...
+// ... [x] - A_2 - A_3 - ... - A_n - A_1 - x - - ...
+// A_i: list of 'l'
 pub fn rotate(n: usize) -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: format!("rotate_{n}"),
-        init_state: "start".parse_tc().unwrap(),
-        assign_vertex_to_builder: vec![
-            move_rights(n),
-            right_one(),
-            putx(),
-            move_lefts(n + 1),
-            right_one(), // 4
-            check_current(),
-            move_rights(n + 1),
-            shift_l2rs(symbols::blank_sign(), n + 1),
-            putx(),
-            move_rights(n + 1),
-            shift_l2rs(symbols::one_sign(), n + 1),
-            putx(),
-            move_rights(n),
-            shift_l2rs(symbols::partition_sign(), n + 1),
-            move_rights(n + 1),
-            putb(),
-            move_lefts(n + 1),
-        ],
-        assign_edge_to_state: vec![
-            ((0, 1), "end".parse_tc().unwrap()),
-            ((1, 2), "end".parse_tc().unwrap()),
-            ((2, 3), "end".parse_tc().unwrap()),
-            ((3, 4), "end".parse_tc().unwrap()),
-            ((4, 5), "end".parse_tc().unwrap()),
-            ((5, 6), "end-".parse_tc().unwrap()),
-            ((5, 9), "endl".parse_tc().unwrap()),
-            ((5, 12), "endx".parse_tc().unwrap()),
-            ((6, 7), "end".parse_tc().unwrap()),
-            ((7, 8), "end".parse_tc().unwrap()),
-            ((8, 4), "end".parse_tc().unwrap()),
-            ((9, 10), "end".parse_tc().unwrap()),
-            ((10, 11), "end".parse_tc().unwrap()),
-            ((11, 4), "end".parse_tc().unwrap()),
-            ((12, 13), "end".parse_tc().unwrap()),
-            ((13, 14), "end".parse_tc().unwrap()),
-            ((14, 15), "end".parse_tc().unwrap()),
-            ((15, 16), "end".parse_tc().unwrap()),
-        ],
-        acceptable: accept_end_only(16),
-    };
-    builder_composition(graph).unwrap()
+    todo!()
 }
 
-// [-]X1-...-Xn- を [-]Xn-X1-...-X{n-1}- にする
+// ... [x] - A_1 - A_2 - ... - A_{n-1} - A_n - x - - ...
+// ... [x] - A_n - A_1 - ... - A_{n-2} - A_{n-1} - x - - ...
+// A_i: list of 'l'
 pub fn rotate_back(n: usize) -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: "rotate_back".to_string(),
-        init_state: "start".parse_tc().unwrap(),
-        assign_vertex_to_builder: vec![
-            shift_r2ls(symbols::partition_sign(), n),
-            right_one(),
-            putx(),
-            move_lefts(n + 1),
-            move_rights(n + 1), //4
-            left_one(),
-            check_current(),   // 6
-            move_lefts(n + 1), // 7
-            shift_r2ls(symbols::blank_sign(), n + 1),
-            putx(),
-            move_lefts(n + 1), // 10
-            shift_r2ls(symbols::one_sign(), n + 1),
-            putx(),
-            right_one(), // 13
-            putb(),
-            move_lefts(n + 1),
-        ],
-        assign_edge_to_state: vec![
-            ((0, 1), "end".parse_tc().unwrap()),
-            ((1, 2), "end".parse_tc().unwrap()),
-            ((2, 3), "end".parse_tc().unwrap()),
-            ((3, 4), "end".parse_tc().unwrap()),
-            ((4, 5), "end".parse_tc().unwrap()),
-            ((5, 6), "end".parse_tc().unwrap()),
-            ((6, 7), "end-".parse_tc().unwrap()),
-            ((6, 10), "endl".parse_tc().unwrap()),
-            ((6, 13), "endx".parse_tc().unwrap()),
-            ((7, 8), "end".parse_tc().unwrap()),
-            ((8, 9), "end".parse_tc().unwrap()),
-            ((9, 5), "end".parse_tc().unwrap()),
-            ((10, 11), "end".parse_tc().unwrap()),
-            ((11, 12), "end".parse_tc().unwrap()),
-            ((12, 5), "end".parse_tc().unwrap()),
-            ((13, 14), "end".parse_tc().unwrap()),
-            ((14, 15), "end".parse_tc().unwrap()),
-        ],
-        acceptable: accept_end_only(15),
-    };
-    builder_composition(graph).unwrap()
+    todo!()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{builder_test, tape_from};
+
     #[test]
     fn builder_safe() {
         let _ = rotate(2);
