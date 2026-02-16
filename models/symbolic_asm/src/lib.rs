@@ -1,8 +1,6 @@
 use serde::Serialize;
 use utils::{Machine, TextCodec, alphabet::Alphabet, number::Number, parse::ParseTextCodec};
 
-pub mod assemble;
-
 #[derive(Clone, Copy, Serialize)]
 pub enum Register {
     R0,
