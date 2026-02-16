@@ -24,9 +24,8 @@ pub mod num_tape {
         for num in tuple {
             signs.push(Sign::blank());
             signs.extend_from_slice(&num_sings(num));
+            signs.push(Sign::blank());
         }
-
-        signs.push(partition());
 
         Tape::from_vec(signs, 0).unwrap()
     }
@@ -59,37 +58,20 @@ pub mod num_tape {
     }
 }
 
-// ... [x] x - - ...
-// ... [x] - x - - ...
 pub fn zero_builder() -> TuringMachineBuilder {
-    crate::Builder {
-        name: "move_right".to_string(),
-        code: vec![
-            "x, start, x, next, R",
-            "x, next,  -, wrt,  R",
-            "-, wrt,   x, ret,  L",
-            "-, ret,   -, end,  L",
-        ],
-    }
-    .into()
+    let mut builder = TuringMachineBuilder::new("zero_builder").unwrap();
+    builder
+        .from_source(include_str!("zero_builder.txt"))
+        .unwrap();
+    builder
 }
 
-// ... [x] - A x - ... where A: list of 'l'
-// ... [x] - A l x - - ... where A: list of 'l'
 pub fn succ_builder() -> TuringMachineBuilder {
-    crate::Builder {
-        name: "succ_adder".to_string(),
-        code: vec![
-            "x, start, x, next, R",
-            "-,  next, -, till, R",
-            "l,  till, l, till, R",
-            "x,  till, l, write, R",
-            "-, write, x, back, L",
-            "l,  back, l, back, L",
-            "-,  back, -, end, L",
-        ],
-    }
-    .into()
+    let mut builder = TuringMachineBuilder::new("succ_adder").unwrap();
+    builder
+        .from_source(include_str!("succ_builder.txt"))
+        .unwrap();
+    builder
 }
 
 pub mod composition;

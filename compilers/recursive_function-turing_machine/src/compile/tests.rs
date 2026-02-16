@@ -71,7 +71,72 @@ fn succ_zero() {
         assert_eq!(result, Some(vec![i + 1]));
     }
 }
+#[test]
+fn projection_test() {
+    let builder = projection::projection(2, 0);
+    let input: Tape = num_tape::write_usize(vec![1, 2]);
 
+    let mut machine = builder.build(input).unwrap();
+
+    loop {
+        let _ = machine.step(1);
+        print_process(&machine);
+        if machine.is_terminate() {
+            break;
+        }
+    }
+
+    let result = num_tape::read_right_one_usize(machine.now_tape());
+    assert_eq!(result, Some(vec![1]));
+
+    let builder = projection::projection(3, 0);
+    let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
+
+    let mut machine = builder.build(input).unwrap();
+
+    loop {
+        let _ = machine.step(1);
+        print_process(&machine);
+        if machine.is_terminate() {
+            break;
+        }
+    }
+
+    let result = num_tape::read_right_one_usize(machine.now_tape());
+    assert_eq!(result, Some(vec![1]));
+
+    let builder = projection::projection(3, 1);
+    let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
+
+    let mut machine = builder.build(input).unwrap();
+
+    loop {
+        let _ = machine.step(1);
+        print_process(&machine);
+        if machine.is_terminate() {
+            break;
+        }
+    }
+
+    let result = num_tape::read_right_one_usize(machine.now_tape());
+    assert_eq!(result, Some(vec![2]));
+
+    let builder = projection::projection(3, 2);
+    let input: Tape = num_tape::write_usize(vec![1, 2, 3]);
+
+    let mut machine = builder.build(input).unwrap();
+
+    loop {
+        let _ = machine.step(1);
+        print_process(&machine);
+        if machine.is_terminate() {
+            break;
+        }
+    }
+
+    let result = num_tape::read_right_one_usize(machine.now_tape());
+    assert_eq!(result, Some(vec![3]));
+}
 #[test]
 fn composition_test() {
     let builder = composition::composition(vec![zero_builder()], succ_builder());

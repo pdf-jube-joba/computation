@@ -1,8 +1,8 @@
-use turing_machine::manipulation::graph_compose::{builder_composition, GraphOfBuilder};
 use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 use utils::parse::ParseTextCodec;
 #[cfg(test)]
 use utils::TextCodec;
+use turing_machine::manipulation::graph_compose::{builder_composition, GraphOfBuilder};
 
 struct Builder<'a> {
     name: String,
@@ -44,6 +44,22 @@ fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
 #[cfg(test)]
 pub(crate) fn tape_from(symbols: &[&str], head: usize) -> Result<Tape, String> {
     Tape::from_vec(vec_sign(symbols.to_vec()), head)
+}
+
+pub fn zero_builder() -> TuringMachineBuilder {
+    let mut builder = TuringMachineBuilder::new("zero_builder").unwrap();
+    builder
+        .from_source(include_str!("zero_builder.txt"))
+        .unwrap();
+    builder
+}
+
+pub fn succ_builder() -> TuringMachineBuilder {
+    let mut builder = TuringMachineBuilder::new("succ_adder").unwrap();
+    builder
+        .from_source(include_str!("succ_builder.txt"))
+        .unwrap();
+    builder
 }
 
 #[cfg(test)]

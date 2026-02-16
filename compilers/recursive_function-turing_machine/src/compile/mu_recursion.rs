@@ -11,10 +11,10 @@ fn start_0() -> TuringMachineBuilder {
         name: "start_0".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            basic::move_right_till_x(),
+            basic::move_right(),
             basic::right_one(),
             basic::right_one(),
-            basic::putx(),
+            basic::putbar(),
             basic::move_lefts(2),
         ],
         assign_edge_to_state: series_edge_end_only(4),
@@ -29,9 +29,9 @@ fn setting() -> TuringMachineBuilder {
         name: "setting".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            basic::move_right_till_x(), // 0
+            basic::move_right(), // 0
             copy::copy(),
-            basic::move_left_till_x(),
+            basic::move_left(),
             rotate::rotate(3),
             basic::move_rights(2),
             copy::copy(),
@@ -56,21 +56,21 @@ fn increment() -> TuringMachineBuilder {
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             basic::right_one(),
-            basic::check_current(),
+            basic::bor1orbar(),
             basic::putb(),
             basic::putb(),
-            basic::move_left_till_x(),
-            basic::putl(),
+            basic::move_left(),
+            basic::put1(),
             basic::right_one(),
-            basic::putx(),
+            basic::putbar(),
             basic::move_lefts(2),
         ],
         assign_edge_to_state: vec![
             ((0, 1), "end".parse_tc().unwrap()),
-            ((1, 2), "endl".parse_tc().unwrap()),
-            ((1, 2), "end-".parse_tc().unwrap()),
+            ((1, 2), "end1".parse_tc().unwrap()),
+            ((1, 2), "endB".parse_tc().unwrap()),
             ((2, 0), "end".parse_tc().unwrap()),
-            ((1, 3), "endx".parse_tc().unwrap()),
+            ((1, 3), "endbar".parse_tc().unwrap()),
             ((3, 4), "end".parse_tc().unwrap()),
             ((4, 5), "end".parse_tc().unwrap()),
             ((5, 6), "end".parse_tc().unwrap()),
@@ -90,13 +90,13 @@ fn remove() -> TuringMachineBuilder {
         assign_vertex_to_builder: vec![
             basic::move_lefts(2),
             rotate::rotate(3),
-            basic::move_right_till_x(),
+            basic::move_right(),
             basic::right_one(),
-            basic::check_current(),
+            basic::bor1orbar(),
             basic::putb(),
             basic::putb(),
             basic::right_one(),
-            basic::check_current(),
+            basic::bor1orbar(),
             basic::putb(),
             basic::putb(),
             basic::move_lefts(2),
@@ -106,15 +106,15 @@ fn remove() -> TuringMachineBuilder {
             ((1, 2), "end".parse_tc().unwrap()),
             ((2, 3), "end".parse_tc().unwrap()),
             ((3, 4), "end".parse_tc().unwrap()),
-            ((4, 5), "endl".parse_tc().unwrap()),
-            ((4, 5), "end-".parse_tc().unwrap()),
-            ((4, 6), "endx".parse_tc().unwrap()),
+            ((4, 5), "end1".parse_tc().unwrap()),
+            ((4, 5), "endB".parse_tc().unwrap()),
+            ((4, 6), "endbar".parse_tc().unwrap()),
             ((5, 3), "end".parse_tc().unwrap()),
             ((6, 7), "end".parse_tc().unwrap()),
             ((7, 8), "end".parse_tc().unwrap()),
-            ((8, 9), "endl".parse_tc().unwrap()),
-            ((8, 9), "end-".parse_tc().unwrap()),
-            ((8, 10), "endx".parse_tc().unwrap()),
+            ((8, 9), "end1".parse_tc().unwrap()),
+            ((8, 9), "endB".parse_tc().unwrap()),
+            ((8, 10), "endbar".parse_tc().unwrap()),
             ((9, 7), "end".parse_tc().unwrap()),
             ((10, 11), "end".parse_tc().unwrap()),
         ],
@@ -163,10 +163,7 @@ mod tests {
     #[test]
     fn start_0_test() {
         let mut builder = start_0();
-        let tests = vec![(
-            tape_from(&["x", "x"], 0),
-            tape_from(&["x", "x", "-", "x"], 0),
-        )];
+        let tests = vec![(tape_from(&["x", "x"], 0), tape_from(&["x", "x", "-", "x"], 0))];
         builder_test(&mut builder, 100, tests);
     }
 
