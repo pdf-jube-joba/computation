@@ -1,8 +1,3 @@
-# ラムダ計算による自然数関数の計算可能性
-ラムダ計算もまた帰納関数の計算を"埋め込む"ことができる。
-帰納関数の埋め込み方は複数あるが、ここでは代表的な Church encoding を用いる。
-自然数の埋め込みと、帰納関数の埋め込みを定義する。
-
 ## Church encoding
 
 自然数とラムダ項の対応
@@ -53,7 +48,6 @@
 
 再帰関数の残りの部分を定義してしまう。
 
-
 原始再帰関数のラムダ式による表現
 : ラムダ式 \(f, g\) に対して
   \[H = \lambda x_0, x_1, \ldots x_n. \text{if} (\text{iszero} x_0) (f x_1 \cdots x_n) (g (H (\text{pred} x_0) x_1 \cdots x_n) (\text{pred} x_0) x_1 \cdots x_n) \]
@@ -73,3 +67,4 @@ PRIM[z: PROJ[1, 0] s: COMP[SUCC: PROJ[3, 0]]]
 (2, 3)
 </script>
 </div>
+
