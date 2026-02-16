@@ -91,3 +91,19 @@ dd + dd::before {
   min-height: 120px;
   box-sizing: border-box;
 }
+
+.highlight {
+  background-color: #ffd6d6;
+}
+
+.wm-table tr.highlight > td,
+.wm-table tr.highlight > th,
+.wm-table .highlight {
+  background-color: #ffd6d6;
+}
+
+.wm-section-title {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0 0 6px;
+}

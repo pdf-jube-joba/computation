@@ -293,7 +293,7 @@ impl Compiler for Rec2LamCompiler {
             .into_iter()
             .map(number_to_lambda_term)
             .collect::<Vec<LambdaTerm>>();
-        Ok(lambda_calculus::web::AInput(encoded))
+        Ok(lambda_calculus::AInput(encoded))
     }
 
     fn encode_rinput(
