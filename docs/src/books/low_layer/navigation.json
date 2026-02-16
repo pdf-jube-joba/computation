@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "title": "低レイヤー",
+      "href": "./index.html"
+    },
+    {
+      "title": "論理回路",
+      "href": "./logic_circuit.html"
+    },
+    {
+      "title": "論理回路でよく使う部品",
+      "href": "./component.html"
+    },
+    {
+      "title": "hardware description language",
+      "href": "./hardware_description_language.html"
+    },
+    {
+      "title": "コンピュータ",
+      "href": "./computer.html"
+    }
+  ]
+}

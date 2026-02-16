@@ -1,9 +1,46 @@
 {
   "items": [
-    { "title": "計算モデルと計算について", "href": "index.html" },
-    { "title": "goto lang 言語", "href": "goto_lang.html" },
-    { "title": "チューリングマシン", "href": "Turing_machine.html" },
-    { "title": "ラムダ計算", "href": "Lambda_calculus.html" },
-    { "title": "再帰関数", "href": "Recursive_function.html" }
+    {
+      "title": "計算モデルと計算について",
+      "href": "./index.html"
+    },
+    {
+      "title": "チューリングマシン",
+      "href": "Turing_machine.html"
+    },
+    {
+      "title": "goto lang 言語",
+      "href": "goto_lang.html"
+    },
+    {
+      "title": "ラムダ計算",
+      "href": "lambda_calculus.html"
+    },
+    {
+      "title": "再帰関数",
+      "href": "recursive_function.html"
+    },
+    {
+      "title": "計算可能性とエミュレーション",
+      "href": "computability.html",
+      "children": [
+        {
+          "title": "ラムダ計算で再帰関数",
+          "href": "computability/lambda_calculus_computability.html"
+        },
+        {
+          "title": "チューリングマシンで再帰関数",
+          "href": "computability/Turing_machine_computability.html"
+        },
+        {
+          "title": " Universal なチューリングマシン",
+          "href": "computability/universal_Turing_machine.html"
+        },
+        {
+          "title": "計算の話の一般化",
+          "href": "computability/generalization.html"
+        }
+      ]
+    }
   ]
 }

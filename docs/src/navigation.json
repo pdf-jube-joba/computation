@@ -1,16 +1,20 @@
 {
   "items": [
     {
-      "title": "book/model of computation",
-      "href": "books/models_of_computation/index.html"
+      "title": "books",
+      "href": "books/"
     },
     {
       "title": "計算モデル集",
-      "href": "models/index.html"
+      "href": "models/"
     },
     {
       "title": "コンパイラ集",
-      "href": "compilers/index.html"
+      "href": "compilers/"
+    },
+    {
+      "title": "misc",
+      "href": "misc/"
     },
     {
       "title": "mdbook のメモ",

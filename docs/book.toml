@@ -7,7 +7,7 @@ title = "computations"
 [build]
 build-dir = "./out"
 create-missing = false
-use-default-preprocessors = false
+use-default-preprocessors = true
 
 [preprocessor.katex]
 inline-delimiter = { left = "\\(", right = "\\)" }

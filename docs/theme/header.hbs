@@ -80,6 +80,8 @@
       return list;
     }
 
+    let navBaseUrl = new URL('.', normalizedCurrent);
+
     function markActive(container) {
       const current = normalizedCurrent;
       const links = Array.from(container.querySelectorAll('a'));
@@ -88,7 +90,7 @@
         if (!href || href.startsWith('#') || /^(?:[a-z+]+:)?\/\//.test(href)) {
           return;
         }
-        const resolved = new URL(href, window.location.href).href;
+        const resolved = new URL(href, navBaseUrl).href;
         link.href = resolved;
         if (resolved === current) {
           link.classList.add('active');
@@ -134,7 +136,7 @@
       if (!target) {
         target = { href: normalizedCurrent };
       }
-      const resolved = new URL(target.href, window.location.href).href;
+      const resolved = new URL(target.href, navBaseUrl).href;
       link.hidden = false;
       link.classList.remove('hidden');
       link.setAttribute('aria-disabled', 'false');
@@ -150,7 +152,7 @@
       collectNavItems(items, flat);
       const current = normalizedCurrent;
       const index = flat.findIndex(item => {
-        const resolved = new URL(item.href, window.location.href).href;
+        const resolved = new URL(item.href, navBaseUrl).href;
         return resolved === current;
       });
       if (index === -1) {
@@ -212,6 +214,7 @@
           showSidebar();
           return;
         }
+        navBaseUrl = new URL('.', result.url);
         const data = await result.response.json();
         console.log('[nav] navigation.json loaded', data);
         const navEnabled = !(data && data.prev_next === false);
