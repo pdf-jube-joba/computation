@@ -6,8 +6,24 @@
       return;
     }
 
-    const navUrl = new URL('navigation.json', window.location.href);
-    console.log('[nav] navigation.json url', navUrl.href);
+    const currentUrl = window.location.href.toString().split('#')[0].split('?')[0];
+    const normalizedCurrent = currentUrl.endsWith('/') ? `${currentUrl}index.html` : currentUrl;
+
+    async function findNavigation() {
+      let base = new URL('.', normalizedCurrent);
+      while (true) {
+        const candidate = new URL('navigation.json', base);
+        console.log('[nav] navigation.json url', candidate.href);
+        const response = await fetch(candidate, { cache: 'no-store' });
+        if (response.ok) {
+          return { response, url: candidate };
+        }
+        if (base.pathname === '/' || base.pathname === '') {
+          return null;
+        }
+        base = new URL('..', base);
+      }
+    }
 
     function normalizeItems(data) {
       if (Array.isArray(data)) {
@@ -65,7 +81,7 @@
     }
 
     function markActive(container) {
-      const current = window.location.href.toString().split('#')[0].split('?')[0];
+      const current = normalizedCurrent;
       const links = Array.from(container.querySelectorAll('a'));
       links.forEach(link => {
         const href = link.getAttribute('href');
@@ -116,10 +132,7 @@
         return;
       }
       if (!target) {
-        link.hidden = true;
-        link.classList.add('hidden');
-        link.setAttribute('aria-disabled', 'true');
-        return;
+        target = { href: normalizedCurrent };
       }
       const resolved = new URL(target.href, window.location.href).href;
       link.hidden = false;
@@ -135,7 +148,7 @@
     function updatePrevNext(items) {
       const flat = [];
       collectNavItems(items, flat);
-      const current = window.location.href.toString().split('#')[0].split('?')[0];
+      const current = normalizedCurrent;
       const index = flat.findIndex(item => {
         const resolved = new URL(item.href, window.location.href).href;
         return resolved === current;
@@ -146,6 +159,8 @@
       }
       const prev = index > 0 ? flat[index - 1] : null;
       const next = index + 1 < flat.length ? flat[index + 1] : null;
+
+      console.log("prev:", prev, "next:", next)
 
       updateNavLink(document.querySelector('a.mobile-nav-chapters.previous'), prev, 'mobile previous');
       updateNavLink(document.querySelector('a.mobile-nav-chapters.next'), next, 'mobile next');
@@ -189,20 +204,15 @@
       document.documentElement.classList.add('nav-ready');
     }
 
-    fetch(navUrl, { cache: 'no-store' })
-      .then(response => {
-        if (!response.ok) {
-          console.log('[nav] navigation.json missing', response.status);
-          showSidebar();
-          return null;
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (!data) {
+    (async function loadNavigation() {
+      try {
+        const result = await findNavigation();
+        if (!result) {
+          console.log('[nav] navigation.json missing');
           showSidebar();
           return;
         }
+        const data = await result.response.json();
         console.log('[nav] navigation.json loaded', data);
         const navEnabled = !(data && data.prev_next === false);
         const items = normalizeItems(data);
@@ -222,11 +232,11 @@
           disableArrowNavigation();
         }
         showSidebar();
-      })
-      .catch(error => {
+      } catch (error) {
         console.log('[nav] navigation.json error', error);
         showSidebar();
-      });
+      }
+    })();
   })();
 
   (function disableArrowNavWhileTyping() {
