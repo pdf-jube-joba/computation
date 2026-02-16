@@ -40,7 +40,7 @@ pub fn composition(
         name: "compose".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            vec![copy::n_times_iter(num)],
+            vec![copy::copy_n_times_iter(num)],
             inner_builder
                 .into_iter()
                 .enumerate()

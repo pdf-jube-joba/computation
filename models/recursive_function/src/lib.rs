@@ -46,8 +46,7 @@ fn render_process(process: Process) -> serde_json::Value {
                 function_text(&function),
                 args.len()
             ));
-            let arg_blocks: Vec<serde_json::Value> =
-                args.into_iter().map(render_process).collect();
+            let arg_blocks: Vec<serde_json::Value> = args.into_iter().map(render_process).collect();
             let args_container = json!({
                 "kind": "container",
                 "title": "args",

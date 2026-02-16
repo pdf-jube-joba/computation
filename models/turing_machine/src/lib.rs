@@ -1,7 +1,7 @@
 use crate::machine::{CodeEntry as CoreCodeEntry, Tape, TuringMachineDefinition, TuringMachineSet};
 use serde::Serialize;
 use serde_json::json;
-use utils::{json_text, Machine, TextCodec};
+use utils::{Machine, TextCodec, json_text};
 
 pub mod machine;
 pub mod manipulation;

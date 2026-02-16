@@ -161,14 +161,8 @@ mod tests {
     fn flat_1_till_end_test() {
         let mut builder = flat_1_till_end();
         let tests = vec![
-            (
-                tape_from(&["-", "-"], 0),
-                tape_from(&["-", "-"], 1),
-            ),
-            (
-                tape_from(&["-", "l"], 0),
-                tape_from(&["-", "-"], 1),
-            ),
+            (tape_from(&["-", "-"], 0), tape_from(&["-", "-"], 1)),
+            (tape_from(&["-", "l"], 0), tape_from(&["-", "-"], 1)),
             (
                 tape_from(&["-", "l", "l", "l", "-"], 0),
                 tape_from(&["-", "-"], 1),
@@ -180,14 +174,8 @@ mod tests {
     fn move_1_till_end_test() {
         let mut builder = move_1_till_end();
         let tests = vec![
-            (
-                tape_from(&["-", "-"], 0),
-                tape_from(&["-", "-"], 1),
-            ),
-            (
-                tape_from(&["-", "l"], 0),
-                tape_from(&["l", "-"], 1),
-            ),
+            (tape_from(&["-", "-"], 0), tape_from(&["-", "-"], 1)),
+            (tape_from(&["-", "l"], 0), tape_from(&["l", "-"], 1)),
             (
                 tape_from(&["-", "l", "l", "l", "-"], 0),
                 tape_from(&["l", "l", "l", "-"], 3),
@@ -199,10 +187,7 @@ mod tests {
     fn shrink_bar_right_till_1_or_bar_test() {
         let mut builder = shrink_bar_right_till_1_or_bar();
         let tests = vec![
-            (
-                tape_from(&["x", "x"], 1),
-                tape_from(&["x", "x"], 1),
-            ),
+            (tape_from(&["x", "x"], 1), tape_from(&["x", "x"], 1)),
             (
                 tape_from(&["l", "x", "x"], 2),
                 tape_from(&["l", "x", "x"], 2),
@@ -218,10 +203,7 @@ mod tests {
     fn move_1_left_in_bar_test() {
         let mut builder = move_1_left_in_bar();
         let tests = vec![
-            (
-                tape_from(&["x", "x"], 0),
-                tape_from(&["x", "x"], 1),
-            ),
+            (tape_from(&["x", "x"], 0), tape_from(&["x", "x"], 1)),
             (
                 tape_from(&["x", "l", "x"], 0),
                 tape_from(&["l", "x", "x"], 2),
@@ -237,10 +219,7 @@ mod tests {
     fn format_test() {
         let mut builder = format();
         let tests = vec![
-            (
-                tape_from(&["x", "x"], 0),
-                tape_from(&["-", "x", "x"], 2),
-            ),
+            (tape_from(&["x", "x"], 0), tape_from(&["-", "x", "x"], 2)),
             (
                 tape_from(&["x", "l", "x"], 0),
                 tape_from(&["l", "-", "x", "x"], 3),

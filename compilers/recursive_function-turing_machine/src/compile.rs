@@ -59,19 +59,32 @@ pub mod num_tape {
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("zero_builder").unwrap();
-    builder
-        .from_source(include_str!("zero_builder.txt"))
-        .unwrap();
-    builder
+    crate::Builder {
+        name: "move_right".to_string(),
+        code: vec![
+            "x, start, x, next, R",
+            "x, next,  -, wrt,  R",
+            "-, wrt,   x, ret,  L",
+            "-, ret,   -, end,  L",
+        ],
+    }
+    .into()
 }
 
 pub fn succ_builder() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("succ_adder").unwrap();
-    builder
-        .from_source(include_str!("succ_builder.txt"))
-        .unwrap();
-    builder
+    crate::Builder {
+        name: "succ_adder".to_string(),
+        code: vec![
+            "x, start, x, next,  R",
+            "-,  next, -, till,  R",
+            "l,  till, l, till,  R",
+            "x,  till, l, write, R",
+            "-, write, x, back,  L",
+            "l,  back, l, back,  L",
+            "-,  back, -, end,   L",
+        ],
+    }
+    .into()
 }
 
 pub mod composition;
