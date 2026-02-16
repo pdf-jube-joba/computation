@@ -1,33 +1,19 @@
-use turing_machine::manipulation::{
-    builder::TuringMachineBuilder,
-    graph_compose::{builder_composition, GraphOfBuilder},
-};
+use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 use super::basic::*;
 use crate::*;
 
 fn copy_aux_pre() -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: "pre_procedure_copy".to_string(),
-        init_state: "start".parse_tc().unwrap(),
-        assign_vertex_to_builder: vec![
-            move_right(),
-            right_one(),
-            putbar(),
-            move_left(),
-            move_left(),
-        ],
-        assign_edge_to_state: series_edge_end_only(4),
-        acceptable: accept_end_only(4),
-    };
-    builder_composition(graph).unwrap()
+    chain_builders(
+        "pre_procedure_copy",
+        vec![move_right(), right_one(), putbar(), move_left(), move_left()],
+    )
 }
 
 fn copy_aux_this_b() -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: "copy_this_b".to_string(),
-        init_state: "start".parse_tc().unwrap(),
-        assign_vertex_to_builder: vec![
+    chain_builders(
+        "copy_this_b",
+        vec![
             putbar(),
             move_right(),
             move_right(),
@@ -38,17 +24,13 @@ fn copy_aux_this_b() -> TuringMachineBuilder {
             move_left(),
             putb(),
         ],
-        assign_edge_to_state: series_edge_end_only(8),
-        acceptable: accept_end_only(8),
-    };
-    builder_composition(graph).unwrap()
+    )
 }
 
 fn copy_aux_this_1() -> TuringMachineBuilder {
-    let graph = GraphOfBuilder {
-        name: "copy_this_1".to_string(),
-        init_state: "start".parse_tc().unwrap(),
-        assign_vertex_to_builder: vec![
+    chain_builders(
+        "copy_this_1",
+        vec![
             putbar(),
             move_right(),
             move_right(),
@@ -59,13 +41,10 @@ fn copy_aux_this_1() -> TuringMachineBuilder {
             move_left(),
             put1(),
         ],
-        assign_edge_to_state: series_edge_end_only(8),
-        acceptable: accept_end_only(8),
-    };
-    builder_composition(graph).unwrap()
+    )
 }
 
-// [-]p- を [-]p-p- にする
+// [-]x- を [-]x-x- にする
 pub fn copy() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "copy".to_string(),
@@ -94,18 +73,17 @@ pub fn copy() -> TuringMachineBuilder {
     builder_composition(graph).unwrap()
 }
 
-// -p- を -p_1-...-p_n- ただし p_i = p にする
-// n = 0 なら -p- を -- に、 n = 1 なら -p- を -p- にする
+// -x- を -x_1-...-x_n- ただし x_i = x にする
+// n = 0 なら -x- を -- に、 n = 1 なら -x- を -x- にする
 pub fn n_times_iter(n: usize) -> TuringMachineBuilder {
     if n == 0 {
         annihilate()
     } else if n == 1 {
         id()
     } else {
-        let graph = GraphOfBuilder {
-            name: format!("copy_{n}"),
-            init_state: "start".parse_tc().unwrap(),
-            assign_vertex_to_builder: vec![
+        chain_builders(
+            format!("copy_{n}"),
+            vec![
                 vec![vec![copy(), move_right()]; n - 1]
                     .into_iter()
                     .flatten()
@@ -115,16 +93,12 @@ pub fn n_times_iter(n: usize) -> TuringMachineBuilder {
             .into_iter()
             .flatten()
             .collect(),
-            assign_edge_to_state: series_edge_end_only(2 * (n - 1)),
-            acceptable: accept_end_only(2 * (n - 1)),
-        };
-        builder_composition(graph).unwrap()
+        )
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
-    use turing_machine::machine::Tape;
     #[test]
     fn builder_safe() {
         let _ = copy_aux_pre();
@@ -141,32 +115,12 @@ mod tests {
 
         let tests = vec![
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 0),
+                tape_from(&["x", "x"], 0),
+                tape_from(&["x", "x", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "-"]), 0),
+                tape_from(&["x", "-", "l", "x"], 0),
+                tape_from(&["x", "-", "l", "x", "x"], 0),
             ),
         ];
 
@@ -177,32 +131,12 @@ mod tests {
         let mut builder = copy();
         let tests = vec![
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 0),
+                tape_from(&["x", "x"], 0),
+                tape_from(&["x", "x", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "1", "-"]), 0),
+                tape_from(&["x", "-", "l", "x"], 0),
+                tape_from(&["x", "-", "l", "x", "-", "l", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 100, tests);
@@ -212,32 +146,12 @@ mod tests {
         let mut builder = n_times_iter(2);
         let tests = vec![
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 0),
+                tape_from(&["x", "x"], 0),
+                tape_from(&["x", "x", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "-", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-", "", "1", "-"]), 0),
+                tape_from(&["x", "-", "l", "x"], 0),
+                tape_from(&["x", "-", "l", "x", "-", "l", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 500, tests);

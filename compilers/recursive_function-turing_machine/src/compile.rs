@@ -3,14 +3,14 @@ use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
     use turing_machine::machine::{Sign, Tape};
-    use utils::{number::*, parse::ParseTextCodec};
+    use utils::number::*;
 
     fn partition() -> Sign {
-        "_".parse_tc().unwrap()
+        crate::symbols::partition_sign()
     }
 
     fn one() -> Sign {
-        "1".parse_tc().unwrap()
+        crate::symbols::one_sign()
     }
 
     fn num_sings(num: Number) -> Vec<Sign> {
@@ -18,21 +18,6 @@ pub mod num_tape {
     }
 
     pub fn write(tuple: Vec<Number>) -> Tape {
-        // let mut signs: Vec<Sign> = tuple
-        //     .into_iter()
-        //     .flat_map(|num: Number| {
-        //         let mut vec = vec![Sign::blank()];
-        //         vec.extend_from_slice(&num_sings(num));
-        //         vec
-        //     })
-        //     .collect();
-        // signs.extend_from_slice(&[partition()]);
-        // Tape {
-        //     left: vec![],
-        //     head: partition(),
-        //     right: signs,
-        // }
-
         let mut signs: Vec<Sign> = vec![];
         signs.push(partition());
 
@@ -60,16 +45,6 @@ pub mod num_tape {
 
     pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
         let (v, p) = tape.into_vec();
-        // if *tape.head_read() != partition() {
-        //     return None;
-        // }
-        // let iter = tape
-        //     .right
-        //     .iter()
-        //     .take_while(|sign| **sign == Sign::blank() || **sign == one())
-        //     .cloned();
-        // read_one(iter.collect())
-
         if v[p] != partition() {
             return None;
         }
@@ -118,11 +93,8 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
             inner_funcs,
         } => {
             let outer_builder = compile(outer_func.as_ref());
-            let inner_builders: Vec<TuringMachineBuilder> = inner_funcs
-                .iter()
-                .cloned()
-                .map(|func| compile(&func))
-                .collect();
+            let inner_builders: Vec<TuringMachineBuilder> =
+                inner_funcs.iter().map(compile).collect();
             composition::composition(inner_builders, outer_builder)
         }
         RecursiveFunctions::PrimitiveRecursion {

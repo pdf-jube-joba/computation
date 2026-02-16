@@ -1,7 +1,0 @@
-start
-end
-
--, start, -, right, R
--, right, -,  endT, L
- , right,  ,  endF, L
-1, right, 1,  endF, L

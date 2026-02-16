@@ -6,8 +6,8 @@ use turing_machine::manipulation::{
 use crate::auxiliary::{basic, copy, rotate};
 use crate::*;
 
-// -1-はタプルとしては現れないのでそれをシグネチャとし、判定する
-// -1-が左にあると T そうじゃないと F を返す
+// -l- はタプルとしては現れないのでそれをシグネチャとし、判定する
+// -l- が左にあると T そうじゃないと F を返す
 fn is_left_sig() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "is_left_sig".to_string(),
@@ -57,8 +57,7 @@ fn is_left_sig() -> TuringMachineBuilder {
     builder_composition(graph).unwrap()
 }
 
-// -b(x)p- を -b(x-1)p- にする
-// -- や -bp- はエラー
+// 先頭区画の l を 1 つ削る。空/0 の場合はエラー。
 fn expand_aux_shrink() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "shrink".to_string(),
@@ -90,7 +89,7 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             ((2, 3), "end".parse_tc().unwrap()),
             ((3, 4), "endB".parse_tc().unwrap()),
             ((3, 10), "end1".parse_tc().unwrap()),
-            ((4, 5), "end".parse_tc().unwrap()), // b-case
+            ((4, 5), "end".parse_tc().unwrap()), // blank-case
             ((5, 6), "end".parse_tc().unwrap()),
             ((6, 7), "endB".parse_tc().unwrap()),
             ((6, 8), "end1".parse_tc().unwrap()),
@@ -98,7 +97,7 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
             ((7, 5), "end".parse_tc().unwrap()),
             ((8, 11), "end".parse_tc().unwrap()),
             ((9, 16), "end".parse_tc().unwrap()),
-            ((10, 11), "end".parse_tc().unwrap()), // 1-case
+            ((10, 11), "end".parse_tc().unwrap()), // one-case
             ((11, 12), "end".parse_tc().unwrap()),
             ((12, 13), "endB".parse_tc().unwrap()),
             ((12, 14), "end1".parse_tc().unwrap()),
@@ -114,7 +113,7 @@ fn expand_aux_shrink() -> TuringMachineBuilder {
     builder_composition(graph).unwrap()
 }
 
-// -bp- を -p- にする
+// 先頭区画が空(=0)なら区画を削る。
 fn expand_aux_remove_zero() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "shrink".to_string(),
@@ -215,8 +214,7 @@ fn expand_aux_shift_right() -> TuringMachineBuilder {
     builder_composition(graph).unwrap()
 }
 
-// -b(x)p- を -1-b(x-1)p-...-b(1)p-p- にする
-// ただし、展開後は -b(1)p[-]p- の位置にセットする。
+// 先頭区画を展開して複製用の区画を並べる。終了時は先頭区画に戻す。
 fn expand() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "expand".to_string(),
@@ -250,19 +248,19 @@ fn expand() -> TuringMachineBuilder {
     builder_composition(graph).unwrap()
 }
 
-// -1[-]p- を [-]p- にする
+// シグネチャを取り除いて通常フォーマットに戻す。
 fn format() -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
         name: "format".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             basic::move_right(),
-            basic::shift_left_to_right_fill("-".parse_tc().unwrap()),
+            basic::shift_left_to_right_fill(crate::symbols::partition_sign()),
             basic::putbar(),
             basic::move_rights(2),
             basic::putb(),
             basic::left_one(),
-            basic::shift_left_to_right_fill("-".parse_tc().unwrap()),
+            basic::shift_left_to_right_fill(crate::symbols::partition_sign()),
             basic::move_rights(2),
             basic::putb(),
             basic::move_lefts(2),
@@ -321,263 +319,109 @@ mod tests {
         let _ = expand_aux_shrink();
         let _ = expand();
     }
+
     #[test]
     fn is_left_sig_test() {
         let mut builder = is_left_sig();
         let tests = vec![
+            (tape_from(&["x", "x", "x"], 1), "endF".parse_tc().unwrap()),
             (
-                // Tape {
-                //     left: vec_sign(vec!["-"]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 1),
+                tape_from(&["l", "-", "x", "x", "-", "l", "x"], 3),
                 "endF".parse_tc().unwrap(),
             ),
+            (tape_from(&["x", "-", "l", "l", "-", "l", "x"], 0), "endF".parse_tc().unwrap()),
             (
-                // Tape {
-                //     left: vec_sign(vec!["1", "", "-"]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["1", "", "-", "-", "", "1", "-"]), 3),
-                "endF".parse_tc().unwrap(),
-            ),
-            (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "", "1", "-"]), 0),
-                "endF".parse_tc().unwrap(),
-            ),
-            (
-                // Tape {
-                //     left: vec_sign(vec!["1", "-"]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["1", "-", "-", "", "", "1", "-"]), 2),
+                tape_from(&["l", "x", "x", "-", "-", "l", "x"], 2),
                 "endT".parse_tc().unwrap(),
             ),
         ];
         builder_test_predicate(&mut builder, 100, tests);
     }
+
     #[test]
     fn expand_aux_shrink_test() {
         let mut builder = expand_aux_shrink();
         let tests = vec![
+            (tape_from(&["x", "-", "l", "x"], 0), tape_from(&["x", "-", "x"], 0)),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "-"]),
-                // },
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["-", "", "-"]), 0),
+                tape_from(&["x", "-", "l", "-", "l", "x"], 0),
+                tape_from(&["x", "-", "-", "l", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "", "1", "-"]),
-                // },
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "", "1", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["-", "", "", "1", "-"]), 0),
-            ),
-            (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
-                // },
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "", "1", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "", "1", "-"]), 0),
+                tape_from(&["x", "-", "l", "l", "-", "l", "x"], 0),
+                tape_from(&["x", "-", "l", "-", "l", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 100, tests);
     }
+
     #[test]
     fn expand_aux_remove_zero_test() {
         let mut builder = expand_aux_remove_zero();
         let tests = vec![
+            (tape_from(&["x", "-", "x"], 0), tape_from(&["x", "x"], 0)),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-"]),
-                // },
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
-            ),
-            (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "", "1", "", "1", "-"]),
-                // },
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "", "1", "", "1", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "", "1", "-"]), 0),
+                tape_from(&["x", "-", "-", "l", "-", "l", "x"], 0),
+                tape_from(&["x", "-", "l", "-", "l", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 100, tests);
     }
+
     #[test]
     fn expand_aux_shift_right_test() {
         let mut builder = expand_aux_shift_right();
         let tests = vec![
+            (tape_from(&["x", "x"], 0), tape_from(&["x", "x", "x"], 0)),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 0),
-            ),
-            (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "", "1", "-"]),
-                // },
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "", "1", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["-", "-", "", "", "1", "-"]), 0),
+                tape_from(&["x", "-", "-", "l", "x"], 0),
+                tape_from(&["x", "x", "-", "-", "l", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 100, tests);
     }
+
     #[test]
     fn expand_test() {
         let mut builder = expand();
         let tests = vec![
+            (tape_from(&["x", "-", "x"], 0), tape_from(&["l", "x", "x", "x"], 2)),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-"]),
-                // },
-                // Tape {
-                //     left: vec_sign(vec!["1", "-"]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "-"]), 0),
-                Tape::from_vec(vec_sign(vec!["1", "-", "-", "-"]), 2),
-            ),
-            (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "1", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "", "1", "-"]), 0),
-                Tape::from_vec(
-                    vec_sign(vec![
-                        "-", "1", "-", "", "1", "", "1", "-", "", "", "1", "-", "", "1", "-",
-                    ]),
+                tape_from(&["x", "-", "l", "l", "-", "l", "x"], 0),
+                tape_from(
+                    &[
+                        "x", "l", "x", "-", "l", "-", "l", "x", "-", "-", "l", "x", "-", "l",
+                        "x",
+                    ],
                     11,
                 ),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "1", "1", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "1", "", "1", "-"]), 0),
-                Tape::from_vec(
-                    vec_sign(vec![
-                        "-", "1", "-", "", "1", "1", "", "1", "-", "", "1", "", "1", "-", "", "",
-                        "1", "-", "", "1", "-",
-                    ]),
+                tape_from(&["x", "-", "l", "l", "l", "-", "l", "x"], 0),
+                tape_from(
+                    &[
+                        "x", "l", "x", "-", "l", "l", "-", "l", "x", "-", "l", "-", "l", "x",
+                        "-", "-", "l", "x", "-", "l", "x",
+                    ],
                     17,
                 ),
             ),
         ];
         builder_test(&mut builder, 1000, tests);
     }
+
     #[test]
     fn format_test() {
         let mut builder = format();
         let tests = vec![
+            (tape_from(&["l", "x", "x", "x"], 2), tape_from(&["x", "x"], 0)),
             (
-                // Tape {
-                //     left: vec_sign(vec!["1", "-"]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                // Tape {
-                //     left: vec_sign(vec![]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["1", "-", "-", "-"]), 2),
-                Tape::from_vec(vec_sign(vec!["-", "-"]), 0),
+                tape_from(&["l", "x", "x", "-", "x"], 2),
+                tape_from(&["x", "-", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec_sign(vec!["1", "-"]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-"]),
-                // },
-                // Tape {
-                //     left: vec_sign(vec![]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["1", "-", "-", "", "-"]), 2),
-                Tape::from_vec(vec_sign(vec!["-", "", "-"]), 0),
-            ),
-            (
-                // Tape {
-                //     left: vec_sign(vec!["1", "-"]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "1", "", "-"]),
-                // },
-                // Tape {
-                //     left: vec_sign(vec![]),
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "1", "1", "", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["1", "-", "-", "", "1", "1", "", "-"]), 2),
-                Tape::from_vec(vec_sign(vec!["-", "", "1", "1", "", "-"]), 0),
+                tape_from(&["l", "x", "x", "-", "l", "l", "-", "x"], 2),
+                tape_from(&["x", "-", "l", "l", "-", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 100, tests);

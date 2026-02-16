@@ -1,7 +1,7 @@
 start
 end
 
--, start, -, next, R
--, next, , write, R
- , write, -, ret, L
- , ret, ,end, L
+x, start, x, next, R
+x, next, -, write, R
+-, write, x, ret, L
+-, ret, -, end, L

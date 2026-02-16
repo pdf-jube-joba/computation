@@ -2,6 +2,7 @@ use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
 use utils::parse::ParseTextCodec;
 #[cfg(test)]
 use utils::TextCodec;
+use turing_machine::manipulation::graph_compose::{builder_composition, GraphOfBuilder};
 
 struct Builder<'a> {
     name: String,
@@ -38,6 +39,11 @@ fn series_edge_end_only(n: usize) -> Vec<((usize, usize), State)> {
 #[cfg(test)]
 fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
     vec.into_iter().map(|s| s.parse_tc().unwrap()).collect()
+}
+
+#[cfg(test)]
+pub(crate) fn tape_from(symbols: &[&str], head: usize) -> Result<Tape, String> {
+    Tape::from_vec(vec_sign(symbols.to_vec()), head)
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {
@@ -122,3 +128,19 @@ fn builder_test_predicate(
 
 pub mod auxiliary;
 pub mod compile;
+pub mod symbols;
+
+pub(crate) fn chain_builders(
+    name: impl Into<String>,
+    builders: Vec<TuringMachineBuilder>,
+) -> TuringMachineBuilder {
+    let len = builders.len();
+    let graph = GraphOfBuilder {
+        name: name.into(),
+        init_state: "start".parse_tc().unwrap(),
+        assign_vertex_to_builder: builders,
+        assign_edge_to_state: series_edge_end_only(len.saturating_sub(1)),
+        acceptable: accept_end_only(len.saturating_sub(1)),
+    };
+    builder_composition(graph).unwrap()
+}

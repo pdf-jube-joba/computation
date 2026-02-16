@@ -149,7 +149,7 @@ pub mod graph_compose {
 
         let format_name = |index: usize, state: State| {
             let str = format!(
-                "{index}-{}-{}",
+                "v{index}-{}-{}",
                 assign_vertex_to_builder[index].get_name(),
                 state.print()
             );

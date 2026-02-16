@@ -1,6 +1,0 @@
-start
-end
-
- , start,  , endB, C
-1, start, 1, end1, C
--, start, -, endbar, C

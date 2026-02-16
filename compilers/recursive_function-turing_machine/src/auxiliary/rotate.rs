@@ -5,6 +5,7 @@ use turing_machine::manipulation::{
 
 use super::basic::*;
 use crate::*;
+use crate::symbols;
 
 // [-]X1-...-Xn- を [x]X2-...-Xn-X1- にする
 pub fn rotate(n: usize) -> TuringMachineBuilder {
@@ -19,13 +20,13 @@ pub fn rotate(n: usize) -> TuringMachineBuilder {
             right_one(), // 4
             bor1orbar(),
             move_rights(n + 1),
-            shift_left_to_rights("".parse_tc().unwrap(), n + 1),
+            shift_left_to_rights(symbols::blank_sign(), n + 1),
             putbar(),
             move_rights(n + 1),
-            shift_left_to_rights("1".parse_tc().unwrap(), n + 1),
+            shift_left_to_rights(symbols::one_sign(), n + 1),
             putbar(),
             move_rights(n),
-            shift_left_to_rights("-".parse_tc().unwrap(), n + 1),
+            shift_left_to_rights(symbols::partition_sign(), n + 1),
             move_rights(n + 1),
             putb(),
             move_lefts(n + 1),
@@ -61,7 +62,7 @@ pub fn rotate_back(n: usize) -> TuringMachineBuilder {
         name: "rotate_back".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            shift_right_to_lefts("-".parse_tc().unwrap(), n),
+            shift_right_to_lefts(symbols::partition_sign(), n),
             right_one(),
             putbar(),
             move_lefts(n + 1),
@@ -69,10 +70,10 @@ pub fn rotate_back(n: usize) -> TuringMachineBuilder {
             left_one(),
             bor1orbar(),       // 6
             move_lefts(n + 1), // 7
-            shift_right_to_lefts("".parse_tc().unwrap(), n + 1),
+            shift_right_to_lefts(symbols::blank_sign(), n + 1),
             putbar(),
             move_lefts(n + 1), // 10
-            shift_right_to_lefts("1".parse_tc().unwrap(), n + 1),
+            shift_right_to_lefts(symbols::one_sign(), n + 1),
             putbar(),
             right_one(), // 13
             putb(),
@@ -114,32 +115,12 @@ mod tests {
         let mut builder = rotate(2);
         let tests = vec![
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-"]), 0),
+                tape_from(&["x", "x", "x"], 0),
+                tape_from(&["x", "x", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-", "", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "-", "", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-", "", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "-", "", "-"]), 0),
+                tape_from(&["x", "-", "x", "-", "x"], 0),
+                tape_from(&["x", "-", "x", "-", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 600, tests);
@@ -149,52 +130,16 @@ mod tests {
         let mut builder = rotate_back(3);
         let tests = vec![
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "-", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "-", "-"]), 0),
+                tape_from(&["x", "x", "x", "x"], 0),
+                tape_from(&["x", "x", "x", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["-", "", "1", "", "1", "-", "", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "-", "", "1", "", "1", "-", "", "-"]), 0),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-", "-", "", "1", "", "1", "-"]),
-                // },
-                Tape::from_vec(vec_sign(vec!["-", "", "-", "-", "", "1", "", "1", "-"]), 0),
+                tape_from(&["x", "x", "-", "l", "-", "l", "x", "-", "x"], 0),
+                tape_from(&["x", "-", "x", "x", "-", "l", "-", "l", "x"], 0),
             ),
             (
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "", "-", "", "1", "", "1", "-", "", "-"]),
-                // },
-                Tape::from_vec(
-                    vec_sign(vec!["-", "", "", "-", "", "1", "", "1", "-", "", "-"]),
-                    0,
-                ),
-                // Tape {
-                //     left: vec![],
-                //     head: "-".parse_tc().unwrap(),
-                //     right: vec_sign(vec!["", "-", "", "", "-", "", "1", "", "1", "-"]),
-                // },
-                Tape::from_vec(
-                    vec_sign(vec!["-", "", "-", "", "", "-", "", "1", "", "1", "-"]),
-                    0,
-                ),
+                tape_from(&["x", "-", "-", "x", "-", "l", "-", "l", "x", "-", "x"], 0),
+                tape_from(&["x", "-", "x", "-", "-", "x", "-", "l", "-", "l", "x"], 0),
             ),
         ];
         builder_test(&mut builder, 300, tests);
