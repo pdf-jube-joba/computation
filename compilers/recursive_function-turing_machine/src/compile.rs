@@ -24,8 +24,9 @@ pub mod num_tape {
         for num in tuple {
             signs.push(Sign::blank());
             signs.extend_from_slice(&num_sings(num));
-            signs.push(Sign::blank());
         }
+
+        signs.push(partition());
 
         Tape::from_vec(signs, 0).unwrap()
     }
@@ -57,7 +58,6 @@ pub mod num_tape {
         read_right_one(tape).map(|vec| vec.into_iter().map(|x| x.as_usize().unwrap()).collect())
     }
 }
-
 
 // ... [x] x - - ...
 // ... [x] - x - - ...
