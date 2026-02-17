@@ -10,7 +10,6 @@ members = [
   "models/logic_circuit",
   "models/mini_prog",
   "models/my_hdl",
-  "models/rec_tm_ir",
   "models/recursive_function",
   "models/recursive_function-lambda_calculus",
   "models/recursive_function-turing_machine",

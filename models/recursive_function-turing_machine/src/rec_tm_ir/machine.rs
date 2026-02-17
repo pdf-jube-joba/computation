@@ -4,10 +4,11 @@ use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
 use utils::{json_text, Machine, TextCodec};
 
-use crate::parser::parse_identifier;
+use super::parser::parse_identifier;
 
 #[derive(Debug, Clone)]
 pub struct Program {
+    pub alphabet: Vec<Sign>,
     pub functions: HashMap<String, Function>,
 }
 
@@ -263,13 +264,16 @@ impl Machine for RecTmIrMachine {
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         validate_no_recursion(&code)?;
+        let alphabet = validate_alphabet(&code.alphabet)?;
         let program = compile_program(&code)?;
         let main = program
             .functions
             .get("main")
             .ok_or_else(|| "main() is not defined".to_string())?;
         let env = Environment::new(main.vars.iter().cloned());
-        let allowed = collect_signs_program(&code, &ainput);
+        let allowed = alphabet_set(&alphabet);
+        validate_signs_in_program(&code, &allowed)?;
+        validate_tape(&ainput, &allowed)?;
 
         Ok(RecTmIrMachine {
             program,
@@ -509,27 +513,52 @@ fn collect_calls(stmts: &[Stmt], calls: &mut HashSet<String>) {
     }
 }
 
-fn collect_signs_program(program: &Program, tape: &Tape) -> HashSet<Sign> {
-    let mut signs = HashSet::new();
-    signs.insert(Sign::blank());
-    for func in program.functions.values() {
-        collect_signs(&func.body, &mut signs);
+fn validate_alphabet(alphabet: &[Sign]) -> Result<Vec<Sign>, String> {
+    if alphabet.is_empty() {
+        return Err("alphabet must not be empty".to_string());
     }
-    let (tape_signs, _) = tape.into_vec();
-    signs.extend(tape_signs);
-    signs
+    if alphabet.iter().any(|sign| *sign == Sign::blank()) {
+        return Ok(alphabet.to_vec());
+    }
+    let mut extended = alphabet.to_vec();
+    extended.push(Sign::blank());
+    Ok(extended)
 }
 
-fn collect_signs(stmts: &[Stmt], signs: &mut HashSet<Sign>) {
+fn alphabet_set(alphabet: &[Sign]) -> HashSet<Sign> {
+    alphabet.iter().cloned().collect()
+}
+
+fn validate_tape(tape: &Tape, allowed: &HashSet<Sign>) -> Result<(), String> {
+    let (signs, _) = tape.into_vec();
+    for sign in signs {
+        if !allowed.contains(&sign) {
+            return Err(format!("Unknown sign on tape: {}", sign.print()));
+        }
+    }
+    Ok(())
+}
+
+fn validate_signs_in_program(program: &Program, allowed: &HashSet<Sign>) -> Result<(), String> {
+    for func in program.functions.values() {
+        validate_signs_in_stmts(&func.body, allowed)?;
+    }
+    Ok(())
+}
+
+fn validate_signs_in_stmts(stmts: &[Stmt], allowed: &HashSet<Sign>) -> Result<(), String> {
     for stmt in stmts {
         match stmt {
             Stmt::IfBreak { value, .. } => {
-                signs.insert(value.clone());
+                if !allowed.contains(value) {
+                    return Err(format!("Unknown sign in if: {}", value.print()));
+                }
             }
-            Stmt::Loop { body, .. } => collect_signs(body, signs),
+            Stmt::Loop { body, .. } => validate_signs_in_stmts(body, allowed)?,
             _ => {}
         }
     }
+    Ok(())
 }
 
 fn compile_stmts(stmts: &[Stmt]) -> Result<Vec<Instr>, String> {

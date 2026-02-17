@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::machine::{validate_no_recursion, Function, Program, Stmt};
+use super::machine::{validate_no_recursion, Function, Program, Stmt};
 
 pub fn flatten_program(program: &Program) -> Result<Program, String> {
     validate_no_recursion(program)?;
@@ -19,7 +19,10 @@ pub fn flatten_program(program: &Program) -> Result<Program, String> {
             body,
         },
     );
-    Ok(Program { functions })
+    Ok(Program {
+        alphabet: program.alphabet.clone(),
+        functions,
+    })
 }
 
 fn expand_stmts(

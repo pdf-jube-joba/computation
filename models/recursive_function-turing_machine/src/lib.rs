@@ -134,6 +134,8 @@ fn builder_test_predicate(
 
 pub mod auxiliary;
 pub mod compile;
+pub mod rec_tm_ir;
+pub mod rec_tm_ir_jump;
 pub mod symbols;
 
 pub(crate) fn chain_builders(

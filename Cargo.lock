@@ -257,16 +257,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rec_tm_ir"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "turing_machine",
- "utils",
-]
-
-[[package]]
 name = "recursive_function"
 version = "0.1.0"
 dependencies = [
@@ -292,6 +282,7 @@ name = "recursive_function-turing_machine"
 version = "0.1.0"
 dependencies = [
  "recursive_function",
+ "serde_json",
  "turing_machine",
  "utils",
 ]

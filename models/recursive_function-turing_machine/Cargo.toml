@@ -1,11 +1,20 @@
 [package]
 name = "recursive_function-turing_machine"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "rec_tm_ir"
+path = "src/bin/rec_tm_ir.rs"
+
+[[bin]]
+name = "rec_tm_ir_jump"
+path = "src/bin/rec_tm_ir_jump.rs"
 
 [dependencies]
 utils = { workspace = true }
 turing_machine = { workspace = true }
 recursive_function = { workspace = true }
+serde_json = { workspace = true }

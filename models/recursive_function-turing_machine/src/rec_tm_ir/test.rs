@@ -1,6 +1,6 @@
 use utils::{Machine, TextCodec};
 
-use crate::{flatten_program, RecTmIrMachine, Snapshot, Stmt};
+use super::{flatten_program, Environment, RecTmIrMachine, Snapshot, Stmt};
 
 fn run_until_halt(machine: &mut RecTmIrMachine, limit: usize) -> EnvironmentResult {
     for _ in 0..limit {
@@ -11,7 +11,7 @@ fn run_until_halt(machine: &mut RecTmIrMachine, limit: usize) -> EnvironmentResu
     Err("step limit exceeded".to_string())
 }
 
-type EnvironmentResult = Result<crate::Environment, String>;
+type EnvironmentResult = Result<Environment, String>;
 
 fn head_text(snapshot: Snapshot) -> Result<String, String> {
     let value: serde_json::Value = snapshot.into();
@@ -44,6 +44,7 @@ fn head_text(snapshot: Snapshot) -> Result<String, String> {
 #[test]
 fn call_does_not_share_env() {
     let code = r#"
+alphabet: (a, b)
 fn f(x) {
   READ x
 }
@@ -70,6 +71,7 @@ fn main() {
 #[test]
 fn recursion_is_rejected() {
     let code = r#"
+alphabet: (a)
 fn f(x) {
   call f(x)
 }
@@ -87,6 +89,7 @@ fn main() {
 #[test]
 fn scan_and_mark_tape() {
     let code = r#"
+alphabet: (m, a, b, x)
 fn main() {
   READ mark
   loop L: {
@@ -109,6 +112,7 @@ fn main() {
 #[test]
 fn call_chain_does_not_share_env() {
     let code = r#"
+alphabet: (a, b)
 fn g(p) {
   RT
   READ p
@@ -137,6 +141,7 @@ fn main() {
 #[test]
 fn nested_loop_breaks_resolve() {
     let code = r#"
+alphabet: (a, b, c)
 fn main() {
   loop A: {
     loop B: {
@@ -162,6 +167,7 @@ fn main() {
 #[test]
 fn repeated_calls_keep_env_isolated() {
     let code = r#"
+alphabet: (a, b, c)
 fn writer(x) {
   READ x
   RT
@@ -209,6 +215,7 @@ fn has_call(stmts: &[Stmt]) -> bool {
 #[test]
 fn flatten_renames_vars_and_labels() {
     let code = r#"
+alphabet: (a, b)
 fn f(x) {
   loop L: {
     READ x

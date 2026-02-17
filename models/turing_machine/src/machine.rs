@@ -117,6 +117,15 @@ impl Tape {
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize)]
 pub struct State(pub(crate) Alphabet);
 
+impl TryFrom<&String> for State {
+    type Error = String;
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        Alphabet::new(value)
+            .map(State)
+            .map_err(|e| format!("Invalid state name '{}': {}", value, e))
+    }
+}
+
 pub type CodeEntry = ((Sign, State), (Sign, State, Direction));
 pub type Code = Vec<CodeEntry>;
 
