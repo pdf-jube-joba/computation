@@ -13,12 +13,12 @@ struct Builder<'a> {
 
 impl<'a> From<Builder<'a>> for TuringMachineBuilder {
     fn from(builder: Builder) -> Self {
-        let mut tm_builder = TuringMachineBuilder::new(&builder.name).unwrap();
-        tm_builder.init_state("start".parse_tc().unwrap());
-        tm_builder.accepted_state(vec!["end".parse_tc().unwrap()]);
+        let mut tm_builder =
+            TuringMachineBuilder::new(&builder.name, "start".parse_tc().unwrap()).unwrap();
+        tm_builder.accepted_state = vec!["end".parse_tc().unwrap()];
         for entry in builder.code {
             let entry = turing_machine::parse::parse_one_code_entry(entry).unwrap();
-            tm_builder.code_push(entry);
+            tm_builder.code.push(entry.into());
         }
         tm_builder
     }
@@ -49,18 +49,22 @@ pub(crate) fn tape_from(symbols: &[&str], head: usize) -> Result<Tape, String> {
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("zero_builder").unwrap();
-    builder
-        .from_source(include_str!("zero_builder.txt"))
-        .unwrap();
+    let definition: TuringMachineDefinition =
+        include_str!("zero_builder.txt").parse_tc().unwrap();
+    let mut builder =
+        TuringMachineBuilder::new("zero_builder", definition.init_state().clone()).unwrap();
+    builder.accepted_state = definition.accepted_state().clone();
+    builder.code = definition.code().clone().into_iter().map(Into::into).collect();
     builder
 }
 
 pub fn succ_builder() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("succ_adder").unwrap();
-    builder
-        .from_source(include_str!("succ_builder.txt"))
-        .unwrap();
+    let definition: TuringMachineDefinition =
+        include_str!("succ_builder.txt").parse_tc().unwrap();
+    let mut builder =
+        TuringMachineBuilder::new("succ_adder", definition.init_state().clone()).unwrap();
+    builder.accepted_state = definition.accepted_state().clone();
+    builder.code = definition.code().clone().into_iter().map(Into::into).collect();
     builder
 }
 

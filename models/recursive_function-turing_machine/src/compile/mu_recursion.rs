@@ -125,7 +125,7 @@ fn remove() -> TuringMachineBuilder {
 
 pub fn mu_recursion(builder: TuringMachineBuilder) -> TuringMachineBuilder {
     let graph = GraphOfBuilder {
-        name: format!("mu_recursion_{}", builder.get_name()),
+        name: format!("mu_recursion_{}", builder.name),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             start_0(),

@@ -4,120 +4,107 @@ use std::collections::HashSet;
 pub mod builder {
     use crate::machine::*;
     use anyhow::{Result, anyhow};
-    use utils::parse::ParseTextCodec;
 
     #[derive(Clone, PartialEq)]
-    pub struct TuringMachineBuilder {
-        name: String,
-        init_state: Option<State>,
-        accepted_state: Vec<State>,
-        code: Vec<CodeEntry>,
+    pub struct UserCodeEntry<SignT> {
+        pub key_sign: SignT,
+        pub key_state: State,
+        pub value_sign: SignT,
+        pub value_state: State,
+        pub direction: Direction,
     }
 
-    impl TuringMachineBuilder {
-        pub fn new(name: &str) -> Result<TuringMachineBuilder> {
+    impl<SignT> From<UserCodeEntry<SignT>> for CodeEntry
+    where
+        SignT: Into<Sign>,
+    {
+        fn from(entry: UserCodeEntry<SignT>) -> Self {
+            (
+                (entry.key_sign.into(), entry.key_state),
+                (entry.value_sign.into(), entry.value_state, entry.direction),
+            )
+        }
+    }
+
+    impl<SignT> From<(SignT, State, SignT, State, Direction)> for UserCodeEntry<SignT> {
+        fn from(entry: (SignT, State, SignT, State, Direction)) -> Self {
+            UserCodeEntry {
+                key_sign: entry.0,
+                key_state: entry.1,
+                value_sign: entry.2,
+                value_state: entry.3,
+                direction: entry.4,
+            }
+        }
+    }
+
+    impl From<CodeEntry> for UserCodeEntry<Sign> {
+        fn from(entry: CodeEntry) -> Self {
+            UserCodeEntry {
+                key_sign: entry.0 .0,
+                key_state: entry.0 .1,
+                value_sign: entry.1 .0,
+                value_state: entry.1 .1,
+                direction: entry.1 .2,
+            }
+        }
+    }
+
+    #[derive(Clone, PartialEq)]
+    pub struct TuringMachineBuilder<SignT = Sign> {
+        pub name: String,
+        pub init_state: State,
+        pub accepted_state: Vec<State>,
+        pub code: Vec<UserCodeEntry<SignT>>,
+    }
+
+    impl<SignT> TuringMachineBuilder<SignT>
+    where
+        SignT: Clone + Eq + std::hash::Hash + Into<Sign>,
+    {
+        pub fn new(name: &str, init_state: State) -> Result<TuringMachineBuilder<SignT>> {
             if name.is_empty() {
                 return Err(anyhow!("Name is empty"));
             }
             Ok(TuringMachineBuilder {
                 name: name.to_string(),
-                init_state: None,
+                init_state,
                 accepted_state: Vec::new(),
                 code: Vec::new(),
             })
         }
 
         pub fn build(&self, tape: Tape) -> Result<TuringMachine> {
-            let init_state = self
-                .init_state
-                .clone()
-                .ok_or_else(|| anyhow!("Initial state is empty"))?;
-            let code = self.code.clone();
-            let machine =
-                TuringMachineDefinition::new(init_state, self.accepted_state.clone(), code)?;
-            Ok(TuringMachine::new(machine, tape))
-        }
-
-        pub fn init_state(&mut self, state: State) -> &mut Self {
-            self.init_state = Some(state);
-            self
-        }
-
-        pub fn get_init_state(&self) -> Option<State> {
-            self.init_state.to_owned()
-        }
-
-        pub fn accepted_state(&mut self, states: impl IntoIterator<Item = State>) -> &mut Self {
-            self.accepted_state = states.into_iter().collect();
-            self
-        }
-
-        pub fn get_accepted_state(&self) -> Vec<State> {
-            self.accepted_state.clone()
-        }
-
-        pub fn code_from_entries(
-            &mut self,
-            entries: impl IntoIterator<Item = CodeEntry>,
-        ) -> &mut Self {
-            self.code = entries.into_iter().collect();
-            self
-        }
-
-        pub fn code_new(&mut self, vec: Vec<CodeEntry>) -> &mut Self {
-            self.code = vec;
-            self
-        }
-
-        pub fn code_push(&mut self, entry: CodeEntry) -> &mut Self {
-            self.code.push(entry);
-            self
-        }
-
-        pub fn code_refresh(&mut self) -> &mut Self {
-            self.code = Vec::new();
-            self
-        }
-
-        pub fn get_code(&self) -> Vec<CodeEntry> {
-            self.code.to_owned()
-        }
-
-        pub fn get_name(&self) -> String {
-            self.name.to_owned()
-        }
-
-        pub fn get_signs(&self) -> Vec<Sign> {
-            self.get_code()
+            let code = self
+                .code
                 .iter()
-                .flat_map(|(key, value)| vec![key.0.clone(), value.0.clone()])
-                .collect()
-        }
-
-        pub fn from_source(&mut self, str: &str) -> Result<&mut Self> {
-            let definition: TuringMachineDefinition = str.parse_tc().map_err(|e| anyhow!(e))?;
-            self.init_state(definition.init_state().clone());
-            self.accepted_state(definition.accepted_state().clone());
-            self.code = definition.code().clone();
-            Ok(self)
+                .cloned()
+                .map(CodeEntry::from)
+                .collect::<Vec<_>>();
+            let machine =
+                TuringMachineDefinition::new(self.init_state.clone(), self.accepted_state.clone(), code)?;
+            Ok(TuringMachine::new(machine, tape))
         }
     }
 }
 
 pub mod graph_compose {
-    use super::{builder::TuringMachineBuilder, *};
+    use super::{builder::TuringMachineBuilder, builder::UserCodeEntry, *};
     use anyhow::{Result, anyhow};
     use utils::{TextCodec, parse::ParseTextCodec};
 
-    pub struct GraphOfBuilder {
+    pub struct GraphOfBuilder<SignT = Sign> {
         pub name: String,
         pub init_state: State,
-        pub assign_vertex_to_builder: Vec<TuringMachineBuilder>,
+        pub assign_vertex_to_builder: Vec<TuringMachineBuilder<SignT>>,
         pub assign_edge_to_state: Vec<((usize, usize), State)>,
         pub acceptable: Vec<Vec<State>>,
     }
 
-    pub fn builder_composition(graph: GraphOfBuilder) -> Result<TuringMachineBuilder> {
+    pub fn builder_composition<SignT>(graph: GraphOfBuilder<SignT>) -> Result<TuringMachineBuilder<SignT>>
+    where
+        SignT: Clone + Eq + std::hash::Hash + Into<Sign>,
+    {
         let GraphOfBuilder {
             name,
             init_state,
@@ -126,13 +113,7 @@ pub mod graph_compose {
             acceptable,
         } = graph;
 
-        let mut builder = TuringMachineBuilder::new(&name)?;
-
-        for (index, builder) in assign_vertex_to_builder.iter().enumerate() {
-            if builder.get_init_state().is_none() {
-                return Err(anyhow!("Initial state is not set for vertex {index}"));
-            }
-        }
+        let mut builder = TuringMachineBuilder::new(&name, init_state.clone())?;
 
         if assign_vertex_to_builder.len() != acceptable.len() {
             return Err(anyhow!("Length of vertices and acceptable states differ"));
@@ -150,31 +131,34 @@ pub mod graph_compose {
         let format_name = |index: usize, state: State| {
             let str = format!(
                 "v{index}-{}-{}",
-                assign_vertex_to_builder[index].get_name(),
+                assign_vertex_to_builder[index].name,
                 state.print()
             );
             str.parse_tc().unwrap()
         };
 
-        builder.init_state(init_state.clone());
-
-        let all_sign: HashSet<Sign> = assign_vertex_to_builder
+        let all_sign: HashSet<SignT> = assign_vertex_to_builder
             .iter()
-            .flat_map(|builder| builder.get_signs())
+            .flat_map(|builder| {
+                builder
+                    .code
+                    .iter()
+                    .flat_map(|entry| vec![entry.key_sign.clone(), entry.value_sign.clone()])
+            })
             .collect();
 
         let code = {
-            let mut code: Vec<CodeEntry> = all_sign
+            let mut code: Vec<UserCodeEntry<SignT>> = all_sign
                 .iter()
                 .map(|sign| {
                     (
-                        (sign.clone(), init_state.clone()),
-                        (
-                            sign.clone(),
-                            format_name(0, assign_vertex_to_builder[0].get_init_state().unwrap()),
-                            Direction::Constant,
-                        ),
+                        sign.clone(),
+                        init_state.clone(),
+                        sign.clone(),
+                        format_name(0, assign_vertex_to_builder[0].init_state.clone()),
+                        Direction::Constant,
                     )
+                        .into()
                 })
                 .collect();
 
@@ -182,10 +166,16 @@ pub mod graph_compose {
                 .iter()
                 .enumerate()
                 .flat_map(|(index, builder)| {
-                    builder.get_code().into_iter().map(move |(key, value)| {
-                        let new_key_state: State = format_name(index, key.1);
-                        let new_value_state: State = format_name(index, value.1);
-                        ((key.0, new_key_state), (value.0, new_value_state, value.2))
+                    builder.code.clone().into_iter().map(move |entry| {
+                        let new_key_state: State = format_name(index, entry.key_state);
+                        let new_value_state: State = format_name(index, entry.value_state);
+                        UserCodeEntry {
+                            key_sign: entry.key_sign,
+                            key_state: new_key_state,
+                            value_sign: entry.value_sign,
+                            value_state: new_value_state,
+                            direction: entry.direction,
+                        }
                     })
                 });
             code.extend(iter);
@@ -193,18 +183,18 @@ pub mod graph_compose {
             let iter = assign_edge_to_state
                 .iter()
                 .flat_map(|((index1, index2), state)| {
-                    let init_state2 = assign_vertex_to_builder[*index2].get_init_state().unwrap();
+                    let init_state2 = assign_vertex_to_builder[*index2].init_state.clone();
                     all_sign
                         .iter()
                         .map(|sign| {
                             (
-                                (sign.clone(), format_name(*index1, state.clone())),
-                                (
-                                    sign.clone(),
-                                    format_name(*index2, init_state2.clone()),
-                                    Direction::Constant,
-                                ),
+                                sign.clone(),
+                                format_name(*index1, state.clone()),
+                                sign.clone(),
+                                format_name(*index2, init_state2.clone()),
+                                Direction::Constant,
                             )
+                                .into()
                         })
                         .collect::<Vec<_>>()
                 });
@@ -214,9 +204,13 @@ pub mod graph_compose {
                 all_sign.iter().flat_map(move |sign| {
                     v.iter().map(move |state| {
                         (
-                            (sign.clone(), format_name(index, state.clone())),
-                            (sign.clone(), state.clone(), Direction::Constant),
+                            sign.clone(),
+                            format_name(index, state.clone()),
+                            sign.clone(),
+                            state.clone(),
+                            Direction::Constant,
                         )
+                            .into()
                     })
                 })
             });
@@ -226,8 +220,9 @@ pub mod graph_compose {
         };
 
         builder
-            .accepted_state(acceptable.into_iter().flatten())
-            .code_new(code);
+            .accepted_state
+            .extend(acceptable.into_iter().flatten());
+        builder.code = code;
         Ok(builder)
     }
 }

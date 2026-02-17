@@ -1,5 +1,7 @@
 use recursive_function::machine::RecursiveFunctions;
+use turing_machine::machine::TuringMachineDefinition;
 use turing_machine::manipulation::builder::TuringMachineBuilder;
+use utils::parse::ParseTextCodec;
 
 pub mod num_tape {
     use crate::symbols::S;
@@ -52,18 +54,22 @@ pub mod num_tape {
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("zero_builder").unwrap();
-    builder
-        .from_source(include_str!("zero_builder.txt"))
-        .unwrap();
+    let definition: TuringMachineDefinition =
+        include_str!("zero_builder.txt").parse_tc().unwrap();
+    let mut builder =
+        TuringMachineBuilder::new("zero_builder", definition.init_state().clone()).unwrap();
+    builder.accepted_state = definition.accepted_state().clone();
+    builder.code = definition.code().clone();
     builder
 }
 
 pub fn succ_builder() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("succ_adder").unwrap();
-    builder
-        .from_source(include_str!("succ_builder.txt"))
-        .unwrap();
+    let definition: TuringMachineDefinition =
+        include_str!("succ_builder.txt").parse_tc().unwrap();
+    let mut builder =
+        TuringMachineBuilder::new("succ_adder", definition.init_state().clone()).unwrap();
+    builder.accepted_state = definition.accepted_state().clone();
+    builder.code = definition.code().clone();
     builder
 }
 
