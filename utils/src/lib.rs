@@ -6,6 +6,7 @@ pub mod variable;
 
 // ここら辺がないと動かないが、
 // utils 側でも import をしておかないと、 `#[wasm_bindgen]` マクロが動かない。
+pub use serde;
 pub use serde_json;
 pub use serde_wasm_bindgen;
 pub use wasm_bindgen;

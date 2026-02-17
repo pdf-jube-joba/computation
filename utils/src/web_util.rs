@@ -3,8 +3,8 @@ macro_rules! web_model {
     ($machine:path) => {
         mod __web_model {
             use $crate::{Machine, TextCodec};
-            use serde::Serialize;
-            use serde_json::Value;
+            use $crate::serde::Serialize;
+            use $crate::serde_json::Value;
             use $crate::wasm_bindgen::prelude::JsValue;
 
             pub trait WebView {
