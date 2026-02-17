@@ -127,12 +127,12 @@ pub fn projection(n: usize, i: usize) -> TuringMachineBuilder {
             vec![flat_1_till_end(); n - i - 1],
             vec![
                 shrink_bar_right_till_1_or_bar(),
-                basic::move_left(),
+                basic::move_left_till_x(),
                 move_1_left_in_bar(),
                 shrink_bar_right_till_1_or_bar(),
-                basic::move_left(),
+                basic::move_left_till_x(),
                 format(),
-                basic::move_left(),
+                basic::move_left_till_x(),
             ],
         ]
         .into_iter()

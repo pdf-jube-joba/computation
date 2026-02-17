@@ -1,23 +1,28 @@
+use std::fmt::Display;
+
 use turing_machine::machine::Sign;
-use utils::parse::ParseTextCodec;
+use utils::TextCodec;
 
-pub const BLANK_STR: &str = "-";
-pub const PARTITION_STR: &str = "x";
-pub const ONE_STR: &str = "l";
-pub const HASH_STR: &str = "h";
-
-pub fn blank_sign() -> Sign {
-    BLANK_STR.parse_tc().unwrap()
+#[derive(Debug, Clone)]
+pub enum S {
+    B, // '-' blank
+    L, // 'l' flag
+    X, // 'x' partition
 }
 
-pub fn partition_sign() -> Sign {
-    PARTITION_STR.parse_tc().unwrap()
+impl From<S> for Sign {
+    fn from(s: S) -> Self {
+        match s {
+            S::B => Sign::blank(), // "-" blank
+            S::L => Sign::parse("l").unwrap(),
+            S::X => Sign::parse("x").unwrap(),
+        }
+    }
 }
 
-pub fn one_sign() -> Sign {
-    ONE_STR.parse_tc().unwrap()
-}
-
-pub fn hash_sign() -> Sign {
-    HASH_STR.parse_tc().unwrap()
+impl Display for S {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s: Sign = self.clone().into();
+        TextCodec::write_fmt(&s, f)
+    }
 }

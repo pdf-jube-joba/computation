@@ -16,7 +16,7 @@ fn format(n: usize) -> TuringMachineBuilder {
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             vec![basic::move_rights(n - 2)],
-            vec![vec![basic::concat(), basic::move_left()]; n - 2]
+            vec![vec![basic::concat(), basic::move_left_till_x()]; n - 2]
                 .into_iter()
                 .flatten()
                 .collect(),

@@ -2,24 +2,17 @@ use recursive_function::machine::RecursiveFunctions;
 use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 pub mod num_tape {
+    use crate::symbols::S;
     use turing_machine::machine::{Sign, Tape};
     use utils::number::*;
 
-    fn partition() -> Sign {
-        crate::symbols::partition_sign()
-    }
-
-    fn one() -> Sign {
-        crate::symbols::one_sign()
-    }
-
     fn num_sings(num: Number) -> Vec<Sign> {
-        (0..num.as_usize().unwrap()).map(|_| one()).collect()
+        (0..num.as_usize().unwrap()).map(|_| S::L.into()).collect()
     }
 
     pub fn write(tuple: Vec<Number>) -> Tape {
         let mut signs: Vec<Sign> = vec![];
-        signs.push(partition());
+        signs.push(S::X.into());
 
         for num in tuple {
             signs.push(Sign::blank());
@@ -45,7 +38,7 @@ pub mod num_tape {
 
     pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
         let (v, p) = tape.into_vec();
-        if v[p] != partition() {
+        if v[p] != S::X.into() {
             return None;
         }
 

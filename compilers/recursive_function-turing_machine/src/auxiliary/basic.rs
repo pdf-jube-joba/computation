@@ -20,31 +20,31 @@ pub fn id() -> TuringMachineBuilder {
 }
 
 pub fn id_end(str: &str) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new(&format!("id_{str}")).unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec![str.parse_tc().unwrap()])
-        .code_new(
-            vec![
-                format!("x, start, x, {str}, C"),
-                format!("-, start, -, {str}, C"),
-                format!("l, start, l, {str}, C"),
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str.as_ref()).unwrap())
-            .collect(),
-        );
-    builder
+    Builder {
+        name: format!("id_{str}"),
+        code: vec![
+            &format!("x, start, x, {str}, C"),
+            &format!("-, start, -, {str}, C"),
+            &format!("l, start, l, {str}, C"),
+        ],
+    }
+    .into()
 }
 
-pub fn move_right() -> TuringMachineBuilder {
+// ... [?_1] ?_2 ... ?_n ...
+// ... ?_1 ?_2 ... [?_n] ...
+// where
+//  - ?_1 in {'-', 'l', 'x'}
+//  - ?_i in {'-', 'l'} for 1 < i < n
+//  - ?_n == 'x'
+pub fn move_right_till_x() -> TuringMachineBuilder {
     Builder {
         name: "move_right".to_string(),
         code: vec![
             "x, start, x, till, R",
             "-, start, -, till, R",
             "l, start, l, till, R",
-            "-,  till,  -, till, R",
+            "-,  till, -, till, R",
             "l,  till, l, till, R",
             "x,  till, x,  end, C",
         ],
@@ -56,18 +56,24 @@ pub fn move_rights(n: usize) -> TuringMachineBuilder {
     if n == 0 {
         id()
     } else {
-        chain_builders(format!("moveR_{n}"), vec![move_right(); n])
+        chain_builders(format!("moveR_{n}"), vec![move_right_till_x(); n])
     }
 }
 
-pub fn move_left() -> TuringMachineBuilder {
+// ... ?_1 ?_2 ... [?_n] ...
+// ... [?_1] ?_2 ... ?_n ...
+// where
+//  - ?_n in {'-', 'l', 'x'}
+//  - ?_i in {'-', 'l'} for 1 < i < n
+//  - ?_1 == 'x'
+pub fn move_left_till_x() -> TuringMachineBuilder {
     Builder {
         name: "move_left".to_string(),
         code: vec![
             "x, start, x, till, L",
             "-, start, -, till, L",
             "l, start, l, till, L",
-            "-,  till,  -, till, L",
+            "-,  till, -, till, L",
             "l,  till, l, till, L",
             "x,  till, x,  end, C",
         ],
@@ -79,148 +85,116 @@ pub fn move_lefts(n: usize) -> TuringMachineBuilder {
     if n == 0 {
         id()
     } else {
-        chain_builders(format!("moveL_{n}"), vec![move_left(); n])
+        chain_builders(format!("moveL_{n}"), vec![move_left_till_x(); n])
     }
 }
 
-pub fn bor1orbar() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("bor1").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "-, start,  -, endB, C",
-                "l, start, l, end1, C",
-                "x, start, x, endbar, C",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+// blank        ('-') -> endb
+// flag         ('l') -> endl
+// partition    ('x') -> endx
+pub fn check_branch() -> TuringMachineBuilder {
+    Builder {
+        name: "check_branch".to_string(),
+        code: vec![
+            "-, start, -, endb, C",
+            "l, start, l, endl, C",
+            "x, start, x, endx, C",
+        ],
+    }
+    .into()
+}
+
+pub fn put(x: symbols::S) -> TuringMachineBuilder {
+    Builder {
+        name: format!("put_{}", x),
+        code: vec![
+            &format!("x, start, {}, end, C", x),
+            &format!("-, start, {}, end, C", x),
+            &format!("l, start, {}, end, C", x),
+        ],
+    }
+    .into()
 }
 
 pub fn putb() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("putB").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "x, start, -, end, C",
-                "-, start, -, end, C",
-                "l, start, -, end, C",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+    put(symbols::S::B)
 }
 
 pub fn put1() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("put1").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "x, start, l, end, C",
-                "-, start, l, end, C",
-                "l, start, l, end, C",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+    put(symbols::S::L)
 }
 
-pub fn putbar() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("putbar").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "-, start, x, end, C",
-                "l, start, x, end, C",
-                "x, start, x, end, C",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+pub fn putx() -> TuringMachineBuilder {
+    put(symbols::S::X)
 }
 
 pub fn right_one() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("rightone").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "-, start, -, end, R",
-                "l, start, l, end, R",
-                "x, start, x, end, R",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+    Builder {
+        name: "right_one".to_string(),
+        code: vec![
+            "x, start, x, end, R",
+            "-, start, -, end, R",
+            "l, start, l, end, R",
+        ],
+    }
+    .into()
 }
 
 pub fn left_one() -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("leftone").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "-, start, -, end, L",
-                "l, start, l, end, L",
-                "x, start, x, end, L",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+    Builder {
+        name: "left_one".to_string(),
+        code: vec![
+            "x, start, x, end, L",
+            "-, start, -, end, L",
+            "l, start, l, end, L",
+        ],
+    }
+    .into()
 }
 
-// y-X[-] を [y]Xx- にする
-pub fn shift_left_to_right_fill(x: Sign) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("shift_left_to_right_fill").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "x, start, x, putx, L",
-                &format!("-, putx, {},  putb, L", x.print()),
-                &format!("l, putx, {},  put1, L", x.print()),
-                &format!("x, putx, {},   end, L", x.print()),
-                "-,  putb, -, putb, L",
-                "l,  putb, -, put1, L",
-                "x,  putb, -,  end, L",
-                "-,  put1, l, putb, L",
-                "l,  put1, l, put1, L",
-                "x,  put1, l,  end, L",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+// ...  ?  x A [x] ...
+// ... [?] A s  x ...
+// where
+// - A: list of symbols in {'-', 'l'}
+// - s: given symbol in {'-', 'l', 'x'}
+pub fn shift_left_to_right_fill(s: symbols::S) -> TuringMachineBuilder {
+    // pseudo code:
+    //   let mut put: Symbol = given s
+    //   assert!(*head() == x)
+    //   LEFT();
+    //   while *head() != x {
+    //     swap(&mut put, head());
+    //     LEFT();
+    //   }
+    //   LEFT();
+
+    // 愚直にやる。
+    Builder {
+        name: format!("shift_left_to_right_fill-{}", s),
+        code: vec![
+            &format!("x, start,  x, put{s}, L"),
+            "-,  putb, -, curb, L",
+            "l,  putb, -, curl, L",
+            "x,  putb, -, curx, L",
+            "-,  put1, l, curb, L",
+            "l,  put1, l, curl, L",
+            "x,  put1, l, curx, L",
+            "-,  putx, -, curb, L",
+            "l,  putx, -, curl, L",
+            "x,  putx, -, curx, L",
+            "-,  curx, -, curb, L",
+            "l,  curx, -, curl, L",
+            "x,  curx, x,  end, L",
+        ],
+    }
+    .into()
 }
 
-// -yX1-...-Xn[-] を [y]X1-...-Xnx- にする
+// ...  x  ? X_1 x ... x X_n [x] ...
+// ... [?] X_1 x ... x X_n s  x ...
 pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
     let mut builder =
-        TuringMachineBuilder::new(&format!("shift_left_to_rights^{}_{n}", x.print())).unwrap();
+        TuringMachineBuilder::new(&format!("shift_left_to_rights-{}_{n}", x.print())).unwrap();
     builder
         .init_state("start".parse_tc().unwrap())
         .accepted_state(vec!["end".parse_tc().unwrap()])
@@ -228,35 +202,35 @@ pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
             vec![
                 vec![
                     "x, start, x, put_x, L".to_string(),
-                    format!("-, put_x, {},   put^1_b, L", x.print()),
-                    format!("l, put_x, {},   put^1_1, L", x.print()),
-                    format!("x, put_x, {}, put^2_bar, L", x.print()),
+                    format!("-, put_x, {},   put-1_b, L", x.print()),
+                    format!("l, put_x, {},   put-1_1, L", x.print()),
+                    format!("x, put_x, {}, put-2_bar, L", x.print()),
                 ],
                 (1..n)
                     .flat_map(|i| {
                         vec![
-                            format!("-, put^{i}_b, -, put^{i}_b, L"),
-                            format!("l, put^{i}_b, -, put^{i}_1, L"),
-                            format!("x, put^{i}_b, -, put^{}_bar, L", i + 1),
-                            format!("-, put^{i}_1, l, put^{i}_b, L"),
-                            format!("l, put^{i}_1, l, put^{i}_1, L"),
-                            format!("x, put^{i}_1, l, put^{}_bar, L", i + 1),
-                            format!("-, put^{i}_bar, x, put^{i}_b, L"),
-                            format!("l, put^{i}_bar, x, put^{i}_1, L"),
-                            format!("x, put^{i}_bar, x, put^{}_bar, L", i + 1),
+                            format!("-, put-{i}_b, -, put-{i}_b, L"),
+                            format!("l, put-{i}_b, -, put-{i}_1, L"),
+                            format!("x, put-{i}_b, -, put-{}_bar, L", i + 1),
+                            format!("-, put-{i}_1, l, put-{i}_b, L"),
+                            format!("l, put-{i}_1, l, put-{i}_1, L"),
+                            format!("x, put-{i}_1, l, put-{}_bar, L", i + 1),
+                            format!("-, put-{i}_bar, x, put-{i}_b, L"),
+                            format!("l, put-{i}_bar, x, put-{i}_1, L"),
+                            format!("x, put-{i}_bar, x, put-{}_bar, L", i + 1),
                         ]
                     })
                     .collect(),
                 vec![
-                    format!("-, put^{n}_b, -, put^{n}_b, L"),
-                    format!("l, put^{n}_b, -, put^{n}_1, L"),
-                    format!("x, put^{n}_b, -, end, C"),
-                    format!("-, put^{n}_1, l, put^{n}_b, L"),
-                    format!("l, put^{n}_1, l, put^{n}_1, L"),
-                    format!("x, put^{n}_1, l, end, C"),
-                    format!("-, put^{n}_bar, x, put^{n}_b, L"),
-                    format!("l, put^{n}_bar, x, put^{n}_1, L"),
-                    format!("x, put^{n}_bar, x, end, C"),
+                    format!("-, put-{n}_b, -, put-{n}_b, L"),
+                    format!("l, put-{n}_b, -, put-{n}_1, L"),
+                    format!("x, put-{n}_b, -, end, C"),
+                    format!("-, put-{n}_1, l, put-{n}_b, L"),
+                    format!("l, put-{n}_1, l, put-{n}_1, L"),
+                    format!("x, put-{n}_1, l, end, C"),
+                    format!("-, put-{n}_bar, x, put-{n}_b, L"),
+                    format!("l, put-{n}_bar, x, put-{n}_1, L"),
+                    format!("x, put-{n}_bar, x, end, C"),
                 ],
             ]
             .into_iter()
@@ -267,36 +241,31 @@ pub fn shift_left_to_rights(x: Sign, n: usize) -> TuringMachineBuilder {
     builder
 }
 
-// [-]X-y を -xX[y] にする
-pub fn shift_right_to_left_fill(x: Sign) -> TuringMachineBuilder {
-    let mut builder = TuringMachineBuilder::new("shift_right_to_left_fill").unwrap();
-    builder
-        .init_state("start".parse_tc().unwrap())
-        .accepted_state(vec!["end".parse_tc().unwrap()])
-        .code_new(
-            vec![
-                "x, start, x, putx, R",
-                &format!("-, putx, {},  putb, R", x.print()),
-                &format!("l, putx, {},  put1, R", x.print()),
-                &format!("x, putx, {},   end, R", x.print()),
-                "-,  putb, -, putb, R",
-                "l,  putb, -, put1, R",
-                "x,  putb, -,  end, R",
-                "-,  put1, l, putb, R",
-                "l,  put1, l, put1, R",
-                "x,  put1, l,  end, R",
-            ]
-            .into_iter()
-            .map(|str| parse_one_code_entry(str).unwrap())
-            .collect(),
-        );
-    builder
+// ... [x] X x  ?  ...
+// ...  x  s X [?] ...
+pub fn shift_right_to_left_fill(s: symbols::S) -> TuringMachineBuilder {
+    Builder {
+        name: format!("shift_right_to_left_fill-{}", s),
+        code: vec![
+            &format!("x, start, x,  putx, R"),
+            &format!("-, start, {}, putb, R", s),
+            &format!("l, start, {}, put1, R", s),
+            &format!("x, start, {},  end, R", s),
+            "-,  putb, -, putb, R",
+            "l,  putb, -, put1, R",
+            "x,  putb, -,  end, R",
+            "-,  put1, l, putb, R",
+            "l,  put1, l, put1, R",
+            "x,  put1, l,  end, R",
+        ],
+    }
+    .into()
 }
 
 // [-]X1-...-Xn- を -X1-...-Xn[x] にする
 pub fn shift_right_to_lefts(x: Sign, n: usize) -> TuringMachineBuilder {
     let mut builder =
-        TuringMachineBuilder::new(&format!("shift_right_to_lefts^{}_{n}", x.print())).unwrap();
+        TuringMachineBuilder::new(&format!("shift_right_to_lefts-{}_{n}", x.print())).unwrap();
     builder
         .init_state("start".parse_tc().unwrap())
         .accepted_state(vec!["end".parse_tc().unwrap()])
@@ -304,35 +273,35 @@ pub fn shift_right_to_lefts(x: Sign, n: usize) -> TuringMachineBuilder {
             vec![
                 vec![
                     "x, start, x, put_x, R".to_string(),
-                    format!("-, put_x, {},   put^1_b, R", x.print()),
-                    format!("l, put_x, {},   put^1_1, R", x.print()),
-                    format!("x, put_x, {}, put^2_bar, R", x.print()),
+                    format!("-, put_x, {},   put-1_b, R", x.print()),
+                    format!("l, put_x, {},   put-1_1, R", x.print()),
+                    format!("x, put_x, {}, put-2_bar, R", x.print()),
                 ],
                 (1..n)
                     .flat_map(|i| {
                         vec![
-                            format!("-, put^{i}_b, -, put^{i}_b, R"),
-                            format!("l, put^{i}_b, -, put^{i}_1, R"),
-                            format!("x, put^{i}_b, -, put^{}_bar, R", i + 1),
-                            format!("-, put^{i}_1, l, put^{i}_b, R"),
-                            format!("l, put^{i}_1, l, put^{i}_1, R"),
-                            format!("x, put^{i}_1, l, put^{}_bar, R", i + 1),
-                            format!("-, put^{i}_bar, x, put^{i}_b, R"),
-                            format!("l, put^{i}_bar, x, put^{i}_1, R"),
-                            format!("x, put^{i}_bar, x, put^{}_bar, R", i + 1),
+                            format!("-, put-{i}_b, -, put-{i}_b, R"),
+                            format!("l, put-{i}_b, -, put-{i}_1, R"),
+                            format!("x, put-{i}_b, -, put-{}_bar, R", i + 1),
+                            format!("-, put-{i}_1, l, put-{i}_b, R"),
+                            format!("l, put-{i}_1, l, put-{i}_1, R"),
+                            format!("x, put-{i}_1, l, put-{}_bar, R", i + 1),
+                            format!("-, put-{i}_bar, x, put-{i}_b, R"),
+                            format!("l, put-{i}_bar, x, put-{i}_1, R"),
+                            format!("x, put-{i}_bar, x, put-{}_bar, R", i + 1),
                         ]
                     })
                     .collect(),
                 vec![
-                    format!("-, put^{n}_b, -, put^{n}_b, R"),
-                    format!("l, put^{n}_b, -, put^{n}_1, R"),
-                    format!("x, put^{n}_b, -, end, C"),
-                    format!("-, put^{n}_1, l, put^{n}_b, R"),
-                    format!("l, put^{n}_1, l, put^{n}_1, R"),
-                    format!("x, put^{n}_1, l, end, C"),
-                    format!("-, put^{n}_bar, x, put^{n}_b, R"),
-                    format!("l, put^{n}_bar, x, put^{n}_1, R"),
-                    format!("x, put^{n}_bar, x, end, C"),
+                    format!("-, put-{n}_b, -, put-{n}_b, R"),
+                    format!("l, put-{n}_b, -, put-{n}_1, R"),
+                    format!("x, put-{n}_b, -, end, C"),
+                    format!("-, put-{n}_1, l, put-{n}_b, R"),
+                    format!("l, put-{n}_1, l, put-{n}_1, R"),
+                    format!("x, put-{n}_1, l, end, C"),
+                    format!("-, put-{n}_bar, x, put-{n}_b, R"),
+                    format!("l, put-{n}_bar, x, put-{n}_1, R"),
+                    format!("x, put-{n}_bar, x, end, C"),
                 ],
             ]
             .into_iter()
@@ -348,22 +317,22 @@ pub fn annihilate() -> TuringMachineBuilder {
         name: "annihilate".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            move_right(),
+            move_right_till_x(),
             putb(),
             left_one(),
-            bor1orbar(),
+            check_branch(),
             putb(),
             right_one(),
-            putbar(),
+            putx(),
             left_one(),
         ],
         assign_edge_to_state: vec![
             ((0, 1), "end".parse_tc().unwrap()),
             ((1, 2), "end".parse_tc().unwrap()),
             ((2, 3), "end".parse_tc().unwrap()),
-            ((3, 4), "end1".parse_tc().unwrap()),
-            ((3, 4), "endB".parse_tc().unwrap()),
-            ((3, 5), "endbar".parse_tc().unwrap()),
+            ((3, 4), "endl".parse_tc().unwrap()),
+            ((3, 4), "endb".parse_tc().unwrap()),
+            ((3, 5), "endx".parse_tc().unwrap()),
             ((4, 2), "end".parse_tc().unwrap()),
             ((5, 6), "end".parse_tc().unwrap()),
             ((6, 7), "end".parse_tc().unwrap()),
@@ -380,7 +349,7 @@ pub fn concat() -> TuringMachineBuilder {
         "concat",
         vec![
             move_rights(2),
-            shift_left_to_right_fill(symbols::partition_sign()),
+            shift_left_to_right_fill(symbols::S::X),
             move_rights(2),
             putb(),
             move_lefts(2),
@@ -395,10 +364,10 @@ pub fn is_tuple_zero() -> TuringMachineBuilder {
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
             right_one(), // 0
-            bor1orbar(),
+            check_branch(),
             left_one(),
             right_one(),
-            bor1orbar(),
+            check_branch(),
             left_one(), //5
             left_one(),
             left_one(), //7
@@ -409,15 +378,15 @@ pub fn is_tuple_zero() -> TuringMachineBuilder {
         ],
         assign_edge_to_state: vec![
             ((0, 1), "end".parse_tc().unwrap()),
-            ((1, 2), "end1".parse_tc().unwrap()),
-            ((1, 9), "endbar".parse_tc().unwrap()),
-            ((1, 3), "endB".parse_tc().unwrap()),
+            ((1, 2), "endl".parse_tc().unwrap()),
+            ((1, 9), "endx".parse_tc().unwrap()),
+            ((1, 3), "endb".parse_tc().unwrap()),
             ((2, 9), "end".parse_tc().unwrap()),
             ((9, 11), "end".parse_tc().unwrap()),
             ((3, 4), "end".parse_tc().unwrap()),
-            ((4, 5), "end1".parse_tc().unwrap()),
-            ((4, 7), "endbar".parse_tc().unwrap()),
-            ((4, 7), "endB".parse_tc().unwrap()),
+            ((4, 5), "endl".parse_tc().unwrap()),
+            ((4, 7), "endx".parse_tc().unwrap()),
+            ((4, 7), "endb".parse_tc().unwrap()),
             ((5, 6), "end".parse_tc().unwrap()),
             ((6, 10), "end".parse_tc().unwrap()),
             ((7, 8), "end".parse_tc().unwrap()),
@@ -449,18 +418,18 @@ mod tests {
     fn builder_safe() {
         let _ = id();
         let _ = id_end("end");
-        let _ = move_right();
+        let _ = move_right_till_x();
         let _ = move_rights(1);
         let _ = move_rights(2);
-        let _ = move_left();
-        let _ = bor1orbar();
+        let _ = move_left_till_x();
+        let _ = check_branch();
         let _ = put1();
         let _ = putb();
-        let _ = putbar();
+        let _ = putx();
         let _ = right_one();
         let _ = left_one();
-        let _ = shift_left_to_right_fill(symbols::partition_sign());
-        let _ = shift_right_to_left_fill(symbols::partition_sign());
+        let _ = shift_left_to_right_fill(symbols::S::X);
+        let _ = shift_right_to_left_fill(symbols::S::X);
         let _ = annihilate();
         let _ = concat();
     }
@@ -486,7 +455,7 @@ mod tests {
     }
     #[test]
     fn shift_left_to_right_fill_test() {
-        let mut builder = shift_left_to_right_fill(symbols::partition_sign());
+        let mut builder = shift_left_to_right_fill(symbols::S::X);
         let tests = vec![
             (
                 tape_from(&["x", "x", "x"], 2),
@@ -501,7 +470,7 @@ mod tests {
     }
     #[test]
     fn shift_left_to_rights_test() {
-        let mut builder = shift_left_to_rights(symbols::one_sign(), 3);
+        let mut builder = shift_left_to_rights(symbols::S::L.into(), 3);
         let tests = vec![
             (
                 tape_from(&["x", "x", "x", "x"], 3),
@@ -516,7 +485,7 @@ mod tests {
     }
     #[test]
     fn shift_right_to_lefts_test() {
-        let mut builder = shift_right_to_lefts(symbols::one_sign(), 3);
+        let mut builder = shift_right_to_lefts(symbols::S::L.into(), 3);
         let tests = vec![
             (
                 tape_from(&["x", "x", "x", "x"], 0),

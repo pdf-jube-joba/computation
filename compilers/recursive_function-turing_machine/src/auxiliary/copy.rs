@@ -6,7 +6,7 @@ use crate::*;
 fn copy_aux_pre() -> TuringMachineBuilder {
     chain_builders(
         "pre_procedure_copy",
-        vec![move_right(), right_one(), putbar(), move_left(), move_left()],
+        vec![move_right_till_x(), right_one(), putx(), move_left_till_x(), move_left_till_x()],
     )
 }
 
@@ -14,14 +14,14 @@ fn copy_aux_this_b() -> TuringMachineBuilder {
     chain_builders(
         "copy_this_b",
         vec![
-            putbar(),
-            move_right(),
-            move_right(),
+            putx(),
+            move_right_till_x(),
+            move_right_till_x(),
             putb(),
             right_one(),
-            putbar(),
-            move_left(),
-            move_left(),
+            putx(),
+            move_left_till_x(),
+            move_left_till_x(),
             putb(),
         ],
     )
@@ -31,14 +31,14 @@ fn copy_aux_this_1() -> TuringMachineBuilder {
     chain_builders(
         "copy_this_1",
         vec![
-            putbar(),
-            move_right(),
-            move_right(),
+            putx(),
+            move_right_till_x(),
+            move_right_till_x(),
             put1(),
             right_one(),
-            putbar(),
-            move_left(),
-            move_left(),
+            putx(),
+            move_left_till_x(),
+            move_left_till_x(),
             put1(),
         ],
     )
@@ -52,17 +52,17 @@ pub fn copy() -> TuringMachineBuilder {
         assign_vertex_to_builder: vec![
             copy_aux_pre(),
             right_one(),
-            bor1orbar(),
+            check_branch(),
             copy_aux_this_b(),
             copy_aux_this_1(),
-            move_left(),
+            move_left_till_x(),
         ],
         assign_edge_to_state: vec![
             ((0, 1), "end".parse_tc().unwrap()),
             ((1, 2), "end".parse_tc().unwrap()),
-            ((2, 3), "endB".parse_tc().unwrap()),
-            ((2, 4), "end1".parse_tc().unwrap()),
-            ((2, 5), "endbar".parse_tc().unwrap()),
+            ((2, 3), "endb".parse_tc().unwrap()),
+            ((2, 4), "endl".parse_tc().unwrap()),
+            ((2, 5), "endx".parse_tc().unwrap()),
             ((3, 1), "end".parse_tc().unwrap()),
             ((4, 1), "end".parse_tc().unwrap()),
         ]
@@ -84,7 +84,7 @@ pub fn n_times_iter(n: usize) -> TuringMachineBuilder {
         chain_builders(
             format!("copy_{n}"),
             vec![
-                vec![vec![copy(), move_right()]; n - 1]
+                vec![vec![copy(), move_right_till_x()]; n - 1]
                     .into_iter()
                     .flatten()
                     .collect::<Vec<TuringMachineBuilder>>(),

@@ -4,8 +4,8 @@ use turing_machine::manipulation::{
 };
 
 use super::basic::*;
-use crate::*;
 use crate::symbols;
+use crate::*;
 
 // [-]X1-...-Xn- を [x]X2-...-Xn-X1- にする
 pub fn rotate(n: usize) -> TuringMachineBuilder {
@@ -15,18 +15,18 @@ pub fn rotate(n: usize) -> TuringMachineBuilder {
         assign_vertex_to_builder: vec![
             move_rights(n),
             right_one(),
-            putbar(),
+            putx(),
             move_lefts(n + 1),
             right_one(), // 4
-            bor1orbar(),
+            check_branch(),
             move_rights(n + 1),
-            shift_left_to_rights(symbols::blank_sign(), n + 1),
-            putbar(),
+            shift_left_to_rights(symbols::S::B.into(), n + 1),
+            putx(),
             move_rights(n + 1),
-            shift_left_to_rights(symbols::one_sign(), n + 1),
-            putbar(),
+            shift_left_to_rights(symbols::S::L.into(), n + 1),
+            putx(),
             move_rights(n),
-            shift_left_to_rights(symbols::partition_sign(), n + 1),
+            shift_left_to_rights(symbols::S::X.into(), n + 1),
             move_rights(n + 1),
             putb(),
             move_lefts(n + 1),
@@ -37,9 +37,9 @@ pub fn rotate(n: usize) -> TuringMachineBuilder {
             ((2, 3), "end".parse_tc().unwrap()),
             ((3, 4), "end".parse_tc().unwrap()),
             ((4, 5), "end".parse_tc().unwrap()),
-            ((5, 6), "endB".parse_tc().unwrap()),
-            ((5, 9), "end1".parse_tc().unwrap()),
-            ((5, 12), "endbar".parse_tc().unwrap()),
+            ((5, 6), "endb".parse_tc().unwrap()),
+            ((5, 9), "endl".parse_tc().unwrap()),
+            ((5, 12), "endx".parse_tc().unwrap()),
             ((6, 7), "end".parse_tc().unwrap()),
             ((7, 8), "end".parse_tc().unwrap()),
             ((8, 4), "end".parse_tc().unwrap()),
@@ -62,19 +62,19 @@ pub fn rotate_back(n: usize) -> TuringMachineBuilder {
         name: "rotate_back".to_string(),
         init_state: "start".parse_tc().unwrap(),
         assign_vertex_to_builder: vec![
-            shift_right_to_lefts(symbols::partition_sign(), n),
+            shift_right_to_lefts(symbols::S::X.into(), n),
             right_one(),
-            putbar(),
+            putx(),
             move_lefts(n + 1),
             move_rights(n + 1), //4
             left_one(),
-            bor1orbar(),       // 6
+            check_branch(),    // 6
             move_lefts(n + 1), // 7
-            shift_right_to_lefts(symbols::blank_sign(), n + 1),
-            putbar(),
+            shift_right_to_lefts(symbols::S::B.into(), n + 1),
+            putx(),
             move_lefts(n + 1), // 10
-            shift_right_to_lefts(symbols::one_sign(), n + 1),
-            putbar(),
+            shift_right_to_lefts(symbols::S::L.into(), n + 1),
+            putx(),
             right_one(), // 13
             putb(),
             move_lefts(n + 1),
@@ -86,9 +86,9 @@ pub fn rotate_back(n: usize) -> TuringMachineBuilder {
             ((3, 4), "end".parse_tc().unwrap()),
             ((4, 5), "end".parse_tc().unwrap()),
             ((5, 6), "end".parse_tc().unwrap()),
-            ((6, 7), "endB".parse_tc().unwrap()),
-            ((6, 10), "end1".parse_tc().unwrap()),
-            ((6, 13), "endbar".parse_tc().unwrap()),
+            ((6, 7), "endb".parse_tc().unwrap()),
+            ((6, 10), "endl".parse_tc().unwrap()),
+            ((6, 13), "endx".parse_tc().unwrap()),
             ((7, 8), "end".parse_tc().unwrap()),
             ((8, 9), "end".parse_tc().unwrap()),
             ((9, 5), "end".parse_tc().unwrap()),

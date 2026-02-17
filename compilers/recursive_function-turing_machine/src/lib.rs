@@ -4,6 +4,8 @@ use utils::parse::ParseTextCodec;
 use utils::TextCodec;
 use turing_machine::manipulation::graph_compose::{builder_composition, GraphOfBuilder};
 
+// start state: "start"
+// accept state: "end"
 struct Builder<'a> {
     name: String,
     code: Vec<&'a str>,
