@@ -1,0 +1,10 @@
+[package]
+name = "rec_tm_ir"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+utils = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+turing_machine = { workspace = true }
