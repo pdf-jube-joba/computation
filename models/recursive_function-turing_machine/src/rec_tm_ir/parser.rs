@@ -4,7 +4,7 @@ use turing_machine::machine::Sign;
 use utils::TextCodec;
 use utils::alphabet::Alphabet;
 
-use super::machine::{Function, Program, Stmt};
+use super::machine::{CallArg, Function, Program, Stmt};
 
 const KEYWORDS: [&str; 10] = [
     "alphabet", "fn", "loop", "if", "break", "call", "LT", "RT", "READ", "STOR",
@@ -65,6 +65,10 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
             '(' | ')' | '{' | '}' | ',' => {
                 chars.next();
                 tokens.push(Token::Symbol(ch.to_string()));
+            }
+            '&' => {
+                chars.next();
+                tokens.push(Token::Symbol("&".to_string()));
             }
             ':' => {
                 chars.next();
@@ -280,7 +284,7 @@ impl Parser {
                     self.next();
                     let name = self.expect_ident("function name")?;
                     self.expect_symbol("(")?;
-                    let args = self.parse_ident_list("argument")?;
+                    let args = self.parse_call_args()?;
                     self.expect_symbol(")")?;
                     Ok(Stmt::Call { name, args })
                 }
@@ -301,6 +305,31 @@ impl Parser {
             Some(Token::Symbol(sym)) => Err(format!("Expected sign, got '{}'", sym)),
             None => Err("Expected sign, got EOF".to_string()),
         }
+    }
+
+    fn parse_call_args(&mut self) -> Result<Vec<CallArg>, String> {
+        let mut args = Vec::new();
+        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == ")") {
+            return Ok(args);
+        }
+        loop {
+            let shared = matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "&");
+            if shared {
+                self.next();
+            }
+            let name = self.expect_ident("argument")?;
+            args.push(CallArg { shared, name });
+            match self.peek() {
+                Some(Token::Symbol(sym)) if sym == "," => {
+                    self.next();
+                    if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == ")") {
+                        break;
+                    }
+                }
+                _ => break,
+            }
+        }
+        Ok(args)
     }
 }
 
@@ -374,7 +403,10 @@ fn write_stmt_list(
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", arg)?;
+                    if arg.shared {
+                        write!(f, "&")?;
+                    }
+                    write!(f, "{}", arg.name)?;
                 }
                 writeln!(f, ")")?;
             }

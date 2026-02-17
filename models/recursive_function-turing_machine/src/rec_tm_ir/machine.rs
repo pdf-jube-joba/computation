@@ -20,6 +20,12 @@ pub struct Function {
 }
 
 #[derive(Debug, Clone)]
+pub struct CallArg {
+    pub shared: bool,
+    pub name: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Lt,
     Rt,
@@ -37,7 +43,7 @@ pub enum Stmt {
     },
     Call {
         name: String,
-        args: Vec<String>,
+        args: Vec<CallArg>,
     },
 }
 
@@ -56,7 +62,7 @@ enum Instr {
     Jump(usize),
     Call {
         name: String,
-        args: Vec<String>,
+        args: Vec<CallArg>,
     },
 }
 
@@ -73,7 +79,18 @@ impl Instr {
             }
             Instr::Jump(target) => format!("jump @{}", target),
             Instr::Call { name, args } => {
-                format!("call {}({})", name, args.join(", "))
+                let rendered = args
+                    .iter()
+                    .map(|arg| {
+                        if arg.shared {
+                            format!("&{}", arg.name)
+                        } else {
+                            arg.name.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("call {}({})", name, rendered)
             }
         }
     }
@@ -245,6 +262,8 @@ struct Frame {
     function: String,
     pc: usize,
     env: Environment,
+    shared: HashMap<String, String>,
+    caller_depth: Option<usize>,
 }
 
 pub struct RecTmIrMachine {
@@ -281,6 +300,8 @@ impl Machine for RecTmIrMachine {
                 function: "main".to_string(),
                 pc: 0,
                 env,
+                shared: HashMap::new(),
+                caller_depth: None,
             },
             stack: Vec::new(),
             tape: ainput,
@@ -308,11 +329,11 @@ impl Machine for RecTmIrMachine {
                 if !self.allowed.contains(&sign) {
                     return Err(format!("Unknown sign on tape: {}", sign.print()));
                 }
-                self.frame.env.set(&var, sign);
+                self.set_var(&var, sign);
                 self.frame.pc += 1;
             }
             Instr::Stor(var) => {
-                let sign = self.frame.env.get(&var);
+                let sign = self.get_var(&var);
                 if !self.allowed.contains(&sign) {
                     return Err(format!("Unknown sign in env: {}", sign.print()));
                 }
@@ -320,12 +341,12 @@ impl Machine for RecTmIrMachine {
                 self.frame.pc += 1;
             }
             Instr::Assign(dest, src) => {
-                let value = self.frame.env.get(&src);
-                self.frame.env.set(&dest, value);
+                let value = self.get_var(&src);
+                self.set_var(&dest, value);
                 self.frame.pc += 1;
             }
             Instr::IfEqJump { var, value, target } => {
-                if self.frame.env.get(&var) == value {
+                if self.get_var(&var) == value {
                     self.frame.pc = target;
                 } else {
                     self.frame.pc += 1;
@@ -349,20 +370,29 @@ impl Machine for RecTmIrMachine {
                     ));
                 }
                 let mut next_env = Environment::new(callee.vars.iter().cloned());
+                let mut shared = HashMap::new();
                 for (param, arg) in callee.params.iter().zip(args.iter()) {
-                    let value = self.frame.env.get(arg);
+                    let value = self.get_var(&arg.name);
+                    if arg.shared {
+                        shared.insert(param.clone(), arg.name.clone());
+                    }
                     next_env.set(param, value);
                 }
                 let caller = Frame {
                     function: self.frame.function.clone(),
                     pc: self.frame.pc + 1,
                     env: self.frame.env.clone(),
+                    shared: self.frame.shared.clone(),
+                    caller_depth: self.frame.caller_depth,
                 };
                 self.stack.push(caller);
+                let caller_depth = Some(self.stack.len() - 1);
                 self.frame = Frame {
                     function: name,
                     pc: 0,
                     env: next_env,
+                    shared,
+                    caller_depth,
                 };
             }
         }
@@ -405,6 +435,51 @@ impl RecTmIrMachine {
             None
         } else {
             Some(self.frame.env.clone())
+        }
+    }
+
+    fn get_var(&mut self, var: &str) -> Sign {
+        if let Some(target) = self.frame.shared.get(var).cloned() {
+            let value = self.get_var_in_stack(self.frame.caller_depth, &target);
+            self.frame.env.set(var, value.clone());
+            value
+        } else {
+            self.frame.env.get(var)
+        }
+    }
+
+    fn get_var_in_stack(&self, frame_idx: Option<usize>, var: &str) -> Sign {
+        let Some(idx) = frame_idx else {
+            return Sign::blank();
+        };
+        let frame = &self.stack[idx];
+        if let Some(target) = frame.shared.get(var) {
+            return self.get_var_in_stack(frame.caller_depth, target);
+        }
+        frame.env.get(var)
+    }
+
+    fn set_var(&mut self, var: &str, value: Sign) {
+        if let Some(target) = self.frame.shared.get(var).cloned() {
+            self.set_var_in_stack(self.frame.caller_depth, &target, value.clone());
+        }
+        self.frame.env.set(var, value);
+    }
+
+    fn set_var_in_stack(&mut self, frame_idx: Option<usize>, var: &str, value: Sign) {
+        let Some(idx) = frame_idx else {
+            return;
+        };
+        let shared_target = {
+            let frame = &self.stack[idx];
+            frame.shared.get(var).cloned()
+        };
+        if let Some(target) = shared_target {
+            let caller_depth = self.stack[idx].caller_depth;
+            self.set_var_in_stack(caller_depth, &target, value.clone());
+        }
+        if let Some(frame) = self.stack.get_mut(idx) {
+            frame.env.set(var, value);
         }
     }
 }
@@ -493,7 +568,7 @@ fn collect_vars_inner(stmts: &[Stmt], vars: &mut BTreeSet<String>) {
             Stmt::Loop { body, .. } => collect_vars_inner(body, vars),
             Stmt::Call { args, .. } => {
                 for arg in args {
-                    vars.insert(arg.clone());
+                    vars.insert(arg.name.clone());
                 }
             }
             Stmt::Lt | Stmt::Rt => {}

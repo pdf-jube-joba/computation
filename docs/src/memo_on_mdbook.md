@@ -117,6 +117,18 @@ additional-js = [
   const renderer = new Renderer(document.getElementById("state"));
 ```
 
+## table, inline code, `|` のとき
+table を書き、その中で inline code を書き、その inline code に `|` が含まれているとき、 `\|` のように escape を行う。
+```
+| a | b |
+| --- | --- |
+| c | `x \|> f` |
+```
+
+| a | b |
+| --- | --- |
+| c | `x \|> f` |
+
 ## html のパーサーの問題？
 markdown の中でタグを配置するときの注意
 ```markdown

@@ -13,7 +13,6 @@ use-default-preprocessors = true
 inline-delimiter = { left = "\\(", right = "\\)" }
 block-delimiter = { left = "\\[", right = "\\]" }
 macros = "macros.txt"
-output = "mathml"
 no-css = true
 
 [preprocessor.build-assets]
@@ -22,7 +21,7 @@ build = true
 release = false
 
 [output.html]
-additional-css = ["src/_assets/style.css"]
+additional-css = ["src/_assets/style.css", "katex.min.css"]
 theme = "theme"
 no-section-label = true
 hash-files = false

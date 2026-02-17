@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::machine::{validate_no_recursion, Function, Program, Stmt};
+use super::machine::{validate_no_recursion, CallArg, Function, Program, Stmt};
 
 pub fn flatten_program(program: &Program) -> Result<Program, String> {
     validate_no_recursion(program)?;
@@ -52,7 +52,7 @@ fn expand_stmts(
 
 fn expand_call(
     name: &str,
-    args: &[String],
+    args: &[CallArg],
     program: &Program,
     counter: &mut usize,
 ) -> Result<Vec<Stmt>, String> {
@@ -71,23 +71,40 @@ fn expand_call(
 
     let suffix = *counter;
     *counter += 1;
-    let var_map = build_var_map(callee, suffix);
+    let shared_params: HashSet<String> = args
+        .iter()
+        .zip(callee.params.iter())
+        .filter_map(|(arg, param)| if arg.shared { Some(param.clone()) } else { None })
+        .collect();
+    let mut var_map = build_var_map(callee, suffix, &shared_params);
+    for (arg, param) in args.iter().zip(callee.params.iter()) {
+        if arg.shared {
+            var_map.insert(param.clone(), arg.name.clone());
+        }
+    }
     let label_map = build_label_map(&callee.body, suffix);
     let renamed = rename_stmts(&callee.body, &var_map, &label_map);
     let mut init = Vec::new();
     for (param, arg) in callee.params.iter().zip(args.iter()) {
+        if arg.shared {
+            continue;
+        }
         let new_param = var_map
             .get(param)
             .cloned()
             .unwrap_or_else(|| param.clone());
-        init.push(Stmt::Assign(new_param, arg.clone()));
+        init.push(Stmt::Assign(new_param, arg.name.clone()));
     }
     let mut body = expand_stmts(&renamed, program, counter)?;
     init.append(&mut body);
     Ok(init)
 }
 
-fn build_var_map(func: &Function, suffix: usize) -> HashMap<String, String> {
+fn build_var_map(
+    func: &Function,
+    suffix: usize,
+    shared_params: &HashSet<String>,
+) -> HashMap<String, String> {
     let mut vars = HashSet::new();
     for param in &func.params {
         vars.insert(param.clone());
@@ -95,8 +112,12 @@ fn build_var_map(func: &Function, suffix: usize) -> HashMap<String, String> {
     collect_vars(&func.body, &mut vars);
     vars.into_iter()
         .map(|var| {
-            let renamed = format!("__flat{}_{}", suffix, var);
-            (var, renamed)
+            if shared_params.contains(&var) {
+                (var.clone(), var)
+            } else {
+                let renamed = format!("__flat{}_{}", suffix, var);
+                (var, renamed)
+            }
         })
         .collect()
 }
@@ -160,7 +181,13 @@ fn rename_stmt(
         },
         Stmt::Call { name, args } => Stmt::Call {
             name: name.clone(),
-            args: args.iter().map(|arg| rename_var(arg, var_map)).collect(),
+            args: args
+                .iter()
+                .map(|arg| CallArg {
+                    shared: arg.shared,
+                    name: rename_var(&arg.name, var_map),
+                })
+                .collect(),
         },
     }
 }
@@ -178,7 +205,7 @@ fn collect_vars(stmts: &[Stmt], set: &mut HashSet<String>) {
             Stmt::Loop { body, .. } => collect_vars(body, set),
             Stmt::Call { args, .. } => {
                 for arg in args {
-                    set.insert(arg.clone());
+                    set.insert(arg.name.clone());
                 }
             }
             Stmt::Lt | Stmt::Rt => {}
