@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "recursive_function_lambda_calculus"
+path = "src/bin/recursive_function_lambda_calculus.rs"
+
 [dependencies]
 utils = { workspace = true }
 lambda_calculus = { workspace = true }

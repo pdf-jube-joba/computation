@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "lambda_calculus"
+path = "src/bin/lambda_calculus.rs"
+
 [dependencies]
 utils = { workspace = true }
 pest = { workspace = true }

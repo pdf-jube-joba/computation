@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate dist/ from docs/, then overlay models/ and compilers/ into dist/src/.
+Generate dist/ from docs/, then overlay models/ into dist/src/.
 """
 
 from __future__ import annotations
@@ -48,14 +48,10 @@ def main() -> int:
     shutil.copytree(DOCS_DIR, DIST_DIR)
 
     models_path = REPO_ROOT / "models"
-    compilers_path = REPO_ROOT / "compilers"
     dist_models = DIST_SRC_DIR / "models"
-    dist_compilers = DIST_SRC_DIR / "compilers"
 
     models_md = copy_md_tree(models_path, dist_models)
-    compilers_md = copy_md_tree(compilers_path, dist_compilers)
     write_navigation_json(dist_models, models_md)
-    write_navigation_json(dist_compilers, compilers_md)
 
     root_readme = REPO_ROOT / "README.md"
     if root_readme.exists():

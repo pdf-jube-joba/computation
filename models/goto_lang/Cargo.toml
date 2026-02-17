@@ -3,6 +3,10 @@ name = "goto_lang"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "goto_lang"
+path = "src/bin/goto_lang.rs"
+
 [dependencies]
 utils = { workspace = true }
 pest = { workspace = true }

@@ -15,7 +15,6 @@ from pathlib import Path
 BOOK_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = BOOK_DIR.parent
 MODELS_DIR = WORKSPACE_DIR / "models"
-COMPILERS_DIR = WORKSPACE_DIR / "compilers"
 WASM_ASSETS_DIR = BOOK_DIR / "src" / "_assets" / "wasm_bundle"
 
 def ensure_wasm_bindgen() -> None:
@@ -51,9 +50,52 @@ def read_package_name(cargo_toml: Path) -> str | None:
             return value.strip().strip('"')
     return None
 
+def read_bins(cargo_toml: Path) -> list[dict]:
+    bins: list[dict] = []
+    in_bin = False
+    current: dict = {}
+    for line in cargo_toml.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped == "[[bin]]":
+            if in_bin and current:
+                bins.append(current)
+            current = {}
+            in_bin = True
+            continue
+        if stripped.startswith("["):
+            if in_bin and current:
+                bins.append(current)
+            in_bin = False
+            continue
+        if in_bin and "=" in stripped:
+            key, value = stripped.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"')
+            if key in ("name", "path"):
+                current[key] = value
+    if in_bin and current:
+        bins.append(current)
+    return bins
+
 def resolve_bin_name(crate_dir: Path, package_name: str) -> str | None:
     if (crate_dir / "src" / "main.rs").exists():
         return package_name
+    cargo_toml = crate_dir / "Cargo.toml"
+    if not cargo_toml.exists():
+        return None
+    for bin_table in read_bins(cargo_toml):
+        name = bin_table.get("name")
+        path = bin_table.get("path")
+        if not name:
+            continue
+        if path:
+            if (crate_dir / path).exists():
+                return name
+            continue
+        if (crate_dir / "src" / "bin" / f"{name}.rs").exists():
+            return name
     return None
 
 def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
@@ -62,7 +104,7 @@ def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
 def build_model_wasm(package_name: str, crate_dir: Path, release: bool) -> bool:
     bin_name = resolve_bin_name(crate_dir, package_name)
     if not bin_name:
-        print(f"[skip] {package_name}: no web entry (main.rs not found)", file=sys.stderr)
+        print(f"[skip] {package_name}: no web entry (bin target not found)", file=sys.stderr)
         return False
 
     cmd = ["cargo", "build", "--package", package_name, "--target", "wasm32-unknown-unknown", "--bin", bin_name]
@@ -132,8 +174,6 @@ def preprocess() -> None:
         for package_name, crate_dir in find_packages(MODELS_DIR):
             build_model_wasm(package_name, crate_dir, release=release_flag)
 
-        for package_name, crate_dir in find_packages(COMPILERS_DIR):
-            build_model_wasm(package_name, crate_dir, release=release_flag)
     for top in book['items']:
         process_item(top)
     json.dump(book, sys.stdout)

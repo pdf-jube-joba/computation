@@ -3,6 +3,10 @@ name = "example_counter"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "example_counter"
+path = "src/bin/example_counter.rs"
+
 [dependencies]
 utils = { workspace = true }
 serde = { workspace = true }

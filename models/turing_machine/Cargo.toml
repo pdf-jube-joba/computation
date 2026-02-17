@@ -3,6 +3,10 @@ name = "turing_machine"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "turing_machine"
+path = "src/bin/turing_machine.rs"
+
 [dependencies]
 utils = { workspace = true }
 anyhow = { workspace = true }

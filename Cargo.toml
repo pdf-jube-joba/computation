@@ -2,8 +2,7 @@
 resolver = "2"
 members = [
   "utils",
-  "models/*",
-  "compilers/*"
+  "models/*"
 ]
 
 exclude = [
