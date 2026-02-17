@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
-use utils::{json_text, Machine, TextCodec};
+use utils::{Machine, TextCodec, json_text};
 
 use super::parser::parse_identifier;
 
@@ -49,55 +49,32 @@ pub enum Stmt {
     },
 }
 
-#[derive(Debug, Clone)]
-enum Instr {
-    Lt,
-    Rt,
-    Read(String),
-    Stor(String),
-    StorConst(Sign),
-    Assign(String, String),
-    ConstAssign(String, Sign),
-    IfEqJump {
-        var: String,
-        value: Sign,
-        target: usize,
-    },
-    Jump(usize),
-    Call {
-        name: String,
-        args: Vec<CallArg>,
-    },
-}
-
-impl Instr {
-    fn render(&self) -> String {
-        match self {
-            Instr::Lt => "LT".to_string(),
-            Instr::Rt => "RT".to_string(),
-            Instr::Read(var) => format!("READ {}", var),
-            Instr::Stor(var) => format!("STOR {}", var),
-            Instr::StorConst(value) => format!("STOR const {}", value.print()),
-            Instr::Assign(dst, src) => format!("{} := {}", dst, src),
-            Instr::ConstAssign(dst, value) => format!("{} := const {}", dst, value.print()),
-            Instr::IfEqJump { var, value, target } => {
-                format!("if {} == {} break @{}", var, value.print(), target)
-            }
-            Instr::Jump(target) => format!("jump @{}", target),
-            Instr::Call { name, args } => {
-                let rendered = args
-                    .iter()
-                    .map(|arg| {
-                        if arg.shared {
-                            format!("&{}", arg.name)
-                        } else {
-                            arg.name.clone()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("call {}({})", name, rendered)
-            }
+fn render_stmt(stmt: &Stmt) -> String {
+    match stmt {
+        Stmt::Lt => "LT".to_string(),
+        Stmt::Rt => "RT".to_string(),
+        Stmt::Read(var) => format!("READ {}", var),
+        Stmt::Stor(var) => format!("STOR {}", var),
+        Stmt::StorConst(value) => format!("STOR const {}", value.print()),
+        Stmt::Assign(dst, src) => format!("{} := {}", dst, src),
+        Stmt::ConstAssign(dst, value) => format!("{} := const {}", dst, value.print()),
+        Stmt::IfBreak { var, value, label } => {
+            format!("if {} == {} break {}", var, value.print(), label)
+        }
+        Stmt::Loop { label, .. } => format!("loop {}", label),
+        Stmt::Call { name, args } => {
+            let rendered = args
+                .iter()
+                .map(|arg| {
+                    if arg.shared {
+                        format!("&{}", arg.name)
+                    } else {
+                        arg.name.clone()
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("call {}({})", name, rendered)
         }
     }
 }
@@ -117,10 +94,7 @@ impl Environment {
     }
 
     fn get(&self, var: &str) -> Sign {
-        self.values
-            .get(var)
-            .cloned()
-            .unwrap_or_else(Sign::blank)
+        self.values.get(var).cloned().unwrap_or_else(Sign::blank)
     }
 
     fn set(&mut self, var: &str, value: Sign) {
@@ -190,11 +164,8 @@ impl From<Snapshot> for serde_json::Value {
                 .unwrap_or_else(|| "halt".to_string()),
             title: "next"
         );
-        let mut stack_children: Vec<serde_json::Value> = snapshot
-            .stack
-            .iter()
-            .map(|name| json_text!(name))
-            .collect();
+        let mut stack_children: Vec<serde_json::Value> =
+            snapshot.stack.iter().map(|name| json_text!(name)).collect();
         let mut current_block = json_text!(snapshot.function);
         if let Some(map) = current_block.as_object_mut() {
             map.insert("className".to_string(), json!("highlight"));
@@ -250,30 +221,44 @@ impl From<Snapshot> for serde_json::Value {
             "children": tape_children
         });
 
-        json!([fn_text, pc_text, instruction_text, stack_container, env_table, tape_container])
+        json!([
+            fn_text,
+            pc_text,
+            instruction_text,
+            stack_container,
+            env_table,
+            tape_container
+        ])
     }
 }
 
-struct CompiledFunction {
-    params: Vec<String>,
-    vars: BTreeSet<String>,
-    code: Vec<Instr>,
+#[derive(Debug, Clone)]
+struct BlockFrame {
+    stmts: Vec<Stmt>,
+    pc: usize,
+    loop_label: Option<String>,
 }
 
-struct CompiledProgram {
-    functions: HashMap<String, CompiledFunction>,
+impl BlockFrame {
+    fn new(stmts: Vec<Stmt>, loop_label: Option<String>) -> Self {
+        BlockFrame {
+            stmts,
+            pc: 0,
+            loop_label,
+        }
+    }
 }
 
 struct Frame {
     function: String,
-    pc: usize,
     env: Environment,
     shared: HashMap<String, String>,
     caller_depth: Option<usize>,
+    blocks: Vec<BlockFrame>,
 }
 
 pub struct RecTmIrMachine {
-    program: CompiledProgram,
+    program: Program,
     frame: Frame,
     stack: Vec<Frame>,
     tape: Tape,
@@ -289,25 +274,25 @@ impl Machine for RecTmIrMachine {
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         validate_no_recursion(&code)?;
+        validate_loops(&code)?;
         let alphabet = validate_alphabet(&code.alphabet)?;
-        let program = compile_program(&code)?;
-        let main = program
+        let main = code
             .functions
             .get("main")
             .ok_or_else(|| "main() is not defined".to_string())?;
-        let env = Environment::new(main.vars.iter().cloned());
+        let env = Environment::new(collect_vars(&main.body));
         let allowed = alphabet_set(&alphabet);
         validate_signs_in_program(&code, &allowed)?;
         validate_tape(&ainput, &allowed)?;
 
         Ok(RecTmIrMachine {
-            program,
+            program: code.clone(),
             frame: Frame {
                 function: "main".to_string(),
-                pc: 0,
                 env,
                 shared: HashMap::new(),
                 caller_depth: None,
+                blocks: vec![BlockFrame::new(main.body.clone(), None)],
             },
             stack: Vec::new(),
             tape: ainput,
@@ -316,71 +301,62 @@ impl Machine for RecTmIrMachine {
     }
 
     fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        if self.frame.pc >= self.current_function().code.len() {
-            return Ok(self.return_from_call());
-        }
-
-        let instr = self.current_function().code[self.frame.pc].clone();
-        match instr {
-            Instr::Lt => {
+        let stmt = match self.next_stmt()? {
+            Some(stmt) => stmt,
+            None => return Ok(self.return_from_call()),
+        };
+        match stmt {
+            Stmt::Lt => {
                 self.tape.move_to(&Direction::Left);
-                self.frame.pc += 1;
             }
-            Instr::Rt => {
+            Stmt::Rt => {
                 self.tape.move_to(&Direction::Right);
-                self.frame.pc += 1;
             }
-            Instr::Read(var) => {
+            Stmt::Read(var) => {
                 let sign = self.tape.head_read().clone();
                 if !self.allowed.contains(&sign) {
                     return Err(format!("Unknown sign on tape: {}", sign.print()));
                 }
                 self.set_var(&var, sign);
-                self.frame.pc += 1;
             }
-            Instr::Stor(var) => {
+            Stmt::Stor(var) => {
                 let sign = self.get_var(&var);
                 if !self.allowed.contains(&sign) {
                     return Err(format!("Unknown sign in env: {}", sign.print()));
                 }
                 self.tape.head_write(&sign);
-                self.frame.pc += 1;
             }
-            Instr::StorConst(value) => {
+            Stmt::StorConst(value) => {
                 if !self.allowed.contains(&value) {
                     return Err(format!("Unknown sign in const: {}", value.print()));
                 }
                 self.tape.head_write(&value);
-                self.frame.pc += 1;
             }
-            Instr::Assign(dest, src) => {
+            Stmt::Assign(dest, src) => {
                 let value = self.get_var(&src);
                 self.set_var(&dest, value);
-                self.frame.pc += 1;
             }
-            Instr::ConstAssign(dest, value) => {
+            Stmt::ConstAssign(dest, value) => {
                 if !self.allowed.contains(&value) {
                     return Err(format!("Unknown sign in const: {}", value.print()));
                 }
                 self.set_var(&dest, value);
-                self.frame.pc += 1;
             }
-            Instr::IfEqJump { var, value, target } => {
+            Stmt::IfBreak { var, value, label } => {
                 if self.get_var(&var) == value {
-                    self.frame.pc = target;
-                } else {
-                    self.frame.pc += 1;
+                    self.break_loop(&label)?;
                 }
             }
-            Instr::Jump(target) => {
-                self.frame.pc = target;
+            Stmt::Loop { label, body } => {
+                self.frame.blocks.push(BlockFrame::new(body, Some(label)));
             }
-            Instr::Call { name, args } => {
+            Stmt::Call { name, args } => {
                 let callee = self
                     .program
                     .functions
                     .get(&name)
-                    .ok_or_else(|| format!("Undefined function '{}'", name))?;
+                    .ok_or_else(|| format!("Undefined function '{}'", name))?
+                    .clone();
                 if callee.params.len() != args.len() {
                     return Err(format!(
                         "Function '{}' expects {} args, got {}",
@@ -389,9 +365,9 @@ impl Machine for RecTmIrMachine {
                         args.len()
                     ));
                 }
-                let mut next_env = Environment::new(callee.vars.iter().cloned());
+                let mut next_env = Environment::new(collect_vars(&callee.body));
                 let mut shared = HashMap::new();
-                for (param, arg) in callee.params.iter().zip(args.iter()) {
+                for (param, arg) in callee.params.clone().iter().zip(args.iter()) {
                     let value = self.get_var(&arg.name);
                     if arg.shared {
                         shared.insert(param.clone(), arg.name.clone());
@@ -400,19 +376,19 @@ impl Machine for RecTmIrMachine {
                 }
                 let caller = Frame {
                     function: self.frame.function.clone(),
-                    pc: self.frame.pc + 1,
                     env: self.frame.env.clone(),
                     shared: self.frame.shared.clone(),
                     caller_depth: self.frame.caller_depth,
+                    blocks: self.frame.blocks.clone(),
                 };
                 self.stack.push(caller);
                 let caller_depth = Some(self.stack.len() - 1);
                 self.frame = Frame {
                     function: name,
-                    pc: 0,
                     env: next_env,
                     shared,
                     caller_depth,
+                    blocks: vec![BlockFrame::new(callee.body.clone(), None)],
                 };
             }
         }
@@ -420,11 +396,7 @@ impl Machine for RecTmIrMachine {
     }
 
     fn current(&self) -> Self::SnapShot {
-        let instruction = self
-            .current_function()
-            .code
-            .get(self.frame.pc)
-            .map(|instr| instr.render());
+        let instruction = self.peek_stmt().map(|stmt| render_stmt(&stmt));
         let stack = self
             .stack
             .iter()
@@ -432,7 +404,7 @@ impl Machine for RecTmIrMachine {
             .collect();
         Snapshot {
             function: self.frame.function.clone(),
-            pc: self.frame.pc,
+            pc: self.current_pc(),
             instruction,
             env: self.frame.env.clone(),
             tape: self.tape.clone(),
@@ -442,13 +414,6 @@ impl Machine for RecTmIrMachine {
 }
 
 impl RecTmIrMachine {
-    fn current_function(&self) -> &CompiledFunction {
-        self.program
-            .functions
-            .get(&self.frame.function)
-            .expect("Current function missing")
-    }
-
     fn return_from_call(&mut self) -> Option<Environment> {
         if let Some(frame) = self.stack.pop() {
             self.frame = frame;
@@ -502,6 +467,51 @@ impl RecTmIrMachine {
             frame.env.set(var, value);
         }
     }
+
+    fn current_pc(&self) -> usize {
+        self.frame.blocks.last().map(|block| block.pc).unwrap_or(0)
+    }
+
+    fn peek_stmt(&self) -> Option<Stmt> {
+        let block = self.frame.blocks.last()?;
+        if block.pc < block.stmts.len() {
+            return Some(block.stmts[block.pc].clone());
+        }
+        if block.loop_label.is_some() && !block.stmts.is_empty() {
+            return Some(block.stmts[0].clone());
+        }
+        None
+    }
+
+    fn next_stmt(&mut self) -> Result<Option<Stmt>, String> {
+        loop {
+            let Some(block) = self.frame.blocks.last_mut() else {
+                return Ok(None);
+            };
+            if block.pc < block.stmts.len() {
+                let stmt = block.stmts[block.pc].clone();
+                block.pc += 1;
+                return Ok(Some(stmt));
+            }
+            if block.loop_label.is_some() {
+                if block.stmts.is_empty() {
+                    return Err("loop body must not be empty".to_string());
+                }
+                block.pc = 0;
+                continue;
+            }
+            return Ok(None);
+        }
+    }
+
+    fn break_loop(&mut self, label: &str) -> Result<(), String> {
+        while let Some(block) = self.frame.blocks.pop() {
+            if block.loop_label.as_deref() == Some(label) {
+                return Ok(());
+            }
+        }
+        Err(format!("break label not found: {}", label))
+    }
 }
 
 pub fn validate_no_recursion(program: &Program) -> Result<(), String> {
@@ -541,7 +551,10 @@ fn dfs_validate(
             0 => dfs_validate(program, &callee, state, stack)?,
             1 => {
                 stack.push(callee.clone());
-                return Err(format!("Recursive call is not allowed: {}", stack.join(" -> ")));
+                return Err(format!(
+                    "Recursive call is not allowed: {}",
+                    stack.join(" -> ")
+                ));
             }
             _ => {}
         }
@@ -552,21 +565,34 @@ fn dfs_validate(
     Ok(())
 }
 
-fn compile_program(program: &Program) -> Result<CompiledProgram, String> {
-    let mut functions = HashMap::new();
-    for (name, func) in &program.functions {
-        let code = compile_stmts(&func.body)?;
-        let vars = collect_vars(&func.body);
-        functions.insert(
-            name.clone(),
-            CompiledFunction {
-                params: func.params.clone(),
-                vars,
-                code,
-            },
-        );
+fn validate_loops(program: &Program) -> Result<(), String> {
+    for func in program.functions.values() {
+        let mut loop_stack = Vec::new();
+        validate_loops_in_stmts(&func.body, &mut loop_stack)?;
     }
-    Ok(CompiledProgram { functions })
+    Ok(())
+}
+
+fn validate_loops_in_stmts(stmts: &[Stmt], loop_stack: &mut Vec<String>) -> Result<(), String> {
+    for stmt in stmts {
+        match stmt {
+            Stmt::IfBreak { label, .. } => {
+                if !loop_stack.iter().any(|name| name == label) {
+                    return Err(format!("break target '{}' not found", label));
+                }
+            }
+            Stmt::Loop { label, body } => {
+                if loop_stack.iter().any(|name| name == label) {
+                    return Err(format!("Loop label '{}' is duplicated", label));
+                }
+                loop_stack.push(label.clone());
+                validate_loops_in_stmts(body, loop_stack)?;
+                loop_stack.pop();
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 fn collect_vars(stmts: &[Stmt]) -> BTreeSet<String> {
@@ -660,87 +686,6 @@ fn validate_signs_in_stmts(stmts: &[Stmt], allowed: &HashSet<Sign>) -> Result<()
             }
             Stmt::Loop { body, .. } => validate_signs_in_stmts(body, allowed)?,
             _ => {}
-        }
-    }
-    Ok(())
-}
-
-fn compile_stmts(stmts: &[Stmt]) -> Result<Vec<Instr>, String> {
-    let mut instrs = Vec::new();
-    let mut loop_stack = Vec::new();
-    compile_block(stmts, &mut instrs, &mut loop_stack)?;
-    if !loop_stack.is_empty() {
-        return Err("Loop stack not empty after compilation".to_string());
-    }
-    Ok(instrs)
-}
-
-struct LoopContext {
-    label: String,
-    start: usize,
-    break_fixups: Vec<usize>,
-}
-
-fn compile_block(
-    stmts: &[Stmt],
-    instrs: &mut Vec<Instr>,
-    loop_stack: &mut Vec<LoopContext>,
-) -> Result<(), String> {
-    for stmt in stmts {
-        match stmt {
-            Stmt::Lt => instrs.push(Instr::Lt),
-            Stmt::Rt => instrs.push(Instr::Rt),
-            Stmt::Read(var) => instrs.push(Instr::Read(var.clone())),
-            Stmt::Stor(var) => instrs.push(Instr::Stor(var.clone())),
-            Stmt::StorConst(value) => instrs.push(Instr::StorConst(value.clone())),
-            Stmt::Assign(dst, src) => instrs.push(Instr::Assign(dst.clone(), src.clone())),
-            Stmt::ConstAssign(dst, value) => {
-                instrs.push(Instr::ConstAssign(dst.clone(), value.clone()));
-            }
-            Stmt::IfBreak { var, value, label } => {
-                let mut found = None;
-                for (idx, ctx) in loop_stack.iter().enumerate().rev() {
-                    if ctx.label == *label {
-                        found = Some(idx);
-                        break;
-                    }
-                }
-                let Some(loop_index) = found else {
-                    return Err(format!("break target '{}' not found", label));
-                };
-                let index = instrs.len();
-                instrs.push(Instr::IfEqJump {
-                    var: var.clone(),
-                    value: value.clone(),
-                    target: 0,
-                });
-                loop_stack[loop_index].break_fixups.push(index);
-            }
-            Stmt::Loop { label, body } => {
-                if loop_stack.iter().any(|ctx| ctx.label == *label) {
-                    return Err(format!("Loop label '{}' is duplicated", label));
-                }
-                let start = instrs.len();
-                loop_stack.push(LoopContext {
-                    label: label.clone(),
-                    start,
-                    break_fixups: Vec::new(),
-                });
-                compile_block(body, instrs, loop_stack)?;
-                instrs.push(Instr::Jump(start));
-                let end = instrs.len();
-                if let Some(ctx) = loop_stack.pop() {
-                    for fixup in ctx.break_fixups {
-                        if let Instr::IfEqJump { target, .. } = &mut instrs[fixup] {
-                            *target = end;
-                        }
-                    }
-                }
-            }
-            Stmt::Call { name, args } => instrs.push(Instr::Call {
-                name: name.clone(),
-                args: args.clone(),
-            }),
         }
     }
     Ok(())

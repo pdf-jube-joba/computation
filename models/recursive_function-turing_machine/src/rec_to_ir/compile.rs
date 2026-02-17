@@ -1,10 +1,11 @@
+/*
 use recursive_function::machine::RecursiveFunctions;
 use turing_machine::machine::TuringMachineDefinition;
 use turing_machine::manipulation::builder::TuringMachineBuilder;
 use utils::parse::ParseTextCodec;
 
 pub mod num_tape {
-    use crate::symbols::S;
+    use crate::rec_to_ir::symbols::S;
     use turing_machine::machine::{Sign, Tape};
     use utils::number::*;
 
@@ -54,8 +55,7 @@ pub mod num_tape {
 }
 
 pub fn zero_builder() -> TuringMachineBuilder {
-    let definition: TuringMachineDefinition =
-        include_str!("zero_builder.txt").parse_tc().unwrap();
+    let definition: TuringMachineDefinition = include_str!("zero_builder.txt").parse_tc().unwrap();
     let mut builder =
         TuringMachineBuilder::new("zero_builder", definition.init_state().clone()).unwrap();
     builder.accepted_state = definition.accepted_state().clone();
@@ -64,8 +64,7 @@ pub fn zero_builder() -> TuringMachineBuilder {
 }
 
 pub fn succ_builder() -> TuringMachineBuilder {
-    let definition: TuringMachineDefinition =
-        include_str!("succ_builder.txt").parse_tc().unwrap();
+    let definition: TuringMachineDefinition = include_str!("succ_builder.txt").parse_tc().unwrap();
     let mut builder =
         TuringMachineBuilder::new("succ_adder", definition.init_state().clone()).unwrap();
     builder.accepted_state = definition.accepted_state().clone();
@@ -77,6 +76,9 @@ pub mod composition;
 pub mod mu_recursion;
 pub mod primitive_recursion;
 pub mod projection;
+
+#[cfg(test)]
+mod tests;
 
 pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder {
     match recursive_function {
@@ -108,6 +110,4 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder 
         }
     }
 }
-
-#[cfg(test)]
-mod tests;
+*/

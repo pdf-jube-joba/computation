@@ -1,3 +1,4 @@
+/*
 use turing_machine::machine::*;
 use utils::number::*;
 use utils::TextCodec;
@@ -349,3 +350,4 @@ fn compile_test_id_from_inv_monus() {
 
     func_test(&id_from_inv_monus(), tests);
 }
+*/

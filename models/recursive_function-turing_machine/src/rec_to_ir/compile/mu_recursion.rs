@@ -1,3 +1,4 @@
+/*
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,
     graph_compose::{builder_composition, GraphOfBuilder},
@@ -227,3 +228,4 @@ mod tests {
         builder_test(&mut builder, 600, tests);
     }
 }
+*/

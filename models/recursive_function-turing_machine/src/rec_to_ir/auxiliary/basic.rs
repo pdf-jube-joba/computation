@@ -1,3 +1,4 @@
+/*
 use turing_machine::{
     machine::*,
     manipulation::{
@@ -119,6 +120,7 @@ pub fn put(x: symbols::S) -> TuringMachineBuilder {
 pub fn putb() -> TuringMachineBuilder {
     put(symbols::S::B)
 }
+*/
 
 pub fn put1() -> TuringMachineBuilder {
     put(symbols::S::L)

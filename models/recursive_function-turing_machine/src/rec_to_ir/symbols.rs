@@ -1,3 +1,4 @@
+/*
 use std::fmt::Display;
 
 use turing_machine::machine::Sign;
@@ -26,3 +27,4 @@ impl Display for S {
         TextCodec::write_fmt(&s, f)
     }
 }
+*/

@@ -1,3 +1,4 @@
+/*
 use turing_machine::manipulation::builder::TuringMachineBuilder;
 
 use super::basic::*;
@@ -157,3 +158,4 @@ mod tests {
         builder_test(&mut builder, 500, tests);
     }
 }
+*/

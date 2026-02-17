@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use turing_machine::machine::{CodeEntry, Direction, Sign, State, TuringMachineDefinition};
-use utils::{Compiler, Machine};
+use utils::{Compiler, Machine, TextCodec};
 
 use super::machine::{Program, Stmt};
 
