@@ -12,8 +12,8 @@ fn map_v(v: Vec<&str>) -> Vec<Sign> {
 fn test_tape_eq() {
     // every thing is the same  ..., "", ["-"], "-", "", ...
     let v1 = Tape::from_vec(map_v(vec!["-", "-"]), 0);
-    let v2 = Tape::from_vec(map_v(vec!["-", "-", ""]), 0);
-    let v3 = Tape::from_vec(map_v(vec!["", "-", "-"]), 1);
+    let v2 = Tape::from_vec(map_v(vec!["-", "-", "-"]), 0);
+    let v3 = Tape::from_vec(map_v(vec!["-", "-", "-"]), 1);
     assert!(v1.eq(&v2));
     assert!(v1.eq(&v3));
 }

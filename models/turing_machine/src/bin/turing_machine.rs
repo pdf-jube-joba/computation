@@ -1,1 +1,1 @@
-utils::web_model!(turing_machine::machine::TuringMachineSet);
+utils::web_model!(turing_machine::machine::TuringMachine);

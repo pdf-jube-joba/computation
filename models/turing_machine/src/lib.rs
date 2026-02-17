@@ -1,4 +1,4 @@
-use crate::machine::{CodeEntry as CoreCodeEntry, Tape, TuringMachineDefinition, TuringMachineSet};
+use crate::machine::{CodeEntry as CoreCodeEntry, Tape, TuringMachineDefinition, TuringMachine};
 use serde::Serialize;
 use serde_json::json;
 use utils::{json_text, Machine, TextCodec};
@@ -106,7 +106,7 @@ impl From<Current> for serde_json::Value {
     }
 }
 
-impl Machine for TuringMachineSet {
+impl Machine for TuringMachine {
     type Code = TuringMachineDefinition;
     type AInput = Tape;
     type RInput = ();
@@ -114,7 +114,7 @@ impl Machine for TuringMachineSet {
     type SnapShot = Current;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
-        Ok(TuringMachineSet::new(code, ainput))
+        Ok(TuringMachine::new(code, ainput))
     }
 
     fn step(&mut self, _input: Self::RInput) -> Result<Option<Self::Output>, String> {

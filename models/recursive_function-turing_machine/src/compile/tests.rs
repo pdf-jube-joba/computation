@@ -7,7 +7,7 @@ use crate::compile::projection::projection;
 use crate::auxiliary::basic;
 use crate::compile::*;
 
-fn print_process(machine: &TuringMachineSet) {
+fn print_process(machine: &TuringMachine) {
     let state_str = machine.now_state().print();
     if state_str.contains("start") || state_str.contains("end") {
         eprintln!(

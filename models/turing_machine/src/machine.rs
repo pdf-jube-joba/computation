@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::collections::HashSet;
 use utils::alphabet::Alphabet; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
@@ -134,11 +135,14 @@ impl TuringMachineDefinition {
     ) -> Result<Self, anyhow::Error> {
         // Changed from String to anyhow::Error
         let accepted_state: Vec<State> = accepted_state.into_iter().collect();
+        let mut seen: HashSet<(Sign, State)> = HashSet::new();
         let code: Code = code
             .into_iter()
             .map(|entry| {
                 if accepted_state.contains(&entry.0.1) {
                     Err(anyhow::anyhow!("Code contains accepted state"))
+                } else if !seen.insert(entry.0.clone()) {
+                    Err(anyhow::anyhow!("Duplicate transition for key state/sign"))
                 } else {
                     Ok(entry)
                 }
@@ -204,15 +208,15 @@ impl TuringMachineState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TuringMachineSet {
+pub struct TuringMachine {
     machine_definition: TuringMachineDefinition,
     machine_state: TuringMachineState,
 }
 
-impl TuringMachineSet {
+impl TuringMachine {
     pub fn new(machine: TuringMachineDefinition, tape: Tape) -> Self {
         let init_state = machine.init_state.clone();
-        TuringMachineSet {
+        TuringMachine {
             machine_definition: machine,
             machine_state: TuringMachineState::new(init_state, tape),
         }

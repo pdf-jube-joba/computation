@@ -109,6 +109,10 @@ impl TextCodec for State {
 }
 
 pub fn parse_one_code_entry(code: &str) -> Result<CodeEntry, String> {
+    let code = code.split('#').next().unwrap_or("").trim();
+    if code.is_empty() {
+        return Err("Empty code entry".to_string());
+    }
     let v: Vec<_> = code.split(',').collect();
     if v.len() < 5 {
         return Err(format!("Invalid code entry: {}", code));
@@ -145,7 +149,10 @@ impl TextCodec for TuringMachineDefinition {
 
         let code: Vec<_> = lines
             .enumerate()
-            .filter(|(_, line)| !line.trim().is_empty() && !line.starts_with('#'))
+            .filter(|(_, line)| {
+                let trimmed = line.trim();
+                !trimmed.is_empty() && !trimmed.starts_with('#')
+            })
             .map(|(index, line)| {
                 parse_one_code_entry(line).map_err(|err| {
                     format!("Error parsing code entry at line {}: {}", index + 1, err)

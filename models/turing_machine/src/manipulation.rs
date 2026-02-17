@@ -27,7 +27,7 @@ pub mod builder {
             })
         }
 
-        pub fn build(&self, tape: Tape) -> Result<TuringMachineSet> {
+        pub fn build(&self, tape: Tape) -> Result<TuringMachine> {
             let init_state = self
                 .init_state
                 .clone()
@@ -35,7 +35,7 @@ pub mod builder {
             let code = self.code.clone();
             let machine =
                 TuringMachineDefinition::new(init_state, self.accepted_state.clone(), code)?;
-            Ok(TuringMachineSet::new(machine, tape))
+            Ok(TuringMachine::new(machine, tape))
         }
 
         pub fn init_state(&mut self, state: State) -> &mut Self {
