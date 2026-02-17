@@ -169,7 +169,11 @@ fn rename_stmt(
         Stmt::Rt => Stmt::Rt,
         Stmt::Read(var) => Stmt::Read(rename_var(var, var_map)),
         Stmt::Stor(var) => Stmt::Stor(rename_var(var, var_map)),
+        Stmt::StorConst(value) => Stmt::StorConst(value.clone()),
         Stmt::Assign(dst, src) => Stmt::Assign(rename_var(dst, var_map), rename_var(src, var_map)),
+        Stmt::ConstAssign(dst, value) => {
+            Stmt::ConstAssign(rename_var(dst, var_map), value.clone())
+        }
         Stmt::IfBreak { var, value, label } => Stmt::IfBreak {
             var: rename_var(var, var_map),
             value: value.clone(),
@@ -202,6 +206,9 @@ fn collect_vars(stmts: &[Stmt], set: &mut HashSet<String>) {
                 set.insert(dst.clone());
                 set.insert(src.clone());
             }
+            Stmt::ConstAssign(dst, _) => {
+                set.insert(dst.clone());
+            }
             Stmt::Loop { body, .. } => collect_vars(body, set),
             Stmt::Call { args, .. } => {
                 for arg in args {
@@ -209,6 +216,7 @@ fn collect_vars(stmts: &[Stmt], set: &mut HashSet<String>) {
                 }
             }
             Stmt::Lt | Stmt::Rt => {}
+            Stmt::StorConst(_) => {}
         }
     }
 }

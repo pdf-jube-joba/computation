@@ -4,7 +4,7 @@ use utils::TextCodec;
 
 use super::machine::{Program, Stmt};
 
-const KEYWORDS: [&str; 7] = ["alphabet", "jump", "if", "LT", "RT", "READ", "STOR"];
+const KEYWORDS: [&str; 8] = ["alphabet", "jump", "if", "const", "LT", "RT", "READ", "STOR"];
 
 #[derive(Debug, Clone)]
 enum Token {
@@ -226,8 +226,14 @@ impl Parser {
                 }
                 "STOR" => {
                     self.next();
-                    let var = self.expect_ident("variable")?;
-                    Ok(Stmt::Stor(var))
+                    if matches!(self.peek(), Some(Token::Ident(id)) if id == "const") {
+                        self.expect_keyword("const")?;
+                        let value = self.parse_sign()?;
+                        Ok(Stmt::StorConst(value))
+                    } else {
+                        let var = self.expect_ident("variable")?;
+                        Ok(Stmt::Stor(var))
+                    }
                 }
                 "jump" => {
                     self.next();
@@ -246,8 +252,14 @@ impl Parser {
                 _ => {
                     let var = self.expect_ident("variable")?;
                     self.expect_symbol(":=")?;
-                    let src = self.expect_ident("variable")?;
-                    Ok(Stmt::Assign(var, src))
+                    if matches!(self.peek(), Some(Token::Ident(id)) if id == "const") {
+                        self.expect_keyword("const")?;
+                        let value = self.parse_sign()?;
+                        Ok(Stmt::ConstAssign(var, value))
+                    } else {
+                        let src = self.expect_ident("variable")?;
+                        Ok(Stmt::Assign(var, src))
+                    }
                 }
             },
             Token::Number(num) => Err(format!("Unexpected number '{}'", num)),
@@ -288,14 +300,18 @@ impl TextCodec for Program {
             match stmt {
                 Stmt::Lt => writeln!(f, "LT")?,
                 Stmt::Rt => writeln!(f, "RT")?,
-                Stmt::Read(var) => writeln!(f, "READ {}", var)?,
-                Stmt::Stor(var) => writeln!(f, "STOR {}", var)?,
-                Stmt::Assign(dst, src) => writeln!(f, "{} := {}", dst, src)?,
-                Stmt::Jump(target) => writeln!(f, "jump {}", target)?,
-                Stmt::JumpIf { var, value, target } => {
-                    writeln!(f, "jump if {} == {} {}", var, value.print(), target)?
-                }
+            Stmt::Read(var) => writeln!(f, "READ {}", var)?,
+            Stmt::Stor(var) => writeln!(f, "STOR {}", var)?,
+            Stmt::StorConst(value) => writeln!(f, "STOR const {}", value.print())?,
+            Stmt::Assign(dst, src) => writeln!(f, "{} := {}", dst, src)?,
+            Stmt::ConstAssign(dst, value) => {
+                writeln!(f, "{} := const {}", dst, value.print())?;
             }
+            Stmt::Jump(target) => writeln!(f, "jump {}", target)?,
+            Stmt::JumpIf { var, value, target } => {
+                writeln!(f, "jump if {} == {} {}", var, value.print(), target)?
+            }
+        }
         }
         Ok(())
     }

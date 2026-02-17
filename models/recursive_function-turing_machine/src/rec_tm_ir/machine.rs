@@ -31,7 +31,9 @@ pub enum Stmt {
     Rt,
     Read(String),
     Stor(String),
+    StorConst(Sign),
     Assign(String, String),
+    ConstAssign(String, Sign),
     IfBreak {
         var: String,
         value: Sign,
@@ -53,7 +55,9 @@ enum Instr {
     Rt,
     Read(String),
     Stor(String),
+    StorConst(Sign),
     Assign(String, String),
+    ConstAssign(String, Sign),
     IfEqJump {
         var: String,
         value: Sign,
@@ -73,7 +77,9 @@ impl Instr {
             Instr::Rt => "RT".to_string(),
             Instr::Read(var) => format!("READ {}", var),
             Instr::Stor(var) => format!("STOR {}", var),
+            Instr::StorConst(value) => format!("STOR const {}", value.print()),
             Instr::Assign(dst, src) => format!("{} := {}", dst, src),
+            Instr::ConstAssign(dst, value) => format!("{} := const {}", dst, value.print()),
             Instr::IfEqJump { var, value, target } => {
                 format!("if {} == {} break @{}", var, value.print(), target)
             }
@@ -340,8 +346,22 @@ impl Machine for RecTmIrMachine {
                 self.tape.head_write(&sign);
                 self.frame.pc += 1;
             }
+            Instr::StorConst(value) => {
+                if !self.allowed.contains(&value) {
+                    return Err(format!("Unknown sign in const: {}", value.print()));
+                }
+                self.tape.head_write(&value);
+                self.frame.pc += 1;
+            }
             Instr::Assign(dest, src) => {
                 let value = self.get_var(&src);
+                self.set_var(&dest, value);
+                self.frame.pc += 1;
+            }
+            Instr::ConstAssign(dest, value) => {
+                if !self.allowed.contains(&value) {
+                    return Err(format!("Unknown sign in const: {}", value.print()));
+                }
                 self.set_var(&dest, value);
                 self.frame.pc += 1;
             }
@@ -565,6 +585,9 @@ fn collect_vars_inner(stmts: &[Stmt], vars: &mut BTreeSet<String>) {
                 vars.insert(dst.clone());
                 vars.insert(src.clone());
             }
+            Stmt::ConstAssign(dst, _) => {
+                vars.insert(dst.clone());
+            }
             Stmt::Loop { body, .. } => collect_vars_inner(body, vars),
             Stmt::Call { args, .. } => {
                 for arg in args {
@@ -572,6 +595,7 @@ fn collect_vars_inner(stmts: &[Stmt], vars: &mut BTreeSet<String>) {
                 }
             }
             Stmt::Lt | Stmt::Rt => {}
+            Stmt::StorConst(_) => {}
         }
     }
 }
@@ -629,6 +653,11 @@ fn validate_signs_in_stmts(stmts: &[Stmt], allowed: &HashSet<Sign>) -> Result<()
                     return Err(format!("Unknown sign in if: {}", value.print()));
                 }
             }
+            Stmt::ConstAssign(_, value) | Stmt::StorConst(value) => {
+                if !allowed.contains(value) {
+                    return Err(format!("Unknown sign in const: {}", value.print()));
+                }
+            }
             Stmt::Loop { body, .. } => validate_signs_in_stmts(body, allowed)?,
             _ => {}
         }
@@ -663,7 +692,11 @@ fn compile_block(
             Stmt::Rt => instrs.push(Instr::Rt),
             Stmt::Read(var) => instrs.push(Instr::Read(var.clone())),
             Stmt::Stor(var) => instrs.push(Instr::Stor(var.clone())),
+            Stmt::StorConst(value) => instrs.push(Instr::StorConst(value.clone())),
             Stmt::Assign(dst, src) => instrs.push(Instr::Assign(dst.clone(), src.clone())),
+            Stmt::ConstAssign(dst, value) => {
+                instrs.push(Instr::ConstAssign(dst.clone(), value.clone()));
+            }
             Stmt::IfBreak { var, value, label } => {
                 let mut found = None;
                 for (idx, ctx) in loop_stack.iter().enumerate().rev() {

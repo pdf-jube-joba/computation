@@ -23,12 +23,14 @@ Turing machine で扱う用の Tape の記号
 
 <stmt> =
   # TM のテープとの interact
-  | "LT"            # tape を左に動かす
-  | "RT"            # tape を右に動かす
-  | "READ" <var>    # head から <var> に値を読み出す。
-  | "STOR" <var>    # <var> から head に値を書き込む。
+  | "LT"                # tape を左に動かす
+  | "RT"                # tape を右に動かす
+  | "READ" <var>        # head から <var> に値を読み出す。
+  | "STOR" <var>        # <var> から head に値を書き込む。
+  | "STOR" "const" <S>  # <S> を head に値を書き込む。
   # 普通のプログラミング
   | <var> ":=" <var>
+  | <var> ":=" "const" <var>
   | "if" <var> "==" <S> "break" <label>
   | "loop" <label> ":" "{" <stmt>*  "}"
   | "call" <fn-name> "(" ("&")? <var>* ")"
@@ -49,6 +51,7 @@ Turing machine で扱う用の Tape の記号
   - RT: head := head + 1
   - READ v: env[v] := tape[head]
   - STOR v: tape[head] := env[v]
+  - STOR s: tape[head] := s
   - v := w: env[v] := env[w]
 
 制御
@@ -75,12 +78,14 @@ Turing machine で扱う用の Tape の記号
 ```
 <stmt> =
   # TM のテープとの interact
-  | "LT"            # tape を左に動かす
-  | "RT"            # tape を右に動かす
-  | "READ" <var>    # head から <var> に値を読み出す。
-  | "STOR" <var>    # <var> から head に値を書き込む。
+  | "LT"                # tape を左に動かす
+  | "RT"                # tape を右に動かす
+  | "READ" <var>        # head から <var> に値を読み出す。
+  | "STOR" <var>        # <var> から head に値を書き込む。
+  | "STOR" "const" <S>  # <S> を head に値を書き込む。
   # 普通のプログラミング
   | <var> ":=" <var>
+  | <var> ":=" "const" <S>
   | "if" <var> "==" <S> "goto" <number>
   | "goto" <number>
 ```

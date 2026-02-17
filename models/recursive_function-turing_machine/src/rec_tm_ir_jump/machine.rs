@@ -18,7 +18,9 @@ pub enum Stmt {
     Rt,
     Read(String),
     Stor(String),
+    StorConst(Sign),
     Assign(String, String),
+    ConstAssign(String, Sign),
     Jump(usize),
     JumpIf {
         var: String,
@@ -34,7 +36,9 @@ impl Stmt {
             Stmt::Rt => "RT".to_string(),
             Stmt::Read(var) => format!("READ {}", var),
             Stmt::Stor(var) => format!("STOR {}", var),
+            Stmt::StorConst(value) => format!("STOR const {}", value.print()),
             Stmt::Assign(dst, src) => format!("{} := {}", dst, src),
+            Stmt::ConstAssign(dst, value) => format!("{} := const {}", dst, value.print()),
             Stmt::Jump(target) => format!("jump {}", target),
             Stmt::JumpIf { var, value, target } => {
                 format!("jump if {} == {} {}", var, value.print(), target)
@@ -237,8 +241,22 @@ impl Machine for RecTmIrJumpMachine {
                 self.tape.head_write(&sign);
                 self.pc += 1;
             }
+            Stmt::StorConst(value) => {
+                if !self.allowed.contains(&value) {
+                    return Err(format!("Unknown sign in const: {}", value.print()));
+                }
+                self.tape.head_write(&value);
+                self.pc += 1;
+            }
             Stmt::Assign(dest, src) => {
                 let value = self.env.get(&src);
+                self.env.set(&dest, value);
+                self.pc += 1;
+            }
+            Stmt::ConstAssign(dest, value) => {
+                if !self.allowed.contains(&value) {
+                    return Err(format!("Unknown sign in const: {}", value.print()));
+                }
                 self.env.set(&dest, value);
                 self.pc += 1;
             }
@@ -323,6 +341,10 @@ fn validate_signs_in_program(program: &Program, allowed: &HashSet<Sign>) -> Resu
             if !allowed.contains(value) {
                 return Err(format!("Unknown sign in jump if: {}", value.print()));
             }
+        } else if let Stmt::ConstAssign(_, value) | Stmt::StorConst(value) = stmt {
+            if !allowed.contains(value) {
+                return Err(format!("Unknown sign in const: {}", value.print()));
+            }
         }
     }
     Ok(())
@@ -338,6 +360,9 @@ fn collect_vars(stmts: &[Stmt]) -> BTreeSet<String> {
             Stmt::Assign(dst, src) => {
                 vars.insert(dst.clone());
                 vars.insert(src.clone());
+            }
+            Stmt::ConstAssign(dst, _) => {
+                vars.insert(dst.clone());
             }
             _ => {}
         }

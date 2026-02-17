@@ -77,7 +77,11 @@ fn compile_block_inner(
             Ir1Stmt::Rt => instrs.push(Ir2Stmt::Rt),
             Ir1Stmt::Read(var) => instrs.push(Ir2Stmt::Read(var.clone())),
             Ir1Stmt::Stor(var) => instrs.push(Ir2Stmt::Stor(var.clone())),
+            Ir1Stmt::StorConst(value) => instrs.push(Ir2Stmt::StorConst(value.clone())),
             Ir1Stmt::Assign(dst, src) => instrs.push(Ir2Stmt::Assign(dst.clone(), src.clone())),
+            Ir1Stmt::ConstAssign(dst, value) => {
+                instrs.push(Ir2Stmt::ConstAssign(dst.clone(), value.clone()));
+            }
             Ir1Stmt::IfBreak { var, value, label } => {
                 let mut found = None;
                 for (idx, ctx) in loop_stack.iter().enumerate().rev() {
