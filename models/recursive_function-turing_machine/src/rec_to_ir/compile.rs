@@ -21,15 +21,15 @@ pub(crate) fn zero_builder() -> Function {
 }
 
 // 後者関数
-// 入力: ... ? |x| - l l ... l x - ... : l が n 個
-// 出力: ... ? |x| - l l ... l l x - ... : l が n+1 個
+// 入力: ... ? |x| - l l ... l x - ... : l * n times
+// 出力: ... ? |x| - l l ... l l x - ... : l * (n+1) times
 pub(crate) fn succ_builder() -> Function {
     Function {
         name: "succ_function".to_string(),
         params: vec![],
         body: vec![
             Stmt::Call {
-                name: "move_right_till_x".to_string(),
+                name: "move_right_till_x_1".to_string(),
                 args: vec![],
             },
             Stmt::StorConst(S::L.into()),
@@ -37,7 +37,7 @@ pub(crate) fn succ_builder() -> Function {
             Stmt::StorConst(S::X.into()),
             // returns to be the initial position ... until the first x
             Stmt::Call {
-                name: "move_left_till_x".to_string(),
+                name: "move_left_till_x_1".to_string(),
                 args: vec![],
             },
         ],

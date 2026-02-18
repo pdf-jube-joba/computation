@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
-use utils::{json_text, Machine, TextCodec};
+use utils::{Machine, TextCodec, json_text};
 
 use super::parser::parse_identifier;
 
@@ -69,10 +69,7 @@ impl Environment {
     }
 
     fn get(&self, var: &str) -> Sign {
-        self.values
-            .get(var)
-            .cloned()
-            .unwrap_or_else(Sign::blank)
+        self.values.get(var).cloned().unwrap_or_else(Sign::blank)
     }
 
     fn set(&mut self, var: &str, value: Sign) {
@@ -314,10 +311,7 @@ fn validate_program(program: &Program) -> Result<(), String> {
         match stmt {
             Stmt::Jump(target) | Stmt::JumpIf { target, .. } | Stmt::JumpIfHead { target, .. } => {
                 if *target >= len {
-                    return Err(format!(
-                        "jump target out of range at {}: {}",
-                        idx, target
-                    ));
+                    return Err(format!("jump target out of range at {}: {}", idx, target));
                 }
             }
             _ => {}

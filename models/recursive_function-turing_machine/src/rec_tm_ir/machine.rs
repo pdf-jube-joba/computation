@@ -532,7 +532,6 @@ impl RecTmIrMachine {
     }
 }
 
-
 fn collect_vars(stmts: &[Stmt]) -> BTreeSet<String> {
     let mut vars = BTreeSet::new();
     collect_vars_inner(stmts, &mut vars);

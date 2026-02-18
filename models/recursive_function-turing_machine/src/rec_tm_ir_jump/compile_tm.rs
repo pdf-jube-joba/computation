@@ -67,11 +67,11 @@ fn compile_program(program: &Program) -> Result<TuringMachineDefinition, String>
                     &state_map,
                     |sign| (sign.clone(), Direction::Right),
                 )?,
-            Stmt::Read(var) => {
-                let var_idx = vars
-                    .iter()
-                    .position(|v| v == var)
-                    .ok_or_else(|| format!("Unknown variable '{}'", var))?;
+                Stmt::Read(var) => {
+                    let var_idx = vars
+                        .iter()
+                        .position(|v| v == var)
+                        .ok_or_else(|| format!("Unknown variable '{}'", var))?;
                     for sign in &alphabet {
                         let mut next_env = env.clone();
                         next_env[var_idx] = sign.clone();
@@ -83,76 +83,76 @@ fn compile_program(program: &Program) -> Result<TuringMachineDefinition, String>
                         ));
                     }
                 }
-            Stmt::Stor(var) => {
-                let var_idx = vars
-                    .iter()
-                    .position(|v| v == var)
-                    .ok_or_else(|| format!("Unknown variable '{}'", var))?;
-                let write_sign = env[var_idx].clone();
-                add_for_all_tape(
-                    &mut code,
-                    &alphabet,
-                    &state,
-                    pc + 1,
-                    env_idx,
-                    &state_map,
-                    |_| (write_sign.clone(), Direction::Constant),
-                )?;
-            }
-            Stmt::StorConst(value) => {
-                add_for_all_tape(
-                    &mut code,
-                    &alphabet,
-                    &state,
-                    pc + 1,
-                    env_idx,
-                    &state_map,
-                    |_| (value.clone(), Direction::Constant),
-                )?;
-            }
-            Stmt::Assign(dst, src) => {
-                let dst_idx = vars
-                    .iter()
-                    .position(|v| v == dst)
-                    .ok_or_else(|| format!("Unknown variable '{}'", dst))?;
-                let src_idx = vars
-                    .iter()
-                    .position(|v| v == src)
-                    .ok_or_else(|| format!("Unknown variable '{}'", src))?;
-                let mut next_env = env.clone();
-                next_env[dst_idx] = next_env[src_idx].clone();
-                let next_env_idx = env_index(&envs, &next_env)?;
-                add_for_all_tape(
-                    &mut code,
-                    &alphabet,
-                    &state,
-                    pc + 1,
-                    next_env_idx,
-                    &state_map,
-                    |sign| (sign.clone(), Direction::Constant),
-                )?;
-            }
-            Stmt::ConstAssign(dst, value) => {
-                let dst_idx = vars
-                    .iter()
-                    .position(|v| v == dst)
-                    .ok_or_else(|| format!("Unknown variable '{}'", dst))?;
-                let mut next_env = env.clone();
-                next_env[dst_idx] = value.clone();
-                let next_env_idx = env_index(&envs, &next_env)?;
-                add_for_all_tape(
-                    &mut code,
-                    &alphabet,
-                    &state,
-                    pc + 1,
-                    next_env_idx,
-                    &state_map,
-                    |sign| (sign.clone(), Direction::Constant),
-                )?;
-            }
-            Stmt::Jump(target) => {
-                add_for_all_tape(
-                    &mut code,
+                Stmt::Stor(var) => {
+                    let var_idx = vars
+                        .iter()
+                        .position(|v| v == var)
+                        .ok_or_else(|| format!("Unknown variable '{}'", var))?;
+                    let write_sign = env[var_idx].clone();
+                    add_for_all_tape(
+                        &mut code,
+                        &alphabet,
+                        &state,
+                        pc + 1,
+                        env_idx,
+                        &state_map,
+                        |_| (write_sign.clone(), Direction::Constant),
+                    )?;
+                }
+                Stmt::StorConst(value) => {
+                    add_for_all_tape(
+                        &mut code,
+                        &alphabet,
+                        &state,
+                        pc + 1,
+                        env_idx,
+                        &state_map,
+                        |_| (value.clone(), Direction::Constant),
+                    )?;
+                }
+                Stmt::Assign(dst, src) => {
+                    let dst_idx = vars
+                        .iter()
+                        .position(|v| v == dst)
+                        .ok_or_else(|| format!("Unknown variable '{}'", dst))?;
+                    let src_idx = vars
+                        .iter()
+                        .position(|v| v == src)
+                        .ok_or_else(|| format!("Unknown variable '{}'", src))?;
+                    let mut next_env = env.clone();
+                    next_env[dst_idx] = next_env[src_idx].clone();
+                    let next_env_idx = env_index(&envs, &next_env)?;
+                    add_for_all_tape(
+                        &mut code,
+                        &alphabet,
+                        &state,
+                        pc + 1,
+                        next_env_idx,
+                        &state_map,
+                        |sign| (sign.clone(), Direction::Constant),
+                    )?;
+                }
+                Stmt::ConstAssign(dst, value) => {
+                    let dst_idx = vars
+                        .iter()
+                        .position(|v| v == dst)
+                        .ok_or_else(|| format!("Unknown variable '{}'", dst))?;
+                    let mut next_env = env.clone();
+                    next_env[dst_idx] = value.clone();
+                    let next_env_idx = env_index(&envs, &next_env)?;
+                    add_for_all_tape(
+                        &mut code,
+                        &alphabet,
+                        &state,
+                        pc + 1,
+                        next_env_idx,
+                        &state_map,
+                        |sign| (sign.clone(), Direction::Constant),
+                    )?;
+                }
+                Stmt::Jump(target) => {
+                    add_for_all_tape(
+                        &mut code,
                         &alphabet,
                         &state,
                         *target,
@@ -161,38 +161,38 @@ fn compile_program(program: &Program) -> Result<TuringMachineDefinition, String>
                         |sign| (sign.clone(), Direction::Constant),
                     )?;
                 }
-            Stmt::JumpIf { var, value, target } => {
-                let var_idx = vars
-                    .iter()
-                    .position(|v| v == var)
-                    .ok_or_else(|| format!("Unknown variable '{}'", var))?;
-                let next_pc = if &env[var_idx] == value {
-                    *target
-                } else {
-                    pc + 1
-                };
-                add_for_all_tape(
-                    &mut code,
-                    &alphabet,
-                    &state,
-                    next_pc,
-                    env_idx,
-                    &state_map,
-                    |sign| (sign.clone(), Direction::Constant),
-                )?;
-            }
-            Stmt::JumpIfHead { value, target } => {
-                for sign in &alphabet {
-                    let next_pc = if sign == value { *target } else { pc + 1 };
-                    let next_state = state_for(next_pc, env_idx, &state_map)?;
-                    code.push((
-                        (sign.clone(), state.clone()),
-                        (sign.clone(), next_state, Direction::Constant),
-                    ));
+                Stmt::JumpIf { var, value, target } => {
+                    let var_idx = vars
+                        .iter()
+                        .position(|v| v == var)
+                        .ok_or_else(|| format!("Unknown variable '{}'", var))?;
+                    let next_pc = if &env[var_idx] == value {
+                        *target
+                    } else {
+                        pc + 1
+                    };
+                    add_for_all_tape(
+                        &mut code,
+                        &alphabet,
+                        &state,
+                        next_pc,
+                        env_idx,
+                        &state_map,
+                        |sign| (sign.clone(), Direction::Constant),
+                    )?;
+                }
+                Stmt::JumpIfHead { value, target } => {
+                    for sign in &alphabet {
+                        let next_pc = if sign == value { *target } else { pc + 1 };
+                        let next_state = state_for(next_pc, env_idx, &state_map)?;
+                        code.push((
+                            (sign.clone(), state.clone()),
+                            (sign.clone(), next_state, Direction::Constant),
+                        ));
+                    }
                 }
             }
         }
-    }
     }
 
     let init_state = state_for(0, 0, &state_map)?;

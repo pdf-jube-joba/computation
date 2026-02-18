@@ -41,11 +41,11 @@ pub mod builder {
     impl From<CodeEntry> for UserCodeEntry<Sign> {
         fn from(entry: CodeEntry) -> Self {
             UserCodeEntry {
-                key_sign: entry.0 .0,
-                key_state: entry.0 .1,
-                value_sign: entry.1 .0,
-                value_state: entry.1 .1,
-                direction: entry.1 .2,
+                key_sign: entry.0.0,
+                key_state: entry.0.1,
+                value_sign: entry.1.0,
+                value_state: entry.1.1,
+                direction: entry.1.2,
             }
         }
     }
@@ -81,8 +81,11 @@ pub mod builder {
                 .cloned()
                 .map(CodeEntry::from)
                 .collect::<Vec<_>>();
-            let machine =
-                TuringMachineDefinition::new(self.init_state.clone(), self.accepted_state.clone(), code)?;
+            let machine = TuringMachineDefinition::new(
+                self.init_state.clone(),
+                self.accepted_state.clone(),
+                code,
+            )?;
             Ok(TuringMachine::new(machine, tape))
         }
     }
@@ -101,7 +104,9 @@ pub mod graph_compose {
         pub acceptable: Vec<Vec<State>>,
     }
 
-    pub fn builder_composition<SignT>(graph: GraphOfBuilder<SignT>) -> Result<TuringMachineBuilder<SignT>>
+    pub fn builder_composition<SignT>(
+        graph: GraphOfBuilder<SignT>,
+    ) -> Result<TuringMachineBuilder<SignT>>
     where
         SignT: Clone + Eq + std::hash::Hash + Into<Sign>,
     {

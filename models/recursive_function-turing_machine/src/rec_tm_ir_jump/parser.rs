@@ -1,10 +1,12 @@
 use turing_machine::machine::Sign;
-use utils::alphabet::Alphabet;
 use utils::TextCodec;
+use utils::alphabet::Alphabet;
 
 use super::machine::{Program, Stmt};
 
-const KEYWORDS: [&str; 8] = ["alphabet", "jump", "if", "const", "LT", "RT", "READ", "STOR"];
+const KEYWORDS: [&str; 8] = [
+    "alphabet", "jump", "if", "const", "LT", "RT", "READ", "STOR",
+];
 
 #[derive(Debug, Clone)]
 enum Token {
@@ -135,8 +137,12 @@ impl Parser {
     fn expect_ident(&mut self, context: &str) -> Result<String, String> {
         match self.next() {
             Some(Token::Ident(ident)) => parse_identifier_with_context(&ident, context),
-            Some(Token::Number(num)) => Err(format!("Expected identifier for {}, got {}", context, num)),
-            Some(Token::Symbol(sym)) => Err(format!("Expected identifier for {}, got {}", context, sym)),
+            Some(Token::Number(num)) => {
+                Err(format!("Expected identifier for {}, got {}", context, num))
+            }
+            Some(Token::Symbol(sym)) => {
+                Err(format!("Expected identifier for {}, got {}", context, sym))
+            }
             None => Err(format!("Expected identifier for {}, got EOF", context)),
         }
     }
@@ -146,8 +152,12 @@ impl Parser {
             Some(Token::Number(num)) => num
                 .parse::<usize>()
                 .map_err(|e| format!("Invalid number for {}: {}", context, e)),
-            Some(Token::Ident(ident)) => Err(format!("Expected number for {}, got {}", context, ident)),
-            Some(Token::Symbol(sym)) => Err(format!("Expected number for {}, got {}", context, sym)),
+            Some(Token::Ident(ident)) => {
+                Err(format!("Expected number for {}, got {}", context, ident))
+            }
+            Some(Token::Symbol(sym)) => {
+                Err(format!("Expected number for {}, got {}", context, sym))
+            }
             None => Err(format!("Expected number for {}, got EOF", context)),
         }
     }
@@ -212,7 +222,10 @@ impl Parser {
     }
 
     fn parse_stmt(&mut self) -> Result<Stmt, String> {
-        let token = self.peek().cloned().ok_or_else(|| "Unexpected EOF".to_string())?;
+        let token = self
+            .peek()
+            .cloned()
+            .ok_or_else(|| "Unexpected EOF".to_string())?;
         match token {
             Token::Ident(ident) => match ident.as_str() {
                 "LT" => {
@@ -312,21 +325,21 @@ impl TextCodec for Program {
             match stmt {
                 Stmt::Lt => writeln!(f, "LT")?,
                 Stmt::Rt => writeln!(f, "RT")?,
-            Stmt::Read(var) => writeln!(f, "READ {}", var)?,
-            Stmt::Stor(var) => writeln!(f, "STOR {}", var)?,
-            Stmt::StorConst(value) => writeln!(f, "STOR const {}", value.print())?,
-            Stmt::Assign(dst, src) => writeln!(f, "{} := {}", dst, src)?,
-            Stmt::ConstAssign(dst, value) => {
-                writeln!(f, "{} := const {}", dst, value.print())?;
+                Stmt::Read(var) => writeln!(f, "READ {}", var)?,
+                Stmt::Stor(var) => writeln!(f, "STOR {}", var)?,
+                Stmt::StorConst(value) => writeln!(f, "STOR const {}", value.print())?,
+                Stmt::Assign(dst, src) => writeln!(f, "{} := {}", dst, src)?,
+                Stmt::ConstAssign(dst, value) => {
+                    writeln!(f, "{} := const {}", dst, value.print())?;
+                }
+                Stmt::Jump(target) => writeln!(f, "jump {}", target)?,
+                Stmt::JumpIf { var, value, target } => {
+                    writeln!(f, "jump if {} == {} {}", var, value.print(), target)?
+                }
+                Stmt::JumpIfHead { value, target } => {
+                    writeln!(f, "jump if @ == {} {}", value.print(), target)?
+                }
             }
-            Stmt::Jump(target) => writeln!(f, "jump {}", target)?,
-            Stmt::JumpIf { var, value, target } => {
-                writeln!(f, "jump if {} == {} {}", var, value.print(), target)?
-            }
-            Stmt::JumpIfHead { value, target } => {
-                writeln!(f, "jump if @ == {} {}", value.print(), target)?
-            }
-        }
         }
         Ok(())
     }

@@ -1,6 +1,6 @@
 use utils::{Machine, TextCodec};
 
-use super::{flatten_program, Environment, RecTmIrMachine, Snapshot, Stmt};
+use super::{Environment, RecTmIrMachine, Snapshot, Stmt, flatten_program};
 
 fn run_until_halt(machine: &mut RecTmIrMachine, limit: usize) -> EnvironmentResult {
     for _ in 0..limit {

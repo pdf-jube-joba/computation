@@ -3,7 +3,7 @@ use utils::{Compiler, Machine, TextCodec};
 use std::collections::{HashMap, HashSet};
 
 use crate::rec_tm_ir::{
-    validate_no_recursion, CallArg, Function, Program as Ir1Program, Stmt as Ir1Stmt,
+    CallArg, Function, Program as Ir1Program, Stmt as Ir1Stmt, validate_no_recursion,
 };
 
 use super::machine::{Program as Ir2Program, Stmt as Ir2Stmt};
@@ -126,7 +126,13 @@ fn expand_call(
     let shared_params: HashSet<String> = args
         .iter()
         .zip(callee.params.iter())
-        .filter_map(|(arg, param)| if arg.shared { Some(param.clone()) } else { None })
+        .filter_map(|(arg, param)| {
+            if arg.shared {
+                Some(param.clone())
+            } else {
+                None
+            }
+        })
         .collect();
     let mut var_map = build_var_map(callee, suffix, &shared_params);
     for (arg, param) in args.iter().zip(callee.params.iter()) {
@@ -141,10 +147,7 @@ fn expand_call(
         if arg.shared {
             continue;
         }
-        let new_param = var_map
-            .get(param)
-            .cloned()
-            .unwrap_or_else(|| param.clone());
+        let new_param = var_map.get(param).cloned().unwrap_or_else(|| param.clone());
         init.push(Ir1Stmt::Assign(new_param, arg.name.clone()));
     }
     let mut body = expand_stmts(&renamed, program, counter)?;
@@ -198,10 +201,7 @@ fn rename_stmts(
 }
 
 fn rename_var(var: &str, var_map: &HashMap<String, String>) -> String {
-    var_map
-        .get(var)
-        .cloned()
-        .unwrap_or_else(|| var.to_string())
+    var_map.get(var).cloned().unwrap_or_else(|| var.to_string())
 }
 
 fn rename_label(label: &str, label_map: &HashMap<String, String>) -> String {

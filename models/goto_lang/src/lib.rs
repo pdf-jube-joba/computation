@@ -3,7 +3,7 @@ pub mod manipulation;
 
 use crate::machine::{Command, Program};
 use serde_json::json;
-use utils::{json_text, TextCodec};
+use utils::{TextCodec, json_text};
 
 impl From<Program> for serde_json::Value {
     fn from(program: Program) -> Self {

@@ -1,7 +1,7 @@
-mod machine;
-mod parser;
 mod compile;
 mod compile_tm;
+mod machine;
+mod parser;
 
 pub use compile::RecTmIrToJumpCompiler;
 pub(crate) use compile::flatten_program;

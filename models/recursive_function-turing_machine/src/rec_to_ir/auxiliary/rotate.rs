@@ -1,3 +1,36 @@
+use crate::rec_tm_ir::{Function, Stmt};
+use crate::rec_to_ir::S;
+
+// input:   ... ? |x| A x B x
+// output:  ... ? |x| B x C x
+// where A, B, C are "tuple" represented by the list of {'-', 'l'} not containing 'x'
+// and A is overwriten by B, and C is list of '-' with the same length as A
+pub(crate) fn shift_left_overwrite() -> Function {
+    Function {
+        name: "shift_left_overwrite".to_string(),
+        params: vec![],
+        body: vec![],
+    }
+}
+
+// input:   ... ? |x| A[0] x A[1] x ... A[n - 1] x - ...
+// output:  ... ? |x| A[1] x A[2] x ... A[n - 1] x A[0] x - ...
+// where A[i] is "tuple" represented by the list of {'-', 'l'} not containing 'x'
+pub(crate) fn rotate(n: usize) -> Function {
+    if n == 0 || n == 1 {
+        return Function {
+            name: format!("rotate_{n}"),
+            params: vec![],
+            body: vec![],
+        };
+    }
+    Function {
+        name: format!("rotate_{n}"),
+        params: vec![],
+        body: vec![],
+    }
+}
+
 /*
 use turing_machine::manipulation::{
     builder::TuringMachineBuilder,

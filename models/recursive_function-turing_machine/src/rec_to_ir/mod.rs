@@ -1,10 +1,12 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use turing_machine::machine::Sign;
 use utils::TextCodec;
 
 use crate::rec_tm_ir::{Function, Program, Stmt};
-use crate::rec_to_ir::auxiliary::basic::{move_left_till_x, move_right_till_x};
+use crate::rec_to_ir::auxiliary::basic::{move_left_till_x_n_times, move_right_till_x_n_times};
+use crate::rec_to_ir::auxiliary::copy;
 
 pub mod auxiliary;
 pub mod compile;
@@ -52,6 +54,8 @@ pub fn write(tuple: Vec<Number>) -> Tape {
         signs.extend_from_slice(&num_sings(num));
     }
 
+    signs.push(S::X.into());
+
     Tape::from_vec(signs, 0).unwrap()
 }
 
@@ -73,8 +77,15 @@ pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
     if v[p] != S::X.into() {
         return None;
     }
+    if v.last()? != &S::X.into() {
+        return None;
+    }
 
-    let iter = v.into_iter().skip(p);
+    let iter = v
+        .into_iter()
+        // skip until blank `-` after the first x (x is the head position p)
+        .skip(p + 1)
+        .take_while(|char| *char != S::X.into());
     read_one(iter.collect())
 }
 
@@ -82,15 +93,10 @@ pub fn read_right_one_usize(tape: &Tape) -> Option<Vec<usize>> {
     read_right_one(tape).map(|vec| vec.into_iter().map(|x| x.as_usize().unwrap()).collect())
 }
 
-fn wrap_function(function: Function) -> Program {
-    let mut functions = Vec::new();
-
-    let aux_functions = vec![move_right_till_x(), move_left_till_x()];
-    for aux in aux_functions {
-        if aux.name != function.name {
-            functions.push(aux);
-        }
-    }
+// Naming convention: function names are unique and "main" is reserved.
+pub(crate) fn wrap_function(function: Function) -> Program {
+    let mut registry = Registry::new();
+    registry.resolve(&function);
 
     let main_function = Function {
         name: "main".to_string(),
@@ -101,175 +107,119 @@ fn wrap_function(function: Function) -> Program {
         }],
     };
 
+    registry
+        .functions
+        .insert(main_function.name.clone(), main_function);
+
     Program {
         alphabet: vec![S::B.into(), S::L.into(), S::X.into()],
-        functions: {
-            functions.push(function);
-            functions.push(main_function);
-            functions
-        },
+        functions: registry.functions.into_values().collect(),
     }
 }
 
-/*
-use turing_machine::manipulation::graph_compose::{GraphOfBuilder, builder_composition};
-use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};
-#[cfg(test)]
-use utils::TextCodec;
-use utils::parse::ParseTextCodec;
+struct Registry {
+    functions: HashMap<String, Function>, // this contains "visited"
+    stack: Vec<String>,                   // this is for DFS and contains "visited but not finished"
+}
 
-pub mod auxiliary;
-pub mod compile;
-pub mod symbols;
+impl Registry {
+    fn new() -> Self {
+        Self {
+            functions: HashMap::new(),
+            stack: Vec::new(),
+        }
+    }
 
-#[cfg(test)]
-fn builder_test(
-    builder: &mut TuringMachineBuilder,
-    step: usize,
-    tests: Vec<(Result<Tape, String>, Result<Tape, String>)>,
-) {
-    eprintln!("test start");
-    for (input, expect) in tests {
-        let input = input.unwrap();
-        let expect = expect.unwrap();
-        eprintln!("input: {}", input.print());
-        let mut machine = builder.build(input).unwrap();
-        eprintln!(
-            "{:?}\n    {}",
-            machine.now_state(),
-            machine.now_tape().print()
-        );
-        for _ in 0..step {
-            let _ = machine.step(1);
-            eprintln!(
-                "__{:?}\n    {}",
-                machine.now_state(),
-                machine.now_tape().print()
-            );
-            if machine.is_terminate() {
-                break;
+    fn get(&self, name: &str) -> Option<&Function> {
+        self.functions.get(name)
+    }
+
+    fn adhoc_insert(&mut self, name: &str) -> bool {
+        if let Some(n) = parse_copy_n_name(name) {
+            let func = copy::copy_n_times(n);
+            self.functions.insert(func.name.clone(), func);
+            return true;
+        }
+        if let Some(n) = parse_copy_to_end_name(name) {
+            let func = copy::copy_to_end(n);
+            self.functions.insert(func.name.clone(), func);
+            return true;
+        }
+        if let Some(n) = parse_move_right_till_x_name(name) {
+            let func = move_right_till_x_n_times(n);
+            self.functions.insert(func.name.clone(), func);
+            return true;
+        }
+        if let Some(n) = parse_move_left_till_x_name(name) {
+            let func = move_left_till_x_n_times(n);
+            self.functions.insert(func.name.clone(), func);
+            return true;
+        }
+        // currently no adhoc functions, but we can add some if needed
+        #[allow(clippy::match_single_binding)]
+        match name {
+            _ => false,
+        }
+    }
+
+    fn resolve_inner(&mut self) {
+        while let Some(name) = self.stack.pop() {
+            if !self.functions.contains_key(&name) && !self.adhoc_insert(&name) {
+                continue;
+            }
+
+            let Some(func) = self.functions.get(&name) else {
+                continue;
+            };
+            for callee in collect_calls(&func.body) {
+                if self.functions.contains_key(&callee) || self.stack.contains(&callee) {
+                    continue;
+                }
+                self.stack.push(callee);
             }
         }
-        assert!(machine.is_accepted());
-        assert!(machine.now_tape().eq(&expect));
+    }
+
+    fn resolve(&mut self, function: &Function) {
+        self.functions
+            .insert(function.name.clone(), function.clone());
+        self.stack.push(function.name.clone());
+        self.resolve_inner();
     }
 }
 
-#[cfg(test)]
-fn builder_test_predicate(
-    builder: &mut TuringMachineBuilder,
-    step: usize,
-    tests: Vec<(Result<Tape, String>, State)>,
-) {
-    eprintln!("test start");
-    for (input, result) in tests {
-        let input = input.unwrap();
-        let mut machine = builder.build(input).unwrap();
-        eprintln!(
-            "{:?}\n    {}",
-            machine.now_state(),
-            machine.now_tape().print()
-        );
-        for _ in 0..step {
-            let _ = machine.step(1);
-            eprintln!(
-                "__{:?}\n    {}",
-                machine.now_state(),
-                machine.now_tape().print()
-            );
-            if machine.is_terminate() {
-                break;
-            }
+fn collect_calls(stmts: &[Stmt]) -> Vec<String> {
+    let mut out = Vec::new();
+    for stmt in stmts {
+        match stmt {
+            Stmt::Call { name, .. } => out.push(name.clone()),
+            Stmt::Loop { body, .. } => out.extend(collect_calls(body)),
+            _ => {}
         }
-        assert!(machine.is_accepted());
-        assert_eq!(*machine.now_state(), result);
     }
+    out
 }
 
-pub(crate) fn chain_builders(
-    name: impl Into<String>,
-    builders: Vec<TuringMachineBuilder>,
-) -> TuringMachineBuilder {
-    let len = builders.len();
-    let graph = GraphOfBuilder {
-        name: name.into(),
-        init_state: "start".parse_tc().unwrap(),
-        assign_vertex_to_builder: builders,
-        assign_edge_to_state: series_edge_end_only(len.saturating_sub(1)),
-        acceptable: accept_end_only(len.saturating_sub(1)),
-    };
-    builder_composition(graph).unwrap()
+fn parse_copy_n_name(name: &str) -> Option<usize> {
+    parse_trailing_usize(name, "copy_")
 }
 
-// start state: "start"
-// accept state: "end"
-struct Builder<'a> {
-    name: String,
-    code: Vec<&'a str>,
+fn parse_copy_to_end_name(name: &str) -> Option<usize> {
+    parse_trailing_usize(name, "copy_to_end_")
 }
 
-impl<'a> From<Builder<'a>> for TuringMachineBuilder {
-    fn from(builder: Builder) -> Self {
-        let mut tm_builder =
-            TuringMachineBuilder::new(&builder.name, "start".parse_tc().unwrap()).unwrap();
-        tm_builder.accepted_state = vec!["end".parse_tc().unwrap()];
-        for entry in builder.code {
-            let entry = turing_machine::parse::parse_one_code_entry(entry).unwrap();
-            tm_builder.code.push(entry.into());
-        }
-        tm_builder
+fn parse_move_right_till_x_name(name: &str) -> Option<usize> {
+    parse_trailing_usize(name, "move_right_till_x_")
+}
+
+fn parse_move_left_till_x_name(name: &str) -> Option<usize> {
+    parse_trailing_usize(name, "move_left_till_x_")
+}
+
+fn parse_trailing_usize(name: &str, prefix: &str) -> Option<usize> {
+    let n_str = name.strip_prefix(prefix)?;
+    if n_str.is_empty() || !n_str.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
     }
+    n_str.parse().ok()
 }
-
-// 最後の edge の番号 = n
-fn accept_end_only(n: usize) -> Vec<Vec<State>> {
-    let mut v = vec![vec![]; n];
-    v.push(vec!["end".parse_tc().unwrap()]);
-    v
-}
-
-// 最後の edge の番号 = n
-fn series_edge_end_only(n: usize) -> Vec<((usize, usize), State)> {
-    (0..n)
-        .map(|i| ((i, i + 1), "end".parse_tc().unwrap()))
-        .collect()
-}
-
-#[cfg(test)]
-fn vec_sign(vec: Vec<&str>) -> Vec<Sign> {
-    vec.into_iter().map(|s| s.parse_tc().unwrap()).collect()
-}
-
-#[cfg(test)]
-pub(crate) fn tape_from(symbols: &[&str], head: usize) -> Result<Tape, String> {
-    Tape::from_vec(vec_sign(symbols.to_vec()), head)
-}
-
-pub fn zero_builder() -> TuringMachineBuilder {
-    let definition: TuringMachineDefinition = include_str!("zero_builder.txt").parse_tc().unwrap();
-    let mut builder =
-        TuringMachineBuilder::new("zero_builder", definition.init_state().clone()).unwrap();
-    builder.accepted_state = definition.accepted_state().clone();
-    builder.code = definition
-        .code()
-        .clone()
-        .into_iter()
-        .map(Into::into)
-        .collect();
-    builder
-}
-
-pub fn succ_builder() -> TuringMachineBuilder {
-    let definition: TuringMachineDefinition = include_str!("succ_builder.txt").parse_tc().unwrap();
-    let mut builder =
-        TuringMachineBuilder::new("succ_adder", definition.init_state().clone()).unwrap();
-    builder.accepted_state = definition.accepted_state().clone();
-    builder.code = definition
-        .code()
-        .clone()
-        .into_iter()
-        .map(Into::into)
-        .collect();
-    builder
-}
-*/

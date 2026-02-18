@@ -162,7 +162,10 @@ impl Parser {
             }
             functions.push(function);
         }
-        Ok(Program { alphabet, functions })
+        Ok(Program {
+            alphabet,
+            functions,
+        })
     }
 
     fn parse_alphabet(&mut self) -> Result<Vec<Sign>, String> {
