@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use turing_machine::machine::Sign;
 use utils::TextCodec;
 use utils::alphabet::Alphabet;
@@ -69,6 +67,10 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
             '&' => {
                 chars.next();
                 tokens.push(Token::Symbol("&".to_string()));
+            }
+            '@' => {
+                chars.next();
+                tokens.push(Token::Symbol("@".to_string()));
             }
             ':' => {
                 chars.next();
@@ -152,13 +154,13 @@ impl Parser {
 
     fn parse_program(&mut self) -> Result<Program, String> {
         let alphabet = self.parse_alphabet()?;
-        let mut functions = HashMap::new();
+        let mut functions: Vec<Function> = Vec::new();
         while !self.is_eof() {
             let function = self.parse_function()?;
-            if functions.contains_key(&function.name) {
+            if functions.iter().any(|func| func.name == function.name) {
                 return Err(format!("Function '{}' is defined twice", function.name));
             }
-            functions.insert(function.name.clone(), function);
+            functions.push(function);
         }
         Ok(Program { alphabet, functions })
     }
@@ -270,12 +272,21 @@ impl Parser {
                 }
                 "if" => {
                     self.next();
-                    let var = self.expect_ident("variable")?;
-                    self.expect_symbol("==")?;
-                    let value = self.parse_sign()?;
-                    self.expect_keyword("break")?;
-                    let label = self.expect_ident("label")?;
-                    Ok(Stmt::IfBreak { var, value, label })
+                    if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "@") {
+                        self.expect_symbol("@")?;
+                        self.expect_symbol("==")?;
+                        let value = self.parse_sign()?;
+                        self.expect_keyword("break")?;
+                        let label = self.expect_ident("label")?;
+                        Ok(Stmt::IfBreakHead { value, label })
+                    } else {
+                        let var = self.expect_ident("variable")?;
+                        self.expect_symbol("==")?;
+                        let value = self.parse_sign()?;
+                        self.expect_keyword("break")?;
+                        let label = self.expect_ident("label")?;
+                        Ok(Stmt::IfBreak { var, value, label })
+                    }
                 }
                 "loop" => {
                     self.next();
@@ -364,7 +375,7 @@ impl TextCodec for Program {
         write!(f, "alphabet: ")?;
         self.alphabet.write_fmt(f)?;
         writeln!(f)?;
-        for (idx, function) in self.functions.values().enumerate() {
+        for (idx, function) in self.functions.iter().enumerate() {
             if idx > 0 {
                 writeln!(f)?;
             }
@@ -404,6 +415,9 @@ fn write_stmt_list(
             }
             Stmt::IfBreak { var, value, label } => {
                 writeln!(f, "if {} == {} break {}", var, value.print(), label)?
+            }
+            Stmt::IfBreakHead { value, label } => {
+                writeln!(f, "if @ == {} break {}", value.print(), label)?
             }
             Stmt::Loop { label, body } => {
                 writeln!(f, "loop {}: {{", label)?;

@@ -233,7 +233,11 @@ fn main() {
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
     let flat = flatten_program(&program).unwrap();
-    let main = flat.functions.get("main").unwrap();
+    let main = flat
+        .functions
+        .iter()
+        .find(|func| func.name == "main")
+        .unwrap();
 
     assert!(!has_call(&main.body));
 

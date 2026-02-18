@@ -161,28 +161,38 @@ fn compile_program(program: &Program) -> Result<TuringMachineDefinition, String>
                         |sign| (sign.clone(), Direction::Constant),
                     )?;
                 }
-                Stmt::JumpIf { var, value, target } => {
-                    let var_idx = vars
-                        .iter()
-                        .position(|v| v == var)
-                        .ok_or_else(|| format!("Unknown variable '{}'", var))?;
-                    let next_pc = if &env[var_idx] == value {
-                        *target
-                    } else {
-                        pc + 1
-                    };
-                    add_for_all_tape(
-                        &mut code,
-                        &alphabet,
-                        &state,
-                        next_pc,
-                        env_idx,
-                        &state_map,
-                        |sign| (sign.clone(), Direction::Constant),
-                    )?;
+            Stmt::JumpIf { var, value, target } => {
+                let var_idx = vars
+                    .iter()
+                    .position(|v| v == var)
+                    .ok_or_else(|| format!("Unknown variable '{}'", var))?;
+                let next_pc = if &env[var_idx] == value {
+                    *target
+                } else {
+                    pc + 1
+                };
+                add_for_all_tape(
+                    &mut code,
+                    &alphabet,
+                    &state,
+                    next_pc,
+                    env_idx,
+                    &state_map,
+                    |sign| (sign.clone(), Direction::Constant),
+                )?;
+            }
+            Stmt::JumpIfHead { value, target } => {
+                for sign in &alphabet {
+                    let next_pc = if sign == value { *target } else { pc + 1 };
+                    let next_state = state_for(next_pc, env_idx, &state_map)?;
+                    code.push((
+                        (sign.clone(), state.clone()),
+                        (sign.clone(), next_state, Direction::Constant),
+                    ));
                 }
             }
         }
+    }
     }
 
     let init_state = state_for(0, 0, &state_map)?;
@@ -196,6 +206,7 @@ fn validate_constants(program: &Program, alphabet: &[Sign]) -> Result<(), String
     for stmt in &program.body {
         match stmt {
             Stmt::JumpIf { value, .. }
+            | Stmt::JumpIfHead { value, .. }
             | Stmt::ConstAssign(_, value)
             | Stmt::StorConst(value) => {
                 if !alphabet.contains(value) {
@@ -237,6 +248,7 @@ fn collect_vars(stmts: &[Stmt]) -> Vec<String> {
                 set.entry(dst.clone()).or_insert(());
                 set.entry(src.clone()).or_insert(());
             }
+            Stmt::JumpIfHead { .. } => {}
             _ => {}
         }
     }

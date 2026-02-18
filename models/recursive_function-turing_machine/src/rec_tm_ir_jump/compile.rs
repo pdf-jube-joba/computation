@@ -45,7 +45,8 @@ impl Compiler for RecTmIrToJumpCompiler {
 fn compile_to_jump(program: &Ir1Program) -> Result<Ir2Program, String> {
     let main = program
         .functions
-        .get("main")
+        .iter()
+        .find(|func| func.name == "main")
         .ok_or_else(|| "main() is not defined".to_string())?;
     let body = compile_block(&main.body)?;
     Ok(Ir2Program {
@@ -58,19 +59,17 @@ pub(crate) fn flatten_program(program: &Ir1Program) -> Result<Ir1Program, String
     validate_no_recursion(program)?;
     let main = program
         .functions
-        .get("main")
+        .iter()
+        .find(|func| func.name == "main")
         .ok_or_else(|| "main() is not defined".to_string())?;
     let mut counter = 0usize;
-    let mut functions = HashMap::new();
+    let mut functions: Vec<Function> = Vec::new();
     let body = expand_stmts(&main.body, program, &mut counter)?;
-    functions.insert(
-        "main".to_string(),
-        Function {
-            name: "main".to_string(),
-            params: main.params.clone(),
-            body,
-        },
-    );
+    functions.push(Function {
+        name: "main".to_string(),
+        params: main.params.clone(),
+        body,
+    });
     Ok(Ir1Program {
         alphabet: program.alphabet.clone(),
         functions,
@@ -110,7 +109,8 @@ fn expand_call(
 ) -> Result<Vec<Ir1Stmt>, String> {
     let callee = program
         .functions
-        .get(name)
+        .iter()
+        .find(|func| func.name == name)
         .ok_or_else(|| format!("Undefined function '{}'", name))?;
     if callee.params.len() != args.len() {
         return Err(format!(
@@ -233,6 +233,10 @@ fn rename_stmt(
             value: value.clone(),
             label: rename_label(label, label_map),
         },
+        Ir1Stmt::IfBreakHead { value, label } => Ir1Stmt::IfBreakHead {
+            value: value.clone(),
+            label: rename_label(label, label_map),
+        },
         Ir1Stmt::Loop { label, body } => Ir1Stmt::Loop {
             label: rename_label(label, label_map),
             body: rename_stmts(body, var_map, label_map),
@@ -271,6 +275,7 @@ fn collect_vars(stmts: &[Ir1Stmt], set: &mut HashSet<String>) {
             }
             Ir1Stmt::Lt | Ir1Stmt::Rt => {}
             Ir1Stmt::StorConst(_) => {}
+            Ir1Stmt::IfBreakHead { .. } => {}
         }
     }
 }
@@ -335,6 +340,24 @@ fn compile_block_inner(
                 });
                 loop_stack[loop_index].break_fixups.push(index);
             }
+            Ir1Stmt::IfBreakHead { value, label } => {
+                let mut found = None;
+                for (idx, ctx) in loop_stack.iter().enumerate().rev() {
+                    if ctx.label == *label {
+                        found = Some(idx);
+                        break;
+                    }
+                }
+                let Some(loop_index) = found else {
+                    return Err(format!("break target '{}' not found", label));
+                };
+                let index = instrs.len();
+                instrs.push(Ir2Stmt::JumpIfHead {
+                    value: value.clone(),
+                    target: 0,
+                });
+                loop_stack[loop_index].break_fixups.push(index);
+            }
             Ir1Stmt::Loop { label, body } => {
                 if loop_stack.iter().any(|ctx| ctx.label == *label) {
                     return Err(format!("Loop label '{}' is duplicated", label));
@@ -350,8 +373,14 @@ fn compile_block_inner(
                 let end = instrs.len();
                 if let Some(ctx) = loop_stack.pop() {
                     for fixup in ctx.break_fixups {
-                        if let Ir2Stmt::JumpIf { target, .. } = &mut instrs[fixup] {
-                            *target = end;
+                        match &mut instrs[fixup] {
+                            Ir2Stmt::JumpIf { target, .. } => {
+                                *target = end;
+                            }
+                            Ir2Stmt::JumpIfHead { target, .. } => {
+                                *target = end;
+                            }
+                            _ => {}
                         }
                     }
                 }

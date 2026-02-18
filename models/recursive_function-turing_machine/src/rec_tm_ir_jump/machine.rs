@@ -27,6 +27,10 @@ pub enum Stmt {
         value: Sign,
         target: usize,
     },
+    JumpIfHead {
+        value: Sign,
+        target: usize,
+    },
 }
 
 impl Stmt {
@@ -42,6 +46,9 @@ impl Stmt {
             Stmt::Jump(target) => format!("jump {}", target),
             Stmt::JumpIf { var, value, target } => {
                 format!("jump if {} == {} {}", var, value.print(), target)
+            }
+            Stmt::JumpIfHead { value, target } => {
+                format!("jump if @ == {} {}", value.print(), target)
             }
         }
     }
@@ -276,6 +283,16 @@ impl Machine for RecTmIrJumpMachine {
                     self.pc += 1;
                 }
             }
+            Stmt::JumpIfHead { value, target } => {
+                if target >= self.program.body.len() {
+                    return Err(format!("jump target out of range: {}", target));
+                }
+                if self.tape.head_read() == &value {
+                    self.pc = target;
+                } else {
+                    self.pc += 1;
+                }
+            }
         }
         Ok(None)
     }
@@ -295,7 +312,7 @@ fn validate_program(program: &Program) -> Result<(), String> {
     let len = program.body.len();
     for (idx, stmt) in program.body.iter().enumerate() {
         match stmt {
-            Stmt::Jump(target) | Stmt::JumpIf { target, .. } => {
+            Stmt::Jump(target) | Stmt::JumpIf { target, .. } | Stmt::JumpIfHead { target, .. } => {
                 if *target >= len {
                     return Err(format!(
                         "jump target out of range at {}: {}",
@@ -341,6 +358,10 @@ fn validate_signs_in_program(program: &Program, allowed: &HashSet<Sign>) -> Resu
             if !allowed.contains(value) {
                 return Err(format!("Unknown sign in jump if: {}", value.print()));
             }
+        } else if let Stmt::JumpIfHead { value, .. } = stmt {
+            if !allowed.contains(value) {
+                return Err(format!("Unknown sign in jump if head: {}", value.print()));
+            }
         } else if let Stmt::ConstAssign(_, value) | Stmt::StorConst(value) = stmt {
             if !allowed.contains(value) {
                 return Err(format!("Unknown sign in const: {}", value.print()));
@@ -364,6 +385,7 @@ fn collect_vars(stmts: &[Stmt]) -> BTreeSet<String> {
             Stmt::ConstAssign(dst, _) => {
                 vars.insert(dst.clone());
             }
+            Stmt::JumpIfHead { .. } => {}
             _ => {}
         }
     }

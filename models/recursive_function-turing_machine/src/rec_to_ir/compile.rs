@@ -1,58 +1,54 @@
+use super::S;
+use crate::rec_tm_ir::{Function, Stmt};
+
+// 0 定数関数
+// 入力: ... ? |x| x - ...
+// 出力: ... ? |x| - x - ...
+pub(crate) fn zero_builder() -> Function {
+    Function {
+        name: "zero_const_function".to_string(),
+        params: vec![],
+        body: vec![
+            Stmt::Rt,
+            Stmt::StorConst(S::B.into()),
+            Stmt::Rt,
+            Stmt::StorConst(S::X.into()),
+            // returns to be the initial position
+            Stmt::Lt,
+            Stmt::Lt,
+        ],
+    }
+}
+
+// 後者関数
+// 入力: ... ? |x| - l l ... l x - ... : l が n 個
+// 出力: ... ? |x| - l l ... l l x - ... : l が n+1 個
+pub(crate) fn succ_builder() -> Function {
+    Function {
+        name: "succ_function".to_string(),
+        params: vec![],
+        body: vec![
+            Stmt::Call {
+                name: "move_right_till_x".to_string(),
+                args: vec![],
+            },
+            Stmt::StorConst(S::L.into()),
+            Stmt::Rt,
+            Stmt::StorConst(S::X.into()),
+            // returns to be the initial position ... until the first x
+            Stmt::Call {
+                name: "move_left_till_x".to_string(),
+                args: vec![],
+            },
+        ],
+    }
+}
+
 /*
 use recursive_function::machine::RecursiveFunctions;
 use turing_machine::machine::TuringMachineDefinition;
 use turing_machine::manipulation::builder::TuringMachineBuilder;
 use utils::parse::ParseTextCodec;
-
-pub mod num_tape {
-    use crate::rec_to_ir::symbols::S;
-    use turing_machine::machine::{Sign, Tape};
-    use utils::number::*;
-
-    fn num_sings(num: Number) -> Vec<Sign> {
-        (0..num.as_usize().unwrap()).map(|_| S::L.into()).collect()
-    }
-
-    pub fn write(tuple: Vec<Number>) -> Tape {
-        let mut signs: Vec<Sign> = vec![];
-        signs.push(S::X.into());
-
-        for num in tuple {
-            signs.push(Sign::blank());
-            signs.extend_from_slice(&num_sings(num));
-            signs.push(Sign::blank());
-        }
-
-        Tape::from_vec(signs, 0).unwrap()
-    }
-
-    pub fn write_usize(tuple: Vec<usize>) -> Tape {
-        let number_tuple: Vec<Number> = tuple.into_iter().map(|x| x.into()).collect();
-        write(number_tuple)
-    }
-
-    fn read_one(signs: Vec<Sign>) -> Option<Vec<Number>> {
-        let v = signs
-            .split(|char| *char == Sign::blank())
-            .map(|vec| vec.len().into())
-            .skip(1);
-        Some(v.collect::<Vec<_>>())
-    }
-
-    pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
-        let (v, p) = tape.into_vec();
-        if v[p] != S::X.into() {
-            return None;
-        }
-
-        let iter = v.into_iter().skip(p);
-        read_one(iter.collect())
-    }
-
-    pub fn read_right_one_usize(tape: &Tape) -> Option<Vec<usize>> {
-        read_right_one(tape).map(|vec| vec.into_iter().map(|x| x.as_usize().unwrap()).collect())
-    }
-}
 
 pub fn zero_builder() -> TuringMachineBuilder {
     let definition: TuringMachineDefinition = include_str!("zero_builder.txt").parse_tc().unwrap();

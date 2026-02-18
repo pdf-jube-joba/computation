@@ -1,3 +1,116 @@
+use std::fmt::Display;
+
+use turing_machine::machine::Sign;
+use utils::TextCodec;
+
+use crate::rec_tm_ir::{Function, Program, Stmt};
+use crate::rec_to_ir::auxiliary::basic::{move_left_till_x, move_right_till_x};
+
+pub mod auxiliary;
+pub mod compile;
+
+#[cfg(test)]
+mod tests;
+
+#[derive(Debug, Clone)]
+pub enum S {
+    B, // '-' blank
+    L, // 'l' flag
+    X, // 'x' partition
+}
+
+impl From<S> for Sign {
+    fn from(s: S) -> Self {
+        match s {
+            S::B => Sign::blank(), // "-" blank
+            S::L => Sign::parse("l").unwrap(),
+            S::X => Sign::parse("x").unwrap(),
+        }
+    }
+}
+
+impl Display for S {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s: Sign = self.clone().into();
+        TextCodec::write_fmt(&s, f)
+    }
+}
+
+use turing_machine::machine::Tape;
+use utils::number::Number;
+
+fn num_sings(num: Number) -> Vec<Sign> {
+    (0..num.as_usize().unwrap()).map(|_| S::L.into()).collect()
+}
+
+pub fn write(tuple: Vec<Number>) -> Tape {
+    let mut signs: Vec<Sign> = vec![];
+    signs.push(S::X.into());
+
+    for num in tuple {
+        signs.push(Sign::blank());
+        signs.extend_from_slice(&num_sings(num));
+    }
+
+    Tape::from_vec(signs, 0).unwrap()
+}
+
+pub fn write_usize(tuple: Vec<usize>) -> Tape {
+    let number_tuple: Vec<Number> = tuple.into_iter().map(|x| x.into()).collect();
+    write(number_tuple)
+}
+
+fn read_one(signs: Vec<Sign>) -> Option<Vec<Number>> {
+    let v = signs
+        .split(|char| *char == Sign::blank())
+        .map(|vec| vec.len().into())
+        .skip(1);
+    Some(v.collect::<Vec<_>>())
+}
+
+pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
+    let (v, p) = tape.into_vec();
+    if v[p] != S::X.into() {
+        return None;
+    }
+
+    let iter = v.into_iter().skip(p);
+    read_one(iter.collect())
+}
+
+pub fn read_right_one_usize(tape: &Tape) -> Option<Vec<usize>> {
+    read_right_one(tape).map(|vec| vec.into_iter().map(|x| x.as_usize().unwrap()).collect())
+}
+
+fn wrap_function(function: Function) -> Program {
+    let mut functions = Vec::new();
+
+    let aux_functions = vec![move_right_till_x(), move_left_till_x()];
+    for aux in aux_functions {
+        if aux.name != function.name {
+            functions.push(aux);
+        }
+    }
+
+    let main_function = Function {
+        name: "main".to_string(),
+        params: vec![],
+        body: vec![Stmt::Call {
+            name: function.name.clone(),
+            args: vec![],
+        }],
+    };
+
+    Program {
+        alphabet: vec![S::B.into(), S::L.into(), S::X.into()],
+        functions: {
+            functions.push(function);
+            functions.push(main_function);
+            functions
+        },
+    }
+}
+
 /*
 use turing_machine::manipulation::graph_compose::{GraphOfBuilder, builder_composition};
 use turing_machine::{machine::*, manipulation::builder::TuringMachineBuilder};

@@ -76,6 +76,10 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
                 chars.next();
                 tokens.push(Token::Symbol(ch.to_string()));
             }
+            '@' => {
+                chars.next();
+                tokens.push(Token::Symbol("@".to_string()));
+            }
             ':' => {
                 chars.next();
                 if let Some('=') = chars.peek() {
@@ -239,11 +243,19 @@ impl Parser {
                     self.next();
                     if matches!(self.peek(), Some(Token::Ident(id)) if id == "if") {
                         self.expect_keyword("if")?;
-                        let var = self.expect_ident("variable")?;
-                        self.expect_symbol("==")?;
-                        let value = self.parse_sign()?;
-                        let target = self.expect_number("jump target")?;
-                        Ok(Stmt::JumpIf { var, value, target })
+                        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "@") {
+                            self.expect_symbol("@")?;
+                            self.expect_symbol("==")?;
+                            let value = self.parse_sign()?;
+                            let target = self.expect_number("jump target")?;
+                            Ok(Stmt::JumpIfHead { value, target })
+                        } else {
+                            let var = self.expect_ident("variable")?;
+                            self.expect_symbol("==")?;
+                            let value = self.parse_sign()?;
+                            let target = self.expect_number("jump target")?;
+                            Ok(Stmt::JumpIf { var, value, target })
+                        }
                     } else {
                         let target = self.expect_number("jump target")?;
                         Ok(Stmt::Jump(target))
@@ -310,6 +322,9 @@ impl TextCodec for Program {
             Stmt::Jump(target) => writeln!(f, "jump {}", target)?,
             Stmt::JumpIf { var, value, target } => {
                 writeln!(f, "jump if {} == {} {}", var, value.print(), target)?
+            }
+            Stmt::JumpIfHead { value, target } => {
+                writeln!(f, "jump if @ == {} {}", value.print(), target)?
             }
         }
         }

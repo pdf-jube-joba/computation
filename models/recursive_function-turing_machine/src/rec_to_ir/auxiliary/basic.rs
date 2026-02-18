@@ -1,3 +1,54 @@
+use crate::rec_tm_ir::{Function, Stmt};
+use crate::rec_to_ir::S;
+
+// Move right until the head reads 'x'. Head stops on 'x'.
+// ... |?_1| ?_2 ... ?_n ...
+// ... ?_1 ?_2 ... |?_n| ...
+// where
+//    - ?_1 in {'-', 'l', 'x'} **this can be 'x' not stop on ?_1**
+//    - ?_i in {'-', 'l'} for 1 < i < n
+//    - ?_n == 'x'
+pub(crate) fn move_right_till_x() -> Function {
+    Function {
+        name: "move_right_till_x".to_string(),
+        params: vec![],
+        body: vec![Stmt::Loop {
+            label: "until_x".to_string(),
+            body: vec![
+                Stmt::Rt,
+                Stmt::IfBreakHead {
+                    value: S::X.into(),
+                    label: "until_x".to_string(),
+                },
+            ],
+        }],
+    }
+}
+
+// Move left until the head reads 'x'. Head stops on 'x'.
+// ... ?_1 ?_2 ... |?_n| ...
+// ... |?_1| ?_2 ... ?_n ...
+// where
+//    - ?_n in {'-', 'l', 'x'} **this can be 'x' not stop on ?_n**
+//    - ?_i in {'-', 'l'} for 1 < i < n
+//    - ?_1 == 'x'
+pub(crate) fn move_left_till_x() -> Function {
+    Function {
+        name: "move_left_till_x".to_string(),
+        params: vec![],
+        body: vec![Stmt::Loop {
+            label: "until_x".to_string(),
+            body: vec![
+                Stmt::Lt,
+                Stmt::IfBreakHead {
+                    value: S::X.into(),
+                    label: "until_x".to_string(),
+                },
+            ],
+        }],
+    }
+}
+
 /*
 use turing_machine::{
     machine::*,
@@ -120,7 +171,6 @@ pub fn put(x: symbols::S) -> TuringMachineBuilder {
 pub fn putb() -> TuringMachineBuilder {
     put(symbols::S::B)
 }
-*/
 
 pub fn put1() -> TuringMachineBuilder {
     put(symbols::S::L)
@@ -533,3 +583,5 @@ mod tests {
         builder_test_predicate(&mut builder, 100, tests);
     }
 }
+
+*/
