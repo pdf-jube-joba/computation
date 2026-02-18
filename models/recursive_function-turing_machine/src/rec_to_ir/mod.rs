@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Display;
 
 use turing_machine::machine::Sign;
@@ -19,6 +19,17 @@ pub enum S {
     B, // '-' blank
     L, // 'l' flag
     X, // 'x' partition
+    C, // 'c' for "copy-from-here" in copy_to_end
+    R, // 'r' for "copy-to-here" in copy_to_end
+}
+
+impl S {
+    pub fn blank() -> Self {
+        S::B
+    }
+    pub fn all() -> Vec<Self> {
+        vec![S::B, S::L, S::X, S::C]
+    }
 }
 
 impl From<S> for Sign {
@@ -27,6 +38,8 @@ impl From<S> for Sign {
             S::B => Sign::blank(), // "-" blank
             S::L => Sign::parse("l").unwrap(),
             S::X => Sign::parse("x").unwrap(),
+            S::C => Sign::parse("c").unwrap(),
+            S::R => Sign::parse("r").unwrap(),
         }
     }
 }
@@ -112,7 +125,7 @@ pub(crate) fn wrap_function(function: Function) -> Program {
         .insert(main_function.name.clone(), main_function);
 
     Program {
-        alphabet: vec![S::B.into(), S::L.into(), S::X.into()],
+        alphabet: S::all().into_iter().map(Into::into).collect(),
         functions: registry.functions.into_values().collect(),
     }
 }
@@ -128,10 +141,6 @@ impl Registry {
             functions: HashMap::new(),
             stack: Vec::new(),
         }
-    }
-
-    fn get(&self, name: &str) -> Option<&Function> {
-        self.functions.get(name)
     }
 
     fn adhoc_insert(&mut self, name: &str) -> bool {

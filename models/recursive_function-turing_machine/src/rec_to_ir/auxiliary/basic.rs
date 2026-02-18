@@ -27,6 +27,20 @@ pub(crate) fn move_right_till_x_n_times(n: usize) -> Function {
     }
 }
 
+pub(crate) fn call_r(n: usize) -> Stmt {
+    Stmt::Call {
+        name: format!("move_right_till_x_{n}"),
+        args: vec![],
+    }
+}
+
+pub(crate) fn call_l(n: usize) -> Stmt {
+    Stmt::Call {
+        name: format!("move_left_till_x_{n}"),
+        args: vec![],
+    }
+}
+
 // Move left until the head reads 'x'. Head stops on 'x'.
 // ...  x  A[0] x A[1] x ... x A[n - 1] |?| - ...
 // ... |x| A[0] x A[1] x ... x A[n - 1]  ? - ...
@@ -50,5 +64,42 @@ pub(crate) fn move_left_till_x_n_times(n: usize) -> Function {
                 ],
             })
             .collect(),
+    }
+}
+
+// Concat 2 tuples
+// ... |x| A x B x - ...
+// ... |x| A B x - ...
+// where
+//   - A, B consists of {'-', 'l'} and does not contain 'x'
+pub(crate) fn concat() -> Function {
+    Function {
+        name: "concat".to_string(),
+        params: vec![],
+        body: vec![
+            Stmt::Call {
+                name: "move_right_till_x_2_times".to_string(),
+                args: vec![],
+            },
+            // "swap" (head == 'x')
+            Stmt::ConstAssign("put".to_string(), S::X.into()),
+            Stmt::StorConst(S::B.into()),
+            Stmt::Loop {
+                label: "loop".to_string(),
+                body: vec![
+                    Stmt::Lt,
+                    // swap
+                    Stmt::Read("tmp".to_string()),
+                    Stmt::Stor("put".to_string()),
+                    Stmt::Assign("put".to_string(), "tmp".to_string()),
+                    // if put == 'x' break
+                    Stmt::IfBreak {
+                        var: "put".to_string(),
+                        value: S::X.into(),
+                        label: "loop".to_string(),
+                    },
+                ],
+            },
+        ],
     }
 }

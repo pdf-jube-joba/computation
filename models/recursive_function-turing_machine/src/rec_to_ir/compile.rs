@@ -1,5 +1,5 @@
 use super::S;
-use crate::rec_tm_ir::{Function, Stmt};
+use crate::rec_tm_ir::{Function, Program, Stmt};
 
 // 0 定数関数
 // 入力: ... ? |x| x - ...
@@ -44,66 +44,48 @@ pub(crate) fn succ_builder() -> Function {
     }
 }
 
-/*
-use recursive_function::machine::RecursiveFunctions;
-use turing_machine::machine::TuringMachineDefinition;
-use turing_machine::manipulation::builder::TuringMachineBuilder;
-use utils::parse::ParseTextCodec;
-
-pub fn zero_builder() -> TuringMachineBuilder {
-    let definition: TuringMachineDefinition = include_str!("zero_builder.txt").parse_tc().unwrap();
-    let mut builder =
-        TuringMachineBuilder::new("zero_builder", definition.init_state().clone()).unwrap();
-    builder.accepted_state = definition.accepted_state().clone();
-    builder.code = definition.code().clone();
-    builder
-}
-
-pub fn succ_builder() -> TuringMachineBuilder {
-    let definition: TuringMachineDefinition = include_str!("succ_builder.txt").parse_tc().unwrap();
-    let mut builder =
-        TuringMachineBuilder::new("succ_adder", definition.init_state().clone()).unwrap();
-    builder.accepted_state = definition.accepted_state().clone();
-    builder.code = definition.code().clone();
-    builder
-}
-
 pub mod composition;
 pub mod mu_recursion;
 pub mod primitive_recursion;
 pub mod projection;
 
-#[cfg(test)]
-mod tests;
+use recursive_function::machine::RecursiveFunctions;
 
-pub fn compile(recursive_function: &RecursiveFunctions) -> TuringMachineBuilder {
+pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
     match recursive_function {
         RecursiveFunctions::ZeroConstant => zero_builder(),
         RecursiveFunctions::Successor => succ_builder(),
         RecursiveFunctions::Projection {
             parameter_length,
             projection_num,
-        } => projection::projection(*parameter_length, *projection_num),
+        } => {
+            todo!()
+        }
         RecursiveFunctions::Composition {
             parameter_length: _,
             outer_func,
             inner_funcs,
         } => {
             let outer_builder = compile(outer_func.as_ref());
-            let inner_builders: Vec<TuringMachineBuilder> =
-                inner_funcs.iter().map(compile).collect();
-            composition::composition(inner_builders, outer_builder)
+            let inner_builders: Vec<Function> = inner_funcs.iter().map(compile).collect();
+            todo!()
         }
         RecursiveFunctions::PrimitiveRecursion {
             zero_func,
             succ_func,
-        } => primitive_recursion::primitive_recursion(
-            compile(zero_func.as_ref()),
-            compile(succ_func.as_ref()),
-        ),
+        } => {
+            let zero_func = compile(zero_func.as_ref());
+            let succ_func = compile(succ_func.as_ref());
+            todo!()
+        }
         RecursiveFunctions::MuOperator { mu_func } => {
-            mu_recursion::mu_recursion(compile(mu_func.as_ref()))
+            let mu_func = compile(mu_func.as_ref());
+            todo!()
         }
     }
 }
-*/
+
+pub fn compile_to_program(recursive_function: &RecursiveFunctions) -> Program {
+    let main_function = compile(recursive_function);
+    crate::rec_to_ir::wrap_function(main_function)
+}

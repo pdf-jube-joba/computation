@@ -93,6 +93,8 @@ pub(crate) fn copy_to_end(n: usize) -> Function {
     }
 }
 
+// ... ? x A x - ...
+// ... ? x A x A x ... x A x - ... A * n times
 pub(crate) fn copy_n_times(n: usize) -> Function {
     // here we "generate" the body by repeating copy and move_right_till_x, and move_lefts at the end
     // compile time recursive calls are fine since n is known at compile time
@@ -122,5 +124,12 @@ pub(crate) fn copy_n_times(n: usize) -> Function {
         name: format!("copy_{n}"),
         params: vec![],
         body: closure(n),
+    }
+}
+
+pub(crate) fn copy_one() -> Stmt {
+    Stmt::Call {
+        name: "copy_0".to_string(),
+        args: vec![],
     }
 }
