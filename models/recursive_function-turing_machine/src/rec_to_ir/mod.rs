@@ -4,7 +4,7 @@ use std::fmt::Display;
 use turing_machine::machine::Sign;
 use utils::TextCodec;
 
-use crate::rec_tm_ir::{Function, Program, Stmt};
+use crate::rec_tm_ir::{Block, Function, Program, Stmt};
 use crate::rec_to_ir::auxiliary::basic::{move_left_till_x_n_times, move_right_till_x_n_times};
 use crate::rec_to_ir::auxiliary::copy;
 
@@ -19,8 +19,6 @@ pub enum S {
     B, // '-' blank
     L, // 'l' flag
     X, // 'x' partition
-    C, // 'c' for "copy-from-here" in copy_to_end
-    R, // 'r' for "copy-to-here" in copy_to_end
 }
 
 impl S {
@@ -28,7 +26,7 @@ impl S {
         S::B
     }
     pub fn all() -> Vec<Self> {
-        vec![S::B, S::L, S::X, S::C]
+        vec![S::B, S::L, S::X]
     }
 }
 
@@ -38,8 +36,6 @@ impl From<S> for Sign {
             S::B => Sign::blank(), // "-" blank
             S::L => Sign::parse("l").unwrap(),
             S::X => Sign::parse("x").unwrap(),
-            S::C => Sign::parse("c").unwrap(),
-            S::R => Sign::parse("r").unwrap(),
         }
     }
 }
@@ -113,10 +109,11 @@ pub(crate) fn wrap_function(function: Function) -> Program {
 
     let main_function = Function {
         name: "main".to_string(),
-        params: vec![],
-        body: vec![Stmt::Call {
-            name: function.name.clone(),
-            args: vec![],
+        blocks: vec![Block {
+            label: "main".to_string(),
+            body: vec![Stmt::Call {
+                name: function.name.clone(),
+            }],
         }],
     };
 
@@ -180,7 +177,14 @@ impl Registry {
             let Some(func) = self.functions.get(&name) else {
                 continue;
             };
-            for callee in collect_calls(&func.body) {
+
+            let stmts: Vec<&_> = func
+                .blocks
+                .iter()
+                .flat_map(|block| block.body.as_slice())
+                .collect();
+
+            for callee in collect_calls(&stmts) {
                 if self.functions.contains_key(&callee) || self.stack.contains(&callee) {
                     continue;
                 }
@@ -197,13 +201,11 @@ impl Registry {
     }
 }
 
-fn collect_calls(stmts: &[Stmt]) -> Vec<String> {
+fn collect_calls(stmts: &[&Stmt]) -> Vec<String> {
     let mut out = Vec::new();
     for stmt in stmts {
-        match stmt {
-            Stmt::Call { name, .. } => out.push(name.clone()),
-            Stmt::Loop { body, .. } => out.extend(collect_calls(body)),
-            _ => {}
+        if let Stmt::Call { name, .. } = stmt {
+            out.push(name.clone())
         }
     }
     out
