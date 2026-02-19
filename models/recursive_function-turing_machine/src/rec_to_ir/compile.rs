@@ -1,5 +1,7 @@
-use super::S;
-use crate::rec_tm_ir::{Function, Program, Stmt};
+use crate::rec_tm_ir::{Block, Function, Program, Stmt};
+use crate::rec_to_ir::S;
+use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
+use crate::{assign, cond, lv, rv};
 
 // 0 定数関数
 // 入力: ... ? |x| x - ...
@@ -7,16 +9,18 @@ use crate::rec_tm_ir::{Function, Program, Stmt};
 pub(crate) fn zero_builder() -> Function {
     Function {
         name: "zero_const_function".to_string(),
-        params: vec![],
-        body: vec![
-            Stmt::Rt,
-            Stmt::StorConst(S::B.into()),
-            Stmt::Rt,
-            Stmt::StorConst(S::X.into()),
-            // returns to be the initial position
-            Stmt::Lt,
-            Stmt::Lt,
-        ],
+        blocks: vec![Block {
+            label: "entry".to_string(),
+            body: vec![
+                Stmt::Rt,
+                assign!(lv!(@), rv!(const S::B)),
+                Stmt::Rt,
+                assign!(lv!(@), rv!(const S::X)),
+                // returns to be the initial position
+                Stmt::Lt,
+                Stmt::Lt,
+            ],
+        }],
     }
 }
 
@@ -26,23 +30,23 @@ pub(crate) fn zero_builder() -> Function {
 pub(crate) fn succ_builder() -> Function {
     Function {
         name: "succ_function".to_string(),
-        params: vec![],
-        body: vec![
-            Stmt::Call {
-                name: "move_right_till_x_1".to_string(),
-                args: vec![],
-            },
-            Stmt::StorConst(S::L.into()),
-            Stmt::Rt,
-            Stmt::StorConst(S::X.into()),
-            // returns to be the initial position ... until the first x
-            Stmt::Call {
-                name: "move_left_till_x_1".to_string(),
-                args: vec![],
-            },
-        ],
+        blocks: vec![Block {
+            label: "entry".to_string(),
+            body: vec![
+                call_r(1),
+                assign!(lv!(@), rv!(const S::L)),
+                Stmt::Rt,
+                assign!(lv!(@), rv!(const S::X)),
+                // returns to be the initial position ... until the first x
+                Stmt::Call {
+                    name: "move_left_till_x_1".to_string(),
+                },
+            ],
+        }],
     }
 }
+
+pub use projection::projection;
 
 pub mod composition;
 pub mod mu_recursion;

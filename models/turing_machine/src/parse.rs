@@ -51,16 +51,20 @@ impl TextCodec for Tape {
             return Err("Invalid tape format | format ... 0,1,2|3|4,5,6".to_string());
         }
         let mut v = vec![];
-        for s in parts[0].split(',') {
-            let s = <Sign as TextCodec>::parse(s.trim())?;
-            v.push(s);
+        if !parts[0].trim().is_empty() {
+            for s in parts[0].trim().split(',') {
+                let s = <Sign as TextCodec>::parse(s.trim())?;
+                v.push(s);
+            }
         }
         let pos = v.len();
         let head: Sign = <Sign as TextCodec>::parse(parts[1].trim())?;
         v.push(head.clone());
-        for s in parts[2].split(',') {
-            let sign: Sign = <Sign as TextCodec>::parse(s.trim())?;
-            v.push(sign);
+        if !parts[2].trim().is_empty() {
+            for s in parts[2].trim().split(',') {
+                let sign: Sign = <Sign as TextCodec>::parse(s.trim())?;
+                v.push(sign);
+            }
         }
         Tape::from_vec(v, pos)
     }

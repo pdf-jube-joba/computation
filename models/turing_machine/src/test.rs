@@ -3,9 +3,7 @@ use utils::TextCodec;
 use crate::machine::{Direction, Sign, Tape};
 
 fn map_v(v: Vec<&str>) -> Vec<Sign> {
-    v.into_iter()
-        .map(|s| <Sign as TextCodec>::parse(s).unwrap())
-        .collect()
+    v.iter().map(|s| TextCodec::parse(s).unwrap()).collect()
 }
 
 #[test]
@@ -20,10 +18,34 @@ fn test_tape_eq() {
 
 #[test]
 fn test_tape_lr() {
-    let v = map_v(vec!["0", "1", "2", "3", "4", "5", "6"]);
+    let v = map_v(vec!["a", "b", "c", "d", "e", "f", "g"]);
 
     let mut tape = Tape::from_vec(v.clone(), 3).unwrap();
     tape.move_to(&Direction::Left);
     let tape2 = Tape::from_vec(v.clone(), 2).unwrap();
     assert!(tape.eq(&tape2));
+}
+
+#[test]
+fn tape_lr_blank_generated() {
+    let v = map_v(vec!["a", "b", "c", "d", "e", "f", "g"]);
+
+    let mut tape = Tape::from_vec(v.clone(), 1).unwrap();
+    for _ in 0..3 {
+        tape.move_to(&Direction::Left);
+    }
+
+    let v2 = map_v(vec!["-", "-", "a", "b", "c", "d", "e", "f", "g"]);
+
+    let tape2 = Tape::from_vec(v2.clone(), 0).unwrap();
+    assert!(tape.eq(&tape2));
+}
+
+#[test]
+fn tape_parse() {
+    use utils::TextCodec;
+    let _ = Tape::parse("a|b|c").unwrap();
+    let _ = Tape::parse("-|-|-").unwrap();
+    let _ = Tape::parse("a,b|-|c,d").unwrap();
+    let _ = Tape::parse("|-|").unwrap();
 }

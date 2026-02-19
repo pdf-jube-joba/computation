@@ -1,19 +1,7 @@
-use crate::rec_tm_ir::{Function, Stmt};
+use crate::rec_tm_ir::{Block, Function, Stmt};
 use crate::rec_to_ir::S;
-
-fn call_move_right_till_x() -> Stmt {
-    Stmt::Call {
-        name: "move_right_till_x_1".to_string(),
-        args: vec![],
-    }
-}
-
-fn call_move_left_till_x() -> Stmt {
-    Stmt::Call {
-        name: "move_left_till_x_1".to_string(),
-        args: vec![],
-    }
-}
+use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
+use crate::{assign, cond, lv, rv};
 
 // input:   ... ? |x| A x B x - ...
 // output:  ... ? |x| B x A x - ...
@@ -21,77 +9,82 @@ fn call_move_left_till_x() -> Stmt {
 pub(crate) fn swap_tuple() -> Function {
     Function {
         name: "swap_tuple".to_string(),
-        params: vec![],
-        body: vec![
-            // put := 'x'
-            Stmt::ConstAssign("put".to_string(), S::X.into()),
-            // moves to the right of B
-            call_move_right_till_x(),
-            call_move_right_till_x(),
-            // ... ? x A x B |x| - ...
-            // first loop
-            Stmt::Loop {
-                label: "first_loop".to_string(),
-                body: vec![Stmt::Loop {
-                    label: "insert_swap_1".to_string(),
-                    body: vec![
-                        Stmt::Lt,
-                        // swap head and "put"
-                        Stmt::Read("tmp".to_string()),
-                        Stmt::Stor("put".to_string()),
-                        Stmt::Assign("put".to_string(), "tmp".to_string()),
-                        // if "put" == 'x' goto insert_swap_2
-                        Stmt::IfBreak {
-                            var: "put".to_string(),
-                            value: S::X.into(),
-                            label: "insert_swap_1".to_string(),
-                        },
-                    ],
-                }],
-            },
-            Stmt::Loop {
-                label: "main_loop".to_string(),
+        blocks: vec![
+            Block {
+                label: "initially".to_string(),
                 body: vec![
-                    Stmt::Loop {
-                        label: "insert_swap_1".to_string(),
-                        body: vec![
-                            Stmt::Lt,
-                            // swap head and "put"
-                            Stmt::Read("tmp".to_string()),
-                            Stmt::Stor("put".to_string()),
-                            Stmt::Assign("put".to_string(), "tmp".to_string()),
-                            // if "put" == 'x' goto insert_swap_2
-                            Stmt::IfBreak {
-                                var: "put".to_string(),
-                                value: S::X.into(),
-                                label: "insert_swap_1".to_string(),
-                            },
-                        ],
-                    },
+                    // put := 'x'
+                    assign!(lv!("put"), rv!(const S::X)),
+                    // moves to last of 'x'
+                    call_r(2),
+                    // ... ? x A x B |x| - ...
+                ],
+            },
+            Block {
+                label: "loop_1".to_string(),
+                body: vec![
+                    // swap "put" and @head
+                    assign!(lv!("tmp"), rv!(@)),
+                    assign!(lv!(@), rv!("put")),
+                    assign!(lv!("put"), rv!("tmp")),
+                    // left
                     Stmt::Lt,
-                    Stmt::Loop {
-                        label: "insert_swap_2".to_string(),
-                        body: vec![
-                            Stmt::IfBreakHead {
-                                value: S::X.into(),
-                                label: "insert_swap_2".to_string(),
-                            },
-                            // swap head and "put"
-                            Stmt::Read("tmp".to_string()),
-                            Stmt::Stor("put".to_string()),
-                            Stmt::Assign("put".to_string(), "tmp".to_string()),
-                            // if "put" == 'x' goto insert_swap_2
-                            Stmt::Lt,
-                        ],
+                    Stmt::Break {
+                        cond: cond!(rv!("put"), rv!(const S::X)),
                     },
-                    Stmt::IfBreak {
-                        var: "put".to_string(),
-                        value: S::X.into(),
-                        label: "main_loop".to_string(),
+                    Stmt::Continue { cond: None },
+                ],
+            },
+            Block {
+                label: "loop_2".to_string(),
+                body: vec![
+                    // swap "put" and @head
+                    assign!(lv!("tmp"), rv!(@)),
+                    assign!(lv!(@), rv!("put")),
+                    assign!(lv!("put"), rv!("tmp")),
+                    // left
+                    Stmt::Lt,
+                    Stmt::Break {
+                        cond: cond!(rv!("put"), rv!(const S::X)),
                     },
-                    call_move_right_till_x(),
-                    call_move_right_till_x(),
-                    call_move_right_till_x(),
+                    Stmt::Continue { cond: None },
+                ],
+            },
+            Block {
+                label: "loop_3".to_string(),
+                body: vec![
+                    // swap "put" and @head
+                    assign!(lv!("tmp"), rv!(@)),
+                    assign!(lv!(@), rv!("put")),
+                    assign!(lv!("put"), rv!("tmp")),
+                    // left
+                    Stmt::Lt,
+                    Stmt::Break {
+                        cond: cond!(rv!("put"), rv!(const S::X)),
+                    },
+                    Stmt::Continue { cond: None },
+                ],
+            },
+            Block {
+                label: "left_of_left".to_string(),
+                body: vec![
+                    // return to "initial position"
+                    Stmt::Rt,
+                    Stmt::Return {
+                        cond: cond!(rv!(@), rv!(const S::X)),
+                    },
+                    // swap "put" and @head
+                    assign!(lv!("tmp"), rv!(@)),
+                    assign!(lv!(@), rv!("put")),
+                    assign!(lv!("put"), rv!("tmp")),
+                    // return to left of last 'x'
+                    call_r(3),
+                    Stmt::Lt,
+                    // return
+                    Stmt::Jump {
+                        label: "loop_1".to_string(),
+                        cond: None,
+                    },
                 ],
             },
         ],
@@ -105,28 +98,31 @@ pub(crate) fn rotate(n: usize) -> Function {
     if n == 0 || n == 1 {
         return Function {
             name: format!("rotate_{n}"),
-            params: vec![],
-            body: vec![],
+            blocks: vec![],
         };
     }
 
-    let mut body = vec![];
+    let mut blocks = vec![];
 
-    for _ in 0..n - 1 {
-        body.push(Stmt::Call {
-            name: "swap_tuple".to_string(),
-            args: vec![],
-        });
-        body.push(call_move_right_till_x());
+    for i in 0..n - 1 {
+        blocks.push(Block {
+            label: format!("rot_swap_{i}"),
+            body: vec![
+                Stmt::Call {
+                    name: "swap_tuple".to_string(),
+                },
+                call_r(1),
+            ],
+        })
     }
 
-    for _ in 0..n - 1 {
-        body.push(call_move_left_till_x());
-    }
+    blocks.push(Block {
+        label: "return_to_init".to_string(),
+        body: vec![call_l(n - 1)],
+    });
 
     Function {
         name: format!("rotate_{n}"),
-        params: vec![],
-        body,
+        blocks,
     }
 }

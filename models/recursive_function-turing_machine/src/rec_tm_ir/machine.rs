@@ -183,12 +183,12 @@ impl TextCodec for Environment {
 
 #[derive(Debug, Clone)]
 pub struct Snapshot {
-    function: String,
-    pc: (usize, usize),
-    instruction: Option<String>,
-    env: Environment,
-    tape: Tape,
-    stack: Vec<String>,
+    pub function: String,
+    pub pc: (usize, usize),
+    pub instruction: Option<String>,
+    pub env: Environment,
+    pub tape: Tape,
+    pub stack: Vec<String>,
 }
 
 impl From<Snapshot> for serde_json::Value {
@@ -301,7 +301,7 @@ impl Machine for RecTmIrMachine {
     type AInput = Tape;
     type SnapShot = Snapshot;
     type RInput = ();
-    type Output = Environment;
+    type Output = Tape;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         validate_no_recursion(&code)?;
@@ -402,12 +402,12 @@ impl Machine for RecTmIrMachine {
 }
 
 impl RecTmIrMachine {
-    fn return_from_call(&mut self) -> Option<Environment> {
+    fn return_from_call(&mut self) -> Option<Tape> {
         if let Some(frame) = self.stack.pop() {
             self.frame = frame;
             None
         } else {
-            Some(self.frame.env.clone())
+            Some(self.tape.clone())
         }
     }
 

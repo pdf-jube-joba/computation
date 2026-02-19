@@ -99,6 +99,10 @@ fn wrap_function(function: crate::rec_tm_ir::Function) -> Program {
     super::wrap_function(function)
 }
 
+/*
+=== Number intepretation ===
+*/
+
 #[test]
 fn number_tape_roundtrip() {
     let cases = vec![vec![], vec![0], vec![1], vec![2], vec![1, 1], vec![1, 2, 3]];
@@ -109,32 +113,15 @@ fn number_tape_roundtrip() {
     }
 }
 
-#[test]
-fn zero_function_works() {
-    let program = wrap_function(compile::zero_builder());
-    let mut machine = RecTmIrMachine::make(program, tape_from(&["x", "x", "-"], 0)).unwrap();
-    run_until_halt(&mut machine, 64, false).unwrap();
-    let tape = snapshot_tape(machine.current());
-    let expected = tape_from(&["x", "-", "x", "-"], 0);
-    assert!(tape.eq(&expected));
-}
-
-#[test]
-fn succ_function_works() {
-    let program = wrap_function(compile::succ_builder());
-    let mut machine =
-        RecTmIrMachine::make(program, tape_from(&["x", "-", "l", "l", "x", "-"], 0)).unwrap();
-    run_until_halt(&mut machine, 64, false).unwrap();
-    let tape = snapshot_tape(machine.current());
-    let expected = tape_from(&["x", "-", "l", "l", "l", "x", "-"], 0);
-    assert!(tape.eq(&expected));
-}
+/*
+=== basic function ===
+*/
 
 #[test]
 fn move_right_till_x_works() {
     let program = wrap_function(basic::move_right_till_x_n_times(1));
     let mut machine = RecTmIrMachine::make(program, tape_from(&["-", "l", "x", "-"], 0)).unwrap();
-    run_until_halt(&mut machine, 64, false).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
     let tape = snapshot_tape(machine.current());
     let expected = tape_from(&["-", "l", "x", "-"], 2);
     assert!(tape.eq(&expected));
@@ -144,33 +131,9 @@ fn move_right_till_x_works() {
 fn move_left_till_x_works() {
     let program = wrap_function(basic::move_left_till_x_n_times(1));
     let mut machine = RecTmIrMachine::make(program, tape_from(&["x", "-", "l", "-"], 3)).unwrap();
-    run_until_halt(&mut machine, 64, false).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
     let tape = snapshot_tape(machine.current());
     let expected = tape_from(&["x", "-", "l", "-"], 0);
-    assert!(tape.eq(&expected));
-}
-
-#[test]
-fn swap_shorter_b() {
-    let program = wrap_function(rotate::swap_tuple());
-    let input = tape_from(&["x", "-", "l", "l", "x", "-", "l", "x"], 0);
-    let mut machine = RecTmIrMachine::make(program, input).unwrap();
-    run_until_halt_with_vars(&mut machine, 64 * 3, true, &["put"]).unwrap();
-    let tape = snapshot_tape(machine.current());
-    eprintln!("{}", tape.print());
-    let expected = tape_from(&["x", "-", "l", "x", "-", "l", "l", "x"], 0);
-    assert!(tape.eq(&expected));
-}
-
-#[test]
-fn swap_longer_b() {
-    let program = wrap_function(rotate::swap_tuple());
-    let input = tape_from(&["x", "-", "l", "x", "-", "l", "l", "x"], 0);
-    let mut machine = RecTmIrMachine::make(program, input).unwrap();
-    run_until_halt(&mut machine, 64 * 8, false).unwrap();
-    let tape = snapshot_tape(machine.current());
-    eprintln!("{}", tape.print());
-    let expected = tape_from(&["x", "-", "l", "l", "x", "-", "l", "x"], 0);
     assert!(tape.eq(&expected));
 }
 
@@ -209,6 +172,80 @@ fn move_till_x_n_times_works() {
     assert!(tape.eq(&expected));
 }
 
+/*
+=== rotate function ===
+*/
+
+#[test]
+fn swap_shorter_b() {
+    let program = wrap_function(rotate::swap_tuple());
+    let input = tape_from(&["x", "-", "l", "l", "x", "-", "l", "x"], 0);
+    let mut machine = RecTmIrMachine::make(program, input).unwrap();
+    run_until_halt_with_vars(&mut machine, 64 * 64, true, &["put", "where", "where2"]).unwrap();
+    let tape = snapshot_tape(machine.current());
+    eprintln!("{}", tape.print());
+    let expected = tape_from(&["x", "-", "l", "x", "-", "l", "l", "x"], 0);
+    assert!(tape.eq(&expected));
+}
+
+#[test]
+fn swap_longer_b() {
+    let program = wrap_function(rotate::swap_tuple());
+    let input = tape_from(&["x", "-", "l", "x", "-", "l", "l", "x"], 0);
+    let mut machine = RecTmIrMachine::make(program, input).unwrap();
+    run_until_halt(&mut machine, 64 * 64, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    eprintln!("{}", tape.print());
+    let expected = tape_from(&["x", "-", "l", "l", "x", "-", "l", "x"], 0);
+    assert!(tape.eq(&expected));
+}
+
+#[test]
+fn swap_nullable() {
+    let program = wrap_function(rotate::swap_tuple());
+
+    let input = tape_from(&["x", "x", "x"], 0);
+    let mut machine = RecTmIrMachine::make(program.clone(), input).unwrap();
+    run_until_halt(&mut machine, 64 * 64, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    eprintln!("{}", tape.print());
+    let expected = tape_from(&["x", "x", "x"], 0);
+    assert!(tape.eq(&expected));
+
+    let input = tape_from(&["x", "x", "-", "x"], 0);
+    let mut machine = RecTmIrMachine::make(program.clone(), input).unwrap();
+    run_until_halt(&mut machine, 64 * 64, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    eprintln!("{}", tape.print());
+    let expected = tape_from(&["x", "-", "x", "x"], 0);
+    assert!(tape.eq(&expected));
+
+    let input = tape_from(&["x", "-", "x", "x"], 0);
+    let mut machine = RecTmIrMachine::make(program.clone(), input).unwrap();
+    run_until_halt(&mut machine, 64 * 64, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    eprintln!("{}", tape.print());
+    let expected = tape_from(&["x", "x", "-", "x"], 0);
+    assert!(tape.eq(&expected));
+}
+
+#[test]
+fn rotate() {
+    let program = wrap_function(rotate::rotate(3));
+
+    let input = tape_from(&["x", "-", "x", "x", "l", "x"], 0);
+    let mut machine = RecTmIrMachine::make(program.clone(), input).unwrap();
+    run_until_halt(&mut machine, 64 * 64, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    eprintln!("{}", tape.print());
+    let expected = tape_from(&["x", "x", "l", "x", "-", "x"], 0);
+    assert!(tape.eq(&expected));
+}
+
+/*
+=== copy function ===
+*/
+
 #[test]
 fn copy_to_end_works() {
     let symbols = vec!["x", "-", "l", "l", "x", "l", "-", "l", "x"];
@@ -223,21 +260,6 @@ fn copy_to_end_works() {
         0,
     );
     assert!(tape.eq(&expected));
-}
-
-#[test]
-fn zero_succ_number_roundtrip() {
-    let zero_program = wrap_function(compile::zero_builder());
-    let mut zero_machine = RecTmIrMachine::make(zero_program, write_usize(vec![])).unwrap();
-    run_until_halt(&mut zero_machine, 64, false).unwrap();
-    let zero_tape = snapshot_tape(zero_machine.current());
-    assert_eq!(read_right_one_usize(&zero_tape), Some(vec![0]));
-
-    let succ_program = wrap_function(compile::succ_builder());
-    let mut succ_machine = RecTmIrMachine::make(succ_program, write_usize(vec![2])).unwrap();
-    run_until_halt(&mut succ_machine, 64, false).unwrap();
-    let succ_tape = snapshot_tape(succ_machine.current());
-    assert_eq!(read_right_one_usize(&succ_tape), Some(vec![3]));
 }
 
 #[test]
@@ -293,4 +315,75 @@ fn copy_n_times_two_appends_twice() {
         0,
     );
     assert!(tape.eq(&expected));
+}
+
+/*
+=== zero function and succ function ===
+*/
+
+#[test]
+fn zero_succ_number_roundtrip() {
+    let zero_program = wrap_function(compile::zero_builder());
+    let mut zero_machine = RecTmIrMachine::make(zero_program, write_usize(vec![])).unwrap();
+    run_until_halt(&mut zero_machine, 64, false).unwrap();
+    let zero_tape = snapshot_tape(zero_machine.current());
+    assert_eq!(read_right_one_usize(&zero_tape), Some(vec![0]));
+
+    let succ_program = wrap_function(compile::succ_builder());
+    let mut succ_machine = RecTmIrMachine::make(succ_program, write_usize(vec![2])).unwrap();
+    run_until_halt(&mut succ_machine, 64, false).unwrap();
+    let succ_tape = snapshot_tape(succ_machine.current());
+    assert_eq!(read_right_one_usize(&succ_tape), Some(vec![3]));
+}
+
+#[test]
+fn zero_function_works() {
+    let program = wrap_function(compile::zero_builder());
+    let mut machine = RecTmIrMachine::make(program, tape_from(&["x", "x", "-"], 0)).unwrap();
+    run_until_halt(&mut machine, 64, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    let expected = tape_from(&["x", "-", "x", "-"], 0);
+    assert!(tape.eq(&expected));
+}
+
+#[test]
+fn succ_function_works() {
+    let program = wrap_function(compile::succ_builder());
+    let mut machine =
+        RecTmIrMachine::make(program, tape_from(&["x", "-", "l", "l", "x", "-"], 0)).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    let expected = tape_from(&["x", "-", "l", "l", "l", "x", "-"], 0);
+    assert!(tape.eq(&expected));
+}
+
+/*
+=== projection function ===
+*/
+
+#[test]
+fn projection_first_element() {
+    let program = wrap_function(compile::projection(3, 0));
+    let mut machine = RecTmIrMachine::make(program, write_usize(vec![2, 0, 3])).unwrap();
+    run_until_halt(&mut machine, 1024, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert_eq!(read_right_one_usize(&tape), Some(vec![2]));
+}
+
+#[test]
+fn projection_middle_zero() {
+    let program = wrap_function(compile::projection(3, 1));
+    let mut machine = RecTmIrMachine::make(program, write_usize(vec![4, 0, 1])).unwrap();
+    run_until_halt(&mut machine, 1024, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert_eq!(read_right_one_usize(&tape), Some(vec![0]));
+}
+
+#[test]
+fn projection_single_tuple_zero() {
+    let program = wrap_function(compile::projection(1, 0));
+    let mut machine = RecTmIrMachine::make(program, write_usize(vec![0])).unwrap();
+    run_until_halt(&mut machine, 1024, false).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert_eq!(read_right_one_usize(&tape), Some(vec![0]));
 }

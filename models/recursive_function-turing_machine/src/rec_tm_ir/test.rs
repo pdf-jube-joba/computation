@@ -1,8 +1,12 @@
-use utils::{Machine, TextCodec};
+use crate::{assign, lv, rv};
+use turing_machine::machine::Sign;
+use utils::{Machine, TextCodec, parse::ParseTextCodec};
 
-use super::{Environment, RecTmIrMachine, Snapshot};
+use crate::rec_tm_ir::{Block, Function, Program, Stmt};
 
-fn run_until_halt(machine: &mut RecTmIrMachine, limit: usize) -> EnvironmentResult {
+use super::{RecTmIrMachine, Snapshot};
+
+fn run_until_halt(machine: &mut RecTmIrMachine, limit: usize) -> TapeResult {
     for _ in 0..limit {
         if let Some(env) = machine.step(())? {
             return Ok(env);
@@ -11,7 +15,7 @@ fn run_until_halt(machine: &mut RecTmIrMachine, limit: usize) -> EnvironmentResu
     Err("step limit exceeded".to_string())
 }
 
-type EnvironmentResult = Result<Environment, String>;
+type TapeResult = Result<crate::rec_tm_ir::Tape, String>;
 
 fn head_text(snapshot: Snapshot) -> Result<String, String> {
     let value: serde_json::Value = snapshot.into();
@@ -41,23 +45,66 @@ fn head_text(snapshot: Snapshot) -> Result<String, String> {
     Err("highlighted tape cell not found".to_string())
 }
 
+fn ms(s: &str) -> Sign {
+    TextCodec::parse(s).unwrap()
+}
+
+#[test]
+fn tape_left_right() {
+    let program = Program {
+        alphabet: vec![ms("a")],
+        functions: vec![Function {
+            name: "main".to_string(),
+            blocks: vec![Block {
+                label: "entry".to_string(),
+                body: vec![
+                    assign!(lv!(@), rv!(const ms("a"))),
+                    Stmt::Rt,
+                    Stmt::Rt,
+                    assign!(lv!(@), rv!(const ms("a"))),
+                    Stmt::Lt,
+                    Stmt::Lt,
+                    Stmt::Lt,
+                    Stmt::Lt,
+                    assign!(lv!(@), rv!(const ms("a"))),
+                ],
+            }],
+        }],
+    };
+    let tape = <RecTmIrMachine as Machine>::parse_ainput("|-|").unwrap();
+    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
+
+    for _ in 0..10 {
+        let snapshot = machine.current();
+        eprintln!("{}", snapshot.tape.print());
+        let _ = machine.step(());
+    }
+
+    let snapshot = machine.current();
+    eprintln!("{}", snapshot.tape.print());
+
+    let expected_tape: crate::rec_tm_ir::Tape = "|a|-,a,-,a".parse_tc().unwrap();
+
+    assert!(snapshot.tape.eq(&expected_tape))
+}
+
 #[test]
 fn call_does_not_share_env() {
     let code = r#"
 alphabet: (a, b)
 fn f() {
   label entry: {
-    READ x
+    x := @
   }
 }
 
 fn main() {
   label entry: {
-    READ x
+    x := @
     RT
     call f
     LT
-    STOR x
+    @ := x
   }
 }
 "#;
@@ -65,8 +112,8 @@ fn main() {
     let tape = <RecTmIrMachine as Machine>::parse_ainput("-|a|b").unwrap();
     let mut machine = RecTmIrMachine::make(program, tape).unwrap();
 
-    let output = run_until_halt(&mut machine, 64).unwrap();
-    assert_eq!(output.print().trim(), "x = a");
+    let _ = run_until_halt(&mut machine, 64).unwrap();
+    assert_eq!(machine.current().env.print().trim(), "x = a");
 
     let head = head_text(machine.current()).unwrap();
     assert_eq!(head, "a");
@@ -100,17 +147,17 @@ fn scan_and_mark_tape() {
 alphabet: (m, a, b, x)
 fn main() {
   label entry: {
-    READ mark
+    mark := @
     jump scan
   }
   label scan: {
     RT
-    READ cur
-    jump_if cur == x : done
-    jump scaｌ
+    cur := @
+    jump done if cur == const x
+    jump scan
   }
   label done: {
-    STOR mark
+    @ := mark
   }
 }
 "#;
@@ -130,7 +177,7 @@ alphabet: (a, b)
 fn g() {
   label entry: {
     RT
-    READ p
+    p := @
     LT
   }
 }
@@ -138,13 +185,13 @@ fn g() {
 fn f() {
   label entry: {
     call g
-    STOR p
+    @ := p
   }
 }
 
 fn main() {
   label entry: {
-    READ x
+    x := @
     call f
   }
 }
@@ -168,14 +215,14 @@ fn main() {
   }
   label scan_b: {
     RT
-    READ v
-    jump_if v == b : scan_c
+    v := @
+    jump scan_c if v == const b
     jump scan_b
   }
   label scan_c: {
     RT
-    READ v
-    jump_if v == c : done
+    v := @
+    jump done if v == const c
     jump scan_b
   }
   label done: {
@@ -197,11 +244,30 @@ fn repeated_calls_keep_env_isolated() {
 alphabet: (a, b, c)
 fn writer() {
   label entry: {
-    READ x
-    RT
-    STOR x
-    LT
+    jump second if flag == const a
+    flag := const a
+    @ := const a
+    return
   }
+  label second: {
+    @ := const b
+    return
+  }
+}
+fn main() {
+  label entry: {
+    call writer
+    call writer
+  }
+}
+"#;
+    let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
+    let tape = <RecTmIrMachine as Machine>::parse_ainput("|-|").unwrap();
+    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
+
+    let _ = run_until_halt(&mut machine, 16).unwrap();
+    let head = head_text(machine.current()).unwrap();
+    assert_eq!(head, "a");
 }
 
 #[test]
@@ -210,18 +276,18 @@ fn break_jumps_to_next_block() {
 alphabet: (a, b)
 fn main() {
   label first: {
-    STOR const a
+    @ := const a
     break
-    STOR const b
+    @ := const b
   }
   label second: {
     RT
-    STOR const b
+    @ := const b
   }
 }
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
-    let tape = <RecTmIrMachine as Machine>::parse_ainput("-|-").unwrap();
+    let tape = <RecTmIrMachine as Machine>::parse_ainput("|-|").unwrap();
     let mut machine = RecTmIrMachine::make(program, tape).unwrap();
 
     let _ = run_until_halt(&mut machine, 16).unwrap();
@@ -235,17 +301,17 @@ fn continue_loops_current_block() {
 alphabet: (a)
 fn main() {
   label entry: {
-    STOR const a
+    @ := const a
     continue
-    STOR const -
+    @ := const -
   }
   label next: {
-    STOR const -
+    @ := const -
   }
 }
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
-    let tape = <RecTmIrMachine as Machine>::parse_ainput("-|-").unwrap();
+    let tape = <RecTmIrMachine as Machine>::parse_ainput("|-|").unwrap();
     let mut machine = RecTmIrMachine::make(program, tape).unwrap();
 
     let result = run_until_halt(&mut machine, 8);

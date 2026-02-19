@@ -1,33 +1,43 @@
-use crate::{
-    rec_tm_ir::{Function, Stmt},
-    rec_to_ir::{
-        S,
-        auxiliary::{
-            basic::{call_l, call_r},
-            copy::{self, copy_one},
-        },
-    },
-};
+use crate::rec_tm_ir::{Block, Function, Stmt};
+use crate::rec_to_ir::S;
+use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
+use crate::{assign, cond, lv, rv};
 
 // ... ? |x| - l(n) A x - ...
 // ... ? |x| l x - l(n) A x - ...
 pub fn insert_sig() -> Function {
     Function {
         name: "insert_sig".to_string(),
-        params: vec![],
-        body: vec![
-            Stmt::ConstAssign("tmp1".to_string(), S::L.into()),
-            Stmt::ConstAssign("tmp2".to_string(), S::X.into()),
-            Stmt::Loop {
-                label: "until_x".to_string(),
-                body: vec![],
+        blocks: vec![
+            Block {
+                label: "initially".to_string(),
+                body: vec![
+                    assign!(lv!("tmp1"), rv!(const S::L)),
+                    assign!(lv!("tmp2"), rv!(const S::X)),
+                    Stmt::Rt,
+                ],
             },
-            Stmt::Stor("tmp1".to_string()),
-            Stmt::Rt,
-            Stmt::Stor("tmp2".to_string()),
-            Stmt::Rt,
-            Stmt::StorConst(S::X.into()),
-            call_l(2),
+            Block {
+                label: "main_loop".to_string(),
+                body: vec![
+                    Stmt::Break {
+                        cond: cond!(rv!(@), rv!(const S::X)),
+                    },
+                    assign!(lv!(@), rv!("tmp1")),
+                    assign!(lv!("tmp1"), rv!("tmp2")),
+                    Stmt::Rt,
+                    assign!(lv!("tmp2"), rv!(@)),
+                ],
+            },
+            Block {
+                label: "finally".to_string(),
+                body: vec![
+                    assign!(lv!(@), rv!("tmp1")),
+                    Stmt::Rt,
+                    assign!(lv!(@), rv!("tmp2")),
+                    call_l(2),
+                ],
+            },
         ],
     }
 }
@@ -35,18 +45,10 @@ pub fn insert_sig() -> Function {
 // ... ? |x| l x - l(n) A x - ...
 // ... ? |x| l x - l(n) A x - l(n - 1) A x ... x - l A x A x - ...
 pub fn expand_arg() -> Function {
-    let mut body = vec![
-        // ... ? |x| l x - l(n) A x - ...
-        call_r(1),
-        copy_one(),
-        call_r(1),
-        // ... ? x l x - l(n) A |x| - l(n) A x - ...
-
-    ];
-
     Function {
         name: "expand_arg".to_string(),
-        params: vec![],
-        body,
+        blocks: vec![
+            
+        ],
     }
 }

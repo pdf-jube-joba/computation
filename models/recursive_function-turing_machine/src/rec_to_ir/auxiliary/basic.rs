@@ -1,5 +1,6 @@
-use crate::rec_tm_ir::{Function, Stmt};
+use crate::rec_tm_ir::{Block, Condition, Function, LValue, RValue, Stmt};
 use crate::rec_to_ir::S;
+use crate::{assign, cond, lv, rv};
 
 // Move right until the head reads 'x'. Head stops on 'x'.
 // ... |?| A[0] x A[1] x ... A[n - 1] x - ...
@@ -11,16 +12,15 @@ use crate::rec_to_ir::S;
 pub(crate) fn move_right_till_x_n_times(n: usize) -> Function {
     Function {
         name: format!("move_right_till_x_{n}"),
-        params: vec![],
-        body: (0..n)
-            .map(|i| Stmt::Loop {
+        blocks: (0..n)
+            .map(|i| Block {
                 label: format!("until_x_{i}"),
                 body: vec![
                     Stmt::Rt,
-                    Stmt::IfBreakHead {
-                        value: S::X.into(),
-                        label: format!("until_x_{i}"),
+                    Stmt::Break {
+                        cond: cond!(rv!(@), rv!(const S::X)),
                     },
+                    Stmt::Continue { cond: None },
                 ],
             })
             .collect(),
@@ -30,14 +30,12 @@ pub(crate) fn move_right_till_x_n_times(n: usize) -> Function {
 pub(crate) fn call_r(n: usize) -> Stmt {
     Stmt::Call {
         name: format!("move_right_till_x_{n}"),
-        args: vec![],
     }
 }
 
 pub(crate) fn call_l(n: usize) -> Stmt {
     Stmt::Call {
         name: format!("move_left_till_x_{n}"),
-        args: vec![],
     }
 }
 
@@ -51,16 +49,15 @@ pub(crate) fn call_l(n: usize) -> Stmt {
 pub(crate) fn move_left_till_x_n_times(n: usize) -> Function {
     Function {
         name: format!("move_left_till_x_{n}"),
-        params: vec![],
-        body: (0..n)
-            .map(|i| Stmt::Loop {
+        blocks: (0..n)
+            .map(|i| Block {
                 label: format!("until_x_{i}"),
                 body: vec![
                     Stmt::Lt,
-                    Stmt::IfBreakHead {
-                        value: S::X.into(),
-                        label: format!("until_x_{i}"),
+                    Stmt::Break {
+                        cond: cond!(rv!(@), rv!(const S::X)),
                     },
+                    Stmt::Continue { cond: None },
                 ],
             })
             .collect(),
@@ -75,28 +72,29 @@ pub(crate) fn move_left_till_x_n_times(n: usize) -> Function {
 pub(crate) fn concat() -> Function {
     Function {
         name: "concat".to_string(),
-        params: vec![],
-        body: vec![
-            Stmt::Call {
-                name: "move_right_till_x_2_times".to_string(),
-                args: vec![],
+        blocks: vec![
+            Block {
+                label: "initially".to_string(),
+                body: vec![
+                    call_r(2),
+                    // "swap" (head == 'x')
+                    // Stmt::AssignConst("put".to_string(), S::X.into()),
+                    assign!(lv!("put"), rv!(const S::X)),
+                    // Stmt::StorConst(S::B.into()),
+                    assign!(lv!(@), rv!(const S::B)),
+                ],
             },
-            // "swap" (head == 'x')
-            Stmt::ConstAssign("put".to_string(), S::X.into()),
-            Stmt::StorConst(S::B.into()),
-            Stmt::Loop {
+            Block {
                 label: "loop".to_string(),
                 body: vec![
                     Stmt::Lt,
                     // swap
-                    Stmt::Read("tmp".to_string()),
-                    Stmt::Stor("put".to_string()),
-                    Stmt::Assign("put".to_string(), "tmp".to_string()),
+                    assign!(lv!("tmp"), rv!(@)),
+                    assign!(lv!(@), rv!("put")),
+                    assign!(lv!("put"), rv!("tmp")),
                     // if put == 'x' break
-                    Stmt::IfBreak {
-                        var: "put".to_string(),
-                        value: S::X.into(),
-                        label: "loop".to_string(),
+                    Stmt::Return {
+                        cond: cond!(rv!("put"), rv!(const S::X)),
                     },
                 ],
             },

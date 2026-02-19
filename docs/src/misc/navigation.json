@@ -7,6 +7,10 @@
     {
       "title": "on state machine",
       "href": "./on_state_machine.html"
+    },
+    {
+      "title": "名前解決について",
+      "href": "name_resolution.md"
     }
   ],
   "prev_next": false
