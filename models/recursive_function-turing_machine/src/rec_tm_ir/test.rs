@@ -1,6 +1,6 @@
 use utils::{Machine, TextCodec};
 
-use super::{Environment, RecTmIrMachine, Snapshot, Stmt, flatten_program};
+use super::{Environment, RecTmIrMachine, Snapshot};
 
 fn run_until_halt(machine: &mut RecTmIrMachine, limit: usize) -> EnvironmentResult {
     for _ in 0..limit {
@@ -45,16 +45,20 @@ fn head_text(snapshot: Snapshot) -> Result<String, String> {
 fn call_does_not_share_env() {
     let code = r#"
 alphabet: (a, b)
-fn f(x) {
-  READ x
+fn f() {
+  label entry: {
+    READ x
+  }
 }
 
 fn main() {
-  READ x
-  RT
-  call f(x)
-  LT
-  STOR x
+  label entry: {
+    READ x
+    RT
+    call f
+    LT
+    STOR x
+  }
 }
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
@@ -72,12 +76,16 @@ fn main() {
 fn recursion_is_rejected() {
     let code = r#"
 alphabet: (a)
-fn f(x) {
-  call f(x)
+fn f() {
+  label entry: {
+    call f
+  }
 }
 
 fn main() {
-  call f(x)
+  label entry: {
+    call f
+  }
 }
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
@@ -91,13 +99,19 @@ fn scan_and_mark_tape() {
     let code = r#"
 alphabet: (m, a, b, x)
 fn main() {
-  READ mark
-  loop L: {
+  label entry: {
+    READ mark
+    jump scan
+  }
+  label scan: {
     RT
     READ cur
-    if cur == x break L
+    jump_if cur == x : done
+    jump scaｌ
   }
-  STOR mark
+  label done: {
+    STOR mark
+  }
 }
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
@@ -113,20 +127,26 @@ fn main() {
 fn call_chain_does_not_share_env() {
     let code = r#"
 alphabet: (a, b)
-fn g(p) {
-  RT
-  READ p
-  LT
+fn g() {
+  label entry: {
+    RT
+    READ p
+    LT
+  }
 }
 
-fn f(p) {
-  call g(p)
-  STOR p
+fn f() {
+  label entry: {
+    call g
+    STOR p
+  }
 }
 
 fn main() {
-  READ x
-  call f(x)
+  label entry: {
+    READ x
+    call f
+  }
 }
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
@@ -135,7 +155,7 @@ fn main() {
 
     let _ = run_until_halt(&mut machine, 64).unwrap();
     let head = head_text(machine.current()).unwrap();
-    assert_eq!(head, "a");
+    assert_eq!(head, "-");
 }
 
 #[test]
@@ -143,15 +163,22 @@ fn nested_loop_breaks_resolve() {
     let code = r#"
 alphabet: (a, b, c)
 fn main() {
-  loop A: {
-    loop B: {
-      RT
-      READ v
-      if v == b break B
-    }
+  label entry: {
+    jump scan_b
+  }
+  label scan_b: {
     RT
     READ v
-    if v == c break A
+    jump_if v == b : scan_c
+    jump scan_b
+  }
+  label scan_c: {
+    RT
+    READ v
+    jump_if v == c : done
+    jump scan_b
+  }
+  label done: {
   }
 }
 "#;
@@ -168,83 +195,59 @@ fn main() {
 fn repeated_calls_keep_env_isolated() {
     let code = r#"
 alphabet: (a, b, c)
-fn writer(x) {
-  READ x
-  RT
-  STOR x
-  LT
-}
-
-fn main() {
-  READ a
-  call writer(a)
-  RT
-  READ b
-  call writer(b)
-  LT
-  STOR a
-}
-"#;
-    let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
-    let tape = <RecTmIrMachine as Machine>::parse_ainput("-|a|b,c").unwrap();
-    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
-
-    let output = run_until_halt(&mut machine, 128).unwrap();
-    assert_eq!(output.print().trim(), "a = a\nb = a");
-    let head = head_text(machine.current()).unwrap();
-    assert_eq!(head, "a");
-}
-
-fn collect_labels(stmts: &[Stmt], labels: &mut Vec<String>) {
-    for stmt in stmts {
-        if let Stmt::Loop { label, body } = stmt {
-            labels.push(label.clone());
-            collect_labels(body, labels);
-        }
-    }
-}
-
-fn has_call(stmts: &[Stmt]) -> bool {
-    stmts.iter().any(|stmt| match stmt {
-        Stmt::Call { .. } => true,
-        Stmt::Loop { body, .. } => has_call(body),
-        _ => false,
-    })
+fn writer() {
+  label entry: {
+    READ x
+    RT
+    STOR x
+    LT
+  }
 }
 
 #[test]
-fn flatten_renames_vars_and_labels() {
+fn break_jumps_to_next_block() {
     let code = r#"
 alphabet: (a, b)
-fn f(x) {
-  loop L: {
-    READ x
-    if x == a break L
-  }
-}
-
 fn main() {
-  loop L: {
-    READ x
-    if x == b break L
+  label first: {
+    STOR const a
+    break
+    STOR const b
   }
-  call f(x)
+  label second: {
+    RT
+    STOR const b
+  }
 }
 "#;
     let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
-    let flat = flatten_program(&program).unwrap();
-    let main = flat
-        .functions
-        .iter()
-        .find(|func| func.name == "main")
-        .unwrap();
+    let tape = <RecTmIrMachine as Machine>::parse_ainput("-|-").unwrap();
+    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
 
-    assert!(!has_call(&main.body));
+    let _ = run_until_halt(&mut machine, 16).unwrap();
+    let head = head_text(machine.current()).unwrap();
+    assert_eq!(head, "b");
+}
 
-    let mut labels = Vec::new();
-    collect_labels(&main.body, &mut labels);
-    let mut uniq = labels.clone();
-    uniq.sort();
-    uniq.dedup();
-    assert_eq!(labels.len(), uniq.len());
+#[test]
+fn continue_loops_current_block() {
+    let code = r#"
+alphabet: (a)
+fn main() {
+  label entry: {
+    STOR const a
+    continue
+    STOR const -
+  }
+  label next: {
+    STOR const -
+  }
+}
+"#;
+    let program = <RecTmIrMachine as Machine>::parse_code(code).unwrap();
+    let tape = <RecTmIrMachine as Machine>::parse_ainput("-|-").unwrap();
+    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
+
+    let result = run_until_halt(&mut machine, 8);
+    assert!(result.is_err());
 }

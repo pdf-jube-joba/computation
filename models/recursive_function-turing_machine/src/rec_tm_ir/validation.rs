@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use turing_machine::machine::{Sign, Tape};
 use utils::TextCodec;
 
-use super::machine::{Program, Stmt};
+use super::machine::{Block, Condition, Program, RValue, Stmt};
 
 pub fn validate_no_recursion(program: &Program) -> Result<(), String> {
     if !program.functions.iter().any(|func| func.name == "main") {
@@ -14,14 +14,6 @@ pub fn validate_no_recursion(program: &Program) -> Result<(), String> {
         if state.get(&func.name).copied().unwrap_or(0) == 0 {
             dfs_validate(program, &func.name, &mut state, &mut stack)?;
         }
-    }
-    Ok(())
-}
-
-pub fn validate_loops(program: &Program) -> Result<(), String> {
-    for func in &program.functions {
-        let mut loop_stack = Vec::new();
-        validate_loops_in_stmts(&func.body, &mut loop_stack)?;
     }
     Ok(())
 }
@@ -54,7 +46,8 @@ pub fn validate_tape(tape: &Tape, allowed: &HashSet<Sign>) -> Result<(), String>
 
 pub fn validate_signs_in_program(program: &Program, allowed: &HashSet<Sign>) -> Result<(), String> {
     for func in &program.functions {
-        validate_signs_in_stmts(&func.body, allowed)?;
+        validate_signs_in_blocks(&func.blocks, allowed)?;
+        validate_jump_targets(&func.blocks)?;
     }
     Ok(())
 }
@@ -74,7 +67,7 @@ fn dfs_validate(
         .find(|func| func.name == name)
         .ok_or_else(|| format!("Undefined function '{}'", name))?;
     let mut calls = HashSet::new();
-    collect_calls(&func.body, &mut calls);
+    collect_calls(&func.blocks, &mut calls);
     for callee in calls {
         if !program.functions.iter().any(|func| func.name == callee) {
             return Err(format!("Undefined function '{}'", callee));
@@ -97,26 +90,36 @@ fn dfs_validate(
     Ok(())
 }
 
-fn validate_loops_in_stmts(stmts: &[Stmt], loop_stack: &mut Vec<String>) -> Result<(), String> {
+fn collect_calls(blocks: &[Block], calls: &mut HashSet<String>) {
+    for block in blocks {
+        for stmt in &block.body {
+            if let Stmt::Call { name } = stmt {
+                calls.insert(name.clone());
+            }
+        }
+    }
+}
+
+fn validate_signs_in_blocks(blocks: &[Block], allowed: &HashSet<Sign>) -> Result<(), String> {
+    for block in blocks {
+        validate_signs_in_stmts(&block.body, allowed)?;
+    }
+    Ok(())
+}
+
+fn validate_signs_in_stmts(stmts: &[Stmt], allowed: &HashSet<Sign>) -> Result<(), String> {
     for stmt in stmts {
         match stmt {
-            Stmt::IfBreak { label, .. } => {
-                if !loop_stack.iter().any(|name| name == label) {
-                    return Err(format!("break target '{}' not found", label));
-                }
+            Stmt::Assign { dst: _, src } => {
+                validate_rvalue(src, allowed)?;
             }
-            Stmt::IfBreakHead { label, .. } => {
-                if !loop_stack.iter().any(|name| name == label) {
-                    return Err(format!("break target '{}' not found", label));
+            Stmt::Break { cond }
+            | Stmt::Continue { cond }
+            | Stmt::Jump { cond, .. }
+            | Stmt::Return { cond } => {
+                if let Some(cond) = cond {
+                    validate_condition(cond, allowed)?;
                 }
-            }
-            Stmt::Loop { label, body } => {
-                if loop_stack.iter().any(|name| name == label) {
-                    return Err(format!("Loop label '{}' is duplicated", label));
-                }
-                loop_stack.push(label.clone());
-                validate_loops_in_stmts(body, loop_stack)?;
-                loop_stack.pop();
             }
             _ => {}
         }
@@ -124,38 +127,37 @@ fn validate_loops_in_stmts(stmts: &[Stmt], loop_stack: &mut Vec<String>) -> Resu
     Ok(())
 }
 
-fn collect_calls(stmts: &[Stmt], calls: &mut HashSet<String>) {
-    for stmt in stmts {
-        match stmt {
-            Stmt::Call { name, .. } => {
-                calls.insert(name.clone());
-            }
-            Stmt::Loop { body, .. } => collect_calls(body, calls),
-            _ => {}
-        }
-    }
+fn validate_condition(cond: &Condition, allowed: &HashSet<Sign>) -> Result<(), String> {
+    validate_rvalue(&cond.left, allowed)?;
+    validate_rvalue(&cond.right, allowed)
 }
 
-fn validate_signs_in_stmts(stmts: &[Stmt], allowed: &HashSet<Sign>) -> Result<(), String> {
-    for stmt in stmts {
-        match stmt {
-            Stmt::IfBreak { value, .. } => {
-                if !allowed.contains(value) {
-                    return Err(format!("Unknown sign in if: {}", value.print()));
+fn validate_rvalue(value: &RValue, allowed: &HashSet<Sign>) -> Result<(), String> {
+    if let RValue::Const(sign) = value {
+        if !allowed.contains(sign) {
+            return Err(format!("Unknown sign in const: {}", sign.print()));
+        }
+    }
+    Ok(())
+}
+
+fn validate_jump_targets(blocks: &[Block]) -> Result<(), String> {
+    let mut labels = HashSet::new();
+    for block in blocks {
+        if !labels.insert(block.label.clone()) {
+            return Err(format!("label '{}' is duplicated", block.label));
+        }
+    }
+    for block in blocks {
+        for stmt in &block.body {
+            match stmt {
+                Stmt::Jump { label, .. } => {
+                    if !labels.contains(label) {
+                        return Err(format!("jump target '{}' not found", label));
+                    }
                 }
+                _ => {}
             }
-            Stmt::IfBreakHead { value, .. } => {
-                if !allowed.contains(value) {
-                    return Err(format!("Unknown sign in if head: {}", value.print()));
-                }
-            }
-            Stmt::ConstAssign(_, value) | Stmt::StorConst(value) => {
-                if !allowed.contains(value) {
-                    return Err(format!("Unknown sign in const: {}", value.print()));
-                }
-            }
-            Stmt::Loop { body, .. } => validate_signs_in_stmts(body, allowed)?,
-            _ => {}
         }
     }
     Ok(())

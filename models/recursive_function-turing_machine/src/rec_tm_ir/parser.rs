@@ -2,10 +2,11 @@ use turing_machine::machine::Sign;
 use utils::TextCodec;
 use utils::alphabet::Alphabet;
 
-use super::machine::{CallArg, Function, Program, Stmt};
+use super::machine::{Block, Condition, Function, LValue, Program, RValue, Stmt};
 
-const KEYWORDS: [&str; 11] = [
-    "alphabet", "fn", "loop", "if", "break", "call", "const", "LT", "RT", "READ", "STOR",
+const KEYWORDS: [&str; 12] = [
+    "alphabet", "fn", "label", "jump", "call", "const", "return", "break", "continue", "if", "LT",
+    "RT",
 ];
 
 #[derive(Debug, Clone)]
@@ -63,10 +64,6 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
             '(' | ')' | '{' | '}' | ',' => {
                 chars.next();
                 tokens.push(Token::Symbol(ch.to_string()));
-            }
-            '&' => {
-                chars.next();
-                tokens.push(Token::Symbol("&".to_string()));
             }
             '@' => {
                 chars.next();
@@ -201,34 +198,35 @@ impl Parser {
     fn parse_function(&mut self) -> Result<Function, String> {
         self.expect_keyword("fn")?;
         let name = self.expect_ident("function name")?;
-        self.expect_symbol("(")?;
-        let params = self.parse_ident_list("parameter")?;
-        self.expect_symbol(")")?;
+        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "(") {
+            self.expect_symbol("(")?;
+            self.expect_symbol(")")?;
+        }
+        self.expect_symbol("{")?;
+        let blocks = self.parse_blocks()?;
+        self.expect_symbol("}")?;
+        Ok(Function { name, blocks })
+    }
+
+    fn parse_blocks(&mut self) -> Result<Vec<Block>, String> {
+        let mut blocks = Vec::new();
+        while !matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "}") {
+            if self.is_eof() {
+                return Err("Unexpected EOF in block list".to_string());
+            }
+            blocks.push(self.parse_block()?);
+        }
+        Ok(blocks)
+    }
+
+    fn parse_block(&mut self) -> Result<Block, String> {
+        self.expect_keyword("label")?;
+        let label = self.expect_ident("label")?;
+        self.expect_symbol(":")?;
         self.expect_symbol("{")?;
         let body = self.parse_stmt_list()?;
         self.expect_symbol("}")?;
-        Ok(Function { name, params, body })
-    }
-
-    fn parse_ident_list(&mut self, context: &str) -> Result<Vec<String>, String> {
-        let mut items = Vec::new();
-        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == ")") {
-            return Ok(items);
-        }
-        loop {
-            let ident = self.expect_ident(context)?;
-            items.push(ident);
-            match self.peek() {
-                Some(Token::Symbol(sym)) if sym == "," => {
-                    self.next();
-                    if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == ")") {
-                        break;
-                    }
-                }
-                _ => break,
-            }
-        }
-        Ok(items)
+        Ok(Block { label, body })
     }
 
     fn parse_stmt_list(&mut self) -> Result<Vec<Stmt>, String> {
@@ -257,71 +255,54 @@ impl Parser {
                     self.next();
                     Ok(Stmt::Rt)
                 }
-                "READ" => {
-                    self.next();
-                    let var = self.expect_ident("variable")?;
-                    Ok(Stmt::Read(var))
-                }
-                "STOR" => {
-                    self.next();
-                    if matches!(self.peek(), Some(Token::Ident(id)) if id == "const") {
-                        self.expect_keyword("const")?;
-                        let value = self.parse_sign()?;
-                        Ok(Stmt::StorConst(value))
-                    } else {
-                        let var = self.expect_ident("variable")?;
-                        Ok(Stmt::Stor(var))
-                    }
-                }
-                "if" => {
-                    self.next();
-                    if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "@") {
-                        self.expect_symbol("@")?;
-                        self.expect_symbol("==")?;
-                        let value = self.parse_sign()?;
-                        self.expect_keyword("break")?;
-                        let label = self.expect_ident("label")?;
-                        Ok(Stmt::IfBreakHead { value, label })
-                    } else {
-                        let var = self.expect_ident("variable")?;
-                        self.expect_symbol("==")?;
-                        let value = self.parse_sign()?;
-                        self.expect_keyword("break")?;
-                        let label = self.expect_ident("label")?;
-                        Ok(Stmt::IfBreak { var, value, label })
-                    }
-                }
-                "loop" => {
+                "label" => Err("label blocks cannot be nested".to_string()),
+                "jump" => {
                     self.next();
                     let label = self.expect_ident("label")?;
-                    self.expect_symbol(":")?;
-                    self.expect_symbol("{")?;
-                    let body = self.parse_stmt_list()?;
-                    self.expect_symbol("}")?;
-                    Ok(Stmt::Loop { label, body })
+                    let cond = self.parse_optional_condition()?;
+                    Ok(Stmt::Jump { label, cond })
+                }
+                "break" => {
+                    self.next();
+                    let cond = self.parse_optional_condition()?;
+                    Ok(Stmt::Break { cond })
+                }
+                "continue" => {
+                    self.next();
+                    let cond = self.parse_optional_condition()?;
+                    Ok(Stmt::Continue { cond })
+                }
+                "return" => {
+                    self.next();
+                    let cond = self.parse_optional_condition()?;
+                    Ok(Stmt::Return { cond })
                 }
                 "call" => {
                     self.next();
                     let name = self.expect_ident("function name")?;
-                    self.expect_symbol("(")?;
-                    let args = self.parse_call_args()?;
-                    self.expect_symbol(")")?;
-                    Ok(Stmt::Call { name, args })
+                    if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "(") {
+                        self.expect_symbol("(")?;
+                        self.expect_symbol(")")?;
+                    }
+                    Ok(Stmt::Call { name })
                 }
                 _ => {
-                    let var = self.expect_ident("variable")?;
+                    let dst = self.parse_lvalue()?;
                     self.expect_symbol(":=")?;
-                    if matches!(self.peek(), Some(Token::Ident(id)) if id == "const") {
-                        self.expect_keyword("const")?;
-                        let value = self.parse_sign()?;
-                        Ok(Stmt::ConstAssign(var, value))
-                    } else {
-                        let src = self.expect_ident("variable")?;
-                        Ok(Stmt::Assign(var, src))
-                    }
+                    let src = self.parse_rvalue()?;
+                    Ok(Stmt::Assign { dst, src })
                 }
             },
-            Token::Symbol(sym) => Err(format!("Unexpected symbol '{}'", sym)),
+            Token::Symbol(sym) => {
+                if sym == "@" {
+                    let dst = self.parse_lvalue()?;
+                    self.expect_symbol(":=")?;
+                    let src = self.parse_rvalue()?;
+                    Ok(Stmt::Assign { dst, src })
+                } else {
+                    Err(format!("Unexpected symbol '{}'", sym))
+                }
+            }
         }
     }
 
@@ -333,29 +314,39 @@ impl Parser {
         }
     }
 
-    fn parse_call_args(&mut self) -> Result<Vec<CallArg>, String> {
-        let mut args = Vec::new();
-        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == ")") {
-            return Ok(args);
+    fn parse_lvalue(&mut self) -> Result<LValue, String> {
+        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "@") {
+            self.expect_symbol("@")?;
+            Ok(LValue::Head)
+        } else {
+            let var = self.expect_ident("variable")?;
+            Ok(LValue::Var(var))
         }
-        loop {
-            let shared = matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "&");
-            if shared {
-                self.next();
-            }
-            let name = self.expect_ident("argument")?;
-            args.push(CallArg { shared, name });
-            match self.peek() {
-                Some(Token::Symbol(sym)) if sym == "," => {
-                    self.next();
-                    if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == ")") {
-                        break;
-                    }
-                }
-                _ => break,
-            }
+    }
+
+    fn parse_rvalue(&mut self) -> Result<RValue, String> {
+        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "@") {
+            self.expect_symbol("@")?;
+            return Ok(RValue::Head);
         }
-        Ok(args)
+        if matches!(self.peek(), Some(Token::Ident(id)) if id == "const") {
+            self.expect_keyword("const")?;
+            let value = self.parse_sign()?;
+            return Ok(RValue::Const(value));
+        }
+        let var = self.expect_ident("variable")?;
+        Ok(RValue::Var(var))
+    }
+
+    fn parse_optional_condition(&mut self) -> Result<Option<Condition>, String> {
+        if !matches!(self.peek(), Some(Token::Ident(id)) if id == "if") {
+            return Ok(None);
+        }
+        self.expect_keyword("if")?;
+        let left = self.parse_rvalue()?;
+        self.expect_symbol("==")?;
+        let right = self.parse_rvalue()?;
+        Ok(Some(Condition { left, right }))
     }
 }
 
@@ -382,19 +373,33 @@ impl TextCodec for Program {
             if idx > 0 {
                 writeln!(f)?;
             }
-            write!(f, "fn {}(", function.name)?;
-            for (i, param) in function.params.iter().enumerate() {
-                if i > 0 {
-                    write!(f, ", ")?;
-                }
-                write!(f, "{}", param)?;
-            }
-            writeln!(f, ") {{")?;
-            write_stmt_list(f, &function.body, 1)?;
+            writeln!(f, "fn {}() {{", function.name)?;
+            write_blocks(f, &function.blocks, 1)?;
             writeln!(f, "}}")?;
         }
         Ok(())
     }
+}
+
+pub(crate) fn render_text(stmt: &Stmt) -> String {
+    let mut out = String::new();
+    let _ = write_stmt_line(&mut out, stmt, 0);
+    out.trim_end().to_string()
+}
+
+fn write_blocks(f: &mut impl std::fmt::Write, blocks: &[Block], indent: usize) -> std::fmt::Result {
+    for block in blocks {
+        for _ in 0..indent {
+            write!(f, "  ")?;
+        }
+        writeln!(f, "label {}: {{", block.label)?;
+        write_stmt_list(f, &block.body, indent + 1)?;
+        for _ in 0..indent {
+            write!(f, "  ")?;
+        }
+        writeln!(f, "}}")?;
+    }
+    Ok(())
 }
 
 fn write_stmt_list(
@@ -403,47 +408,68 @@ fn write_stmt_list(
     indent: usize,
 ) -> std::fmt::Result {
     for stmt in stmts {
-        for _ in 0..indent {
-            write!(f, "  ")?;
-        }
-        match stmt {
-            Stmt::Lt => writeln!(f, "LT")?,
-            Stmt::Rt => writeln!(f, "RT")?,
-            Stmt::Read(var) => writeln!(f, "READ {}", var)?,
-            Stmt::Stor(var) => writeln!(f, "STOR {}", var)?,
-            Stmt::StorConst(value) => writeln!(f, "STOR const {}", value.print())?,
-            Stmt::Assign(dst, src) => writeln!(f, "{} := {}", dst, src)?,
-            Stmt::ConstAssign(dst, value) => {
-                writeln!(f, "{} := const {}", dst, value.print())?;
-            }
-            Stmt::IfBreak { var, value, label } => {
-                writeln!(f, "if {} == {} break {}", var, value.print(), label)?
-            }
-            Stmt::IfBreakHead { value, label } => {
-                writeln!(f, "if @ == {} break {}", value.print(), label)?
-            }
-            Stmt::Loop { label, body } => {
-                writeln!(f, "loop {}: {{", label)?;
-                write_stmt_list(f, body, indent + 1)?;
-                for _ in 0..indent {
-                    write!(f, "  ")?;
-                }
-                writeln!(f, "}}")?;
-            }
-            Stmt::Call { name, args } => {
-                write!(f, "call {}(", name)?;
-                for (i, arg) in args.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    if arg.shared {
-                        write!(f, "&")?;
-                    }
-                    write!(f, "{}", arg.name)?;
-                }
-                writeln!(f, ")")?;
-            }
-        }
+        write_stmt_line(f, stmt, indent)?;
     }
     Ok(())
+}
+
+fn write_stmt_line(f: &mut impl std::fmt::Write, stmt: &Stmt, indent: usize) -> std::fmt::Result {
+    for _ in 0..indent {
+        write!(f, "  ")?;
+    }
+    match stmt {
+        Stmt::Lt => writeln!(f, "LT"),
+        Stmt::Rt => writeln!(f, "RT"),
+        Stmt::Assign { dst, src } => {
+            write!(f, "{} := ", render_lvalue(dst))?;
+            writeln!(f, "{}", render_rvalue(src))
+        }
+        Stmt::Break { cond } => {
+            write!(f, "break")?;
+            write_condition(f, cond)
+        }
+        Stmt::Continue { cond } => {
+            write!(f, "continue")?;
+            write_condition(f, cond)
+        }
+        Stmt::Jump { label, cond } => {
+            write!(f, "jump {}", label)?;
+            write_condition(f, cond)
+        }
+        Stmt::Return { cond } => {
+            write!(f, "return")?;
+            write_condition(f, cond)
+        }
+        Stmt::Call { name } => writeln!(f, "call {}", name),
+    }
+}
+
+fn render_lvalue(value: &LValue) -> String {
+    match value {
+        LValue::Var(var) => var.clone(),
+        LValue::Head => "@".to_string(),
+    }
+}
+
+fn render_rvalue(value: &RValue) -> String {
+    match value {
+        RValue::Var(var) => var.clone(),
+        RValue::Head => "@".to_string(),
+        RValue::Const(sign) => format!("const {}", sign.print()),
+    }
+}
+
+fn write_condition(
+    f: &mut impl std::fmt::Write,
+    cond: &Option<Condition>,
+) -> std::fmt::Result {
+    if let Some(cond) = cond {
+        write!(
+            f,
+            " if {} == {}",
+            render_rvalue(&cond.left),
+            render_rvalue(&cond.right)
+        )?;
+    }
+    writeln!(f)
 }

@@ -1,13 +1,13 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
 use utils::{Machine, TextCodec, json_text};
 
-use super::parser::parse_identifier;
+use super::parser::{parse_identifier, render_text};
 use super::validation::{
-    alphabet_set, validate_alphabet, validate_loops, validate_no_recursion,
-    validate_signs_in_program, validate_tape,
+    alphabet_set, validate_alphabet, validate_no_recursion, validate_signs_in_program,
+    validate_tape,
 };
 
 #[derive(Debug, Clone)]
@@ -19,75 +19,101 @@ pub struct Program {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
-    pub params: Vec<String>,
-    pub body: Vec<Stmt>,
+    pub blocks: Vec<Block>,
 }
 
 #[derive(Debug, Clone)]
-pub struct CallArg {
-    pub shared: bool,
-    pub name: String,
+pub struct Block {
+    pub label: String,
+    pub body: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Lt,
     Rt,
-    Read(String),
-    Stor(String),
-    StorConst(Sign),
-    Assign(String, String),
-    ConstAssign(String, Sign),
-    IfBreak {
-        var: String,
-        value: Sign,
-        label: String,
+    Assign {
+        dst: LValue,
+        src: RValue,
     },
-    IfBreakHead {
-        value: Sign,
-        label: String,
+    Break {
+        cond: Option<Condition>,
     },
-    Loop {
+    Continue {
+        cond: Option<Condition>,
+    },
+    Jump {
         label: String,
-        body: Vec<Stmt>,
+        cond: Option<Condition>,
+    },
+    Return {
+        cond: Option<Condition>,
     },
     Call {
         name: String,
-        args: Vec<CallArg>,
     },
 }
 
-fn render_stmt(stmt: &Stmt) -> String {
-    match stmt {
-        Stmt::Lt => "LT".to_string(),
-        Stmt::Rt => "RT".to_string(),
-        Stmt::Read(var) => format!("READ {}", var),
-        Stmt::Stor(var) => format!("STOR {}", var),
-        Stmt::StorConst(value) => format!("STOR const {}", value.print()),
-        Stmt::Assign(dst, src) => format!("{} := {}", dst, src),
-        Stmt::ConstAssign(dst, value) => format!("{} := const {}", dst, value.print()),
-        Stmt::IfBreak { var, value, label } => {
-            format!("if {} == {} break {}", var, value.print(), label)
+#[derive(Debug, Clone)]
+pub enum LValue {
+    Var(String),
+    Head,
+}
+
+#[derive(Debug, Clone)]
+pub enum RValue {
+    Var(String),
+    Head,
+    Const(Sign),
+}
+
+#[derive(Debug, Clone)]
+pub struct Condition {
+    pub left: RValue,
+    pub right: RValue,
+}
+
+#[macro_export]
+macro_rules! lv {
+    (@) => {
+        $crate::rec_tm_ir::LValue::Head
+    };
+    ($x: literal) => {
+        $crate::rec_tm_ir::LValue::Var($x.into())
+    };
+}
+
+#[macro_export]
+macro_rules! rv {
+    (@) => {
+        $crate::rec_tm_ir::RValue::Head
+    };
+    ($x: literal) => {
+        $crate::rec_tm_ir::RValue::Var($x.into())
+    };
+    (const $x: expr) => {
+        $crate::rec_tm_ir::RValue::Const($x.into())
+    };
+}
+
+#[macro_export]
+macro_rules! cond {
+    ($l: expr, $r: expr) => {
+        Some($crate::rec_tm_ir::Condition {
+            left: $l,
+            right: $r,
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! assign {
+    ($l: expr, $r: expr) => {
+        $crate::rec_tm_ir::Stmt::Assign {
+            dst: $l,
+            src: $r,
         }
-        Stmt::IfBreakHead { value, label } => {
-            format!("if @ == {} break {}", value.print(), label)
-        }
-        Stmt::Loop { label, .. } => format!("loop {}", label),
-        Stmt::Call { name, args } => {
-            let rendered = args
-                .iter()
-                .map(|arg| {
-                    if arg.shared {
-                        format!("&{}", arg.name)
-                    } else {
-                        arg.name.clone()
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("call {}({})", name, rendered)
-        }
-    }
+    };
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -158,7 +184,7 @@ impl TextCodec for Environment {
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     function: String,
-    pc: usize,
+    pc: (usize, usize),
     instruction: Option<String>,
     env: Environment,
     tape: Tape,
@@ -168,7 +194,10 @@ pub struct Snapshot {
 impl From<Snapshot> for serde_json::Value {
     fn from(snapshot: Snapshot) -> Self {
         let fn_text = json_text!(snapshot.function, title: "function");
-        let pc_text = json_text!(snapshot.pc.to_string(), title: "pc");
+        let pc_text = json_text!(
+            format!("{}:{}", snapshot.pc.0, snapshot.pc.1),
+            title: "pc"
+        );
         let instruction_text = json_text!(
             snapshot
                 .instruction
@@ -243,29 +272,11 @@ impl From<Snapshot> for serde_json::Value {
     }
 }
 
-#[derive(Debug, Clone)]
-struct BlockFrame {
-    stmts: Vec<Stmt>,
-    pc: usize,
-    loop_label: Option<String>,
-}
-
-impl BlockFrame {
-    fn new(stmts: Vec<Stmt>, loop_label: Option<String>) -> Self {
-        BlockFrame {
-            stmts,
-            pc: 0,
-            loop_label,
-        }
-    }
-}
-
 struct Frame {
     function: String,
     env: Environment,
-    shared: HashMap<String, String>,
-    caller_depth: Option<usize>,
-    blocks: Vec<BlockFrame>,
+    blocks: Vec<Block>,
+    pc: (usize, usize),
 }
 
 pub struct RecTmIrMachine {
@@ -273,7 +284,16 @@ pub struct RecTmIrMachine {
     frame: Frame,
     stack: Vec<Frame>,
     tape: Tape,
-    allowed: HashSet<Sign>,
+}
+
+fn build_frame_for_function(func: &Function) -> Frame {
+    let env = Environment::new(collect_vars(&func.blocks));
+    Frame {
+        function: func.name.clone(),
+        env,
+        blocks: func.blocks.clone(),
+        pc: (0, 0),
+    }
 }
 
 impl Machine for RecTmIrMachine {
@@ -285,35 +305,28 @@ impl Machine for RecTmIrMachine {
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         validate_no_recursion(&code)?;
-        validate_loops(&code)?;
         let alphabet = validate_alphabet(&code.alphabet)?;
         let main = code
             .functions
             .iter()
             .find(|func| func.name == "main")
-            .ok_or_else(|| "main() is not defined".to_string())?;
-        let env = Environment::new(collect_vars(&main.body));
+            .expect("main() is not defined");
         let allowed = alphabet_set(&alphabet);
         validate_signs_in_program(&code, &allowed)?;
         validate_tape(&ainput, &allowed)?;
 
+        let frame = build_frame_for_function(main);
+
         Ok(RecTmIrMachine {
             program: code.clone(),
-            frame: Frame {
-                function: "main".to_string(),
-                env,
-                shared: HashMap::new(),
-                caller_depth: None,
-                blocks: vec![BlockFrame::new(main.body.clone(), None)],
-            },
+            frame,
             stack: Vec::new(),
             tape: ainput,
-            allowed,
         })
     }
 
     fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        let stmt = match self.next_stmt()? {
+        let (stmt, block_idx) = match self.next_stmt()? {
             Some(stmt) => stmt,
             None => return Ok(self.return_from_call()),
         };
@@ -324,97 +337,54 @@ impl Machine for RecTmIrMachine {
             Stmt::Rt => {
                 self.tape.move_to(&Direction::Right);
             }
-            Stmt::Read(var) => {
-                let sign = self.tape.head_read().clone();
-                if !self.allowed.contains(&sign) {
-                    return Err(format!("Unknown sign on tape: {}", sign.print()));
-                }
-                self.set_var(&var, sign);
+            Stmt::Assign { dst, src } => {
+                let value = self.eval_rvalue(&src);
+                self.assign_lvalue(&dst, value);
             }
-            Stmt::Stor(var) => {
-                let sign = self.get_var(&var);
-                if !self.allowed.contains(&sign) {
-                    return Err(format!("Unknown sign in env: {}", sign.print()));
-                }
-                self.tape.head_write(&sign);
-            }
-            Stmt::StorConst(value) => {
-                if !self.allowed.contains(&value) {
-                    return Err(format!("Unknown sign in const: {}", value.print()));
-                }
-                self.tape.head_write(&value);
-            }
-            Stmt::Assign(dest, src) => {
-                let value = self.get_var(&src);
-                self.set_var(&dest, value);
-            }
-            Stmt::ConstAssign(dest, value) => {
-                if !self.allowed.contains(&value) {
-                    return Err(format!("Unknown sign in const: {}", value.print()));
-                }
-                self.set_var(&dest, value);
-            }
-            Stmt::IfBreak { var, value, label } => {
-                if self.get_var(&var) == value {
-                    self.break_loop(&label)?;
+            Stmt::Break { cond } => {
+                if self.eval_condition(&cond) {
+                    let next_block = block_idx + 1;
+                    self.frame.pc = (next_block, 0);
                 }
             }
-            Stmt::IfBreakHead { value, label } => {
-                if self.tape.head_read() == &value {
-                    self.break_loop(&label)?;
+            Stmt::Continue { cond } => {
+                if self.eval_condition(&cond) {
+                    self.frame.pc = (block_idx, 0);
                 }
             }
-            Stmt::Loop { label, body } => {
-                self.frame.blocks.push(BlockFrame::new(body, Some(label)));
+            Stmt::Jump { label, cond } => {
+                if self.eval_condition(&cond) {
+                    self.jump_to(&label)?;
+                }
             }
-            Stmt::Call { name, args } => {
+            Stmt::Return { cond } => {
+                if self.eval_condition(&cond) {
+                    return Ok(self.return_from_call());
+                }
+            }
+            Stmt::Call { name } => {
                 let callee = self
                     .program
                     .functions
                     .iter()
                     .find(|func| func.name == name)
                     .cloned()
-                    .ok_or_else(|| format!("Undefined function '{}'", name))?;
-                if callee.params.len() != args.len() {
-                    return Err(format!(
-                        "Function '{}' expects {} args, got {}",
-                        name,
-                        callee.params.len(),
-                        args.len()
-                    ));
-                }
-                let mut next_env = Environment::new(collect_vars(&callee.body));
-                let mut shared = HashMap::new();
-                for (param, arg) in callee.params.clone().iter().zip(args.iter()) {
-                    let value = self.get_var(&arg.name);
-                    if arg.shared {
-                        shared.insert(param.clone(), arg.name.clone());
-                    }
-                    next_env.set(param, value);
-                }
+                    .unwrap_or_else(|| panic!("Undefined function '{}'", name));
                 let caller = Frame {
                     function: self.frame.function.clone(),
                     env: self.frame.env.clone(),
-                    shared: self.frame.shared.clone(),
-                    caller_depth: self.frame.caller_depth,
                     blocks: self.frame.blocks.clone(),
+                    pc: self.frame.pc,
                 };
                 self.stack.push(caller);
-                let caller_depth = Some(self.stack.len() - 1);
-                self.frame = Frame {
-                    function: name,
-                    env: next_env,
-                    shared,
-                    caller_depth,
-                    blocks: vec![BlockFrame::new(callee.body.clone(), None)],
-                };
+                self.frame = build_frame_for_function(&callee);
             }
         }
         Ok(None)
     }
 
     fn current(&self) -> Self::SnapShot {
-        let instruction = self.peek_stmt().map(|stmt| render_stmt(&stmt));
+        let instruction = self.peek_stmt().map(|stmt| render_text(&stmt));
         let stack = self
             .stack
             .iter()
@@ -441,125 +411,118 @@ impl RecTmIrMachine {
         }
     }
 
-    fn get_var(&mut self, var: &str) -> Sign {
-        if let Some(target) = self.frame.shared.get(var).cloned() {
-            let value = self.get_var_in_stack(self.frame.caller_depth, &target);
-            self.frame.env.set(var, value.clone());
-            value
-        } else {
-            self.frame.env.get(var)
-        }
-    }
-
-    fn get_var_in_stack(&self, frame_idx: Option<usize>, var: &str) -> Sign {
-        let Some(idx) = frame_idx else {
-            return Sign::blank();
-        };
-        let frame = &self.stack[idx];
-        if let Some(target) = frame.shared.get(var) {
-            return self.get_var_in_stack(frame.caller_depth, target);
-        }
-        frame.env.get(var)
-    }
-
-    fn set_var(&mut self, var: &str, value: Sign) {
-        if let Some(target) = self.frame.shared.get(var).cloned() {
-            self.set_var_in_stack(self.frame.caller_depth, &target, value.clone());
-        }
-        self.frame.env.set(var, value);
-    }
-
-    fn set_var_in_stack(&mut self, frame_idx: Option<usize>, var: &str, value: Sign) {
-        let Some(idx) = frame_idx else {
-            return;
-        };
-        let shared_target = {
-            let frame = &self.stack[idx];
-            frame.shared.get(var).cloned()
-        };
-        if let Some(target) = shared_target {
-            let caller_depth = self.stack[idx].caller_depth;
-            self.set_var_in_stack(caller_depth, &target, value.clone());
-        }
-        if let Some(frame) = self.stack.get_mut(idx) {
-            frame.env.set(var, value);
-        }
-    }
-
-    fn current_pc(&self) -> usize {
-        self.frame.blocks.last().map(|block| block.pc).unwrap_or(0)
+    fn current_pc(&self) -> (usize, usize) {
+        self.normalized_pc()
     }
 
     fn peek_stmt(&self) -> Option<Stmt> {
-        let block = self.frame.blocks.last()?;
-        if block.pc < block.stmts.len() {
-            return Some(block.stmts[block.pc].clone());
+        let (block_idx, line_idx) = self.normalized_pc();
+        let blocks = &self.frame.blocks;
+        if block_idx >= blocks.len() {
+            return None;
         }
-        if block.loop_label.is_some() && !block.stmts.is_empty() {
-            return Some(block.stmts[0].clone());
-        }
-        None
+        blocks
+            .get(block_idx)
+            .and_then(|block| block.body.get(line_idx).cloned())
     }
 
-    fn next_stmt(&mut self) -> Result<Option<Stmt>, String> {
-        loop {
-            let Some(block) = self.frame.blocks.last_mut() else {
-                return Ok(None);
-            };
-            if block.pc < block.stmts.len() {
-                let stmt = block.stmts[block.pc].clone();
-                block.pc += 1;
-                return Ok(Some(stmt));
-            }
-            if block.loop_label.is_some() {
-                if block.stmts.is_empty() {
-                    return Err("loop body must not be empty".to_string());
-                }
-                block.pc = 0;
-                continue;
-            }
+    fn next_stmt(&mut self) -> Result<Option<(Stmt, usize)>, String> {
+        let (block_idx, line_idx) = self.normalized_pc();
+        let blocks = &self.frame.blocks;
+        if block_idx >= blocks.len() {
             return Ok(None);
         }
+        let stmt = blocks[block_idx].body[line_idx].clone();
+        self.frame.pc = (block_idx, line_idx + 1);
+        Ok(Some((stmt, block_idx)))
     }
 
-    fn break_loop(&mut self, label: &str) -> Result<(), String> {
-        while let Some(block) = self.frame.blocks.pop() {
-            if block.loop_label.as_deref() == Some(label) {
-                return Ok(());
-            }
+    fn jump_to(&mut self, label: &str) -> Result<(), String> {
+        let idx = self
+            .frame
+            .blocks
+            .iter()
+            .position(|block| block.label == label)
+            .expect("jump label not found");
+        self.frame.pc = (idx, 0);
+        Ok(())
+    }
+
+    fn eval_rvalue(&self, value: &RValue) -> Sign {
+        match value {
+            RValue::Var(var) => self.frame.env.get(var),
+            RValue::Head => self.tape.head_read().clone(),
+            RValue::Const(sign) => sign.clone(),
         }
-        Err(format!("break label not found: {}", label))
+    }
+
+    fn assign_lvalue(&mut self, target: &LValue, value: Sign) {
+        match target {
+            LValue::Var(var) => self.frame.env.set(var, value),
+            LValue::Head => self.tape.head_write(&value),
+        }
+    }
+
+    fn eval_condition(&self, cond: &Option<Condition>) -> bool {
+        let Some(cond) = cond else {
+            return true;
+        };
+        self.eval_rvalue(&cond.left) == self.eval_rvalue(&cond.right)
+    }
+
+    fn normalized_pc(&self) -> (usize, usize) {
+        let mut block_idx = self.frame.pc.0;
+        let mut line_idx = self.frame.pc.1;
+        let blocks = &self.frame.blocks;
+        loop {
+            if block_idx >= blocks.len() {
+                return (block_idx, line_idx);
+            }
+            let block = &blocks[block_idx];
+            if line_idx >= block.body.len() {
+                block_idx += 1;
+                line_idx = 0;
+                continue;
+            }
+            return (block_idx, line_idx);
+        }
     }
 }
 
-fn collect_vars(stmts: &[Stmt]) -> BTreeSet<String> {
+fn collect_vars(blocks: &[Block]) -> BTreeSet<String> {
     let mut vars = BTreeSet::new();
-    collect_vars_inner(stmts, &mut vars);
+    for block in blocks {
+        collect_vars_inner(&block.body, &mut vars);
+    }
     vars
 }
 
 fn collect_vars_inner(stmts: &[Stmt], vars: &mut BTreeSet<String>) {
     for stmt in stmts {
         match stmt {
-            Stmt::Read(var) | Stmt::Stor(var) | Stmt::IfBreak { var, .. } => {
-                vars.insert(var.clone());
+            Stmt::Assign { dst, src } => {
+                if let LValue::Var(var) = dst {
+                    vars.insert(var.clone());
+                }
+                collect_vars_rvalue(src, vars);
             }
-            Stmt::Assign(dst, src) => {
-                vars.insert(dst.clone());
-                vars.insert(src.clone());
-            }
-            Stmt::ConstAssign(dst, _) => {
-                vars.insert(dst.clone());
-            }
-            Stmt::Loop { body, .. } => collect_vars_inner(body, vars),
-            Stmt::Call { args, .. } => {
-                for arg in args {
-                    vars.insert(arg.name.clone());
+            Stmt::Break { cond }
+            | Stmt::Continue { cond }
+            | Stmt::Jump { cond, .. }
+            | Stmt::Return { cond } => {
+                if let Some(cond) = cond {
+                    collect_vars_rvalue(&cond.left, vars);
+                    collect_vars_rvalue(&cond.right, vars);
                 }
             }
+            Stmt::Call { .. } => {}
             Stmt::Lt | Stmt::Rt => {}
-            Stmt::StorConst(_) => {}
-            Stmt::IfBreakHead { .. } => {}
         }
+    }
+}
+
+fn collect_vars_rvalue(value: &RValue, vars: &mut BTreeSet<String>) {
+    if let RValue::Var(var) = value {
+        vars.insert(var.clone());
     }
 }
