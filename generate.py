@@ -56,6 +56,9 @@ def main() -> int:
     root_readme = REPO_ROOT / "README.md"
     if root_readme.exists():
         shutil.copy2(root_readme, DIST_SRC_DIR / "README.md")
+    root_todo = REPO_ROOT / "TODO.md"
+    if root_todo.exists():
+        shutil.copy2(root_todo, DIST_SRC_DIR / "TODO.md")
 
     summary_path = DIST_SRC_DIR / "SUMMARY.md"
     md_files = []
@@ -68,8 +71,10 @@ def main() -> int:
     md_files.sort()
 
     lines = ["[README](README.md)"]
+    if root_todo.exists():
+        lines.append("[TODO](TODO.md)")
     for rel in md_files:
-        if rel in ("README.md", "SUMMARY.md"):
+        if rel in ("README.md", "SUMMARY.md", "TODO.md"):
             continue
         lines.append(f"- [{rel}]({rel})")
 
