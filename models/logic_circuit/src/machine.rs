@@ -8,6 +8,15 @@ use utils::{bool::Bool, identifier::Identifier};
 pub type Pin = Identifier;
 pub type NamedPin = (Identifier, Identifier);
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Signal(pub Vec<(NamedPin, Bool)>);
+
+impl Signal {
+    pub fn new(items: Vec<(NamedPin, Bool)>) -> Self {
+        Signal(items)
+    }
+}
+
 fn pin_name(pin: &NamedPin) -> &Identifier {
     &pin.1
 }
@@ -29,7 +38,7 @@ pub trait LogicCircuitTrait {
     fn get_inpins(&self) -> Vec<NamedPin>;
     fn get_otpins(&self) -> Vec<NamedPin>;
     fn get_otputs(&self) -> Vec<(NamedPin, Bool)>;
-    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>);
+    fn step(&mut self, inputs: Signal);
     fn as_graph_group(&self) -> Graph;
 }
 
@@ -150,7 +159,7 @@ impl LogicCircuitTrait for LogicCircuit {
         }
     }
 
-    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
+    fn step(&mut self, inputs: Signal) {
         match self {
             LogicCircuit::Gate(gate) => gate.step(inputs),
             LogicCircuit::MixLogicCircuit(mix) => mix.step(inputs),
@@ -192,8 +201,9 @@ impl Display for GateKind {
     }
 }
 
-fn get_inputs_from_map(inputs: &[(NamedPin, Bool)], inpin: &Pin) -> Bool {
+fn get_inputs_from_map(inputs: &Signal, inpin: &Pin) -> Bool {
     inputs
+        .0
         .iter()
         .find(|(i, _)| pin_name(i) == inpin)
         .map(|(_, b)| *b)
@@ -248,7 +258,7 @@ impl LogicCircuitTrait for Gate {
             .collect()
     }
 
-    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
+    fn step(&mut self, inputs: Signal) {
         match self.kind {
             GateKind::Cst => {}
             GateKind::Not => {
@@ -395,7 +405,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
             .collect()
     }
 
-    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
+    fn step(&mut self, inputs: Signal) {
         // inputs for each Logic Circuits (key by name)
         let mut new_inputs: HashMap<Identifier, Vec<(NamedPin, Bool)>> = HashMap::new();
         // initialize
@@ -421,7 +431,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
 
         // from inputs
         // priority is low => check if already used
-        for (i, b) in inputs {
+        for (i, b) in inputs.0 {
             let Some(internal) = self.resolve_input(i) else {
                 eprintln!("Invalid InPin");
                 continue;
@@ -441,7 +451,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
                 .iter_mut()
                 .find_map(|(name2, lc)| if *name2 == name { Some(lc) } else { None })
                 .unwrap(); // unwrap is safe because we initialized `new_inputs` with all names
-            lc.step(inputs);
+            lc.step(Signal::new(inputs));
         }
     }
 
@@ -588,7 +598,7 @@ impl LogicCircuitTrait for IterLogicCircuit {
             .collect()
     }
 
-    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
+    fn step(&mut self, inputs: Signal) {
         // inputs for each Logic Circuits (key by index)
         // initialized
         let mut new_inputs: Vec<Vec<(NamedPin, Bool)>> = vec![vec![]; self.used.len() + 1];
@@ -619,7 +629,7 @@ impl LogicCircuitTrait for IterLogicCircuit {
 
         // from inputs
         // priority is low => check if already used
-        for (i, b) in inputs {
+        for (i, b) in inputs.0 {
             let Some(internal) = self.resolve_input(i) else {
                 eprintln!("Invalid InPin");
                 continue;
@@ -637,12 +647,12 @@ impl LogicCircuitTrait for IterLogicCircuit {
         // step each Logic Circuits
         for (num, inputs) in new_inputs.into_iter().enumerate() {
             if num != self.used.len() {
-                self.used[num].step(inputs);
+                self.used[num].step(Signal::new(inputs));
             } else {
                 // if inputs is not all false, push init into used
                 if inputs.iter().any(|(_, b)| *b == Bool::T) {
                     self.used.push(self.init.clone());
-                    self.used[num].step(inputs);
+                    self.used[num].step(Signal::new(inputs));
                 }
             }
         }

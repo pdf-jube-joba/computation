@@ -1,9 +1,10 @@
 pub mod machine;
 pub mod manipulation;
 pub mod parse;
+
 use serde_json::json;
 use utils::{Machine, TextCodec, json_text};
-use crate::machine::{Graph, LogicCircuit, NamedPin};
+pub use crate::machine::{Graph, LogicCircuit, NamedPin, Signal, LogicCircuitTrait};
 use utils::bool::Bool;
 pub mod example {
     use crate::manipulation::{init_maps, List};
@@ -42,44 +43,44 @@ impl TextCodec for LogicCircuit {
     }
 }
 
-impl TextCodec for NamedPin {
+fn parse_named_pin(text: &str) -> Result<NamedPin, String> {
+    let text = text.trim();
+    let (name, pin) = text
+        .rsplit_once('.')
+        .ok_or_else(|| "Expected NAME.PIN".to_string())?;
+    let name = utils::identifier::Identifier::new(name).map_err(|e| e.to_string())?;
+    let pin = utils::identifier::Identifier::new(pin).map_err(|e| e.to_string())?;
+    Ok((name, pin))
+}
+
+impl TextCodec for Signal {
     fn parse(text: &str) -> Result<Self, String> {
         let text = text.trim();
-        let (name, pin) = text
-            .rsplit_once('.')
-            .ok_or_else(|| "Expected NAME.PIN".to_string())?;
-        let name = utils::identifier::Identifier::new(name).map_err(|e| e.to_string())?;
-        let pin = utils::identifier::Identifier::new(pin).map_err(|e| e.to_string())?;
-        Ok((name, pin))
+        if text.is_empty() {
+            return Ok(Signal::new(vec![]));
+        }
+        let mut items = Vec::new();
+        for item in text.split(',') {
+            let item = item.trim();
+            let (pin, value) = item
+                .rsplit_once('=')
+                .ok_or_else(|| "Expected NAME.PIN=BOOL".to_string())?;
+            let pin = parse_named_pin(pin)?;
+            let value = <Bool as TextCodec>::parse(value)?;
+            items.push((pin, value));
+        }
+        Ok(Signal::new(items))
     }
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
-        write!(f, "{}.{}", self.0.as_str(), self.1.as_str())
-    }
-}
-
-impl TextCodec for (NamedPin, Bool) {
-    fn parse(text: &str) -> Result<Self, String> {
-        let text = text.trim();
-        let (pin, value) = text
-            .rsplit_once('=')
-            .ok_or_else(|| "Expected NAME.PIN=BOOL".to_string())?;
-        let pin = <NamedPin as TextCodec>::parse(pin)?;
-        let value = <Bool as TextCodec>::parse(value)?;
-        Ok((pin, value))
-    }
-
-    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
-        self.0.write_fmt(f)?;
-        write!(f, "=")?;
-        self.1.write_fmt(f)
-    }
-}
-
-fn bool_label(value: Bool) -> &'static str {
-    match value {
-        Bool::T => "T",
-        Bool::F => "F",
+        for (idx, (pin, value)) in self.0.iter().enumerate() {
+            if idx > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}.{}=", pin.0.as_str(), pin.1.as_str())?;
+            value.write_fmt(f)?;
+        }
+        Ok(())
     }
 }
 
@@ -127,8 +128,8 @@ impl From<Snapshot> for serde_json::Value {
             .iter()
             .map(|(external, internal)| {
                 let value = find_output_value(&snapshot.graph, internal)
-                    .map(bool_label)
-                    .unwrap_or("?");
+                    .map(|b| b.print())
+                    .unwrap_or("?".to_string());
                 json!({
                     "cells": [
                         json_text!(external.0.to_string()),
@@ -155,7 +156,7 @@ impl From<Snapshot> for serde_json::Value {
                         "cells": [
                             json_text!(name.to_string()),
                             json_text!(pin.1.to_string()),
-                            json_text!(bool_label(value))
+                            json_text!(value.print())
                         ]
                     })
                 })
@@ -175,7 +176,7 @@ impl From<Snapshot> for serde_json::Value {
 impl Machine for LogicCircuit {
     type Code = LogicCircuit;
     type AInput = ();
-    type RInput = Vec<(NamedPin, Bool)>;
+    type RInput = Signal;
     type Output = ();
     type SnapShot = Snapshot;
 
@@ -184,7 +185,7 @@ impl Machine for LogicCircuit {
     }
 
     fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        self.step(rinput);
+        LogicCircuitTrait::step(self, rinput);
         Ok(None)
     }
 

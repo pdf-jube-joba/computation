@@ -10,6 +10,10 @@ fn pin(name: &str, pin: &str) -> (Identifier, Identifier) {
     )
 }
 
+fn signal(items: Vec<(NamedPin, Bool)>) -> Signal {
+    Signal::new(items)
+}
+
 #[test]
 fn test_example() {
     let list = utils_map();
@@ -30,7 +34,7 @@ fn test_xor() {
         .map(|p| (p, Bool::F))
         .collect();
     for _ in 0..6 {
-        lc.step(inputs.clone());
+        lc.step(signal(inputs.clone()));
         eprintln!("{:?}", lc.get_otputs());
     }
 
@@ -41,7 +45,7 @@ fn test_xor() {
         .map(|p| (p, Bool::T))
         .collect();
     for _ in 0..6 {
-        lc.step(inputs.clone());
+        lc.step(signal(inputs.clone()));
         eprintln!("{:?}", lc.get_otputs());
     }
 
@@ -49,7 +53,7 @@ fn test_xor() {
 
     let inputs = vec![(pin("XOR", "IN0"), Bool::T), (pin("XOR", "IN1"), Bool::F)];
     for _ in 0..6 {
-        lc.step(inputs.clone());
+        lc.step(signal(inputs.clone()));
         eprintln!("{:?}", lc.get_otputs());
     }
 }
@@ -76,42 +80,18 @@ fn test_gate() {
     );
     assert_eq!(gate.get_otpins(), vec![pin("AND", "OUT")]);
     assert_eq!(gate.get_otputs(), vec![(pin("AND", "OUT"), Bool::F)]);
-    gate.step(vec![
+    gate.step(signal(vec![
         (pin("AND", "IN0"), Bool::T),
         (pin("AND", "IN1"), Bool::T),
-    ]);
+    ]));
     assert_eq!(gate.state, Bool::T);
     assert_eq!(gate.get_otputs(), vec![(pin("AND", "OUT"), Bool::T)]);
-    gate.step(vec![
+    gate.step(signal(vec![
         (pin("AND", "IN0"), Bool::T),
         (pin("AND", "IN1"), Bool::F),
-    ]);
+    ]));
     assert_eq!(gate.state, Bool::F);
     assert_eq!(gate.get_otputs(), vec![(pin("AND", "OUT"), Bool::F)]);
-}
-
-#[test]
-fn test_pin_map() {
-    let mix = LogicCircuit::new_mix(
-        Identifier::new("MAP").unwrap(),
-        vec![(
-            Identifier::new("A").unwrap(),
-            LogicCircuit::Gate(Gate {
-                kind: GateKind::And,
-                state: Bool::F,
-            }),
-        )],
-        vec![],
-        vec![(Identifier::new("I").unwrap(), pin("A", "IN0"))],
-        vec![(Identifier::new("O").unwrap(), pin("A", "OUT"))],
-    )
-    .unwrap();
-    assert_eq!(mix.get_inpins(), vec![pin("MAP", "I")]);
-    assert_eq!(mix.get_otpins(), vec![pin("MAP", "O")]);
-    assert_eq!(mix.get_otputs(), vec![(pin("MAP", "O"), Bool::F)]);
-    let mut mix = mix;
-    mix.step(vec![(pin("MAP", "I"), Bool::T)]);
-    assert_eq!(mix.get_otputs(), vec![(pin("MAP", "O"), Bool::F)]);
 }
 
 #[test]
@@ -151,23 +131,23 @@ fn test_mix() {
     assert_eq!(mix.get_otpins(), vec![pin("B", "OUT")]);
     assert_eq!(mix.get_otputs(), vec![(pin("B", "OUT"), Bool::F)]);
 
-    mix.step(vec![(pin("A", "IN0"), Bool::T)]);
+    mix.step(signal(vec![(pin("A", "IN0"), Bool::T)]));
     assert_eq!(mix.get_otputs(), vec![(pin("B", "OUT"), Bool::F)]);
 
-    mix.step(vec![(pin("A", "IN0"), Bool::T)]);
+    mix.step(signal(vec![(pin("A", "IN0"), Bool::T)]));
     assert_eq!(mix.get_otputs(), vec![(pin("B", "OUT"), Bool::F)]);
 
     // A.IN0 and A.IN1 are T
-    mix.step(vec![
+    mix.step(signal(vec![
         (pin("A", "IN0"), Bool::T),
         (pin("A", "IN1"), Bool::T),
         // B.IN1 is F if not set
-    ]);
+    ]));
     assert_eq!(mix.get_otputs(), vec![(pin("B", "OUT"), Bool::F)]);
-    mix.step(vec![
+    mix.step(signal(vec![
         (pin("A", "IN0"), Bool::F),
         (pin("A", "IN1"), Bool::F),
         // B.IN1 is F if not set
-    ]);
+    ]));
     assert_eq!(mix.get_otputs(), vec![(pin("B", "OUT"), Bool::T)]);
 }

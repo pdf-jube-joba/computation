@@ -1,5 +1,19 @@
 メモ：思い出した。ピンを本当に自然数で番号づければいいとか考えていた。
 
+<div data-model="logic_circuit">
+<script type="text/plain" class="default-code">
+graph: one-shot {
+    in {I}
+    out {O=A.OUT}
+    B, BR-F {IN=I}
+    N, NOT-T {IN=B.OUT0}
+    A, AND-F {IN0=B.OUT1, IN1=N.OUT}
+}
+</script>
+<script type="text/plain" class="default-ainput">
+</script>
+</div>
+
 ## 形式的な定義
 論理回路の本を読んでも数学的構造として何かといった議論はあまりないか、あったとしてもチューリング完全にはならないような定式化をしていることが多い（有限なゲートの組み合わせだとダメそう）。
 一方で、論理回路の本を読めば数学的構造として定義するなら何を定めればいいかは容易に察せる（と思う）。
