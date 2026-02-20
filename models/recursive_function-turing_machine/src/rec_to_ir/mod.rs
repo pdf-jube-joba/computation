@@ -5,7 +5,9 @@ use turing_machine::machine::Sign;
 use utils::TextCodec;
 
 use crate::rec_tm_ir::{Block, Function, Program, Stmt};
-use crate::rec_to_ir::auxiliary::basic::{self, move_left_till_x_n_times, move_right_till_x_n_times};
+use crate::rec_to_ir::auxiliary::basic::{
+    self, move_left_till_x_n_times, move_right_till_x_n_times,
+};
 use crate::rec_to_ir::auxiliary::{copy, rotate};
 use crate::rec_to_ir::compile::projection;
 

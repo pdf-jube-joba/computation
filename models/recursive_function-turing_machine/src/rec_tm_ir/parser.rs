@@ -459,10 +459,7 @@ fn render_rvalue(value: &RValue) -> String {
     }
 }
 
-fn write_condition(
-    f: &mut impl std::fmt::Write,
-    cond: &Option<Condition>,
-) -> std::fmt::Result {
+fn write_condition(f: &mut impl std::fmt::Write, cond: &Option<Condition>) -> std::fmt::Result {
     if let Some(cond) = cond {
         write!(
             f,

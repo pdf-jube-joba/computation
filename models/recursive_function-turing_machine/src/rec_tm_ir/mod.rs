@@ -2,9 +2,12 @@ mod machine;
 mod parser;
 mod validation;
 
-pub use machine::{Block, Environment, Function, Program, RecTmIrMachine, Snapshot, Stmt, RValue, LValue, Condition};
-pub use validation::validate_no_recursion;
+pub use machine::{
+    Block, Condition, Environment, Function, LValue, Program, RValue, RecTmIrMachine, Snapshot,
+    Stmt,
+};
 pub use turing_machine::machine::Tape;
+pub use validation::validate_no_recursion;
 
 #[cfg(test)]
 mod test;

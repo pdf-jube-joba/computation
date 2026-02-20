@@ -1,5 +1,5 @@
-pub mod identifier;
 pub mod bool;
+pub mod identifier;
 pub mod number;
 pub mod parse;
 pub mod variable;

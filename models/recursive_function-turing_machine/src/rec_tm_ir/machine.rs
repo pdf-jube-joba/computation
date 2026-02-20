@@ -109,10 +109,7 @@ macro_rules! cond {
 #[macro_export]
 macro_rules! assign {
     ($l: expr, $r: expr) => {
-        $crate::rec_tm_ir::Stmt::Assign {
-            dst: $l,
-            src: $r,
-        }
+        $crate::rec_tm_ir::Stmt::Assign { dst: $l, src: $r }
     };
 }
 

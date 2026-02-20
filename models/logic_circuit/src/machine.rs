@@ -1,98 +1,35 @@
-use anyhow::{bail, Error, Result};
+use anyhow::{bail, Result};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
-    str::FromStr,
 };
-use utils::{identifier::Identifier, bool::Bool};
+use utils::{bool::Bool, identifier::Identifier};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct InPin(Vec<Identifier>);
+pub type Pin = Identifier;
+pub type NamedPin = (Identifier, Identifier);
 
-pub fn destruct_inpin(inpin: InPin) -> Option<(Identifier, InPin)> {
-    let (a, b) = inpin.0.split_first()?;
-    Some((a.clone(), InPin(b.to_vec())))
+fn pin_name(pin: &NamedPin) -> &Identifier {
+    &pin.1
 }
 
-pub fn concat_inpin(indent: Identifier, inpin: InPin) -> InPin {
-    let mut v = vec![indent];
-    v.extend(inpin.0);
-    InPin(v)
-}
-
-impl FromStr for InPin {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut v = vec![];
-        for i in s.split('.') {
-            v.push(Identifier::new(format!("_{i}"))?);
-        }
-        Ok(InPin(v))
-    }
-}
-
-impl Display for InPin {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.0
-                .iter()
-                .map(|i| i.to_string())
-                .collect::<Vec<_>>()
-                .join(".")
-        )
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct OtPin(Vec<Identifier>);
-
-pub fn concat_otpin(indent: Identifier, otpin: OtPin) -> OtPin {
-    let mut v = vec![indent];
-    v.extend(otpin.0);
-    OtPin(v)
-}
-
-impl FromStr for OtPin {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut v = vec![];
-        for i in s.split('.') {
-            v.push(Identifier::new(format!("_{i}_"))?);
-        }
-        Ok(OtPin(v))
-    }
-}
-
-impl Display for OtPin {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.0
-                .iter()
-                .map(|i| i.to_string())
-                .collect::<Vec<_>>()
-                .join(".")
-        )
-    }
+fn make_pin(name: Identifier, pin: Identifier) -> NamedPin {
+    (name, pin)
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Graph {
     pub verts: Vec<(Identifier, LogicCircuit)>,
-    pub edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
-    pub inpins_map: Vec<(InPin, (Identifier, InPin))>,
-    pub otpins_map: Vec<(OtPin, (Identifier, OtPin))>,
+    pub edges: Vec<(NamedPin, NamedPin)>,
+    pub inpins_map: Vec<(NamedPin, NamedPin)>,
+    pub otpins_map: Vec<(NamedPin, NamedPin)>,
 }
 
 pub trait LogicCircuitTrait {
     fn kind(&self) -> Identifier;
-    fn get_inpins(&self) -> Vec<InPin>;
-    fn get_otpins(&self) -> Vec<OtPin>;
-    fn get_otputs(&self) -> Vec<(OtPin, Bool)>;
-    fn step(&mut self, inputs: Vec<(InPin, Bool)>);
+    fn get_inpins(&self) -> Vec<NamedPin>;
+    fn get_otpins(&self) -> Vec<NamedPin>;
+    fn get_otputs(&self) -> Vec<(NamedPin, Bool)>;
+    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>);
     fn as_graph_group(&self) -> Graph;
 }
 
@@ -101,7 +38,6 @@ pub enum LogicCircuit {
     Gate(Gate),
     MixLogicCircuit(Box<MixLogicCircuit>),
     IterLogicCircuit(Box<IterLogicCircuit>),
-    PinMap(Box<PinMap>),
 }
 
 impl LogicCircuit {
@@ -115,24 +51,15 @@ impl LogicCircuit {
     pub fn new_gate(kind: GateKind, state: Bool) -> LogicCircuit {
         LogicCircuit::Gate(Gate { kind, state })
     }
-    pub fn new_pin_map(
-        this: LogicCircuit,
-        inpin_maps: Vec<(InPin, InPin)>,
-        otpin_maps: Vec<(OtPin, OtPin)>,
-    ) -> Result<LogicCircuit> {
-        Ok(LogicCircuit::PinMap(Box::new(PinMap {
-            this,
-            inpin_maps,
-            otpin_maps,
-        })))
-    }
     pub fn new_mix(
         kind: Identifier,
         verts: Vec<(Identifier, LogicCircuit)>,
-        edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
+        edges: Vec<(NamedPin, NamedPin)>,
+        inpin_maps: Vec<(Identifier, NamedPin)>,
+        otpin_maps: Vec<(Identifier, NamedPin)>,
     ) -> Result<LogicCircuit> {
         // prepare all inputs and outputs for each Logic Circuit
-        let mut maps: HashMap<Identifier, (HashSet<InPin>, HashSet<OtPin>)> = HashMap::new();
+        let mut maps: HashMap<Identifier, (HashSet<Pin>, HashSet<Pin>)> = HashMap::new();
         // initialize
         for (name, lc) in &verts {
             if maps.contains_key(name) {
@@ -141,8 +68,8 @@ impl LogicCircuit {
             maps.insert(
                 name.clone(),
                 (
-                    lc.get_inpins().into_iter().collect(),
-                    lc.get_otpins().into_iter().collect(),
+                    lc.get_inpins().into_iter().map(|(_, p)| p).collect(),
+                    lc.get_otpins().into_iter().map(|(_, p)| p).collect(),
                 ),
             );
         }
@@ -168,13 +95,15 @@ impl LogicCircuit {
             kind,
             verts,
             edges,
+            inpin_maps,
+            otpin_maps,
         })))
     }
     pub fn new_iter(
         kind: Identifier,
         init: LogicCircuit,
-        next_edges: Vec<(OtPin, InPin)>,
-        prev_edges: Vec<(OtPin, InPin)>,
+        next_edges: Vec<(Pin, Pin)>,
+        prev_edges: Vec<(Pin, Pin)>,
     ) -> Result<LogicCircuit> {
         Ok(LogicCircuit::IterLogicCircuit(Box::new(IterLogicCircuit {
             kind,
@@ -182,6 +111,8 @@ impl LogicCircuit {
             used: vec![],
             next_edges,
             prev_edges,
+            inpin_maps: vec![],
+            otpin_maps: vec![],
         })))
     }
 }
@@ -192,43 +123,38 @@ impl LogicCircuitTrait for LogicCircuit {
             LogicCircuit::Gate(gate) => gate.kind(),
             LogicCircuit::MixLogicCircuit(mix) => mix.kind(),
             LogicCircuit::IterLogicCircuit(iter) => iter.kind(),
-            LogicCircuit::PinMap(pin_map) => pin_map.kind(),
         }
     }
 
-    fn get_inpins(&self) -> Vec<InPin> {
+    fn get_inpins(&self) -> Vec<NamedPin> {
         match self {
             LogicCircuit::Gate(gate) => gate.get_inpins(),
             LogicCircuit::MixLogicCircuit(mix) => mix.get_inpins(),
             LogicCircuit::IterLogicCircuit(iter) => iter.get_inpins(),
-            LogicCircuit::PinMap(pin_map) => pin_map.get_inpins(),
         }
     }
 
-    fn get_otpins(&self) -> Vec<OtPin> {
+    fn get_otpins(&self) -> Vec<NamedPin> {
         match self {
             LogicCircuit::Gate(gate) => gate.get_otpins(),
             LogicCircuit::MixLogicCircuit(mix) => mix.get_otpins(),
             LogicCircuit::IterLogicCircuit(iter) => iter.get_otpins(),
-            LogicCircuit::PinMap(pin_map) => pin_map.get_otpins(),
         }
     }
 
-    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+    fn get_otputs(&self) -> Vec<(NamedPin, Bool)> {
         match self {
             LogicCircuit::Gate(gate) => gate.get_otputs(),
             LogicCircuit::MixLogicCircuit(mix) => mix.get_otputs(),
             LogicCircuit::IterLogicCircuit(iter) => iter.get_otputs(),
-            LogicCircuit::PinMap(pin_map) => pin_map.get_otputs(),
         }
     }
 
-    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
         match self {
             LogicCircuit::Gate(gate) => gate.step(inputs),
             LogicCircuit::MixLogicCircuit(mix) => mix.step(inputs),
             LogicCircuit::IterLogicCircuit(iter) => iter.step(inputs),
-            LogicCircuit::PinMap(pin_map) => pin_map.step(inputs),
         }
     }
 
@@ -237,7 +163,6 @@ impl LogicCircuitTrait for LogicCircuit {
             LogicCircuit::Gate(gate) => gate.as_graph_group(),
             LogicCircuit::MixLogicCircuit(mix) => mix.as_graph_group(),
             LogicCircuit::IterLogicCircuit(iter) => iter.as_graph_group(),
-            LogicCircuit::PinMap(pin_map) => pin_map.as_graph_group(),
         }
     }
 }
@@ -267,18 +192,18 @@ impl Display for GateKind {
     }
 }
 
-fn get_inputs_from_map(inputs: &[(InPin, Bool)], inpin: &InPin) -> Bool {
+fn get_inputs_from_map(inputs: &[(NamedPin, Bool)], inpin: &Pin) -> Bool {
     inputs
         .iter()
-        .find(|(i, _)| i == inpin)
+        .find(|(i, _)| pin_name(i) == inpin)
         .map(|(_, b)| *b)
         .unwrap_or(Bool::F)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Gate {
-    kind: GateKind,
-    state: Bool,
+    pub(crate) kind: GateKind,
+    pub(crate) state: Bool,
 }
 
 impl LogicCircuitTrait for Gate {
@@ -286,57 +211,65 @@ impl LogicCircuitTrait for Gate {
         Identifier::new(self.kind.to_string()).unwrap()
     }
 
-    fn get_inpins(&self) -> Vec<InPin> {
+    fn get_inpins(&self) -> Vec<NamedPin> {
+        let name = self.kind();
         match self.kind {
             GateKind::Cst => vec![],
             GateKind::Not | GateKind::Br | GateKind::Delay | GateKind::End => {
-                vec!["IN".parse().unwrap()]
+                vec![make_pin(name, Identifier::new("IN").unwrap())]
             }
             GateKind::And | GateKind::Or => {
-                vec!["IN0".parse().unwrap(), "IN1".parse().unwrap()]
+                vec![
+                    make_pin(name.clone(), Identifier::new("IN0").unwrap()),
+                    make_pin(name, Identifier::new("IN1").unwrap()),
+                ]
             }
         }
     }
 
-    fn get_otpins(&self) -> Vec<OtPin> {
+    fn get_otpins(&self) -> Vec<NamedPin> {
+        let name = self.kind();
         match self.kind {
             GateKind::Cst | GateKind::Not | GateKind::Delay | GateKind::And | GateKind::Or => {
-                vec!["OUT".parse().unwrap()]
+                vec![make_pin(name, Identifier::new("OUT").unwrap())]
             }
-            GateKind::Br => vec!["OUT0".parse().unwrap(), "OUT1".parse().unwrap()],
+            GateKind::Br => vec![
+                make_pin(name.clone(), Identifier::new("OUT0").unwrap()),
+                make_pin(name, Identifier::new("OUT1").unwrap()),
+            ],
             GateKind::End => vec![],
         }
     }
 
-    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+    fn get_otputs(&self) -> Vec<(NamedPin, Bool)> {
         self.get_otpins()
             .into_iter()
             .map(|otpin| (otpin, self.state))
             .collect()
     }
 
-    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
         match self.kind {
             GateKind::Cst => {}
             GateKind::Not => {
-                self.state = !get_inputs_from_map(&inputs, &"IN".parse().unwrap());
+                self.state = !get_inputs_from_map(&inputs, &Identifier::new("IN").unwrap());
             }
             GateKind::And => {
-                self.state = get_inputs_from_map(&inputs, &"IN0".parse().unwrap())
-                    & get_inputs_from_map(&inputs, &"IN1".parse().unwrap());
+                self.state = get_inputs_from_map(&inputs, &Identifier::new("IN0").unwrap())
+                    & get_inputs_from_map(&inputs, &Identifier::new("IN1").unwrap());
             }
             GateKind::Or => {
-                self.state = get_inputs_from_map(&inputs, &"IN0".parse().unwrap())
-                    | get_inputs_from_map(&inputs, &"IN1".parse().unwrap());
+                self.state = get_inputs_from_map(&inputs, &Identifier::new("IN0").unwrap())
+                    | get_inputs_from_map(&inputs, &Identifier::new("IN1").unwrap());
             }
             GateKind::Br => {
-                self.state = get_inputs_from_map(&inputs, &"IN".parse().unwrap());
+                self.state = get_inputs_from_map(&inputs, &Identifier::new("IN").unwrap());
             }
             GateKind::Delay => {
-                self.state = get_inputs_from_map(&inputs, &"IN".parse().unwrap());
+                self.state = get_inputs_from_map(&inputs, &Identifier::new("IN").unwrap());
             }
             GateKind::End => {
-                self.state = get_inputs_from_map(&inputs, &"IN".parse().unwrap());
+                self.state = get_inputs_from_map(&inputs, &Identifier::new("IN").unwrap());
             }
         }
     }
@@ -348,112 +281,12 @@ impl LogicCircuitTrait for Gate {
             inpins_map: self
                 .get_inpins()
                 .into_iter()
-                .map(|i| (i.clone(), (self.kind(), i)))
+                .map(|i| (i.clone(), i))
                 .collect(),
             otpins_map: self
                 .get_otpins()
                 .into_iter()
-                .map(|o| (o.clone(), (self.kind(), o)))
-                .collect(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct PinMap {
-    pub this: LogicCircuit,
-    pub inpin_maps: Vec<(InPin, InPin)>, // access by first, actually mapped to second
-    pub otpin_maps: Vec<(OtPin, OtPin)>, // same as above
-}
-
-impl LogicCircuitTrait for PinMap {
-    fn kind(&self) -> Identifier {
-        self.this.kind()
-    }
-
-    fn get_inpins(&self) -> Vec<InPin> {
-        self.this
-            .get_inpins()
-            .into_iter()
-            .map(|i| {
-                if let Some((i1, _)) = self.inpin_maps.iter().find(|(_, i2)| i2 == &i) {
-                    i1.clone()
-                } else {
-                    i
-                }
-            })
-            .collect()
-    }
-
-    fn get_otpins(&self) -> Vec<OtPin> {
-        self.this
-            .get_otpins()
-            .into_iter()
-            .map(|o| {
-                if let Some((o1, _)) = self.otpin_maps.iter().find(|(_, o2)| o2 == &o) {
-                    o1.clone()
-                } else {
-                    o
-                }
-            })
-            .collect()
-    }
-
-    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
-        self.this
-            .get_otputs()
-            .into_iter()
-            .map(|(o, b)| {
-                if let Some((o1, _)) = self.otpin_maps.iter().find(|(_, o2)| o2 == &o) {
-                    (o1.clone(), b)
-                } else {
-                    (o, b)
-                }
-            })
-            .collect()
-    }
-
-    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
-        let mut new_inputs = vec![];
-        for (i, b) in inputs {
-            if let Some((_, i2)) = self.inpin_maps.iter().find(|(i1, _)| i1 == &i) {
-                new_inputs.push((i2.clone(), b));
-            } else {
-                new_inputs.push((i, b));
-            }
-        }
-        self.this.step(new_inputs);
-    }
-
-    fn as_graph_group(&self) -> Graph {
-        let Graph {
-            verts,
-            edges,
-            inpins_map: inpins_map_of_graph,
-            otpins_map: otpins_map_of_graph,
-        } = self.this.as_graph_group();
-        Graph {
-            verts,
-            edges,
-            inpins_map: self
-                .inpin_maps
-                .iter()
-                .filter_map(|(i1, i2)| {
-                    inpins_map_of_graph
-                        .iter()
-                        .find(|(i, _)| i == i2)
-                        .map(|(_, (s, i))| (i1.clone(), (s.clone(), i.clone())))
-                })
-                .collect(),
-            otpins_map: self
-                .otpin_maps
-                .iter()
-                .filter_map(|(o1, o2)| {
-                    otpins_map_of_graph
-                        .iter()
-                        .find(|(o, _)| o == o2)
-                        .map(|(_, (s, o))| (o1.clone(), (s.clone(), o.clone())))
-                })
+                .map(|o| (o.clone(), o))
                 .collect(),
         }
     }
@@ -463,31 +296,70 @@ impl LogicCircuitTrait for PinMap {
 pub struct MixLogicCircuit {
     pub kind: Identifier,
     pub verts: Vec<(Identifier, LogicCircuit)>,
-    pub edges: Vec<((Identifier, OtPin), (Identifier, InPin))>,
+    pub edges: Vec<(NamedPin, NamedPin)>,
+    pub inpin_maps: Vec<(Identifier, NamedPin)>,
+    pub otpin_maps: Vec<(Identifier, NamedPin)>,
 }
 
 impl MixLogicCircuit {
-    fn usable_inpins(&self) -> Vec<(Identifier, InPin)> {
+    fn usable_inpins(&self) -> Vec<NamedPin> {
         self.verts
             .iter()
             .flat_map(|(s, g)| {
                 g.get_inpins()
                     .into_iter()
-                    .filter(move |i| self.edges.iter().all(|(_, (s2, i2))| s != s2 || i != i2))
-                    .map(|i| (s.clone(), i))
+                    .map(|(_, pin)| pin)
+                    .map(|pin| make_pin(s.clone(), pin))
+                    .filter(move |pin| self.edges.iter().all(|(_, i2)| pin != i2))
             })
             .collect()
     }
-    fn usable_otpins(&self) -> Vec<(Identifier, OtPin)> {
+    fn usable_otpins(&self) -> Vec<NamedPin> {
         self.verts
             .iter()
             .flat_map(|(s, g)| {
                 g.get_otpins()
                     .into_iter()
-                    .filter(move |o| self.edges.iter().all(|((s2, o2), _)| s != s2 || o != o2))
-                    .map(|o| (s.clone(), o))
+                    .map(|(_, pin)| pin)
+                    .map(|pin| make_pin(s.clone(), pin))
+                    .filter(move |pin| self.edges.iter().all(|(o2, _)| pin != o2))
             })
             .collect()
+    }
+
+    fn map_internal_inpin(&self, internal: &NamedPin) -> NamedPin {
+        if let Some((external, _)) = self
+            .inpin_maps
+            .iter()
+            .find(|(_, target)| target == internal)
+        {
+            make_pin(self.kind.clone(), external.clone())
+        } else {
+            internal.clone()
+        }
+    }
+
+    fn map_internal_otpin(&self, internal: &NamedPin) -> NamedPin {
+        if let Some((external, _)) = self
+            .otpin_maps
+            .iter()
+            .find(|(_, target)| target == internal)
+        {
+            make_pin(self.kind.clone(), external.clone())
+        } else {
+            internal.clone()
+        }
+    }
+
+    fn resolve_input(&self, input: NamedPin) -> Option<NamedPin> {
+        if input.0 == self.kind {
+            self.inpin_maps
+                .iter()
+                .find(|(external, _)| external == &input.1)
+                .map(|(_, target)| target.clone())
+        } else {
+            Some(input)
+        }
     }
 }
 
@@ -496,35 +368,36 @@ impl LogicCircuitTrait for MixLogicCircuit {
         self.kind.clone()
     }
 
-    fn get_inpins(&self) -> Vec<InPin> {
+    fn get_inpins(&self) -> Vec<NamedPin> {
         self.usable_inpins()
             .into_iter()
-            .map(|(s, i)| concat_inpin(s.clone(), i.clone()))
+            .map(|pin| self.map_internal_inpin(&pin))
             .collect()
     }
 
-    fn get_otpins(&self) -> Vec<OtPin> {
+    fn get_otpins(&self) -> Vec<NamedPin> {
         self.usable_otpins()
             .into_iter()
-            .map(|(s, o)| concat_otpin(s.clone(), o.clone()))
+            .map(|pin| self.map_internal_otpin(&pin))
             .collect()
     }
 
-    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+    fn get_otputs(&self) -> Vec<(NamedPin, Bool)> {
         self.verts
             .iter()
             .flat_map(|(s, g)| {
                 g.get_otputs()
                     .into_iter()
-                    .filter(move |(o, _)| self.edges.iter().all(|((s2, o2), _)| s != s2 || o != o2))
-                    .map(|(o, b)| (concat_otpin(s.clone(), o), b))
+                    .map(|(o, b)| (make_pin(s.clone(), pin_name(&o).clone()), b))
+                    .filter(move |(o, _)| self.edges.iter().all(|(from, _)| from != o))
+                    .map(|(o, b)| (self.map_internal_otpin(&o), b))
             })
             .collect()
     }
 
-    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
         // inputs for each Logic Circuits (key by name)
-        let mut new_inputs: HashMap<Identifier, Vec<(InPin, Bool)>> = HashMap::new();
+        let mut new_inputs: HashMap<Identifier, Vec<(NamedPin, Bool)>> = HashMap::new();
         // initialize
         for (name, _) in &self.verts {
             new_inputs.insert(name.clone(), vec![]);
@@ -535,14 +408,13 @@ impl LogicCircuitTrait for MixLogicCircuit {
         // priority is high
         for (name, loc) in &self.verts {
             for (otpins, b) in loc.get_otputs() {
-                if let Some((namei, i)) = self.edges.iter().find_map(|((name2, o), ni)| {
-                    if name == name2 && o == &otpins {
-                        Some(ni)
-                    } else {
-                        None
-                    }
-                }) {
-                    new_inputs.get_mut(namei).unwrap().push((i.clone(), b));
+                let output = make_pin(name.clone(), pin_name(&otpins).clone());
+                if let Some((_, i)) =
+                    self.edges
+                        .iter()
+                        .find_map(|(o, ni)| if o == &output { Some((o, ni)) } else { None })
+                {
+                    new_inputs.get_mut(&i.0).unwrap().push((i.clone(), b));
                 }
             }
         }
@@ -550,16 +422,16 @@ impl LogicCircuitTrait for MixLogicCircuit {
         // from inputs
         // priority is low => check if already used
         for (i, b) in inputs {
-            let Some((name, rest)) = destruct_inpin(i) else {
+            let Some(internal) = self.resolve_input(i) else {
                 eprintln!("Invalid InPin");
                 continue;
             };
-            let Some(v) = new_inputs.get_mut(&name) else {
-                eprintln!("Invalid Name {name}");
+            let Some(v) = new_inputs.get_mut(&internal.0) else {
+                eprintln!("Invalid Name {}", internal.0);
                 continue;
             };
-            if v.iter().all(|(i2, _)| i2 != &rest) {
-                v.push((rest, b));
+            if v.iter().all(|(i2, _)| i2 != &internal) {
+                v.push((internal, b));
             }
         }
 
@@ -580,12 +452,12 @@ impl LogicCircuitTrait for MixLogicCircuit {
             inpins_map: self
                 .usable_inpins()
                 .into_iter()
-                .map(|(s, i)| (concat_inpin(s.clone(), i.clone()), (s, i)))
+                .map(|i| (self.map_internal_inpin(&i), i))
                 .collect(),
             otpins_map: self
                 .usable_otpins()
                 .into_iter()
-                .map(|(s, o)| (concat_otpin(s.clone(), o.clone()), (s, o)))
+                .map(|o| (self.map_internal_otpin(&o), o))
                 .collect(),
         }
     }
@@ -603,40 +475,79 @@ pub struct IterLogicCircuit {
     // all of them are `init` except the finite number of them
     pub init: LogicCircuit,
     pub used: Vec<LogicCircuit>,
-    pub next_edges: Vec<(OtPin, InPin)>, // edge from used[i] -> used[i+1]
-    pub prev_edges: Vec<(OtPin, InPin)>, // edge from used[i] -> used[i-1]
+    pub next_edges: Vec<(Pin, Pin)>, // edge from used[i] -> used[i+1]
+    pub prev_edges: Vec<(Pin, Pin)>, // edge from used[i] -> used[i-1]
+    pub inpin_maps: Vec<(Identifier, NamedPin)>,
+    pub otpin_maps: Vec<(Identifier, NamedPin)>,
 }
 
 impl IterLogicCircuit {
-    fn usable_inpins(&self) -> Vec<(usize, InPin)> {
+    fn usable_inpins(&self) -> Vec<(usize, Pin)> {
         self.used
             .iter()
             .enumerate()
             .flat_map(|(n, g)| {
                 g.get_inpins()
                     .into_iter()
-                    .filter(move |i| {
-                        (n == 0 || self.next_edges.iter().all(|(_, i2)| i != i2))
-                            && self.prev_edges.iter().all(|(_, i2)| i != i2)
+                    .map(|(_, pin)| pin)
+                    .filter(move |pin| {
+                        (n == 0 || self.next_edges.iter().all(|(_, i2)| pin != i2))
+                            && self.prev_edges.iter().all(|(_, i2)| pin != i2)
                     })
-                    .map(move |i| (n, i))
+                    .map(move |pin| (n, pin))
             })
             .collect()
     }
-    fn usable_otpins(&self) -> Vec<(usize, OtPin)> {
+    fn usable_otpins(&self) -> Vec<(usize, Pin)> {
         self.used
             .iter()
             .enumerate()
             .flat_map(|(n, g)| {
                 g.get_otpins()
                     .into_iter()
-                    .filter(move |o| {
-                        (n == 0 || self.prev_edges.iter().all(|(o2, _)| o != o2))
-                            && self.next_edges.iter().all(|(o2, _)| o != o2)
+                    .map(|(_, pin)| pin)
+                    .filter(move |pin| {
+                        (n == 0 || self.prev_edges.iter().all(|(o2, _)| pin != o2))
+                            && self.next_edges.iter().all(|(o2, _)| pin != o2)
                     })
-                    .map(move |o| (n, o))
+                    .map(move |pin| (n, pin))
             })
             .collect()
+    }
+
+    fn map_internal_inpin(&self, internal: &NamedPin) -> NamedPin {
+        if let Some((external, _)) = self
+            .inpin_maps
+            .iter()
+            .find(|(_, target)| target == internal)
+        {
+            make_pin(self.kind.clone(), external.clone())
+        } else {
+            internal.clone()
+        }
+    }
+
+    fn map_internal_otpin(&self, internal: &NamedPin) -> NamedPin {
+        if let Some((external, _)) = self
+            .otpin_maps
+            .iter()
+            .find(|(_, target)| target == internal)
+        {
+            make_pin(self.kind.clone(), external.clone())
+        } else {
+            internal.clone()
+        }
+    }
+
+    fn resolve_input(&self, input: NamedPin) -> Option<NamedPin> {
+        if input.0 == self.kind {
+            self.inpin_maps
+                .iter()
+                .find(|(external, _)| external == &input.1)
+                .map(|(_, target)| target.clone())
+        } else {
+            Some(input)
+        }
     }
 }
 
@@ -645,60 +556,63 @@ impl LogicCircuitTrait for IterLogicCircuit {
         self.kind.clone()
     }
 
-    fn get_inpins(&self) -> Vec<InPin> {
+    fn get_inpins(&self) -> Vec<NamedPin> {
         self.usable_inpins()
             .into_iter()
-            .map(|(n, i)| concat_inpin(num_to_ident(n), i.clone()))
+            .map(|(n, i)| self.map_internal_inpin(&make_pin(num_to_ident(n), i)))
             .collect()
     }
 
-    fn get_otpins(&self) -> Vec<OtPin> {
+    fn get_otpins(&self) -> Vec<NamedPin> {
         self.usable_otpins()
             .into_iter()
-            .map(|(n, o)| concat_otpin(num_to_ident(n), o.clone()))
+            .map(|(n, o)| self.map_internal_otpin(&make_pin(num_to_ident(n), o)))
             .collect()
     }
 
-    fn get_otputs(&self) -> Vec<(OtPin, Bool)> {
+    fn get_otputs(&self) -> Vec<(NamedPin, Bool)> {
         self.used
             .iter()
             .enumerate()
             .flat_map(|(n, g)| {
                 g.get_otputs()
                     .into_iter()
+                    .map(|(o, b)| (make_pin(num_to_ident(n), pin_name(&o).clone()), b))
                     .filter(move |(o, _)| {
-                        (n == 0 || self.prev_edges.iter().all(|(o2, _)| o != o2))
-                            && self.next_edges.iter().all(|(o2, _)| o != o2)
+                        (n == 0 || self.prev_edges.iter().all(|(o2, _)| &o.1 != o2))
+                            && self.next_edges.iter().all(|(o2, _)| &o.1 != o2)
                     })
-                    .map(move |(o, b)| (concat_otpin(num_to_ident(n), o), b))
+                    .map(|(o, b)| (self.map_internal_otpin(&o), b))
+                    .collect::<Vec<_>>()
             })
             .collect()
     }
 
-    fn step(&mut self, inputs: Vec<(InPin, Bool)>) {
+    fn step(&mut self, inputs: Vec<(NamedPin, Bool)>) {
         // inputs for each Logic Circuits (key by index)
         // initialized
-        let mut new_inputs: Vec<Vec<(InPin, Bool)>> = vec![vec![]; self.used.len() + 1];
+        let mut new_inputs: Vec<Vec<(NamedPin, Bool)>> = vec![vec![]; self.used.len() + 1];
 
         // from other Logic Circuits
         // priority is high
         for (num, lc) in self.used.iter().enumerate() {
             for (o, b) in lc.get_otputs() {
+                let output_pin = pin_name(&o);
                 // send inputs to next Logic Circuits
                 if let Some(i) =
                     self.next_edges
                         .iter()
-                        .find_map(|(o2, i)| if o == *o2 { Some(i) } else { None })
+                        .find_map(|(o2, i)| if o2 == output_pin { Some(i) } else { None })
                 {
-                    new_inputs[num + 1].push((i.clone(), b));
+                    new_inputs[num + 1].push((make_pin(num_to_ident(num + 1), i.clone()), b));
                 }
                 // send inputs to previous Logic Circuits
                 if let Some(i) =
                     self.prev_edges
                         .iter()
-                        .find_map(|(o2, i)| if o == *o2 { Some(i) } else { None })
+                        .find_map(|(o2, i)| if o2 == output_pin { Some(i) } else { None })
                 {
-                    new_inputs[num - 1].push((i.clone(), b));
+                    new_inputs[num - 1].push((make_pin(num_to_ident(num - 1), i.clone()), b));
                 }
             }
         }
@@ -706,17 +620,17 @@ impl LogicCircuitTrait for IterLogicCircuit {
         // from inputs
         // priority is low => check if already used
         for (i, b) in inputs {
-            let Some((num, rest)) = destruct_inpin(i) else {
+            let Some(internal) = self.resolve_input(i) else {
                 eprintln!("Invalid InPin");
                 continue;
             };
-            let Ok(num) = num.as_ref().parse::<usize>() else {
-                eprint!("ignored input {num} because not a number");
+            let Ok(num) = internal.0.as_ref().parse::<usize>() else {
+                eprint!("ignored input {} because not a number", internal.0);
                 continue;
             };
             let v = &mut new_inputs[num];
-            if v.iter().all(|(i2, _)| i2 != &rest) {
-                v.push((rest, b));
+            if v.iter().all(|(i2, _)| i2 != &internal) {
+                v.push((internal, b));
             }
         }
 
@@ -741,16 +655,16 @@ impl LogicCircuitTrait for IterLogicCircuit {
                 if i < self.used.len() - 1 {
                     for (otpin, inpin) in &self.next_edges {
                         edges.push((
-                            (num_to_ident(i), otpin.clone()),
-                            (num_to_ident(i + 1), inpin.clone()),
+                            make_pin(num_to_ident(i), otpin.clone()),
+                            make_pin(num_to_ident(i + 1), inpin.clone()),
                         ));
                     }
                 }
                 if i > 0 {
                     for (otpin, inpin) in &self.prev_edges {
                         edges.push((
-                            (num_to_ident(i), otpin.clone()),
-                            (num_to_ident(i - 1), inpin.clone()),
+                            make_pin(num_to_ident(i), otpin.clone()),
+                            make_pin(num_to_ident(i - 1), inpin.clone()),
                         ));
                     }
                 }
@@ -769,136 +683,20 @@ impl LogicCircuitTrait for IterLogicCircuit {
                 .usable_inpins()
                 .into_iter()
                 .map(|(n, i)| {
-                    (
-                        concat_inpin(num_to_ident(n), i.clone()),
-                        (num_to_ident(n), i),
-                    )
+                    let internal = make_pin(num_to_ident(n), i);
+                    let external = self.map_internal_inpin(&internal);
+                    (external, internal)
                 })
                 .collect(),
             otpins_map: self
                 .usable_otpins()
                 .into_iter()
                 .map(|(n, o)| {
-                    (
-                        concat_otpin(num_to_ident(n), o.clone()),
-                        (num_to_ident(n), o),
-                    )
+                    let internal = make_pin(num_to_ident(n), o);
+                    let external = self.map_internal_otpin(&internal);
+                    (external, internal)
                 })
                 .collect(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use utils::bool::Bool;
-
-    #[test]
-    fn test_gate() {
-        let mut gate = Gate {
-            kind: GateKind::And,
-            state: Bool::F,
-        };
-        assert_eq!(
-            gate.get_inpins(),
-            vec!["IN0".parse().unwrap(), "IN1".parse().unwrap()]
-        );
-        assert_eq!(gate.get_otpins(), vec!["OUT".parse().unwrap()]);
-        assert_eq!(gate.get_otputs(), vec![("OUT".parse().unwrap(), Bool::F)]);
-        gate.step(vec![
-            ("IN0".parse().unwrap(), Bool::T),
-            ("IN1".parse().unwrap(), Bool::T),
-        ]);
-        assert_eq!(gate.state, Bool::T);
-        assert_eq!(gate.get_otputs(), vec![("OUT".parse().unwrap(), Bool::T)]);
-        gate.step(vec![
-            ("IN0".parse().unwrap(), Bool::T),
-            ("IN1".parse().unwrap(), Bool::F),
-        ]);
-        assert_eq!(gate.state, Bool::F);
-        assert_eq!(gate.get_otputs(), vec![("OUT".parse().unwrap(), Bool::F)]);
-    }
-    #[test]
-    fn test_pin_map() {
-        let mut pin_map = PinMap {
-            this: LogicCircuit::Gate(Gate {
-                kind: GateKind::And,
-                state: Bool::F,
-            }),
-            inpin_maps: vec![("I".parse().unwrap(), "IN0".parse().unwrap())],
-            otpin_maps: vec![("O".parse().unwrap(), "OUT".parse().unwrap())],
-        };
-        assert_eq!(
-            pin_map.get_inpins(),
-            vec!["I".parse().unwrap(), "IN1".parse().unwrap()]
-        );
-        assert_eq!(pin_map.get_otpins(), vec!["O".parse().unwrap()]);
-        assert_eq!(pin_map.get_otputs(), vec![("O".parse().unwrap(), Bool::F)]);
-
-        pin_map.step(vec![("I".parse().unwrap(), Bool::T)]);
-        assert_eq!(pin_map.get_otputs(), vec![("O".parse().unwrap(), Bool::F)]);
-    }
-    #[test]
-    fn test_mix() {
-        // graph like
-        // A.IN0 ---> A <--- A.IN1
-        //            |-- A.OUT == B.IN0 ---> B <--- B.IN1
-        //                                    |--> B.OUT
-        // B.OUT takes 2 step to be T if A.IN0 and A.IN1 are T
-        // B.OUT takes 1 step to be T is B.IN1 is T
-        let mut mix = MixLogicCircuit {
-            kind: Identifier::new("MIX").unwrap(),
-            verts: vec![
-                (
-                    Identifier::new("A").unwrap(),
-                    LogicCircuit::Gate(Gate {
-                        kind: GateKind::And,
-                        state: Bool::F,
-                    }),
-                ),
-                (
-                    Identifier::new("B").unwrap(),
-                    LogicCircuit::Gate(Gate {
-                        kind: GateKind::Or,
-                        state: Bool::F,
-                    }),
-                ),
-            ],
-            edges: vec![(
-                (Identifier::new("A").unwrap(), "OUT".parse().unwrap()),
-                (Identifier::new("B").unwrap(), "IN0".parse().unwrap()),
-            )],
-        };
-        assert_eq!(
-            mix.get_inpins(),
-            vec![
-                "A.IN0".parse().unwrap(),
-                "A.IN1".parse().unwrap(),
-                "B.IN1".parse().unwrap()
-            ]
-        );
-        assert_eq!(mix.get_otpins(), vec!["B.OUT".parse().unwrap()]);
-        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
-
-        mix.step(vec![("A.IN0".parse().unwrap(), Bool::T)]);
-        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
-
-        mix.step(vec![("A.IN0".parse().unwrap(), Bool::T)]);
-        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
-
-        // A.IN0 and A.IN1 are T
-        mix.step(vec![
-            ("A.IN0".parse().unwrap(), Bool::T),
-            ("A.IN1".parse().unwrap(), Bool::T),
-            // B.IN1 is F if not set
-        ]);
-        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::F)]);
-        mix.step(vec![
-            ("A.IN0".parse().unwrap(), Bool::F),
-            ("A.IN1".parse().unwrap(), Bool::F),
-            // B.IN1 is F if not set
-        ]);
-        assert_eq!(mix.get_otputs(), vec![("B.OUT".parse().unwrap(), Bool::T)]);
     }
 }
