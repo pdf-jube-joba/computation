@@ -5,8 +5,9 @@ use turing_machine::machine::Sign;
 use utils::TextCodec;
 
 use crate::rec_tm_ir::{Block, Function, Program, Stmt};
-use crate::rec_to_ir::auxiliary::basic::{move_left_till_x_n_times, move_right_till_x_n_times};
-use crate::rec_to_ir::auxiliary::copy;
+use crate::rec_to_ir::auxiliary::basic::{self, move_left_till_x_n_times, move_right_till_x_n_times};
+use crate::rec_to_ir::auxiliary::{copy, rotate};
+use crate::rec_to_ir::compile::projection;
 
 pub mod auxiliary;
 pub mod compile;
@@ -86,9 +87,6 @@ pub fn read_right_one(tape: &Tape) -> Option<Vec<Number>> {
     if v[p] != S::X.into() {
         return None;
     }
-    if v.last()? != &S::X.into() {
-        return None;
-    }
 
     let iter = v
         .into_iter()
@@ -141,30 +139,94 @@ impl Registry {
     }
 
     fn adhoc_insert(&mut self, name: &str) -> bool {
-        if let Some(n) = parse_copy_n_name(name) {
-            let func = copy::copy_n_times(n);
-            self.functions.insert(func.name.clone(), func);
-            return true;
-        }
-        if let Some(n) = parse_copy_to_end_name(name) {
-            let func = copy::copy_to_end(n);
-            self.functions.insert(func.name.clone(), func);
-            return true;
-        }
-        if let Some(n) = parse_move_right_till_x_name(name) {
-            let func = move_right_till_x_n_times(n);
-            self.functions.insert(func.name.clone(), func);
-            return true;
-        }
-        if let Some(n) = parse_move_left_till_x_name(name) {
-            let func = move_left_till_x_n_times(n);
-            self.functions.insert(func.name.clone(), func);
-            return true;
-        }
-        // currently no adhoc functions, but we can add some if needed
         #[allow(clippy::match_single_binding)]
         match name {
-            _ => false,
+            "concat" => {
+                let func = basic::concat();
+                self.functions.insert(func.name.clone(), func);
+                true
+            }
+            "swap_tuple" => {
+                let func = rotate::swap_tuple();
+                self.functions.insert(func.name.clone(), func);
+                true
+            }
+            "shift_left_put_x" => {
+                let func = basic::shift_left_x(S::X);
+                self.functions.insert(func.name.clone(), func);
+                true
+            }
+            "shift_left_put_l" => {
+                let func = basic::shift_left_x(S::L);
+                self.functions.insert(func.name.clone(), func);
+                true
+            }
+            "shift_left_put_-" => {
+                let func = basic::shift_left_x(S::B);
+                self.functions.insert(func.name.clone(), func);
+                true
+            }
+            _ => {
+                if name.starts_with("copy_") {
+                    if let Some(n) = parse_trailing_usize(name, "copy_") {
+                        let func = copy::copy_n_times(n);
+                        self.functions.insert(func.name.clone(), func);
+                        return true;
+                    }
+                }
+                if name.starts_with("copy_to_end_") {
+                    if let Some(n) = parse_trailing_usize(name, "copy_to_end_") {
+                        let func = copy::copy_to_end(n);
+                        self.functions.insert(func.name.clone(), func);
+                        return true;
+                    }
+                }
+                if name.starts_with("move_right_till_x_") {
+                    if let Some(n) = parse_trailing_usize(name, "move_right_till_x_") {
+                        let func = move_right_till_x_n_times(n);
+                        self.functions.insert(func.name.clone(), func);
+                        return true;
+                    }
+                }
+                if name.starts_with("move_left_till_x_") {
+                    if let Some(n) = parse_trailing_usize(name, "move_left_till_x_") {
+                        let func = move_left_till_x_n_times(n);
+                        self.functions.insert(func.name.clone(), func);
+                        return true;
+                    }
+                }
+                if name.starts_with("rotate_") {
+                    if let Some(n) = parse_trailing_usize(name, "rotate_") {
+                        let func = rotate::rotate(n);
+                        self.functions.insert(func.name.clone(), func);
+                        return true;
+                    }
+                }
+                if name.starts_with("shift_left_") {
+                    if let Some(n) = parse_trailing_usize(name, "shift_left_") {
+                        let func = basic::shift_left_x_n_times(n);
+                        self.functions.insert(func.name.clone(), func);
+                        return true;
+                    }
+                }
+                if name.starts_with("aux_proj_") {
+                    let rest = &name["aux_proj_".len()..];
+                    if let Some((n_str, i_str)) = rest.split_once('_') {
+                        if !n_str.is_empty()
+                            && !i_str.is_empty()
+                            && n_str.bytes().all(|b| b.is_ascii_digit())
+                            && i_str.bytes().all(|b| b.is_ascii_digit())
+                        {
+                            if let (Ok(n), Ok(i)) = (n_str.parse(), i_str.parse()) {
+                                let func = projection::aux_projection_init(n, i);
+                                self.functions.insert(func.name.clone(), func);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            }
         }
     }
 
@@ -209,22 +271,6 @@ fn collect_calls(stmts: &[&Stmt]) -> Vec<String> {
         }
     }
     out
-}
-
-fn parse_copy_n_name(name: &str) -> Option<usize> {
-    parse_trailing_usize(name, "copy_")
-}
-
-fn parse_copy_to_end_name(name: &str) -> Option<usize> {
-    parse_trailing_usize(name, "copy_to_end_")
-}
-
-fn parse_move_right_till_x_name(name: &str) -> Option<usize> {
-    parse_trailing_usize(name, "move_right_till_x_")
-}
-
-fn parse_move_left_till_x_name(name: &str) -> Option<usize> {
-    parse_trailing_usize(name, "move_left_till_x_")
 }
 
 fn parse_trailing_usize(name: &str, prefix: &str) -> Option<usize> {

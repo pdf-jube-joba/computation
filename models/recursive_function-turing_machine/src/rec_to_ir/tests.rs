@@ -1,13 +1,16 @@
 use serde_json::Value;
 use std::collections::HashMap;
 use turing_machine::machine::{Sign, Tape};
-use utils::{Machine, TextCodec};
+use utils::{Machine, TextCodec, parse::ParseTextCodec};
 
 use super::{
     auxiliary::{basic, copy, rotate},
     compile, read_right_one_usize, write_usize,
 };
-use crate::rec_tm_ir::{Program, RecTmIrMachine};
+use crate::{
+    rec_tm_ir::{Program, RecTmIrMachine},
+    rec_to_ir::S,
+};
 
 fn tape_from(symbols: &[&str], head: usize) -> Tape {
     let signs = symbols
@@ -104,6 +107,19 @@ fn wrap_function(function: crate::rec_tm_ir::Function) -> Program {
 */
 
 #[test]
+fn number_ip() {
+    let tape = tape_from(&["x", "-", "l", "l", "x"], 0); // => number 2
+    let res = read_right_one_usize(&tape).unwrap();
+    assert_eq!(res, vec![2]);
+    let tape = tape_from(&["x", "x", "-", "l", "l", "x"], 1); // => number 2
+    let res = read_right_one_usize(&tape).unwrap();
+    assert_eq!(res, vec![2]);
+    let tape = tape_from(&["x", "-", "x", "-", "l", "l", "x", "-", "-"], 2); // => number 2
+    let res = read_right_one_usize(&tape).unwrap();
+    assert_eq!(res, vec![2]);
+}
+
+#[test]
 fn number_tape_roundtrip() {
     let cases = vec![vec![], vec![0], vec![1], vec![2], vec![1, 1], vec![1, 2, 3]];
     for case in cases {
@@ -170,6 +186,92 @@ fn move_till_x_n_times_works() {
     let tape = snapshot_tape(machine.current());
     let expected = tape_from(&symbols, 4);
     assert!(tape.eq(&expected));
+}
+
+#[test]
+fn shift_left() {
+    // case for S::B
+    let program = wrap_function(basic::shift_left_x(S::B));
+
+    let tape: Tape = "l, x, -,-,- |x|".parse_tc().unwrap();
+    let expd: Tape = "l |-| -,-,x, -".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    let tape: Tape = "l, x |x|".parse_tc().unwrap();
+    let expd: Tape = "l |x| -".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    let tape: Tape = "l, x, x |x|".parse_tc().unwrap();
+    let expd: Tape = "l, x |x| -".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    let tape: Tape = "l,x,l, x, -,-,- |x|".parse_tc().unwrap();
+    let expd: Tape = "l,x,l |-| -,-,x, -".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    // case for S::X
+    let program = wrap_function(basic::shift_left_x(S::X));
+
+    let tape: Tape = "l, x, -,-,- |x|".parse_tc().unwrap();
+    let expd: Tape = "l |-| -,-,x, x".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    let tape: Tape = "l, x |x|".parse_tc().unwrap();
+    let expd: Tape = "l |x| x".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    let tape: Tape = "l,x,l, x, -,-,- |x|".parse_tc().unwrap();
+    let expd: Tape = "l,x,l |-| -,-,x, x".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
+    run_until_halt(&mut machine, 64 * 2, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+}
+
+#[test]
+fn shift_left_n_times() {
+    let program = wrap_function(basic::shift_left_x_n_times(1));
+
+    let tape: Tape = "l |x| -, -, -, x".parse_tc().unwrap();
+    let expd: Tape = "l |-| -, -, x, -".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64 * 2, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    let program = wrap_function(basic::shift_left_x_n_times(2));
+
+    let tape: Tape = "l |x| -, l, -, x, l, x".parse_tc().unwrap();
+    let expd: Tape = "l |-| l, -, x, l, x, -".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt_with_vars(&mut machine, 64 * 2, true, &vec!["where"]).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
+
+    let tape: Tape = "l |x| x, x".parse_tc().unwrap();
+    let expd: Tape = "l |x| x, -".parse_tc().unwrap();
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt_with_vars(&mut machine, 64 * 2, true, &vec!["where"]).unwrap();
+    let tape = snapshot_tape(machine.current());
+    assert!(tape.eq(&expd));
 }
 
 /*
@@ -362,10 +464,37 @@ fn succ_function_works() {
 */
 
 #[test]
+fn projection_aux_test() {
+    let tape_first = tape_from(&["x", "-", "l", "l", "-", "l", "l", "-", "x"], 0);
+
+    let program = wrap_function(compile::projection::aux_projection_init(3, 0));
+    let mut machine = RecTmIrMachine::make(program, tape_first.clone()).unwrap();
+    run_until_halt(&mut machine, 1024, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    let expected = tape_from(&["x", "-", "l", "l", "x", "-", "-", "-", "-"], 4);
+    assert!(tape.eq(&expected));
+
+    let program = wrap_function(compile::projection::aux_projection_init(3, 1));
+    let mut machine = RecTmIrMachine::make(program, tape_first.clone()).unwrap();
+    run_until_halt(&mut machine, 1024, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    let expected = tape_from(&["x", "-", "-", "-", "-", "l", "l", "x", "-"], 7);
+    assert!(tape.eq(&expected));
+
+    let program = wrap_function(compile::projection::aux_projection_init(3, 2));
+    let mut machine = RecTmIrMachine::make(program, tape_first).unwrap();
+    run_until_halt(&mut machine, 1024, true).unwrap();
+    let tape = snapshot_tape(machine.current());
+    let expected = tape_from(&["x", "-", "-", "-", "-", "-", "-", "-", "x"], 8);
+
+    assert!(tape.eq(&expected));
+}
+
+#[test]
 fn projection_first_element() {
     let program = wrap_function(compile::projection(3, 0));
     let mut machine = RecTmIrMachine::make(program, write_usize(vec![2, 0, 3])).unwrap();
-    run_until_halt(&mut machine, 1024, false).unwrap();
+    run_until_halt(&mut machine, 1024, true).unwrap();
     let tape = snapshot_tape(machine.current());
     assert_eq!(read_right_one_usize(&tape), Some(vec![2]));
 }

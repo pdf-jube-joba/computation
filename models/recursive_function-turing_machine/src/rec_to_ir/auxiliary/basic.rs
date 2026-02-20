@@ -101,3 +101,70 @@ pub(crate) fn concat() -> Function {
         ],
     }
 }
+
+// ... ?   x  ?0 ... ?i-1 |?i| - ...
+// ... ? |?0| ?1 ...  ?i   s  - ...
+//  where
+//      - ?k in {'l', '-'} for 0 <= k < i
+//      - s: given
+pub(crate) fn shift_left_x(s: S) -> Function {
+    Function {
+        name: format!("shift_left_put_{s}"),
+        blocks: vec![
+            Block {
+                label: "initially".to_string(),
+                body: vec![
+                    assign!(lv!("put"), rv!(@)),
+                    assign!(lv!(@), rv!(const s)),
+                    Stmt::Lt,
+                ],
+            },
+            Block {
+                label: "loop".to_string(),
+                body: vec![
+                    // swap
+                    assign!(lv!("tmp"), rv!(@)),
+                    assign!(lv!(@), rv!("put")),
+                    assign!(lv!("put"), rv!("tmp")),
+                    Stmt::Return {
+                        cond: cond!(rv!("put"), rv!(const S::X)),
+                    },
+                    Stmt::Lt,
+                    Stmt::Continue { cond: None },
+                ],
+            },
+        ],
+    }
+}
+
+// ... ?  |x|   A[0] x A[1] x ... x  A[n] x ...
+// ... ? |A[0]| x A[1] x ...  x A[n]   x  -
+// shift n tuples separated by 'x' to left
+pub(crate) fn shift_left_x_n_times(n: usize) -> Function {
+    Function {
+        name: format!("shift_left_{n}"),
+        blocks: (0..n)
+            .map(|i| Block {
+                label: format!("call_{i}"),
+                body: if i == 0 {
+                    vec![
+                        assign!(lv!("where"), rv!(const S::L)),
+                        call_r(n),
+                        Stmt::Call {
+                            name: "shift_left_put_-".to_string(),
+                        },
+                    ]
+                } else {
+                    vec![
+                        assign!(lv!("where"), rv!(const S::B)),
+                        Stmt::Lt,
+                        Stmt::Call {
+                            name: "shift_left_put_x".to_string(),
+                        },
+                        assign!(lv!("where"), rv!(const S::X)),
+                    ]
+                },
+            })
+            .collect(),
+    }
+}
