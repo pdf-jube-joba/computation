@@ -5,7 +5,7 @@ use crate::{assign, cond, lv, rv};
 
 // ... ? |x| - l(n) A x - ...
 // ... ?  x l |x| - l(n) A x - ...
-pub fn insert_sig() -> Function {
+pub(crate) fn insert_sig() -> Function {
     Function {
         name: "insert_sig".to_string(),
         blocks: vec![
@@ -42,82 +42,118 @@ pub fn insert_sig() -> Function {
     }
 }
 
-// ... ? x l |x| - l(n) A x - ...
-// ... ? x l  x - l(n) A x - l(n - 1) A x ... x - l A |x| A x - ...
-pub fn expand_arg() -> Function {
+// |x| -   l(n)  A x - ...
+// |x| - l(n-1) A x -
+// A is empty or start with '-'
+// if n == 0 is given => return x A x
+pub(crate) fn pred_tuple() -> Function {
     Function {
-        name: "expand_arg".to_string(),
+        name: "pred_tuple".to_string(),
         blocks: vec![
-            // ? x l x ... l (n + 1) A |x| - l(n) A x - ...
             Block {
-                label: "copy_move".to_string(),
+                label: "initially".to_string(),
                 body: vec![
+                    call_r(1),
                     Stmt::Call {
-                        name: "copy_1".to_string(),
+                        name: "shift_left_put_-".to_string(),
                     },
-                    call_r(2),
-                    // ? x l x ... l (n+1) A  x  - l(n) A x - l(n) A |x| - ...
-                    assign!(lv!(@), rv!(const S::B)),
-                    assign!(lv!("put"), rv!(const S::X)),
-                ],
-            },
-            // ? x l x ... l (n+1) A  x  - l(n) A x - l(n) A |-| -, put = 'x'
-            Block {
-                label: "shift_left".to_string(),
-                body: vec![
-                    Stmt::Lt,
-                    // swap
+                    assign!(lv!(@), rv!(const S::X)),
+                    Stmt::Rt,
+                    // if @ == 'l' { @ := '-' }
                     Stmt::Break {
                         cond: cond!(rv!(@), rv!(const S::X)),
                     },
-                    assign!(lv!("tmp"), rv!(@)),
-                    assign!(lv!(@), rv!("put")),
-                    assign!(lv!("put"), rv!("tmp")),
-                    Stmt::Continue { cond: None },
+                    assign!(lv!(@), rv!(const S::B)),
                 ],
             },
-            // ? x l x ... l(n+1) A  x  - l(n) A |x| l(n) A x - ..., put = '-'
             Block {
-                label: "check".to_string(),
+                label: "finally".to_string(),
+                body: vec![call_l(1)],
+            },
+        ],
+    }
+}
+
+// ... ? |x| - l(n) A x - ...
+// ... ?  x  l  x - l(n-1) A x - l(n - 1) A x ... x - l A |x| A x - ...
+pub(crate) fn expand_arg() -> Function {
+    Function {
+        name: "expand_arg".to_string(),
+        blocks: vec![
+            Block {
+                label: "initially".to_string(),
+                body: vec![
+                    Stmt::Call {
+                        name: "insert_sig".to_string(),
+                    },
+                    call_r(1),
+                ],
+            },
+            Block {
+                label: "check_non_zero".to_string(),
                 body: vec![
                     Stmt::Rt,
+                    Stmt::Rt,
                     Stmt::Jump {
-                        label: "l_before".to_string(),
+                        label: "pred_if_non_zero".to_string(),
                         cond: cond!(rv!(@), rv!(const S::L)),
                     },
                     Stmt::Jump {
-                        label: "finally".to_string(),
+                        label: "pred_if_zero".to_string(),
                         cond: None,
                     },
                 ],
             },
-            // ? x l x ... l(n+1) A  x  - l(n) A x |l| l(n - 1) A x - ..., put = '-'
             Block {
-                label: "l_before".to_string(),
+                label: "pred_if_non_zero_and_loopback".to_string(),
                 body: vec![
-                    assign!(lv!(@), rv!(const S::B)),
+                    Stmt::Lt,
+                    Stmt::Lt,
+                    Stmt::Call {
+                        name: "pred_tuple".to_string(),
+                    },
+                    Stmt::Call {
+                        name: "copy_1".to_string(),
+                    },
                     call_r(1),
-                    assign!(lv!(@), rv!(const S::B)),
-                    assign!(lv!("put"), rv!(const S::X)),
-                    // ? x l x ... l (n+1) A  x  - l(n) A x - l(n - 1) A |-| -, put = 'x'
                     Stmt::Jump {
-                        label: "shift_left".to_string(),
+                        label: "check_non_zero".to_string(),
                         cond: None,
                     },
                 ],
             },
-            // ? x l x ... l(n+1) A  x - A x |A| x - ..., put = '-'
+            Block {
+                label: "pred_zero".to_string(),
+                body: vec![
+                    Stmt::Lt,
+                    Stmt::Lt,
+                    Stmt::Call {
+                        name: "pred_tuple".to_string(),
+                    },
+                ],
+            },
+            // back to x l x
+            Block {
+                label: "back_to_xlx".to_string(),
+                body: vec![
+                    call_l(1),
+                    Stmt::Rt,
+                    Stmt::Break {
+                        cond: cond!(rv!(@), rv!(const S::L)),
+                    },
+                ],
+            },
             Block {
                 label: "finally".to_string(),
-                body: vec![Stmt::Lt],
+                body: vec![call_r(1)],
             },
         ],
     }
 }
 
 // ... ? x  l  x - l(n) A x - l(n - 1) A x ... x - l A x - A |x| A x - ...
-fn call_iter_function(zero: String, succ: String) -> Function {
-    let mut blocks = vec![
+pub(crate) fn primitive_recursion(zero: String, succ: String) -> Function {
+    let blocks = vec![
         Block {
             label: "call_zero".to_string(),
             body: vec![Stmt::Call { name: zero.clone() }],
@@ -125,55 +161,49 @@ fn call_iter_function(zero: String, succ: String) -> Function {
             //      - U(zero(p)) == F(P[zero, succ](0, A))
         },
         Block {
-            label: "check_left_xlx".to_string(),
+            label: "loop".to_string(),
             body: vec![
-                Stmt::Lt,
-                Stmt::Break {
-                    cond: cond!(rv!(@), rv!(const S::B)),
-                },
-                Stmt::Break {
-                    cond: cond!(rv!(@), rv!(const S::X)),
-                },
-                Stmt::Lt,
-                Stmt::Break {
-                    cond: cond!(rv!(@), rv!(const S::B)),
-                },
+                // x A |x| B x
+                call_l(1),
+                Stmt::Rt,
                 Stmt::Break {
                     cond: cond!(rv!(@), rv!(const S::L)),
                 },
-                // |x| l x A x
-                Stmt::Jump {
-                    label: "finally".to_string(),
-                    cond: None,
-                },
-            ],
-        },
-        // ... ? x  l  x - l(n) A x - l(n - 1) A x ... x - l(i) A |x| F(P[zero, succ](i, A)) x - ...
-        Block {
-            label: "format".to_string(),
-            body: vec![
-                call_l(1),
+                // non xl => |x| A x B x
+                Stmt::Lt,
                 Stmt::Call {
                     name: "swap_tuple".to_string(),
                 },
                 Stmt::Call {
                     name: "concat".to_string(),
                 },
-                // ... ? x  l  x - l(n)  A x ... |x| F(P[zero, succ](i, A)) - l(i) A x - ...
-                //  F(P[zero, succ](i, A)) - l(i) A == F(P[zero, succ](i, A)), i A)
+                // |x| B A x
                 Stmt::Call { name: succ.clone() },
-                // ... ? x  l  x - l(n)  A x ... |x| F(succ(P[zero, succ](i, A)), i, A)) x - ...
-                //  succ(P[zero, succ](i, A)), i, A) == P[zero, succ](i + 1, A)
+                Stmt::Continue { cond: None },
             ],
         },
-        Block {
-            label: "not_xlx".to_string(),
-            body: vec![],
-        },
-        // ? |x| l x A x
+        // ? x |l| x A x
         Block {
             label: "finally".to_string(),
-            body: vec![],
+            body: vec![
+                Stmt::Rt,
+                assign!(lv!(@), rv!(const S::B)),
+                // x l |-| A x
+                call_r(1),
+                Stmt::Call {
+                    name: "shift_left_put_-".to_string(),
+                },
+                // |l| - A x
+                assign!(lv!(@), rv!(const S::X)),
+                // |x| - A x
+                call_r(1),
+                Stmt::Call {
+                    name: "shift_left_put_-".to_string(),
+                },
+                // |-| A x
+                assign!(lv!(@), rv!(const S::X)),
+                // |x| A x
+            ],
         },
     ];
 

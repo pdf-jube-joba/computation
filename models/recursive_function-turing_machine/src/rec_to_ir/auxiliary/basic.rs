@@ -126,6 +126,7 @@ pub(crate) fn shift_left_x(s: S) -> Function {
                     assign!(lv!("tmp"), rv!(@)),
                     assign!(lv!(@), rv!("put")),
                     assign!(lv!("put"), rv!("tmp")),
+                    //
                     Stmt::Return {
                         cond: cond!(rv!("put"), rv!(const S::X)),
                     },
@@ -141,30 +142,41 @@ pub(crate) fn shift_left_x(s: S) -> Function {
 // ... ? |A[0]| x A[1] x ...  x A[n]   x  -
 // shift n tuples separated by 'x' to left
 pub(crate) fn shift_left_x_n_times(n: usize) -> Function {
+    let mut blocks = vec![Block {
+        label: "initial".to_string(),
+        body: vec![
+            call_r(n),
+            assign!(lv!("put"), rv!(const S::X)),
+            assign!(lv!(@), rv!(const S::B)),
+        ],
+    }];
+
+    for i in 0..n {
+        blocks.extend(vec![
+            Block {
+                label: format!("initial_{i}"),
+                body: vec![Stmt::Lt],
+            },
+            Block {
+                label: format!("loop_{i}"),
+                body: vec![
+                    // swap
+                    assign!(lv!("tmp"), rv!(@)),
+                    assign!(lv!(@), rv!("put")),
+                    assign!(lv!("put"), rv!("tmp")),
+                    //
+                    Stmt::Break {
+                        cond: cond!(rv!("put"), rv!(const S::X)),
+                    },
+                    Stmt::Lt,
+                    Stmt::Continue { cond: None },
+                ],
+            },
+        ]);
+    }
+
     Function {
         name: format!("shift_left_{n}"),
-        blocks: (0..n)
-            .map(|i| Block {
-                label: format!("call_{i}"),
-                body: if i == 0 {
-                    vec![
-                        assign!(lv!("where"), rv!(const S::L)),
-                        call_r(n),
-                        Stmt::Call {
-                            name: "shift_left_put_-".to_string(),
-                        },
-                    ]
-                } else {
-                    vec![
-                        assign!(lv!("where"), rv!(const S::B)),
-                        Stmt::Lt,
-                        Stmt::Call {
-                            name: "shift_left_put_x".to_string(),
-                        },
-                        assign!(lv!("where"), rv!(const S::X)),
-                    ]
-                },
-            })
-            .collect(),
+        blocks,
     }
 }

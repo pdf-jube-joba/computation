@@ -1,7 +1,0 @@
-start
-end
-
-x, start, x, next, R
-x, next, -, write, R
--, write, x, ret, L
--, ret, -, end, L

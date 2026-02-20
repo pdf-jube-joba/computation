@@ -253,7 +253,7 @@ fn shift_left_n_times() {
     let tape: Tape = "l |x| -, -, -, x".parse_tc().unwrap();
     let expd: Tape = "l |-| -, -, x, -".parse_tc().unwrap();
     let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
-    run_until_halt(&mut machine, 64 * 2, true).unwrap();
+    run_until_halt_with_vars(&mut machine, 64 * 2, true, &["where"]).unwrap();
     let tape = snapshot_tape(machine.current());
     assert!(tape.eq(&expd));
 
@@ -262,14 +262,14 @@ fn shift_left_n_times() {
     let tape: Tape = "l |x| -, l, -, x, l, x".parse_tc().unwrap();
     let expd: Tape = "l |-| l, -, x, l, x, -".parse_tc().unwrap();
     let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
-    run_until_halt_with_vars(&mut machine, 64 * 2, true, &vec!["where"]).unwrap();
+    run_until_halt_with_vars(&mut machine, 64 * 2, true, &["where"]).unwrap();
     let tape = snapshot_tape(machine.current());
     assert!(tape.eq(&expd));
 
     let tape: Tape = "l |x| x, x".parse_tc().unwrap();
     let expd: Tape = "l |x| x, -".parse_tc().unwrap();
     let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
-    run_until_halt_with_vars(&mut machine, 64 * 2, true, &vec!["where"]).unwrap();
+    run_until_halt_with_vars(&mut machine, 64 * 2, true, &["where"]).unwrap();
     let tape = snapshot_tape(machine.current());
     assert!(tape.eq(&expd));
 }
@@ -362,6 +362,29 @@ fn copy_to_end_works() {
         0,
     );
     assert!(tape.eq(&expected));
+}
+
+#[test]
+fn copy_only_l() {
+    let program = wrap_function(copy::copy_to_end(0));
+
+    let tape: Tape = "|x| x".parse_tc().unwrap();
+    let expd: Tape = "- |x| x, x, -".parse_tc().unwrap();
+
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let rslt = snapshot_tape(machine.current());
+
+    assert_eq!(rslt, expd);
+
+    let tape: Tape = "|x| l, l, x".parse_tc().unwrap();
+    let expd: Tape = "- |x| l, l, x, l, l, x, -".parse_tc().unwrap();
+
+    let mut machine = RecTmIrMachine::make(program, tape).unwrap();
+    run_until_halt(&mut machine, 64 * 64, true).unwrap();
+    let rslt = snapshot_tape(machine.current());
+
+    assert_eq!(rslt, expd);
 }
 
 #[test]
@@ -515,4 +538,48 @@ fn projection_single_tuple_zero() {
     run_until_halt(&mut machine, 1024, false).unwrap();
     let tape = snapshot_tape(machine.current());
     assert_eq!(read_right_one_usize(&tape), Some(vec![0]));
+}
+
+/*
+=== primitive recursive function ===
+*/
+
+#[test]
+fn test_pred_tuple() {
+    let program = wrap_function(compile::primitive_recursion::pred_tuple());
+
+    let tape = write_usize(vec![1, 1]);
+    let expd = write_usize(vec![0, 1]);
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let rslt = snapshot_tape(machine.current());
+    assert_eq!(rslt, expd);
+
+    let tape = write_usize(vec![1, 0]);
+    let expd = write_usize(vec![0, 0]);
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let rslt = snapshot_tape(machine.current());
+    assert_eq!(rslt, expd);
+
+    let tape = write_usize(vec![1]);
+    let expd = write_usize(vec![0]);
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let rslt = snapshot_tape(machine.current());
+    assert_eq!(rslt, expd);
+
+    let tape = write_usize(vec![0, 2]);
+    let expd = write_usize(vec![2]);
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let rslt = snapshot_tape(machine.current());
+    assert_eq!(rslt, expd);
+
+    let tape = write_usize(vec![0]);
+    let expd = write_usize(vec![]);
+    let mut machine = RecTmIrMachine::make(program.clone(), tape).unwrap();
+    run_until_halt(&mut machine, 64, true).unwrap();
+    let rslt = snapshot_tape(machine.current());
+    assert_eq!(rslt, expd);
 }

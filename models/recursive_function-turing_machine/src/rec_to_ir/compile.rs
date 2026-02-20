@@ -62,9 +62,7 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
         RecursiveFunctions::Projection {
             parameter_length,
             projection_num,
-        } => {
-            todo!()
-        }
+        } => projection::projection(*parameter_length, *projection_num),
         RecursiveFunctions::Composition {
             parameter_length: _,
             outer_func,
@@ -72,6 +70,7 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
         } => {
             let outer_builder = compile(outer_func.as_ref());
             let inner_builders: Vec<Function> = inner_funcs.iter().map(compile).collect();
+            // composition::composition(inner_functions, outer_function)
             todo!()
         }
         RecursiveFunctions::PrimitiveRecursion {
