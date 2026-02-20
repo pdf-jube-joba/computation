@@ -13,7 +13,6 @@ members = [
   "models/recursive_function",
   "models/recursive_function-lambda_calculus",
   "models/recursive_function-turing_machine",
-  "models/symbolic_asm",
   "models/tiny_isa",
   "models/turing_machine",
   "models/while_language"

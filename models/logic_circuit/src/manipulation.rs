@@ -2,7 +2,7 @@ use crate::machine::*;
 use anyhow::{bail, Ok, Result};
 use either::Either;
 use pest::{iterators::Pair, Parser};
-use utils::{alphabet::Identifier, bool::Bool};
+use utils::{identifier::Identifier, bool::Bool};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "logic_circuit.pest"]
@@ -37,7 +37,7 @@ impl List {
 }
 
 pub fn by_const(name: &str) -> Identifier {
-    Identifier::new_user(name).unwrap()
+    Identifier::new(name).unwrap()
 }
 
 // contains fundamental gate
@@ -174,7 +174,7 @@ pub fn parse(code: &str, maps: &mut List) -> Result<()> {
 
 pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LogicCircuit> {
     parse(code, &mut maps)?;
-    match maps.get(&Identifier::new_user("main").unwrap()) {
+    match maps.get(&Identifier::new("main").unwrap()) {
         Some(lc) => Ok(lc.clone()),
         None => bail!("not found main"),
     }
@@ -183,7 +183,7 @@ pub fn parse_main_with_maps(code: &str, mut maps: List) -> Result<LogicCircuit> 
 pub fn parse_main(code: &str) -> Result<LogicCircuit> {
     let mut maps: List = init_maps();
     parse(code, &mut maps)?;
-    match maps.get(&Identifier::new_user("main").unwrap()) {
+    match maps.get(&Identifier::new("main").unwrap()) {
         Some(lc) => Ok(lc.clone()),
         None => bail!("not found main"),
     }
@@ -211,7 +211,7 @@ fn conn_graph_parse(p: Pair<'_, Rule>) -> Pin {
         let second = e.next();
         match second {
             Some(i) => Either::Left((
-                Identifier::new_user(first.as_str()).unwrap(),
+                Identifier::new(first.as_str()).unwrap(),
                 i.as_str().parse().unwrap(),
             )),
             None => Either::Right(first.as_str().parse().unwrap()),
@@ -229,7 +229,7 @@ fn otpin_graph_parse(p: Pair<'_, Rule>) -> (OtPin, (Identifier, OtPin)) {
     (
         o.as_str().parse().unwrap(),
         (
-            Identifier::new_user(n0.as_str()).unwrap(),
+            Identifier::new(n0.as_str()).unwrap(),
             o0.as_str().parse().unwrap(),
         ),
     )
@@ -242,7 +242,7 @@ fn fingraph_parse(code: &str) -> FingraphParse {
     let name: Identifier = {
         let name = l.next().unwrap();
         assert_eq!(name.as_rule(), Rule::name);
-        Identifier::new_user(name.as_str()).unwrap()
+        Identifier::new(name.as_str()).unwrap()
     };
     let inpin: Vec<InPin> = {
         let inpins = l.next().unwrap();
@@ -265,8 +265,8 @@ fn fingraph_parse(code: &str) -> FingraphParse {
         for lcs in l {
             assert_eq!(lcs.as_rule(), Rule::lc_graph);
             let mut vs = lcs.into_inner();
-            let name: Identifier = Identifier::new_user(vs.next().unwrap().as_str()).unwrap();
-            let usename: Identifier = Identifier::new_user(vs.next().unwrap().as_str()).unwrap();
+            let name: Identifier = Identifier::new(vs.next().unwrap().as_str()).unwrap();
+            let usename: Identifier = Identifier::new(vs.next().unwrap().as_str()).unwrap();
             let ve: Vec<_> = vs.map(|p| conn_graph_parse(p)).collect();
             v.push((name, usename, ve))
         }
@@ -301,12 +301,12 @@ fn iter_parse<'a>(code: &'a str) -> IterParse {
     let name: Identifier = {
         let name = l.next().unwrap();
         assert_eq!(name.as_rule(), Rule::name);
-        Identifier::new_user(name.as_str()).unwrap()
+        Identifier::new(name.as_str()).unwrap()
     };
     let initlc: Identifier = {
         let name = l.next().unwrap();
         assert_eq!(name.as_rule(), Rule::name);
-        Identifier::new_user(name.as_str()).unwrap()
+        Identifier::new(name.as_str()).unwrap()
     };
     let next: Vec<(OtPin, InPin)> = {
         let otpin = l.next().unwrap();

@@ -354,18 +354,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "symbolic_asm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tiny_isa",
- "utils",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "syn"
 version = "2.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"

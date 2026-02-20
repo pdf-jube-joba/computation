@@ -1,4 +1,4 @@
-use crate::{alphabet::Alphabet, TextCodec};
+use crate::{identifier::Identifier, TextCodec};
 
 pub trait ParseTextCodec {
     fn parse_tc<T: TextCodec>(&self) -> Result<T, String>;
@@ -63,9 +63,9 @@ impl TextCodec for String {
     }
 }
 
-impl TextCodec for Alphabet {
+impl TextCodec for Identifier {
     fn parse(text: &str) -> Result<Self, String> {
-        Alphabet::new(text).map_err(|e| e.to_string())
+        Identifier::new(text).map_err(|e| e.to_string())
     }
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}", self.as_str())

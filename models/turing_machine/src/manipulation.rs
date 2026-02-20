@@ -133,13 +133,13 @@ pub mod graph_compose {
             }
         }
 
-        let format_name = |index: usize, state: State| {
-            let str = format!(
+        let format_name = |index: usize, state: State| -> Result<State> {
+            let name = format!(
                 "v{index}-{}-{}",
                 assign_vertex_to_builder[index].name,
                 state.print()
             );
-            str.parse_tc().unwrap()
+            name.parse_tc().map_err(|err| anyhow!("{err}"))
         };
 
         let all_sign: HashSet<SignT> = assign_vertex_to_builder
@@ -152,77 +152,51 @@ pub mod graph_compose {
             })
             .collect();
 
-        let code = {
-            let mut code: Vec<UserCodeEntry<SignT>> = all_sign
+        let make_constant_entries = |from_state: &State, to_state: &State| {
+            all_sign
                 .iter()
-                .map(|sign| {
-                    (
-                        sign.clone(),
-                        init_state.clone(),
-                        sign.clone(),
-                        format_name(0, assign_vertex_to_builder[0].init_state.clone()),
-                        Direction::Constant,
-                    )
-                        .into()
+                .cloned()
+                .map(|sign| UserCodeEntry {
+                    key_sign: sign.clone(),
+                    key_state: from_state.clone(),
+                    value_sign: sign,
+                    value_state: to_state.clone(),
+                    direction: Direction::Constant,
                 })
-                .collect();
-
-            let iter = assign_vertex_to_builder
-                .iter()
-                .enumerate()
-                .flat_map(|(index, builder)| {
-                    builder.code.clone().into_iter().map(move |entry| {
-                        let new_key_state: State = format_name(index, entry.key_state);
-                        let new_value_state: State = format_name(index, entry.value_state);
-                        UserCodeEntry {
-                            key_sign: entry.key_sign,
-                            key_state: new_key_state,
-                            value_sign: entry.value_sign,
-                            value_state: new_value_state,
-                            direction: entry.direction,
-                        }
-                    })
-                });
-            code.extend(iter);
-
-            let iter = assign_edge_to_state
-                .iter()
-                .flat_map(|((index1, index2), state)| {
-                    let init_state2 = assign_vertex_to_builder[*index2].init_state.clone();
-                    all_sign
-                        .iter()
-                        .map(|sign| {
-                            (
-                                sign.clone(),
-                                format_name(*index1, state.clone()),
-                                sign.clone(),
-                                format_name(*index2, init_state2.clone()),
-                                Direction::Constant,
-                            )
-                                .into()
-                        })
-                        .collect::<Vec<_>>()
-                });
-            code.extend(iter);
-
-            let iter = acceptable.iter().enumerate().flat_map(|(index, v)| {
-                all_sign.iter().flat_map(move |sign| {
-                    v.iter().map(move |state| {
-                        (
-                            sign.clone(),
-                            format_name(index, state.clone()),
-                            sign.clone(),
-                            state.clone(),
-                            Direction::Constant,
-                        )
-                            .into()
-                    })
-                })
-            });
-            code.extend(iter);
-
-            code
+                .collect::<Vec<_>>()
         };
+
+        let mut code: Vec<UserCodeEntry<SignT>> = Vec::new();
+        let first_state = format_name(0, assign_vertex_to_builder[0].init_state.clone())?;
+        code.extend(make_constant_entries(&init_state, &first_state));
+
+        for (index, builder) in assign_vertex_to_builder.iter().enumerate() {
+            for entry in builder.code.clone() {
+                let new_key_state = format_name(index, entry.key_state)?;
+                let new_value_state = format_name(index, entry.value_state)?;
+                code.push(UserCodeEntry {
+                    key_sign: entry.key_sign,
+                    key_state: new_key_state,
+                    value_sign: entry.value_sign,
+                    value_state: new_value_state,
+                    direction: entry.direction,
+                });
+            }
+        }
+
+        for ((index1, index2), state) in &assign_edge_to_state {
+            let init_state2 = assign_vertex_to_builder[*index2].init_state.clone();
+            let from_state = format_name(*index1, state.clone())?;
+            let to_state = format_name(*index2, init_state2)?;
+            code.extend(make_constant_entries(&from_state, &to_state));
+        }
+
+        for (index, states) in acceptable.iter().enumerate() {
+            for state in states {
+                let from_state = format_name(index, state.clone())?;
+                code.extend(make_constant_entries(&from_state, state));
+            }
+        }
 
         builder
             .accepted_state

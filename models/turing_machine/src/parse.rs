@@ -1,6 +1,6 @@
 use crate::machine::*;
 use utils::TextCodec;
-use utils::alphabet::Alphabet;
+use utils::identifier::Identifier;
 use utils::parse::ParseTextCodec;
 
 impl TextCodec for Direction {
@@ -24,7 +24,7 @@ impl TextCodec for Direction {
 
 impl TextCodec for Sign {
     fn parse(text: &str) -> Result<Self, String> {
-        match <Alphabet as TextCodec>::parse(text) {
+        match <Identifier as TextCodec>::parse(text) {
             Ok(alphabet) => Ok(Sign(Some(alphabet))),
             Err(err) => {
                 if text.trim() == "-" {
@@ -71,23 +71,28 @@ impl TextCodec for Tape {
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         let (tapes, pos) = self.into_vec();
-        for i in 0..pos {
-            if i > 0 {
-                write!(f, ",")?;
-            }
-            write!(f, "{}", tapes[i].print())?;
-        }
+        write!(
+            f,
+            "{}",
+            tapes[0..pos]
+                .iter()
+                .map(|sign| sign.print())
+                .collect::<Vec<String>>()
+                .join(",")
+        )?;
 
-        write!(f, "|")?;
-        write!(f, "{}", tapes[pos].print())?;
-        write!(f, "|")?;
+        write!(f, "|{}|", tapes[pos].print())?;
 
-        for i in pos + 1..tapes.len() {
-            if i > pos + 1 {
-                write!(f, ",")?;
-            }
-            write!(f, "{}", tapes[i].print())?;
-        }
+        write!(
+            f,
+            "{}",
+            tapes[pos + 1..]
+                .iter()
+                .map(|sign| sign.print())
+                .collect::<Vec<String>>()
+                .join(",")
+        )?;
+
         Ok(())
     }
 }
@@ -103,7 +108,7 @@ fn test_tape_text_codec() {
 
 impl TextCodec for State {
     fn parse(text: &str) -> Result<Self, String> {
-        let al: Alphabet = text.parse_tc()?;
+        let al: Identifier = text.parse_tc()?;
         Ok(State(al))
     }
 
@@ -112,7 +117,7 @@ impl TextCodec for State {
     }
 }
 
-pub fn parse_one_code_entry(code: &str) -> Result<CodeEntry, String> {
+fn parse_one_code_entry(code: &str) -> Result<CodeEntry, String> {
     let code = code.split('#').next().unwrap_or("").trim();
     if code.is_empty() {
         return Err("Empty code entry".to_string());

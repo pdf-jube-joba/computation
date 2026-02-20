@@ -1,6 +1,6 @@
 use turing_machine::machine::Sign;
 use utils::TextCodec;
-use utils::alphabet::Alphabet;
+use utils::identifier::Identifier;
 
 use super::machine::{Program, Stmt};
 
@@ -23,7 +23,7 @@ fn parse_identifier_with_context(name: &str, context: &str) -> Result<String, St
     if is_keyword(name) {
         return Err(format!("{} cannot be a keyword: '{}'", context, name));
     }
-    Alphabet::new(name)
+    Identifier::new(name)
         .map(|al| al.as_str().to_string())
         .map_err(|e| e.to_string())
 }

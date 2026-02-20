@@ -4,7 +4,7 @@ use std::{
     fmt::Display,
     str::FromStr,
 };
-use utils::{alphabet::Identifier, bool::Bool};
+use utils::{identifier::Identifier, bool::Bool};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InPin(Vec<Identifier>);
@@ -25,7 +25,7 @@ impl FromStr for InPin {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut v = vec![];
         for i in s.split('.') {
-            v.push(Identifier::new_user(i)?);
+            v.push(Identifier::new(format!("_{i}"))?);
         }
         Ok(InPin(v))
     }
@@ -59,7 +59,7 @@ impl FromStr for OtPin {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut v = vec![];
         for i in s.split('.') {
-            v.push(Identifier::new_user(i)?);
+            v.push(Identifier::new(format!("_{i}_"))?);
         }
         Ok(OtPin(v))
     }
@@ -283,7 +283,7 @@ pub struct Gate {
 
 impl LogicCircuitTrait for Gate {
     fn kind(&self) -> Identifier {
-        Identifier::System(self.kind.to_string())
+        Identifier::new(self.kind.to_string()).unwrap()
     }
 
     fn get_inpins(&self) -> Vec<InPin> {
@@ -592,7 +592,7 @@ impl LogicCircuitTrait for MixLogicCircuit {
 }
 
 pub fn num_to_ident(n: usize) -> Identifier {
-    Identifier::new_user(&format!("_{n}_")).unwrap()
+    Identifier::new(format!("_{n}_")).unwrap()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -710,7 +710,7 @@ impl LogicCircuitTrait for IterLogicCircuit {
                 eprintln!("Invalid InPin");
                 continue;
             };
-            let Some(num) = num.to_usize() else {
+            let Ok(num) = num.as_ref().parse::<usize>() else {
                 eprint!("ignored input {num} because not a number");
                 continue;
             };
@@ -848,17 +848,17 @@ mod tests {
         // B.OUT takes 2 step to be T if A.IN0 and A.IN1 are T
         // B.OUT takes 1 step to be T is B.IN1 is T
         let mut mix = MixLogicCircuit {
-            kind: Identifier::new_user("MIX").unwrap(),
+            kind: Identifier::new("MIX").unwrap(),
             verts: vec![
                 (
-                    Identifier::new_user("A").unwrap(),
+                    Identifier::new("A").unwrap(),
                     LogicCircuit::Gate(Gate {
                         kind: GateKind::And,
                         state: Bool::F,
                     }),
                 ),
                 (
-                    Identifier::new_user("B").unwrap(),
+                    Identifier::new("B").unwrap(),
                     LogicCircuit::Gate(Gate {
                         kind: GateKind::Or,
                         state: Bool::F,
@@ -866,8 +866,8 @@ mod tests {
                 ),
             ],
             edges: vec![(
-                (Identifier::new_user("A").unwrap(), "OUT".parse().unwrap()),
-                (Identifier::new_user("B").unwrap(), "IN0".parse().unwrap()),
+                (Identifier::new("A").unwrap(), "OUT".parse().unwrap()),
+                (Identifier::new("B").unwrap(), "IN0".parse().unwrap()),
             )],
         };
         assert_eq!(

@@ -1,4 +1,4 @@
-pub mod alphabet;
+pub mod identifier;
 pub mod bool;
 pub mod number;
 pub mod parse;
@@ -10,35 +10,6 @@ pub use serde;
 pub use serde_json;
 pub use serde_wasm_bindgen;
 pub use wasm_bindgen;
-
-#[macro_export]
-macro_rules! json_text {
-    ($text:expr) => {
-        $crate::serde_json::json!({ "kind": "text", "text": $text })
-    };
-    ($text:expr, title: $title:expr) => {
-        $crate::serde_json::json!({ "kind": "text", "text": $text, "title": $title })
-    };
-    ($text:expr, class: $class:expr) => {
-        $crate::serde_json::json!({ "kind": "text", "text": $text, "className": $class })
-    };
-    ($text:expr, title: $title:expr, class: $class:expr) => {
-        $crate::serde_json::json!({
-            "kind": "text",
-            "text": $text,
-            "title": $title,
-            "className": $class
-        })
-    };
-    ($text:expr, class: $class:expr, title: $title:expr) => {
-        $crate::serde_json::json!({
-            "kind": "text",
-            "text": $text,
-            "title": $title,
-            "className": $class
-        })
-    };
-}
 
 pub trait TextCodec: Sized {
     fn parse(text: &str) -> Result<Self, String>;

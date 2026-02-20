@@ -1,5 +1,18 @@
 チューリングマシン
 
+<div data-model="turing_machine">
+<script type="text/plain" class="default-code">
+start
+goal
+a,start,b,start,R
+b,start,b,start,R
+c,start,c,goal,C
+</script>
+<script type="text/plain" class="default-ainput">
+-|a|b,a,b,b,c
+</script>
+</div>
+
 > [!WARNING]
 > Turing machineの定義は複数あり、本によって異なる。
 > 標準的なものはないようなので、都合のいい感じで定義している。

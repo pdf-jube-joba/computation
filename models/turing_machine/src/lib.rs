@@ -7,7 +7,7 @@ pub mod machine;
 pub mod manipulation;
 pub mod parse;
 #[cfg(test)]
-pub mod test;
+pub mod tests;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CodeEntry {

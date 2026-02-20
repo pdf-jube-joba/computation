@@ -170,3 +170,32 @@ macro_rules! web_compiler {
         fn main() {}
     };
 }
+
+#[macro_export]
+macro_rules! json_text {
+    ($text:expr) => {
+        $crate::serde_json::json!({ "kind": "text", "text": $text })
+    };
+    ($text:expr, title: $title:expr) => {
+        $crate::serde_json::json!({ "kind": "text", "text": $text, "title": $title })
+    };
+    ($text:expr, class: $class:expr) => {
+        $crate::serde_json::json!({ "kind": "text", "text": $text, "className": $class })
+    };
+    ($text:expr, title: $title:expr, class: $class:expr) => {
+        $crate::serde_json::json!({
+            "kind": "text",
+            "text": $text,
+            "title": $title,
+            "className": $class
+        })
+    };
+    ($text:expr, class: $class:expr, title: $title:expr) => {
+        $crate::serde_json::json!({
+            "kind": "text",
+            "text": $text,
+            "title": $title,
+            "className": $class
+        })
+    };
+}

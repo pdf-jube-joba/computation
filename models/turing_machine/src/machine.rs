@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::collections::HashSet;
-use utils::alphabet::Alphabet; // Import Alphabet from the utils crate
+use utils::identifier::Identifier; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -14,7 +14,7 @@ pub enum Direction {
 // 空白記号（None）と制御記号の含まれない文字列を記号として扱う
 // Alphabet は空白ではない
 #[derive(Debug, Default, Clone, PartialEq, Hash, Eq, Serialize)]
-pub struct Sign(pub(crate) Option<Alphabet>);
+pub struct Sign(pub(crate) Option<Identifier>);
 
 impl Sign {
     pub fn blank() -> Sign {
@@ -115,12 +115,12 @@ impl Tape {
 // マシンの持つ状態の定義
 // テープの記号と同じ
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize)]
-pub struct State(pub(crate) Alphabet);
+pub struct State(pub(crate) Identifier);
 
 impl TryFrom<&String> for State {
     type Error = String;
     fn try_from(value: &String) -> Result<Self, Self::Error> {
-        Alphabet::new(value)
+        Identifier::new(value)
             .map(State)
             .map_err(|e| format!("Invalid state name '{}': {}", value, e))
     }

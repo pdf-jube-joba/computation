@@ -15,15 +15,16 @@
 ## 内容について
 - `rust` 言語で各計算モデルの実装をしてます
     - `rust` 言語からコンパイルした `wasm` と `javascript` を用いてブラウザで動いているのを見れるようにしました。   
-    - `wacm-pack` を使って、 `rust` から `wasm` へのコンパイル、 `js` から利用する用のコードが生成されます。
+    - `wasm-bindgen` を使って、 `rust` から `wasm` へのコンパイル、 `js` から利用する用のコードが生成されます。
 - `mdBook` を使って `markdown` で各計算モデルについて書いたものをブラウザで見れるようにしています。
     - 数式を書いたりするために、 `mdbook-katex` を使っています。
 - `make serve` をすると、ブラウザの `localhost:3000` から見ることができます。
 
 ## 必要なもの
 - `rust` 周り
- - `cargo`
- - wasm 向けの target を追加すること
+    - `cargo`
+    - wasm 向けの target を追加すること
+- `wasm-bindgen-cli`
 - `mdbook`
     - `mdbook-katex` も。
 - `python3`

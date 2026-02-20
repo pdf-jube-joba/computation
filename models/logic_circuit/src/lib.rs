@@ -13,7 +13,7 @@ pub mod example {
 
 #[cfg(test)]
 mod tests {
-    use utils::{alphabet::Identifier, bool::Bool};
+    use utils::{identifier::Identifier, bool::Bool};
 
     use crate::machine::{InPin, LogicCircuitTrait};
 
@@ -22,9 +22,7 @@ mod tests {
     #[test]
     fn test_example() {
         let list = utils_map();
-        let lc = list
-            .get(&Identifier::new_user("one-shot").unwrap())
-            .unwrap();
+        let lc = list.get(&Identifier::new("one-shot").unwrap()).unwrap();
         eprintln!("{:?}", lc);
         eprintln!("{:?}", lc.as_graph_group());
         eprintln!("{:?}", lc.get_inpins());
@@ -32,10 +30,7 @@ mod tests {
     #[test]
     fn test_xor() {
         let list = utils_map();
-        let mut lc = list
-            .get(&Identifier::new_user("XOR").unwrap())
-            .unwrap()
-            .clone();
+        let mut lc = list.get(&Identifier::new("XOR").unwrap()).unwrap().clone();
         eprintln!("{:?}", lc.get_otputs());
 
         let inputs: Vec<(InPin, Bool)> = vec![

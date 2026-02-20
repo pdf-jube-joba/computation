@@ -1,6 +1,6 @@
 use crate::machine::Command;
 use pest::{Parser, iterators::Pair};
-use utils::{alphabet::Alphabet as Var, number::Number, parse::ParseTextCodec};
+use utils::{identifier::Identifier as Var, number::Number, parse::ParseTextCodec};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "goto_lang.pest"]
