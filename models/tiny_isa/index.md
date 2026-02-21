@@ -43,4 +43,44 @@
 hdl に落とすのは、自然数の入ったメモリの転送さえクリアできれば大丈夫そう。
 これは、n bit のチャンクで扱う？
 
+## アセンブリ言語
 
+`.data` と `.text` エリアを入れて、ラベルを入れる。
+アセンブリ言語単体での意味論としては、コード領域とデータ領域はアドレス空間の異なる領域にあるとしていい。
+コード用のラベルとデータ用のラベルは分ける。
+
+## 仮想レジスタを入れて、 load/store をなくす
+値：計算が生成・消費する対象、単なるデータ。
+アドレス値：値のうち、ある場所を指し示す参照と解釈されるもの。
+場所・メモリセル：書き込み先として指定できる対象。
+仮想レジスタ：変数と思い、値を束縛するための対象。
+
+```
+<clabel>  ::= "@@" <string>
+<dlabel>  ::= "@" <string>
+<var>     ::= "%" <string>
+<const>   ::= "const" <number>
+
+<caddr> ::= <clabel> | <var> | <const>
+<daddr> ::= <dlabel> | <var> | <const>
+
+<place>     ::= "[" <daddr> "]"
+<value>     ::= <var> | <const> | <clabel> | <dlabel>
+<operand>   ::= <value> | "*" <place>
+
+<stmt>    ::= (
+    | <var>     := <operand> <op> <operand>
+    | <place>   := <operand>
+    | "Nop" | "Halt" | "Readpc" <place>
+    ) ";"
+
+<cond>    ::= <value> "<" <value> | <value> "==" <value>
+
+<cont>    ::= 
+  "goto" <caddr> ";"
+  | "if" <cond> "then" <caddr> ";" <cont>
+<block>   ::= <clabel> "{" <stmt>* <cont> "}"
+<static>  ::= <dlabel> <imm> ";"
+
+<program> ::= <static>* <block>*
+```
