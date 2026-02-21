@@ -1,5 +1,5 @@
 use std::ffi::OsString;
-use std::io::{self, Read};
+use std::io;
 
 use clap::{Parser, error::ErrorKind};
 
@@ -23,6 +23,10 @@ struct CliArgs {
     ainput_text: Option<String>,
     #[arg(long, value_name = "DELIM")]
     split: Option<String>,
+    #[arg(long, value_name = "TEXT")]
+    rinput: Option<String>,
+    #[arg(long, value_name = "N")]
+    limit: Option<usize>,
     #[arg(long)]
     snapshot: bool,
 }
@@ -31,20 +35,45 @@ fn read_file(path: &str) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))
 }
 
-fn read_stdin_all() -> Result<String, String> {
-    let mut buf = String::new();
-    io::stdin()
-        .read_to_string(&mut buf)
-        .map_err(|e| e.to_string())?;
-    Ok(buf)
-}
+fn read_code_and_ainput_from_stdin(
+    delim: &str,
+    expect_interactive_rinput: bool,
+) -> Result<(String, String), String> {
+    let stdin = io::stdin();
+    let mut line = String::new();
+    let mut code = String::new();
+    let mut ainput = String::new();
+    let mut section = 0usize;
+    eprintln!("[phase] code: enter code, then delimiter '{delim}'");
 
-fn split_stdin(input: &str, delim: &str) -> Result<(String, String, String), String> {
-    let mut parts = input.splitn(3, delim);
-    let code = parts.next().unwrap_or_default();
-    let ainput = parts.next().ok_or("Missing ainput section")?;
-    let rinput = parts.next().ok_or("Missing rinput section")?;
-    Ok((code.to_string(), ainput.to_string(), rinput.to_string()))
+    loop {
+        line.clear();
+        let n = stdin.read_line(&mut line).map_err(|e| e.to_string())?;
+        if n == 0 {
+            return Err("Missing delimiter while reading stdin sections".to_string());
+        }
+        let trimmed = line.trim_end_matches(&['\n', '\r'][..]);
+        if trimmed == delim {
+            section += 1;
+            if section == 1 {
+                eprintln!("[phase] ainput: enter ainput, then delimiter '{delim}'");
+            }
+            if section == 2 {
+                if expect_interactive_rinput {
+                    eprintln!("[phase] rinput: enter runtime input lines");
+                }
+                break;
+            }
+            continue;
+        }
+        if section == 0 {
+            code.push_str(&line);
+        } else {
+            ainput.push_str(&line);
+        }
+    }
+
+    Ok((code, ainput))
 }
 
 fn step_machine<T: Machine>(machine: &mut T, rinput: &str, snapshot: bool) -> Result<bool, String>
@@ -70,6 +99,10 @@ fn run_with_args<T: Machine>(parsed: CliArgs) -> Result<(), String>
 where
     T::SnapShot: Into<Value>,
 {
+    if parsed.rinput.is_some() != parsed.limit.is_some() {
+        return Err("--rinput and --limit must be specified together".to_string());
+    }
+
     if parsed.split.is_some()
         && (parsed.code_text.is_some()
             || parsed.ainput_text.is_some()
@@ -79,19 +112,17 @@ where
         return Err("--split is only valid when <code> and <ainput> are '-'".to_string());
     }
 
-    let (code_src, ainput_src, rinput_src) = if parsed.code_arg == "-" || parsed.ainput_arg == "-"
-    {
+    let (code_src, ainput_src) = if parsed.code_arg == "-" || parsed.ainput_arg == "-" {
         if parsed.code_arg != "-" || parsed.ainput_arg != "-" {
             return Err("Using '-' requires both <code> and <ainput> to be '-'".to_string());
         }
         let delim = parsed
             .split
             .ok_or("--split DELIM is required when using '-' for both inputs")?;
-        let stdin = read_stdin_all()?;
-        let (code, ainput, rinput) = split_stdin(&stdin, &delim)?;
-        (Some(code), Some(ainput), Some(rinput))
+        let (code, ainput) = read_code_and_ainput_from_stdin(&delim, parsed.rinput.is_none())?;
+        (Some(code), Some(ainput))
     } else {
-        (None, None, None)
+        (None, None)
     };
 
     let code_text = if let Some(text) = parsed.code_text {
@@ -114,10 +145,9 @@ where
     let ainput = T::parse_ainput(&ainput_text)?;
     let mut machine = T::make(code, ainput)?;
 
-    if let Some(rinput_text) = rinput_src {
-        for raw in rinput_text.split('\n') {
-            let line = raw.trim_end_matches('\r');
-            if step_machine::<T>(&mut machine, line, parsed.snapshot)? {
+    if let (Some(rinput), Some(limit)) = (parsed.rinput.as_deref(), parsed.limit) {
+        for _ in 0..limit {
+            if step_machine::<T>(&mut machine, rinput, parsed.snapshot)? {
                 break;
             }
         }

@@ -51,9 +51,24 @@ cargo run -p <model_crate> --bin <bin_name> -- <code> <ainput> [OPTIONS]
 
 - `<code>` と `<ainput>` はファイルパス、または `-`
 - `--code-text TEXT` / `--ainput-text TEXT` で直接文字列も指定可能
+- `--rinput TEXT --limit N` で固定 `rinput` を最大 `N` step 自動実行
 - `--snapshot` で各 step 後の `SnapShot` を JSON 出力
 
 `<code>` と `<ainput>` の両方に `-` を指定した場合は、`--split DELIM` が必須です。
+例:
+```
+$cargo run -p example_counter -- - - --split '====='
+[phase] code: enter code, then delimiter '====='
+9
+=====
+[phase] ainput: enter ainput, then delimiter '====='
+=====
+[phase] rinput: enter runtime input lines
+inc
+End
+```
+これで"対話的"に扱うことができます。
+
 stdin 全体を `DELIM` で 3 セクションに分け、`code / ainput / rinput` として扱います。
 
 ```text
@@ -65,3 +80,26 @@ DELIM
 ```
 
 `rinput` は 1 行ずつ `step` に渡され、`Output` が `Some(...)` になった時点で終了します。
+
+固定入力を使う場合は `--rinput` と `--limit` を必ずセットで指定します。
+
+```bash
+cargo run -p example_counter -- code.txt ainput.txt --rinput inc --limit 100
+```
+
+`Compiler` 実装を CLI で使うときは、モデル側の bin に `utils::compiler_entry!(...)` を書きます。
+native ターゲットでは `transpile` サブコマンドが使えます。
+
+```bash
+cargo run -p <model_crate> --bin <compiler_bin> -- transpile code <path|-> [--text TEXT]
+cargo run -p <model_crate> --bin <compiler_bin> -- transpile ainput <path|-> [--text TEXT]
+cargo run -p <model_crate> --bin <compiler_bin> -- transpile rinput <path|-> [--text TEXT]
+cargo run -p <model_crate> --bin <compiler_bin> -- transpile output <path|-> [--text TEXT]
+```
+
+例:
+
+```bash
+cargo run -p example_counter --bin example_counter-example_counter -- transpile code --text 9
+cargo run -p example_counter --bin example_counter-example_counter -- transpile rinput --text inc
+```

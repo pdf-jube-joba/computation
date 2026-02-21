@@ -1,5 +1,5 @@
 use serde_json::json;
-use utils::{Machine, TextCodec};
+use utils::{Compiler, Machine, TextCodec};
 
 #[derive(Clone)]
 pub struct Counter {
@@ -83,5 +83,36 @@ impl Machine for Counter {
 
     fn current(&self) -> Self::SnapShot {
         self.clone()
+    }
+}
+
+pub struct ExampleCounterCompiler;
+
+impl Compiler for ExampleCounterCompiler {
+    type Source = Counter;
+    type Target = Counter;
+
+    fn compile(
+        source: <<Self as Compiler>::Source as Machine>::Code,
+    ) -> Result<<<Self as Compiler>::Target as Machine>::Code, String> {
+        Ok(source)
+    }
+
+    fn encode_ainput(
+        ainput: <<Self as Compiler>::Source as Machine>::AInput,
+    ) -> Result<<<Self as Compiler>::Target as Machine>::AInput, String> {
+        Ok(ainput)
+    }
+
+    fn encode_rinput(
+        rinput: <<Self as Compiler>::Source as Machine>::RInput,
+    ) -> Result<<<Self as Compiler>::Target as Machine>::RInput, String> {
+        Ok(rinput)
+    }
+
+    fn decode_output(
+        output: <<Self as Compiler>::Target as Machine>::Output,
+    ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String> {
+        Ok(output)
     }
 }

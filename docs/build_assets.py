@@ -79,12 +79,20 @@ def read_bins(cargo_toml: Path) -> list[dict]:
         bins.append(current)
     return bins
 
-def resolve_bin_name(crate_dir: Path, package_name: str) -> str | None:
+def resolve_bin_names(crate_dir: Path, package_name: str) -> list[str]:
+    bin_names: list[str] = []
+    seen: set[str] = set()
+
+    def push(name: str) -> None:
+        if name not in seen:
+            seen.add(name)
+            bin_names.append(name)
+
     if (crate_dir / "src" / "main.rs").exists():
-        return package_name
+        push(package_name)
     cargo_toml = crate_dir / "Cargo.toml"
     if not cargo_toml.exists():
-        return None
+        return bin_names
     for bin_table in read_bins(cargo_toml):
         name = bin_table.get("name")
         path = bin_table.get("path")
@@ -92,54 +100,79 @@ def resolve_bin_name(crate_dir: Path, package_name: str) -> str | None:
             continue
         if path:
             if (crate_dir / path).exists():
-                return name
+                push(name)
             continue
         if (crate_dir / "src" / "bin" / f"{name}.rs").exists():
-            return name
-    return None
+            push(name)
+    return bin_names
 
 def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, cwd=cwd)
 
 def build_model_wasm(package_name: str, crate_dir: Path, release: bool) -> bool:
-    bin_name = resolve_bin_name(crate_dir, package_name)
-    if not bin_name:
+    bin_names = resolve_bin_names(crate_dir, package_name)
+    if not bin_names:
         print(f"[skip] {package_name}: no web entry (bin target not found)", file=sys.stderr)
         return False
 
-    cmd = ["cargo", "build", "--package", package_name, "--target", "wasm32-unknown-unknown", "--bin", bin_name]
-    if release:
-        cmd.append("--release")
-    print(f"[build] package={package_name} bin={bin_name}", file=sys.stderr)
-    result = run(cmd, cwd=WORKSPACE_DIR)
-    if result.returncode != 0:
-        print(f"[error] cargo build failed for {package_name} (bin={bin_name})", file=sys.stderr)
-        return False
-
     profile = "release" if release else "debug"
-    wasm_path = WORKSPACE_DIR / "target" / "wasm32-unknown-unknown" / profile / f"{bin_name}.wasm"
-    if not wasm_path.exists():
-        print(f"[error] wasm output missing for {package_name}: {wasm_path}", file=sys.stderr)
-        return False
+    all_ok = True
 
-    WASM_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-    bindgen_cmd = [
-        "wasm-bindgen",
-        "--target",
-        "web",
-        "--out-dir",
-        str(WASM_ASSETS_DIR),
-        "--no-typescript",
-        "--out-name",
-        package_name,
-        str(wasm_path),
-    ]
-    print(f"[bindgen] package={package_name} -> {WASM_ASSETS_DIR}", file=sys.stderr)
-    result = run(bindgen_cmd)
-    if result.returncode != 0:
-        print(f"[error] wasm-bindgen failed for {package_name}", file=sys.stderr)
-        return False
-    return True
+    for bin_name in bin_names:
+        cmd = [
+            "cargo",
+            "build",
+            "--package",
+            package_name,
+            "--target",
+            "wasm32-unknown-unknown",
+            "--bin",
+            bin_name,
+        ]
+        if release:
+            cmd.append("--release")
+        print(f"[build] package={package_name} bin={bin_name}", file=sys.stderr)
+        result = run(cmd, cwd=WORKSPACE_DIR)
+        if result.returncode != 0:
+            print(f"[error] cargo build failed for {package_name} (bin={bin_name})", file=sys.stderr)
+            all_ok = False
+            continue
+
+        wasm_path = WORKSPACE_DIR / "target" / "wasm32-unknown-unknown" / profile / f"{bin_name}.wasm"
+        if not wasm_path.exists():
+            print(f"[error] wasm output missing for {package_name}: {wasm_path}", file=sys.stderr)
+            all_ok = False
+            continue
+
+        out_names = [bin_name]
+        if len(bin_names) == 1 and package_name != bin_name:
+            out_names.append(package_name)
+
+        WASM_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        for out_name in out_names:
+            bindgen_cmd = [
+                "wasm-bindgen",
+                "--target",
+                "web",
+                "--out-dir",
+                str(WASM_ASSETS_DIR),
+                "--no-typescript",
+                "--out-name",
+                out_name,
+                str(wasm_path),
+            ]
+            print(
+                f"[bindgen] package={package_name} bin={bin_name} out={out_name} -> {WASM_ASSETS_DIR}",
+                file=sys.stderr,
+            )
+            result = run(bindgen_cmd)
+            if result.returncode != 0:
+                print(
+                    f"[error] wasm-bindgen failed for {package_name} (bin={bin_name}, out={out_name})",
+                    file=sys.stderr,
+                )
+                all_ok = False
+    return all_ok
 
 # this function does nothing, but we'll keep this code.
 def process_item(item):

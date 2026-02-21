@@ -1,5 +1,6 @@
 pub mod bool;
 pub mod cli;
+pub mod cli_compiler;
 pub mod identifier;
 pub mod number;
 pub mod parse;
@@ -72,5 +73,16 @@ macro_rules! model_entry {
 
         #[cfg(not(target_arch = "wasm32"))]
         $crate::cli_model!($machine);
+    };
+}
+
+#[macro_export]
+macro_rules! compiler_entry {
+    ($compiler:path) => {
+        #[cfg(target_arch = "wasm32")]
+        $crate::web_compiler!($compiler);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        $crate::cli_compiler!($compiler);
     };
 }
