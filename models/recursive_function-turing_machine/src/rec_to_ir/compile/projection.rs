@@ -1,4 +1,4 @@
-use crate::rec_tm_ir::{Block, Function, Stmt};
+use crate::rec_tm_ir::{Block, Function, Stmt, register_function};
 use crate::rec_to_ir::S;
 use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
 use crate::{assign, cond, lv, rv};
@@ -67,11 +67,10 @@ pub fn aux_projection_init(n: usize, i: usize) -> Function {
 // ... ? |x| - l(n_0) - l(n_1) ... - l(n_{n - 1}) x - ...
 // ... ? |x| - l(n_i) x - ...
 pub fn projection(n: usize, i: usize) -> Function {
+    let aux_func = register_function(aux_projection_init(n, i)).unwrap();
     let mut blocks = vec![Block {
         label: "initial".to_string(),
-        body: vec![Stmt::Call {
-            name: format!("aux_proj_{n}_{i}"),
-        }],
+        body: vec![Stmt::Call { func: aux_func }],
     }];
     // current situation
     //  ... x -+ l* |x| - ...

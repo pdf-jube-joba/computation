@@ -1,4 +1,4 @@
-use crate::rec_tm_ir::{Block, Function, Program, Stmt};
+use crate::rec_tm_ir::{Block, Function, Program, Stmt, reset_registry};
 use crate::rec_to_ir::S;
 use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
 use crate::{assign, cond, lv, rv};
@@ -6,7 +6,7 @@ use crate::{assign, cond, lv, rv};
 // 0 定数関数
 // 入力: ... ? |x| x - ...
 // 出力: ... ? |x| - x - ...
-pub(crate) fn zero_builder() -> Function {
+pub(crate) fn zero_function() -> Function {
     Function {
         name: "zero_const_function".to_string(),
         blocks: vec![Block {
@@ -27,7 +27,7 @@ pub(crate) fn zero_builder() -> Function {
 // 後者関数
 // 入力: ... ? |x| - l l ... l x - ... : l * n times
 // 出力: ... ? |x| - l l ... l l x - ... : l * (n+1) times
-pub(crate) fn succ_builder() -> Function {
+pub(crate) fn succ_function() -> Function {
     Function {
         name: "succ_function".to_string(),
         blocks: vec![Block {
@@ -38,9 +38,7 @@ pub(crate) fn succ_builder() -> Function {
                 Stmt::Rt,
                 assign!(lv!(@), rv!(const S::X)),
                 // returns to be the initial position ... until the first x
-                Stmt::Call {
-                    name: "move_left_till_x_1".to_string(),
-                },
+                call_l(1),
             ],
         }],
     }
@@ -56,9 +54,10 @@ pub mod projection;
 use recursive_function::machine::RecursiveFunctions;
 
 pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
+    reset_registry();
     match recursive_function {
-        RecursiveFunctions::ZeroConstant => zero_builder(),
-        RecursiveFunctions::Successor => succ_builder(),
+        RecursiveFunctions::ZeroConstant => zero_function(),
+        RecursiveFunctions::Successor => succ_function(),
         RecursiveFunctions::Projection {
             parameter_length,
             projection_num,
@@ -68,10 +67,9 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
             outer_func,
             inner_funcs,
         } => {
-            let outer_builder = compile(outer_func.as_ref());
-            let inner_builders: Vec<Function> = inner_funcs.iter().map(compile).collect();
-            // composition::composition(inner_functions, outer_function)
-            todo!()
+            let outer_function = compile(outer_func.as_ref());
+            let inner_functions: Vec<Function> = inner_funcs.iter().map(compile).collect();
+            composition::composition(inner_functions, outer_function)
         }
         RecursiveFunctions::PrimitiveRecursion {
             zero_func,
@@ -79,11 +77,11 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
         } => {
             let zero_func = compile(zero_func.as_ref());
             let succ_func = compile(succ_func.as_ref());
-            todo!()
+            primitive_recursion::primitive_recursion(zero_func, succ_func)
         }
         RecursiveFunctions::MuOperator { mu_func } => {
             let mu_func = compile(mu_func.as_ref());
-            todo!()
+            mu_recursion::mu_recursion(mu_func)
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::rec_tm_ir::{Block, Condition, Function, LValue, RValue, Stmt};
+use crate::rec_tm_ir::{Block, Condition, Function, LValue, RValue, Stmt, register_function};
 use crate::rec_to_ir::S;
 use crate::{assign, cond, lv, rv};
 
@@ -28,15 +28,13 @@ pub(crate) fn move_right_till_x_n_times(n: usize) -> Function {
 }
 
 pub(crate) fn call_r(n: usize) -> Stmt {
-    Stmt::Call {
-        name: format!("move_right_till_x_{n}"),
-    }
+    let func = register_function(move_right_till_x_n_times(n)).unwrap();
+    Stmt::Call { func }
 }
 
 pub(crate) fn call_l(n: usize) -> Stmt {
-    Stmt::Call {
-        name: format!("move_left_till_x_{n}"),
-    }
+    let func = register_function(move_left_till_x_n_times(n)).unwrap();
+    Stmt::Call { func }
 }
 
 // Move left until the head reads 'x'. Head stops on 'x'.

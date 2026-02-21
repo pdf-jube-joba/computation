@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use turing_machine::machine::{CodeEntry, Direction, Sign, State, TuringMachineDefinition};
 use utils::{Compiler, Machine, TextCodec};
 
-use super::machine::{Program, Stmt};
+use super::machine::{LValue, Program, RValue, Stmt};
 
 pub struct RecTmIrJumpToTmCompiler;
 
@@ -67,128 +67,104 @@ fn compile_program(program: &Program) -> Result<TuringMachineDefinition, String>
                     &state_map,
                     |sign| (sign.clone(), Direction::Right),
                 )?,
-                Stmt::Read(var) => {
-                    let var_idx = vars
-                        .iter()
-                        .position(|v| v == var)
-                        .ok_or_else(|| format!("Unknown variable '{}'", var))?;
-                    for sign in &alphabet {
-                        let mut next_env = env.clone();
-                        next_env[var_idx] = sign.clone();
-                        let next_env_idx = env_index(&envs, &next_env)?;
-                        let next_state = state_for(pc + 1, next_env_idx, &state_map)?;
-                        code.push((
-                            (sign.clone(), state.clone()),
-                            (sign.clone(), next_state, Direction::Constant),
-                        ));
+                Stmt::Assign { dst, src } => match dst {
+                    LValue::Var(name) => {
+                        let dst_idx = vars
+                            .iter()
+                            .position(|v| v == name)
+                            .ok_or_else(|| format!("Unknown variable '{}'", name))?;
+                        if rvalue_depends_on_head(src) {
+                            for sign in &alphabet {
+                                let value = eval_rvalue(src, &vars, env, sign)?;
+                                let mut next_env = env.clone();
+                                next_env[dst_idx] = value;
+                                let next_env_idx = env_index(&envs, &next_env)?;
+                                let next_state = state_for(pc + 1, next_env_idx, &state_map)?;
+                                code.push((
+                                    (sign.clone(), state.clone()),
+                                    (sign.clone(), next_state, Direction::Constant),
+                                ));
+                            }
+                        } else {
+                            let value = eval_rvalue_no_head(src, &vars, env)?;
+                            let mut next_env = env.clone();
+                            next_env[dst_idx] = value;
+                            let next_env_idx = env_index(&envs, &next_env)?;
+                            add_for_all_tape(
+                                &mut code,
+                                &alphabet,
+                                &state,
+                                pc + 1,
+                                next_env_idx,
+                                &state_map,
+                                |sign| (sign.clone(), Direction::Constant),
+                            )?;
+                        }
                     }
-                }
-                Stmt::Stor(var) => {
-                    let var_idx = vars
-                        .iter()
-                        .position(|v| v == var)
-                        .ok_or_else(|| format!("Unknown variable '{}'", var))?;
-                    let write_sign = env[var_idx].clone();
-                    add_for_all_tape(
-                        &mut code,
-                        &alphabet,
-                        &state,
-                        pc + 1,
-                        env_idx,
-                        &state_map,
-                        |_| (write_sign.clone(), Direction::Constant),
-                    )?;
-                }
-                Stmt::StorConst(value) => {
-                    add_for_all_tape(
-                        &mut code,
-                        &alphabet,
-                        &state,
-                        pc + 1,
-                        env_idx,
-                        &state_map,
-                        |_| (value.clone(), Direction::Constant),
-                    )?;
-                }
-                Stmt::Assign(dst, src) => {
-                    let dst_idx = vars
-                        .iter()
-                        .position(|v| v == dst)
-                        .ok_or_else(|| format!("Unknown variable '{}'", dst))?;
-                    let src_idx = vars
-                        .iter()
-                        .position(|v| v == src)
-                        .ok_or_else(|| format!("Unknown variable '{}'", src))?;
-                    let mut next_env = env.clone();
-                    next_env[dst_idx] = next_env[src_idx].clone();
-                    let next_env_idx = env_index(&envs, &next_env)?;
-                    add_for_all_tape(
-                        &mut code,
-                        &alphabet,
-                        &state,
-                        pc + 1,
-                        next_env_idx,
-                        &state_map,
-                        |sign| (sign.clone(), Direction::Constant),
-                    )?;
-                }
-                Stmt::ConstAssign(dst, value) => {
-                    let dst_idx = vars
-                        .iter()
-                        .position(|v| v == dst)
-                        .ok_or_else(|| format!("Unknown variable '{}'", dst))?;
-                    let mut next_env = env.clone();
-                    next_env[dst_idx] = value.clone();
-                    let next_env_idx = env_index(&envs, &next_env)?;
-                    add_for_all_tape(
-                        &mut code,
-                        &alphabet,
-                        &state,
-                        pc + 1,
-                        next_env_idx,
-                        &state_map,
-                        |sign| (sign.clone(), Direction::Constant),
-                    )?;
-                }
-                Stmt::Jump(target) => {
-                    add_for_all_tape(
-                        &mut code,
-                        &alphabet,
-                        &state,
-                        *target,
-                        env_idx,
-                        &state_map,
-                        |sign| (sign.clone(), Direction::Constant),
-                    )?;
-                }
-                Stmt::JumpIf { var, value, target } => {
-                    let var_idx = vars
-                        .iter()
-                        .position(|v| v == var)
-                        .ok_or_else(|| format!("Unknown variable '{}'", var))?;
-                    let next_pc = if &env[var_idx] == value {
-                        *target
+                    LValue::Head => {
+                        if rvalue_depends_on_head(src) {
+                            add_for_all_tape(
+                                &mut code,
+                                &alphabet,
+                                &state,
+                                pc + 1,
+                                env_idx,
+                                &state_map,
+                                |sign| (sign.clone(), Direction::Constant),
+                            )?;
+                        } else {
+                            let value = eval_rvalue_no_head(src, &vars, env)?;
+                            add_for_all_tape(
+                                &mut code,
+                                &alphabet,
+                                &state,
+                                pc + 1,
+                                env_idx,
+                                &state_map,
+                                |_| (value.clone(), Direction::Constant),
+                            )?;
+                        }
+                    }
+                },
+                Stmt::Jump { target, cond } => {
+                    if let Some(cond) = cond {
+                        let head_dep = rvalue_depends_on_head(&cond.left)
+                            || rvalue_depends_on_head(&cond.right);
+                        if head_dep {
+                            for sign in &alphabet {
+                                let left = eval_rvalue(&cond.left, &vars, env, sign)?;
+                                let right = eval_rvalue(&cond.right, &vars, env, sign)?;
+                                let next_pc = if left == right { *target } else { pc + 1 };
+                                let next_state = state_for(next_pc, env_idx, &state_map)?;
+                                code.push((
+                                    (sign.clone(), state.clone()),
+                                    (sign.clone(), next_state, Direction::Constant),
+                                ));
+                            }
+                        } else {
+                            let left = eval_rvalue_no_head(&cond.left, &vars, env)?;
+                            let right = eval_rvalue_no_head(&cond.right, &vars, env)?;
+                            let next_pc = if left == right { *target } else { pc + 1 };
+                            add_for_all_tape(
+                                &mut code,
+                                &alphabet,
+                                &state,
+                                next_pc,
+                                env_idx,
+                                &state_map,
+                                |sign| (sign.clone(), Direction::Constant),
+                            )?;
+                        }
                     } else {
-                        pc + 1
-                    };
-                    add_for_all_tape(
-                        &mut code,
-                        &alphabet,
-                        &state,
-                        next_pc,
-                        env_idx,
-                        &state_map,
-                        |sign| (sign.clone(), Direction::Constant),
-                    )?;
-                }
-                Stmt::JumpIfHead { value, target } => {
-                    for sign in &alphabet {
-                        let next_pc = if sign == value { *target } else { pc + 1 };
-                        let next_state = state_for(next_pc, env_idx, &state_map)?;
-                        code.push((
-                            (sign.clone(), state.clone()),
-                            (sign.clone(), next_state, Direction::Constant),
-                        ));
+                        add_for_all_tape(
+                            &mut code,
+                            &alphabet,
+                            &state,
+                            *target,
+                            env_idx,
+                            &state_map,
+                            |sign| (sign.clone(), Direction::Constant),
+                        )?;
                     }
                 }
             }
@@ -205,13 +181,12 @@ fn compile_program(program: &Program) -> Result<TuringMachineDefinition, String>
 fn validate_constants(program: &Program, alphabet: &[Sign]) -> Result<(), String> {
     for stmt in &program.body {
         match stmt {
-            Stmt::JumpIf { value, .. }
-            | Stmt::JumpIfHead { value, .. }
-            | Stmt::ConstAssign(_, value)
-            | Stmt::StorConst(value) => {
-                if !alphabet.contains(value) {
-                    return Err(format!("Unknown sign in const: {}", value.print()));
-                }
+            Stmt::Assign { dst: _, src } => validate_rvalue_const(src, alphabet)?,
+            Stmt::Jump {
+                cond: Some(cond), ..
+            } => {
+                validate_rvalue_const(&cond.left, alphabet)?;
+                validate_rvalue_const(&cond.right, alphabet)?;
             }
             _ => {}
         }
@@ -241,20 +216,67 @@ fn collect_vars(stmts: &[Stmt]) -> Vec<String> {
     let mut set = HashMap::new();
     for stmt in stmts {
         match stmt {
-            Stmt::Read(var) | Stmt::Stor(var) | Stmt::JumpIf { var, .. } => {
-                set.entry(var.clone()).or_insert(());
+            Stmt::Assign { dst, src } => {
+                if let LValue::Var(name) = dst {
+                    set.entry(name.clone()).or_insert(());
+                }
+                if let RValue::Var(name) = src {
+                    set.entry(name.clone()).or_insert(());
+                }
             }
-            Stmt::Assign(dst, src) => {
-                set.entry(dst.clone()).or_insert(());
-                set.entry(src.clone()).or_insert(());
+            Stmt::Jump {
+                cond: Some(cond), ..
+            } => {
+                if let RValue::Var(name) = &cond.left {
+                    set.entry(name.clone()).or_insert(());
+                }
+                if let RValue::Var(name) = &cond.right {
+                    set.entry(name.clone()).or_insert(());
+                }
             }
-            Stmt::JumpIfHead { .. } => {}
             _ => {}
         }
     }
     let mut vars: Vec<String> = set.into_keys().collect();
     vars.sort();
     vars
+}
+
+fn validate_rvalue_const(value: &RValue, alphabet: &[Sign]) -> Result<(), String> {
+    if let RValue::Const(sign) = value
+        && !alphabet.contains(sign)
+    {
+        return Err(format!("Unknown sign in const: {}", sign.print()));
+    }
+    Ok(())
+}
+
+fn rvalue_depends_on_head(value: &RValue) -> bool {
+    matches!(value, RValue::Head)
+}
+
+fn eval_rvalue(value: &RValue, vars: &[String], env: &[Sign], head: &Sign) -> Result<Sign, String> {
+    match value {
+        RValue::Var(name) => vars
+            .iter()
+            .position(|v| v == name)
+            .map(|idx| env[idx].clone())
+            .ok_or_else(|| format!("Unknown variable '{}'", name)),
+        RValue::Head => Ok(head.clone()),
+        RValue::Const(sign) => Ok(sign.clone()),
+    }
+}
+
+fn eval_rvalue_no_head(value: &RValue, vars: &[String], env: &[Sign]) -> Result<Sign, String> {
+    match value {
+        RValue::Var(name) => vars
+            .iter()
+            .position(|v| v == name)
+            .map(|idx| env[idx].clone())
+            .ok_or_else(|| format!("Unknown variable '{}'", name)),
+        RValue::Head => Err("Head value depends on tape".to_string()),
+        RValue::Const(sign) => Ok(sign.clone()),
+    }
 }
 
 fn enumerate_envs(alphabet: &[Sign], vars: &[String]) -> Result<Vec<Vec<Sign>>, String> {

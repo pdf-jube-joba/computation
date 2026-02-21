@@ -3,6 +3,7 @@ use utils::TextCodec;
 use utils::identifier::Identifier;
 
 use super::machine::{Block, Condition, Function, LValue, Program, RValue, Stmt};
+use super::{get_function, register_function, reset_registry};
 
 const KEYWORDS: [&str; 12] = [
     "alphabet", "fn", "label", "jump", "call", "const", "return", "break", "continue", "if", "LT",
@@ -150,13 +151,11 @@ impl Parser {
     }
 
     fn parse_program(&mut self) -> Result<Program, String> {
+        reset_registry();
         let alphabet = self.parse_alphabet()?;
-        let mut functions: Vec<Function> = Vec::new();
+        let mut functions: Vec<std::rc::Rc<Function>> = Vec::new();
         while !self.is_eof() {
             let function = self.parse_function()?;
-            if functions.iter().any(|func| func.name == function.name) {
-                return Err(format!("Function '{}' is defined twice", function.name));
-            }
             functions.push(function);
         }
         Ok(Program {
@@ -195,7 +194,7 @@ impl Parser {
         Ok(signs)
     }
 
-    fn parse_function(&mut self) -> Result<Function, String> {
+    fn parse_function(&mut self) -> Result<std::rc::Rc<Function>, String> {
         self.expect_keyword("fn")?;
         let name = self.expect_ident("function name")?;
         if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "(") {
@@ -205,7 +204,7 @@ impl Parser {
         self.expect_symbol("{")?;
         let blocks = self.parse_blocks()?;
         self.expect_symbol("}")?;
-        Ok(Function { name, blocks })
+        register_function(Function { name, blocks })
     }
 
     fn parse_blocks(&mut self) -> Result<Vec<Block>, String> {
@@ -284,8 +283,10 @@ impl Parser {
                         self.expect_symbol("(")?;
                         self.expect_symbol(")")?;
                     }
-                    Ok(Stmt::Call { name })
-                }
+                Ok(Stmt::Call {
+                    func: get_function(&name)?,
+                })
+            }
                 _ => {
                     let dst = self.parse_lvalue()?;
                     self.expect_symbol(":=")?;
@@ -440,7 +441,7 @@ fn write_stmt_line(f: &mut impl std::fmt::Write, stmt: &Stmt, indent: usize) -> 
             write!(f, "return")?;
             write_condition(f, cond)
         }
-        Stmt::Call { name } => writeln!(f, "call {}", name),
+        Stmt::Call { func } => writeln!(f, "call {}", func.name),
     }
 }
 

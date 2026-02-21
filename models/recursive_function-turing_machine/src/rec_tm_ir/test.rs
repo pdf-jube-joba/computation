@@ -1,4 +1,5 @@
 use crate::{assign, lv, rv};
+use std::rc::Rc;
 use turing_machine::machine::Sign;
 use utils::{Machine, TextCodec, parse::ParseTextCodec};
 
@@ -53,7 +54,7 @@ fn ms(s: &str) -> Sign {
 fn tape_left_right() {
     let program = Program {
         alphabet: vec![ms("a")],
-        functions: vec![Function {
+        functions: vec![Rc::new(Function {
             name: "main".to_string(),
             blocks: vec![Block {
                 label: "entry".to_string(),
@@ -69,7 +70,7 @@ fn tape_left_right() {
                     assign!(lv!(@), rv!(const ms("a"))),
                 ],
             }],
-        }],
+        })],
     };
     let tape = <RecTmIrMachine as Machine>::parse_ainput("|-|").unwrap();
     let mut machine = RecTmIrMachine::make(program, tape).unwrap();

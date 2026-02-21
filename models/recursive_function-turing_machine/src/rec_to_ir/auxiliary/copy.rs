@@ -1,4 +1,4 @@
-use crate::rec_tm_ir::{Block, Condition, Function, LValue, RValue, Stmt};
+use crate::rec_tm_ir::{Block, Condition, Function, LValue, RValue, Stmt, register_function};
 use crate::rec_to_ir::S;
 use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
 use crate::{assign, cond, lv, rv};
@@ -86,6 +86,7 @@ pub(crate) fn copy_n_times(n: usize) -> Function {
     //  copy_n_times(0) = vec![]
     //  copy_n_times(n + 1) = copy() + move_right_till_x() + copy_n_times(n) + move_left_till_x() for n > 0
 
+    let copy_to_end_func = register_function(copy_to_end(0)).unwrap();
     let closure = |n: usize| {
         let mut v = vec![];
         for i in 0..n {
@@ -93,7 +94,7 @@ pub(crate) fn copy_n_times(n: usize) -> Function {
                 label: format!("copy_head_{i}"),
                 body: vec![
                     Stmt::Call {
-                        name: "copy_to_end_0".to_string(),
+                        func: copy_to_end_func.clone(),
                     },
                     call_r(1),
                 ],
@@ -115,7 +116,6 @@ pub(crate) fn copy_n_times(n: usize) -> Function {
 }
 
 pub(crate) fn copy(n: usize) -> Stmt {
-    Stmt::Call {
-        name: format!("copy_{n}"),
-    }
+    let func = register_function(copy_n_times(n)).unwrap();
+    Stmt::Call { func }
 }

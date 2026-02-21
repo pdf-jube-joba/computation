@@ -2,11 +2,9 @@ use turing_machine::machine::Sign;
 use utils::TextCodec;
 use utils::identifier::Identifier;
 
-use super::machine::{Program, Stmt};
+use super::machine::{Condition, LValue, Program, RValue, Stmt};
 
-const KEYWORDS: [&str; 8] = [
-    "alphabet", "jump", "if", "const", "LT", "RT", "READ", "STOR",
-];
+const KEYWORDS: [&str; 6] = ["alphabet", "jump", "if", "const", "LT", "RT"];
 
 #[derive(Debug, Clone)]
 enum Token {
@@ -29,7 +27,7 @@ fn parse_identifier_with_context(name: &str, context: &str) -> Result<String, St
 }
 
 fn is_keyword(name: &str) -> bool {
-    KEYWORDS.iter().any(|kw| *kw == name)
+    KEYWORDS.contains(&name)
 }
 
 fn tokenize(text: &str) -> Result<Vec<Token>, String> {
@@ -236,59 +234,69 @@ impl Parser {
                     self.next();
                     Ok(Stmt::Rt)
                 }
-                "READ" => {
-                    self.next();
-                    let var = self.expect_ident("variable")?;
-                    Ok(Stmt::Read(var))
-                }
-                "STOR" => {
-                    self.next();
-                    if matches!(self.peek(), Some(Token::Ident(id)) if id == "const") {
-                        self.expect_keyword("const")?;
-                        let value = self.parse_sign()?;
-                        Ok(Stmt::StorConst(value))
-                    } else {
-                        let var = self.expect_ident("variable")?;
-                        Ok(Stmt::Stor(var))
-                    }
-                }
                 "jump" => {
                     self.next();
-                    if matches!(self.peek(), Some(Token::Ident(id)) if id == "if") {
+                    let cond = if matches!(self.peek(), Some(Token::Ident(id)) if id == "if") {
                         self.expect_keyword("if")?;
-                        if matches!(self.peek(), Some(Token::Symbol(sym)) if sym == "@") {
-                            self.expect_symbol("@")?;
-                            self.expect_symbol("==")?;
-                            let value = self.parse_sign()?;
-                            let target = self.expect_number("jump target")?;
-                            Ok(Stmt::JumpIfHead { value, target })
-                        } else {
-                            let var = self.expect_ident("variable")?;
-                            self.expect_symbol("==")?;
-                            let value = self.parse_sign()?;
-                            let target = self.expect_number("jump target")?;
-                            Ok(Stmt::JumpIf { var, value, target })
-                        }
+                        let left = self.parse_rvalue()?;
+                        self.expect_symbol("==")?;
+                        let right = self.parse_rvalue()?;
+                        Some(Condition { left, right })
                     } else {
-                        let target = self.expect_number("jump target")?;
-                        Ok(Stmt::Jump(target))
-                    }
+                        None
+                    };
+                    let target = self.expect_number("jump target")?;
+                    Ok(Stmt::Jump { target, cond })
                 }
                 _ => {
-                    let var = self.expect_ident("variable")?;
+                    let dst = self.parse_lvalue()?;
                     self.expect_symbol(":=")?;
-                    if matches!(self.peek(), Some(Token::Ident(id)) if id == "const") {
-                        self.expect_keyword("const")?;
-                        let value = self.parse_sign()?;
-                        Ok(Stmt::ConstAssign(var, value))
-                    } else {
-                        let src = self.expect_ident("variable")?;
-                        Ok(Stmt::Assign(var, src))
-                    }
+                    let src = self.parse_rvalue()?;
+                    Ok(Stmt::Assign { dst, src })
                 }
             },
             Token::Number(num) => Err(format!("Unexpected number '{}'", num)),
-            Token::Symbol(sym) => Err(format!("Unexpected symbol '{}'", sym)),
+            Token::Symbol(sym) => {
+                if sym == "@" {
+                    let dst = self.parse_lvalue()?;
+                    self.expect_symbol(":=")?;
+                    let src = self.parse_rvalue()?;
+                    Ok(Stmt::Assign { dst, src })
+                } else {
+                    Err(format!("Unexpected symbol '{}'", sym))
+                }
+            }
+        }
+    }
+
+    fn parse_lvalue(&mut self) -> Result<LValue, String> {
+        match self.peek() {
+            Some(Token::Symbol(sym)) if sym == "@" => {
+                self.next();
+                Ok(LValue::Head)
+            }
+            _ => {
+                let name = self.expect_ident("variable")?;
+                Ok(LValue::Var(name))
+            }
+        }
+    }
+
+    fn parse_rvalue(&mut self) -> Result<RValue, String> {
+        match self.peek() {
+            Some(Token::Symbol(sym)) if sym == "@" => {
+                self.next();
+                Ok(RValue::Head)
+            }
+            Some(Token::Ident(id)) if id == "const" => {
+                self.expect_keyword("const")?;
+                let value = self.parse_sign()?;
+                Ok(RValue::Const(value))
+            }
+            _ => {
+                let name = self.expect_ident("variable")?;
+                Ok(RValue::Var(name))
+            }
         }
     }
 
@@ -325,22 +333,39 @@ impl TextCodec for Program {
             match stmt {
                 Stmt::Lt => writeln!(f, "LT")?,
                 Stmt::Rt => writeln!(f, "RT")?,
-                Stmt::Read(var) => writeln!(f, "READ {}", var)?,
-                Stmt::Stor(var) => writeln!(f, "STOR {}", var)?,
-                Stmt::StorConst(value) => writeln!(f, "STOR const {}", value.print())?,
-                Stmt::Assign(dst, src) => writeln!(f, "{} := {}", dst, src)?,
-                Stmt::ConstAssign(dst, value) => {
-                    writeln!(f, "{} := const {}", dst, value.print())?;
+                Stmt::Assign { dst, src } => {
+                    writeln!(f, "{} := {}", render_lvalue(dst), render_rvalue(src))?;
                 }
-                Stmt::Jump(target) => writeln!(f, "jump {}", target)?,
-                Stmt::JumpIf { var, value, target } => {
-                    writeln!(f, "jump if {} == {} {}", var, value.print(), target)?
-                }
-                Stmt::JumpIfHead { value, target } => {
-                    writeln!(f, "jump if @ == {} {}", value.print(), target)?
+                Stmt::Jump { target, cond } => {
+                    if let Some(cond) = cond {
+                        writeln!(
+                            f,
+                            "jump if {} == {} {}",
+                            render_rvalue(&cond.left),
+                            render_rvalue(&cond.right),
+                            target
+                        )?;
+                    } else {
+                        writeln!(f, "jump {}", target)?;
+                    }
                 }
             }
         }
         Ok(())
+    }
+}
+
+fn render_lvalue(value: &LValue) -> String {
+    match value {
+        LValue::Var(name) => name.clone(),
+        LValue::Head => "@".to_string(),
+    }
+}
+
+fn render_rvalue(value: &RValue) -> String {
+    match value {
+        RValue::Var(name) => name.clone(),
+        RValue::Head => "@".to_string(),
+        RValue::Const(sign) => format!("const {}", sign.print()),
     }
 }

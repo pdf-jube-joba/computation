@@ -1,15 +1,11 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Display;
+use std::rc::Rc;
 
 use turing_machine::machine::Sign;
 use utils::TextCodec;
 
 use crate::rec_tm_ir::{Block, Function, Program, Stmt};
-use crate::rec_to_ir::auxiliary::basic::{
-    self, move_left_till_x_n_times, move_right_till_x_n_times,
-};
-use crate::rec_to_ir::auxiliary::{copy, rotate};
-use crate::rec_to_ir::compile::projection;
 
 pub mod auxiliary;
 pub mod compile;
@@ -104,181 +100,42 @@ pub fn read_right_one_usize(tape: &Tape) -> Option<Vec<usize>> {
 
 // Naming convention: function names are unique and "main" is reserved.
 pub(crate) fn wrap_function(function: Function) -> Program {
-    let mut registry = Registry::new();
-    registry.resolve(&function);
+    let function = Rc::new(function);
 
-    let main_function = Function {
+    let main_function = Rc::new(Function {
         name: "main".to_string(),
         blocks: vec![Block {
             label: "main".to_string(),
             body: vec![Stmt::Call {
-                name: function.name.clone(),
+                func: function.clone(),
             }],
         }],
-    };
+    });
 
-    registry
-        .functions
-        .insert(main_function.name.clone(), main_function);
-
+    let mut functions = Vec::new();
+    let mut seen = HashSet::new();
+    collect_functions(&main_function, &mut seen, &mut functions);
     Program {
         alphabet: S::all().into_iter().map(Into::into).collect(),
-        functions: registry.functions.into_values().collect(),
+        functions,
     }
 }
 
-struct Registry {
-    functions: HashMap<String, Function>, // this contains "visited"
-    stack: Vec<String>,                   // this is for DFS and contains "visited but not finished"
-}
-
-impl Registry {
-    fn new() -> Self {
-        Self {
-            functions: HashMap::new(),
-            stack: Vec::new(),
-        }
+fn collect_functions(
+    func: &Rc<Function>,
+    seen: &mut HashSet<*const Function>,
+    out: &mut Vec<Rc<Function>>,
+) {
+    let ptr = Rc::as_ptr(func);
+    if !seen.insert(ptr) {
+        return;
     }
-
-    fn adhoc_insert(&mut self, name: &str) -> bool {
-        #[allow(clippy::match_single_binding)]
-        match name {
-            "concat" => {
-                let func = basic::concat();
-                self.functions.insert(func.name.clone(), func);
-                true
-            }
-            "swap_tuple" => {
-                let func = rotate::swap_tuple();
-                self.functions.insert(func.name.clone(), func);
-                true
-            }
-            "shift_left_put_x" => {
-                let func = basic::shift_left_x(S::X);
-                self.functions.insert(func.name.clone(), func);
-                true
-            }
-            "shift_left_put_l" => {
-                let func = basic::shift_left_x(S::L);
-                self.functions.insert(func.name.clone(), func);
-                true
-            }
-            "shift_left_put_-" => {
-                let func = basic::shift_left_x(S::B);
-                self.functions.insert(func.name.clone(), func);
-                true
-            }
-            _ => {
-                if name.starts_with("copy_") {
-                    if let Some(n) = parse_trailing_usize(name, "copy_") {
-                        let func = copy::copy_n_times(n);
-                        self.functions.insert(func.name.clone(), func);
-                        return true;
-                    }
-                }
-                if name.starts_with("copy_to_end_") {
-                    if let Some(n) = parse_trailing_usize(name, "copy_to_end_") {
-                        let func = copy::copy_to_end(n);
-                        self.functions.insert(func.name.clone(), func);
-                        return true;
-                    }
-                }
-                if name.starts_with("move_right_till_x_") {
-                    if let Some(n) = parse_trailing_usize(name, "move_right_till_x_") {
-                        let func = move_right_till_x_n_times(n);
-                        self.functions.insert(func.name.clone(), func);
-                        return true;
-                    }
-                }
-                if name.starts_with("move_left_till_x_") {
-                    if let Some(n) = parse_trailing_usize(name, "move_left_till_x_") {
-                        let func = move_left_till_x_n_times(n);
-                        self.functions.insert(func.name.clone(), func);
-                        return true;
-                    }
-                }
-                if name.starts_with("rotate_") {
-                    if let Some(n) = parse_trailing_usize(name, "rotate_") {
-                        let func = rotate::rotate(n);
-                        self.functions.insert(func.name.clone(), func);
-                        return true;
-                    }
-                }
-                if name.starts_with("shift_left_") {
-                    if let Some(n) = parse_trailing_usize(name, "shift_left_") {
-                        let func = basic::shift_left_x_n_times(n);
-                        self.functions.insert(func.name.clone(), func);
-                        return true;
-                    }
-                }
-                if name.starts_with("aux_proj_") {
-                    let rest = &name["aux_proj_".len()..];
-                    if let Some((n_str, i_str)) = rest.split_once('_') {
-                        if !n_str.is_empty()
-                            && !i_str.is_empty()
-                            && n_str.bytes().all(|b| b.is_ascii_digit())
-                            && i_str.bytes().all(|b| b.is_ascii_digit())
-                        {
-                            if let (Ok(n), Ok(i)) = (n_str.parse(), i_str.parse()) {
-                                let func = projection::aux_projection_init(n, i);
-                                self.functions.insert(func.name.clone(), func);
-                                return true;
-                            }
-                        }
-                    }
-                }
-                false
+    out.push(func.clone());
+    for block in &func.blocks {
+        for stmt in &block.body {
+            if let Stmt::Call { func: callee } = stmt {
+                collect_functions(callee, seen, out);
             }
         }
     }
-
-    fn resolve_inner(&mut self) {
-        while let Some(name) = self.stack.pop() {
-            if !self.functions.contains_key(&name) && !self.adhoc_insert(&name) {
-                continue;
-            }
-
-            let Some(func) = self.functions.get(&name) else {
-                continue;
-            };
-
-            let stmts: Vec<&_> = func
-                .blocks
-                .iter()
-                .flat_map(|block| block.body.as_slice())
-                .collect();
-
-            for callee in collect_calls(&stmts) {
-                if self.functions.contains_key(&callee) || self.stack.contains(&callee) {
-                    continue;
-                }
-                self.stack.push(callee);
-            }
-        }
-    }
-
-    fn resolve(&mut self, function: &Function) {
-        self.functions
-            .insert(function.name.clone(), function.clone());
-        self.stack.push(function.name.clone());
-        self.resolve_inner();
-    }
-}
-
-fn collect_calls(stmts: &[&Stmt]) -> Vec<String> {
-    let mut out = Vec::new();
-    for stmt in stmts {
-        if let Stmt::Call { name, .. } = stmt {
-            out.push(name.clone())
-        }
-    }
-    out
-}
-
-fn parse_trailing_usize(name: &str, prefix: &str) -> Option<usize> {
-    let n_str = name.strip_prefix(prefix)?;
-    if n_str.is_empty() || !n_str.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    n_str.parse().ok()
 }

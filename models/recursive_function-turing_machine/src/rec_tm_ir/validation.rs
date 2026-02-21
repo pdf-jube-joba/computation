@@ -93,8 +93,8 @@ fn dfs_validate(
 fn collect_calls(blocks: &[Block], calls: &mut HashSet<String>) {
     for block in blocks {
         for stmt in &block.body {
-            if let Stmt::Call { name } = stmt {
-                calls.insert(name.clone());
+            if let Stmt::Call { func } = stmt {
+                calls.insert(func.name.clone());
             }
         }
     }

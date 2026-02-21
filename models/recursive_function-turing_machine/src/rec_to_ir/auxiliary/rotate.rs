@@ -1,4 +1,4 @@
-use crate::rec_tm_ir::{Block, Function, Stmt};
+use crate::rec_tm_ir::{Block, Function, Stmt, register_function};
 use crate::rec_to_ir::S;
 use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
 use crate::{assign, cond, lv, rv};
@@ -102,6 +102,7 @@ pub(crate) fn rotate(n: usize) -> Function {
         };
     }
 
+    let swap_tuple_func = register_function(swap_tuple()).unwrap();
     let mut blocks = vec![];
 
     for i in 0..n - 1 {
@@ -109,7 +110,7 @@ pub(crate) fn rotate(n: usize) -> Function {
             label: format!("rot_swap_{i}"),
             body: vec![
                 Stmt::Call {
-                    name: "swap_tuple".to_string(),
+                    func: swap_tuple_func.clone(),
                 },
                 call_r(1),
             ],

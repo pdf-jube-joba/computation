@@ -1,6 +1,7 @@
-use crate::rec_tm_ir::{Block, Function, Stmt};
+use crate::rec_tm_ir::{Block, Function, Stmt, get_function, register_function};
 use crate::rec_to_ir::S;
-use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
+use crate::rec_to_ir::auxiliary::basic::{self, call_l, call_r};
+use crate::rec_to_ir::auxiliary::{copy, rotate};
 use crate::{assign, cond, lv, rv};
 
 // ... ? |x| - l(n) A x - ...
@@ -47,6 +48,7 @@ pub(crate) fn insert_sig() -> Function {
 // A is empty or start with '-'
 // if n == 0 is given => return x A x
 pub(crate) fn pred_tuple() -> Function {
+    let shift_left_put_blank = register_function(basic::shift_left_x(S::B)).unwrap();
     Function {
         name: "pred_tuple".to_string(),
         blocks: vec![
@@ -55,7 +57,7 @@ pub(crate) fn pred_tuple() -> Function {
                 body: vec![
                     call_r(1),
                     Stmt::Call {
-                        name: "shift_left_put_-".to_string(),
+                        func: shift_left_put_blank,
                     },
                     assign!(lv!(@), rv!(const S::X)),
                     Stmt::Rt,
@@ -77,6 +79,9 @@ pub(crate) fn pred_tuple() -> Function {
 // ... ? |x| - l(n) A x - ...
 // ... ?  x  l  x - l(n-1) A x - l(n - 1) A x ... x - l A |x| A x - ...
 pub(crate) fn expand_arg() -> Function {
+    let insert_sig_func = register_function(insert_sig()).unwrap();
+    let pred_tuple_func = register_function(pred_tuple()).unwrap();
+    let copy_1_func = register_function(copy::copy_n_times(1)).unwrap();
     Function {
         name: "expand_arg".to_string(),
         blocks: vec![
@@ -84,7 +89,7 @@ pub(crate) fn expand_arg() -> Function {
                 label: "initially".to_string(),
                 body: vec![
                     Stmt::Call {
-                        name: "insert_sig".to_string(),
+                        func: insert_sig_func.clone(),
                     },
                     call_r(1),
                 ],
@@ -110,10 +115,10 @@ pub(crate) fn expand_arg() -> Function {
                     Stmt::Lt,
                     Stmt::Lt,
                     Stmt::Call {
-                        name: "pred_tuple".to_string(),
+                        func: pred_tuple_func.clone(),
                     },
                     Stmt::Call {
-                        name: "copy_1".to_string(),
+                        func: copy_1_func.clone(),
                     },
                     call_r(1),
                     Stmt::Jump {
@@ -128,7 +133,7 @@ pub(crate) fn expand_arg() -> Function {
                     Stmt::Lt,
                     Stmt::Lt,
                     Stmt::Call {
-                        name: "pred_tuple".to_string(),
+                        func: pred_tuple_func.clone(),
                     },
                 ],
             },
@@ -152,11 +157,19 @@ pub(crate) fn expand_arg() -> Function {
 }
 
 // ... ? x  l  x - l(n) A x - l(n - 1) A x ... x - l A x - A |x| A x - ...
-pub(crate) fn primitive_recursion(zero: String, succ: String) -> Function {
+pub(crate) fn primitive_recursion(zero: Function, succ: Function) -> Function {
+    let name = format!("prim_{}_{}", zero.name, succ.name);
+
+    let zero_func = register_function(zero).unwrap();
+    let succ_func = register_function(succ).unwrap();
+    let swap_tuple_func = register_function(rotate::swap_tuple()).unwrap();
+    let concat_func = register_function(basic::concat()).unwrap();
+    let shift_left_put_blank = register_function(basic::shift_left_x(S::B)).unwrap();
+
     let blocks = vec![
         Block {
             label: "call_zero".to_string(),
-            body: vec![Stmt::Call { name: zero.clone() }],
+            body: vec![Stmt::Call { func: zero_func }],
             // ... ? x  l  x - l(n) A x - l(n - 1) A x ... x - l A x - A |x| - U(zero(p)) x - ...
             //      - U(zero(p)) == F(P[zero, succ](0, A))
         },
@@ -172,13 +185,15 @@ pub(crate) fn primitive_recursion(zero: String, succ: String) -> Function {
                 // non xl => |x| A x B x
                 Stmt::Lt,
                 Stmt::Call {
-                    name: "swap_tuple".to_string(),
+                    func: swap_tuple_func.clone(),
                 },
                 Stmt::Call {
-                    name: "concat".to_string(),
+                    func: concat_func.clone(),
                 },
                 // |x| B A x
-                Stmt::Call { name: succ.clone() },
+                Stmt::Call {
+                    func: succ_func.clone(),
+                },
                 Stmt::Continue { cond: None },
             ],
         },
@@ -191,14 +206,14 @@ pub(crate) fn primitive_recursion(zero: String, succ: String) -> Function {
                 // x l |-| A x
                 call_r(1),
                 Stmt::Call {
-                    name: "shift_left_put_-".to_string(),
+                    func: shift_left_put_blank.clone(),
                 },
                 // |l| - A x
                 assign!(lv!(@), rv!(const S::X)),
                 // |x| - A x
                 call_r(1),
                 Stmt::Call {
-                    name: "shift_left_put_-".to_string(),
+                    func: shift_left_put_blank,
                 },
                 // |-| A x
                 assign!(lv!(@), rv!(const S::X)),
@@ -207,8 +222,5 @@ pub(crate) fn primitive_recursion(zero: String, succ: String) -> Function {
         },
     ];
 
-    Function {
-        name: format!("prim_{zero}_{succ}"),
-        blocks,
-    }
+    Function { name, blocks }
 }

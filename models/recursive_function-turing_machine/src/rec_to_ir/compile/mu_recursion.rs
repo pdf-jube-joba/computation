@@ -1,11 +1,21 @@
-use crate::rec_tm_ir::{Block, Function, Stmt};
+use crate::rec_tm_ir::{Block, Function, Stmt, get_function, register_function};
 use crate::rec_to_ir::S;
 use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
+use crate::rec_to_ir::auxiliary::{copy, rotate};
 use crate::{assign, cond, lv, rv};
 
-fn mu_recursion(func: String) -> Function {
+pub(crate) fn mu_recursion(func: Function) -> Function {
+    let copy_to_end_0 = register_function(copy::copy_to_end(0)).unwrap();
+    let copy_to_end_2 = register_function(copy::copy_to_end(2)).unwrap();
+    let concat_func = register_function(crate::rec_to_ir::auxiliary::basic::concat()).unwrap();
+
+    let callee_name = format!("mu_{}", &func.name);
+
+    let callee_func = register_function(func).unwrap();
+    let swap_tuple_func = register_function(rotate::swap_tuple()).unwrap();
+    let delete_func = register_function(delete()).unwrap();
     Function {
-        name: format!("mu_{func}"),
+        name: callee_name,
         blocks: vec![
             Block {
                 label: "initially".to_string(),
@@ -24,18 +34,20 @@ fn mu_recursion(func: String) -> Function {
                 body: vec![
                     // x F(p) |x| - l(n) x
                     Stmt::Call {
-                        name: format!("copy_to_end_0"),
+                        func: copy_to_end_0.clone(),
                     },
                     call_l(1),
                     Stmt::Call {
-                        name: format!("copy_to_end_2"),
+                        func: copy_to_end_2.clone(),
                     },
                     call_r(2),
                     Stmt::Call {
-                        name: format!("concat"),
+                        func: concat_func.clone(),
                     },
                     // x F(p) x - l(n) |x| - l(n) F(p) x
-                    Stmt::Call { name: func },
+                    Stmt::Call {
+                        func: callee_func.clone(),
+                    },
                     // x F(p) x - l(n) |x| - l(k) x
                     Stmt::Rt,
                     Stmt::Rt,
@@ -80,14 +92,37 @@ fn mu_recursion(func: String) -> Function {
                     assign!(lv!(@), rv!(const S::B)),
                     call_l(3),
                     Stmt::Call {
-                        name: "swap_tuple".to_string(),
+                        func: swap_tuple_func,
                     },
                     // |x| - l(n) x F(p) x
                     call_r(1),
-                    Stmt::Call {
-                        name: "delete".to_string(),
-                    },
+                    Stmt::Call { func: delete_func },
                 ],
+            },
+        ],
+    }
+}
+
+// ... |x| A x - ...
+// ... |x| - ...
+fn delete() -> Function {
+    Function {
+        name: "delete".to_string(),
+        blocks: vec![
+            Block {
+                label: "loop".to_string(),
+                body: vec![
+                    Stmt::Rt,
+                    Stmt::Break {
+                        cond: cond!(rv!(@), rv!(const S::X)),
+                    },
+                    assign!(lv!(@), rv!(const S::B)),
+                    Stmt::Continue { cond: None },
+                ],
+            },
+            Block {
+                label: "finally".to_string(),
+                body: vec![assign!(lv!(@), rv!(const S::B)), call_r(1)],
             },
         ],
     }

@@ -448,13 +448,13 @@ fn copy_n_times_two_appends_twice() {
 
 #[test]
 fn zero_succ_number_roundtrip() {
-    let zero_program = wrap_function(compile::zero_builder());
+    let zero_program = wrap_function(compile::zero_function());
     let mut zero_machine = RecTmIrMachine::make(zero_program, write_usize(vec![])).unwrap();
     run_until_halt(&mut zero_machine, 64, false).unwrap();
     let zero_tape = snapshot_tape(zero_machine.current());
     assert_eq!(read_right_one_usize(&zero_tape), Some(vec![0]));
 
-    let succ_program = wrap_function(compile::succ_builder());
+    let succ_program = wrap_function(compile::succ_function());
     let mut succ_machine = RecTmIrMachine::make(succ_program, write_usize(vec![2])).unwrap();
     run_until_halt(&mut succ_machine, 64, false).unwrap();
     let succ_tape = snapshot_tape(succ_machine.current());
@@ -463,7 +463,7 @@ fn zero_succ_number_roundtrip() {
 
 #[test]
 fn zero_function_works() {
-    let program = wrap_function(compile::zero_builder());
+    let program = wrap_function(compile::zero_function());
     let mut machine = RecTmIrMachine::make(program, tape_from(&["x", "x", "-"], 0)).unwrap();
     run_until_halt(&mut machine, 64, false).unwrap();
     let tape = snapshot_tape(machine.current());
@@ -473,7 +473,7 @@ fn zero_function_works() {
 
 #[test]
 fn succ_function_works() {
-    let program = wrap_function(compile::succ_builder());
+    let program = wrap_function(compile::succ_function());
     let mut machine =
         RecTmIrMachine::make(program, tape_from(&["x", "-", "l", "l", "x", "-"], 0)).unwrap();
     run_until_halt(&mut machine, 64, true).unwrap();

@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
 
 use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
@@ -13,16 +14,16 @@ use super::validation::{
 #[derive(Debug, Clone)]
 pub struct Program {
     pub alphabet: Vec<Sign>,
-    pub functions: Vec<Function>,
+    pub functions: Vec<Rc<Function>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub name: String,
     pub blocks: Vec<Block>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     pub label: String,
     pub body: Vec<Stmt>,
@@ -50,24 +51,52 @@ pub enum Stmt {
         cond: Option<Condition>,
     },
     Call {
-        name: String,
+        func: Rc<Function>,
     },
 }
 
-#[derive(Debug, Clone)]
+impl PartialEq for Stmt {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Stmt::Lt, Stmt::Lt) => true,
+            (Stmt::Rt, Stmt::Rt) => true,
+            (
+                Stmt::Assign { dst, src },
+                Stmt::Assign {
+                    dst: o_dst,
+                    src: o_src,
+                },
+            ) => dst == o_dst && src == o_src,
+            (Stmt::Break { cond }, Stmt::Break { cond: o_cond }) => cond == o_cond,
+            (Stmt::Continue { cond }, Stmt::Continue { cond: o_cond }) => cond == o_cond,
+            (
+                Stmt::Jump { label, cond },
+                Stmt::Jump {
+                    label: o_label,
+                    cond: o_cond,
+                },
+            ) => label == o_label && cond == o_cond,
+            (Stmt::Return { cond }, Stmt::Return { cond: o_cond }) => cond == o_cond,
+            (Stmt::Call { func }, Stmt::Call { func: o_func }) => Rc::ptr_eq(func, o_func),
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum LValue {
     Var(String),
     Head,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RValue {
     Var(String),
     Head,
     Const(Sign),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Condition {
     pub left: RValue,
     pub right: RValue,
@@ -312,7 +341,7 @@ impl Machine for RecTmIrMachine {
         validate_signs_in_program(&code, &allowed)?;
         validate_tape(&ainput, &allowed)?;
 
-        let frame = build_frame_for_function(main);
+        let frame = build_frame_for_function(main.as_ref());
 
         Ok(RecTmIrMachine {
             program: code.clone(),
@@ -359,14 +388,8 @@ impl Machine for RecTmIrMachine {
                     return Ok(self.return_from_call());
                 }
             }
-            Stmt::Call { name } => {
-                let callee = self
-                    .program
-                    .functions
-                    .iter()
-                    .find(|func| func.name == name)
-                    .cloned()
-                    .unwrap_or_else(|| panic!("Undefined function '{}'", name));
+            Stmt::Call { func } => {
+                let callee = func;
                 let caller = Frame {
                     function: self.frame.function.clone(),
                     env: self.frame.env.clone(),
@@ -374,7 +397,7 @@ impl Machine for RecTmIrMachine {
                     pc: self.frame.pc,
                 };
                 self.stack.push(caller);
-                self.frame = build_frame_for_function(&callee);
+                self.frame = build_frame_for_function(callee.as_ref());
             }
         }
         Ok(None)
