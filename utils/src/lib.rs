@@ -1,4 +1,5 @@
 pub mod bool;
+pub mod cli;
 pub mod identifier;
 pub mod number;
 pub mod parse;
@@ -60,4 +61,16 @@ pub trait Compiler: Sized {
     ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String>;
 }
 
-mod web_util;
+#[doc(hidden)]
+pub mod web_util;
+
+#[macro_export]
+macro_rules! model_entry {
+    ($machine:path) => {
+        #[cfg(target_arch = "wasm32")]
+        $crate::web_model!($machine);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        $crate::cli_model!($machine);
+    };
+}

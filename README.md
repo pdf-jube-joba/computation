@@ -38,3 +38,30 @@
 ├── models/                 # 各計算モデルとコンパイラの実装など
 ├── docs/                   # リポジトリのドキュメントなど
 ```
+
+## CLI の使い方
+`Machine` 実装を CLI で動かすときは、モデル側の bin に `utils::model_entry!(...)` を書きます。
+native ターゲットでは同じ bin が CLI として動きます。
+
+実行形式:
+
+```bash
+cargo run -p <model_crate> --bin <bin_name> -- <code> <ainput> [OPTIONS]
+```
+
+- `<code>` と `<ainput>` はファイルパス、または `-`
+- `--code-text TEXT` / `--ainput-text TEXT` で直接文字列も指定可能
+- `--snapshot` で各 step 後の `SnapShot` を JSON 出力
+
+`<code>` と `<ainput>` の両方に `-` を指定した場合は、`--split DELIM` が必須です。
+stdin 全体を `DELIM` で 3 セクションに分け、`code / ainput / rinput` として扱います。
+
+```text
+<code>
+DELIM
+<ainput>
+DELIM
+<rinput lines...>
+```
+
+`rinput` は 1 行ずつ `step` に渡され、`Output` が `Some(...)` になった時点で終了します。
