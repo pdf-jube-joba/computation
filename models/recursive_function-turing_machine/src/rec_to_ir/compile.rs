@@ -54,7 +54,6 @@ pub mod projection;
 use recursive_function::machine::RecursiveFunctions;
 
 pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
-    reset_registry();
     match recursive_function {
         RecursiveFunctions::ZeroConstant => zero_function(),
         RecursiveFunctions::Successor => succ_function(),
@@ -87,6 +86,7 @@ pub fn compile(recursive_function: &RecursiveFunctions) -> Function {
 }
 
 pub fn compile_to_program(recursive_function: &RecursiveFunctions) -> Program {
+    reset_registry();
     let main_function = compile(recursive_function);
     crate::rec_to_ir::wrap_function(main_function)
 }

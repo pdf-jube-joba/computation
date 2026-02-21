@@ -1,4 +1,4 @@
-use crate::rec_tm_ir::{Block, Function, Stmt, get_function, register_function};
+use crate::rec_tm_ir::{Block, Function, Stmt, register_function};
 use crate::rec_to_ir::S;
 use crate::rec_to_ir::auxiliary::basic::{self, call_l, call_r};
 use crate::rec_to_ir::auxiliary::{copy, rotate};
@@ -110,7 +110,7 @@ pub(crate) fn expand_arg() -> Function {
                 ],
             },
             Block {
-                label: "pred_if_non_zero_and_loopback".to_string(),
+                label: "pred_if_non_zero".to_string(),
                 body: vec![
                     Stmt::Lt,
                     Stmt::Lt,
@@ -128,7 +128,7 @@ pub(crate) fn expand_arg() -> Function {
                 ],
             },
             Block {
-                label: "pred_zero".to_string(),
+                label: "pred_if_zero".to_string(),
                 body: vec![
                     Stmt::Lt,
                     Stmt::Lt,
@@ -169,7 +169,12 @@ pub(crate) fn primitive_recursion(zero: Function, succ: Function) -> Function {
     let blocks = vec![
         Block {
             label: "call_zero".to_string(),
-            body: vec![Stmt::Call { func: zero_func }],
+            body: vec![
+                Stmt::Call {
+                    func: register_function(expand_arg()).unwrap(),
+                },
+                Stmt::Call { func: zero_func },
+            ],
             // ... ? x  l  x - l(n) A x - l(n - 1) A x ... x - l A x - A |x| - U(zero(p)) x - ...
             //      - U(zero(p)) == F(P[zero, succ](0, A))
         },

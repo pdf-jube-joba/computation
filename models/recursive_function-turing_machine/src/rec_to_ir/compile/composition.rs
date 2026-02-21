@@ -1,5 +1,6 @@
 use crate::rec_tm_ir::register_function;
 use crate::rec_to_ir::auxiliary::basic::{call_l, call_r};
+use crate::rec_to_ir::auxiliary::rotate::rotate;
 use crate::{assign, cond, lv, rv};
 use crate::{
     rec_tm_ir::{Block, Function, Stmt, get_function},
@@ -30,7 +31,7 @@ pub fn composition(inner_functions: Vec<Function>, outer_function: Function) -> 
            // ... ? x A x ... |x| A x - ...
     ];
 
-    let rotate_func = get_function("rotate").unwrap();
+    let rotate_func = register_function(rotate(n)).unwrap();
     for inner_function in inner_functions {
         let inner_func = register_function(inner_function).unwrap();
         blocks.push(Block {
