@@ -1,18 +1,14 @@
 # book
 - [ ] 参考にした文献を列挙する。
 
-# utils
-- [ ] Machine について：今の Output が runtime の出力なのか最終的な出力なのかがわかりにくい。
-    なので、 ROutput と FOutput のようにわける。
-  - make: (Code, AInput) -> State
-  - step: (State, RInput) -> (State, ROutput) + FOutput
-  - current: ... これは"表示"用
-
 # models
 - [ ] 万能チューリングマシンを、できたら構成する。
 
 ## logic circuit
-- [ ] trait Machine を実装する
+- [] 意味論のことを考えると、次のように変えるべき
+  - Pin は Number でのラベリングがあって、文字列はいくつかのものに名前を付けているだけ
+  - AInput と FOutput が Pin の状態に対応するべき。
+  - RInput と ROutput は他の回路との通信用 ... 実装においては Pin を分けるべき。
 
 ## lambda continutations
 - [ ] parse をできるようにする
