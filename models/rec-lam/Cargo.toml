@@ -1,0 +1,16 @@
+[package]
+name = "recursive_function-lambda_calculus"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "recursive_function_lambda_calculus"
+path = "src/bin/recursive_function_lambda_calculus.rs"
+
+[dependencies]
+utils = { workspace = true }
+lambda_calculus = { workspace = true }
+recursive_function = { workspace = true }
+wasm-bindgen = { workspace = true }

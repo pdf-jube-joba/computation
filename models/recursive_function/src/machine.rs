@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::fmt::Display;
-use utils::{number::*, Machine, TextCodec};
+use utils::{number::*, Machine, StepResult, TextCodec};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum RecursiveFunctions {
@@ -507,7 +507,8 @@ impl Machine for Program {
     type AInput = Vec<Number>;
     type SnapShot = Program;
     type RInput = ();
-    type Output = Number;
+    type ROutput = ();
+    type FOutput = Number;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         let process = Process::new(code.clone(), ainput.clone())?;
@@ -518,12 +519,20 @@ impl Machine for Program {
         })
     }
 
-    fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        if let Some(next) = self.process.eval_one_step() {
-            self.process = next;
-            Ok(None)
-        } else if let Some(result) = self.process.result() {
-            Ok(Some(result))
+    fn step(self, _rinput: Self::RInput) -> Result<StepResult<Self>, String> {
+        let mut next_program = self;
+        if let Some(next_process) = next_program.process.eval_one_step() {
+            next_program.process = next_process;
+            Ok(StepResult::Continue {
+                next: next_program,
+                output: (),
+            })
+        } else if let Some(result) = next_program.process.result() {
+            let snapshot = next_program.current();
+            Ok(StepResult::Halt {
+                snapshot,
+                output: result,
+            })
         } else {
             Err("Process is in an invalid state".to_string())
         }

@@ -3,7 +3,7 @@ pub mod manipulation;
 pub mod parse;
 
 use serde_json::json;
-use utils::{Machine, TextCodec, json_text};
+use utils::{Machine, StepResult, TextCodec, json_text};
 pub use crate::machine::{Graph, LogicCircuit, NamedPin, Signal, LogicCircuitTrait};
 use utils::bool::Bool;
 pub mod example {
@@ -177,16 +177,19 @@ impl Machine for LogicCircuit {
     type Code = LogicCircuit;
     type AInput = ();
     type RInput = Signal;
-    type Output = ();
     type SnapShot = Snapshot;
+    type ROutput = Signal;
+    type FOutput = ();
 
     fn make(code: Self::Code, _ainput: Self::AInput) -> Result<Self, String> {
         Ok(code)
     }
 
-    fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        LogicCircuitTrait::step(self, rinput);
-        Ok(None)
+    fn step(self, rinput: Self::RInput) -> Result<StepResult<Self>, String> {
+        let mut next = self;
+        LogicCircuitTrait::step(&mut next, rinput);
+        let output = Signal::new(next.get_otputs());
+        Ok(StepResult::Continue { next, output })
     }
 
     fn current(&self) -> Self::SnapShot {

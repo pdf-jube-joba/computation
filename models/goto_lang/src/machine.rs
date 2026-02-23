@@ -1,7 +1,7 @@
 use serde::Serialize;
 use utils::identifier::Identifier;
 use utils::number::Number;
-use utils::{Machine, TextCodec};
+use utils::{Machine, StepResult, TextCodec};
 
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct Environment {
@@ -108,8 +108,8 @@ impl Machine for Program {
     type AInput = Environment;
     type SnapShot = Program;
     type RInput = ();
-
-    type Output = Environment;
+    type ROutput = ();
+    type FOutput = Environment;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         Ok(Program {
@@ -119,43 +119,46 @@ impl Machine for Program {
         })
     }
 
-    fn step(&mut self, _rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        let pc = self.pc.as_usize()?;
-        if pc >= self.commands.0.len() {
-            return Ok(Some(self.env.clone()));
+    fn step(self, _rinput: Self::RInput) -> Result<StepResult<Self>, String> {
+        let mut next = self;
+        let pc = next.pc.as_usize()?;
+        if pc >= next.commands.0.len() {
+            let snapshot = next.current();
+            let output = snapshot.env.clone();
+            return Ok(StepResult::Halt { snapshot, output });
         }
 
-        let command = &self.commands.0[pc];
+        let command = &next.commands.0[pc];
         match command {
             Command::Clr(var) => {
-                self.env.write(var, 0.into());
-                self.pc += 1;
+                next.env.write(var, 0.into());
+                next.pc += 1;
             }
             Command::Inc(var) => {
-                let val = self.env.get(var) + 1;
-                self.env.write(var, val);
-                self.pc += 1;
+                let val = next.env.get(var) + 1;
+                next.env.write(var, val);
+                next.pc += 1;
             }
             Command::Dec(var) => {
-                let val = self.env.get(var) - 1;
-                self.env.write(var, val);
-                self.pc += 1;
+                let val = next.env.get(var) - 1;
+                next.env.write(var, val);
+                next.pc += 1;
             }
             Command::Cpy(dest, src) => {
-                let val = self.env.get(src).clone();
-                self.env.write(dest, val);
-                self.pc += 1;
+                let val = next.env.get(src).clone();
+                next.env.write(dest, val);
+                next.pc += 1;
             }
             Command::Ifnz(var, target) => {
-                if !self.env.get(var).is_zero() {
-                    self.pc = target.clone();
+                if !next.env.get(var).is_zero() {
+                    next.pc = target.clone();
                 } else {
-                    self.pc += 1;
+                    next.pc += 1;
                 }
             }
         }
 
-        Ok(None)
+        Ok(StepResult::Continue { next, output: () })
     }
 
     fn current(&self) -> Self::SnapShot {

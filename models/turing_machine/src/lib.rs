@@ -1,7 +1,7 @@
 use crate::machine::{CodeEntry as CoreCodeEntry, Tape, TuringMachine, TuringMachineDefinition};
 use serde::Serialize;
 use serde_json::json;
-use utils::{Machine, TextCodec, json_text};
+use utils::{Machine, StepResult, TextCodec, json_text};
 
 pub mod machine;
 pub mod manipulation;
@@ -110,19 +110,26 @@ impl Machine for TuringMachine {
     type Code = TuringMachineDefinition;
     type AInput = Tape;
     type RInput = ();
-    type Output = ();
     type SnapShot = Current;
+    type ROutput = ();
+    type FOutput = Tape;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         Ok(TuringMachine::new(code, ainput))
     }
 
-    fn step(&mut self, _input: Self::RInput) -> Result<Option<Self::Output>, String> {
-        let _ = self.step(1);
-        if self.is_terminate() {
-            Ok(Some(()))
+    fn step(self, _input: Self::RInput) -> Result<StepResult<Self>, String> {
+        let mut machine = self;
+        let _ = TuringMachine::step(&mut machine, 1);
+        if machine.is_terminate() {
+            let snapshot = machine.current();
+            let output = snapshot.tape.clone();
+            Ok(StepResult::Halt { snapshot, output })
         } else {
-            Ok(None)
+            Ok(StepResult::Continue {
+                next: machine,
+                output: (),
+            })
         }
     }
 

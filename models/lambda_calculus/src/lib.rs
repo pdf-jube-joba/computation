@@ -4,7 +4,7 @@ pub mod manipulation;
 use crate::machine::{is_normal_form, LambdaTerm, MarkedTerm};
 use serde::Serialize;
 use serde_json::json;
-use utils::{json_text, Machine, TextCodec};
+use utils::{json_text, Machine, StepResult, TextCodec};
 
 impl TextCodec for LambdaTerm {
     fn parse(text: &str) -> Result<Self, String> {
@@ -63,22 +63,29 @@ impl Machine for LambdaTerm {
     type AInput = AInput;
     type SnapShot = MarkedTerm;
     type RInput = usize;
-    type Output = LambdaTerm;
+    type ROutput = ();
+    type FOutput = LambdaTerm;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         let term = crate::machine::assoc_app(code, ainput.0);
         Ok(term)
     }
 
-    fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String> {
-        let marked = crate::machine::mark_redex(self);
+    fn step(self, rinput: Self::RInput) -> Result<StepResult<Self>, String> {
+        let marked = crate::machine::mark_redex(&self);
         let lambda =
             crate::machine::step(&marked, rinput).ok_or("No redex found at the given index")?;
-        *self = lambda;
-        if is_normal_form(self) {
-            Ok(Some(self.clone()))
+        if is_normal_form(&lambda) {
+            let snapshot = crate::machine::mark_redex(&lambda);
+            Ok(StepResult::Halt {
+                snapshot,
+                output: lambda,
+            })
         } else {
-            Ok(None)
+            Ok(StepResult::Continue {
+                next: lambda,
+                output: (),
+            })
         }
     }
 

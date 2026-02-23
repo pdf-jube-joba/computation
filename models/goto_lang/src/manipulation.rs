@@ -206,12 +206,15 @@ ifnz x : 0
         };
 
         for _ in 0..100 {
-            let _ = program.step(());
-            println!(
-                "pc: {}, env: {}",
-                program.pc.print(),
-                print_env(&program.env)
-            );
+            match program.step(()).unwrap() {
+                utils::StepResult::Continue { next, output: () } => {
+                    program = next;
+                },
+                utils::StepResult::Halt { snapshot: _, output } => {
+                    print_env(&output);
+                    break;
+                },
+            }
         }
     }
 }
