@@ -30,6 +30,9 @@ BB: {
   `BB: {y = phi(y1, y2)}` のように書くことで、
   `y` は「BB1 を通った場合には `y1` から来ていて、 BB2 を通った場合には `y2` からくる」ことを表す。
   数学的な関数というよりも、意味を明示するために書いている。
+- プログラムの記述は常にブロックの列として書き、各ブロック内の最後にちょうど一つジャンプ命令を書く。
+  特に、こうやって書いたプログラムはいわゆる制御フローグラフと呼ばれるものになる。
+  ブロックの最後にくる jump 命令を terminator という。
 
 などを入れることが多い。
 
@@ -72,10 +75,10 @@ BB: {
 とりあえず `.data` のラベルとレジスタを統合して、全部変数として考えてみる。
 今考えているアセンブリは Harvard 型ではあるものの、
 jump by register value (JMPR) があるので、これを生かすためには `.text` ラベルは残す。
-3-address 形式にするとこんな感じ？
+3-address 形式にするとこんな感じ？（これはラベルが消えてる。）
 
 \(\begin{aligned}
-\NT{atom} &\defeq \NT{var} \sp | \s \NT{imm} \\
+\NT{atom} &\defeq \NT{var} \sp | \sp \NT{imm} \\
 \NT{stmt} &\defeq ( \\
     & | \sp \NT{var} \sp \T{:=} \sp \NT{var} \sp \NT{op} \sp \NT{var} \\
     & | \sp \T{nop} \sp | \sp \T{halt} \\
@@ -87,6 +90,7 @@ jump by register value (JMPR) があるので、これを生かすためには `
 \NT{cont} &\defeq \\
     & | \sp \T{goto} \sp \NT{label} \\
     & | \sp \T{if} \sp \NT{cond} \sp \T{then} \sp \NT{label} \sp \T{;} \NT{cont}
+\NT{block}  &\defeq \NT{label} \T{\{} \NT{stmt}* \sp \NT{cont} \T{\}}
 \end{aligned}\)
 
 ここには確かに load/store がない。
@@ -101,7 +105,7 @@ jump by register value (JMPR) があるので、これを生かすためには `
 
 が同じになっているのが大変というところもある。
 計算のために一時的に作られる値にもメモリを割り当てることになっている。
-そのため、アセンブリ言語の次の言語として使うのであれば、 `.data` セクションがあるのとは**別に**、
+そのため、アセンブリ言語の次の言語として使うのであれば、ラベルを復活させたうえで、 `.data` セクションがあるのとは**別に**、
 レジスタが無限にあると考えたほうがよい。これを仮想レジスタという。
 メモリに名前を付けるのはラベル、計算手順を記述するのはレジスタと分けるといい。
 なので、さっきの"変数の無限化"は言い過ぎで、レジスタが無限にあるように記述するのがいいらしい。
@@ -111,7 +115,7 @@ jump by register value (JMPR) があるので、これを生かすためには `
 これを加えるとこんな感じの言語になる。（レジスタなので `%` をつける。）
 
 \(\begin{aligned}
-\NT{var} & \defeq \T{%} \sp \NT{string} \\
+\NT{var} & \defeq \T{\%} \sp \NT{string} \\
 \NT{stmt} & \defeq \cdots \\
     & | \NT{load} \sp \NT{var} "from" \NT{label} \\
     & | \NT{store} \sp \NT{atom} "to" \NT{label}
@@ -155,30 +159,6 @@ jump by register value (JMPR) があるので、これを生かすためには `
 だから、 `<label>` で指定されていたジャンプ先についても変更できるといい。
 `<var> | <label>` に飛べるようにしておく。
 
-ラベル分けて、最終的にはこんな感じになる。
-
-```
-<label>  ::= "@" <string>
-<var>     ::= "%" <string>
-<atom>    ::= <var> | <imm>
-<addr>    ::= <var> | <imm> | <dlabel> 
-<stmt>    ::= (
-  <var> ":=" <var> <op> <atom>
-  | "load" <var> "from" <addr>
-  | "store" <var> "to" <addr>
-  | "Nop" | "Halt" | "Readpc" <var>
-  ) ";"
-<cond>    ::= <atom> "<" <atom> | <atom> "==" <atom>
-<jump>    ::= <var> | <clabel>
-<cont>    ::= 
-  "goto" <jump> ";"
-  | "if" <cond> "then" <jump> ";" <cont>
-<block>   ::= <clabel> "{" <stmt>* <cont> "}"
-<static>  ::= <dlabel> <imm> ";"
-
-<program> ::= <static>* <block>*
-```
-
 ところでこれをやると、 goto の先がラベルとは限らない。
 なので、普通の最適化がしにくくなる。
 
@@ -196,18 +176,14 @@ jump by register value (JMPR) があるので、これを生かすためには `
 > でもこれをやると、引数付きの局所変数と同じようなものなので、ここでは別にする。
 
 スタックとかヒープについては、高級言語からコンパイルするときにどうにか実装してほしい。
-例えば、 static のところに @stack_start と @stack_now とかを作って、そこをもとにpush,pop をするとか。
-ヒープの方も、どうにか頑張ってほしい。
-bump allocator にするとか。
+例えば、 static のところに @stack_start と @stack_now とかを作って、そこをもとにpush, pop をするとか。
+ヒープの方も、どうにか頑張ってほしい。bump allocator にするとか。
 
 ### 気が付いたこと
-てか load/store 書きたくない。
-式を書いた時点で多分何が必要かはわかるはず。
-書かなくてよさそう。
-
-それと place/value という考え方が染みついていて、他の概念が考えられていない。
-一応他の考え方についても聞いた。
-- 全部を値をしてデータフローにする：メモリも巨大な値
+place/value という考え方が染みついていて、他の概念が考えられていない。
+一応他の考え方についてもAIに聞いた。
+- 全部を値としてデータフローにする：メモリも巨大な値
   - 全ての文が (Memory, Other) -> (Memory, Other) みたいに解釈できる。
   - これはほぼ operational semantics のこと？まあそれ自体はこっちも同じ。
-- メモリ操作だけ副作用が発生するものとして扱う、それ以外は値の記述。
+- メモリ操作だけ副作用が発生するものとして扱い、慎重になる。
+  - ポインタ周りも？

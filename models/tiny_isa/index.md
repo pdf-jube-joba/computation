@@ -67,38 +67,40 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 > みたいなことをわざわざやらずに、素直に `Vec<Stmt>` で持てる。
 > ただしその場合、 immidiate value で計算したときにどこを指しているかが異なる。
 
-## 仮想レジスタを入れて、 load/store をなくす
-値：計算が生成・消費する対象、単なるデータ。
-アドレス値：値のうち、ある場所を指し示す参照と解釈されるもの。
-場所・メモリセル：書き込み先として指定できる対象。
-仮想レジスタ：変数と思い、値を束縛するための対象。値の記述なので、場所ではない。
+## 仮想レジスタを入れて、 load/store をなくす。
+用語の整理：
+- 値：計算が生成・消費する対象、単なるデータ。
+- アドレス値：値のうち、ある場所を指し示す参照と解釈されるもの。
+    - これの deref が場所
+- 場所・メモリセル：書き込み先として指定できる対象。
+    - これの ref がアドレス値
+- 仮想レジスタ：変数と思い、値を束縛するための対象。値の記述なので、場所ではない。
 
-```
-<clabel>  ::= "@@" <string>
-<dlabel>  ::= "@" <string>
-<var>     ::= "%" <string>
-<const>   ::= "const" <number>
+アドレスによる場所へのアクセスを一般化したら、ラベルを生でメモリセルみたいに使えない文法になった。
+それと、 control flow graph に寄せるためには、 terminator がブロックの最後に続くようにした方がいいらしい。
+ここでは、分岐命令を全部書いて最後に goto にした。
 
-<caddr> ::= <clabel> | <var> | <const>
-<daddr> ::= <dlabel> | <var> | <const>
+\(\begin{aligned}
+\NT{label}  &\defeq \T{@} \sp \NT{string} \\
+\NT{var}    &\defeq \T{\%} \sp \NT{string} \\
+\NT{addr}   &\defeq \NT{var} \sp | \sp \NT{label} \sp | \sp \T{\&} \NT{place} \\
+\NT{place}  &\defeq \T{[} \NT{addr} \T{]} \\
+\NT{value}  &\defeq \NT{var} \sp | \sp \NT{imm} \sp | \sp \T{*} \sp \NT{place} \\
 
-<place>     ::= "[" <daddr> "]"
-<value>     ::= <var> | <const> | <clabel> | <dlabel>
-<operand>   ::= <value> | "*" <place>
+\NT{cond}   &\defeq (\NT{value} \sp \T{<} \NT{value}) \sp | \sp (\NT{value} \sp \T{=} \NT{value}) \\
 
-<stmt>    ::= (
-    | <var>     := <operand> <op> <operand>
-    | <place>   := <operand>
-    | "Nop" | "Halt" | "Readpc" <place>
-    ) ";"
+\NT{stmt}   &\defeq ( \\
+    &| \sp \NT{var}     \sp \T{:=} \sp \NT{value} \sp \NT{op} \sp \NT{value} \\
+    &| \sp \NT{place}   \sp \T{:=} \sp (\NT{var} \sp | \sp \NT{value}) \\
+    ) \T{;} \\
+\NT{cont}   &\defeq ( \\
+    &| \sp \T{goto} \sp \NT{addr} \sp \T{;} \\
+    &| \sp \T{if}   \sp \NT{cond} \sp \T{then} \sp \NT{addr} \sp \T{;} \sp \NT{cont} \\
+    )
+\NT{block}  &\defeq \NT{label} \T{\{} \NT{stmt}* \sp \NT{cont} \T{\}} \\
+\NT{static} &\defeq \NT{label} \sp \NT{imm} \\
+\end{aligned}\)
 
-<cond>    ::= <value> "<" <value> | <value> "==" <value>
+## メモリの操作を入れる
 
-<cont>    ::= 
-  "goto" <caddr> ";"
-  | "if" <cond> "then" <caddr> ";" <cont>
-<block>   ::= <clabel> "{" <stmt>* <cont> "}"
-<static>  ::= <dlabel> <imm> ";"
 
-<program> ::= <static>* <block>*
-```

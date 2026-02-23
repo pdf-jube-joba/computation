@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "title": "Home",
+      "href": "/"
+    },
+    {
+      "title": "Up",
+      "href": "../"
+    },
+    {
       "title": "計算モデルと計算について",
       "href": "./index.html"
     },

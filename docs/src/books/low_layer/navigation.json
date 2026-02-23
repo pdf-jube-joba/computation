@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "title": "Home",
+      "href": "/"
+    },
+    {
+      "title": "Up",
+      "href": "../"
+    },
+    {
       "title": "低レイヤー",
       "href": "./index.html"
     },

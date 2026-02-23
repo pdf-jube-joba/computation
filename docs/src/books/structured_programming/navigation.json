@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "title": "Home",
+      "href": "/"
+    },
+    {
+      "title": "Up",
+      "href": "../"
+    },
+    {
       "title": "構造化プログラミング",
       "href": "./index.html"
     },
@@ -13,16 +21,20 @@
       "href": "./cfg_vreg.html"
     },
     {
+      "title": "スタックとヒープ",
+      "href": "./stack_and_heap.html"
+    },
+    {
       "title": "制御構造",
-      "href": "./procedure.html"
+      "href": "./control.html"
     },
     {
       "title": "式の導入",
-      "href": "./expr.html"
+      "href": "./expression.html"
     },
     {
       "title": "データ型",
-      "href": "./data.html"
+      "href": "./data_structure.html"
     }
   ]
 }
