@@ -1,5 +1,5 @@
 use serde_json::json;
-use utils::{Compiler, Machine, TextCodec};
+use utils::{Compiler, Machine, StepResult, TextCodec};
 
 #[derive(Clone)]
 pub struct Counter {
@@ -53,29 +53,41 @@ impl Machine for Counter {
     type Code = Counter;
     type AInput = ();
     type RInput = Command;
-    type Output = String;
+    type ROutput = String;
+    type FOutput = String;
     type SnapShot = Counter;
 
     fn make(code: Self::Code, _ainput: Self::AInput) -> Result<Self, String> {
         Ok(code)
     }
 
-    fn step(&mut self, input: Self::RInput) -> Result<Option<Self::Output>, String> {
+    fn step(self, input: Self::RInput) -> Result<StepResult<Self>, String> {
+        let mut next = self;
         match input {
             Command::Increment => {
-                self.count += 1;
-                if self.count >= 10 {
-                    Ok(Some("End".to_string()))
+                next.count += 1;
+                if next.count >= 10 {
+                    let snapshot = next.clone();
+                    Ok(StepResult::Halt {
+                        snapshot,
+                        output: "End".to_string(),
+                    })
                 } else {
-                    Ok(None)
+                    Ok(StepResult::Continue {
+                        next,
+                        output: "inc".to_string(),
+                    })
                 }
             }
             Command::Decrement => {
-                if self.count == 0 {
+                if next.count == 0 {
                     Err("Count cannot be negative".to_string())
                 } else {
-                    self.count -= 1;
-                    Ok(None)
+                    next.count -= 1;
+                    Ok(StepResult::Continue {
+                        next,
+                        output: "dec".to_string(),
+                    })
                 }
             }
         }
@@ -110,9 +122,15 @@ impl Compiler for ExampleCounterCompiler {
         Ok(rinput)
     }
 
-    fn decode_output(
-        output: <<Self as Compiler>::Target as Machine>::Output,
-    ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String> {
+    fn decode_routput(
+        output: <<Self as Compiler>::Target as Machine>::ROutput,
+    ) -> Result<<<Self as Compiler>::Source as Machine>::ROutput, String> {
+        Ok(output)
+    }
+
+    fn decode_foutput(
+        output: <<Self as Compiler>::Target as Machine>::FOutput,
+    ) -> Result<<<Self as Compiler>::Source as Machine>::FOutput, String> {
         Ok(output)
     }
 }
