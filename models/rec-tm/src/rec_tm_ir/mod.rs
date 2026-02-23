@@ -1,7 +1,9 @@
+mod compile_jump;
 mod machine;
 mod parser;
 mod validation;
 
+pub use compile_jump::{RecTmIrToJumpCompiler, compile_to_jump};
 pub use machine::{
     Block, Condition, Environment, Function, LValue, Program, RValue, RecTmIrMachine, Snapshot,
     Stmt,

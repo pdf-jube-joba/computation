@@ -3,7 +3,7 @@ use std::fmt::Display;
 use std::rc::Rc;
 
 use turing_machine::machine::Sign;
-use utils::TextCodec;
+use utils::{Compiler, Machine, TextCodec};
 
 use crate::rec_tm_ir::{Block, Function, Program, Stmt};
 
@@ -136,6 +136,53 @@ fn collect_functions(
             if let Stmt::Call { func: callee } = stmt {
                 collect_functions(callee, seen, out);
             }
+        }
+    }
+}
+
+pub struct RecToRecTmIrCompiler;
+
+impl Compiler for RecToRecTmIrCompiler {
+    type Source = recursive_function::machine::Program;
+    type Target = crate::rec_tm_ir::RecTmIrMachine;
+
+    fn compile(
+        source: <<Self as Compiler>::Source as Machine>::Code,
+    ) -> Result<<<Self as Compiler>::Target as Machine>::Code, String> {
+        Ok(compile::compile_to_program(&source))
+    }
+
+    fn encode_ainput(
+        ainput: <<Self as Compiler>::Source as Machine>::AInput,
+    ) -> Result<<<Self as Compiler>::Target as Machine>::AInput, String> {
+        Ok(write(ainput))
+    }
+
+    fn encode_rinput(
+        rinput: <<Self as Compiler>::Source as Machine>::RInput,
+    ) -> Result<<<Self as Compiler>::Target as Machine>::RInput, String> {
+        let _: () = rinput;
+        Ok(())
+    }
+
+    fn decode_routput(
+        output: <<Self as Compiler>::Target as Machine>::ROutput,
+    ) -> Result<<<Self as Compiler>::Source as Machine>::ROutput, String> {
+        let _: () = output;
+        Ok(())
+    }
+
+    fn decode_foutput(
+        output: <<Self as Compiler>::Target as Machine>::FOutput,
+    ) -> Result<<<Self as Compiler>::Source as Machine>::FOutput, String> {
+        let tuple = read_right_one(&output)
+            .ok_or_else(|| "failed to decode tape as recursive_function output".to_string())?;
+        match tuple.as_slice() {
+            [value] => Ok(value.clone()),
+            _ => Err(format!(
+                "expected a single output value, but got tuple of length {}",
+                tuple.len()
+            )),
         }
     }
 }

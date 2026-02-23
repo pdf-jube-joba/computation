@@ -1,4 +1,3 @@
-mod compile;
 mod compile_tm;
 mod machine;
 mod parser;

@@ -1,6 +1,8 @@
 全体の構成：
 recursive function -> IR1 -> IR2 -> Turing machine
 
+<div data-model="recursive_function => rec_tm_ir => rec_tm_ir_jump => turing_machine"></div>
+
 重要な仮定：
 Turing machine で扱う用の Tape の記号
 

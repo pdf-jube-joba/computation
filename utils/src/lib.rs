@@ -68,8 +68,8 @@ pub trait Machine: Sized {
 }
 
 pub trait Compiler: Sized {
-    type Source: Machine; // source code
-    type Target: Machine; // target code
+    type Source: Machine;
+    type Target: Machine;
 
     fn compile(
         source: <<Self as Compiler>::Source as Machine>::Code,

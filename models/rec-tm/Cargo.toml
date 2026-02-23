@@ -13,6 +13,18 @@ path = "src/bin/rec_tm_ir.rs"
 name = "rec_tm_ir_jump"
 path = "src/bin/rec_tm_ir_jump.rs"
 
+[[bin]]
+name = "recursive_function-rec_tm_ir"
+path = "src/bin/recursive_function-rec_tm_ir.rs"
+
+[[bin]]
+name = "rec_tm_ir-rec_tm_ir_jump"
+path = "src/bin/rec_tm_ir-rec_tm_ir_jump.rs"
+
+[[bin]]
+name = "rec_tm_ir_jump-turing_machine"
+path = "src/bin/rec_tm_ir_jump-turing_machine.rs"
+
 [dependencies]
 utils = { workspace = true }
 turing_machine = { workspace = true }
