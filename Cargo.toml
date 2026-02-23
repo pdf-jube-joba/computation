@@ -11,8 +11,8 @@ members = [
   "models/mini_prog",
   "models/my_hdl",
   "models/recursive_function",
-  "models/recursive_function-lambda_calculus",
-  "models/recursive_function-turing_machine",
+  "models/rec-lam",
+  "models/rec-tm",
   "models/tiny_isa",
   "models/turing_machine",
   "models/while_language"
