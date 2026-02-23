@@ -23,12 +23,35 @@ pub trait TextCodec: Sized {
     }
 }
 
+pub enum StepResult<M: Machine> {
+    Continue {
+        next: M,
+        output: M::ROutput,
+    },
+    Halt {
+        snapshot: M::SnapShot,
+        output: M::FOutput,
+    },
+}
+
+// trait for models of computation
 pub trait Machine: Sized {
-    type Code: TextCodec; // static code
-    type AInput: TextCodec; // ahead of time input
-    type SnapShot; // representation of the current state
-    type RInput: TextCodec; // runtime input
-    type Output: TextCodec; // output after a step
+    // "semantics" of the models
+    // a model can be considered as a partial function (Code, AInput) -> FOutput
+    // static code
+    type Code: TextCodec;
+    // ahead of time input
+    type AInput: TextCodec;
+    // final output at halt
+    type FOutput: TextCodec;
+
+    // for each steps
+    // representation of the current state
+    type SnapShot;
+    // runtime input
+    type RInput: TextCodec;
+    // runtime output after a step
+    type ROutput: TextCodec;
 
     fn parse_code(code: &str) -> Result<Self::Code, String> {
         Self::Code::parse(code)
@@ -40,7 +63,7 @@ pub trait Machine: Sized {
         Self::RInput::parse(rinput)
     }
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String>;
-    fn step(&mut self, rinput: Self::RInput) -> Result<Option<Self::Output>, String>;
+    fn step(self, rinput: Self::RInput) -> Result<StepResult<Self>, String>;
     fn current(&self) -> Self::SnapShot;
 }
 
@@ -57,9 +80,12 @@ pub trait Compiler: Sized {
     fn encode_rinput(
         rinput: <<Self as Compiler>::Source as Machine>::RInput,
     ) -> Result<<<Self as Compiler>::Target as Machine>::RInput, String>;
-    fn decode_output(
-        output: <<Self as Compiler>::Target as Machine>::Output,
-    ) -> Result<<<Self as Compiler>::Source as Machine>::Output, String>;
+    fn decode_routput(
+        output: <<Self as Compiler>::Target as Machine>::ROutput,
+    ) -> Result<<<Self as Compiler>::Source as Machine>::ROutput, String>;
+    fn decode_foutput(
+        output: <<Self as Compiler>::Target as Machine>::FOutput,
+    ) -> Result<<<Self as Compiler>::Source as Machine>::FOutput, String>;
 }
 
 #[doc(hidden)]

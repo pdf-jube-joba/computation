@@ -4,7 +4,7 @@ use std::io;
 use clap::{Parser, error::ErrorKind};
 
 use crate::serde_json::Value;
-use crate::{Machine, TextCodec};
+use crate::{Machine, StepResult, TextCodec};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -76,23 +76,42 @@ fn read_code_and_ainput_from_stdin(
     Ok((code, ainput))
 }
 
-fn step_machine<T: Machine>(machine: &mut T, rinput: &str, snapshot: bool) -> Result<bool, String>
+fn step_machine<T: Machine>(
+    machine: &mut Option<T>,
+    rinput: &str,
+    snapshot: bool,
+) -> Result<bool, String>
 where
     T::SnapShot: Into<Value>,
 {
     let parsed = T::parse_rinput(rinput)?;
-    let output = machine.step(parsed)?;
-    if snapshot {
-        let json: Value = machine.current().into();
-        let serialized = crate::serde_json::to_string(&json).map_err(|e| e.to_string())?;
-        println!("{serialized}");
+    let current = machine
+        .take()
+        .ok_or_else(|| "Machine not initialized".to_string())?;
+    match current.step(parsed)? {
+        StepResult::Continue { next, output: routput } => {
+            if snapshot {
+                let json: Value = next.current().into();
+                let serialized = crate::serde_json::to_string(&json).map_err(|e| e.to_string())?;
+                println!("{serialized}");
+            }
+            println!("{}", <T::ROutput as TextCodec>::print(&routput));
+            *machine = Some(next);
+            Ok(false)
+        }
+        StepResult::Halt {
+            snapshot: snapshot_value,
+            output: foutput,
+        } => {
+            if snapshot {
+                let json: Value = snapshot_value.into();
+                let serialized = crate::serde_json::to_string(&json).map_err(|e| e.to_string())?;
+                println!("{serialized}");
+            }
+            println!("{}", <T::FOutput as TextCodec>::print(&foutput));
+            Ok(true)
+        }
     }
-    if let Some(o) = output {
-        let s = <T::Output as TextCodec>::print(&o);
-        println!("{s}");
-        return Ok(true);
-    }
-    Ok(false)
 }
 
 fn run_with_args<T: Machine>(parsed: CliArgs) -> Result<(), String>
@@ -143,7 +162,7 @@ where
 
     let code = T::parse_code(&code_text)?;
     let ainput = T::parse_ainput(&ainput_text)?;
-    let mut machine = T::make(code, ainput)?;
+    let mut machine = Some(T::make(code, ainput)?);
 
     if let (Some(rinput), Some(limit)) = (parsed.rinput.as_deref(), parsed.limit) {
         for _ in 0..limit {

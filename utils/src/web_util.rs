@@ -1,60 +1,60 @@
 use crate::serde::Serialize;
 use crate::serde_json::Value;
 use crate::wasm_bindgen::prelude::JsValue;
-use crate::{Compiler, Machine, TextCodec};
+use crate::{Compiler, Machine, StepResult, TextCodec};
 
-pub trait WebView {
-    fn step(&mut self, rinput: &str) -> Result<Option<String>, String>;
-    fn current(&self) -> Result<JsValue, JsValue>;
-}
-
-impl<T> WebView for T
+pub fn step_machine_impl<T>(machine: &mut Option<T>, rinput: &str) -> Result<Value, String>
 where
     T: Machine,
     T::SnapShot: Into<Value>,
 {
-    fn step(&mut self, rinput: &str) -> Result<Option<String>, String> {
-        let parsed = T::parse_rinput(rinput)?;
-        let output = T::step(self, parsed)?;
-        Ok(output.map(|o| o.print()))
-    }
-
-    fn current(&self) -> Result<JsValue, JsValue> {
-        let snapshot = T::current(self);
-        let json: Value = snapshot.into();
-        json.serialize(&crate::serde_wasm_bindgen::Serializer::json_compatible())
-            .map_err(|e| JsValue::from_str(&e.to_string()))
+    let current = machine
+        .take()
+        .ok_or_else(|| "Machine not initialized".to_string())?;
+    let parsed = T::parse_rinput(rinput)?;
+    match current.step(parsed)? {
+        StepResult::Continue {
+            next,
+            output: routput,
+        } => {
+            *machine = Some(next);
+            Ok(crate::serde_json::json!({
+                "kind": "continue",
+                "routput": routput.print(),
+            }))
+        }
+        StepResult::Halt {
+            snapshot,
+            output: foutput,
+        } => Ok(crate::serde_json::json!({
+            "kind": "halt",
+            "snapshot": Into::<Value>::into(snapshot),
+            "foutput": foutput.print(),
+        })),
     }
 }
 
-pub fn step_machine_impl(
-    machine: &mut Option<Box<dyn WebView>>,
-    rinput: &str,
-) -> Result<Option<String>, JsValue> {
-    let machine = machine
-        .as_mut()
-        .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
-    machine.step(rinput).map_err(|e| JsValue::from_str(&e))
-}
-
-pub fn current_machine_impl(machine: &Option<Box<dyn WebView>>) -> Result<JsValue, JsValue> {
+pub fn current_machine_impl<T>(machine: &Option<T>) -> Result<JsValue, JsValue>
+where
+    T: Machine,
+    T::SnapShot: Into<Value>,
+{
     let machine = machine
         .as_ref()
         .ok_or_else(|| JsValue::from_str("Machine not initialized"))?;
-    machine.current()
+    let snapshot = T::current(machine);
+    let json: Value = snapshot.into();
+    json.serialize(&crate::serde_wasm_bindgen::Serializer::json_compatible())
+        .map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-pub fn create_machine_impl<T: Machine + 'static>(
-    code: &str,
-    ainput: &str,
-) -> Result<Box<dyn WebView>, JsValue>
+pub fn create_machine_impl<T: Machine>(code: &str, ainput: &str) -> Result<T, JsValue>
 where
     T::SnapShot: Into<Value>,
 {
     let code = T::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
     let ainput = T::parse_ainput(ainput).map_err(|e| JsValue::from_str(&e))?;
-    let machine = T::make(code, ainput).map_err(|e| JsValue::from_str(&e))?;
-    Ok(Box::new(machine))
+    T::make(code, ainput).map_err(|e| JsValue::from_str(&e))
 }
 
 pub fn compile_code_impl<T: Compiler>(code: &str) -> Result<String, JsValue> {
@@ -75,10 +75,17 @@ pub fn compile_rinput_impl<T: Compiler>(rinput: &str) -> Result<String, JsValue>
     Ok(target_rinput.print())
 }
 
-pub fn decode_output_impl<T: Compiler>(output: &str) -> Result<String, JsValue> {
-    let output_target = <<<T as Compiler>::Target as Machine>::Output as TextCodec>::parse(output)
+pub fn decode_routput_impl<T: Compiler>(output: &str) -> Result<String, JsValue> {
+    let output_target = <<<T as Compiler>::Target as Machine>::ROutput as TextCodec>::parse(output)
         .map_err(|e| JsValue::from_str(&e))?;
-    let output_source = T::decode_output(output_target).map_err(|e| JsValue::from_str(&e))?;
+    let output_source = T::decode_routput(output_target).map_err(|e| JsValue::from_str(&e))?;
+    Ok(output_source.print())
+}
+
+pub fn decode_foutput_impl<T: Compiler>(output: &str) -> Result<String, JsValue> {
+    let output_target = <<<T as Compiler>::Target as Machine>::FOutput as TextCodec>::parse(output)
+        .map_err(|e| JsValue::from_str(&e))?;
+    let output_source = T::decode_foutput(output_target).map_err(|e| JsValue::from_str(&e))?;
     Ok(output_source.print())
 }
 
@@ -86,17 +93,22 @@ pub fn decode_output_impl<T: Compiler>(output: &str) -> Result<String, JsValue> 
 macro_rules! web_model {
     ($machine:path) => {
         mod __web_model {
+            use $crate::serde::Serialize;
             use $crate::wasm_bindgen::prelude::JsValue;
 
             thread_local! {
-                static MACHINE: std::cell::RefCell<Option<Box<dyn $crate::web_util::WebView>>> = std::cell::RefCell::new(None);
+                static MACHINE: std::cell::RefCell<Option<$machine>> = std::cell::RefCell::new(None);
             }
 
             #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn step_machine(rinput: &str) -> Result<Option<String>, JsValue> {
+            pub fn step_machine(rinput: &str) -> Result<JsValue, JsValue> {
                 MACHINE.with(|machine| {
                     let mut machine = machine.borrow_mut();
-                    $crate::web_util::step_machine_impl(&mut machine, rinput)
+                    let value = $crate::web_util::step_machine_impl::<$machine>(&mut machine, rinput)
+                        .map_err(|e| JsValue::from_str(&e))?;
+                    value
+                        .serialize(&$crate::serde_wasm_bindgen::Serializer::json_compatible())
+                        .map_err(|e| JsValue::from_str(&e.to_string()))
                 })
             }
 
@@ -104,7 +116,7 @@ macro_rules! web_model {
             pub fn current_machine() -> Result<JsValue, JsValue> {
                 MACHINE.with(|machine| {
                     let machine = machine.borrow();
-                    $crate::web_util::current_machine_impl(&machine)
+                    $crate::web_util::current_machine_impl::<$machine>(&machine)
                 })
             }
 
@@ -146,12 +158,23 @@ macro_rules! web_compiler {
             }
 
             #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn decode_output(output: &str) -> Result<String, JsValue> {
-                $crate::web_util::decode_output_impl::<$compiler>(output)
+            pub fn decode_routput(output: &str) -> Result<String, JsValue> {
+                $crate::web_util::decode_routput_impl::<$compiler>(output)
+            }
+
+            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
+            pub fn decode_foutput(output: &str) -> Result<String, JsValue> {
+                $crate::web_util::decode_foutput_impl::<$compiler>(output)
             }
         }
 
-        pub use __web_compiler::{compile_ainput, compile_code, compile_rinput, decode_output};
+        pub use __web_compiler::{
+            compile_ainput,
+            compile_code,
+            compile_rinput,
+            decode_foutput,
+            decode_routput,
+        };
 
         fn main() {}
     };

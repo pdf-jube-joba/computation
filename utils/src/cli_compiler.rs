@@ -28,7 +28,8 @@ enum TranspileCommand {
     Code(InputArg),
     Ainput(InputArg),
     Rinput(InputArg),
-    Output(InputArg),
+    Routput(InputArg),
+    Foutput(InputArg),
 }
 
 #[derive(Parser, Debug)]
@@ -77,10 +78,17 @@ fn transpile_rinput<T: Compiler>(input: InputArg) -> Result<String, String> {
     Ok(target_rinput.print())
 }
 
-fn transpile_output<T: Compiler>(input: InputArg) -> Result<String, String> {
+fn transpile_routput<T: Compiler>(input: InputArg) -> Result<String, String> {
     let src = read_input(input)?;
-    let output_target = <<<T as Compiler>::Target as Machine>::Output as TextCodec>::parse(&src)?;
-    let output_source = T::decode_output(output_target)?;
+    let output_target = <<<T as Compiler>::Target as Machine>::ROutput as TextCodec>::parse(&src)?;
+    let output_source = T::decode_routput(output_target)?;
+    Ok(output_source.print())
+}
+
+fn transpile_foutput<T: Compiler>(input: InputArg) -> Result<String, String> {
+    let src = read_input(input)?;
+    let output_target = <<<T as Compiler>::Target as Machine>::FOutput as TextCodec>::parse(&src)?;
+    let output_source = T::decode_foutput(output_target)?;
     Ok(output_source.print())
 }
 
@@ -90,7 +98,8 @@ fn run_with_args<T: Compiler>(args: CliArgs) -> Result<(), String> {
             TranspileCommand::Code(input) => transpile_code::<T>(input)?,
             TranspileCommand::Ainput(input) => transpile_ainput::<T>(input)?,
             TranspileCommand::Rinput(input) => transpile_rinput::<T>(input)?,
-            TranspileCommand::Output(input) => transpile_output::<T>(input)?,
+            TranspileCommand::Routput(input) => transpile_routput::<T>(input)?,
+            TranspileCommand::Foutput(input) => transpile_foutput::<T>(input)?,
         },
     };
     println!("{output}");
