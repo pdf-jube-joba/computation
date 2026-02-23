@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parent
 DOCS_DIR = REPO_ROOT / "docs"
@@ -28,8 +29,14 @@ def copy_md_tree(src_root: Path, dest_root: Path) -> list[str]:
     return rel_paths
 
 
-def write_navigation_json(dest_root: Path, rel_paths: list[str]) -> None:
+def write_navigation_json(
+    dest_root: Path,
+    rel_paths: list[str],
+    parent_item: Optional[dict[str, str]] = None,
+) -> None:
     items = []
+    if parent_item is not None:
+        items.append(parent_item)
     for rel in rel_paths:
         href = rel[:-3] + ".html" if rel.endswith(".md") else rel
         items.append({"title": rel, "href": href})
@@ -51,7 +58,11 @@ def main() -> int:
     dist_models = DIST_SRC_DIR / "models"
 
     models_md = copy_md_tree(models_path, dist_models)
-    write_navigation_json(dist_models, models_md)
+    write_navigation_json(
+        dist_models,
+        models_md,
+        parent_item={"title": "Up", "href": "../"},
+    )
 
     root_readme = REPO_ROOT / "README.md"
     if root_readme.exists():

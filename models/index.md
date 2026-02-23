@@ -1,6 +1,5 @@
 ここはいろんな計算モデルとコンパイラを置いておくところ
 
-## Turing tarpit について
 プログラミング言語は基本的に、
 物事をよりよく記述できるように拡張していくが、
 逆に「機能を極限まで減らしつつもチューリング完全性を失っていないような小さい言語」を作るのも
@@ -59,13 +58,13 @@ web 側で（言語によらない共通の描画機能を使って）表示さ�
 ただし、 `src/bin/foobar.rs` のようにバイナリを置いて、中に `web_model!` あるいは `web_compiler!` を書くこと。
 以下のような Json の描画がある。
 
-- Supported block kinds: title, className are optional for all block types.
-- text: { kind: "text", text: string }
-  - simple text block
-- table: { kind: "table", columns: [block], rows: [{ className?, cells: [block] }] }
-  - a table with optional header and rows. each cell can be a block.
-- container: { kind: "container", children: [block], orientation: "vertical" | "horizontal", display: "inline" | "block"}
-  - a flat displayed container for grouping blocks. orientation defaults to vertical, display defaults to block.
+- title, className: optional な field としてすべてのものに入れてよい。
+- text: `{ kind: "text", text: string }`
+  - テキストを入れる。
+- table: `{ kind: "table", columns: [block], rows: [{ className?, cells: [block] }] }`
+  - 表。 `columns` は各列のタイトル。ブロックにしてよい。 `rows.className` はその行に適用される。
+- container: `{ kind: "container", children: [block], orientation: "vertical" | "horizontal", display: "inline" | "block"}`
+  - ブロックの列。 orientation defaults to vertical, display defaults to block.
 
 ## TODO
 - [] brainfuck

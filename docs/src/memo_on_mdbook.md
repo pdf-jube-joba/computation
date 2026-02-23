@@ -29,6 +29,13 @@ inc
 
 \(\text{日本語}\)
 
+bnf っぽいものを書く用のやつ
+
+\(\begin{aligned}
+\NT{stmt} &\defeq \NT{var} \sp \T{add} \sp \NT{var} \\
+\NT{var}  &\defeq \NT{ident}
+\end{aligned}\)
+
 ## mdbook の新しい拡張
 term
   : 定義をここに書く

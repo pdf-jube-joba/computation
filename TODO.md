@@ -1,6 +1,13 @@
 # book
 - [ ] 参考にした文献を列挙する。
 
+# utils
+- [ ] Machine について：今の Output が runtime の出力なのか最終的な出力なのかがわかりにくい。
+    なので、 ROutput と FOutput のようにわける。
+  - make: (Code, AInput) -> State
+  - step: (State, RInput) -> (State, ROutput) + FOutput
+  - current: ... これは"表示"用
+
 # models
 - [ ] 万能チューリングマシンを、できたら構成する。
 

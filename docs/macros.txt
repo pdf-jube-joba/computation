@@ -11,3 +11,8 @@
 \comp:{\circ}
 
 \txtop:\operatorname{#1}
+
+\NT:\langle \mathit{#1} \rangle
+\T:{\mathtt{"#1"}}
+\sp:\;
+\defeq:\mathrel{::=}
