@@ -23,6 +23,17 @@ inc
 </script>
 </div>
 
+identity compiler の場合
+
+<div data-model="example_counter => example_counter => example_counter">
+<script type="text/plain" class="default-code">
+8
+</script>
+<script type="text/plain" class="default-rinput">
+inc
+</script>
+</div>
+
 ## katex で数式
 ### ヘッダーに数式を書く： \(1\)
 `mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)

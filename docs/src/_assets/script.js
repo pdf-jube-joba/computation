@@ -16,6 +16,38 @@ function ensureStyleSheet() {
 }
 ensureStyleSheet();
 
+const STEP_FAILED_RESULT = { output: undefined, stepped: false, halted: false };
+
+const COMPILER_ENCODE_OPS = {
+  code: compiler => value => compiler.compileCode(value),
+  ainput: compiler => value => compiler.compileAInput(value),
+  rinput: compiler => value => compiler.compileRInput(value),
+};
+
+const COMPILER_DECODE_OPS = {
+  routput: compiler => value => compiler.decodeROutput(value),
+  foutput: compiler => value => compiler.decodeFOutput(value),
+};
+
+function wmLog(...args) {
+  console.log("[wm]", ...args);
+}
+
+function buildCompilerEdgeMetas(names) {
+  const metas = [];
+  for (let i = 0; i + 1 < names.length; i += 1) {
+    const sourceName = names[i];
+    const targetName = names[i + 1];
+    metas.push({
+      source: { name: sourceName, index: i },
+      target: { name: targetName, index: i + 1 },
+      key: `${sourceName}->${targetName}#${i}`,
+      compilerName: `${sourceName}-${targetName}`,
+    });
+  }
+  return metas;
+}
+
 // -------------------------------------
 // ヘルパー: <script type="text/plain" class="..."> からデフォルト文字列を取得
 // -------------------------------------
@@ -38,181 +70,52 @@ function ensureChild(root, selector, tagName, className) {
   return el;
 }
 
-// -------------------------------------
-// TextAreaTriple: code / ahead-of-time / runtime をまとめて扱う
-// -------------------------------------
-class TextAreaTriple {
-  constructor(host, { defaultCode = "", defaultAInput = "", defaultRInput = "" } = {}) {
-    this.host = host;
-    const grid = ensureChild(host, ".wm-form-grid", "div", "wm-form-grid");
-
-    // code
-    const codeField = ensureChild(grid, ".wm-field-code", "div", "wm-field");
-    const codeLabel = ensureChild(codeField, "label.wm-code-label", "label", "wm-code-label");
-    codeLabel.textContent = "code";
-    const codeArea = ensureChild(codeField, "textarea.wm-code", "textarea", "wm-code");
-
-    // ahead-of-time input
-    const ainputField = ensureChild(grid, ".wm-field-ainput", "div", "wm-field");
-    const ainputLabel = ensureChild(ainputField, "label.wm-ainput-label", "label", "wm-ainput-label");
-    ainputLabel.textContent = "ahead-of-time input";
-    const ainputArea = ensureChild(ainputField, "textarea.wm-ainput", "textarea", "wm-ainput");
-
-    // runtime input
-    const rinputField = ensureChild(grid, ".wm-field-rinput", "div", "wm-field");
-    const rInputLabel = ensureChild(rinputField, "label.wm-input-label", "label", "wm-input-label");
-    rInputLabel.textContent = "runtime input";
-    const rinputArea = ensureChild(rinputField, "textarea.wm-input", "textarea", "wm-input");
-
-    if (defaultCode && !codeArea.value) codeArea.value = defaultCode;
-    if (defaultAInput && !ainputArea.value) ainputArea.value = defaultAInput;
-    if (defaultRInput && !rinputArea.value) rinputArea.value = defaultRInput;
-
-    this.codeArea = codeArea;
-    this.ainputArea = ainputArea;
-    this.rinputArea = rinputArea;
-  }
-
-  get code() {
-    return this.codeArea.value.trim();
-  }
-
-  set code(value) {
-    this.codeArea.value = value ?? "";
-  }
-
-  get ainput() {
-    return this.ainputArea.value.trim();
-  }
-
-  set ainput(value) {
-    this.ainputArea.value = value ?? "";
-  }
-
-  get rinput() {
-    return this.rinputArea.value.trim();
-  }
-
-  set rinput(value) {
-    this.rinputArea.value = value ?? "";
-  }
+function createPanel(host, className, title) {
+  const panel = document.createElement("section");
+  panel.className = `wm-panel ${className}`.trim();
+  const heading = document.createElement("div");
+  heading.className = "wm-panel-heading";
+  heading.textContent = title;
+  const body = document.createElement("div");
+  body.className = "wm-panel-body";
+  panel.append(heading, body);
+  host.appendChild(panel);
+  return { panel, body };
 }
 
-// -------------------------------------
-// Control: create/step/auto 周りの UI とタイマー制御をまとめる
-// -------------------------------------
-class Control {
-  constructor(root, { onCreate, onStep }) {
-    this.onCreate = onCreate;
-    this.onStep = onStep;
-
-    const controlContainer = ensureChild(root, ".wm-control", "div", "wm-control");
-
-    this.createButton = ensureChild(controlContainer, "button.wm-create", "button", "wm-create");
-    this.stepButton = ensureChild(controlContainer, "button.wm-step", "button", "wm-step");
-    this.autoToggleButton = ensureChild(controlContainer, "button.wm-auto-toggle", "button", "wm-auto-toggle");
-    this.autoMarginInput = ensureChild(controlContainer, "input.wm-auto-margin", "input", "wm-auto-margin");
-
-    if (!this.createButton.textContent) this.createButton.textContent = "Create";
-    if (!this.stepButton.textContent) this.stepButton.textContent = "Step";
-    if (!this.autoToggleButton.textContent) this.autoToggleButton.textContent = "Auto: Off";
-
-    this.autoMarginInput.type = "number";
-    this.autoMarginInput.step = "0.1";
-    this.autoMarginInput.min = "0";
-    if (!this.autoMarginInput.value) this.autoMarginInput.value = "0.5";
-    this.autoMarginInput.placeholder = "auto margin (s)";
-    this.autoMarginInput.setAttribute("aria-label", "auto margin (s)");
-
-    this.autoEnabled = false;
-    this.autoTimerId = null;
-
-    this.createButton.addEventListener("click", () => this.onCreate());
-    this.stepButton.addEventListener("click", () => this.onStep({ triggeredByAuto: false }));
-    this.autoToggleButton.addEventListener("click", () => this.toggleAuto());
-    this.autoMarginInput.addEventListener("change", () => {
-      if (this.autoEnabled) {
-        this.stopAuto();
-        this.startAuto();
-      }
-    });
-
-    this.updateAutoUI();
-    controlContainer.append(this.createButton, this.stepButton, this.autoToggleButton, this.autoMarginInput);
+function createLabeledTextarea(host, { label, classNames = [], defaultValue = "", rows = 6 }) {
+  const field = document.createElement("div");
+  field.className = "wm-field";
+  for (const token of classNames) {
+    if (token) field.classList.add(token);
   }
+  const labelEl = document.createElement("label");
+  labelEl.textContent = label;
+  const area = document.createElement("textarea");
+  area.rows = rows;
+  area.value = defaultValue;
+  field.append(labelEl, area);
+  host.appendChild(field);
+  return { field, area };
+}
 
-  disable() {
-    this.createButton.disabled = true;
-    this.stepButton.disabled = true;
-    this.autoToggleButton.disabled = true;
-    this.autoMarginInput.disabled = true;
-    this.stopAuto();
+function createOutputBox(host, { title, classNames = [], bodyClassNames = [] }) {
+  const wrap = document.createElement("div");
+  wrap.className = "wm-output-box";
+  for (const token of classNames) {
+    if (token) wrap.classList.add(token);
   }
-
-  updateAutoUI() {
-    this.autoToggleButton.textContent = this.autoEnabled ? "Auto: On" : "Auto: Off";
-    this.autoToggleButton.setAttribute("aria-pressed", this.autoEnabled ? "true" : "false");
+  const label = document.createElement("div");
+  label.className = "wm-output-label";
+  label.textContent = title;
+  const body = document.createElement("div");
+  body.className = "wm-output";
+  for (const token of bodyClassNames) {
+    if (token) body.classList.add(token);
   }
-
-  getAutoIntervalMs() {
-    const value = parseFloat(this.autoMarginInput.value);
-    if (Number.isFinite(value) && value > 0) {
-      return value * 1000;
-    }
-    return 0;
-  }
-
-  toggleAuto() {
-    if (this.autoEnabled) {
-      this.stopAuto();
-    } else {
-      this.startAuto();
-    }
-  }
-
-  startAuto() {
-    if (this.autoEnabled) return;
-    const interval = this.getAutoIntervalMs();
-    if (!interval) {
-      this.updateAutoUI();
-      return;
-    }
-    this.autoEnabled = true;
-    this.updateAutoUI();
-    this.scheduleNext(interval);
-  }
-
-  stopAuto() {
-    this.autoEnabled = false;
-    if (this.autoTimerId) {
-      clearTimeout(this.autoTimerId);
-      this.autoTimerId = null;
-    }
-    this.updateAutoUI();
-  }
-
-  scheduleNext(interval) {
-    clearTimeout(this.autoTimerId);
-    this.autoTimerId = window.setTimeout(() => {
-      this.runAutoStep().catch(err => console.error(err));
-    }, interval);
-  }
-
-  async runAutoStep() {
-    if (!this.autoEnabled) return;
-    const result = await this.onStep({ triggeredByAuto: true });
-    if (!this.autoEnabled) return;
-    if (!result?.stepped || result.output !== undefined) {
-      this.stopAuto();
-      return;
-    }
-    const interval = this.getAutoIntervalMs();
-    if (!interval) {
-      this.stopAuto();
-      return;
-    }
-    this.scheduleNext(interval);
-  }
+  wrap.append(label, body);
+  host.appendChild(wrap);
+  return { wrap, body };
 }
 
 // -------------------------------------
@@ -286,7 +189,8 @@ class CompilerWrapper {
     this.compileCodeFn = null;
     this.compileAInputFn = null;
     this.compileRInputFn = null;
-    this.decodeOutputFn = null;
+    this.decodeROutputFn = null;
+    this.decodeFOutputFn = null;
   }
 
   async init() {
@@ -297,12 +201,14 @@ class CompilerWrapper {
     this.compileCodeFn = typeof module.compile_code === "function" ? module.compile_code : null;
     this.compileAInputFn = typeof module.compile_ainput === "function" ? module.compile_ainput : null;
     this.compileRInputFn = typeof module.compile_rinput === "function" ? module.compile_rinput : null;
-    this.decodeOutputFn = typeof module.decode_output === "function" ? module.decode_output : null;
+    this.decodeROutputFn = typeof module.decode_routput === "function" ? module.decode_routput : null;
+    this.decodeFOutputFn = typeof module.decode_foutput === "function" ? module.decode_foutput : null;
     const missing = [];
     if (!this.compileCodeFn) missing.push("compile_code");
     if (!this.compileAInputFn) missing.push("compile_ainput");
     if (!this.compileRInputFn) missing.push("compile_rinput");
-    if (!this.decodeOutputFn) missing.push("decode_output");
+    if (!this.decodeROutputFn) missing.push("decode_routput");
+    if (!this.decodeFOutputFn) missing.push("decode_foutput");
     if (missing.length) {
       throw new Error(`Compiler WASM is missing exports: ${missing.join(", ")}`);
     }
@@ -323,123 +229,193 @@ class CompilerWrapper {
     return Promise.resolve(this.compileRInputFn(rinput));
   }
 
-  async decodeOutput(output) {
-    return Promise.resolve(this.decodeOutputFn(output));
+  async decodeROutput(output) {
+    return Promise.resolve(this.decodeROutputFn(output));
+  }
+
+  async decodeFOutput(output) {
+    return Promise.resolve(this.decodeFOutputFn(output));
   }
 }
 
-// -------------------------------------
-// ViewModel
-// -------------------------------------
-class ViewModel {
-  constructor(root) {
-    this.root = root;
-    this.modelName = root.dataset.model;
-    this.isCompiler = this.modelName.includes("-");
-    this.compilerName = this.isCompiler ? this.modelName : null;
+function parsePipelineSpec(text) {
+  return (text || "")
+    .split("=>")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
 
-    const defaultRInput = extractPlainScript(root, "default-rinput");
-    const defaultAInput = extractPlainScript(root, "default-ainput");
-    const defaultCode = extractPlainScript(root, "default-code");
-
-    this.outputPre = ensureChild(root, "pre.wm-output", "pre", "wm-output");
-    this.stateContainer = ensureChild(root, ".wm-state", "div", "wm-state");
-
-    // Source inputs: always present for readability and consistency
-    const sourceContainer = ensureChild(root, ".wm-source", "div", "wm-source");
-    const sourceHeading = ensureChild(
-      sourceContainer,
-      ".wm-source-heading",
-      "div",
-      "wm-source-heading",
-    );
-    sourceHeading.textContent = this.isCompiler ? "Source (compile input)" : "Source";
-    const sourceTextareas = new TextAreaTriple(sourceContainer, {
-      defaultCode,
-      defaultAInput,
-      defaultRInput,
-    });
-    this.sourceInputs = sourceTextareas;
-
-    // Machine/target side container (used for compiled outputs or direct execution)
-    // Non-compiler: reuse the source container to avoid duplicate frames.
-    this.machineContainer = this.isCompiler
-      ? ensureChild(root, ".wm-machine", "div", "wm-machine")
-      : sourceContainer;
-
-    // by default, targetInputs points to sourceInputs
-    this.targetInputs = this.sourceInputs;
-
-    if (this.isCompiler) {
-      // compile buttons per input kind
-      const compileStrip = ensureChild(sourceContainer, ".wm-compile-strip", "div", "wm-compile-strip");
-      this.compileButtons = {
-        code: ensureChild(compileStrip, "button.wm-compile-code", "button", "wm-compile-code"),
-        ainput: ensureChild(compileStrip, "button.wm-compile-ainput", "button", "wm-compile-ainput"),
-        rinput: ensureChild(compileStrip, "button.wm-compile-rinput", "button", "wm-compile-rinput"),
-      };
-      this.compileButtons.code.textContent = "Compile code → target";
-      this.compileButtons.ainput.textContent = "Compile AInput → target";
-      this.compileButtons.rinput.textContent = "Compile RInput → target";
-      this.compileButtons.code.addEventListener("click", () => this.runCompile("code"));
-      this.compileButtons.ainput.addEventListener("click", () => this.runCompile("ainput"));
-      this.compileButtons.rinput.addEventListener("click", () => this.runCompile("rinput"));
-
-      const targetHeading = ensureChild(
-        this.machineContainer,
-        ".wm-target-heading",
-        "div",
-        "wm-target-heading",
-      );
-      targetHeading.textContent = "Compiled target";
-      const targetTextareas = new TextAreaTriple(this.machineContainer, {
-        defaultCode: "",
-        defaultAInput: "",
-        defaultRInput: "",
-      });
-      this.targetInputs = targetTextareas;
-    }
-    this.control = new Control(root, {
-      onCreate: () => {
-        this.handleCreateClick().catch(err => console.error(err));
-      },
-      onStep: opts => this.handleStepClick(opts),
-    });
-
-    root.append(this.outputPre, this.stateContainer);
-
-    this.machine = null;
-    this.compiler = null;
+class MachineNodeView {
+  constructor(host, {
+    title,
+    role,
+    machineName = null,
+    defaults = {},
+    runtimeControls = false,
+    runtimeLabels = false,
+    reportStatus = null,
+    reportError = null,
+    transformROutput = null,
+    transformFOutput = null,
+  }) {
+    this.role = role;
+    this.machineName = machineName;
+    this.reportStatus = reportStatus || (() => { });
+    this.reportError = reportError || (() => { });
+    this.transformROutput = transformROutput || (async value => value);
+    this.transformFOutput = transformFOutput || (async value => value);
+    this.wrapper = null;
     this.renderer = null;
-    this.status = "uninitialized"; // "ready" | "machine_setted" | "init_failed"
-    this.targetModelName = this.isCompiler ? this.modelName.split("-").slice(-1)[0] : this.modelName;
+    this.machineState = "uninitialized"; // uninitialized | ready | machine_setted | init_failed
+    this.autoEnabled = false;
+    this.autoTimerId = null;
 
-    console.log(`ViewModel for model "${this.modelName}" isCompiler: "${this.isCompiler}"`);
+    this.buildShell(title, role);
+    this.buildInputFields(defaults, runtimeLabels);
+    this.buildOutputAreas();
 
-  }
-
-  async initializeMachine(codeStr, ainputStr) {
-    if (this.status === "init_failed") return false;
-    if (this.status === "uninitialized") {
-      this.setError("(init not completed)");
-      return false;
+    if (runtimeControls) {
+      this.buildRuntimeControls();
     }
-    try {
-      await this.machine.createMachine(codeStr, ainputStr);
-      this.status = "machine_setted";
-      return true;
-    } catch (e) {
-      this.status = "init_failed";
-      this.setError(`init_fail: ${e}`);
-      return false;
+
+    host.appendChild(this.element);
+  }
+
+  buildShell(title, role) {
+    this.element = document.createElement("section");
+    this.element.className = `wm-node wm-node-${role}`;
+    this.element.dataset.nodeRole = role;
+
+    this.titleEl = document.createElement("div");
+    this.titleEl.className = "wm-node-title";
+    this.titleEl.textContent = title;
+    this.element.appendChild(this.titleEl);
+
+    this.boundaryPanel = createPanel(this.element, "wm-panel-boundary", "Boundary");
+    this.transitionPanel = createPanel(this.element, "wm-panel-transition", "Transition");
+    this.statePanel = createPanel(this.element, "wm-panel-state", "Snapshot");
+
+    this.boundaryMainRow = document.createElement("div");
+    this.boundaryMainRow.className = "wm-boundary-row wm-boundary-row-main";
+    this.boundaryActionsRow = document.createElement("div");
+    this.boundaryActionsRow.className = "wm-boundary-row wm-boundary-row-actions";
+    this.boundaryPanel.body.append(this.boundaryMainRow, this.boundaryActionsRow);
+
+    this.transitionMainRow = document.createElement("div");
+    this.transitionMainRow.className = "wm-transition-row wm-transition-row-main";
+    this.transitionActionsRow = document.createElement("div");
+    this.transitionActionsRow.className = "wm-transition-row wm-transition-row-actions";
+    this.transitionPanel.body.append(
+      this.transitionMainRow,
+      this.transitionActionsRow,
+    );
+  }
+
+  buildInputFields(defaults, runtimeLabels) {
+    const codeField = createLabeledTextarea(this.boundaryMainRow, {
+      label: runtimeLabels ? "Code (runtime)" : "Code",
+      classNames: ["wm-field-code", "wm-boundary-code"],
+      defaultValue: defaults.code || "",
+      rows: 8,
+    });
+    const ainputField = createLabeledTextarea(this.boundaryMainRow, {
+      label: runtimeLabels ? "AInput (runtime)" : "AInput",
+      classNames: ["wm-field-ainput", "wm-boundary-ainput"],
+      defaultValue: defaults.ainput || "",
+      rows: 6,
+    });
+    const rinputField = createLabeledTextarea(this.transitionMainRow, {
+      label: runtimeLabels ? "RInput (runtime)" : "RInput",
+      classNames: ["wm-field-rinput", "wm-transition-rinput"],
+      defaultValue: defaults.rinput || "",
+      rows: 5,
+    });
+    this.codeArea = codeField.area;
+    this.ainputArea = ainputField.area;
+    this.rinputArea = rinputField.area;
+  }
+
+  buildOutputAreas() {
+    this.finalOutputBox = createOutputBox(this.boundaryActionsRow, {
+      title: "FOutput",
+      classNames: ["wm-output-final-box", "wm-boundary-foutput"],
+      bodyClassNames: ["wm-output-final"],
+    });
+    this.finalOutputEl = this.finalOutputBox.body;
+
+    this.stateContainer = document.createElement("div");
+    this.stateContainer.className = "wm-state wm-snapshot-view";
+    this.statePanel.body.appendChild(this.stateContainer);
+
+    this.runtimeOutputBox = createOutputBox(this.transitionActionsRow, {
+      title: "ROutput",
+      classNames: ["wm-output-runtime-box", "wm-transition-routput"],
+      bodyClassNames: ["wm-output-runtime"],
+    });
+    this.runtimeOutputEl = this.runtimeOutputBox.body;
+    this.createButton = null;
+    this.stepButton = null;
+    this.autoToggleButton = null;
+    this.autoMarginInput = null;
+  }
+
+  buildRuntimeControls() {
+    this.createControlEl = document.createElement("div");
+    this.createControlEl.className = "wm-control wm-control-create wm-boundary-create";
+    this.createButton = ensureChild(this.createControlEl, "button.wm-create", "button", "wm-create");
+    this.createButton.textContent = "Create";
+    this.createButton.addEventListener("click", () => {
+      this.handleCreateClick().catch(err => console.error(err));
+    });
+    this.boundaryActionsRow.prepend(this.createControlEl);
+
+    this.stepControlEl = document.createElement("div");
+    this.stepControlEl.className = "wm-control wm-control-step wm-transition-controls";
+    this.stepButton = ensureChild(this.stepControlEl, "button.wm-step", "button", "wm-step");
+    this.autoToggleButton = ensureChild(this.stepControlEl, "button.wm-auto-toggle", "button", "wm-auto-toggle");
+    this.autoMarginInput = ensureChild(this.stepControlEl, "input.wm-auto-margin", "input", "wm-auto-margin");
+    this.stepButton.textContent = "Step";
+    this.autoToggleButton.textContent = "Auto: Off";
+    this.autoMarginInput.type = "number";
+    this.autoMarginInput.step = "0.1";
+    this.autoMarginInput.min = "0";
+    if (!this.autoMarginInput.value) this.autoMarginInput.value = "0.5";
+    this.autoMarginInput.placeholder = "auto margin (s)";
+    this.autoMarginInput.setAttribute("aria-label", "auto margin (s)");
+    this.stepButton.addEventListener("click", () => {
+      this.stepFromCurrentInput({ triggeredByAuto: false }).catch(err => console.error(err));
+    });
+    this.autoToggleButton.addEventListener("click", () => this.toggleAutoStep());
+    this.autoMarginInput.addEventListener("change", () => {
+      if (this.autoEnabled) {
+        this.stopAutoStep();
+        this.startAutoStep();
+      }
+    });
+    this.stepControlEl.append(this.stepButton, this.autoToggleButton, this.autoMarginInput);
+    this.transitionActionsRow.prepend(this.stepControlEl);
+    this.setAutoUI(false);
+  }
+
+  setOutputTransforms({ routput, foutput } = {}) {
+    if (routput) this.transformROutput = routput;
+    if (foutput) this.transformFOutput = foutput;
+  }
+
+  writeMessage(message, { error = false } = {}) {
+    if (error) {
+      this.reportError(message);
+    } else {
+      this.reportStatus(message);
     }
   }
 
-  disableUI() {
-    this.control.disable();
+  clearMessage() {
+    this.writeMessage("");
   }
 
-  async init() {
+  async initRuntime() {
+    if (!this.machineName) return;
     try {
       const rmod = await import("./renderer.js");
       const Renderer = rmod.Renderer;
@@ -450,120 +426,521 @@ class ViewModel {
       if (typeof this.renderer.draw !== "function") {
         throw new Error("Renderer missing draw()");
       }
-
-      if (this.isCompiler) {
-        this.compiler = new CompilerWrapper(this.compilerName);
-        await this.compiler.init();
-        this.machine = new MachineWrapper(this.targetModelName);
-        await this.machine.init();
-      } else {
-        this.machine = new MachineWrapper(this.modelName);
-        await this.machine.init();
-      }
-
-      this.status = "ready";
-      this.setOutput("");
+      this.wrapper = new MachineWrapper(this.machineName);
+      await this.wrapper.init();
+      this.machineState = "ready";
+      this.clearMessage();
+      return true;
     } catch (e) {
-      this.setError(`Init error: ${e}`);
-      this.disableUI();
-      this.status = "init_failed";
+      this.machineState = "init_failed";
+      this.writeMessage(`Init error (${this.machineName}): ${e}`, { error: true });
+      this.setControlsDisabled(true);
+      return false;
+    }
+  }
+
+  drawSnapshot(snapshot) {
+    if (this.renderer) this.renderer.draw(snapshot);
+  }
+
+  get code() {
+    return this.codeArea.value;
+  }
+
+  set code(value) {
+    this.codeArea.value = value ?? "";
+  }
+
+  get ainput() {
+    return this.ainputArea.value;
+  }
+
+  set ainput(value) {
+    this.ainputArea.value = value ?? "";
+  }
+
+  get rinput() {
+    return this.rinputArea.value;
+  }
+
+  set rinput(value) {
+    this.rinputArea.value = value ?? "";
+  }
+
+  async createFromCurrentInputs() {
+    if (this.machineState === "init_failed") {
+      this.writeMessage("(init failed; reload required)", { error: true });
+      return false;
+    }
+    if (this.machineState === "uninitialized") {
+      this.writeMessage("(runtime machine not initialized)", { error: true });
+      return false;
+    }
+    this.stopAutoStep();
+    this.clearOutputs();
+    this.clearMessage();
+    try {
+      await this.wrapper.createMachine(this.code, this.ainput);
+      this.machineState = "machine_setted";
+      const state = await this.wrapper.currentState();
+      this.drawSnapshot(state);
+      return true;
+    } catch (e) {
+      this.machineState = "init_failed";
+      this.writeMessage(`init_fail: ${e}`, { error: true });
+      return false;
+    }
+  }
+
+  makeStepFailure() {
+    return STEP_FAILED_RESULT;
+  }
+
+  validateStepReady() {
+    if (this.machineState === "init_failed") {
+      this.writeMessage("(init failed; reload required)", { error: true });
+      return false;
+    }
+    if (this.machineState !== "machine_setted") {
+      this.writeMessage("(machine not initialized; run Create first)", { error: true });
+      return false;
+    }
+    return true;
+  }
+
+  async handleContinueStepResult(stepResult) {
+    const state = await this.wrapper.currentState();
+    this.drawSnapshot(state);
+    const outputTarget = stepResult.routput ?? "";
+    const output = await this.transformROutput(outputTarget);
+    this.setROutput(output);
+    this.clearMessage();
+    return { output, stepped: true, halted: false };
+  }
+
+  async handleHaltStepResult(stepResult) {
+    this.drawSnapshot(stepResult.snapshot);
+    const outputTarget = stepResult.foutput ?? "";
+    const output = await this.transformFOutput(outputTarget);
+    this.setFOutput(output);
+    this.clearMessage();
+    return { output, stepped: true, halted: true };
+  }
+
+  async stepFromCurrentInput({ triggeredByAuto = false } = {}) {
+    if (!this.validateStepReady()) return this.makeStepFailure();
+    try {
+      const stepResult = await this.wrapper.stepMachine(this.rinput);
+      if (!stepResult || typeof stepResult.kind !== "string") {
+        throw new Error(`Invalid step result: ${JSON.stringify(stepResult)}`);
+      }
+      if (stepResult.kind === "continue") return this.handleContinueStepResult(stepResult);
+      if (stepResult.kind === "halt") return this.handleHaltStepResult(stepResult);
+      throw new Error(`Unknown step result kind: ${stepResult.kind}`);
+    } catch (e) {
+      this.writeMessage(`${e}`, { error: true });
+      if (triggeredByAuto && this.autoEnabled) this.stopAutoStep();
+      return this.makeStepFailure();
+    }
+  }
+
+  clearOutputs() {
+    this.runtimeOutputEl.textContent = "";
+    this.finalOutputEl.textContent = "";
+  }
+
+  setROutput(output) {
+    this.runtimeOutputEl.style.color = "";
+    this.runtimeOutputEl.textContent = output ?? "";
+  }
+
+  setFOutput(output) {
+    this.finalOutputEl.style.color = "";
+    this.finalOutputEl.textContent = output ?? "";
+  }
+
+  setAutoUI(enabled) {
+    if (!this.autoToggleButton) return;
+    this.autoToggleButton.textContent = enabled ? "Auto: On" : "Auto: Off";
+    this.autoToggleButton.setAttribute("aria-pressed", enabled ? "true" : "false");
+  }
+
+  getAutoIntervalMs() {
+    if (!this.autoMarginInput) return 0;
+    const value = parseFloat(this.autoMarginInput.value);
+    if (Number.isFinite(value) && value > 0) return value * 1000;
+    return 0;
+  }
+
+  setControlsDisabled(disabled) {
+    if (this.createButton) this.createButton.disabled = disabled;
+    if (this.stepButton) this.stepButton.disabled = disabled;
+    if (this.autoToggleButton) this.autoToggleButton.disabled = disabled;
+    if (this.autoMarginInput) this.autoMarginInput.disabled = disabled;
+  }
+
+  toggleAutoStep() {
+    if (this.autoEnabled) {
+      this.stopAutoStep();
+    } else {
+      this.startAutoStep();
+    }
+  }
+
+  startAutoStep() {
+    if (this.autoEnabled) return;
+    const interval = this.getAutoIntervalMs();
+    if (!interval) {
+      this.setAutoUI(this.autoEnabled);
       return;
     }
+    this.autoEnabled = true;
+    this.setAutoUI(true);
+    this.scheduleAutoStep(interval);
+  }
+
+  stopAutoStep() {
+    this.autoEnabled = false;
+    if (this.autoTimerId) {
+      clearTimeout(this.autoTimerId);
+      this.autoTimerId = null;
+    }
+    this.setAutoUI(false);
+  }
+
+  scheduleAutoStep(interval) {
+    clearTimeout(this.autoTimerId);
+    this.autoTimerId = window.setTimeout(() => {
+      this.runAutoStep().catch(err => console.error(err));
+    }, interval);
+  }
+
+  async runAutoStep() {
+    if (!this.autoEnabled) return;
+    const result = await this.stepFromCurrentInput({ triggeredByAuto: true });
+    if (!this.autoEnabled) return;
+    if (!result?.stepped || result.halted) {
+      this.stopAutoStep();
+      return;
+    }
+    const interval = this.getAutoIntervalMs();
+    if (!interval) {
+      this.stopAutoStep();
+      return;
+    }
+    this.scheduleAutoStep(interval);
   }
 
   async handleCreateClick() {
-    this.control.stopAuto();
-    if (this.status === "init_failed") {
-      this.setError("(init failed; reload required)");
-      return;
-    }
-    if (this.status === "uninitialized") {
-      this.setError("(init not completed)");
-      return;
-    }
-    this.setOutput("");
+    await this.createFromCurrentInputs();
+  }
+}
 
+class CompilerEdgeView {
+  constructor(host, {
+    edgeMeta = null,
+    onCompileCode,
+    onCompileAInput,
+    onCompileRInput,
+    reportError = null,
+  } = {}) {
+    this.reportError = reportError || (() => { });
+    this.edgeMeta = edgeMeta;
+    this.wrapper = null;
+    this.available = false;
+    this.loadError = null;
+    this.element = document.createElement("section");
+    this.element.className = "wm-edge";
+    const edgeTitle = document.createElement("div");
+    edgeTitle.className = "wm-edge-title";
+    edgeTitle.textContent = edgeMeta
+      ? `Compiler (${edgeMeta.source.name} => ${edgeMeta.target.name})`
+      : "Compiler";
+    const edgeBody = document.createElement("div");
+    edgeBody.className = "wm-edge-body";
+
+    const compileStrip = document.createElement("div");
+    compileStrip.className = "wm-compile-strip";
+    this.compileButtons = {
+      code: ensureChild(compileStrip, "button.wm-compile-code", "button", "wm-compile-code"),
+      ainput: ensureChild(compileStrip, "button.wm-compile-ainput", "button", "wm-compile-ainput"),
+      rinput: ensureChild(compileStrip, "button.wm-compile-rinput", "button", "wm-compile-rinput"),
+    };
+    this.compileButtons.code.textContent = "compile(Code)";
+    this.compileButtons.ainput.textContent = "encode_ainput";
+    this.compileButtons.rinput.textContent = "encode_rinput";
+    if (onCompileCode) this.compileButtons.code.addEventListener("click", onCompileCode);
+    if (onCompileAInput) this.compileButtons.ainput.addEventListener("click", onCompileAInput);
+    if (onCompileRInput) this.compileButtons.rinput.addEventListener("click", onCompileRInput);
+
+    this.statusPre = document.createElement("pre");
+    this.statusPre.className = "wm-edge-status";
+    edgeBody.append(compileStrip, this.statusPre);
+    this.element.append(edgeTitle, edgeBody);
+    host.appendChild(this.element);
+  }
+
+  setStatusLines(lines) {
+    this.statusPre.textContent = (lines || []).join("\n");
+  }
+
+  setDisabled(disabled) {
+    Object.values(this.compileButtons).forEach(btn => {
+      btn.disabled = !!disabled;
+    });
+  }
+
+  async initWrapper() {
+    if (!this.edgeMeta) {
+      this.refreshStatus();
+      return false;
+    }
+    const edge = this.edgeMeta;
     try {
-      const codeStr = this.targetInputs.code;
-      const ainputStr = this.targetInputs.ainput;
-      const ok = await this.initializeMachine(codeStr, ainputStr);
-      if (ok) {
-        const state = await this.machine.currentState();
-        this.renderer.draw(state);
-      }
+      this.wrapper = new CompilerWrapper(edge.compilerName);
+      await this.wrapper.init();
+      this.available = true;
+      this.loadError = null;
     } catch (e) {
-      this.setOutput(`${e}`);
+      this.available = false;
+      this.loadError = e;
+      this.wrapper = null;
+      wmLog(
+        `compiler unavailable for edge ${edge.source.name} => ${edge.target.name} (${edge.compilerName}):`,
+        e,
+      );
+      this.reportError(`Compiler unavailable: ${edge.source.name} => ${edge.target.name}`);
+    }
+    this.refreshStatus();
+    return this.available;
+  }
+
+  ensureAvailable() {
+    if (!this.available || !this.wrapper) {
+      const edge = this.edgeMeta;
+      if (!edge) throw new Error("Compiler edge is not configured");
+      throw new Error(`Compiler not available for edge ${edge.source.name} => ${edge.target.name}`);
     }
   }
 
-  async handleStepClick({ triggeredByAuto = false } = {}) {
-    if (this.status === "init_failed") {
-      this.setOutput("(init failed; reload required)");
-      return { output: undefined, stepped: false };
-    }
-    if (this.status !== "machine_setted") {
-      this.setOutput("(machine not initialized; run Create first)");
-      return { output: undefined, stepped: false };
-    }
+  async encode(kind, value) {
+    const encodeOp = COMPILER_ENCODE_OPS[kind];
+    if (!encodeOp) throw new Error(`Unknown encode kind: ${kind}`);
+    this.ensureAvailable();
+    return encodeOp(this.wrapper)(value);
+  }
 
+  async decode(kind, value) {
+    const decodeOp = COMPILER_DECODE_OPS[kind];
+    if (!decodeOp) throw new Error(`Unknown decode kind: ${kind}`);
+    this.ensureAvailable();
+    return decodeOp(this.wrapper)(value);
+  }
+
+  refreshStatus() {
+    if (!this.edgeMeta) {
+      this.setStatusLines(["(no compiler edge configured)"]);
+      this.setDisabled(true);
+      return;
+    }
+    const edge = this.edgeMeta;
+    if (this.available) {
+      this.setStatusLines([`${edge.source.name} => ${edge.target.name}: ${edge.compilerName}`]);
+      this.setDisabled(false);
+      return;
+    }
+    const status = this.loadError
+      ? `unavailable (${edge.compilerName})`
+      : `pending (${edge.compilerName})`;
+    this.setStatusLines([`${edge.source.name} => ${edge.target.name}: ${status}`]);
+    this.setDisabled(true);
+  }
+}
+
+// -------------------------------------
+// PipelineController
+// -------------------------------------
+class PipelineController {
+  constructor(root) {
+    this.root = root;
+    this.parseModelSpec();
+    const defaults = this.readDefaults();
+    this.buildViews(defaults);
+
+    wmLog("model spec:", this.modelSpec, "pipeline:", this.pipelineNames.join(" => "));
+
+  }
+
+  parseModelSpec() {
+    this.modelSpec = (this.root.dataset.model || "").trim();
+    this.pipelineNames = parsePipelineSpec(this.modelSpec);
+    if (this.pipelineNames.length === 0 && this.modelSpec) {
+      this.pipelineNames = [this.modelSpec];
+    }
+    if (this.pipelineNames.length === 0) {
+      this.pipelineNames = ["(missing-model)"];
+    }
+    this.edgeMetas = buildCompilerEdgeMetas(this.pipelineNames);
+  }
+
+  readDefaults() {
+    return {
+      code: extractPlainScript(this.root, "default-code"),
+      ainput: extractPlainScript(this.root, "default-ainput"),
+      rinput: extractPlainScript(this.root, "default-rinput"),
+    };
+  }
+
+  async transferThroughCompiler(edgeView, kind, readValue, writeValue) {
+    if (!edgeView) {
+      this.writeControllerMessage("(pipeline compiler layer not available)", { error: true });
+      return;
+    }
     try {
-      const runtimeInputStr = this.targetInputs.rinput;
-      const outputTarget = await this.machine.stepMachine(runtimeInputStr);
-      const state = await this.machine.currentState();
-      this.renderer.draw(state);
-      const decodedOutput =
-        this.compiler && outputTarget ? await this.compiler.decodeOutput(outputTarget) : outputTarget;
-      this.setOutput(decodedOutput === undefined ? "" : decodedOutput);
-      return { output: decodedOutput, stepped: true };
+      const value = await edgeView.encode(kind, readValue());
+      writeValue(value);
+      this.clearControllerMessage();
     } catch (e) {
-      this.setError(`${e}`);
-      // Even on step error, try to render the latest state.
-      if (triggeredByAuto && this.control.autoEnabled) {
-        this.control.stopAuto();
-      }
-      return { output: undefined, stepped: false };
+      console.error(e);
+      this.writeControllerMessage(`Compile error: ${e}`, { error: true });
     }
   }
 
-  setOutput(output) {
-    this.outputPre.style.color = "";
-    this.outputPre.textContent = output ?? "";
+  async decodeThroughEdges(kind, value) {
+    let current = value;
+    for (let i = this.edgeViews.length - 1; i >= 0; i -= 1) {
+      current = await this.edgeViews[i].decode(kind, current);
+    }
+    return current;
+  }
+
+  buildNodeTitle(name, index, lastIndex) {
+    if (lastIndex === 0) return `Machine (${name})`;
+    if (index === 0) return `Source Machine (${name})`;
+    if (index === lastIndex) return `Runtime Machine (${name})`;
+    return `IR Machine ${index} (${name})`;
+  }
+
+  buildNodeRole(index, lastIndex) {
+    if (lastIndex === 0) return "machine";
+    if (index === 0) return "source";
+    if (index === lastIndex) return "runtime";
+    return "ir";
+  }
+
+  getNodeDefaults(defaults, index) {
+    if (index === 0) return defaults;
+    return { code: "", ainput: "", rinput: "" };
+  }
+
+  buildViews(defaults) {
+    this.root.replaceChildren();
+    this.controllerStatusPanel = createPanel(this.root, "wm-panel-controller-status", "Status / Error");
+    this.controllerStatusBox = createOutputBox(this.controllerStatusPanel.body, {
+      title: "PipelineController",
+      classNames: ["wm-controller-status-box"],
+      bodyClassNames: ["wm-status"],
+    });
+    this.controllerStatusEl = this.controllerStatusBox.body;
+
+    this.pipelineRoot = ensureChild(this.root, ".wm-pipeline", "div", "wm-pipeline");
+    const reportStatus = message => this.setStatus(message);
+    const reportError = message => this.setError(message);
+    this.nodeViews = [];
+    this.edgeViews = [];
+    const lastIndex = this.pipelineNames.length - 1;
+
+    for (let i = 0; i < this.pipelineNames.length; i += 1) {
+      const nodeName = this.pipelineNames[i];
+      const nodeView = new MachineNodeView(this.pipelineRoot, {
+        title: this.buildNodeTitle(nodeName, i, lastIndex),
+        role: this.buildNodeRole(i, lastIndex),
+        machineName: nodeName,
+        defaults: this.getNodeDefaults(defaults, i),
+        runtimeControls: i === lastIndex,
+        runtimeLabels: i === lastIndex && lastIndex > 0,
+        reportStatus,
+        reportError,
+      });
+      this.nodeViews.push(nodeView);
+
+      if (i < lastIndex) {
+        const edgeMeta = this.edgeMetas[i];
+        const sourceNodeView = nodeView;
+        let edgeView = null;
+        edgeView = new CompilerEdgeView(this.pipelineRoot, {
+          edgeMeta,
+          onCompileCode: () => {
+            const targetNodeView = this.nodeViews[i + 1];
+            return this.transferThroughCompiler(edgeView, "code", () => sourceNodeView.code, value => { targetNodeView.code = value; });
+          },
+          onCompileAInput: () => {
+            const targetNodeView = this.nodeViews[i + 1];
+            return this.transferThroughCompiler(edgeView, "ainput", () => sourceNodeView.ainput, value => { targetNodeView.ainput = value; });
+          },
+          onCompileRInput: () => {
+            const targetNodeView = this.nodeViews[i + 1];
+            return this.transferThroughCompiler(edgeView, "rinput", () => sourceNodeView.rinput, value => { targetNodeView.rinput = value; });
+          },
+          reportError,
+        });
+        this.edgeViews.push(edgeView);
+      }
+    }
+
+    this.sourceNodeView = this.nodeViews[0];
+    this.runtimeNodeView = this.nodeViews[lastIndex];
+
+    this.runtimeNodeView.setOutputTransforms({
+      routput: async value => this.decodeThroughEdges("routput", value),
+      foutput: async value => this.decodeThroughEdges("foutput", value),
+    });
+  }
+
+  disableUI() {
+    this.runtimeNodeView.setControlsDisabled(true);
+    for (const edgeView of this.edgeViews) edgeView.setDisabled(true);
+    this.runtimeNodeView.stopAutoStep();
+  }
+
+  async init() {
+    try {
+      for (const edgeView of this.edgeViews) {
+        await edgeView.initWrapper();
+      }
+
+      const runtimeReady = await this.runtimeNodeView.initRuntime();
+      if (!runtimeReady) {
+        this.disableUI();
+        return;
+      }
+      this.runtimeNodeView.clearOutputs();
+      this.clearControllerMessage();
+    } catch (e) {
+      this.writeControllerMessage(`Init error: ${e}`, { error: true });
+      this.disableUI();
+      return;
+    }
+  }
+
+  writeControllerMessage(message, { error = false } = {}) {
+    if (!this.controllerStatusEl) return;
+    this.controllerStatusEl.style.color = error ? "red" : "";
+    this.controllerStatusEl.textContent = message ?? "";
+  }
+
+  clearControllerMessage() {
+    this.writeControllerMessage("");
+  }
+
+  setStatus(message) {
+    this.writeControllerMessage(message);
   }
 
   setError(message) {
-    this.outputPre.style.color = "red";
-    this.outputPre.textContent = message ?? "";
+    this.writeControllerMessage(message, { error: true });
   }
 
-  async runCompile(kind) {
-    if (!this.isCompiler || !this.compiler) {
-      this.setError("(compiler not available)");
-      return;
-    }
-    if (this.status === "init_failed") {
-      this.setError("(init failed; reload required)");
-      return;
-    }
-    if (this.status === "uninitialized") {
-      this.setError("(init not completed)");
-      return;
-    }
-    try {
-      if (kind === "code") {
-        const compiled = await this.compiler.compileCode(this.sourceInputs.code);
-        this.targetInputs.code = compiled;
-      } else if (kind === "ainput") {
-        const compiled = await this.compiler.compileAInput(this.sourceInputs.ainput);
-        this.targetInputs.ainput = compiled;
-      } else if (kind === "rinput") {
-        const compiled = await this.compiler.compileRInput(this.sourceInputs.rinput);
-        this.targetInputs.rinput = compiled;
-      }
-    } catch (e) {
-      console.error(e);
-      this.setError(`Compile error: ${e}`);
-    }
-  }
 }
 
 // -------------------------------------
@@ -574,7 +951,7 @@ async function setupAllModels() {
   const tasks = [];
 
   roots.forEach(root => {
-    const vm = new ViewModel(root);
+    const vm = new PipelineController(root);
     tasks.push(vm.init());
   });
 
