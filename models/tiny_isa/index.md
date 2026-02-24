@@ -2,63 +2,95 @@
 自然数を扱う単純なプロセッサを考える。
 
 - 扱う対象を自然数 ~= ほとんど 0-fill された無限のビット列にする。
-    - メモリセルに入れるのは自然数
+    - メモリセルに入れるのは自然数 ... `Number` であり、これをビット列にする。
     - メモリは自然数で添え字づけ。
     - レジスタは有限個で自然数を入れる。
 - 命令は最初の n bit で（どのレジスタを操作するかも含めて） opcode みたいにして、 operand は残りのビット列（自然数）にする。
     - 「どのレジスタを使うか」が有限で扱えるので、引数は残りのビット列全部にできる。
 
-フラグがあった方がいい。
-レジスタは4つとして、 \(2\) bit で表す。
-メモリに入っているのは無限ビット列だが、命令の判断に使うのは主に最初の \(8\) ビットで、どのレジスタを使うかまでここで書くことにする。
-残りの bit を全部自然数にして引数と考える。
-
 機械語の場合は encode/decode が必要になるのが面白い。
 （アセンブラ単体ではあまり考えなくてもいいように思える。）
 
+以下はもうちょっとちゃんとした仕様
+- 16 bit 固定長が基本、即値があるときだけ後ろからとる。
+- レジスタは \(8\) つとして、 \(3\) bit で表す。
+- \(0\) 番目のレジスタは program counter とする... `mov` や `add` はジャンプ命令になる。
+- 比較命令時には flag が格納される。
+- flag を表す `f` が入っている命令なら、 `f` が立っているときには flag が真のときだけ命令を実行する
+- 減算は \(0\) で飽和する。
+
 | 種類 | 命令 | encode | 意味 |
 | ---- | ---- | ------ | ---- |
-| その他 | `nop`       | `0b0000_0000 ??..` | 何もせずに次に行く |
-| その他 | `halt`      | `0b0000_0001 ??..` | 停止する |
-| その他 | `rst`       | `0b0000_0010 ??..` | flag を reset する |
-| 即値   | `ldi rd ii` | `0b0000_01dd ii..` | \(rd \leftarrow imm\), imm は `ii..` からとる。 |
-| 転送   | `rdpc rd`   | `0b0000_10dd ??..` | \(rd \leftarrow pc\) |
-| 転送   | `mov rd rs` | `0b0001_ddss ??..` | \(rd \leftarrow rs\) |
-| メモリ | `ld rd rb`  | `0b0010_ddss ??..` | \(rd \leftarrow M[ rb ]\) |
-| メモリ | `st rs rb`  | `0b0011_ddss ??..` | \(M [ rb ] \leftarrow rs\) |
-| 算術   | `add rd rs` | `0b0100_ddss ??..` | \(rd \leftarrow rd + rs\) |
-| 算術   | `sub rd rs` | `0b0101_ddss ??..` | \(rd \leftarrow rd - rs\) ... \(0\) で飽和する |
-| 比較   | `eq rd rs`  | `0b0110_ddss ??..` | \(rd = rs \Rightarrow \mathtt{flag}\) |
-| 比較   | `lt rd rs`  | `0b0111_ddss ??..` | \(rd < rs \Rightarrow \mathtt{flag}\) |
-| 分岐   | `jmp rb`    | `0b1100_ddss ??..` | \(pc \leftarrow rb\) |
-| 分岐   | `jmc rb`    | `0b1101_ddss ??..` | \(pc \leftarrow rb\) ... if \(\mathtt{flag}\) |
+| その他 | `nop`       | `0b0000_0000_00_000_000 ??..` | 何もせずに次に行く |
+| その他 | `halt`      | `0b0000_0000_01_000_000 ??..` | 停止する |
+| その他 | `rst`       | `0b0000_0000_00_111_111 ??..` | flag を reset する |
+| メモリ | `ld rd rb`  | `0b0000_0001_00_ddd_sss ??..` | \(rd \leftarrow M[ rb ]\) |
+| メモリ | `st rs rb`  | `0b0000_0010_00_ddd_sss ??..` | \(M [ rb ] \leftarrow rs\) |
+| 即値   | `ldi rd`    | `0b0000_1000_1f_ddd_000 ii..` | \(rd \leftarrow im\), im は `ii..` からとる。 |
+| 転送   | `mov rd rs` | `0b0000_1000_0f_ddd_sss ??..` | \(rd \leftarrow rs\)      |
+| 算術   | `add rd rs` | `0b0000_0100_0f_ddd_sss ??..` | \(rd \leftarrow rd + rs\) |
+| 算術   | `sub rd rs` | `0b0000_0101_0f_ddd_sss ??..` | \(rd \leftarrow rd - rs\) |
+| 算術   | `addi rd`   | `0b0000_0100_1f_ddd_000 ii..` | \(rd \leftarrow rd + im\) |
+| 算術   | `subi rd`   | `0b0000_0101_1f_ddd_000 ii..` | \(rd \leftarrow rd - im\) |
+| 比較   | `eq rd rs`  | `0b0001_0001_00_ddd_sss ??..` | \(rd = rs \Rightarrow \mathtt{flag}\) |
+| 比較   | `lt rd rs`  | `0b0001_0010_00_ddd_sss ??..` | \(rd < rs \Rightarrow \mathtt{flag}\) |
+| 比較   | `gt rd rs`  | `0b0001_0100_00_ddd_sss ??..` | \(rd > rs \Rightarrow \mathtt{flag}\) |
+
+なんかいろいろ考えてビットを配置したが、HDLを触ったことがないので机上の空論になっている。
 
 hdl に落とすのは、自然数の入ったメモリの転送さえクリアできれば大丈夫そう。
+メモリセルは無限に続くが有限個を除いて \(0\) のセルになっているから、「これ以降は \(0\) という目印」を付属させるようにすればいい。
+
 自己書き換えができるとうれしいから、この"機械語の" `Machine` 実装では
 コード領域とデータ領域の論理アドレス空間は同じとする。
 これはつまり、 Neumann 型になっているということ。
 
-- 入力（ `AInput` ）： 4 つのレジスタの初期値とメモリの初期値を受け取る。
+- コード（ `Code = Vec<Number>`）：自然数列になる。
+- 入力（ `AInput = (Number, Number, Number, Number, Vec<Number>)` ）： 4 つのレジスタの初期値とメモリの初期値を受け取る。
     - 受け取ったコードを encode したのちに、入力で受け取ったメモリとくっつけて単一のメモリ空間にする。
 - `RInput` はなし、しいて言うなら、外部からの割り込みとかがあればいいのかもしれないが、ここでは扱わない。
-- 出力（ `Output` ）： 4 つのレジスタとメモリの値を出力する。
+- 出力（ `FOutput = (Number, Number, Number, Number, Vec<Number>)` ）： 4 つのレジスタとメモリの値を出力する。
 
 ## アセンブリ言語
 普通のアセンブリ言語。
+アセンブリ言語単体での意味論としては、コード領域とデータ領域はアドレス空間の異なる領域にあるとしていい。
+（アセンブリにより、 `.text` のあとに `.data` が来るが、それは保証しなくてよい。）
+
+つまり、 **機械語の単体とは異なり**ハーバード型である。
+
 上記の機械語の mnemonic の記述に加えて、以下の機能を付ける。
-- `.text` と `.data` セクションを入れて、ラベル（\(\NT{label} \defeq \T{@} \NT{string}\)を入れる。
-    - `.data` については、登場した順に番号を振り、サイズとそこに代入される値を順に書く。
-- コード用のラベルとデータ用のラベルは分けて、レジスタは `%r0, %r1, %r2, %r3` として書く。
-    - `ldi` だけ即値が必要になるので、これは、自然数かラベルでの入力とする。
-- 特別な値の計算：
+- `.text` と `.data` セクションのみ
+    - 交互に書いてもいい。
+- ラベルは `@` で始まる。
+    - コード用のラベルとデータ用のラベルは分けて、
+- レジスタは `%` で始まる。
+- `.f` をつけたら、条件分岐を入れる。
     - `@DATA_LEN`, `@CODE_LEN`... それぞれのセクションの長さを記述する。
     - `@THIS` これが書かれている行のアドレスを指す
+- `mov %r0 %r2` のようなジャンプ命令に対応するものは、 `jump %r2` とも書ける。
 - アセンブラへの指令や命令（ Directive ）：
-    - 特殊な定数値の定義 ... これはラベルと同じ扱いでよい。
+    - 特殊な定数値の定義
     - マクロによる疑似命令
 
-アセンブリ言語単体での意味論としては、コード領域とデータ領域はアドレス空間の異なる領域にあるとしていい。
-つまり、 **機械語の単体とは異なり**ハーバード型である。
+\(\begin{aligned}
+\NT{label}  &\defeq \T{@} \sp \NT{string} \\
+\NT{reg}    &\defeq \T{\%} \sp {0 ..= 8} \\
+\NT{imm}    &\defeq \T{\#} \sp \NT{number} \\
+\NT{const}  &\defeq \NT{string} \\
+\NT{inst}   &\defeq ( \\
+    &| \sp \NT{mnemonic} \sp (\T{.f})? \sp \NT{reg}? \sp \NT{reg}? \sp \NT{imm}? \\
+    ) \T{;} \\
+\NT{directive} &\defeq ( \\
+    &| \sp \T{.text} \\
+    &| \sp \T{.data} \\
+    &| \sp \T{.equ} \sp \NT{const} \sp \NT{imm}
+    ) \\
+\end{aligned}\)
+
+以上のものはアセンブラ言語の"前処理前"の記述になっている。
+`trait Machine` の実装としては、以下の点を除いて `tiny_isa` と変わらない。
+- アドレス空間がコード領域とデータ領域で別れている。
+- コード側は素直に `Vec<Inst>` で持っておけばよい。
 
 > [!Note] アドレス空間のとらえ方が機械語側と異なるのはやっていいのか？
 > 分けると、アセンブリの `Machine` の方では
@@ -77,25 +109,28 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 
 アドレスによる場所へのアクセスを一般化したら、ラベルを生でメモリセルみたいに使えない文法になった。
 それと、 control flow graph に寄せるためには、 terminator がブロックの最後に続くようにした方がいいらしい。
-ここでは、分岐命令を全部書いて最後に goto にした。
+ここでは、最後の部分は分岐命令を連続で書いた後に最後に goto にした。
 
 \(\begin{aligned}
 \NT{label}  &\defeq \T{@} \sp \NT{string} \\
-\NT{var}    &\defeq \T{\%} \sp \NT{string} \\
-\NT{addr}   &\defeq \NT{var} \sp | \sp \NT{label} \sp | \sp \T{\&} \NT{place} \\
+\NT{vreg}   &\defeq \T{\%v} \sp \NT{\number} \\
+\NT{addr}   &\defeq \NT{vreg} \sp | \sp \NT{label} \sp | \sp \T{\&} \NT{place} \\
 \NT{place}  &\defeq \T{[} \NT{addr} \T{]} \\
-\NT{value}  &\defeq \NT{var} \sp | \sp \NT{imm} \sp | \sp \T{*} \sp \NT{place} \\
+\NT{value}  &\defeq \NT{vreg} \sp | \sp \NT{imm} \sp | \sp \T{*} \sp \NT{place} \\
 
 \NT{cond}   &\defeq (\NT{value} \sp \T{<} \NT{value}) \sp | \sp (\NT{value} \sp \T{=} \NT{value}) \\
 
 \NT{stmt}   &\defeq ( \\
-    &| \sp \NT{var}     \sp \T{:=} \sp \NT{value} \sp \NT{op} \sp \NT{value} \\
-    &| \sp \NT{place}   \sp \T{:=} \sp (\NT{var} \sp | \sp \NT{value}) \\
+    &| \sp \NT{vreg}    \sp \T{:=} \sp \NT{value} \\
+    &| \sp \NT{vreg}    \sp \T{:=} \sp \NT{value} \sp \NT{op} \sp \NT{value} \\
+    &| \sp \NT{place}   \sp \T{:=} \sp \NT{value} \\
     ) \T{;} \\
-\NT{cont}   &\defeq ( \\
-    &| \sp \T{goto} \sp \NT{addr} \sp \T{;} \\
-    &| \sp \T{if}   \sp \NT{cond} \sp \T{then} \sp \NT{addr} \sp \T{;} \sp \NT{cont} \\
-    )
+
+\NT{jump-if}    &\defeq \T{if}   \sp \NT{cond} \sp \T{then} \sp \NT{addr} \sp \T{;} \\
+\NT{jump}       &\defeq \T{goto} \sp \NT{addr} \sp \T{;} \\
+\NT{cont}   &\defeq \NT{cond-jumo}* \NT{jump} \\
 \NT{block}  &\defeq \NT{label} \T{\{} \NT{stmt}* \sp \NT{cont} \T{\}} \\
 \NT{static} &\defeq \NT{label} \sp \NT{imm} \\
+
+\NT{program}    &\defeq \NT{static}* \NT{block}+
 \end{aligned}\)
