@@ -12,99 +12,179 @@ Turing machine で扱う用の Tape の記号
 ## IR1
 
 この言語の特徴
-- 変数と制御構造がある。
-- 関数は再帰はできない。衛生的なマクロ展開に近い。
-- その他に、IR 空の変換後に Turing machine と共有されるテープおよびそれへの操作がある。
-  - これは関数呼び出し前後で共有される。
-- ただし、変数もテープも事前に与えられた有限集合 \(S\) の値しかとらないものとする。
+- 書き込み先はテープと変数の2種類
+  - `@` という変数はテープの指しているセルを指す。
+  - 変数もテープも事前に与えられた有限集合 \(S\) の値しかとらないものとする。
+- 関数は再帰はできない。呼び出しグラフは有向非巡回である。衛生的なマクロ展開に近い。
+  - 変数は関数呼び出し前後で共有されない。
+  - テープは関数呼び出し前後で共有される。
+- `main` と名前の付いた関数を呼び出して始まる。存在しないならエラーになる。
 
+\(\begin{aligned}
+\NT{label}    &\defeq \NT{string} \\
+\NT{var}      &\defeq \NT{string} \\
+\NT{rvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \\
+\NT{lvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \sp | \sp S \\
 
-```
-<label> = <string>
-<fn-name> = <string>
+\NT{cond}     &\defeq \T{if} \sp \NT{rvalue} \sp \T{=} \sp \NT{rvalue} \\
+\NT{stmt}   &\defeq (\\
+  &|\T{LT} |\T{RT}  \\
+  &|\NT{;value} \sp \T{:=} \sp \NT{rvalue} \\
+  &|\T{jump}      \sp \NT{label}  \sp \NT{cond} \\
+  &|\T{break}                     \sp \NT{cond} \\
+  &|\T{continue}                  \sp \NT{cond} \\
+  &|\T{call}      \sp \NT{name} \\
+  &|\T{return}                    \sp \NT{cond} \\
+  ) \T{;} \\
+\NT{block}    &\defeq \NT{label} \sp \T{:} \NT{stmt}* \\
+\NT{function} &\defeq \NT{name} \sp \T{\{} \NT{block} \T{\}} \\
 
-<stmt> =
-  # TM のテープとの interact
-  | "LT"                # tape を左に動かす
-  | "RT"                # tape を右に動かす
-  | "READ" <var>        # head から <var> に値を読み出す。
-  | "STOR" <var>        # <var> から head に値を書き込む。
-  | "STOR" "const" <S>  # <S> を head に値を書き込む。
-  # 普通のプログラミング
-  | <var> ":=" <var>
-  | <var> ":=" "const" <var>
-  | "if" <var> "==" <S> "break" <label>
-  | "loop" <label> ":" "{" <stmt>*  "}"
-  | "call" <fn-name> "(" ("&")? <var>* ")"
-<function> = "fn" <fn-name> "(" <var>* ")" "{" <stmt>* "}"
-
-# main() と書かれたものを使う。
-```
+\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{(} \syntaxmacro{comma-separated}{S} \T{)} \\
+\NT{program}    &\defeq \NT{alphabet-decl} \sp \NT{function}+
+\end{aligned}\)
 
 プログラム状態
 : 実行状態は (tape, head, env) とする。
-  - tape: Z -> S, 有限を除いて \(\mathbb{B}\) に移る
-  - head: Z
-  - env: V -> S, 有限を除いて \(\mathbb{B}\) に移る
+  - tape: \(\Z \to S\), 有限を除いて \(\mathbb{B}\) に移る
+  - head: \(\Z\)
+  - env: \(V \to S\), 有限を除いて \(\mathbb{B}\) に移る
 
 基本命令
 : 
   - LT: head := head - 1
   - RT: head := head + 1
-  - READ v: env[v] := tape[head]
-  - STOR v: tape[head] := env[v]
-  - STOR s: tape[head] := s
-  - v := w: env[v] := env[w]
+  - @ := w: tape[head] への w の代入
+  - v := w: env[v] への env[w] の代入
+  - v := @: env[v] への tape[head] の代入
 
 制御
 :
-  - loop L { stmt* }:
-    - 先頭に制御が到達すると、stmt* を順に実行し、最後まで到達したら再び先頭に戻る。
-    - break L に到達すると、対応する loop L を抜けてその直後に制御が移る。
-  - if v == s break L:
-    - env[v] == s のときに限り break L を実行する。
-    - 偽の場合は何もせず次の文へ進む。
-
-### 関数と call
-- 重要: 引数は `&` のついているものは変数は呼び出し元と共有されて、
-  それ以外のものは　**値をコピー** して送り出す。
-- テープについては常に共有される。
-- 後述の IR2 の展開が有限回で終わるために、**再帰呼び出しは禁止**（呼び出しグラフは有向非巡回）とする。
-
-### 共有テープとの関係
-- テープへの作用は LT/RT/READ/STOR のみであり、call による暗黙の保存・復元は行わない。
+  - jump: 対応するブロックに飛ぶ
+  - continue 及び break: 今あるブロックの先頭に飛ぶ、次のブロックの先頭に飛ぶ
+  - call/return: 別の関数を呼び出す、今の関数を抜ける
 
 ## IR2
 これは普通にIR1の関数定義を展開して、 jump はラベルじゃなくて行数にしたもの。
 
-```
-<stmt> =
-  # TM のテープとの interact
-  | "LT"                # tape を左に動かす
-  | "RT"                # tape を右に動かす
-  | "READ" <var>        # head から <var> に値を読み出す。
-  | "STOR" <var>        # <var> から head に値を書き込む。
-  | "STOR" "const" <S>  # <S> を head に値を書き込む。
-  # 普通のプログラミング
-  | <var> ":=" <var>
-  | <var> ":=" "const" <S>
-  | "if" <var> "==" <S> "goto" <number>
-  | "goto" <number>
-```
+\(\begin{aligned}
+\NT{label}    &\defeq \NT{string} \\
+\NT{var}      &\defeq \NT{string} \\
+\NT{rvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \\
+\NT{lvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \sp | S \\
+
+\NT{cond}     &\defeq \T{if} \sp \NT{rvalue} \sp \T{=} \sp \NT{rvalue} \\
+\NT{stmt}   &\defeq (\\
+  &|\T{LT} |\T{RT}  \\
+  &|\NT{lvalue} \sp \T{:=} \sp \NT{rvalue} \\
+  &|\T{jump}      \sp \NT{number}  \sp \NT{cond} \\
+  ) \T{;} \\
+
+\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{(} \syntaxmacro{comma-separated}{S} \T{)} \\
+\NT{program}  &\defeq \NT{alphabet-decl} \sp \NT{stmt}*
+\end{aligned}\)
 
 これの意味は明らかなので書かない。
 
-## IR1 -> IR2
-- call f(a1, ..., an) の意味は以下の**展開規則**により与える。
+## IR1 \(\to\) IR2
+関数の呼び出しは DAG になっているので、そのまま名前が被らないようにして展開をすればよい。
+単純に展開すると名前が被るので、呼び出し**元**の関数の中で名前が一意になるようにする必要がある。
 
-1. f の本体中の変数とラベルはすべて新しい名前に α-変換する。
-    これにより呼び出し元の変数・ラベルと干渉しない。
-2. 新しい仮引数 p1', ..., pn' について、冒頭に
-    p1' := a1; ...; pn' := an
-    を挿入する。
-3. その後に α-変換済みの関数本体を続ける。
+具体例：
+```
+fn f {
+  entry:
+    return;
+}
 
-## テープの符号化と解釈
+fn main {
+  entry:
+    call f;
+  next:
+    call f;
+}
+```
+
+ここで単純に `fn f` だけの情報から得られるブロック列を展開すると、
+このようになって同じラベル名が出てきて不適。
+そもそも、どこに帰るのかもわからない。
+```
+main-entry:
+  goto f:
+f:
+  goto f-end:
+f-end:
+  goto ??:
+main-next:
+  goto f:
+f:
+  goto f-end:
+f-end:
+  goto ??:
+main-end:
+```
+
+これを踏まえて、ある関数の flatten は次のように行う。
+1. 関数内のブロックの処理
+    - 関数の実行後に必ず飛ぶ、 return 先の名前を受け取っておく。
+    - return 用のブロックを別の用意し、その中には受け取った名前への jump のみを入れる。
+    - return/continue/break を具体的なラベル名に置き換えてすべてを jump にする。
+    - return については、引数で受け取ったところに jump とする。
+    - 呼び出し元が、被らないような名前空間を用意しておく。
+2. 他の関数の呼び出しをそれぞれ flatten して、ブロックの列として得る。
+    - 他の関数との名前の衝突を避けるためのα変換をすること。
+    - 複数の呼び出しがあるケースに対応するため、呼び出し元ラベルと呼び出しの行数を一意性として使う。
+3. ブロックを `flat_map` のようにして展開する。
+
+これを `main` に対してやればよい。
+
+こんな感じに変形するべき（呼び出し元ラベルと行数のラベルを入れる）
+```
+main-entry:
+    goto main-entry-0-f
+  main-entry-0-f:
+    goto main-next
+  main-entry-0-f-end:
+    goto main-next
+main-next:
+    goto main-next-0-f
+  main-next-0-f:
+    goto main-next-0-f-end
+  main-next-0-f-end:
+    goto main-end
+main-end:
+```
+
+こうして得られたブロック列は、 `call/return/break/continue` free な IR1 である。
+これを変換するのは簡単で、各ラベルを行数に直しておけばよい。
+
+## IR2 \(\to\) TM
+最初から \(S\) が与えられているので、
+「tape[head] が何であろうと次はこの状態に行く」が「すべての \(S\) を列挙して状態遷移」に変換できる。
+あとは基本的には行数と変数環境を状態として encode すればよい。
+登場する変数も実際にわかっているので、最初から空白が代入されていると考える。
+
+具体例：
+```
+0: v := @;
+1: w := v;
+2: RT;
+3: jump 0 if w = @;
+```
+
+- \(V' \defeq \{v, w\}\)
+- \(Q \defeq \{0..=4\} \times (V' \to S)\)
+- \(Q_{\text{accepted}} = \{4\} \times (V' \to S)\)
+
+このもとで、
+1. `v := @`     :\(([0, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([1, (v \mapsto s  , w \mapsto s_2)], s), C\)
+2. `w := v`     :\(([1, (v \mapsto s_1, w \mapsto s_1)], s) \mapsto ([2, (v \mapsto s_1, w \mapsto s  )], s), C\)
+3. `RT`         :\(([2, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([3, (v \mapsto s_1, w \mapsto s_2)], s), R\)
+4. `jump ...`   :
+  - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([0, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 = s\) の場合に追加
+  - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([4, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 \neq s\) の場合に追加
+
+## 再帰関数 \(\to\) IR1
+### テープの符号化と解釈
 この節では、チューリングマシンの計算可能な関数を考えるため、自然数の符号化を述べる。
 ちゃんと `\,` とかを入れるのがめんどくさいので以降ではそのまま inline block で書く。
 以降では、実装に合わせて次のように書く。
@@ -112,7 +192,7 @@ Turing machine で扱う用の Tape の記号
 - 区切り記号： `x`
 - フラグ記号： `l`
 
-また、ヘッドのある部分を `a b c | d | e f g` のように `|` で囲む。
+また、ヘッドのある部分を `a, b, c | d | e, f, g` のように `|` で囲む。
 
 自然数の符号化
 : \(n \in \Nat\) に対して、 `l l  ... l l` のように `l` を \(n\) 個並べる。
@@ -203,6 +283,9 @@ glue
   - 出力： `... ? | x | F(p_1) F(p_2) x - ...`
 
 ### 合成関数
+合成関数 \(C[f_1, \ldots, f_n; g](p) \)
+: \(=g(f_1(p), \ldots, f_n(p))\)
+
 - 関数 \(f_1, \ldots, f_n\) に対応するマシン： \(M_1, \ldots, M_n\)
 - 関数 \(g\) に対応するマシン： \(M\)
 
@@ -213,7 +296,7 @@ glue
 | やること | 結果（テープ） |
 | --- | --- |
 | 一番最初の入力状況 | `... - \| x \| F(p) x` |
-| `A` を \(n\) 個コピーする。 | `... ? \| x \|  x F(p) x ... x F(p) x - ...` |
+| `A` を \(n\) 個コピーする。 | `... ? \| x \|  F(p) x ... x F(p) x - ...` |
 | 1. 一番右側の \(p\) の位置へ行き <br> 2. \(M_1\) を呼び、 <br> 3. 戻ってくる。 | `... ? \| x \| F(p) x F(p) x ... x - l(f_1(p)) x - ...` |
 | ローテーションを行う。 | `... ? \| x \| F(p) x F(p) x ... x - l(f_1(p)) x F(p) x - ...` |
 | 1. 一番右側の \(p\) の位置へ行き <br> \(M_2\) を呼び、 <br> 3. 戻ってくる。| `... ? \| x \| F(p) x F(p) x ... x - l(f_1(p)) x - l(f_2(p)) x - ...` |
@@ -229,24 +312,27 @@ glue
 これは後述する原始再帰関数の構成とは異なる。
 
 ### 原始再帰関数
+原始再帰関数 \(P[f_z, f_s](n, p)\) 
+: - \(P(0, p) = f_z(0)\)
+  - \(P(1 + n, p) = f_s(P(n, p), n, p)\)
+
 - \(f_z\) に対応するマシン： \(M_z\)
 - \(f_s\) に対応するマシン： \(M_s\)
 
-原始再帰関数（ \(P[f_z, f_s](n, p)\) ）については次のような順序で呼ぶ。
 肝は、 `x l x` の並びは自然数の組としては絶対に現れないこと。
 
 | やること | 結果（テープ） |
 | --- | --- |
 | 一番最初の入力状況：入力は \((n, n_1, \ldots, n_k)\) として \(p = (n_1, \ldots, n_k)\) とする。 | `... ? - \| x \| - l(n) F(p) x - ...` |
 | マーカーとして `x l x` を挿入する。 | `... ? - \| x \| l x - l(n) F(p) x - ...` |
-| 右側を \(n\) の値を下げながらコピーし、 \(n = 0\) になったら \(p\) のみをコピーする。 <br> 返ってくる必要はない。| `... ? - x l x - l(n) F(p) x - l(n-1) F(p) x ... x - l F(p) x \| x \| F(p) ...` |
-| \(M_z\) を呼ぶ。| `... ? - x - l(n) F(p) x - l(n-1) F(p) x ... x - l F(p) \| x \| - l(f_z(p)) x ...` |
-| （☆）現在の状況 | `... ? x l x - l(m + 1) F(p) x - l(m) F(p) \| x \| - l(j) x` ただし、 \(j = P[f_z, f_s](m - 1, p)\) |
-| **もし** 左側が `... ? x l` なら、 `x l` を除去し間を詰めて終了する。| `? x l \| x \| - l(j) x` から `? \| x \| - l(j) x` |
-| （以降はそうでない場合） 1 つ左へ行く | `... ? x l x ... \| x \| - l(m) F(p) x - l(j) x` |
-| 2 つを入れ替えた後くっつける。 | `... ? x l x ... \| x \| - l(j) - l(m) F(p) x` |
-| 状況確認： \((j = P[f_z, f_s](m - 1, p), m, p)\) だから、 \(M_s((j, m, p)) = P[f_z, f_s](m, p)\) である。 | `... ? x l x ... \| x \| F((j, m)) F(p) x` |
-| \(M_s\) を呼ぶ | `... ? x l x ... \| x \| - l(j') x` ただし、 \(j' = P[f_z, f_s](m, p)\) |
+| 右側を \(n\) の値を下げながらコピーし、 <br> \(n = 0\) になったら \(p\) のみをコピーする。 <br> 返ってくる必要はない。| `... ? - x l x - l(n-1) F(p) x - l(n-2) F(p) x ... x - l F(p) \| x \| F(p) x ...` |
+| \(M_z\) を呼ぶ。| `... ? - x - l(n-1) F(p) x ... x - l F(p) \| x \| - l(f_z(p)) x ...` |
+| （☆）現在の状況 | `... ? x l \| x \| - l(j) x` or <br> `... ? x - l(m) F(p) \| x \| - l(j) x` <br> ただし、 \(j = P[f_z, f_s](m - 1, p)\) |
+| **もし** 左側が `... ? x l` なら、 `x l` を除去し間を詰めて終了する。| `? x l \| x \| - l(j) x` から <br> `? \| x \| - l(j) x` |
+| （以降はそうでない場合） 1 つ左へ行く | `... ? \| x \| - l(m) F(p) x - l(j) x` |
+| 2 つを入れ替えた後くっつける。 | `... ? \| x \| - l(j) - l(m) F(p) x` |
+| 状況確認： \((j = P[f_z, f_s](m - 1, p), m, p)\) だから、 \(M_s((j, m, p)) = P[f_z, f_s](m, p)\) である。 | `... ? \| x \| F((j, m)) F(p) x` |
+| \(M_s\) を呼ぶ | `... ? \| x \| - l(j') x` <br> ただし、 \(j' = P[f_z, f_s](m, p)\) |
 | （☆）の部分に戻る。 |  |
 
 合成関数と同じように、これも対応する原始関数を計算するマシンを構成している。
@@ -260,24 +346,28 @@ glue
   - `f_z` 呼んで `x l x - l(0) F(p) x - l(f_z(p)) x` 後処理して `x l x - l(f_z(p)) - l(0) F(p) x` ... `x l x F(f_z(p), 0, p) x`
   - `f_s` 呼んで終わり。
 
-そのため、1だけずらす必要がある。
+そのため、与えられた \(n\) から \(1\) だけずらす必要がある。
 
 ### \(\mu\) 再帰関数
-\(\mu\) 再帰関数については次のような順序で呼ぶ。
-- \(f\) に対応するマシン： \(M\)
+再帰関数 \(\mu[f](p)\)
+: \( = \min \{n \mid f(n, p) = 0\}\)
 
-再帰関数 \(\mu[f](n)\)
+- \(f\) に対応するマシン： \(M_f\)
 
 | やること | 結果（テープ） |
 | --- | --- |
-| `... ? \| x \| F(p) x - x` と変形する。| `... ? \| x \| F(p) x x`|
+| `... ? \| x \| F(p) x - x` と変形する。| `... ? \| x \| F(p) x - x` |
 | （☆）現在の状況 | `... ? \| x \| F(p) x - l(n) x` |
-| `... ? \| x \| F(p) x - l(n) x - l(n) F(p) x` と変形して、右に 2 回行く。 | `... ? x F(p) x - l(n) \| x \| F((n, p)) x` |
-| \(M\) を呼ぶ | `... ? x F(p) x - l(n) \| x \| - l(f(n, p)) x` |
-| もし右側が \(0\) なら次のように変形して終了する | `... ? x F(p) x - l(n) \| x \| - x` から `... ? \| x \| - l(n) x ` |
+| copy, rotate を使って右のように変形する | `... ? \| x \| F(p) x - l(n) x - l(n) F(p) x` |
+| 右に 2 回行く | `... ? x F(p) x - l(n) \| x \| - l(n) F(p) x` |
+| \(M_f\) を呼ぶ | `... ? x F(p) x - l(n) \| x \| - l(f(n, p)) x` |
+| もし右側が \(0\) ならループを抜けて（〇）に行く | `... ? x F(p) x - l(n) \| x \| - x` |
 | （以降は \(0\) でない場合）：右側を消して左側に行く | `... ? x F(p) \| x \| - l(n) x - ...` |
 | 右に \(1\) を足したら左側に行く | `... ? x F(p) \| x \| - l(n + 1) x - ...` |
 | （☆）に戻る | |
+| （〇）現在の状況 | `... ? x F(p) x - l(n) \| x \| - x` |
+| 右側を消したら左に 2 回行く | `... ? \| x \| F(p) x - l(n) x - - ...` |
+| rotate して `l(n)` を前に持ってきてから残りを消す | `... ? \| x \| - l(n) x - ...` |
 
 これも対応する \(\mu\) 再帰関数を計算している。
 万が一与えられたマシンが与えられた入力に対して \(0\) を出力するような \(n\) を持たない場合、
