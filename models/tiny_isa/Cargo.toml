@@ -3,10 +3,21 @@ name = "tiny_isa"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "tiny_isa"
+path = "src/bin/tiny_isa.rs"
+
+[[bin]]
+name = "symbolic_asm"
+path = "src/bin/symbolic_asm.rs"
+
+[[bin]]
+name = "cfg_vreg"
+path = "src/bin/cfg_vreg.rs"
+
 [dependencies]
 utils = { workspace = true }
 anyhow = { workspace = true }
 wasm-bindgen = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-
