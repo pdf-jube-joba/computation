@@ -146,9 +146,9 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 \(\begin{aligned}
 \NT{label}  &\defeq \T{@} \sp \NT{string} \\
 \NT{vreg}   &\defeq \T{\%v} \sp \NT{number} \\
-\NT{addr}   &\defeq \NT{vreg} \sp | \sp \NT{label} \sp | \sp \T{\&} \NT{place} \\
+\NT{addr}   &\defeq \NT{vreg} \sp | \sp \NT{label} \sp | \sp \NT{imm} \\
 \NT{place}  &\defeq \T{[} \NT{addr} \T{]} \\
-\NT{value}  &\defeq \NT{vreg} \sp | \sp \NT{imm} \sp | \sp \T{*} \sp \NT{place} \\
+\NT{value}  &\defeq \NT{vreg} \sp | \sp \NT{imm} \sp | \sp \T{*} \sp \NT{place} \sp | \sp \NT{label} \\
 
 \NT{cond}   &\defeq (\NT{value} \sp \NT{rel} \sp \NT{value})\\
 
@@ -160,7 +160,7 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 
 \NT{jump-if}    &\defeq \T{if}   \sp \NT{cond} \sp \T{then} \sp \NT{addr} \sp \T{;} \\
 \NT{jump}       &\defeq \T{goto} \sp \NT{addr} \sp \T{;} \\
-\NT{cont}   &\defeq \NT{cond-jumo}* \NT{jump} \\
+\NT{cont}   &\defeq \NT{jump-if}* \NT{jump} \\
 \NT{block}  &\defeq \NT{label} \T{\{} \NT{stmt}* \sp \NT{cont} \T{\}} \\
 
 \NT{static} &\defeq \NT{label} \sp \NT{imm} \\
@@ -171,3 +171,13 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 とりあえず、isa と asm とは違って、メモリだけ受け取るのがよさそう
 `AInput = FOutput = Vec<Number>` にする。
 これを `static` で定義された領域のうしろに連結をする。
+
+- \(\text{static}   := \NT{label} \to \N\) ... ラベルとメモリ番号の numbering
+- \(\text{env}      := \NT{vreg} \to \N\) ... 仮想レジスタの値を表す環境
+- \(\text{memEnv}   := \N \to \N\) ... メモリの状況を表す環境（アドレスからそこに入っている値への関数）。
+- \(\text{eval-addr}: (\text{static}, \text{env}) \to \NT{addr} \to \N := \ldots\)
+- \(\text{eval-value}: (\text{static}, \text{env}) \to \NT{value} \to \N := \ldots\)
+
+まあやればできるでしょう。
+ところで、型をいれて validation をするなら、 \(\NT{addr}\) を code 用とデータ用に分けて、レジスタも分ければいい？
+AI が生成したものにはちょっと不満もあるが、まあこんなものでしょう。

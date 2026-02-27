@@ -315,7 +315,7 @@ fn parse_cond(s: &str) -> Result<Cond, String> {
         ));
     }
     if let Some((a, b)) = s.split_once(" > ") {
-        return Ok(Cond::Eq(
+        return Ok(Cond::Gt(
             parse_value_expr(a.trim())?,
             parse_value_expr(b.trim())?,
         ));
@@ -325,14 +325,17 @@ fn parse_cond(s: &str) -> Result<Cond, String> {
 
 fn parse_addr_expr(s: &str) -> Result<AddrExpr, String> {
     let s = s.trim();
-    if let Some(rest) = s.strip_prefix("&") {
-        return Ok(AddrExpr::Ref(Box::new(parse_place_expr(rest.trim())?)));
-    }
     if s.starts_with("%v") {
         return Ok(AddrExpr::VReg(parse_vreg(s)?));
     }
     if let Some(label) = s.strip_prefix('@') {
         return Ok(AddrExpr::Label(label.to_string()));
+    }
+    if let Some(n) = s.strip_prefix('#') {
+        return Ok(AddrExpr::Imm(parse_number(n)?));
+    }
+    if s.chars().all(|c| c.is_ascii_digit()) {
+        return Ok(AddrExpr::Imm(parse_number(s)?));
     }
     Err(format!("Invalid addr expr: {}", s))
 }
@@ -353,6 +356,9 @@ fn parse_value_expr(s: &str) -> Result<ValueExpr, String> {
     }
     if s.starts_with("%v") {
         return Ok(ValueExpr::VReg(parse_vreg(s)?));
+    }
+    if let Some(label) = s.strip_prefix('@') {
+        return Ok(ValueExpr::Label(label.to_string()));
     }
     if let Some(n) = s.strip_prefix('#') {
         return Ok(ValueExpr::Imm(parse_number(n)?));
@@ -379,6 +385,7 @@ fn value_to_text(v: &ValueExpr) -> String {
     match v {
         ValueExpr::VReg(i) => format!("%v{}", i),
         ValueExpr::Imm(n) => format!("#{}", n.to_decimal_string()),
+        ValueExpr::Label(l) => format!("@{}", l),
         ValueExpr::Deref(p) => format!("*{}", place_to_text(p)),
     }
 }
@@ -387,7 +394,7 @@ fn addr_to_text(a: &AddrExpr) -> String {
     match a {
         AddrExpr::VReg(i) => format!("%v{}", i),
         AddrExpr::Label(l) => format!("@{}", l),
-        AddrExpr::Ref(p) => format!("&{}", place_to_text(p)),
+        AddrExpr::Imm(n) => format!("#{}", n.to_decimal_string()),
     }
 }
 

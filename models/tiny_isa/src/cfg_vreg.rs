@@ -72,7 +72,7 @@ pub enum BinOp {
 pub enum AddrExpr {
     VReg(usize),
     Label(String),
-    Ref(Box<PlaceExpr>),
+    Imm(Number),
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +82,7 @@ pub struct PlaceExpr(pub Box<AddrExpr>);
 pub enum ValueExpr {
     VReg(usize),
     Imm(Number),
+    Label(String),
     Deref(PlaceExpr),
 }
 
@@ -160,7 +161,7 @@ impl CfgVRegMachine {
                         .map(Number::from)
                 })
                 .ok_or_else(|| format!("Unknown label: @{name}")),
-            AddrExpr::Ref(place) => Ok(Number::from(self.eval_place(place)?)),
+            AddrExpr::Imm(n) => Ok(n.clone()),
         }
     }
 
@@ -172,6 +173,7 @@ impl CfgVRegMachine {
         match value {
             ValueExpr::VReg(i) => Ok(self.get_vreg(*i)),
             ValueExpr::Imm(n) => Ok(n.clone()),
+            ValueExpr::Label(name) => self.eval_addr(&AddrExpr::Label(name.clone())),
             ValueExpr::Deref(place) => {
                 let addr = self.eval_place(place)?;
                 Ok(self.read_mem(addr))
