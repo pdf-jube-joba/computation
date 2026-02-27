@@ -844,6 +844,7 @@ class PipelineController {
     this.controllerStatusEl = this.controllerStatusBox.body;
 
     this.pipelineRoot = ensureChild(this.root, ".wm-pipeline", "div", "wm-pipeline");
+    this.pipelineRoot.classList.add("wm-pipeline-vertical");
     const reportStatus = message => this.setStatus(message);
     const reportError = message => this.setError(message);
     this.nodeViews = [];

@@ -38,6 +38,10 @@ dd + dd::before {
   margin-bottom: 12px;
 }
 
+.wm-pipeline.wm-pipeline-vertical {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .wm-node,
 .wm-edge {
   border: 1px solid #cfd8e3;
@@ -252,8 +256,16 @@ dd + dd::before {
     align-items: start;
   }
 
+  .wm-pipeline.wm-pipeline-vertical {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .wm-edge {
     width: 320px;
+  }
+
+  .wm-pipeline.wm-pipeline-vertical .wm-edge {
+    width: auto;
   }
 }
 
