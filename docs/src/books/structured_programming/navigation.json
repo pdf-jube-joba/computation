@@ -9,20 +9,8 @@
       "href": "../"
     },
     {
-      "title": "構造化プログラミング",
-      "href": "./index.html"
-    },
-    {
-      "title": "アセンブリ言語",
-      "href": "./assembly.html"
-    },
-    {
-      "title": "制御グラフ・仮想レジスタ",
-      "href": "./cfg_vreg.html"
-    },
-    {
-      "title": "スタックとヒープ",
-      "href": "./stack_and_heap.html"
+      "title": "関数と呼び出し",
+      "href": "./procesure.html"
     },
     {
       "title": "制御構造",

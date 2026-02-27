@@ -17,16 +17,24 @@
       "href": "./logic_circuit.html"
     },
     {
-      "title": "論理回路でよく使う部品",
-      "href": "./component.html"
-    },
-    {
-      "title": "hardware description language",
+      "title": "ハードウェア記述言語",
       "href": "./hardware_description_language.html"
     },
     {
       "title": "コンピュータ",
       "href": "./computer.html"
+    },
+    {
+      "title": "アセンブリ言語",
+      "href": "./assembly.html"
+    },
+    {
+      "title": "仮想レジスタと Control flow graph",
+      "href": "./cfg_vreg.html"
+    },
+    {
+      "title": "スタックとヒープ",
+      "href": "./stack_and_heap.html"
     }
   ]
 }
