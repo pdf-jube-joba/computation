@@ -12,7 +12,11 @@
 
 \txtop:\operatorname{#1}
 
-\NT:\langle \mathit{#1} \rangle
+\NT:\langle \text{\textit{#1}} \rangle
 \T:{\mathtt{"{#1}"}}
 \sp:\;
 \defeq:\mathrel{::=}
+\syntaxmacro:\text{#1} \langle #2 \rangle
+
+\LP:{(}
+\RP:{)}
