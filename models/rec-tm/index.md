@@ -39,7 +39,7 @@ Turing machine で扱う用の Tape の記号
 \NT{block}    &\defeq \NT{label} \sp \T{:} \NT{stmt}* \\
 \NT{function} &\defeq \NT{name} \sp \T{\{} \NT{block} \T{\}} \\
 
-\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{(} \syntaxmacro{comma-separated}{S} \T{)} \\
+\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{\LP} \syntaxmacro{comma-separated}{S} \T{\RP} \\
 \NT{program}    &\defeq \NT{alphabet-decl} \sp \NT{function}+
 \end{aligned}\)
 
@@ -79,7 +79,7 @@ Turing machine で扱う用の Tape の記号
   &|\T{jump}      \sp \NT{number}  \sp \NT{cond} \\
   ) \T{;} \\
 
-\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{(} \syntaxmacro{comma-separated}{S} \T{)} \\
+\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{\LP} \syntaxmacro{comma-separated}{S} \T{\RP} \\
 \NT{program}  &\defeq \NT{alphabet-decl} \sp \NT{stmt}*
 \end{aligned}\)
 
