@@ -1,6 +1,6 @@
 \SET:{\text{Set}}
 \function:{\to}
-\partfunction:{\rightharpoonup}
+\pfun:{\rightharpoonup}
 
 \Nat:{\mathbb{N}}
 \String:{\mathbb{S}}

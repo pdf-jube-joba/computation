@@ -51,10 +51,10 @@
 状態を持ち、入力を受け取って状態を変化させ出力を行うもののことである。
 これの定式化はいくつかある。
 - Mealy machine
-    - \((S: \SET, I: \SET, O: \SET, s_0: S, \delta: S \times I \partfunction S times O)\) のこととする。
+    - \((S: \SET, I: \SET, O: \SET, s_0: S, \delta: S \times I \pfun S times O)\) のこととする。
     - これは出力が入力と現在の状態に依存する
 - Moore machine
-    - \((S: \SET, I: \SET, O: \SET, s_0: S, \delta: S \times I \partfunction S, \delta_O: S \function O)\)
+    - \((S: \SET, I: \SET, O: \SET, s_0: S, \delta: S \times I \pfun S, \delta_O: S \function O)\)
     - これは出力が現在の状態にのみ依存する。
 
 普通の論理回路自体を Mealy 型のステートマシンとみなすことは簡単だが、
