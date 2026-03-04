@@ -11,6 +11,7 @@ members = [
   "models/mini_prog",
   "models/my_hdl",
   "models/recursive_function",
+  "models/rec-goto",
   "models/rec-lam",
   "models/rec-tm",
   "models/tiny_isa",

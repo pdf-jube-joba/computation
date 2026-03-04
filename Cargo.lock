@@ -383,6 +383,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "recursive_function-goto_lang"
+version = "0.1.0"
+dependencies = [
+ "goto_lang",
+ "recursive_function",
+ "utils",
+]
+
+[[package]]
 name = "recursive_function-lambda_calculus"
 version = "0.1.0"
 dependencies = [

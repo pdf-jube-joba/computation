@@ -1,0 +1,13 @@
+[package]
+name = "recursive_function-goto_lang"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "recursive_function-goto_lang"
+path = "src/bin/recursive_function-goto_lang.rs"
+
+[dependencies]
+utils = { workspace = true }
+recursive_function = { workspace = true }
+goto_lang = { workspace = true }
