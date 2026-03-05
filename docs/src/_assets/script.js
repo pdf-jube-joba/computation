@@ -33,6 +33,17 @@ function wmLog(...args) {
   console.log("[wm]", ...args);
 }
 
+function parseJsonString(value, name) {
+  if (typeof value !== "string") {
+    throw new Error(`${name} returned non-string value`);
+  }
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    throw new Error(`${name} returned invalid JSON: ${e}`);
+  }
+}
+
 function buildCompilerEdgeMetas(names) {
   const metas = [];
   for (let i = 0; i + 1 < names.length; i += 1) {
@@ -167,12 +178,14 @@ class MachineWrapper {
 
   async stepMachine(runtimeInputStr) {
     this.assertReady();
-    return Promise.resolve(this.stepFn(runtimeInputStr));
+    const raw = await Promise.resolve(this.stepFn(runtimeInputStr));
+    return parseJsonString(raw, "step_machine");
   }
 
   async currentState() {
     this.assertReady();
-    return Promise.resolve(this.currentFn());
+    const raw = await Promise.resolve(this.currentFn());
+    return parseJsonString(raw, "current_machine");
   }
 }
 
