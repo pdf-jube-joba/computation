@@ -3,4 +3,12 @@ name = "flow_ir"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "flow_ir"
+path = "src/bin/flow_ir.rs"
+
 [dependencies]
+utils = { workspace = true }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

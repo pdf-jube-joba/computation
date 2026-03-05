@@ -172,6 +172,12 @@ dependencies = [
 [[package]]
 name = "flow_ir"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "utils",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "generic-array"
