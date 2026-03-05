@@ -160,36 +160,48 @@ fn decoded_inst_to_text(inst: &DecodedInst) -> String {
         DecodedInst::Rst => "rst".to_string(),
         DecodedInst::Ld { rd, rb } => format!("ld r{rd} r{rb}"),
         DecodedInst::St { rs, rb } => format!("st r{rs} r{rb}"),
-        DecodedInst::Mov { cond_flag, rd, rs } => if *cond_flag {
-            format!("mov.f r{rd} r{rs}")
-        } else {
-            format!("mov r{rd} r{rs}")
-        },
-        DecodedInst::Ldi { cond_flag, rd, imm } => if *cond_flag {
-            format!("ldi.f r{rd} #{}", imm.to_decimal_string())
-        } else {
-            format!("ldi r{rd} #{}", imm.to_decimal_string())
-        },
-        DecodedInst::Add { cond_flag, rd, rs } => if *cond_flag {
-            format!("add.f r{rd} r{rs}")
-        } else {
-            format!("add r{rd} r{rs}")
-        },
-        DecodedInst::Sub { cond_flag, rd, rs } => if *cond_flag {
-            format!("sub.f r{rd} r{rs}")
-        } else {
-            format!("sub r{rd} r{rs}")
-        },
-        DecodedInst::Addi { cond_flag, rd, imm } => if *cond_flag {
-            format!("addi.f r{rd} #{}", imm.to_decimal_string())
-        } else {
-            format!("addi r{rd} #{}", imm.to_decimal_string())
-        },
-        DecodedInst::Subi { cond_flag, rd, imm } => if *cond_flag {
-            format!("subi.f r{rd} #{}", imm.to_decimal_string())
-        } else {
-            format!("subi r{rd} #{}", imm.to_decimal_string())
-        },
+        DecodedInst::Mov { cond_flag, rd, rs } => {
+            if *cond_flag {
+                format!("mov.f r{rd} r{rs}")
+            } else {
+                format!("mov r{rd} r{rs}")
+            }
+        }
+        DecodedInst::Ldi { cond_flag, rd, imm } => {
+            if *cond_flag {
+                format!("ldi.f r{rd} #{}", imm.to_decimal_string())
+            } else {
+                format!("ldi r{rd} #{}", imm.to_decimal_string())
+            }
+        }
+        DecodedInst::Add { cond_flag, rd, rs } => {
+            if *cond_flag {
+                format!("add.f r{rd} r{rs}")
+            } else {
+                format!("add r{rd} r{rs}")
+            }
+        }
+        DecodedInst::Sub { cond_flag, rd, rs } => {
+            if *cond_flag {
+                format!("sub.f r{rd} r{rs}")
+            } else {
+                format!("sub r{rd} r{rs}")
+            }
+        }
+        DecodedInst::Addi { cond_flag, rd, imm } => {
+            if *cond_flag {
+                format!("addi.f r{rd} #{}", imm.to_decimal_string())
+            } else {
+                format!("addi r{rd} #{}", imm.to_decimal_string())
+            }
+        }
+        DecodedInst::Subi { cond_flag, rd, imm } => {
+            if *cond_flag {
+                format!("subi.f r{rd} #{}", imm.to_decimal_string())
+            } else {
+                format!("subi r{rd} #{}", imm.to_decimal_string())
+            }
+        }
         DecodedInst::Eq { rd, rs } => format!("eq r{rd} r{rs}"),
         DecodedInst::Lt { rd, rs } => format!("lt r{rd} r{rs}"),
         DecodedInst::Gt { rd, rs } => format!("gt r{rd} r{rs}"),

@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::io::{self, Read};
 
-use clap::{Parser, Subcommand, error::ErrorKind};
+use clap::{error::ErrorKind, Parser, Subcommand};
 
 use crate::{Compiler, Machine, TextCodec};
 

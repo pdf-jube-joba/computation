@@ -95,6 +95,35 @@ impl TextCodec for FlowValue {
     }
 }
 
+impl TextCodec for StaticEnv {
+    fn parse(text: &str) -> Result<Self, String> {
+        let mut entries = std::collections::BTreeMap::new();
+        for line in text.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let Some((left, right)) = line.split_once('=') else {
+                return Err(format!("Invalid static input line: {line}"));
+            };
+            let key = left.trim().to_string();
+            if key.is_empty() {
+                return Err("Empty static input key".to_string());
+            }
+            let value = FlowValue::parse(right.trim())?;
+            entries.insert(key, value);
+        }
+        Ok(StaticEnv { entries })
+    }
+
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
+        for (k, v) in &self.entries {
+            writeln!(f, "{} = {}", k, v.print())?;
+        }
+        Ok(())
+    }
+}
+
 impl From<FlowIrMachine> for serde_json::Value {
     fn from(machine: FlowIrMachine) -> Self {
         let mut blocks = Vec::new();
@@ -121,8 +150,7 @@ impl From<FlowIrMachine> for serde_json::Value {
         let vreg_rows: Vec<serde_json::Value> = machine
             .vregs
             .iter()
-            .enumerate()
-            .map(|(i, v)| json!({ "cells": [json_text!(format!("v{i}")), json_text!(v.print())] }))
+            .map(|(name, v)| json!({ "cells": [json_text!(format!("%{}", name)), json_text!(v.print())] }))
             .collect();
         blocks.push(json!({
             "kind": "table",
@@ -317,6 +345,9 @@ fn parse_header_label(line: &str) -> Result<String, String> {
 
 fn parse_stmt(line: &str) -> Result<Option<Stmt>, String> {
     let line = line.trim();
+    if line == "nop;" {
+        return Ok(Some(Stmt::Nop));
+    }
     if let Some(rest) = line.strip_prefix("pop ") {
         let body = trim_stmt_end(rest)?;
         return Ok(Some(Stmt::Pop {
@@ -361,7 +392,7 @@ fn parse_stmt(line: &str) -> Result<Option<Stmt>, String> {
     let lhs = lhs.trim();
     let rhs = rhs.trim();
 
-    if lhs.starts_with("%v") {
+    if lhs.starts_with('%') {
         let dst = parse_vreg(lhs)?;
         if let Some(rest) = rhs.strip_prefix("ld ") {
             let place = parse_place_expr(rest.trim())?;
@@ -497,7 +528,7 @@ fn parse_value_expr(s: &str) -> Result<ValueExpr, String> {
     if let Some(rest) = s.strip_prefix("ref ") {
         return Ok(ValueExpr::Ref(parse_place_expr(rest.trim())?));
     }
-    if s.starts_with("%v") {
+    if s.starts_with('%') {
         return Ok(ValueExpr::VReg(parse_vreg(s)?));
     }
     if let Some(label) = s.strip_prefix(':') {
@@ -516,11 +547,14 @@ fn parse_value_expr(s: &str) -> Result<ValueExpr, String> {
 }
 
 fn parse_vreg(s: &str) -> Result<Vreg, String> {
-    s.trim()
-        .strip_prefix("%v")
-        .ok_or_else(|| format!("Invalid vreg: {s}"))?
-        .parse::<Vreg>()
-        .map_err(|e| e.to_string())
+    let body = s
+        .trim()
+        .strip_prefix('%')
+        .ok_or_else(|| format!("Invalid vreg: {s}"))?;
+    if body.is_empty() {
+        return Err(format!("Invalid vreg: {s}"));
+    }
+    Ok(body.to_string())
 }
 
 fn trim_stmt_end(s: &str) -> Result<&str, String> {
@@ -532,7 +566,7 @@ fn trim_stmt_end(s: &str) -> Result<&str, String> {
 
 fn value_to_text(v: &ValueExpr) -> String {
     match v {
-        ValueExpr::VReg(i) => format!("%v{i}"),
+        ValueExpr::VReg(i) => format!("%{i}"),
         ValueExpr::Imm(n) => format!("#{}", n.to_decimal_string()),
         ValueExpr::CodeLabel(l) => format!(":{l}"),
         ValueExpr::Ref(p) => format!("ref {}", place_to_text(p)),
@@ -542,7 +576,7 @@ fn value_to_text(v: &ValueExpr) -> String {
 fn place_to_text(p: &PlaceExpr) -> String {
     match p {
         PlaceExpr::Label(label) => format!("@{label}"),
-        PlaceExpr::Deref(vreg) => format!("deref %v{vreg}"),
+        PlaceExpr::Deref(vreg) => format!("deref %{vreg}"),
         PlaceExpr::SAcc(v) => format!("sacc {}", value_to_text(v)),
         PlaceExpr::HAcc { handle, index } => {
             format!("hacc({})[{}]", value_to_text(handle), value_to_text(index))
@@ -560,15 +594,16 @@ fn cond_to_text(c: &Cond) -> String {
 
 fn stmt_to_text(s: &Stmt) -> String {
     match s {
-        Stmt::Load { dst, place } => format!("%v{dst} := ld {};", place_to_text(place)),
-        Stmt::Assign { dst, src } => format!("%v{dst} := {};", value_to_text(src)),
+        Stmt::Nop => "nop;".to_string(),
+        Stmt::Load { dst, place } => format!("%{dst} := ld {};", place_to_text(place)),
+        Stmt::Assign { dst, src } => format!("%{dst} := {};", value_to_text(src)),
         Stmt::BinOp { dst, lhs, op, rhs } => {
             let op = match op {
                 BinOp::Add => "+",
                 BinOp::Sub => "-",
             };
             format!(
-                "%v{dst} := {} {} {};",
+                "%{dst} := {} {} {};",
                 value_to_text(lhs),
                 op,
                 value_to_text(rhs)
@@ -577,10 +612,10 @@ fn stmt_to_text(s: &Stmt) -> String {
         Stmt::Store { place, src } => {
             format!("{} := st {};", place_to_text(place), value_to_text(src))
         }
-        Stmt::Pop { dst } => format!("pop %v{dst};"),
+        Stmt::Pop { dst } => format!("pop %{dst};"),
         Stmt::Push { src } => format!("push {};", value_to_text(src)),
-        Stmt::LGet { dst } => format!("lget %v{dst};"),
-        Stmt::HAlloc { size, dst } => format!("halloc({}) %v{dst};", value_to_text(size)),
+        Stmt::LGet { dst } => format!("lget %{dst};"),
+        Stmt::HAlloc { size, dst } => format!("halloc({}) %{dst};", value_to_text(size)),
         Stmt::HFree { handle } => format!("hfree {};", value_to_text(handle)),
     }
 }
@@ -603,25 +638,26 @@ mod tests {
 @slot 0
 :main {
   :entry {
-    %v0 := ref @slot;
-    deref %v0 := st :next;
-    %v1 := ld @slot;
-    if %v2 = #0 then :next;
-    goto %v1;
+    nop;
+    %p := ref @slot;
+    deref %p := st :next;
+    %jmp := ld @slot;
+    if %cond = #0 then :next;
+    goto %jmp;
   }
   :next {
-    halloc(#3) %v3;
-    hacc(%v3)[#1] := st #7;
-    %v4 := ld hacc(%v3)[#1];
-    push %v4;
+    halloc(#3) %h;
+    hacc(%h)[#1] := st #7;
+    %x := ld hacc(%h)[#1];
+    push %x;
     halt;
   }
 }
 :r2 {
   :entry {
-    lget %v0;
-    pop %v1;
-    push %v0;
+    lget %len;
+    pop %tmp;
+    push %len;
     hfree #1;
     halt;
   }

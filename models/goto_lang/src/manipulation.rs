@@ -209,11 +209,14 @@ ifnz x : 0
             match program.step(()).unwrap() {
                 utils::StepResult::Continue { next, output: () } => {
                     program = next;
-                },
-                utils::StepResult::Halt { snapshot: _, output } => {
+                }
+                utils::StepResult::Halt {
+                    snapshot: _,
+                    output,
+                } => {
                     print_env(&output);
                     break;
-                },
+                }
             }
         }
     }

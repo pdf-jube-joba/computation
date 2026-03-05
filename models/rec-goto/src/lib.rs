@@ -135,12 +135,9 @@ impl CodeBuilder {
             RecursiveFunctions::PrimitiveRecursion {
                 zero_func,
                 succ_func,
-            } => self.compile_primitive_recursion(
-                zero_func.as_ref(),
-                succ_func.as_ref(),
-                args,
-                dst,
-            ),
+            } => {
+                self.compile_primitive_recursion(zero_func.as_ref(), succ_func.as_ref(), args, dst)
+            }
             RecursiveFunctions::MuOperator { mu_func } => {
                 self.compile_mu_operator(mu_func.as_ref(), args, dst);
             }
@@ -311,8 +308,9 @@ mod tests {
 
     fn run_goto(function: RecursiveFunctions, input: Vec<usize>, step_limit: usize) -> Number {
         let code = compile(&function).unwrap();
-        let ainput = RecToGotoCompiler::encode_ainput(input.into_iter().map(Number::from).collect())
-            .unwrap();
+        let ainput =
+            RecToGotoCompiler::encode_ainput(input.into_iter().map(Number::from).collect())
+                .unwrap();
         let mut machine = Program::make(code, ainput).unwrap();
         for _ in 0..step_limit {
             match machine.step(()).unwrap() {
@@ -328,7 +326,10 @@ mod tests {
     #[test]
     fn compile_successor() {
         let function = RecursiveFunctions::succ();
-        assert_eq!(run_rec(function.clone(), vec![3]), run_goto(function, vec![3], 1000));
+        assert_eq!(
+            run_rec(function.clone(), vec![3]),
+            run_goto(function, vec![3], 1000)
+        );
     }
 
     #[test]
@@ -338,7 +339,10 @@ mod tests {
             vec![RecursiveFunctions::succ()],
         )
         .unwrap();
-        assert_eq!(run_rec(function.clone(), vec![5]), run_goto(function, vec![5], 2000));
+        assert_eq!(
+            run_rec(function.clone(), vec![5]),
+            run_goto(function, vec![5], 2000)
+        );
     }
 
     #[test]
@@ -352,7 +356,10 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        assert_eq!(run_rec(add.clone(), vec![2, 4]), run_goto(add, vec![2, 4], 5000));
+        assert_eq!(
+            run_rec(add.clone(), vec![2, 4]),
+            run_goto(add, vec![2, 4], 5000)
+        );
     }
 
     #[test]

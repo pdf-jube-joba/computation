@@ -58,19 +58,22 @@ where
 }
 
 pub fn compile_code_impl<T: Compiler>(code: &str) -> Result<String, JsValue> {
-    let source_code = <T::Source as Machine>::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
+    let source_code =
+        <T::Source as Machine>::parse_code(code).map_err(|e| JsValue::from_str(&e))?;
     let target_code = T::compile(source_code).map_err(|e| JsValue::from_str(&e))?;
     Ok(target_code.print())
 }
 
 pub fn compile_ainput_impl<T: Compiler>(ainput: &str) -> Result<String, JsValue> {
-    let source_ainput = <T as Compiler>::Source::parse_ainput(ainput).map_err(|e| JsValue::from_str(&e))?;
+    let source_ainput =
+        <T as Compiler>::Source::parse_ainput(ainput).map_err(|e| JsValue::from_str(&e))?;
     let target_ainput = T::encode_ainput(source_ainput).map_err(|e| JsValue::from_str(&e))?;
     Ok(target_ainput.print())
 }
 
 pub fn compile_rinput_impl<T: Compiler>(rinput: &str) -> Result<String, JsValue> {
-    let source_rinput = <T as Compiler>::Source::parse_rinput(rinput).map_err(|e| JsValue::from_str(&e))?;
+    let source_rinput =
+        <T as Compiler>::Source::parse_rinput(rinput).map_err(|e| JsValue::from_str(&e))?;
     let target_rinput = T::encode_rinput(source_rinput).map_err(|e| JsValue::from_str(&e))?;
     Ok(target_rinput.print())
 }
@@ -169,11 +172,7 @@ macro_rules! web_compiler {
         }
 
         pub use __web_compiler::{
-            compile_ainput,
-            compile_code,
-            compile_rinput,
-            decode_foutput,
-            decode_routput,
+            compile_ainput, compile_code, compile_rinput, decode_foutput, decode_routput,
         };
 
         fn main() {}

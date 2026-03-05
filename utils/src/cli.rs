@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::io;
 
-use clap::{Parser, error::ErrorKind};
+use clap::{error::ErrorKind, Parser};
 
 use crate::serde_json::Value;
 use crate::{Machine, StepResult, TextCodec};
@@ -89,7 +89,10 @@ where
         .take()
         .ok_or_else(|| "Machine not initialized".to_string())?;
     match current.step(parsed)? {
-        StepResult::Continue { next, output: routput } => {
+        StepResult::Continue {
+            next,
+            output: routput,
+        } => {
             if snapshot {
                 let json: Value = next.current().into();
                 let serialized = crate::serde_json::to_string(&json).map_err(|e| e.to_string())?;

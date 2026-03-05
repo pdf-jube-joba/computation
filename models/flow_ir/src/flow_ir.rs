@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use utils::number::Number;
 use utils::{Machine, StepResult};
 
-pub type Vreg = usize;
+pub type Vreg = String;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FlowIrCode(pub Program);
@@ -65,6 +65,7 @@ pub enum Cond {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stmt {
+    Nop,
     Load {
         dst: Vreg,
         place: PlaceExpr,
@@ -185,7 +186,7 @@ pub struct FlowIrMachine {
     pub names: NameMapping,
     pub current_region: usize,
     pub current_block: usize,
-    pub vregs: Vec<FlowValue>,
+    pub vregs: BTreeMap<Vreg, FlowValue>,
     pub static_mem: HashMap<String, FlowValue>,
     pub stack: Vec<FlowValue>,
     pub heap: HashMap<usize, Vec<FlowValue>>,
@@ -193,9 +194,18 @@ pub struct FlowIrMachine {
     pub halted: bool,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StaticEnv {
+    pub entries: BTreeMap<String, FlowValue>,
+}
+
 impl FlowIrMachine {
-    fn output(&self) -> Vec<FlowValue> {
-        self.stack.clone()
+    fn output(&self) -> StaticEnv {
+        let mut entries = BTreeMap::new();
+        for (label, value) in &self.static_mem {
+            entries.insert(label.clone(), value.clone());
+        }
+        StaticEnv { entries }
     }
 
     fn continue_result(self) -> StepResult<Self> {
@@ -212,14 +222,11 @@ impl FlowIrMachine {
     }
 
     fn get_vreg(&self, idx: Vreg) -> FlowValue {
-        self.vregs.get(idx).cloned().unwrap_or_default()
+        self.vregs.get(&idx).cloned().unwrap_or_default()
     }
 
     fn set_vreg(&mut self, idx: Vreg, value: FlowValue) {
-        if idx >= self.vregs.len() {
-            self.vregs.resize(idx + 1, FlowValue::default());
-        }
-        self.vregs[idx] = value;
+        self.vregs.insert(idx, value);
     }
 
     fn reset_vregs(&mut self) {
@@ -287,7 +294,7 @@ impl FlowIrMachine {
                     Err(format!("Place is not data label: @{label}"))
                 }
             }
-            PlaceExpr::Deref(vreg) => match self.get_vreg(*vreg) {
+            PlaceExpr::Deref(vreg) => match self.get_vreg(vreg.clone()) {
                 FlowValue::Key(k) => Ok(k),
                 other => Err(format!(
                     "deref expects place key in vreg, got {}",
@@ -311,7 +318,7 @@ impl FlowIrMachine {
 
     fn eval_value(&self, value: &ValueExpr) -> Result<FlowValue, String> {
         match value {
-            ValueExpr::VReg(i) => Ok(self.get_vreg(*i)),
+            ValueExpr::VReg(i) => Ok(self.get_vreg(i.clone())),
             ValueExpr::Imm(n) => Ok(FlowValue::Num(n.clone())),
             ValueExpr::CodeLabel(l) => Ok(FlowValue::CodeLabel(l.clone())),
             ValueExpr::Ref(place) => Ok(FlowValue::Key(self.eval_place_key(place)?)),
@@ -384,28 +391,35 @@ impl FlowIrMachine {
 
 impl Machine for FlowIrMachine {
     type Code = FlowIrCode;
-    type AInput = Vec<FlowValue>;
-    type FOutput = Vec<FlowValue>;
+    type AInput = StaticEnv;
+    type FOutput = StaticEnv;
     type SnapShot = FlowIrMachine;
     type RInput = ();
     type ROutput = ();
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         let names = compile_name_mapping(&code.0)?;
+        let entry_region = names.entry_region;
 
         let mut static_mem = HashMap::new();
         for s in &code.0.statics {
             static_mem.insert(s.label.clone(), FlowValue::Num(s.value.clone()));
         }
+        for (k, v) in ainput.entries {
+            let slot = static_mem
+                .get_mut(&k)
+                .ok_or_else(|| format!("Unknown static input label: @{k}"))?;
+            *slot = v;
+        }
 
         Ok(Self {
             code,
             names,
-            current_region: 0,
+            current_region: entry_region,
             current_block: 0,
-            vregs: Vec::new(),
+            vregs: BTreeMap::new(),
             static_mem,
-            stack: ainput,
+            stack: Vec::new(),
             heap: HashMap::new(),
             next_handle: 1,
             halted: false,
@@ -434,14 +448,15 @@ impl Machine for FlowIrMachine {
 
         for stmt in &block.stmts {
             match stmt {
+                Stmt::Nop => {}
                 Stmt::Load { dst, place } => {
                     let key = next.eval_place_key(place)?;
                     let value = next.read_place(&key)?;
-                    next.set_vreg(*dst, value);
+                    next.set_vreg(dst.clone(), value);
                 }
                 Stmt::Assign { dst, src } => {
                     let value = next.eval_value(src)?;
-                    next.set_vreg(*dst, value);
+                    next.set_vreg(dst.clone(), value);
                 }
                 Stmt::BinOp { dst, lhs, op, rhs } => {
                     let l = next.eval_value(lhs)?;
@@ -451,7 +466,7 @@ impl Machine for FlowIrMachine {
                         BinOp::Add => l + r,
                         BinOp::Sub => l - r,
                     };
-                    next.set_vreg(*dst, FlowValue::Num(value));
+                    next.set_vreg(dst.clone(), FlowValue::Num(value));
                 }
                 Stmt::Store { place, src } => {
                     let key = next.eval_place_key(place)?;
@@ -463,21 +478,21 @@ impl Machine for FlowIrMachine {
                         .stack
                         .pop()
                         .ok_or_else(|| "pop on empty stack".to_string())?;
-                    next.set_vreg(*dst, value);
+                    next.set_vreg(dst.clone(), value);
                 }
                 Stmt::Push { src } => {
                     let value = next.eval_value(src)?;
                     next.stack.push(value);
                 }
                 Stmt::LGet { dst } => {
-                    next.set_vreg(*dst, FlowValue::Num(Number::from(next.stack.len())));
+                    next.set_vreg(dst.clone(), FlowValue::Num(Number::from(next.stack.len())));
                 }
                 Stmt::HAlloc { size, dst } => {
                     let size = next.eval_value(size)?.as_usize()?;
                     let handle = next.next_handle;
                     next.next_handle += 1;
                     next.heap.insert(handle, vec![FlowValue::default(); size]);
-                    next.set_vreg(*dst, FlowValue::Num(Number::from(handle)));
+                    next.set_vreg(dst.clone(), FlowValue::Num(Number::from(handle)));
                 }
                 Stmt::HFree { handle } => {
                     let handle = next.eval_value(handle)?.as_usize()?;

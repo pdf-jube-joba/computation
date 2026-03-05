@@ -76,11 +76,13 @@ pub(crate) fn flatten_program(program: &Ir1Program) -> Result<Ir1Program, String
     let blocks = expand_blocks(&main.blocks, program, &mut counter)?;
     Ok(Ir1Program {
         alphabet: program.alphabet.clone(),
-        functions: vec![Function {
-            name: "main".to_string(),
-            blocks,
-        }
-        .into()],
+        functions: vec![
+            Function {
+                name: "main".to_string(),
+                blocks,
+            }
+            .into(),
+        ],
     })
 }
 
@@ -368,7 +370,10 @@ fn to_ir2_condition(cond: &Option<Ir1Condition>) -> Option<Ir2Condition> {
     })
 }
 
-fn compile_flat_block(stmts: &[Ir1Stmt], labels: &HashMap<String, usize>) -> Result<Vec<Ir2Stmt>, String> {
+fn compile_flat_block(
+    stmts: &[Ir1Stmt],
+    labels: &HashMap<String, usize>,
+) -> Result<Vec<Ir2Stmt>, String> {
     let mut instrs = Vec::new();
     let mut return_fixups = Vec::new();
 

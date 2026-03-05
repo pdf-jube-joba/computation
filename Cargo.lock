@@ -645,6 +645,13 @@ dependencies = [
 [[package]]
 name = "while_language"
 version = "0.1.0"
+dependencies = [
+ "flow_ir",
+ "serde",
+ "serde_json",
+ "utils",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "windows-link"

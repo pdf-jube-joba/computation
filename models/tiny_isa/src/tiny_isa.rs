@@ -4,13 +4,11 @@ use utils::{Machine, StepResult};
 #[derive(Debug, Clone, Default)]
 pub struct MachineCode(pub Vec<Number>);
 
-
 #[derive(Debug, Clone, Default)]
 pub struct RegisterMemoryImage {
     pub register: [Number; 8],
     pub memory: Vec<Number>,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct TinyIsaMachine {

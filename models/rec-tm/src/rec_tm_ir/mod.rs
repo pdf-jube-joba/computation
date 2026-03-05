@@ -47,9 +47,7 @@ pub fn register_function(func: Function) -> Result<Rc<Function>, String> {
             return Err(format!("Function '{}' is defined twice", func.name));
         }
         let func = Rc::new(func);
-        registry
-            .functions
-            .insert(func.name.clone(), func.clone());
+        registry.functions.insert(func.name.clone(), func.clone());
         Ok(func)
     })
 }

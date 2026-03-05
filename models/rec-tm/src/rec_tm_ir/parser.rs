@@ -283,10 +283,10 @@ impl Parser {
                         self.expect_symbol("(")?;
                         self.expect_symbol(")")?;
                     }
-                Ok(Stmt::Call {
-                    func: get_function(&name)?,
-                })
-            }
+                    Ok(Stmt::Call {
+                        func: get_function(&name)?,
+                    })
+                }
                 _ => {
                     let dst = self.parse_lvalue()?;
                     self.expect_symbol(":=")?;

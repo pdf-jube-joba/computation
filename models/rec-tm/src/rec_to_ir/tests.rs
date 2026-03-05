@@ -290,7 +290,8 @@ fn swap_shorter_b() {
     let program = wrap_function(rotate::swap_tuple());
     let input = tape_from(&["x", "-", "l", "l", "x", "-", "l", "x"], 0);
     let machine = RecTmIrMachine::make(program, input).unwrap();
-    let snapshot = run_until_halt_with_vars(machine, 64 * 64, true, &["put", "where", "where2"]).unwrap();
+    let snapshot =
+        run_until_halt_with_vars(machine, 64 * 64, true, &["put", "where", "where2"]).unwrap();
     let tape = snapshot_tape(snapshot);
     eprintln!("{}", tape.print());
     let expected = tape_from(&["x", "-", "l", "x", "-", "l", "l", "x"], 0);

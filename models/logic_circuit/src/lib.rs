@@ -2,10 +2,10 @@ pub mod machine;
 pub mod manipulation;
 pub mod parse;
 
+pub use crate::machine::{Graph, LogicCircuit, LogicCircuitTrait, NamedPin, Signal};
 use serde_json::json;
-use utils::{Machine, StepResult, TextCodec, json_text};
-pub use crate::machine::{Graph, LogicCircuit, NamedPin, Signal, LogicCircuitTrait};
 use utils::bool::Bool;
+use utils::{json_text, Machine, StepResult, TextCodec};
 pub mod example {
     use crate::manipulation::{init_maps, List};
     use crate::parse::parse;

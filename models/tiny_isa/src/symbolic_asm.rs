@@ -306,7 +306,6 @@ pub enum Inst {
     },
 }
 
-
 #[derive(Debug, Clone, Default)]
 pub struct AsmInput {
     pub regs: [Number; 8],
@@ -314,14 +313,12 @@ pub struct AsmInput {
     pub data_extension: Vec<Number>,
 }
 
-
 #[derive(Debug, Clone, Default)]
 pub struct AsmOutput {
     pub regs: [Number; 8],
     // Full data memory seen by the machine: static `.data` + runtime extension.
     pub data_memory: Vec<Number>,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct SymbolicAsmMachine {
