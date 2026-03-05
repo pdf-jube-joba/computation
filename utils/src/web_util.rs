@@ -75,15 +75,15 @@ pub fn compile_rinput_impl<T: Compiler>(rinput: &str) -> Result<String, String> 
 }
 
 pub fn decode_routput_impl<T: Compiler>(output: &str) -> Result<String, String> {
-    let output_target = <<<T as Compiler>::Target as Machine>::ROutput as TextCodec>::parse(output)
-        ?;
+    let output_target =
+        <<<T as Compiler>::Target as Machine>::ROutput as TextCodec>::parse(output)?;
     let output_source = T::decode_routput(output_target)?;
     Ok(output_source.print())
 }
 
 pub fn decode_foutput_impl<T: Compiler>(output: &str) -> Result<String, String> {
-    let output_target = <<<T as Compiler>::Target as Machine>::FOutput as TextCodec>::parse(output)
-        ?;
+    let output_target =
+        <<<T as Compiler>::Target as Machine>::FOutput as TextCodec>::parse(output)?;
     let output_source = T::decode_foutput(output_target)?;
     Ok(output_source.print())
 }
@@ -91,34 +91,31 @@ pub fn decode_foutput_impl<T: Compiler>(output: &str) -> Result<String, String> 
 #[macro_export]
 macro_rules! web_model {
     ($machine:path) => {
-        mod __web_model {
-            use $crate::wasm_bindgen::prelude::JsValue;
+        use $crate::component_bindings::model::Guest;
 
-            thread_local! {
-                static MACHINE: std::cell::RefCell<Option<$machine>> = std::cell::RefCell::new(None);
-            }
+        thread_local! {
+            static MACHINE: std::cell::RefCell<Option<$machine>> = std::cell::RefCell::new(None);
+        }
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn step_machine(rinput: &str) -> Result<String, JsValue> {
+        struct Component;
+
+        impl Guest for Component {
+            fn step_machine(rinput: String) -> Result<String, String> {
                 MACHINE.with(|machine| {
                     let mut machine = machine.borrow_mut();
-                    $crate::web_util::step_machine_impl::<$machine>(&mut machine, rinput)
-                        .map_err(|e| JsValue::from_str(&e))
+                    $crate::web_util::step_machine_impl::<$machine>(&mut machine, &rinput)
                 })
             }
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn current_machine() -> Result<String, JsValue> {
+            fn current_machine() -> Result<String, String> {
                 MACHINE.with(|machine| {
                     let machine = machine.borrow();
                     $crate::web_util::current_machine_impl::<$machine>(&machine)
-                        .map_err(|e| JsValue::from_str(&e))
                 })
             }
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn create(input: &str, ainput: &str) -> Result<String, JsValue> {
-                let machine = $crate::web_util::create_machine_impl::<$machine>(input, ainput)?;
+            fn create(input: String, ainput: String) -> Result<String, String> {
+                let machine = $crate::web_util::create_machine_impl::<$machine>(&input, &ainput)?;
                 MACHINE.with(|state| {
                     *state.borrow_mut() = Some(machine);
                 });
@@ -126,7 +123,7 @@ macro_rules! web_model {
             }
         }
 
-        pub use __web_model::{create, current_machine, step_machine};
+        $crate::__export_component_model!(Component);
 
         fn main() {}
     };
@@ -135,43 +132,33 @@ macro_rules! web_model {
 #[macro_export]
 macro_rules! web_compiler {
     ($compiler:path) => {
-        mod __web_compiler {
-            use $crate::wasm_bindgen::prelude::JsValue;
+        use $crate::component_bindings::compiler::Guest;
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn compile_code(input: &str) -> Result<String, JsValue> {
-                $crate::web_util::compile_code_impl::<$compiler>(input)
-                    .map_err(|e| JsValue::from_str(&e))
+        struct Component;
+
+        impl Guest for Component {
+            fn compile_code(input: String) -> Result<String, String> {
+                $crate::web_util::compile_code_impl::<$compiler>(&input)
             }
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn compile_ainput(ainput: &str) -> Result<String, JsValue> {
-                $crate::web_util::compile_ainput_impl::<$compiler>(ainput)
-                    .map_err(|e| JsValue::from_str(&e))
+            fn compile_ainput(ainput: String) -> Result<String, String> {
+                $crate::web_util::compile_ainput_impl::<$compiler>(&ainput)
             }
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn compile_rinput(rinput: &str) -> Result<String, JsValue> {
-                $crate::web_util::compile_rinput_impl::<$compiler>(rinput)
-                    .map_err(|e| JsValue::from_str(&e))
+            fn compile_rinput(rinput: String) -> Result<String, String> {
+                $crate::web_util::compile_rinput_impl::<$compiler>(&rinput)
             }
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn decode_routput(output: &str) -> Result<String, JsValue> {
-                $crate::web_util::decode_routput_impl::<$compiler>(output)
-                    .map_err(|e| JsValue::from_str(&e))
+            fn decode_routput(output: String) -> Result<String, String> {
+                $crate::web_util::decode_routput_impl::<$compiler>(&output)
             }
 
-            #[$crate::wasm_bindgen::prelude::wasm_bindgen(wasm_bindgen = $crate::wasm_bindgen)]
-            pub fn decode_foutput(output: &str) -> Result<String, JsValue> {
-                $crate::web_util::decode_foutput_impl::<$compiler>(output)
-                    .map_err(|e| JsValue::from_str(&e))
+            fn decode_foutput(output: String) -> Result<String, String> {
+                $crate::web_util::decode_foutput_impl::<$compiler>(&output)
             }
         }
 
-        pub use __web_compiler::{
-            compile_ainput, compile_code, compile_rinput, decode_foutput, decode_routput,
-        };
+        $crate::__export_component_compiler!(Component);
 
         fn main() {}
     };

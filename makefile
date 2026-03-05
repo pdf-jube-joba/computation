@@ -2,19 +2,26 @@ PYTHON ?= python3
 MDBOOK ?= mdbook
 WATCHEXEC ?= watchexec
 
-.PHONY: generate build serve serve-once
+.PHONY: wasm-build generate md-build build md-serve md-serve-once serve
 
 generate:
 	$(PYTHON) "$(CURDIR)/generate.py"
 
-build: generate
+wasm-build:
+	$(PYTHON) "$(CURDIR)/build.py"
+
+md-build: generate
 	$(MDBOOK) build "$(CURDIR)/dist"
 
-serve-once: generate
+build: wasm-build md-build
+
+md-serve-once: generate
 	$(MDBOOK) serve "$(CURDIR)/dist"
 
-serve:
+md-serve:
 	$(WATCHEXEC) --restart \
 		--watch "$(CURDIR)/docs" \
 		--watch "$(CURDIR)/models" \
-		-- "$(MAKE)" --no-print-directory serve-once
+		-- "$(MAKE)" --no-print-directory md-serve-once
+
+serve: md-serve

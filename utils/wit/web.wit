@@ -1,0 +1,15 @@
+package computation:web;
+
+world web-model {
+  export create: func(code: string, ainput: string) -> result<string, string>;
+  export step-machine: func(rinput: string) -> result<string, string>;
+  export current-machine: func() -> result<string, string>;
+}
+
+world web-compiler {
+  export compile-code: func(input: string) -> result<string, string>;
+  export compile-ainput: func(ainput: string) -> result<string, string>;
+  export compile-rinput: func(rinput: string) -> result<string, string>;
+  export decode-routput: func(output: string) -> result<string, string>;
+  export decode-foutput: func(output: string) -> result<string, string>;
+}

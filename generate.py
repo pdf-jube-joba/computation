@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate dist/ from docs/, then overlay models/ into dist/src/.
+Generate dist/ from docs/ and wasm_bundle/, then overlay models/ into dist/src/.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ DOCS_DIR = REPO_ROOT / "docs"
 DIST_DIR = REPO_ROOT / "dist"
 BOOK_SRC_DIR = DOCS_DIR / "src"
 DIST_SRC_DIR = DIST_DIR / "src"
+ROOT_WASM_BUNDLE_DIR = REPO_ROOT / "wasm_bundle"
+DIST_WASM_BUNDLE_DIR = DIST_SRC_DIR / "_assets" / "wasm_bundle"
 
 
 def copy_md_tree(src_root: Path, dest_root: Path) -> list[str]:
@@ -53,6 +55,11 @@ def main() -> int:
     if DIST_DIR.exists():
         shutil.rmtree(DIST_DIR)
     shutil.copytree(DOCS_DIR, DIST_DIR)
+
+    if ROOT_WASM_BUNDLE_DIR.exists():
+        if DIST_WASM_BUNDLE_DIR.exists():
+            shutil.rmtree(DIST_WASM_BUNDLE_DIR)
+        shutil.copytree(ROOT_WASM_BUNDLE_DIR, DIST_WASM_BUNDLE_DIR)
 
     models_path = REPO_ROOT / "models"
     dist_models = DIST_SRC_DIR / "models"

@@ -15,11 +15,6 @@ block-delimiter = { left = "\\[", right = "\\]" }
 macros = "macros.txt"
 no-css = true
 
-[preprocessor.build-assets]
-command = "python3 build_assets.py"
-build = false
-release = false
-
 [output.html]
 additional-css = ["src/_assets/style.css", "katex.min.css"]
 theme = "theme"

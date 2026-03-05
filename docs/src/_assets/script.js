@@ -129,126 +129,37 @@ function createOutputBox(host, { title, classNames = [], bodyClassNames = [] }) 
   return { wrap, body };
 }
 
-// -------------------------------------
-// MachineWrapper: wasm モジュールのロードとラップ
-// -------------------------------------
-class MachineWrapper {
-  static instanceCounter = 0;
+let machineInstanceCounter = 0;
+let compilerInstanceCounter = 0;
 
-  constructor(modelName) {
-    this.modelName = modelName;
-    this.instanceId = MachineWrapper.instanceCounter++;
-    this.module = null;
-    this.createFn = null;
-    this.stepFn = null;
-    this.currentFn = null;
-  }
-
-  async init() {
-    if (this.module) return;
-
-    const wasmPath = `./wasm_bundle/${this.modelName}.js?instance=${this.instanceId}`;
-    const module = await import(wasmPath);
-    this.module = module;
-    this.createFn = typeof module.create === "function" ? module.create : null;
-    this.stepFn = typeof module.step_machine === "function" ? module.step_machine : null;
-    this.currentFn = typeof module.current_machine === "function" ? module.current_machine : null;
-    const missing = [];
-    if (!this.createFn) missing.push("create");
-    if (!this.stepFn) missing.push("step_machine");
-    if (!this.currentFn) missing.push("current_machine");
-    if (missing.length) {
-      throw new Error(`WASM module ${this.modelName} is missing exports: ${missing.join(", ")}`);
-    }
-    if (typeof module.default === "function") {
-      await module.default();
-    }
-  }
-
-  assertReady() {
-    if (!this.module) {
-      throw new Error(`Machine "${this.modelName}" is not initialized`);
-    }
-  }
-
-  async createMachine(codeStr, ainputStr) {
-    this.assertReady();
-    return Promise.resolve(this.createFn(codeStr, ainputStr));
-  }
-
-  async stepMachine(runtimeInputStr) {
-    this.assertReady();
-    const raw = await Promise.resolve(this.stepFn(runtimeInputStr));
-    return parseJsonString(raw, "step_machine");
-  }
-
-  async currentState() {
-    this.assertReady();
-    const raw = await Promise.resolve(this.currentFn());
-    return parseJsonString(raw, "current_machine");
-  }
+async function loadMachineWrapper(modelName) {
+  const instanceId = machineInstanceCounter++;
+  const wasmPath = `./wasm_bundle/${modelName}.js?instance=${instanceId}`;
+  const module = await import(wasmPath);
+  return {
+    createMachine: (codeStr, ainputStr) => module.create(codeStr, ainputStr),
+    stepMachine: async runtimeInputStr => {
+      const raw = await module.stepMachine(runtimeInputStr);
+      return parseJsonString(raw, "stepMachine");
+    },
+    currentState: async () => {
+      const raw = await module.currentMachine();
+      return parseJsonString(raw, "currentMachine");
+    },
+  };
 }
 
-// -------------------------------------
-// CompilerWrapper: compiler wasm モジュールのロードとラップ
-// -------------------------------------
-class CompilerWrapper {
-  static instanceCounter = 0;
-
-  constructor(compilerName) {
-    this.compilerName = compilerName;
-    this.instanceId = CompilerWrapper.instanceCounter++;
-    this.module = null;
-    this.compileCodeFn = null;
-    this.compileAInputFn = null;
-    this.compileRInputFn = null;
-    this.decodeROutputFn = null;
-    this.decodeFOutputFn = null;
-  }
-
-  async init() {
-    if (this.module) return;
-    const wasmPath = `./wasm_bundle/${this.compilerName}.js?instance=${this.instanceId}`;
-    const module = await import(wasmPath);
-    this.module = module;
-    this.compileCodeFn = typeof module.compile_code === "function" ? module.compile_code : null;
-    this.compileAInputFn = typeof module.compile_ainput === "function" ? module.compile_ainput : null;
-    this.compileRInputFn = typeof module.compile_rinput === "function" ? module.compile_rinput : null;
-    this.decodeROutputFn = typeof module.decode_routput === "function" ? module.decode_routput : null;
-    this.decodeFOutputFn = typeof module.decode_foutput === "function" ? module.decode_foutput : null;
-    const missing = [];
-    if (!this.compileCodeFn) missing.push("compile_code");
-    if (!this.compileAInputFn) missing.push("compile_ainput");
-    if (!this.compileRInputFn) missing.push("compile_rinput");
-    if (!this.decodeROutputFn) missing.push("decode_routput");
-    if (!this.decodeFOutputFn) missing.push("decode_foutput");
-    if (missing.length) {
-      throw new Error(`Compiler WASM is missing exports: ${missing.join(", ")}`);
-    }
-    if (typeof module.default === "function") {
-      await module.default();
-    }
-  }
-
-  async compileCode(code) {
-    return Promise.resolve(this.compileCodeFn(code));
-  }
-
-  async compileAInput(ainput) {
-    return Promise.resolve(this.compileAInputFn(ainput));
-  }
-
-  async compileRInput(rinput) {
-    return Promise.resolve(this.compileRInputFn(rinput));
-  }
-
-  async decodeROutput(output) {
-    return Promise.resolve(this.decodeROutputFn(output));
-  }
-
-  async decodeFOutput(output) {
-    return Promise.resolve(this.decodeFOutputFn(output));
-  }
+async function loadCompilerWrapper(compilerName) {
+  const instanceId = compilerInstanceCounter++;
+  const wasmPath = `./wasm_bundle/${compilerName}.js?instance=${instanceId}`;
+  const module = await import(wasmPath);
+  return {
+    compileCode: code => module.compileCode(code),
+    compileAInput: ainput => module.compileAinput(ainput),
+    compileRInput: rinput => module.compileRinput(rinput),
+    decodeROutput: output => module.decodeRoutput(output),
+    decodeFOutput: output => module.decodeFoutput(output),
+  };
 }
 
 function parsePipelineSpec(text) {
@@ -439,8 +350,7 @@ class MachineNodeView {
       if (typeof this.renderer.draw !== "function") {
         throw new Error("Renderer missing draw()");
       }
-      this.wrapper = new MachineWrapper(this.machineName);
-      await this.wrapper.init();
+      this.wrapper = await loadMachineWrapper(this.machineName);
       this.machineState = "ready";
       this.clearMessage();
       return true;
@@ -710,8 +620,7 @@ class CompilerEdgeView {
     }
     const edge = this.edgeMeta;
     try {
-      this.wrapper = new CompilerWrapper(edge.compilerName);
-      await this.wrapper.init();
+      this.wrapper = await loadCompilerWrapper(edge.compilerName);
       this.available = true;
       this.loadError = null;
     } catch (e) {

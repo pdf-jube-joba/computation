@@ -6,12 +6,10 @@ pub mod number;
 pub mod parse;
 pub mod variable;
 
-// ここら辺がないと動かないが、
-// utils 側でも import をしておかないと、 `#[wasm_bindgen]` マクロが動かない。
+// web/component 向けマクロで参照するために re-export しておく。
 pub use serde;
 pub use serde_json;
-pub use serde_wasm_bindgen;
-pub use wasm_bindgen;
+pub use wit_bindgen;
 
 // parse(print(v)) == v
 // print(parse(s)) ~= s
@@ -90,6 +88,44 @@ pub trait Compiler: Sized {
     ) -> Result<<<Self as Compiler>::Source as Machine>::FOutput, String>;
 }
 
+#[doc(hidden)]
+pub mod component_bindings {
+    pub mod model {
+        wit_bindgen::generate!({
+            path: "wit",
+            world: "web-model",
+            pub_export_macro: true,
+        });
+    }
+
+    pub mod compiler {
+        wit_bindgen::generate!({
+            path: "wit",
+            world: "web-compiler",
+            pub_export_macro: true,
+        });
+    }
+
+    #[doc(hidden)]
+    #[macro_export]
+    macro_rules! __export_component_model {
+        ($ty:ident) => {
+            $crate::component_bindings::model::export!(
+                $ty with_types_in $crate::component_bindings::model
+            );
+        };
+    }
+
+    #[doc(hidden)]
+    #[macro_export]
+    macro_rules! __export_component_compiler {
+        ($ty:ident) => {
+            $crate::component_bindings::compiler::export!(
+                $ty with_types_in $crate::component_bindings::compiler
+            );
+        };
+    }
+}
 #[doc(hidden)]
 pub mod web_util;
 
