@@ -3,4 +3,17 @@ name = "while_language"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "while_language"
+path = "src/bin/while_language.rs"
+
+[[bin]]
+name = "while_to_flow_ir"
+path = "src/bin/while_to_flow_ir.rs"
+
 [dependencies]
+utils = { workspace = true }
+wasm-bindgen = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+flow_ir = { path = "../flow_ir" }
