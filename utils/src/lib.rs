@@ -13,6 +13,8 @@ pub use serde_json;
 pub use serde_wasm_bindgen;
 pub use wasm_bindgen;
 
+// parse(print(v)) == v
+// print(parse(s)) ~= s
 pub trait TextCodec: Sized {
     fn parse(text: &str) -> Result<Self, String>;
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result;
