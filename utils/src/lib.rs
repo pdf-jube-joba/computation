@@ -9,7 +9,7 @@ pub use parse::TextCodec;
 pub mod bool;
 pub mod identifier;
 pub mod number;
-pub mod machine_ipc;
+pub mod machine;
 
 pub enum StepResult<M: Machine> {
     Continue {
