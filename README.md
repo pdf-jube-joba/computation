@@ -45,7 +45,10 @@
 
 ### `repl` (対話)
 
+`repl model` は `machine-daemon` 経由で状態を保持するため、先に daemon を起動してください。
+
 ```bash
+cargo run -p utils --bin machine -- daemon start
 cargo run -p utils --bin repl -- model <NAME> --code <CODE> [--ainput <AINPUT>]
 ```
 
