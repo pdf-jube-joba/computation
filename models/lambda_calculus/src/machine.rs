@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::collections::HashSet;
-use utils::variable::Var;
+use utils::identifier::Var;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum LambdaTerm {

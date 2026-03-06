@@ -2,7 +2,7 @@
 pub mod traits {
     use std::collections::HashSet;
 
-    use utils::variable::Var;
+    use utils::identifier::Var;
 
     // 変数周りで実装すべき部分
     pub trait LambdaExt: Sized {

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::traits::LambdaExt;
-use utils::{number::Number, variable::Var};
+use utils::{number::Number, identifier::Var};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Lam {
@@ -335,14 +335,14 @@ impl LambdaExt for Lam {
 #[macro_export]
 macro_rules! bvar {
     ($name:literal) => {
-        $crate::lambda::Lam::n_v(::utils::variable::Var::from($name))
+        $crate::lambda::Lam::n_v(::utils::identifier::Var::from($name))
     };
 }
 
 #[macro_export]
 macro_rules! blam {
     ($name:literal, $body:expr) => {
-        $crate::lambda::Lam::n_l(::utils::variable::Var::from($name), $body)
+        $crate::lambda::Lam::n_l(::utils::identifier::Var::from($name), $body)
     };
 }
 
@@ -363,14 +363,14 @@ macro_rules! ezero {
 #[macro_export]
 macro_rules! evar {
     ($name:literal) => {
-        $crate::lambda::Lam::n_v(::utils::variable::Var::from($name))
+        $crate::lambda::Lam::n_v(::utils::identifier::Var::from($name))
     };
 }
 
 #[macro_export]
 macro_rules! elam {
     ($name:literal, $body:expr) => {
-        $crate::lambda::Lam::n_l(::utils::variable::Var::from($name), $body)
+        $crate::lambda::Lam::n_l(::utils::identifier::Var::from($name), $body)
     };
 }
 
@@ -405,7 +405,7 @@ macro_rules! eif {
 #[macro_export]
 macro_rules! elet {
     ($name:literal, $bind:expr, $body:expr) => {
-        $crate::lambda::Lam::n_d(::utils::variable::Var::from($name), $bind, $body)
+        $crate::lambda::Lam::n_d(::utils::identifier::Var::from($name), $bind, $body)
     };
 }
 
@@ -413,8 +413,8 @@ macro_rules! elet {
 macro_rules! erec {
     ($fix:literal, $var:literal, $body:expr) => {
         $crate::lambda::Lam::n_r(
-            ::utils::variable::Var::from($fix),
-            ::utils::variable::Var::from($var),
+            ::utils::identifier::Var::from($fix),
+            ::utils::identifier::Var::from($var),
             $body,
         )
     };

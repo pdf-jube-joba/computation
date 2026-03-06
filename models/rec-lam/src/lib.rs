@@ -1,6 +1,6 @@
 use lambda_calculus::machine::LambdaTerm;
 use recursive_function::machine::RecursiveFunctions;
-use utils::variable::Var;
+use utils::identifier::Var;
 use utils::{number::*, Compiler};
 
 fn v(var: &Var) -> LambdaTerm {

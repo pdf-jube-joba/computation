@@ -1,6 +1,6 @@
 pub mod utility {
     use crate::machine::LambdaTerm;
-    use utils::variable::Var;
+    use utils::identifier::Var;
 
     pub fn apps(first: LambdaTerm, remains: Vec<LambdaTerm>) -> LambdaTerm {
         let mut term = first;
@@ -95,7 +95,7 @@ pub mod utility {
 
 pub mod parse {
     use pest::{iterators::Pair, Parser};
-    use utils::variable::Var;
+    use utils::identifier::Var;
 
     use crate::{
         machine::LambdaTerm,
