@@ -1,4 +1,4 @@
-use crate::serde_json::Value;
+use serde_json::Value;
 use crate::{Compiler, Machine, StepResult, TextCodec};
 
 pub fn step_machine_impl<T>(machine: &mut Option<T>, rinput: &str) -> Result<String, String>
@@ -16,7 +16,7 @@ where
             output: routput,
         } => {
             *machine = Some(next);
-            crate::serde_json::to_string(&crate::serde_json::json!({
+            serde_json::to_string(&serde_json::json!({
                 "kind": "continue",
                 "routput": routput.print(),
             }))
@@ -25,7 +25,7 @@ where
         StepResult::Halt {
             snapshot,
             output: foutput,
-        } => crate::serde_json::to_string(&crate::serde_json::json!({
+        } => serde_json::to_string(&serde_json::json!({
             "kind": "halt",
             "snapshot": Into::<Value>::into(snapshot),
             "foutput": foutput.print(),
@@ -44,7 +44,7 @@ where
         .ok_or_else(|| "Machine not initialized".to_string())?;
     let snapshot = T::current(machine);
     let json: Value = snapshot.into();
-    crate::serde_json::to_string(&json).map_err(|e| e.to_string())
+    serde_json::to_string(&json).map_err(|e| e.to_string())
 }
 
 pub fn create_machine_impl<T: Machine>(code: &str, ainput: &str) -> Result<T, String>
@@ -167,16 +167,16 @@ macro_rules! web_compiler {
 #[macro_export]
 macro_rules! json_text {
     ($text:expr) => {
-        $crate::serde_json::json!({ "kind": "text", "text": $text })
+        serde_json::json!({ "kind": "text", "text": $text })
     };
     ($text:expr, title: $title:expr) => {
-        $crate::serde_json::json!({ "kind": "text", "text": $text, "title": $title })
+        serde_json::json!({ "kind": "text", "text": $text, "title": $title })
     };
     ($text:expr, class: $class:expr) => {
-        $crate::serde_json::json!({ "kind": "text", "text": $text, "className": $class })
+        serde_json::json!({ "kind": "text", "text": $text, "className": $class })
     };
     ($text:expr, title: $title:expr, class: $class:expr) => {
-        $crate::serde_json::json!({
+        serde_json::json!({
             "kind": "text",
             "text": $text,
             "title": $title,
@@ -184,7 +184,7 @@ macro_rules! json_text {
         })
     };
     ($text:expr, class: $class:expr, title: $title:expr) => {
-        $crate::serde_json::json!({
+        serde_json::json!({
             "kind": "text",
             "text": $text,
             "title": $title,

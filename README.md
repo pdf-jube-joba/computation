@@ -15,7 +15,7 @@
 ## 内容について
 - `rust` 言語で各計算モデルの実装をしてます
     - `rust` 言語からコンパイルした `wasm` と `javascript` を用いてブラウザで動いているのを見れるようにしました。   
-    - `wasm-bindgen` を使って、 `rust` から `wasm` へのコンパイル、 `js` から利用する用のコードが生成されます。
+    - `WIT + component` と `jco` を使って、 `rust` から `wasm component` を作り、 `js` から利用するためのコードを生成します。
 - `mdBook` を使って `markdown` で各計算モデルについて書いたものをブラウザで見れるようにしています。
     - 数式を書いたりするために、 `mdbook-katex` を使っています。
 - `make serve` をすると、ブラウザの `localhost:3000` から見ることができます。
@@ -24,7 +24,8 @@
 - `rust` 周り
     - `cargo`
     - wasm 向けの target を追加すること
-- `wasm-bindgen-cli`
+- `wasm-tools`
+- `npx` と `jco`
 - `mdbook`
     - `mdbook-katex` も。
 - `python3`
@@ -40,66 +41,51 @@
 ```
 
 ## CLI の使い方
-`Machine` 実装を CLI で動かすときは、モデル側の bin に `utils::model_entry!(...)` を書きます。
-native ターゲットでは同じ bin が CLI として動きます。
+`utils` には `wasm_bundle/*.component.wasm` を使うための CLI が2つあります。
 
-実行形式:
-
-```bash
-cargo run -p <model_crate> --bin <bin_name> -- <code> <ainput> [OPTIONS]
-```
-
-- `<code>` と `<ainput>` はファイルパス、または `-`
-- `--code-text TEXT` / `--ainput-text TEXT` で直接文字列も指定可能
-- `--rinput TEXT --limit N` で固定 `rinput` を最大 `N` step 自動実行
-- `--snapshot` で各 step 後の `SnapShot` を JSON 出力
-
-`<code>` と `<ainput>` の両方に `-` を指定した場合は、`--split DELIM` が必須です。
-例:
-```
-$cargo run -p example_counter -- - - --split '====='
-[phase] code: enter code, then delimiter '====='
-9
-=====
-[phase] ainput: enter ainput, then delimiter '====='
-=====
-[phase] rinput: enter runtime input lines
-inc
-End
-```
-これで"対話的"に扱うことができます。
-
-stdin 全体を `DELIM` で 3 セクションに分け、`code / ainput / rinput` として扱います。
-
-```text
-<code>
-DELIM
-<ainput>
-DELIM
-<rinput lines...>
-```
-
-`rinput` は 1 行ずつ `step` に渡され、`Output` が `Some(...)` になった時点で終了します。
-
-固定入力を使う場合は `--rinput` と `--limit` を必ずセットで指定します。
+### `repl` (対話)
 
 ```bash
-cargo run -p example_counter -- code.txt ainput.txt --rinput inc --limit 100
+cargo run -p utils --bin repl -- model <NAME> --code <CODE> [--ainput <AINPUT>]
 ```
 
-`Compiler` 実装を CLI で使うときは、モデル側の bin に `utils::compiler_entry!(...)` を書きます。
-native ターゲットでは `transpile` サブコマンドが使えます。
+- 起動後は `rinput> ` に1行ずつ入力して `step` と `snapshot` を確認できます。
+- `:begin` / `:end` で複数行入力、 `:q` / `:quit` / `:exit` で終了します。
+
+`compiler` は1機能ずつ実行します。
 
 ```bash
-cargo run -p <model_crate> --bin <compiler_bin> -- transpile code <path|-> [--text TEXT]
-cargo run -p <model_crate> --bin <compiler_bin> -- transpile ainput <path|-> [--text TEXT]
-cargo run -p <model_crate> --bin <compiler_bin> -- transpile rinput <path|-> [--text TEXT]
-cargo run -p <model_crate> --bin <compiler_bin> -- transpile output <path|-> [--text TEXT]
+cargo run -p utils --bin repl -- compiler compile-code <NAME> --code <TEXT>
+cargo run -p utils --bin repl -- compiler compile-ainput <NAME> --ainput <TEXT>
+cargo run -p utils --bin repl -- compiler compile-rinput <NAME> --rinput <TEXT>
+cargo run -p utils --bin repl -- compiler decode-routput <NAME> --routput <TEXT>
+cargo run -p utils --bin repl -- compiler decode-foutput <NAME> --foutput <TEXT>
 ```
 
-例:
+### `machine` + `machine-daemon` (one-shot)
+
+daemon を先に起動し、 `machine` を one-shot で重ねて使います。
 
 ```bash
-cargo run -p example_counter --bin example_counter-example_counter -- transpile code --text 9
-cargo run -p example_counter --bin example_counter-example_counter -- transpile rinput --text inc
+cargo run -p utils --bin machine -- daemon start
+cargo run -p utils --bin machine -- model example_counter
+cargo run -p utils --bin machine -- create --code 0 --ainput ""
+cargo run -p utils --bin machine -- step --rinput inc
+cargo run -p utils --bin machine -- current
+cargo run -p utils --bin machine -- daemon kill
+```
+
+- デフォルトの socket は `/tmp/computation-machine.sock`
+- デフォルトの pidfile は `/tmp/computation-machine.pid`
+- `machine daemon status` で daemon の状態確認ができます。
+
+## ビルド
+
+wasm 生成と book 生成は役割を分けています。
+
+```bash
+make wasm-build  # build.py: wasm_bundle/ を生成
+make generate    # generate.py: docs/ + wasm_bundle/ -> dist/
+make md-build    # generate + mdbook build dist
+make serve       # wasm-build + md-build + mdbook serve dist
 ```

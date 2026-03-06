@@ -1,4 +1,14 @@
-use crate::{identifier::Identifier, TextCodec};
+// parse(print(v)) == v
+// print(parse(s)) ~= s
+pub trait TextCodec: Sized {
+    fn parse(text: &str) -> Result<Self, String>;
+    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result;
+    fn print(&self) -> String {
+        let mut s = String::new();
+        self.write_fmt(&mut s).unwrap();
+        s
+    }
+}
 
 pub trait ParseTextCodec {
     fn parse_tc<T: TextCodec>(&self) -> Result<T, String>;
@@ -63,9 +73,9 @@ impl TextCodec for String {
     }
 }
 
-impl TextCodec for Identifier {
+impl TextCodec for crate::identifier::Identifier {
     fn parse(text: &str) -> Result<Self, String> {
-        Identifier::new(text).map_err(|e| e.to_string())
+        crate::identifier::Identifier::new(text).map_err(|e| e.to_string())
     }
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}", self.as_str())

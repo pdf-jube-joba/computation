@@ -1,27 +1,15 @@
-pub mod bool;
-pub mod cli;
-pub mod cli_compiler;
-pub mod identifier;
-pub mod number;
-pub mod parse;
-pub mod variable;
-
 // web/component 向けマクロで参照するために re-export しておく。
-pub use serde;
-pub use serde_json;
 pub use wit_bindgen;
 
-// parse(print(v)) == v
-// print(parse(s)) ~= s
-pub trait TextCodec: Sized {
-    fn parse(text: &str) -> Result<Self, String>;
-    fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result;
-    fn print(&self) -> String {
-        let mut s = String::new();
-        self.write_fmt(&mut s).unwrap();
-        s
-    }
-}
+// module for parsing and encoding text
+pub mod parse;
+pub use parse::TextCodec;
+
+// data structures
+pub mod bool;
+pub mod identifier;
+pub mod number;
+pub mod machine_ipc;
 
 pub enum StepResult<M: Machine> {
     Continue {
@@ -136,7 +124,7 @@ macro_rules! model_entry {
         $crate::web_model!($machine);
 
         #[cfg(not(target_arch = "wasm32"))]
-        $crate::cli_model!($machine);
+        fn main() {}
     };
 }
 
@@ -147,6 +135,6 @@ macro_rules! compiler_entry {
         $crate::web_compiler!($compiler);
 
         #[cfg(not(target_arch = "wasm32"))]
-        $crate::cli_compiler!($compiler);
+        fn main() {}
     };
 }
