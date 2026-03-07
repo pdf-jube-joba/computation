@@ -25,7 +25,7 @@ inc
 
 identity compiler の場合
 
-<div data-model="example_counter => example_counter => example_counter">
+<div data-model="example_counter-example_counter">
 <script type="text/plain" class="default-code">
 8
 </script>

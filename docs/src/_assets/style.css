@@ -31,36 +31,6 @@ dd + dd::before {
 
 /* Layout helpers for the web machines UI */
 
-.wm-pipeline {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.wm-pipeline.wm-pipeline-vertical {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.wm-node,
-.wm-edge {
-  border: 1px solid #cfd8e3;
-  border-radius: 10px;
-  padding: 10px;
-  background: #fafcff;
-}
-
-.wm-node-title,
-.wm-edge-title {
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.wm-node {
-  display: grid;
-  gap: 8px;
-}
-
 .wm-panel {
   border: 1px solid #d9e3ef;
   border-radius: 8px;
@@ -80,94 +50,11 @@ dd + dd::before {
   gap: 8px;
 }
 
-.wm-boundary-row,
-.wm-transition-row {
-  display: grid;
-  gap: 8px;
-  align-items: start;
-}
-
-.wm-boundary-row-main {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-.wm-boundary-row-actions {
-  grid-template-columns: minmax(180px, auto) minmax(0, 1fr);
-  align-items: stretch;
-}
-
-.wm-transition-row-main {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.wm-transition-row-actions {
-  grid-template-columns: minmax(220px, auto) minmax(0, 1fr);
-  align-items: stretch;
-}
-
-.wm-boundary-create,
-.wm-transition-controls {
-  margin-bottom: 0;
-}
-
-.wm-boundary-foutput,
-.wm-transition-routput {
-  min-width: 0;
-}
-
 .wm-panel-controller-status {
   margin-bottom: 12px;
 }
 
-/* lay out labels/inputs in a responsive grid */
-/* containers */
-.wm-source,
-.wm-machine {
-  padding: 0;
-  border-radius: 0;
-  margin-bottom: 0;
-  border: none;
-}
-
-.wm-source {
-  border: none;
-}
-
-.wm-machine {
-  border: none;
-}
-
-.wm-compile-strip {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  border: 1px solid #9dd59d;
-  border-radius: 8px;
-  padding: 8px;
-  margin: 8px 0 12px;
-}
-
-.wm-control {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  border: 1px solid #ffdf80;
-  border-radius: 8px;
-}
-
-.wm-control-create {
-  border-color: #9bbcf0;
-}
-
-.wm-control-step {
-  border-color: #8ccf9e;
-}
-
-.wm-edge-status,
-.wm-output,
-.wm-status {
+.wm-output {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
@@ -187,30 +74,58 @@ dd + dd::before {
   font-size: 0.95em;
 }
 
-.wm-output-runtime {
-  border-color: #cde8d4;
-}
-
-.wm-output-final {
-  border-color: #cfdaf8;
-}
-
-.wm-status {
-  border-color: #f0dfb0;
-}
-
-/* form layout */
-.wm-form-grid {
+.wm-model-boundary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px 12px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
   align-items: start;
 }
 
-.wm-form-grid .wm-field {
+.wm-model-boundary-right {
+  display: grid;
+  gap: 8px;
+}
+
+.wm-model-create-button {
+  justify-self: start;
+}
+
+.wm-model-transition-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.wm-model-step-button {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.wm-compiler-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.wm-compiler-side {
+  min-width: 0;
+}
+
+.wm-compiler-middle {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+}
+
+.wm-compiler-action {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  min-height: 96px;
+  padding: 6px 4px;
+  font-size: 0.85em;
 }
 
 .wm-panel-body .wm-field {
@@ -219,18 +134,8 @@ dd + dd::before {
   gap: 4px;
 }
 
-.wm-form-grid .wm-field label {
-  font-weight: 600;
-}
-
 .wm-panel-body .wm-field label {
   font-weight: 600;
-}
-
-.wm-form-grid textarea {
-  width: 100%;
-  min-height: 120px;
-  box-sizing: border-box;
 }
 
 .wm-panel-body textarea {
@@ -239,33 +144,28 @@ dd + dd::before {
   box-sizing: border-box;
 }
 
-.wm-boundary-row .wm-field,
-.wm-transition-row .wm-field {
+.wm-compiler-side .wm-field {
   min-width: 0;
 }
 
 @media (max-width: 760px) {
-  .wm-boundary-row-main {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 1100px) {
-  .wm-pipeline {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .wm-pipeline.wm-pipeline-vertical {
+  .wm-model-boundary-grid,
+  .wm-model-transition-grid,
+  .wm-compiler-row {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .wm-edge {
-    width: 320px;
+  .wm-model-step-button {
+    justify-self: start;
   }
 
-  .wm-pipeline.wm-pipeline-vertical .wm-edge {
-    width: auto;
+  .wm-compiler-middle {
+    justify-content: flex-start;
+  }
+
+  .wm-compiler-action {
+    writing-mode: horizontal-tb;
+    min-height: 0;
   }
 }
 
