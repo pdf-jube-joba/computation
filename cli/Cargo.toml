@@ -1,0 +1,19 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "repl-machine"
+path = "src/bin/repl.rs"
+
+[[bin]]
+name = "pipe-machine"
+path = "src/bin/pipe.rs"
+
+[dependencies]
+utils = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }
+wasmtime = "40"

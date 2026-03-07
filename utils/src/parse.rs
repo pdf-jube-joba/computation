@@ -49,7 +49,7 @@ impl TextCodec for usize {
     }
 }
 
-impl TextCodec for crate::number::Number {
+impl TextCodec for crate::data::number::Number {
     fn parse(text: &str) -> Result<Self, String> {
         let trimed = text.trim();
         let n = if trimed.is_empty() {
@@ -57,7 +57,7 @@ impl TextCodec for crate::number::Number {
         } else {
             trimed.parse::<usize>().map_err(|e| e.to_string())?
         };
-        Ok(crate::number::Number::from(n))
+        Ok(crate::data::number::Number::from(n))
     }
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}", self.to_decimal_string())
@@ -73,9 +73,9 @@ impl TextCodec for String {
     }
 }
 
-impl TextCodec for crate::identifier::Identifier {
+impl TextCodec for crate::data::identifier::Identifier {
     fn parse(text: &str) -> Result<Self, String> {
-        crate::identifier::Identifier::new(text).map_err(|e| e.to_string())
+        crate::data::identifier::Identifier::new(text).map_err(|e| e.to_string())
     }
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}", self.as_str())

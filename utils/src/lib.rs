@@ -6,20 +6,14 @@ pub mod parse;
 pub use parse::TextCodec;
 
 // data structures
-pub mod bool;
-pub mod identifier;
-pub mod number;
-pub mod machine;
+pub mod data;
+
+// utilities for web
+pub mod wasm_util;
 
 pub enum StepResult<M: Machine> {
-    Continue {
-        next: M,
-        output: M::ROutput,
-    },
-    Halt {
-        snapshot: M::SnapShot,
-        output: M::FOutput,
-    },
+    Continue { next: M, output: M::ROutput },
+    Halt { output: M::FOutput },
 }
 
 // trait for models of computation
@@ -33,14 +27,16 @@ pub trait Machine: Sized {
     // final output at halt
     type FOutput: TextCodec;
 
-    // for each steps
-    // representation of the current state
-    type SnapShot;
+    // small step semantics of the models
     // runtime input
     type RInput: TextCodec;
     // runtime output after a step
     type ROutput: TextCodec;
 
+    // representation of the current state
+    type SnapShot: serde::Serialize + serde::de::DeserializeOwned;
+
+    // parsing
     fn parse_code(code: &str) -> Result<Self::Code, String> {
         Self::Code::parse(code)
     }
@@ -50,18 +46,28 @@ pub trait Machine: Sized {
     fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
         Self::RInput::parse(rinput)
     }
+
+    // semantics
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String>;
     fn step(self, rinput: Self::RInput) -> Result<StepResult<Self>, String>;
-    fn current(&self) -> Self::SnapShot;
+
+    // save/restore snapshot of the current state
+    fn snapshot(&self) -> Self::SnapShot;
+    fn restore(snapshot: Self::SnapShot) -> Self;
+
+    // rendering of Snapshot for web
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value;
 }
 
 pub trait Compiler: Sized {
     type Source: Machine;
     type Target: Machine;
 
+    // compile of code
     fn compile(
         source: <<Self as Compiler>::Source as Machine>::Code,
     ) -> Result<<<Self as Compiler>::Target as Machine>::Code, String>;
+    // encoding/decoding of inputs and outputs ... how to interpret the source/target code as the same "program"?
     fn encode_ainput(
         ainput: <<Self as Compiler>::Source as Machine>::AInput,
     ) -> Result<<<Self as Compiler>::Target as Machine>::AInput, String>;
@@ -74,67 +80,4 @@ pub trait Compiler: Sized {
     fn decode_foutput(
         output: <<Self as Compiler>::Target as Machine>::FOutput,
     ) -> Result<<<Self as Compiler>::Source as Machine>::FOutput, String>;
-}
-
-#[doc(hidden)]
-pub mod component_bindings {
-    pub mod model {
-        wit_bindgen::generate!({
-            path: "wit",
-            world: "web-model",
-            pub_export_macro: true,
-        });
-    }
-
-    pub mod compiler {
-        wit_bindgen::generate!({
-            path: "wit",
-            world: "web-compiler",
-            pub_export_macro: true,
-        });
-    }
-
-    #[doc(hidden)]
-    #[macro_export]
-    macro_rules! __export_component_model {
-        ($ty:ident) => {
-            $crate::component_bindings::model::export!(
-                $ty with_types_in $crate::component_bindings::model
-            );
-        };
-    }
-
-    #[doc(hidden)]
-    #[macro_export]
-    macro_rules! __export_component_compiler {
-        ($ty:ident) => {
-            $crate::component_bindings::compiler::export!(
-                $ty with_types_in $crate::component_bindings::compiler
-            );
-        };
-    }
-}
-#[doc(hidden)]
-pub mod web_util;
-
-#[macro_export]
-macro_rules! model_entry {
-    ($machine:path) => {
-        #[cfg(target_arch = "wasm32")]
-        $crate::web_model!($machine);
-
-        #[cfg(not(target_arch = "wasm32"))]
-        fn main() {}
-    };
-}
-
-#[macro_export]
-macro_rules! compiler_entry {
-    ($compiler:path) => {
-        #[cfg(target_arch = "wasm32")]
-        $crate::web_compiler!($compiler);
-
-        #[cfg(not(target_arch = "wasm32"))]
-        fn main() {}
-    };
 }

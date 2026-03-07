@@ -3,25 +3,10 @@ name = "utils"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "repl"
-path = "bin/repl.rs"
-
-[[bin]]
-name = "machine"
-path = "bin/machine.rs"
-
-[[bin]]
-name = "machine-daemon"
-path = "bin/machine_daemon.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-either = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 wit-bindgen = { workspace = true }
-clap = { workspace = true }
-wasmtime = "40"

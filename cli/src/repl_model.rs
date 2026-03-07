@@ -1,37 +1,18 @@
 use std::io::{self, Write};
 
 use anyhow::{Context, Result};
+use serde_json::Value;
 
-use crate::machine::client::request_ok;
-use crate::machine::ipc::{OkBody, Request};
+use crate::runtime::ModelHost;
 
-pub fn run(socket: &str, name: &str, code: &str, ainput: &str) -> Result<()> {
-    request_ok(
-        socket,
-        &Request::Model {
-            name: name.to_string(),
-        },
-    )
-    .context("web-model select failed")?;
+pub fn run(name: &str, code: &str, ainput: &str) -> Result<()> {
+    let mut model = ModelHost::load(name)?;
+    model.create(code, ainput)?;
+    let snapshot = model.checkpoint()?;
 
-    let create_body = request_ok(
-        socket,
-        &Request::Create {
-            code: code.to_string(),
-            ainput: ainput.to_string(),
-        },
-    )?;
-
-    println!("world=web-model");
-    if let OkBody::Created {
-        create, snapshot, ..
-    } = create_body
-    {
-        println!("create={create}");
-        println!("snapshot={snapshot}");
-    } else {
-        anyhow::bail!("unexpected response for create");
-    }
+    println!("world=model");
+    println!("create=ok");
+    println!("snapshot={snapshot}");
 
     let mut line = String::new();
     let mut block = String::new();
@@ -78,12 +59,14 @@ pub fn run(socket: &str, name: &str, code: &str, ainput: &str) -> Result<()> {
             rinput = block.clone();
         }
 
-        let step_body = request_ok(socket, &Request::Step { rinput })?;
-        if let OkBody::Stepped { step, snapshot, .. } = step_body {
-            println!("step={step}");
-            println!("snapshot={snapshot}");
+        let step = model.step(&rinput)?;
+        println!("step={step}");
+        let parsed: Value = serde_json::from_str(&step).context("invalid JSON from step")?;
+        if parsed.get("kind").and_then(Value::as_str) == Some("halt") {
+            println!("halted");
+            break;
         } else {
-            anyhow::bail!("unexpected response for step");
+            println!("snapshot={}", model.checkpoint()?);
         }
     }
 

@@ -1,7 +1,8 @@
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utils::{Compiler, Machine, StepResult, TextCodec};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Counter {
     pub count: usize,
 }
@@ -67,9 +68,7 @@ impl Machine for Counter {
             Command::Increment => {
                 next.count += 1;
                 if next.count >= 10 {
-                    let snapshot = next.clone();
                     Ok(StepResult::Halt {
-                        snapshot,
                         output: "End".to_string(),
                     })
                 } else {
@@ -93,8 +92,16 @@ impl Machine for Counter {
         }
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        snapshot.into()
     }
 }
 
