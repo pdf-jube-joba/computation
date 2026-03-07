@@ -1,5 +1,5 @@
 use crate::machine::{CodeEntry as CoreCodeEntry, Tape, TuringMachine, TuringMachineDefinition};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utils::{Machine, StepResult, TextCodec, json_text};
 
@@ -9,7 +9,7 @@ pub mod parse;
 #[cfg(test)]
 pub mod tests;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeEntry {
     key_sign: String,
     key_state: String,
@@ -30,7 +30,7 @@ impl From<CoreCodeEntry> for CodeEntry {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Current {
     code: Vec<CodeEntry>,
     now: usize,
@@ -110,7 +110,7 @@ impl Machine for TuringMachine {
     type Code = TuringMachineDefinition;
     type AInput = Tape;
     type RInput = ();
-    type SnapShot = Current;
+    type SnapShot = TuringMachine;
     type ROutput = ();
     type FOutput = Tape;
 
@@ -122,9 +122,8 @@ impl Machine for TuringMachine {
         let mut machine = self;
         let _ = TuringMachine::step(&mut machine, 1);
         if machine.is_terminate() {
-            let snapshot = machine.current();
-            let output = snapshot.tape.clone();
-            Ok(StepResult::Halt { snapshot, output })
+            let output = machine.now_tape().clone();
+            Ok(StepResult::Halt { output })
         } else {
             Ok(StepResult::Continue {
                 next: machine,
@@ -133,18 +132,27 @@ impl Machine for TuringMachine {
         }
     }
 
-    fn current(&self) -> Self::SnapShot {
-        let now = self
+    fn snapshot(&self) -> Self::SnapShot {
+        self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        let now = snapshot
             .next_code()
             .map(|(idx, _)| idx)
-            .unwrap_or(self.code().len());
-        let tape = self.now_tape().clone();
-        let state = self.now_state().print();
-        Current {
-            code: self.code().iter().cloned().map(CodeEntry::from).collect(),
+            .unwrap_or(snapshot.code().len());
+        let tape = snapshot.now_tape().clone();
+        let state = snapshot.now_state().print();
+        let current = Current {
+            code: snapshot.code().iter().cloned().map(CodeEntry::from).collect(),
             now,
             state,
             tape,
-        }
+        };
+        current.into()
     }
 }

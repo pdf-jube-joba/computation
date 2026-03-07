@@ -177,7 +177,7 @@ impl Machine for LogicCircuit {
     type Code = LogicCircuit;
     type AInput = ();
     type RInput = Signal;
-    type SnapShot = Snapshot;
+    type SnapShot = LogicCircuit;
     type ROutput = Signal;
     type FOutput = ();
 
@@ -192,7 +192,16 @@ impl Machine for LogicCircuit {
         Ok(StepResult::Continue { next, output })
     }
 
-    fn current(&self) -> Self::SnapShot {
-        Snapshot::new(self.kind(), self.as_graph_group())
+    fn snapshot(&self) -> Self::SnapShot {
+        self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        let view = Snapshot::new(snapshot.kind(), snapshot.as_graph_group());
+        view.into()
     }
 }

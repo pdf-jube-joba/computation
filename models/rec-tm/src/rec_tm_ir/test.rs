@@ -1,28 +1,28 @@
 use crate::{assign, lv, rv};
 use std::rc::Rc;
-use turing_machine::machine::Sign;
+use turing_machine::machine::{Sign, Tape};
 use utils::{Machine, StepResult, TextCodec, parse::ParseTextCodec};
 
 use crate::rec_tm_ir::{Block, Function, Program, Stmt};
 
-use super::{RecTmIrMachine, Snapshot};
+use super::RecTmIrMachine;
 
-fn run_until_halt(mut machine: RecTmIrMachine, limit: usize) -> Result<Snapshot, String> {
+fn run_until_halt(mut machine: RecTmIrMachine, limit: usize) -> Result<Tape, String> {
     for _ in 0..limit {
         match machine.step(())? {
             StepResult::Continue { next, .. } => {
                 machine = next;
             }
-            StepResult::Halt { snapshot, .. } => {
-                return Ok(snapshot);
+            StepResult::Halt { output } => {
+                return Ok(output);
             }
         }
     }
     Err("step limit exceeded".to_string())
 }
 
-fn head_text(snapshot: Snapshot) -> Result<String, String> {
-    let value: serde_json::Value = snapshot.into();
+fn tape_from_machine(machine: &RecTmIrMachine) -> Result<Tape, String> {
+    let value = RecTmIrMachine::render(machine.snapshot());
     let arr = value
         .as_array()
         .ok_or_else(|| "snapshot json is not an array".to_string())?;
@@ -34,19 +34,30 @@ fn head_text(snapshot: Snapshot) -> Result<String, String> {
         .get("children")
         .and_then(|v| v.as_array())
         .ok_or_else(|| "snapshot tape children missing".to_string())?;
-    for child in children {
+    let mut signs = Vec::new();
+    let mut head = None;
+    for (idx, child) in children.iter().enumerate() {
         let obj = child
             .as_object()
             .ok_or_else(|| "tape child is not an object".to_string())?;
+        let text = obj
+            .get("text")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "tape cell missing text".to_string())?;
+        signs.push(<Sign as TextCodec>::parse(text)?);
         if obj.get("className").and_then(|v| v.as_str()) == Some("highlight") {
-            return obj
-                .get("text")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-                .ok_or_else(|| "highlighted tape cell missing text".to_string());
+            head = Some(idx);
         }
     }
-    Err("highlighted tape cell not found".to_string())
+    Tape::from_vec(signs, head.unwrap_or(0))
+}
+
+fn head_text(tape: Tape) -> Result<String, String> {
+    let (signs, head) = tape.into_vec();
+    signs
+        .get(head)
+        .map(Sign::print)
+        .ok_or_else(|| "highlighted tape cell not found".to_string())
 }
 
 fn ms(s: &str) -> Sign {
@@ -77,23 +88,31 @@ fn tape_left_right() {
     };
     let tape = <RecTmIrMachine as Machine>::parse_ainput("|-|").unwrap();
     let mut machine = RecTmIrMachine::make(program, tape).unwrap();
+    let mut halted_tape = None;
+    let mut current_tape = tape_from_machine(&machine).unwrap();
 
     for _ in 0..10 {
-        let snapshot = machine.current();
-        eprintln!("{}", snapshot.tape.print());
+        let snapshot = current_tape.clone();
+        eprintln!("{}", snapshot.print());
         match machine.step(()) {
-            Ok(StepResult::Continue { next, .. }) => machine = next,
-            Ok(StepResult::Halt { .. }) => panic!("unexpected halt in tape_left_right test"),
+            Ok(StepResult::Continue { next, .. }) => {
+                current_tape = tape_from_machine(&next).unwrap();
+                machine = next;
+            }
+            Ok(StepResult::Halt { output }) => {
+                halted_tape = Some(output);
+                break;
+            }
             Err(e) => panic!("step failed: {e}"),
         }
     }
 
-    let snapshot = machine.current();
-    eprintln!("{}", snapshot.tape.print());
+    let snapshot = halted_tape.unwrap_or(current_tape);
+    eprintln!("{}", snapshot.print());
 
     let expected_tape: crate::rec_tm_ir::Tape = "|a|-,a,-,a".parse_tc().unwrap();
 
-    assert!(snapshot.tape.eq(&expected_tape))
+    assert!(snapshot.eq(&expected_tape))
 }
 
 #[test]
@@ -120,7 +139,6 @@ fn main() {
     let tape = <RecTmIrMachine as Machine>::parse_ainput("-|a|b").unwrap();
     let machine = RecTmIrMachine::make(program, tape).unwrap();
     let snapshot = run_until_halt(machine, 64).unwrap();
-    assert_eq!(snapshot.env.print().trim(), "x = a");
 
     let head = head_text(snapshot).unwrap();
     assert_eq!(head, "a");

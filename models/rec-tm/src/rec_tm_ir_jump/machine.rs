@@ -1,18 +1,19 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
 use utils::{Machine, StepResult, TextCodec, json_text};
 
 use super::parser::parse_identifier;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Program {
     pub alphabet: Vec<Sign>,
     pub body: Vec<Stmt>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Stmt {
     Lt,
     Rt,
@@ -26,20 +27,20 @@ pub enum Stmt {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LValue {
     Var(String),
     Head,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RValue {
     Var(String),
     Head,
     Const(Sign),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Condition {
     pub left: RValue,
     pub right: RValue,
@@ -85,7 +86,7 @@ macro_rules! assign_jr {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Environment {
     values: BTreeMap<String, Sign>,
 }
@@ -150,7 +151,7 @@ impl TextCodec for Environment {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
     pc: usize,
     instruction: Option<String>,
@@ -214,6 +215,7 @@ impl From<Snapshot> for serde_json::Value {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecTmIrJumpMachine {
     program: Program,
     pc: usize,
@@ -224,7 +226,7 @@ pub struct RecTmIrJumpMachine {
 impl Machine for RecTmIrJumpMachine {
     type Code = Program;
     type AInput = Tape;
-    type SnapShot = Snapshot;
+    type SnapShot = RecTmIrJumpMachine;
     type RInput = ();
     type ROutput = ();
     type FOutput = Tape;
@@ -248,9 +250,8 @@ impl Machine for RecTmIrJumpMachine {
     fn step(self, _rinput: Self::RInput) -> Result<StepResult<Self>, String> {
         let mut next = self;
         if next.pc >= next.program.body.len() {
-            let snapshot = next.current();
             let output = next.tape.clone();
-            return Ok(StepResult::Halt { snapshot, output });
+            return Ok(StepResult::Halt { output });
         }
         let instr = next.program.body[next.pc].clone();
         match instr {
@@ -281,7 +282,15 @@ impl Machine for RecTmIrJumpMachine {
         Ok(StepResult::Continue { next, output: () })
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
+        self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
         fn render_lvalue(value: &LValue) -> String {
             match value {
                 LValue::Var(name) => name.clone(),
@@ -296,7 +305,7 @@ impl Machine for RecTmIrJumpMachine {
             }
         }
 
-        let instruction = self.program.body.get(self.pc).map(|stmt| match stmt {
+        let instruction = snapshot.program.body.get(snapshot.pc).map(|stmt| match stmt {
             Stmt::Lt => "LT".to_string(),
             Stmt::Rt => "RT".to_string(),
             Stmt::Assign { dst, src } => {
@@ -312,12 +321,13 @@ impl Machine for RecTmIrJumpMachine {
                 None => format!("jump {}", target),
             },
         });
-        Snapshot {
-            pc: self.pc,
+        let view = Snapshot {
+            pc: snapshot.pc,
             instruction,
-            env: self.env.clone(),
-            tape: self.tape.clone(),
-        }
+            env: snapshot.env.clone(),
+            tape: snapshot.tape.clone(),
+        };
+        view.into()
     }
 }
 

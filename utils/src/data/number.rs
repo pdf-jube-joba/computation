@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-use serde::Serialize;
+use serde::{Deserialize, Deserializer, Serialize};
 
 // Natural number represented in little-endian byte array
 // i.e., least significant byte first
@@ -176,6 +176,60 @@ impl Serialize for Number {
             serializer.serialize_u64(value)
         } else {
             serializer.serialize_str(&self.to_decimal_string())
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Number {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            U64(u64),
+            String(String),
+        }
+
+        match Repr::deserialize(deserializer)? {
+            Repr::U64(v) => Ok(Number::from(v as usize)),
+            Repr::String(s) => {
+                if s.is_empty() {
+                    return Err(serde::de::Error::custom("empty decimal string"));
+                }
+
+                let mut digits: Vec<u8> = s
+                    .chars()
+                    .map(|ch| {
+                        ch.to_digit(10)
+                            .map(|d| d as u8)
+                            .ok_or_else(|| serde::de::Error::custom("invalid decimal string"))
+                    })
+                    .collect::<Result<_, _>>()?;
+
+                if digits.iter().all(|d| *d == 0) {
+                    return Ok(Number::default());
+                }
+
+                let mut bytes = Vec::new();
+                while !digits.is_empty() {
+                    let mut carry = 0u16;
+                    let mut next = Vec::new();
+                    for d in digits {
+                        let cur = carry * 10 + d as u16;
+                        let q = (cur / 256) as u8;
+                        carry = cur % 256;
+                        if !next.is_empty() || q != 0 {
+                            next.push(q);
+                        }
+                    }
+                    bytes.push(carry as u8);
+                    digits = next;
+                }
+
+                Ok(Number(bytes))
+            }
         }
     }
 }

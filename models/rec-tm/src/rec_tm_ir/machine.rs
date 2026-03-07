@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
 use utils::{Machine, StepResult, TextCodec, json_text};
@@ -11,25 +12,25 @@ use super::validation::{
     validate_tape,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Program {
     pub alphabet: Vec<Sign>,
     pub functions: Vec<Rc<Function>>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Function {
     pub name: String,
     pub blocks: Vec<Block>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     pub label: String,
     pub body: Vec<Stmt>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Stmt {
     Lt,
     Rt,
@@ -83,20 +84,20 @@ impl PartialEq for Stmt {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LValue {
     Var(String),
     Head,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RValue {
     Var(String),
     Head,
     Const(Sign),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Condition {
     pub left: RValue,
     pub right: RValue,
@@ -142,7 +143,7 @@ macro_rules! assign {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Environment {
     values: BTreeMap<String, Sign>,
 }
@@ -207,7 +208,7 @@ impl TextCodec for Environment {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
     pub function: String,
     pub pc: (usize, usize),
@@ -298,6 +299,7 @@ impl From<Snapshot> for serde_json::Value {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Frame {
     function: String,
     env: Environment,
@@ -305,6 +307,7 @@ struct Frame {
     pc: (usize, usize),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecTmIrMachine {
     program: Program,
     frame: Frame,
@@ -325,7 +328,7 @@ fn build_frame_for_function(func: &Function) -> Frame {
 impl Machine for RecTmIrMachine {
     type Code = Program;
     type AInput = Tape;
-    type SnapShot = Snapshot;
+    type SnapShot = RecTmIrMachine;
     type RInput = ();
     type ROutput = ();
     type FOutput = Tape;
@@ -358,8 +361,7 @@ impl Machine for RecTmIrMachine {
             Some(stmt) => stmt,
             None => match next.return_from_call() {
                 Some(output) => {
-                    let snapshot = next.current();
-                    return Ok(StepResult::Halt { snapshot, output });
+                    return Ok(StepResult::Halt { output });
                 }
                 None => {
                     return Ok(StepResult::Continue { next, output: () });
@@ -397,8 +399,7 @@ impl Machine for RecTmIrMachine {
                 if next.eval_condition(&cond) {
                     return match next.return_from_call() {
                         Some(output) => {
-                            let snapshot = next.current();
-                            Ok(StepResult::Halt { snapshot, output })
+                            Ok(StepResult::Halt { output })
                         }
                         None => Ok(StepResult::Continue { next, output: () }),
                     };
@@ -419,21 +420,30 @@ impl Machine for RecTmIrMachine {
         Ok(StepResult::Continue { next, output: () })
     }
 
-    fn current(&self) -> Self::SnapShot {
-        let instruction = self.peek_stmt().map(|stmt| render_text(&stmt));
-        let stack = self
+    fn snapshot(&self) -> Self::SnapShot {
+        self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        let instruction = snapshot.peek_stmt().map(|stmt| render_text(&stmt));
+        let stack = snapshot
             .stack
             .iter()
             .map(|frame| frame.function.clone())
             .collect();
-        Snapshot {
-            function: self.frame.function.clone(),
-            pc: self.current_pc(),
+        let view = Snapshot {
+            function: snapshot.frame.function.clone(),
+            pc: snapshot.current_pc(),
             instruction,
-            env: self.frame.env.clone(),
-            tape: self.tape.clone(),
+            env: snapshot.frame.env.clone(),
+            tape: snapshot.tape.clone(),
             stack,
-        }
+        };
+        view.into()
     }
 }
 

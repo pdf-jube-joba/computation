@@ -29,4 +29,5 @@ path = "src/bin/rec_tm_ir_jump-turing_machine.rs"
 utils = { workspace = true }
 turing_machine = { workspace = true }
 recursive_function = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }

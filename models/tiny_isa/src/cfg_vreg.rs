@@ -1,50 +1,51 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
 use utils::number::Number;
 use utils::{Machine, StepResult};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CfgVRegCode(pub Program);
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Program {
     pub statics: Vec<StaticDef>,
     pub blocks: Vec<Block>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticDef {
     pub label: String,
     pub value: Number,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
     pub label: String,
     pub stmts: Vec<Stmt>,
     pub cont: Cont,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Cont {
     pub ifs: Vec<JumpIf>,
     pub jump: AddrExpr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JumpIf {
     pub cond: Cond,
     pub target: AddrExpr,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Cond {
     Lt(ValueExpr, ValueExpr),
     Eq(ValueExpr, ValueExpr),
     Gt(ValueExpr, ValueExpr),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Stmt {
     Assign {
         dst: usize,
@@ -62,23 +63,23 @@ pub enum Stmt {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum BinOp {
     Add,
     Sub,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AddrExpr {
     VReg(usize),
     Label(String),
     Imm(Number),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlaceExpr(pub Box<AddrExpr>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ValueExpr {
     VReg(usize),
     Imm(Number),
@@ -86,7 +87,7 @@ pub enum ValueExpr {
     Deref(PlaceExpr),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct CompiledProgram {
     pub(crate) blocks: Vec<Block>,
     pub(crate) entry_block: usize,
@@ -94,7 +95,7 @@ pub(crate) struct CompiledProgram {
     pub(crate) static_labels: HashMap<String, usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CfgVRegMachine {
     pub code: CfgVRegCode,
     pub(crate) compiled: CompiledProgram,
@@ -117,9 +118,8 @@ impl CfgVRegMachine {
     }
 
     fn halt_result(self) -> StepResult<Self> {
-        let snapshot = self.clone();
-        let output = snapshot.output();
-        StepResult::Halt { snapshot, output }
+        let output = self.output();
+        StepResult::Halt { output }
     }
 
     fn get_vreg(&self, idx: usize) -> Number {
@@ -272,8 +272,16 @@ impl Machine for CfgVRegMachine {
         Ok(next.continue_result())
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
     }
 }
 

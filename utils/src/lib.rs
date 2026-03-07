@@ -7,6 +7,7 @@ pub use parse::TextCodec;
 
 // data structures
 pub mod data;
+pub use data::{bool, identifier, number};
 
 // utilities for web
 pub mod wasm_util;

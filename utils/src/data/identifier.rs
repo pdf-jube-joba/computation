@@ -1,5 +1,5 @@
-use std::fmt::{Display, Debug};
-use serde::Serialize;
+use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt::{Debug, Display};
 
 // string consists of
 // (ASCII_CHAR | '_') ~ (ASCII_CHAR | DIGIT | '_' | '-')*
@@ -58,6 +58,13 @@ use std::rc::Rc;
 #[derive(Clone, Eq, PartialOrd, Ord)]
 pub struct Var(Rc<str>);
 
+impl Var {
+    pub fn as_ptr_usize(&self) -> usize {
+        let ptr: *const () = Rc::as_ptr(&self.0) as *const ();
+        ptr as usize
+    }
+}
+
 impl Debug for Var {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -67,13 +74,6 @@ impl Debug for Var {
             Rc::as_ptr(&self.0).addr()
         )
     }
-}
-
-/// JSON-friendly view of `Var` for the web side.
-#[derive(Debug, Clone, Serialize)]
-pub struct VarView {
-    pub name: String,
-    pub ptr: usize,
 }
 
 impl Var {
@@ -92,6 +92,13 @@ impl Var {
     pub fn view(&self) -> VarView {
         VarView::from(self)
     }
+}
+
+/// JSON-friendly view of `Var` for the web side.
+#[derive(Debug, Clone, Serialize)]
+pub struct VarView {
+    pub name: String,
+    pub ptr: usize,
 }
 
 impl<T> From<T> for Var
@@ -126,6 +133,16 @@ impl Serialize for Var {
         S: serde::Serializer,
     {
         VarView::from(self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Identifier {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Identifier::new(s).map_err(serde::de::Error::custom)
     }
 }
 

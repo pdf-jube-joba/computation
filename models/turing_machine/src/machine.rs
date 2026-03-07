@@ -1,9 +1,9 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use utils::identifier::Identifier; // Import Alphabet from the utils crate
 
 // テープの動く方向を表す。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Direction {
     Right,
     Constant,
@@ -13,7 +13,7 @@ pub enum Direction {
 // テープで扱う記号の定義
 // 空白記号（None）と制御記号の含まれない文字列を記号として扱う
 // Alphabet は空白ではない
-#[derive(Debug, Default, Clone, PartialEq, Hash, Eq, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub struct Sign(pub(crate) Option<Identifier>);
 
 impl Sign {
@@ -26,7 +26,7 @@ impl Sign {
 // ヘッド部分の読み書きと左右への移動のみが許される
 // テープの左右端には空白記号が無限に並んでいるものとする
 // left[0] が左端で right[0] が右端 => テープとしては、 left[0] ... left[n] [head] right[m] ... right[0]
-#[derive(Debug, Default, Clone, Serialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Tape {
     left: Vec<Sign>,
     head: Sign,
@@ -114,7 +114,7 @@ impl Tape {
 
 // マシンの持つ状態の定義
 // テープの記号と同じ
-#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub struct State(pub(crate) Identifier);
 
 impl TryFrom<&String> for State {
@@ -129,7 +129,7 @@ impl TryFrom<&String> for State {
 pub type CodeEntry = ((Sign, State), (Sign, State, Direction));
 pub type Code = Vec<CodeEntry>;
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TuringMachineDefinition {
     init_state: State,
     accepted_state: Vec<State>,
@@ -204,7 +204,7 @@ impl TuringMachineDefinition {
 }
 
 // TuringMachine の計算過程を表す。
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TuringMachineState {
     state: State,
     tape: Tape,
@@ -216,7 +216,7 @@ impl TuringMachineState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TuringMachine {
     machine_definition: TuringMachineDefinition,
     machine_state: TuringMachineState,

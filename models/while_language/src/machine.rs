@@ -1,11 +1,12 @@
+use serde::{Deserialize, Serialize};
 use utils::identifier::Identifier;
 use utils::number::Number;
 use utils::{Machine, StepResult};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WhileCode(pub Stmt);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AExp {
     Var(Identifier),
     Num(Number),
@@ -21,13 +22,13 @@ pub enum AExp {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ABinOp {
     Add,
     Sub,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BExp {
     Rel {
         lhs: Box<AExp>,
@@ -38,14 +39,14 @@ pub enum BExp {
     Not(Box<BExp>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RelOp {
     Lt,
     Eq,
     Gt,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stmt {
     Nop,
     Assign { var: Identifier, expr: AExp },
@@ -54,7 +55,7 @@ pub enum Stmt {
     While { cond: BExp, body: Box<Stmt> },
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Environment {
     pub vars: Vec<(Identifier, Number)>,
 }
@@ -76,7 +77,7 @@ impl Environment {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WhileMachine {
     pub code: WhileCode,
     pub stmt: Stmt,
@@ -181,9 +182,8 @@ impl Machine for WhileMachine {
 
     fn step(self, _rinput: Self::RInput) -> Result<StepResult<Self>, String> {
         if matches!(self.stmt, Stmt::Nop) {
-            let snapshot = self.clone();
-            let output = snapshot.env.clone();
-            return Ok(StepResult::Halt { snapshot, output });
+            let output = self.env.clone();
+            return Ok(StepResult::Halt { output });
         }
 
         let (stmt, env) = Self::small_step(self.stmt, self.env)?;
@@ -197,7 +197,15 @@ impl Machine for WhileMachine {
         })
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
     }
 }

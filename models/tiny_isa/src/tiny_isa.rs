@@ -1,16 +1,17 @@
+use serde::{Deserialize, Serialize};
 use utils::number::Number;
 use utils::{Machine, StepResult};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MachineCode(pub Vec<Number>);
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RegisterMemoryImage {
     pub register: [Number; 8],
     pub memory: Vec<Number>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TinyIsaMachine {
     pub regs: [Number; 8],
     pub flag: bool,
@@ -118,9 +119,8 @@ impl TinyIsaMachine {
     }
 
     fn halt_result(self) -> StepResult<Self> {
-        let snapshot = self.clone();
-        let output = snapshot.snapshot_output();
-        StepResult::Halt { snapshot, output }
+        let output = self.snapshot_output();
+        StepResult::Halt { output }
     }
 
     pub(crate) fn decode(word: &Number) -> Result<DecodedInst, String> {
@@ -315,7 +315,15 @@ impl Machine for TinyIsaMachine {
         }
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
     }
 }

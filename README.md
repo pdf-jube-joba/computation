@@ -43,13 +43,10 @@
 ## CLI の使い方
 `utils` には `wasm_bundle/*.component.wasm` を使うための CLI が2つあります。
 
-### `repl` (対話)
-
-`repl model` は `machine-daemon` 経由で状態を保持するため、先に daemon を起動してください。
+### `repl-machine` (対話)
 
 ```bash
-cargo run -p utils --bin machine -- daemon start
-cargo run -p utils --bin repl -- model <NAME> --code <CODE> [--ainput <AINPUT>]
+cargo run -p utils --bin repl-machine -- model <NAME> --code <CODE> [--ainput <AINPUT>]
 ```
 
 - 起動後は `rinput> ` に1行ずつ入力して `step` と `snapshot` を確認できます。
@@ -58,29 +55,22 @@ cargo run -p utils --bin repl -- model <NAME> --code <CODE> [--ainput <AINPUT>]
 `compiler` は1機能ずつ実行します。
 
 ```bash
-cargo run -p utils --bin repl -- compiler compile-code <NAME> --code <TEXT>
-cargo run -p utils --bin repl -- compiler compile-ainput <NAME> --ainput <TEXT>
-cargo run -p utils --bin repl -- compiler compile-rinput <NAME> --rinput <TEXT>
-cargo run -p utils --bin repl -- compiler decode-routput <NAME> --routput <TEXT>
-cargo run -p utils --bin repl -- compiler decode-foutput <NAME> --foutput <TEXT>
+cargo run -p utils --bin repl-machine -- compiler compile-code <NAME> --code <TEXT>
+cargo run -p utils --bin repl-machine -- compiler compile-ainput <NAME> --ainput <TEXT>
+cargo run -p utils --bin repl-machine -- compiler compile-rinput <NAME> --rinput <TEXT>
+cargo run -p utils --bin repl-machine -- compiler decode-routput <NAME> --routput <TEXT>
+cargo run -p utils --bin repl-machine -- compiler decode-foutput <NAME> --foutput <TEXT>
 ```
 
-### `machine` + `machine-daemon` (one-shot)
+### `pipe-machine` (one-shot / pipe)
 
-daemon を先に起動し、 `machine` を one-shot で重ねて使います。
+`model create` が初期 snapshot JSON を返し、 `model step` は stdin から snapshot JSON を受け取って次の snapshot JSON を返します。
 
 ```bash
-cargo run -p utils --bin machine -- daemon start
-cargo run -p utils --bin machine -- model example_counter
-cargo run -p utils --bin machine -- create --code 0 --ainput ""
-cargo run -p utils --bin machine -- step --rinput inc
-cargo run -p utils --bin machine -- current
-cargo run -p utils --bin machine -- daemon kill
+cargo run -p utils --bin pipe-machine -- model example_counter create --code 0 --ainput ""
+cargo run -p utils --bin pipe-machine -- model example_counter create --code 0 --ainput "" \
+  | cargo run -p utils --bin pipe-machine -- model example_counter step --rinput inc
 ```
-
-- デフォルトの socket は `/tmp/computation-machine.sock`
-- デフォルトの pidfile は `/tmp/computation-machine.pid`
-- `machine daemon status` で daemon の状態確認ができます。
 
 ## ビルド
 

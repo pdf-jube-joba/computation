@@ -210,10 +210,7 @@ ifnz x : 0
                 utils::StepResult::Continue { next, output: () } => {
                     program = next;
                 }
-                utils::StepResult::Halt {
-                    snapshot: _,
-                    output,
-                } => {
+                utils::StepResult::Halt { output } => {
                     print_env(&output);
                     break;
                 }

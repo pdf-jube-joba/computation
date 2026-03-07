@@ -1,45 +1,46 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use serde::{Deserialize, Serialize};
 use utils::number::Number;
 use utils::{Machine, StepResult};
 
 pub type Vreg = String;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlowIrCode(pub Program);
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Program {
     pub statics: Vec<StaticDef>,
     pub regions: Vec<Region>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StaticDef {
     pub label: String,
     pub value: Number,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Region {
     pub label: String,
     pub blocks: Vec<Block>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
     pub label: String,
     pub stmts: Vec<Stmt>,
     pub cont: Cont,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JumpIf {
     pub cond: Cond,
     pub target: ValueExpr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cont {
     Go { ifs: Vec<JumpIf>, target: ValueExpr },
     Enter { ifs: Vec<JumpIf>, target: ValueExpr },
@@ -56,14 +57,14 @@ impl Cont {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cond {
     Lt(ValueExpr, ValueExpr),
     Eq(ValueExpr, ValueExpr),
     Gt(ValueExpr, ValueExpr),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stmt {
     Nop,
     Load {
@@ -102,13 +103,13 @@ pub enum Stmt {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BinOp {
     Add,
     Sub,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValueExpr {
     VReg(Vreg),
     Imm(Number),
@@ -116,7 +117,7 @@ pub enum ValueExpr {
     Ref(PlaceExpr),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlaceExpr {
     Label(String),
     Deref(Vreg),
@@ -127,14 +128,14 @@ pub enum PlaceExpr {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlaceKey {
     Static(String),
     Stack(usize),
     Heap { handle: usize, index: usize },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FlowValue {
     Num(Number),
     CodeLabel(String),
@@ -172,7 +173,7 @@ impl FlowValue {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NameMapping {
     pub static_labels: HashSet<String>,
     pub region_label_to_id: HashMap<String, usize>,
@@ -180,7 +181,7 @@ pub struct NameMapping {
     pub entry_region: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowIrMachine {
     pub code: FlowIrCode,
     pub names: NameMapping,
@@ -194,7 +195,7 @@ pub struct FlowIrMachine {
     pub halted: bool,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StaticEnv {
     pub entries: BTreeMap<String, FlowValue>,
 }
@@ -216,9 +217,8 @@ impl FlowIrMachine {
     }
 
     fn halt_result(self) -> StepResult<Self> {
-        let snapshot = self.clone();
-        let output = snapshot.output();
-        StepResult::Halt { snapshot, output }
+        let output = self.output();
+        StepResult::Halt { output }
     }
 
     fn get_vreg(&self, idx: Vreg) -> FlowValue {
@@ -523,8 +523,16 @@ impl Machine for FlowIrMachine {
         Ok(next.continue_result())
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
     }
 }
 

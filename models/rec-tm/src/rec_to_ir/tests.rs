@@ -20,8 +20,16 @@ fn tape_from(symbols: &[&str], head: usize) -> Tape {
     Tape::from_vec(signs, head).unwrap()
 }
 
-fn snapshot_tape(snapshot: crate::rec_tm_ir::Snapshot) -> Tape {
-    let value: Value = snapshot.into();
+fn snapshot_tape(tape: Tape) -> Tape {
+    tape
+}
+
+fn machine_snapshot_json(machine: &RecTmIrMachine) -> Value {
+    RecTmIrMachine::render(machine.snapshot())
+}
+
+fn machine_tape(machine: &RecTmIrMachine) -> Tape {
+    let value = machine_snapshot_json(machine);
     let arr = value.as_array().unwrap();
     let tape = arr.last().unwrap().as_object().unwrap();
     let children = tape.get("children").unwrap().as_array().unwrap();
@@ -38,8 +46,8 @@ fn snapshot_tape(snapshot: crate::rec_tm_ir::Snapshot) -> Tape {
     Tape::from_vec(signs, head.unwrap_or(0)).unwrap()
 }
 
-fn snapshot_env(snapshot: crate::rec_tm_ir::Snapshot) -> HashMap<String, String> {
-    let value: Value = snapshot.into();
+fn machine_env(machine: &RecTmIrMachine) -> HashMap<String, String> {
+    let value = machine_snapshot_json(machine);
     let arr = value.as_array().unwrap();
     let env_table = arr
         .iter()
@@ -74,14 +82,13 @@ fn run_until_halt_with_vars(
     limit: usize,
     print: bool,
     vars: &[&str],
-) -> Result<crate::rec_tm_ir::Snapshot, String> {
+) -> Result<Tape, String> {
     for _ in 0..limit {
         match machine.step(())? {
             StepResult::Continue { next, .. } => {
                 if print {
-                    let snapshot = next.current();
-                    let tape = snapshot_tape(snapshot.clone());
-                    let env = snapshot_env(snapshot);
+                    let tape = machine_tape(&next);
+                    let env = machine_env(&next);
                     let mut rendered = Vec::new();
                     for var in vars {
                         let value = env.get(*var).map(String::as_str).unwrap_or("?");
@@ -91,7 +98,7 @@ fn run_until_halt_with_vars(
                 }
                 machine = next;
             }
-            StepResult::Halt { snapshot, .. } => return Ok(snapshot),
+            StepResult::Halt { output } => return Ok(output),
         }
     }
     Err("step limit exceeded".to_string())
@@ -101,7 +108,7 @@ fn run_until_halt(
     machine: RecTmIrMachine,
     limit: usize,
     print: bool,
-) -> Result<crate::rec_tm_ir::Snapshot, String> {
+) -> Result<Tape, String> {
     run_until_halt_with_vars(machine, limit, print, &[])
 }
 

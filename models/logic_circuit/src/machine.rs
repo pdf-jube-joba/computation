@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
@@ -8,7 +9,7 @@ use utils::{bool::Bool, identifier::Identifier};
 pub type Pin = Identifier;
 pub type NamedPin = (Identifier, Identifier);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Signal(pub Vec<(NamedPin, Bool)>);
 
 impl Signal {
@@ -25,7 +26,7 @@ fn make_pin(name: Identifier, pin: Identifier) -> NamedPin {
     (name, pin)
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Graph {
     pub verts: Vec<(Identifier, LogicCircuit)>,
     pub edges: Vec<(NamedPin, NamedPin)>,
@@ -42,7 +43,7 @@ pub trait LogicCircuitTrait {
     fn as_graph_group(&self) -> Graph;
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LogicCircuit {
     Gate(Gate),
     MixLogicCircuit(Box<MixLogicCircuit>),
@@ -176,7 +177,7 @@ impl LogicCircuitTrait for LogicCircuit {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GateKind {
     Cst,
     Not,
@@ -210,7 +211,7 @@ fn get_inputs_from_map(inputs: &Signal, inpin: &Pin) -> Bool {
         .unwrap_or(Bool::F)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Gate {
     pub(crate) kind: GateKind,
     pub(crate) state: Bool,
@@ -302,7 +303,7 @@ impl LogicCircuitTrait for Gate {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MixLogicCircuit {
     pub kind: Identifier,
     pub verts: Vec<(Identifier, LogicCircuit)>,
@@ -477,7 +478,7 @@ pub fn num_to_ident(n: usize) -> Identifier {
     Identifier::new(format!("_{n}_")).unwrap()
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IterLogicCircuit {
     pub kind: Identifier,
     // for extending `used`. push `init`` into `used` when needed

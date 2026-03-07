@@ -1,9 +1,9 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use utils::identifier::Identifier;
 use utils::number::Number;
 use utils::{Machine, StepResult, TextCodec};
 
-#[derive(Debug, Default, Clone, Serialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Environment {
     pub env: Vec<(Identifier, Number)>,
 }
@@ -63,7 +63,7 @@ impl From<Vec<(Identifier, Number)>> for Environment {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Command {
     Clr(Identifier),
     Inc(Identifier),
@@ -72,7 +72,7 @@ pub enum Command {
     Ifnz(Identifier, Number),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Code(pub Vec<Command>);
 
 impl TextCodec for Code {
@@ -96,7 +96,7 @@ impl TextCodec for Code {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Program {
     pub commands: Code,
     pub pc: Number,
@@ -123,9 +123,8 @@ impl Machine for Program {
         let mut next = self;
         let pc = next.pc.as_usize()?;
         if pc >= next.commands.0.len() {
-            let snapshot = next.current();
-            let output = snapshot.env.clone();
-            return Ok(StepResult::Halt { snapshot, output });
+            let output = next.env.clone();
+            return Ok(StepResult::Halt { output });
         }
 
         let command = &next.commands.0[pc];
@@ -161,7 +160,15 @@ impl Machine for Program {
         Ok(StepResult::Continue { next, output: () })
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
     }
 }

@@ -1,8 +1,8 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use utils::{number::*, Machine, StepResult, TextCodec};
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum RecursiveFunctions {
     ZeroConstant,
     Successor,
@@ -153,7 +153,7 @@ impl Display for RecursiveFunctions {
 // -> Process::Comp { function: f, args: [8, Process::Comp { function: h, args: [5, 2] }, 1] }
 // -> Process::Comp { function: f, args: [8, 3, 1] }
 // -> Process::Result(12)
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Process {
     Comp {
         function: RecursiveFunctions,
@@ -495,7 +495,7 @@ pub fn interpreter(func: &RecursiveFunctions) -> NaturalFunction {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Program {
     pub function: RecursiveFunctions,
     pub input: Vec<Number>,
@@ -528,18 +528,22 @@ impl Machine for Program {
                 output: (),
             })
         } else if let Some(result) = next_program.process.result() {
-            let snapshot = next_program.current();
-            Ok(StepResult::Halt {
-                snapshot,
-                output: result,
-            })
+            Ok(StepResult::Halt { output: result })
         } else {
             Err("Process is in an invalid state".to_string())
         }
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
     }
 }
 

@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
 use utils::number::Number;
 use utils::{Machine, StepResult, TextCodec};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AsmCode(pub RawProgramAst);
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RawProgramAst {
     pub items: Vec<RawItem>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RawItem {
     Directive(RawDirective),
     Label(String),
@@ -19,27 +20,27 @@ pub enum RawItem {
     DataValue(RawValue),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RawDirective {
     Text,
     Data,
     Equ { name: String, value: Number },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawInst {
     pub mnemonic: String,
     pub cond_flag: bool,
     pub operands: Vec<RawOperand>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RawOperand {
     Reg(RawReg),
     Value(RawValue),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawReg(pub usize);
 
 impl RawReg {
@@ -57,7 +58,7 @@ impl RawReg {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RawValue {
     Imm(Number),
     Label(String),
@@ -249,7 +250,7 @@ impl RawValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Inst {
     Nop,
     Halt,
@@ -306,21 +307,21 @@ pub enum Inst {
     },
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AsmInput {
     pub regs: [Number; 8],
     // Runtime extension appended after the static `.data` part from `Code`.
     pub data_extension: Vec<Number>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AsmOutput {
     pub regs: [Number; 8],
     // Full data memory seen by the machine: static `.data` + runtime extension.
     pub data_memory: Vec<Number>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolicAsmMachine {
     pub code: AsmCode,
     pub insts: Vec<Inst>,
@@ -341,7 +342,7 @@ enum AsmSection {
     Data,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SymbolTables {
     pub consts: HashMap<String, Number>,
     pub text_labels: HashMap<String, usize>,
@@ -350,7 +351,7 @@ pub struct SymbolTables {
     pub data_len: usize,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AsmDebugInfo {
     pub text_labels_by_addr: HashMap<usize, Vec<String>>,
     pub data_labels_by_addr: HashMap<usize, Vec<String>>,
@@ -420,9 +421,8 @@ impl SymbolicAsmMachine {
     }
 
     fn halt_result(self) -> StepResult<Self> {
-        let snapshot = self.clone();
-        let output = snapshot.output();
-        StepResult::Halt { snapshot, output }
+        let output = self.output();
+        StepResult::Halt { output }
     }
 
     fn preprocess(code: &AsmCode) -> Result<PreprocessResult, String> {
@@ -961,7 +961,15 @@ impl Machine for SymbolicAsmMachine {
         }
     }
 
-    fn current(&self) -> Self::SnapShot {
+    fn snapshot(&self) -> Self::SnapShot {
         self.clone()
+    }
+
+    fn restore(snapshot: Self::SnapShot) -> Self {
+        snapshot
+    }
+
+    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
     }
 }
