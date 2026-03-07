@@ -1,8 +1,6 @@
 全体の構成：
 recursive function -> IR1 -> IR2 -> Turing machine
 
-<div data-model="recursive_function => rec_tm_ir => rec_tm_ir_jump => turing_machine"></div>
-
 重要な仮定：
 Turing machine で扱う用の Tape の記号
 
@@ -63,6 +61,8 @@ Turing machine で扱う用の Tape の記号
   - continue 及び break: 今あるブロックの先頭に飛ぶ、次のブロックの先頭に飛ぶ
   - call/return: 別の関数を呼び出す、今の関数を抜ける
 
+<div data-model="rec_tm_ir"></div>
+
 ## IR2
 これは普通にIR1の関数定義を展開して、 jump はラベルじゃなくて行数にしたもの。
 
@@ -85,103 +85,7 @@ Turing machine で扱う用の Tape の記号
 
 これの意味は明らかなので書かない。
 
-## IR1 \(\to\) IR2
-関数の呼び出しは DAG になっているので、そのまま名前が被らないようにして展開をすればよい。
-単純に展開すると名前が被るので、呼び出し**元**の関数の中で名前が一意になるようにする必要がある。
-
-具体例：
-```
-fn f {
-  entry:
-    return;
-}
-
-fn main {
-  entry:
-    call f;
-  next:
-    call f;
-}
-```
-
-ここで単純に `fn f` だけの情報から得られるブロック列を展開すると、
-このようになって同じラベル名が出てきて不適。
-そもそも、どこに帰るのかもわからない。
-```
-main-entry:
-  goto f:
-f:
-  goto f-end:
-f-end:
-  goto ??:
-main-next:
-  goto f:
-f:
-  goto f-end:
-f-end:
-  goto ??:
-main-end:
-```
-
-これを踏まえて、ある関数の flatten は次のように行う。
-1. 関数内のブロックの処理
-    - 関数の実行後に必ず飛ぶ、 return 先の名前を受け取っておく。
-    - return 用のブロックを別の用意し、その中には受け取った名前への jump のみを入れる。
-    - return/continue/break を具体的なラベル名に置き換えてすべてを jump にする。
-    - return については、引数で受け取ったところに jump とする。
-    - 呼び出し元が、被らないような名前空間を用意しておく。
-2. 他の関数の呼び出しをそれぞれ flatten して、ブロックの列として得る。
-    - 他の関数との名前の衝突を避けるためのα変換をすること。
-    - 複数の呼び出しがあるケースに対応するため、呼び出し元ラベルと呼び出しの行数を一意性として使う。
-3. ブロックを `flat_map` のようにして展開する。
-
-これを `main` に対してやればよい。
-
-こんな感じに変形するべき（呼び出し元ラベルと行数のラベルを入れる）
-```
-main-entry:
-    goto main-entry-0-f
-  main-entry-0-f:
-    goto main-next
-  main-entry-0-f-end:
-    goto main-next
-main-next:
-    goto main-next-0-f
-  main-next-0-f:
-    goto main-next-0-f-end
-  main-next-0-f-end:
-    goto main-end
-main-end:
-```
-
-こうして得られたブロック列は、 `call/return/break/continue` free な IR1 である。
-これを変換するのは簡単で、各ラベルを行数に直しておけばよい。
-
-## IR2 \(\to\) TM
-最初から \(S\) が与えられているので、
-「tape[head] が何であろうと次はこの状態に行く」が「すべての \(S\) を列挙して状態遷移」に変換できる。
-あとは基本的には行数と変数環境を状態として encode すればよい。
-登場する変数も実際にわかっているので、最初から空白が代入されていると考える。
-
-具体例：
-```
-0: v := @;
-1: w := v;
-2: RT;
-3: jump 0 if w = @;
-```
-
-- \(V' \defeq \{v, w\}\)
-- \(Q \defeq \{0..=4\} \times (V' \to S)\)
-- \(Q_{\text{accepted}} = \{4\} \times (V' \to S)\)
-
-このもとで、
-1. `v := @`     :\(([0, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([1, (v \mapsto s  , w \mapsto s_2)], s), C\)
-2. `w := v`     :\(([1, (v \mapsto s_1, w \mapsto s_1)], s) \mapsto ([2, (v \mapsto s_1, w \mapsto s  )], s), C\)
-3. `RT`         :\(([2, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([3, (v \mapsto s_1, w \mapsto s_2)], s), R\)
-4. `jump ...`   :
-  - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([0, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 = s\) の場合に追加
-  - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([4, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 \neq s\) の場合に追加
+<div data-model="rec_tm_ir_jump"></div>
 
 ## 再帰関数 \(\to\) IR1
 ### テープの符号化と解釈
@@ -372,3 +276,107 @@ glue
 これも対応する \(\mu\) 再帰関数を計算している。
 万が一与えられたマシンが与えられた入力に対して \(0\) を出力するような \(n\) を持たない場合、
 このマシンは止まらない。
+
+<div data-mode="recursive_function-rec_tm_ir"></div>
+
+## IR1 \(\to\) IR2
+関数の呼び出しは DAG になっているので、そのまま名前が被らないようにして展開をすればよい。
+単純に展開すると名前が被るので、呼び出し**元**の関数の中で名前が一意になるようにする必要がある。
+
+具体例：
+```
+fn f {
+  entry:
+    return;
+}
+
+fn main {
+  entry:
+    call f;
+  next:
+    call f;
+}
+```
+
+ここで単純に `fn f` だけの情報から得られるブロック列を展開すると、
+このようになって同じラベル名が出てきて不適。
+そもそも、どこに帰るのかもわからない。
+```
+main-entry:
+  goto f:
+f:
+  goto f-end:
+f-end:
+  goto ??:
+main-next:
+  goto f:
+f:
+  goto f-end:
+f-end:
+  goto ??:
+main-end:
+```
+
+これを踏まえて、ある関数の flatten は次のように行う。
+1. 関数内のブロックの処理
+    - 関数の実行後に必ず飛ぶ、 return 先の名前を受け取っておく。
+    - return 用のブロックを別の用意し、その中には受け取った名前への jump のみを入れる。
+    - return/continue/break を具体的なラベル名に置き換えてすべてを jump にする。
+    - return については、引数で受け取ったところに jump とする。
+    - 呼び出し元が、被らないような名前空間を用意しておく。
+2. 他の関数の呼び出しをそれぞれ flatten して、ブロックの列として得る。
+    - 他の関数との名前の衝突を避けるためのα変換をすること。
+    - 複数の呼び出しがあるケースに対応するため、呼び出し元ラベルと呼び出しの行数を一意性として使う。
+3. ブロックを `flat_map` のようにして展開する。
+
+これを `main` に対してやればよい。
+
+こんな感じに変形するべき（呼び出し元ラベルと行数のラベルを入れる）
+```
+main-entry:
+    goto main-entry-0-f
+  main-entry-0-f:
+    goto main-next
+  main-entry-0-f-end:
+    goto main-next
+main-next:
+    goto main-next-0-f
+  main-next-0-f:
+    goto main-next-0-f-end
+  main-next-0-f-end:
+    goto main-end
+main-end:
+```
+
+こうして得られたブロック列は、 `call/return/break/continue` free な IR1 である。
+これを変換するのは簡単で、各ラベルを行数に直しておけばよい。
+
+<div data-model="rec_tm_ir-rec_tm_ir_jump"></div>
+
+## IR2 \(\to\) TM
+最初から \(S\) が与えられているので、
+「tape[head] が何であろうと次はこの状態に行く」が「すべての \(S\) を列挙して状態遷移」に変換できる。
+あとは基本的には行数と変数環境を状態として encode すればよい。
+登場する変数も実際にわかっているので、最初から空白が代入されていると考える。
+
+具体例：
+```
+0: v := @;
+1: w := v;
+2: RT;
+3: jump 0 if w = @;
+```
+
+- \(V' \defeq \{v, w\}\)
+- \(Q \defeq \{0..=4\} \times (V' \to S)\)
+- \(Q_{\text{accepted}} = \{4\} \times (V' \to S)\)
+
+このもとで、
+1. `v := @`     :\(([0, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([1, (v \mapsto s  , w \mapsto s_2)], s), C\)
+2. `w := v`     :\(([1, (v \mapsto s_1, w \mapsto s_1)], s) \mapsto ([2, (v \mapsto s_1, w \mapsto s  )], s), C\)
+3. `RT`         :\(([2, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([3, (v \mapsto s_1, w \mapsto s_2)], s), R\)
+4. `jump ...`   :
+  - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([0, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 = s\) の場合に追加
+  - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([4, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 \neq s\) の場合に追加
+
+<div data-model="rec_tm_ir_jump-turing_machine"></div>

@@ -67,4 +67,3 @@ PRIM[z: PROJ[1, 0] s: COMP[SUCC: PROJ[3, 0]]]
 (2, 3)
 </script>
 </div>
-
