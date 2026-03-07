@@ -1,4 +1,5 @@
 よくある while 言語を作る。
+compiler の話としては、式があるのをどうするかが面白い？
 
 \(\begin{aligned}
 \NT{var} &\defeq \T{string} \\
