@@ -290,7 +290,7 @@ impl Machine for RecTmIrJumpMachine {
         snapshot
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
         fn render_lvalue(value: &LValue) -> String {
             match value {
                 LValue::Var(name) => name.clone(),
@@ -305,29 +305,69 @@ impl Machine for RecTmIrJumpMachine {
             }
         }
 
-        let instruction = snapshot.program.body.get(snapshot.pc).map(|stmt| match stmt {
-            Stmt::Lt => "LT".to_string(),
-            Stmt::Rt => "RT".to_string(),
-            Stmt::Assign { dst, src } => {
-                format!("{} := {}", render_lvalue(dst), render_rvalue(src))
-            }
-            Stmt::Jump { target, cond } => match cond {
-                Some(cond) => format!(
-                    "jump if {} == {} {}",
-                    render_rvalue(&cond.left),
-                    render_rvalue(&cond.right),
-                    target
-                ),
-                None => format!("jump {}", target),
-            },
-        });
+        let instruction = snapshot
+            .program
+            .body
+            .get(snapshot.pc)
+            .map(|stmt| match stmt {
+                Stmt::Lt => "LT".to_string(),
+                Stmt::Rt => "RT".to_string(),
+                Stmt::Assign { dst, src } => {
+                    format!("{} := {}", render_lvalue(dst), render_rvalue(src))
+                }
+                Stmt::Jump { target, cond } => match cond {
+                    Some(cond) => format!(
+                        "jump if {} == {} {}",
+                        render_rvalue(&cond.left),
+                        render_rvalue(&cond.right),
+                        target
+                    ),
+                    None => format!("jump {}", target),
+                },
+            });
         let view = Snapshot {
             pc: snapshot.pc,
             instruction,
             env: snapshot.env.clone(),
             tape: snapshot.tape.clone(),
         };
-        view.into()
+        let env_rows = view
+            .env
+            .entries()
+            .into_iter()
+            .map(|(var, value)| {
+                utils::render_row!([utils::render_text!(var), utils::render_text!(value.print())])
+            })
+            .collect::<Vec<_>>();
+
+        let (tapes, head_pos) = view.tape.into_vec();
+        let tape_children = tapes
+            .into_iter()
+            .enumerate()
+            .map(|(idx, sign)| {
+                if idx == head_pos {
+                    utils::render_text!(sign.print(), class: "highlight")
+                } else {
+                    utils::render_text!(sign.print())
+                }
+            })
+            .collect::<Vec<_>>();
+
+        utils::render_state![
+            utils::render_text!(view.pc.to_string(), title: "pc"),
+            utils::render_text!(view.instruction.unwrap_or_else(|| "halt".to_string()), title: "next"),
+            utils::render_table!(
+                columns: vec![utils::render_text!("var"), utils::render_text!("value")],
+                rows: env_rows,
+                title: "env"
+            ),
+            utils::render_container!(
+                children: tape_children,
+                orientation: utils::RenderOrientation::Horizontal,
+                display: utils::RenderDisplay::Block,
+                title: "tape"
+            )
+        ]
     }
 }
 

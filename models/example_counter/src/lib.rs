@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use utils::{Compiler, Machine, StepResult, TextCodec};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -19,12 +18,6 @@ impl TextCodec for Counter {
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}", self.count)
-    }
-}
-
-impl From<Counter> for serde_json::Value {
-    fn from(counter: Counter) -> Self {
-        json!([{ "kind": "text", "text": counter.count.to_string() }])
     }
 }
 
@@ -100,8 +93,8 @@ impl Machine for Counter {
         snapshot
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
-        snapshot.into()
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
+        utils::render_state![utils::render_text!(snapshot.count.to_string(), title: "count")]
     }
 }
 

@@ -25,16 +25,12 @@ fn encode_snapshot_term(term: &LambdaTerm, table: &mut HashMap<usize, String>) -
     match term {
         LambdaTerm::Var(var) => {
             let id = var.as_ptr_usize();
-            table
-                .entry(id)
-                .or_insert_with(|| var.as_str().to_string());
+            table.entry(id).or_insert_with(|| var.as_str().to_string());
             SnapshotTerm::Var(id)
         }
         LambdaTerm::Abs(var, body) => {
             let id = var.as_ptr_usize();
-            table
-                .entry(id)
-                .or_insert_with(|| var.as_str().to_string());
+            table.entry(id).or_insert_with(|| var.as_str().to_string());
             SnapshotTerm::Abs(id, Box::new(encode_snapshot_term(body, table)))
         }
         LambdaTerm::App(lhs, rhs) => SnapshotTerm::App(
@@ -160,10 +156,40 @@ impl Machine for LambdaTerm {
         decode_snapshot_term(&snapshot.term, &mut vars)
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
+        fn term_block(term: MarkedTerm) -> utils::RenderBlock {
+            match term {
+                MarkedTerm::Var(var) => utils::render_text!(var.as_str()),
+                MarkedTerm::Abs(var, body) => utils::render_container!(
+                    children: vec![
+                        utils::render_text!("\\"),
+                        term_block(MarkedTerm::Var(var)),
+                        utils::render_text!("."),
+                        term_block(*body)
+                    ],
+                    orientation: utils::RenderOrientation::Horizontal,
+                    display: utils::RenderDisplay::Inline
+                ),
+                MarkedTerm::App(lhs, rhs) => utils::render_container!(
+                    children: vec![term_block(*lhs), utils::render_text!(" "), term_block(*rhs)],
+                    orientation: utils::RenderOrientation::Horizontal,
+                    display: utils::RenderDisplay::Inline
+                ),
+                MarkedTerm::Red(var, abs_term, app_term) => utils::render_container!(
+                    children: vec![
+                        utils::render_text!(format!("\\ {}.", var.as_str())),
+                        term_block(*abs_term),
+                        term_block(*app_term)
+                    ],
+                    orientation: utils::RenderOrientation::Horizontal,
+                    display: utils::RenderDisplay::Block
+                ),
+            }
+        }
+
         let restored = Self::restore(snapshot);
         let marked = crate::machine::mark_redex(&restored);
-        marked.into()
+        utils::render_state![term_block(marked)]
     }
 }
 

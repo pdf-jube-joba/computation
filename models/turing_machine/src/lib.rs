@@ -140,19 +140,75 @@ impl Machine for TuringMachine {
         snapshot
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
         let now = snapshot
             .next_code()
             .map(|(idx, _)| idx)
             .unwrap_or(snapshot.code().len());
         let tape = snapshot.now_tape().clone();
         let state = snapshot.now_state().print();
-        let current = Current {
-            code: snapshot.code().iter().cloned().map(CodeEntry::from).collect(),
-            now,
-            state,
-            tape,
-        };
-        current.into()
+        let code_rows = snapshot
+            .code()
+            .iter()
+            .cloned()
+            .map(CodeEntry::from)
+            .enumerate()
+            .map(|(idx, entry)| {
+                if idx == now {
+                    utils::render_row!(
+                        [
+                            utils::render_text!(entry.key_sign),
+                            utils::render_text!(entry.key_state),
+                            utils::render_text!(entry.next_sign),
+                            utils::render_text!(entry.next_state),
+                            utils::render_text!(entry.direction)
+                        ],
+                        class: "highlight"
+                    )
+                } else {
+                    utils::render_row!([
+                        utils::render_text!(entry.key_sign),
+                        utils::render_text!(entry.key_state),
+                        utils::render_text!(entry.next_sign),
+                        utils::render_text!(entry.next_state),
+                        utils::render_text!(entry.direction)
+                    ])
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let (tapes, head_pos) = tape.into_vec();
+        let tape_children = tapes
+            .into_iter()
+            .enumerate()
+            .map(|(idx, sign)| {
+                if idx == head_pos {
+                    utils::render_text!(sign.print(), class: "highlight")
+                } else {
+                    utils::render_text!(sign.print())
+                }
+            })
+            .collect::<Vec<_>>();
+
+        utils::render_state![
+            utils::render_table!(
+                columns: vec![
+                    utils::render_text!("key_sign"),
+                    utils::render_text!("key_state"),
+                    utils::render_text!("next_sign"),
+                    utils::render_text!("next_state"),
+                    utils::render_text!("direction")
+                ],
+                rows: code_rows,
+                title: "code"
+            ),
+            utils::render_text!(state, title: "state"),
+            utils::render_container!(
+                children: tape_children,
+                orientation: utils::RenderOrientation::Horizontal,
+                display: utils::RenderDisplay::Block,
+                title: "tape"
+            )
+        ]
     }
 }

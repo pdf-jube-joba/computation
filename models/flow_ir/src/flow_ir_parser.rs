@@ -145,6 +145,7 @@ impl From<FlowIrMachine> for serde_json::Value {
 
         blocks.push(json_text!(format!(":{}", region), title: "current_region"));
         blocks.push(json_text!(format!(":{}", block), title: "current_block"));
+        blocks.push(json_text!(machine.current_line.to_string(), title: "current_line"));
         blocks.push(json_text!(machine.halted.to_string(), title: "halted"));
 
         let vreg_rows: Vec<serde_json::Value> = machine
@@ -379,6 +380,18 @@ fn parse_stmt(line: &str) -> Result<Option<Stmt>, String> {
         let body = trim_stmt_end(rest)?;
         return Ok(Some(Stmt::HFree {
             handle: parse_value_expr(body)?,
+        }));
+    }
+    if let Some(rest) = line.strip_prefix("print ") {
+        let body = trim_stmt_end(rest)?;
+        return Ok(Some(Stmt::Print {
+            src: parse_vreg(body)?,
+        }));
+    }
+    if let Some(rest) = line.strip_prefix("input ") {
+        let body = trim_stmt_end(rest)?;
+        return Ok(Some(Stmt::Input {
+            place: parse_place_expr(body)?,
         }));
     }
 
@@ -617,6 +630,8 @@ fn stmt_to_text(s: &Stmt) -> String {
         Stmt::LGet { dst } => format!("lget %{dst};"),
         Stmt::HAlloc { size, dst } => format!("halloc({}) %{dst};", value_to_text(size)),
         Stmt::HFree { handle } => format!("hfree {};", value_to_text(handle)),
+        Stmt::Print { src } => format!("print %{src};"),
+        Stmt::Input { place } => format!("input {};", place_to_text(place)),
     }
 }
 
@@ -649,6 +664,8 @@ mod tests {
     halloc(#3) %h;
     hacc(%h)[#1] := st #7;
     %x := ld hacc(%h)[#1];
+    print %x;
+    input @slot;
     push %x;
     halt;
   }

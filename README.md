@@ -46,20 +46,22 @@
 ### `repl-machine` (対話)
 
 ```bash
-cargo run -p utils --bin repl-machine -- model <NAME> --code <CODE> [--ainput <AINPUT>]
+cargo run -p cli --bin repl-machine -- model <NAME> [--code <CODE>] [--ainput <AINPUT>]
 ```
 
+- `--code` を省略すると、起動後に複数行の `code` を入力します。入力確定は `Ctrl-D` です。
+- `--ainput` を省略すると、起動後に `ainput` を1行入力します（空なら Enter）。
 - 起動後は `rinput> ` に1行ずつ入力して `step` と `snapshot` を確認できます。
 - `:begin` / `:end` で複数行入力、 `:q` / `:quit` / `:exit` で終了します。
 
 `compiler` は1機能ずつ実行します。
 
 ```bash
-cargo run -p utils --bin repl-machine -- compiler compile-code <NAME> --code <TEXT>
-cargo run -p utils --bin repl-machine -- compiler compile-ainput <NAME> --ainput <TEXT>
-cargo run -p utils --bin repl-machine -- compiler compile-rinput <NAME> --rinput <TEXT>
-cargo run -p utils --bin repl-machine -- compiler decode-routput <NAME> --routput <TEXT>
-cargo run -p utils --bin repl-machine -- compiler decode-foutput <NAME> --foutput <TEXT>
+cargo run -p cli --bin repl-machine -- compiler compile-code <NAME> --code <TEXT>
+cargo run -p cli --bin repl-machine -- compiler compile-ainput <NAME> --ainput <TEXT>
+cargo run -p cli --bin repl-machine -- compiler compile-rinput <NAME> --rinput <TEXT>
+cargo run -p cli --bin repl-machine -- compiler decode-routput <NAME> --routput <TEXT>
+cargo run -p cli --bin repl-machine -- compiler decode-foutput <NAME> --foutput <TEXT>
 ```
 
 ### `pipe-machine` (one-shot / pipe)
@@ -67,8 +69,8 @@ cargo run -p utils --bin repl-machine -- compiler decode-foutput <NAME> --foutpu
 `model create` が初期 snapshot JSON を返し、 `model step` は stdin から snapshot JSON を受け取って次の snapshot JSON を返します。
 
 ```bash
-cargo run -p utils --bin pipe-machine -- model example_counter create --code 0 --ainput ""
-cargo run -p utils --bin pipe-machine -- model example_counter create --code 0 --ainput "" \
+cargo run -p cli --bin pipe-machine -- model example_counter create --code 0 --ainput ""
+cargo run -p cli --bin pipe-machine -- model example_counter create --code 0 --ainput "" \
   | cargo run -p utils --bin pipe-machine -- model example_counter step --rinput inc
 ```
 

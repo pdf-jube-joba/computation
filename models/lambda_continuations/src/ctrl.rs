@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::traits::{LambdaExt, Step};
-use utils::{number::Number, identifier::Var};
+use utils::{identifier::Var, number::Number};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AbCt {

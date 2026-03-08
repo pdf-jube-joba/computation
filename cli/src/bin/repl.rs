@@ -20,9 +20,9 @@ struct ModelArgs {
     #[arg(value_name = "NAME")]
     name: String,
     #[arg(long)]
-    code: String,
-    #[arg(long, default_value = "")]
-    ainput: String,
+    code: Option<String>,
+    #[arg(long)]
+    ainput: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -116,7 +116,9 @@ fn run_as_compiler(name: &str, args: &CompilerArgs) -> Result<()> {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Model(args) => cli::repl_model::run(&args.name, &args.code, &args.ainput),
+        Command::Model(args) => {
+            cli::repl_model::run(&args.name, args.code.as_deref(), args.ainput.as_deref())
+        }
         Command::Compiler(args) => {
             let name = match &args.command {
                 CompilerCommand::CompileCode(cmd) => &cmd.name,

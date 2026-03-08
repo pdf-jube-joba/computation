@@ -17,6 +17,13 @@ CFG について：
 `cfg_vreg` は 3. になっているが、いきなり 1. や 2. にするよりも別のやり方を考える。
 単純にスコープを区切りつつ CFG をまとめるだけの概念の region を入れる。
 
+> [!Note]
+> ついでに、 rinput と routput をちょっと使いたいので、
+> print と input を入れておく。
+> 両方とも、 UTF-8 <-> [u8] として解釈する。
+
+<div data-model="flow_ir"></div>
+
 ## region の導入
 仮想レジスタのスコープを切る仕組みを入れる。
 それと、この言語ではメモリに直接アクセスできるとちょっと嫌なことが起きそうなので、その点を少し変形する。
@@ -44,6 +51,8 @@ CFG について：
     &| \NT{vreg}         \T{:=}  \NT{value-expr} \\
     &| \NT{vreg}         \T{:=}  \NT{value-expr}  \NT{binop}  \NT{value-expr} \\
     &| \NT{place-expr}   \T{:=}  \T{st}  \NT{value-expr} \\
+    &| \T{print} \NT{vreg} \\
+    &| \T{input} \NT{place-expr} \\
     ) \T{;} \\
 
 \NT{cond}     &\defeq (\NT{value-expr}  \NT{rel}  \NT{value-expr})\\

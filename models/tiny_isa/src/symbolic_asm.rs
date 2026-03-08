@@ -969,7 +969,9 @@ impl Machine for SymbolicAsmMachine {
         snapshot
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
-        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
+        let text = serde_json::to_string_pretty(&snapshot)
+            .unwrap_or_else(|_| "failed to serialize snapshot".to_string());
+        utils::render_state![utils::render_text!(text, title: "snapshot")]
     }
 }

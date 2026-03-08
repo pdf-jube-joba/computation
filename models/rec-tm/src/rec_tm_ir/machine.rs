@@ -398,9 +398,7 @@ impl Machine for RecTmIrMachine {
             Stmt::Return { cond } => {
                 if next.eval_condition(&cond) {
                     return match next.return_from_call() {
-                        Some(output) => {
-                            Ok(StepResult::Halt { output })
-                        }
+                        Some(output) => Ok(StepResult::Halt { output }),
                         None => Ok(StepResult::Continue { next, output: () }),
                     };
                 }
@@ -428,7 +426,7 @@ impl Machine for RecTmIrMachine {
         snapshot
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
         let instruction = snapshot.peek_stmt().map(|stmt| render_text(&stmt));
         let stack = snapshot
             .stack
@@ -443,7 +441,57 @@ impl Machine for RecTmIrMachine {
             tape: snapshot.tape.clone(),
             stack,
         };
-        view.into()
+        let mut stack_children = view
+            .stack
+            .iter()
+            .map(|name| utils::render_text!(name))
+            .collect::<Vec<_>>();
+        stack_children.push(utils::render_text!(view.function.clone(), class: "highlight"));
+
+        let env_rows = view
+            .env
+            .entries()
+            .into_iter()
+            .map(|(var, value)| {
+                utils::render_row!([utils::render_text!(var), utils::render_text!(value.print())])
+            })
+            .collect::<Vec<_>>();
+
+        let (tapes, head_pos) = view.tape.into_vec();
+        let tape_children = tapes
+            .into_iter()
+            .enumerate()
+            .map(|(idx, sign)| {
+                if idx == head_pos {
+                    utils::render_text!(sign.print(), class: "highlight")
+                } else {
+                    utils::render_text!(sign.print())
+                }
+            })
+            .collect::<Vec<_>>();
+
+        utils::render_state![
+            utils::render_text!(view.function, title: "function"),
+            utils::render_text!(format!("{}:{}", view.pc.0, view.pc.1), title: "pc"),
+            utils::render_text!(view.instruction.unwrap_or_else(|| "halt".to_string()), title: "next"),
+            utils::render_container!(
+                children: stack_children,
+                orientation: utils::RenderOrientation::Horizontal,
+                display: utils::RenderDisplay::Block,
+                title: "stack"
+            ),
+            utils::render_table!(
+                columns: vec![utils::render_text!("var"), utils::render_text!("value")],
+                rows: env_rows,
+                title: "env"
+            ),
+            utils::render_container!(
+                children: tape_children,
+                orientation: utils::RenderOrientation::Horizontal,
+                display: utils::RenderDisplay::Block,
+                title: "tape"
+            )
+        ]
     }
 }
 

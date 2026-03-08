@@ -1,7 +1,7 @@
 use crate::{assign, lv, rv};
 use std::rc::Rc;
 use turing_machine::machine::{Sign, Tape};
-use utils::{Machine, StepResult, TextCodec, parse::ParseTextCodec};
+use utils::{Machine, RenderBlock, StepResult, TextCodec, parse::ParseTextCodec};
 
 use crate::rec_tm_ir::{Block, Function, Program, Stmt};
 
@@ -23,12 +23,9 @@ fn run_until_halt(mut machine: RecTmIrMachine, limit: usize) -> Result<Tape, Str
 
 fn tape_from_machine(machine: &RecTmIrMachine) -> Result<Tape, String> {
     let value = RecTmIrMachine::render(machine.snapshot());
-    let arr = value
-        .as_array()
-        .ok_or_else(|| "snapshot json is not an array".to_string())?;
-    let tape = arr
+    let tape = value
         .last()
-        .and_then(|v| v.as_object())
+        .and_then(|v| serde_json::to_value(v).ok())
         .ok_or_else(|| "snapshot tape container missing".to_string())?;
     let children = tape
         .get("children")

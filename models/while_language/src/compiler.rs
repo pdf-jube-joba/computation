@@ -326,13 +326,15 @@ impl Compiler for WhileToFlowIrCompiler {
     fn encode_rinput(
         rinput: <Self::Source as utils::Machine>::RInput,
     ) -> Result<<Self::Target as utils::Machine>::RInput, String> {
-        Ok(rinput)
+        let _: () = rinput;
+        Ok(String::new())
     }
 
     fn decode_routput(
         output: <Self::Target as utils::Machine>::ROutput,
     ) -> Result<<Self::Source as utils::Machine>::ROutput, String> {
-        Ok(output)
+        let _: String = output;
+        Ok(())
     }
 
     fn decode_foutput(

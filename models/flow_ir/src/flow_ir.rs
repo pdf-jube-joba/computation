@@ -101,6 +101,12 @@ pub enum Stmt {
     HFree {
         handle: ValueExpr,
     },
+    Print {
+        src: Vreg,
+    },
+    Input {
+        place: PlaceExpr,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -187,6 +193,7 @@ pub struct FlowIrMachine {
     pub names: NameMapping,
     pub current_region: usize,
     pub current_block: usize,
+    pub current_line: usize,
     pub vregs: BTreeMap<Vreg, FlowValue>,
     pub static_mem: HashMap<String, FlowValue>,
     pub stack: Vec<FlowValue>,
@@ -209,11 +216,8 @@ impl FlowIrMachine {
         StaticEnv { entries }
     }
 
-    fn continue_result(self) -> StepResult<Self> {
-        StepResult::Continue {
-            next: self,
-            output: (),
-        }
+    fn continue_result(self, output: String) -> StepResult<Self> {
+        StepResult::Continue { next: self, output }
     }
 
     fn halt_result(self) -> StepResult<Self> {
@@ -368,6 +372,7 @@ impl FlowIrMachine {
             .and_then(|m| m.get(&label))
         {
             self.current_block = target_block;
+            self.current_line = 0;
             return Ok(());
         }
         Err(format!(
@@ -384,6 +389,7 @@ impl FlowIrMachine {
             .ok_or_else(|| format!("enter target must be region label, got :{label}"))?;
         self.current_region = target_region;
         self.current_block = 0;
+        self.current_line = 0;
         self.reset_vregs();
         Ok(())
     }
@@ -394,8 +400,8 @@ impl Machine for FlowIrMachine {
     type AInput = StaticEnv;
     type FOutput = StaticEnv;
     type SnapShot = FlowIrMachine;
-    type RInput = ();
-    type ROutput = ();
+    type RInput = String;
+    type ROutput = String;
 
     fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String> {
         let names = compile_name_mapping(&code.0)?;
@@ -417,6 +423,7 @@ impl Machine for FlowIrMachine {
             names,
             current_region: entry_region,
             current_block: 0,
+            current_line: 0,
             vregs: BTreeMap::new(),
             static_mem,
             stack: Vec::new(),
@@ -426,7 +433,7 @@ impl Machine for FlowIrMachine {
         })
     }
 
-    fn step(self, _rinput: Self::RInput) -> Result<StepResult<Self>, String> {
+    fn step(self, rinput: Self::RInput) -> Result<StepResult<Self>, String> {
         if self.halted {
             return Ok(self.halt_result());
         }
@@ -446,31 +453,37 @@ impl Machine for FlowIrMachine {
                 )
             })?;
 
-        for stmt in &block.stmts {
+        let stmt_len = block.stmts.len();
+        let if_len = block.cont.ifs().len();
+
+        if next.current_line < stmt_len {
+            let stmt = block.stmts[next.current_line].clone();
+            next.current_line += 1;
+            let mut output = String::new();
             match stmt {
                 Stmt::Nop => {}
                 Stmt::Load { dst, place } => {
-                    let key = next.eval_place_key(place)?;
+                    let key = next.eval_place_key(&place)?;
                     let value = next.read_place(&key)?;
-                    next.set_vreg(dst.clone(), value);
+                    next.set_vreg(dst, value);
                 }
                 Stmt::Assign { dst, src } => {
-                    let value = next.eval_value(src)?;
-                    next.set_vreg(dst.clone(), value);
+                    let value = next.eval_value(&src)?;
+                    next.set_vreg(dst, value);
                 }
                 Stmt::BinOp { dst, lhs, op, rhs } => {
-                    let l = next.eval_value(lhs)?;
-                    let r = next.eval_value(rhs)?;
+                    let l = next.eval_value(&lhs)?;
+                    let r = next.eval_value(&rhs)?;
                     let (l, r) = (l.as_number()?, r.as_number()?);
                     let value = match op {
                         BinOp::Add => l + r,
                         BinOp::Sub => l - r,
                     };
-                    next.set_vreg(dst.clone(), FlowValue::Num(value));
+                    next.set_vreg(dst, FlowValue::Num(value));
                 }
                 Stmt::Store { place, src } => {
-                    let key = next.eval_place_key(place)?;
-                    let value = next.eval_value(src)?;
+                    let key = next.eval_place_key(&place)?;
+                    let value = next.eval_value(&src)?;
                     next.write_place(&key, value)?;
                 }
                 Stmt::Pop { dst } => {
@@ -478,49 +491,71 @@ impl Machine for FlowIrMachine {
                         .stack
                         .pop()
                         .ok_or_else(|| "pop on empty stack".to_string())?;
-                    next.set_vreg(dst.clone(), value);
+                    next.set_vreg(dst, value);
                 }
                 Stmt::Push { src } => {
-                    let value = next.eval_value(src)?;
+                    let value = next.eval_value(&src)?;
                     next.stack.push(value);
                 }
                 Stmt::LGet { dst } => {
-                    next.set_vreg(dst.clone(), FlowValue::Num(Number::from(next.stack.len())));
+                    next.set_vreg(dst, FlowValue::Num(Number::from(next.stack.len())));
                 }
                 Stmt::HAlloc { size, dst } => {
-                    let size = next.eval_value(size)?.as_usize()?;
+                    let size = next.eval_value(&size)?.as_usize()?;
                     let handle = next.next_handle;
                     next.next_handle += 1;
                     next.heap.insert(handle, vec![FlowValue::default(); size]);
-                    next.set_vreg(dst.clone(), FlowValue::Num(Number::from(handle)));
+                    next.set_vreg(dst, FlowValue::Num(Number::from(handle)));
                 }
                 Stmt::HFree { handle } => {
-                    let handle = next.eval_value(handle)?.as_usize()?;
+                    let handle = next.eval_value(&handle)?.as_usize()?;
                     let removed = next.heap.remove(&handle);
                     if removed.is_none() {
                         return Err(format!("hfree unknown handle: {handle}"));
                     }
                 }
+                Stmt::Print { src } => {
+                    let num = next.get_vreg(src).as_number()?.trimmed_bytes();
+                    output = std::str::from_utf8(&num)
+                        .map_err(|_| format!("print byte is not valid single-byte UTF-8: {num:?}"))?
+                        .to_string();
+                }
+                Stmt::Input { place } => {
+                    let byte: Vec<u8> = rinput.as_bytes().to_vec();
+                    let key = next.eval_place_key(&place)?;
+                    next.write_place(&key, FlowValue::Num(Number::from(byte)))?;
+                }
             }
+            return Ok(next.continue_result(output));
         }
 
-        for j in block.cont.ifs() {
-            if next.eval_cond(&j.cond)? {
-                next.jump_goto(&j.target)?;
-                return Ok(next.continue_result());
+        if next.current_line < stmt_len + if_len {
+            let if_idx = next.current_line - stmt_len;
+            let jump_if = block.cont.ifs()[if_idx].clone();
+            next.current_line += 1;
+            if next.eval_cond(&jump_if.cond)? {
+                next.jump_goto(&jump_if.target)?;
             }
+            return Ok(next.continue_result(String::new()));
         }
 
-        match block.cont {
-            Cont::Go { target, .. } => next.jump_goto(&target)?,
-            Cont::Enter { target, .. } => next.jump_enter(&target)?,
-            Cont::Halt { .. } => {
-                next.halted = true;
-                return Ok(next.halt_result());
+        if next.current_line == stmt_len + if_len {
+            next.current_line += 1;
+            match block.cont {
+                Cont::Go { target, .. } => next.jump_goto(&target)?,
+                Cont::Enter { target, .. } => next.jump_enter(&target)?,
+                Cont::Halt { .. } => {
+                    next.halted = true;
+                    return Ok(next.halt_result());
+                }
             }
+            return Ok(next.continue_result(String::new()));
         }
 
-        Ok(next.continue_result())
+        Err(format!(
+            "Current line out of range in region={} block={}: {}",
+            next.current_region, next.current_block, next.current_line
+        ))
     }
 
     fn snapshot(&self) -> Self::SnapShot {
@@ -531,8 +566,109 @@ impl Machine for FlowIrMachine {
         snapshot
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
-        serde_json::to_value(snapshot).unwrap_or(serde_json::Value::Null)
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
+        let region = snapshot
+            .code
+            .0
+            .regions
+            .get(snapshot.current_region)
+            .map(|r| r.label.clone())
+            .unwrap_or_else(|| "<invalid>".to_string());
+        let block = snapshot
+            .code
+            .0
+            .regions
+            .get(snapshot.current_region)
+            .and_then(|rr| rr.blocks.get(snapshot.current_block))
+            .map(|b| b.label.clone())
+            .unwrap_or_else(|| "<invalid>".to_string());
+
+        let vreg_rows = snapshot
+            .vregs
+            .iter()
+            .map(|(name, v)| {
+                utils::render_row!([
+                    utils::render_text!(format!("%{}", name)),
+                    utils::render_text!(v.print())
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        let static_rows = snapshot
+            .code
+            .0
+            .statics
+            .iter()
+            .map(|s| {
+                let value = snapshot
+                    .static_mem
+                    .get(&s.label)
+                    .cloned()
+                    .unwrap_or_default()
+                    .print();
+                utils::render_row!([
+                    utils::render_text!(format!("@{}", s.label)),
+                    utils::render_text!(value)
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        let stack_rows = snapshot
+            .stack
+            .iter()
+            .enumerate()
+            .map(|(i, v)| {
+                utils::render_row!([
+                    utils::render_text!(i.to_string()),
+                    utils::render_text!(v.print())
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        let heap_rows = snapshot
+            .heap
+            .iter()
+            .flat_map(|(h, area)| {
+                area.iter().enumerate().map(move |(i, v)| {
+                    utils::render_row!([
+                        utils::render_text!(h.to_string()),
+                        utils::render_text!(i.to_string()),
+                        utils::render_text!(v.print())
+                    ])
+                })
+            })
+            .collect::<Vec<_>>();
+
+        utils::render_state![
+            utils::render_text!(format!(":{}", region), title: "current_region"),
+            utils::render_text!(format!(":{}", block), title: "current_block"),
+            utils::render_text!(snapshot.current_line.to_string(), title: "current_line"),
+            utils::render_text!(snapshot.halted.to_string(), title: "halted"),
+            utils::render_table!(
+                columns: vec![utils::render_text!("vreg"), utils::render_text!("value")],
+                rows: vreg_rows,
+                title: "vregs"
+            ),
+            utils::render_table!(
+                columns: vec![utils::render_text!("label"), utils::render_text!("value")],
+                rows: static_rows,
+                title: "static"
+            ),
+            utils::render_table!(
+                columns: vec![utils::render_text!("index"), utils::render_text!("value")],
+                rows: stack_rows,
+                title: "stack"
+            ),
+            utils::render_table!(
+                columns: vec![
+                    utils::render_text!("handle"),
+                    utils::render_text!("index"),
+                    utils::render_text!("value")
+                ],
+                rows: heap_rows,
+                title: "heap"
+            )
+        ]
     }
 }
 

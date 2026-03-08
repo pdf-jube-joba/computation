@@ -25,7 +25,7 @@ fn snapshot_tape(tape: Tape) -> Tape {
 }
 
 fn machine_snapshot_json(machine: &RecTmIrMachine) -> Value {
-    RecTmIrMachine::render(machine.snapshot())
+    serde_json::to_value(RecTmIrMachine::render(machine.snapshot())).unwrap()
 }
 
 fn machine_tape(machine: &RecTmIrMachine) -> Tape {
@@ -104,11 +104,7 @@ fn run_until_halt_with_vars(
     Err("step limit exceeded".to_string())
 }
 
-fn run_until_halt(
-    machine: RecTmIrMachine,
-    limit: usize,
-    print: bool,
-) -> Result<Tape, String> {
+fn run_until_halt(machine: RecTmIrMachine, limit: usize, print: bool) -> Result<Tape, String> {
     run_until_halt_with_vars(machine, limit, print, &[])
 }
 

@@ -200,8 +200,76 @@ impl Machine for LogicCircuit {
         snapshot
     }
 
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value {
+    fn render(snapshot: Self::SnapShot) -> utils::RenderState {
         let view = Snapshot::new(snapshot.kind(), snapshot.as_graph_group());
-        view.into()
+        let input_rows = view
+            .graph
+            .inpins_map
+            .iter()
+            .map(|(external, _)| {
+                utils::render_row!([
+                    utils::render_text!(external.0.to_string()),
+                    utils::render_text!(external.1.to_string())
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        let output_rows = view
+            .graph
+            .otpins_map
+            .iter()
+            .map(|(external, internal)| {
+                let value = find_output_value(&view.graph, internal)
+                    .map(|b| b.print())
+                    .unwrap_or("?".to_string());
+                utils::render_row!([
+                    utils::render_text!(external.0.to_string()),
+                    utils::render_text!(external.1.to_string()),
+                    utils::render_text!(value)
+                ])
+            })
+            .collect::<Vec<_>>();
+
+        let vert_rows = view
+            .graph
+            .verts
+            .iter()
+            .flat_map(|(name, lc)| {
+                lc.get_otputs().into_iter().map(move |(pin, value)| {
+                    utils::render_row!([
+                        utils::render_text!(name.to_string()),
+                        utils::render_text!(pin.1.to_string()),
+                        utils::render_text!(value.print())
+                    ])
+                })
+            })
+            .collect::<Vec<_>>();
+
+        utils::render_state![
+            utils::render_text!(view.kind.to_string(), title: "kind"),
+            utils::render_table!(
+                columns: vec![utils::render_text!("name"), utils::render_text!("pin")],
+                rows: input_rows,
+                title: "inputs"
+            ),
+            utils::render_table!(
+                columns: vec![
+                    utils::render_text!("name"),
+                    utils::render_text!("pin"),
+                    utils::render_text!("value")
+                ],
+                rows: output_rows,
+                title: "outputs"
+            ),
+            utils::render_table!(
+                columns: vec![
+                    utils::render_text!("vert"),
+                    utils::render_text!("pin"),
+                    utils::render_text!("value")
+                ],
+                rows: vert_rows,
+                title: "verts"
+            )
+        ]
     }
 }
