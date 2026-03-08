@@ -1,6 +1,5 @@
-use serde_json::json;
 use utils::number::Number;
-use utils::{TextCodec, json_text};
+use utils::TextCodec;
 
 use crate::cfg_vreg::*;
 
@@ -30,96 +29,6 @@ impl TextCodec for CfgVRegCode {
             writeln!(f, "}}")?;
         }
         Ok(())
-    }
-}
-
-impl From<CfgVRegMachine> for serde_json::Value {
-    fn from(machine: CfgVRegMachine) -> Self {
-        let mut blocks = Vec::new();
-        let block_label = machine
-            .compiled
-            .blocks
-            .get(machine.current_block)
-            .map(|b| b.label.clone())
-            .unwrap_or_else(|| "<invalid>".to_string());
-        blocks.push(json_text!(block_label, title: "current_block"));
-        blocks.push(json_text!(machine.current_block.to_string(), title: "block_addr"));
-        blocks.push(json_text!(machine.halted.to_string(), title: "halted"));
-
-        let vreg_rows: Vec<serde_json::Value> = machine
-            .vregs
-            .iter()
-            .enumerate()
-            .map(|(i, v)| {
-                json!({ "cells": [json_text!(format!("v{i}")), json_text!(v.to_decimal_string())] })
-            })
-            .collect();
-        blocks.push(json!({
-            "kind": "table",
-            "title": "vregs",
-            "columns": [json_text!("vreg"), json_text!("value")],
-            "rows": vreg_rows
-        }));
-
-        let code_rows: Vec<serde_json::Value> = machine
-            .compiled
-            .blocks
-            .iter()
-            .enumerate()
-            .map(|(i, b)| {
-                let marker = if i == machine.current_block { "*" } else { "" };
-                json!({
-                    "cells": [
-                        json_text!(b.label.clone()),
-                        json_text!(i.to_string()),
-                        json_text!(marker),
-                        json_text!(block_summary_text(b))
-                    ]
-                })
-            })
-            .collect();
-        blocks.push(json!({
-            "kind": "table",
-            "title": "blocks",
-            "columns": [json_text!("label"), json_text!("addr"), json_text!("pc"), json_text!("summary")],
-            "rows": code_rows
-        }));
-
-        let data_rows: Vec<serde_json::Value> = machine
-            .memory
-            .iter()
-            .enumerate()
-            .map(|(i, v)| {
-                let label = machine
-                    .compiled
-                    .static_labels
-                    .iter()
-                    .filter_map(|(name, &addr)| (addr == i).then_some(name.clone()))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let region = if i < machine.code.0.statics.len() {
-                    "static"
-                } else {
-                    "input/ext"
-                };
-                json!({
-                    "cells": [
-                        json_text!(label),
-                        json_text!(i.to_string()),
-                        json_text!(region),
-                        json_text!(v.to_decimal_string())
-                    ]
-                })
-            })
-            .collect();
-        blocks.push(json!({
-            "kind": "table",
-            "title": "memory",
-            "columns": [json_text!("label"), json_text!("addr"), json_text!("region"), json_text!("value")],
-            "rows": data_rows
-        }));
-
-        serde_json::Value::Array(blocks)
     }
 }
 
@@ -430,20 +339,4 @@ fn stmt_to_text(s: &Stmt) -> String {
             format!("{} := {};", place_to_text(place), value_to_text(src))
         }
     }
-}
-
-fn block_summary_text(block: &Block) -> String {
-    let mut parts = Vec::new();
-    for s in &block.stmts {
-        parts.push(stmt_to_text(s));
-    }
-    for j in &block.cont.ifs {
-        parts.push(format!(
-            "if {} then {};",
-            cond_to_text(&j.cond),
-            addr_to_text(&j.target)
-        ));
-    }
-    parts.push(format!("goto {};", addr_to_text(&block.cont.jump)));
-    parts.join(" ")
 }

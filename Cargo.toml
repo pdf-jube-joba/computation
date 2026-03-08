@@ -18,7 +18,7 @@ members = [
   "models/tiny_isa",
   "models/turing_machine",
   "models/while_language"
-, "models/proc_lang"]
+, "models/proc_lang", "models/internal_ctrl", "models/data_proc"]
 
 exclude = [
   "*/dist",

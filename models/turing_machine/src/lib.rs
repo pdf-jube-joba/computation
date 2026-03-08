@@ -1,7 +1,6 @@
 use crate::machine::{CodeEntry as CoreCodeEntry, Tape, TuringMachine, TuringMachineDefinition};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use utils::{Machine, StepResult, TextCodec, json_text};
+use utils::{Machine, StepResult, TextCodec};
 
 pub mod machine;
 pub mod manipulation;
@@ -36,74 +35,6 @@ pub struct Current {
     now: usize,
     state: String,
     tape: Tape,
-}
-
-impl From<Current> for serde_json::Value {
-    fn from(current: Current) -> Self {
-        let now = current.now;
-        let rows: Vec<serde_json::Value> = current
-            .code
-            .into_iter()
-            .enumerate()
-            .map(|(idx, entry)| {
-                let mut row = json!({
-                    "cells": [
-                        json_text!(entry.key_sign),
-                        json_text!(entry.key_state),
-                        json_text!(entry.next_sign),
-                        json_text!(entry.next_state),
-                        json_text!(entry.direction)
-                    ]
-                });
-                if idx == now
-                    && let Some(map) = row.as_object_mut()
-                {
-                    map.insert("className".to_string(), json!("highlight"));
-                }
-
-                row
-            })
-            .collect();
-
-        let code_table = json!({
-            "kind": "table",
-            "title": "code",
-            "columns": [
-                json_text!("key_sign"),
-                json_text!("key_state"),
-                json_text!("next_sign"),
-                json_text!("next_state"),
-                json_text!("direction")
-            ],
-            "rows": rows
-        });
-
-        let state_text = json_text!(current.state, title: "state");
-
-        let (tapes, head_pos) = current.tape.into_vec();
-        let tape_children: Vec<serde_json::Value> = tapes
-            .into_iter()
-            .enumerate()
-            .map(|(idx, sign)| {
-                let mut block = json_text!(sign.print());
-                if idx == head_pos
-                    && let Some(map) = block.as_object_mut()
-                {
-                    map.insert("className".to_string(), json!("highlight"));
-                }
-                block
-            })
-            .collect();
-        let tape_container = json!({
-            "kind": "container",
-            "title": "tape",
-            "orientation": "horizontal",
-            "display": "block",
-            "children": tape_children
-        });
-
-        json!([code_table, state_text, tape_container])
-    }
 }
 
 impl Machine for TuringMachine {

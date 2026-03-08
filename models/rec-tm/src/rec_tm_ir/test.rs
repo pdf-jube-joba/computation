@@ -23,27 +23,21 @@ fn run_until_halt(mut machine: RecTmIrMachine, limit: usize) -> Result<Tape, Str
 
 fn tape_from_machine(machine: &RecTmIrMachine) -> Result<Tape, String> {
     let value = RecTmIrMachine::render(machine.snapshot());
-    let tape = value
-        .last()
-        .and_then(|v| serde_json::to_value(v).ok())
-        .ok_or_else(|| "snapshot tape container missing".to_string())?;
-    let children = tape
-        .get("children")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| "snapshot tape children missing".to_string())?;
+    let children = match value.last() {
+        Some(RenderBlock::Container(c)) => &c.children,
+        _ => return Err("snapshot tape container missing".to_string()),
+    };
     let mut signs = Vec::new();
     let mut head = None;
     for (idx, child) in children.iter().enumerate() {
-        let obj = child
-            .as_object()
-            .ok_or_else(|| "tape child is not an object".to_string())?;
-        let text = obj
-            .get("text")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| "tape cell missing text".to_string())?;
-        signs.push(<Sign as TextCodec>::parse(text)?);
-        if obj.get("className").and_then(|v| v.as_str()) == Some("highlight") {
-            head = Some(idx);
+        match child {
+            RenderBlock::Text(cell) => {
+                signs.push(<Sign as TextCodec>::parse(&cell.text)?);
+                if cell.class_name.as_deref() == Some("highlight") {
+                    head = Some(idx);
+                }
+            }
+            _ => return Err("tape child is not a text block".to_string()),
         }
     }
     Tape::from_vec(signs, head.unwrap_or(0))

@@ -1,7 +1,6 @@
-use serde_json::json;
 use utils::identifier::Identifier;
 use utils::number::Number;
-use utils::{TextCodec, json_text};
+use utils::TextCodec;
 
 use crate::machine::*;
 
@@ -70,29 +69,6 @@ impl TextCodec for WhileCode {
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         write!(f, "{}", stmt_to_text(&self.0))
-    }
-}
-
-impl From<WhileMachine> for serde_json::Value {
-    fn from(machine: WhileMachine) -> Self {
-        let stmt = json_text!(stmt_to_text(&machine.stmt), title: "stmt");
-        let rows: Vec<serde_json::Value> = machine
-            .env
-            .vars
-            .iter()
-            .map(|(k, v)| {
-                json!({
-                    "cells": [json_text!(k.as_str()), json_text!(v.to_decimal_string())]
-                })
-            })
-            .collect();
-        let env_table = json!({
-            "kind": "table",
-            "title": "env",
-            "columns": [json_text!("var"), json_text!("value")],
-            "rows": rows
-        });
-        serde_json::Value::Array(vec![stmt, env_table])
     }
 }
 

@@ -1,6 +1,5 @@
-use serde_json::json;
 use utils::number::Number;
-use utils::{TextCodec, json_text};
+use utils::TextCodec;
 
 use crate::flow_ir::*;
 
@@ -121,97 +120,6 @@ impl TextCodec for StaticEnv {
             writeln!(f, "{} = {}", k, v.print())?;
         }
         Ok(())
-    }
-}
-
-impl From<FlowIrMachine> for serde_json::Value {
-    fn from(machine: FlowIrMachine) -> Self {
-        let mut blocks = Vec::new();
-        let region = machine
-            .code
-            .0
-            .regions
-            .get(machine.current_region)
-            .map(|r| r.label.clone())
-            .unwrap_or_else(|| "<invalid>".to_string());
-        let block = machine
-            .code
-            .0
-            .regions
-            .get(machine.current_region)
-            .and_then(|rr| rr.blocks.get(machine.current_block))
-            .map(|b| b.label.clone())
-            .unwrap_or_else(|| "<invalid>".to_string());
-
-        blocks.push(json_text!(format!(":{}", region), title: "current_region"));
-        blocks.push(json_text!(format!(":{}", block), title: "current_block"));
-        blocks.push(json_text!(machine.current_line.to_string(), title: "current_line"));
-        blocks.push(json_text!(machine.halted.to_string(), title: "halted"));
-
-        let vreg_rows: Vec<serde_json::Value> = machine
-            .vregs
-            .iter()
-            .map(|(name, v)| json!({ "cells": [json_text!(format!("%{}", name)), json_text!(v.print())] }))
-            .collect();
-        blocks.push(json!({
-            "kind": "table",
-            "title": "vregs",
-            "columns": [json_text!("vreg"), json_text!("value")],
-            "rows": vreg_rows
-        }));
-
-        let static_rows: Vec<serde_json::Value> = machine
-            .code
-            .0
-            .statics
-            .iter()
-            .map(|s| {
-                let value = machine
-                    .static_mem
-                    .get(&s.label)
-                    .cloned()
-                    .unwrap_or_default()
-                    .print();
-                json!({ "cells": [json_text!(format!("@{}", s.label)), json_text!(value)] })
-            })
-            .collect();
-        blocks.push(json!({
-            "kind": "table",
-            "title": "static",
-            "columns": [json_text!("label"), json_text!("value")],
-            "rows": static_rows
-        }));
-
-        let stack_rows: Vec<serde_json::Value> = machine
-            .stack
-            .iter()
-            .enumerate()
-            .map(|(i, v)| json!({ "cells": [json_text!(i.to_string()), json_text!(v.print())] }))
-            .collect();
-        blocks.push(json!({
-            "kind": "table",
-            "title": "stack",
-            "columns": [json_text!("index"), json_text!("value")],
-            "rows": stack_rows
-        }));
-
-        let heap_rows: Vec<serde_json::Value> = machine
-            .heap
-            .iter()
-            .flat_map(|(h, area)| {
-                area.iter().enumerate().map(move |(i, v)| {
-                    json!({ "cells": [json_text!(h.to_string()), json_text!(i.to_string()), json_text!(v.print())] })
-                })
-            })
-            .collect();
-        blocks.push(json!({
-            "kind": "table",
-            "title": "heap",
-            "columns": [json_text!("handle"), json_text!("index"), json_text!("value")],
-            "rows": heap_rows
-        }));
-
-        serde_json::Value::Array(blocks)
     }
 }
 

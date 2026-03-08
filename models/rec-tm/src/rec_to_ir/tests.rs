@@ -1,7 +1,6 @@
-use serde_json::Value;
 use std::collections::HashMap;
 use turing_machine::machine::{Sign, Tape};
-use utils::{Machine, StepResult, TextCodec, parse::ParseTextCodec};
+use utils::{Machine, RenderBlock, StepResult, TextCodec, parse::ParseTextCodec};
 
 use super::{
     auxiliary::{basic, copy, rotate},
@@ -24,51 +23,51 @@ fn snapshot_tape(tape: Tape) -> Tape {
     tape
 }
 
-fn machine_snapshot_json(machine: &RecTmIrMachine) -> Value {
-    serde_json::to_value(RecTmIrMachine::render(machine.snapshot())).unwrap()
+fn machine_snapshot(machine: &RecTmIrMachine) -> Vec<RenderBlock> {
+    RecTmIrMachine::render(machine.snapshot())
 }
 
 fn machine_tape(machine: &RecTmIrMachine) -> Tape {
-    let value = machine_snapshot_json(machine);
-    let arr = value.as_array().unwrap();
-    let tape = arr.last().unwrap().as_object().unwrap();
-    let children = tape.get("children").unwrap().as_array().unwrap();
+    let arr = machine_snapshot(machine);
+    let children = match arr.last() {
+        Some(RenderBlock::Container(c)) => &c.children,
+        _ => panic!("snapshot tape container missing"),
+    };
     let mut head = None;
     let mut signs = Vec::new();
     for (idx, child) in children.iter().enumerate() {
-        let obj = child.as_object().unwrap();
-        let text = obj.get("text").unwrap().as_str().unwrap();
-        signs.push(<Sign as TextCodec>::parse(text).unwrap());
-        if obj.get("className").and_then(|v| v.as_str()) == Some("highlight") {
-            head = Some(idx);
+        if let RenderBlock::Text(cell) = child {
+            signs.push(<Sign as TextCodec>::parse(&cell.text).unwrap());
+            if cell.class_name.as_deref() == Some("highlight") {
+                head = Some(idx);
+            }
         }
     }
     Tape::from_vec(signs, head.unwrap_or(0)).unwrap()
 }
 
 fn machine_env(machine: &RecTmIrMachine) -> HashMap<String, String> {
-    let value = machine_snapshot_json(machine);
-    let arr = value.as_array().unwrap();
+    let arr = machine_snapshot(machine);
     let env_table = arr
         .iter()
-        .find(|entry| entry.get("title").and_then(|t| t.as_str()) == Some("env"));
+        .find(|entry| matches!(entry, RenderBlock::Table(t) if t.title.as_deref() == Some("env")));
     let mut out = HashMap::new();
-    let Some(env_table) = env_table else {
+    let Some(RenderBlock::Table(env_table)) = env_table else {
         return out;
     };
-    let tmp = vec![];
-    let rows = env_table
-        .get("rows")
-        .and_then(|v| v.as_array())
-        .unwrap_or(&tmp);
-    for row in rows {
-        let cells = row.get("cells").and_then(|v| v.as_array());
-        let Some(cells) = cells else { continue };
+    for row in &env_table.rows {
+        let cells = &row.cells;
         if cells.len() < 2 {
             continue;
         }
-        let var = cells[0].get("text").and_then(|v| v.as_str());
-        let value = cells[1].get("text").and_then(|v| v.as_str());
+        let var = match &cells[0] {
+            RenderBlock::Text(t) => Some(t.text.as_str()),
+            _ => None,
+        };
+        let value = match &cells[1] {
+            RenderBlock::Text(t) => Some(t.text.as_str()),
+            _ => None,
+        };
         let (Some(var), Some(value)) = (var, value) else {
             continue;
         };

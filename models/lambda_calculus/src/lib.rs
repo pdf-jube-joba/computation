@@ -3,10 +3,9 @@ pub mod manipulation;
 
 use crate::machine::{is_normal_form, LambdaTerm, MarkedTerm};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::collections::HashMap;
 use utils::identifier::Var;
-use utils::{json_text, Machine, StepResult, TextCodec};
+use utils::{Machine, StepResult, TextCodec};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SnapshotTerm {
@@ -190,54 +189,6 @@ impl Machine for LambdaTerm {
         let restored = Self::restore(snapshot);
         let marked = crate::machine::mark_redex(&restored);
         utils::render_state![term_block(marked)]
-    }
-}
-
-impl From<MarkedTerm> for serde_json::Value {
-    fn from(term: MarkedTerm) -> Self {
-        fn term_block(term: MarkedTerm) -> serde_json::Value {
-            match term {
-                MarkedTerm::Var(var) => json_text!(var.as_str()),
-                MarkedTerm::Abs(var, body) => {
-                    let children = vec![
-                        json_text!("\\"),
-                        term_block(MarkedTerm::Var(var)),
-                        json_text!("."),
-                        term_block(*body),
-                    ];
-                    json!({
-                        "kind": "container",
-                        "orientation": "horizontal",
-                        "display": "inline",
-                        "children": children
-                    })
-                }
-                MarkedTerm::App(lhs, rhs) => {
-                    let children = vec![term_block(*lhs), json_text!(" "), term_block(*rhs)];
-                    json!({
-                        "kind": "container",
-                        "orientation": "horizontal",
-                        "display": "inline",
-                        "children": children
-                    })
-                }
-                MarkedTerm::Red(var, abs_term, app_term) => {
-                    let children = vec![
-                        json_text!(format!("\\ {}.", var.as_str())),
-                        term_block(*abs_term),
-                        term_block(*app_term),
-                    ];
-                    json!({
-                        "kind": "container",
-                        "orientation": "horizontal",
-                        "display": "block",
-                        "children": children
-                    })
-                }
-            }
-        }
-
-        json!([term_block(term)])
     }
 }
 

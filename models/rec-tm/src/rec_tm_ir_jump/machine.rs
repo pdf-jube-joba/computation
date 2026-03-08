@@ -1,9 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use turing_machine::machine::{Direction, Sign, Tape};
-use utils::{Machine, StepResult, TextCodec, json_text};
+use utils::{Machine, StepResult, TextCodec};
 
 use super::parser::parse_identifier;
 
@@ -157,62 +156,6 @@ pub struct Snapshot {
     instruction: Option<String>,
     env: Environment,
     tape: Tape,
-}
-
-impl From<Snapshot> for serde_json::Value {
-    fn from(snapshot: Snapshot) -> Self {
-        let pc_text = json_text!(snapshot.pc.to_string(), title: "pc");
-        let instruction_text = json_text!(
-            snapshot
-                .instruction
-                .unwrap_or_else(|| "halt".to_string()),
-            title: "next"
-        );
-
-        let env_rows: Vec<serde_json::Value> = snapshot
-            .env
-            .entries()
-            .into_iter()
-            .map(|(var, value)| {
-                json!({
-                    "cells": [
-                        json_text!(var),
-                        json_text!(value.print())
-                    ]
-                })
-            })
-            .collect();
-        let env_table = json!({
-            "kind": "table",
-            "title": "env",
-            "columns": [json_text!("var"), json_text!("value")],
-            "rows": env_rows
-        });
-
-        let (tapes, head_pos) = snapshot.tape.into_vec();
-        let tape_children: Vec<serde_json::Value> = tapes
-            .into_iter()
-            .enumerate()
-            .map(|(idx, sign)| {
-                let mut block = json_text!(sign.print());
-                if idx == head_pos
-                    && let Some(map) = block.as_object_mut()
-                {
-                    map.insert("className".to_string(), json!("highlight"));
-                }
-                block
-            })
-            .collect();
-        let tape_container = json!({
-            "kind": "container",
-            "title": "tape",
-            "orientation": "horizontal",
-            "display": "block",
-            "children": tape_children
-        });
-
-        json!([pc_text, instruction_text, env_table, tape_container])
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
