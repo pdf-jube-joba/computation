@@ -70,7 +70,7 @@ impl Number {
         Number(arr.to_vec())
     }
 
-    fn trimmed_bytes(&self) -> Vec<u8> {
+    pub fn trimmed_bytes(&self) -> Vec<u8> {
         let mut bytes = self.0.clone();
         while bytes.last() == Some(&0) {
             bytes.pop();

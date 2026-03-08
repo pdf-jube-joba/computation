@@ -10,7 +10,9 @@ pub mod data;
 pub use data::{bool, identifier, number};
 
 // utilities for web
+pub mod render;
 pub mod wasm_util;
+pub use render::*;
 
 pub enum StepResult<M: Machine> {
     Continue { next: M, output: M::ROutput },
@@ -29,9 +31,9 @@ pub trait Machine: Sized {
     type FOutput: TextCodec;
 
     // small step semantics of the models
-    // runtime input
+    // runtime input (some kind of "effect" or "interaction" with the outside world)
     type RInput: TextCodec;
-    // runtime output after a step
+    // runtime output (some kind of "effect" or "interaction" with the outside world)
     type ROutput: TextCodec;
 
     // representation of the current state
@@ -57,7 +59,7 @@ pub trait Machine: Sized {
     fn restore(snapshot: Self::SnapShot) -> Self;
 
     // rendering of Snapshot for web
-    fn render(snapshot: Self::SnapShot) -> serde_json::Value;
+    fn render(snapshot: Self::SnapShot) -> RenderState;
 }
 
 pub trait Compiler: Sized {

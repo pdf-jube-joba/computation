@@ -1,7 +1,7 @@
 use std::ops::{BitAnd, BitOr, Not};
 
-use serde::{Deserialize, Serialize};
 use crate::TextCodec;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Bool {
