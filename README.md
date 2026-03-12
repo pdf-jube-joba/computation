@@ -25,7 +25,8 @@
     - `cargo`
     - wasm 向けの target を追加すること
 - `wasm-tools`
-- `npx` と `jco`
+- `jco` を使って、 wasm component から JS に対応する transpile をする。
+    - `npm install -g @bytecodealliance/jco` をしたので、 `build.py` でこれを呼び出す。
 - `mdbook`
     - `mdbook-katex` も。
 - `python3`

@@ -192,10 +192,7 @@ def build_bin(
 
         if not (is_up_to_date(jco_js, [component_wasm]) and is_up_to_date(jco_core, [component_wasm])):
             run(
-                [
-                    "npx",
-                    "--yes",
-                    "jco",
+                [   "jco",
                     "transpile",
                     str(component_wasm),
                     "-o",
