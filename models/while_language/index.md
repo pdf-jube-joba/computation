@@ -12,7 +12,7 @@ compiler の話としては、式があるのをどうするかが面白い？
   &| \NT{var} := \NT{aexp} \\
   &| \NT{stmt} \T{;} \NT{stmt} \\
   &| \NT{if} \NT{bexp} \NT{stmt} \\
-  &| \NT{while} \NT{bexp} \T{\LSB} \NT{stmt} \T{\RSB} \\
+  &| \NT{while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
 
 \end{aligned}\)
 

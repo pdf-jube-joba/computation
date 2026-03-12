@@ -22,15 +22,15 @@ call/return で手続呼び出しを行う言語を考える。
   &| \T{Nop}
   &| \NT{stmt} \T{;} \NT{stmt} \\
   &| \NT{var} \T{:=} \NT{aexp} \\
-  &| \T{if} \NT{bexp} \T{\LSB} \NT{stmt} \T{\RSB} \\
-  &| \T{while} \NT{bexp} \T{\LSB} \NT{stmt} \T{\RSB} \\
+  &| \T{if} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
+  &| \T{while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
   &| \T{call} \NT{name} \T{\LP} \NT{var-cmm} \T{\RP} \T{->} \NT{var-cmm} \\
   &| \T{return} \NT{var-cmm} \\
 
-\NT{proc} &\defeq \NT{string} \T{\LP} \NT{var-cmm} \T{\RP} \T{\LSB} \\
+\NT{proc} &\defeq \NT{string} \T{\LP} \NT{var-cmm} \T{\RP} \T{\LCB} \\
   &\T{local} \NT{var-cmm} \\
   &\NT{stmt} \\
-  &\T{\RSB} \\
+  &\T{\RCB} \\
 
 \NT{program} &\defeq \NT{static} \syntaxmacro{comma-separated}{\NT{var}} \T{;} \\
   \NT{proc}+ \\
