@@ -19,6 +19,7 @@
 - `mdBook` を使って `markdown` で各計算モデルについて書いたものをブラウザで見れるようにしています。
     - 数式を書いたりするために、 `mdbook-katex` を使っています。
 - `make serve` をすると、ブラウザの `localhost:3000` から見ることができます。
+- `generate.py` が扱う入力を変えたあとは、必要に応じて `make generate` または `make md-build` を再実行します。
 
 ## 必要なもの
 - `rust` 周り
@@ -30,7 +31,6 @@
 - `mdbook`
     - `mdbook-katex` も。
 - `python3`
-- `watchexec` ... `make serve` 用
 
 ## ディレクトリ構成
 `Cargo.toml` や `Cargo.lock` は `rust` 言語用のファイルです。
@@ -84,5 +84,5 @@ wasm 生成と book 生成は役割を分けています。
 make wasm-build  # build.py: wasm_bundle/ を生成
 make generate    # generate.py: docs/ + wasm_bundle/ -> dist/
 make md-build    # generate + mdbook build dist
-make serve       # wasm-build + md-build + mdbook serve dist
+make serve       # generate-clean + mdbook serve dist
 ```
