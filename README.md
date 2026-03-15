@@ -30,6 +30,7 @@
 - `mdbook`
     - `mdbook-katex` も。
 - `python3`
+- `watchexec` ... `make serve` 用
 
 ## ディレクトリ構成
 `Cargo.toml` や `Cargo.lock` は `rust` 言語用のファイルです。
