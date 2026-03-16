@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use utils::number::Number;
 use utils::TextCodec;
 
-use crate::{ABinOp, AExp, Atom, BExp, GlobalEnv, ProcCode, ProcDef, Program, RelOp, Stmt};
+use super::{ABinOp, AExp, Atom, BExp, GlobalEnv, ProcCode, ProcDef, Program, RelOp, Stmt};
 
 fn ensure_valid_ident(name: &str) -> Result<(), String> {
     utils::identifier::Identifier::new(name)
@@ -259,9 +259,9 @@ impl Parser {
             }
             Token::LBrack => {
                 self.next();
-                let s = self.parse_stmt()?;
+                let inner = self.parse_stmt()?;
                 self.expect(Token::RBrack)?;
-                Ok(s)
+                Ok(inner)
             }
             Token::Ident(_) => {
                 let var = self.parse_ident()?;
@@ -269,32 +269,22 @@ impl Parser {
                 let expr = self.parse_aexp()?;
                 Ok(Stmt::Assign { var, expr })
             }
-            t => Err(format!("Invalid statement token: {t:?}")),
+            t => Err(format!("Unexpected token in statement: {t:?}")),
         }
     }
 
     fn parse_aexp(&mut self) -> Result<AExp, String> {
         let lhs = self.parse_atom()?;
-        match self.peek() {
-            Token::Plus => {
-                self.next();
-                let rhs = self.parse_atom()?;
-                Ok(AExp::Bin {
-                    lhs,
-                    op: ABinOp::Add,
-                    rhs,
-                })
-            }
-            Token::Minus => {
-                self.next();
-                let rhs = self.parse_atom()?;
-                Ok(AExp::Bin {
-                    lhs,
-                    op: ABinOp::Sub,
-                    rhs,
-                })
-            }
-            _ => Ok(AExp::Atom(lhs)),
+        if matches!(self.peek(), Token::Plus | Token::Minus) {
+            let op = match self.next() {
+                Token::Plus => ABinOp::Add,
+                Token::Minus => ABinOp::Sub,
+                _ => unreachable!(),
+            };
+            let rhs = self.parse_atom()?;
+            Ok(AExp::Bin { lhs, op, rhs })
+        } else {
+            Ok(AExp::Atom(lhs))
         }
     }
 
@@ -312,8 +302,8 @@ impl Parser {
 
     fn parse_atom(&mut self) -> Result<Atom, String> {
         match self.next() {
-            Token::Ident(v) => Ok(Atom::Var(v)),
-            Token::Number(n) => Ok(Atom::Imm(Number::parse(&n)?)),
+            Token::Ident(s) => Ok(Atom::Var(s)),
+            Token::Number(s) => Ok(Atom::Imm(Number::parse(&s)?)),
             t => Err(format!("Expected atom, got {t:?}")),
         }
     }
@@ -321,66 +311,36 @@ impl Parser {
 
 fn lex(text: &str) -> Result<Vec<Token>, String> {
     let mut tokens = Vec::new();
-    let chars: Vec<char> = text.chars().collect();
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        if c.is_whitespace() {
-            i += 1;
+    let mut chars = text.chars().peekable();
+    while let Some(&ch) = chars.peek() {
+        if ch.is_whitespace() {
+            chars.next();
             continue;
         }
-
-        if c == ':' && i + 1 < chars.len() && chars[i + 1] == '=' {
-            tokens.push(Token::Assign);
-            i += 2;
-            continue;
-        }
-        if c == '-' && i + 1 < chars.len() && chars[i + 1] == '>' {
-            tokens.push(Token::Arrow);
-            i += 2;
-            continue;
-        }
-
-        let one = match c {
-            '(' => Some(Token::LParen),
-            ')' => Some(Token::RParen),
-            '[' => Some(Token::LBrack),
-            ']' => Some(Token::RBrack),
-            ',' => Some(Token::Comma),
-            ';' => Some(Token::Semi),
-            '+' => Some(Token::Plus),
-            '-' => Some(Token::Minus),
-            '<' => Some(Token::Lt),
-            '=' => Some(Token::Eq),
-            '>' => Some(Token::Gt),
-            _ => None,
-        };
-        if let Some(t) = one {
-            tokens.push(t);
-            i += 1;
-            continue;
-        }
-
-        if c.is_ascii_digit() {
-            let start = i;
-            i += 1;
-            while i < chars.len() && chars[i].is_ascii_digit() {
-                i += 1;
+        if ch.is_ascii_digit() {
+            let mut s = String::new();
+            while let Some(&c) = chars.peek() {
+                if c.is_ascii_digit() {
+                    s.push(c);
+                    chars.next();
+                } else {
+                    break;
+                }
             }
-            tokens.push(Token::Number(chars[start..i].iter().collect()));
+            tokens.push(Token::Number(s));
             continue;
         }
-
-        if c.is_ascii_alphabetic() || c == '_' {
-            let start = i;
-            i += 1;
-            while i < chars.len()
-                && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '-')
-            {
-                i += 1;
+        if ch.is_ascii_alphabetic() || ch == '_' {
+            let mut s = String::new();
+            while let Some(&c) = chars.peek() {
+                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                    s.push(c);
+                    chars.next();
+                } else {
+                    break;
+                }
             }
-            let word: String = chars[start..i].iter().collect();
-            let kw = match word.as_str() {
+            tokens.push(match s.as_str() {
                 "static" => Token::Static,
                 "local" => Token::Local,
                 "Nop" => Token::Nop,
@@ -388,28 +348,84 @@ fn lex(text: &str) -> Result<Vec<Token>, String> {
                 "while" => Token::While,
                 "call" => Token::Call,
                 "return" => Token::Return,
-                _ => Token::Ident(word),
-            };
-            tokens.push(kw);
+                _ => Token::Ident(s),
+            });
             continue;
         }
-
-        return Err(format!("Unexpected character: {c}"));
+        match ch {
+            '(' => {
+                chars.next();
+                tokens.push(Token::LParen);
+            }
+            ')' => {
+                chars.next();
+                tokens.push(Token::RParen);
+            }
+            '[' => {
+                chars.next();
+                tokens.push(Token::LBrack);
+            }
+            ']' => {
+                chars.next();
+                tokens.push(Token::RBrack);
+            }
+            ',' => {
+                chars.next();
+                tokens.push(Token::Comma);
+            }
+            ';' => {
+                chars.next();
+                tokens.push(Token::Semi);
+            }
+            '+' => {
+                chars.next();
+                tokens.push(Token::Plus);
+            }
+            '-' => {
+                chars.next();
+                if chars.peek() == Some(&'>') {
+                    chars.next();
+                    tokens.push(Token::Arrow);
+                } else {
+                    tokens.push(Token::Minus);
+                }
+            }
+            '<' => {
+                chars.next();
+                tokens.push(Token::Lt);
+            }
+            '>' => {
+                chars.next();
+                tokens.push(Token::Gt);
+            }
+            '=' => {
+                chars.next();
+                tokens.push(Token::Eq);
+            }
+            ':' => {
+                chars.next();
+                if chars.next() == Some('=') {
+                    tokens.push(Token::Assign);
+                } else {
+                    return Err("Expected '=' after ':'".to_string());
+                }
+            }
+            _ => return Err(format!("Unexpected character: {ch}")),
+        }
     }
-
     tokens.push(Token::Eof);
     Ok(tokens)
 }
 
-fn atom_to_text(a: &Atom) -> String {
-    match a {
+fn atom_to_text(atom: &Atom) -> String {
+    match atom {
         Atom::Var(v) => v.clone(),
         Atom::Imm(n) => n.to_decimal_string(),
     }
 }
 
-fn aexp_to_text(a: &AExp) -> String {
-    match a {
+fn aexp_to_text(exp: &AExp) -> String {
+    match exp {
         AExp::Atom(a) => atom_to_text(a),
         AExp::Bin { lhs, op, rhs } => {
             let op = match op {
@@ -421,33 +437,27 @@ fn aexp_to_text(a: &AExp) -> String {
     }
 }
 
-fn bexp_to_text(b: &BExp) -> String {
-    let op = match b.op {
+fn bexp_to_text(exp: &BExp) -> String {
+    let op = match exp.op {
         RelOp::Lt => "<",
         RelOp::Eq => "=",
         RelOp::Gt => ">",
     };
-    format!("{} {} {}", atom_to_text(&b.lhs), op, atom_to_text(&b.rhs))
+    format!("{} {} {}", atom_to_text(&exp.lhs), op, atom_to_text(&exp.rhs))
 }
 
-pub(crate) fn stmt_to_text(s: &Stmt) -> String {
-    match s {
+pub fn stmt_to_text(stmt: &Stmt) -> String {
+    match stmt {
         Stmt::Nop => "Nop".to_string(),
+        Stmt::Assign { var, expr } => format!("{var} := {}", aexp_to_text(expr)),
         Stmt::Seq(a, b) => format!("{}; {}", stmt_to_text(a), stmt_to_text(b)),
-        Stmt::Assign { var, expr } => format!("{var} := {};", aexp_to_text(expr)),
         Stmt::If { cond, body } => format!("if {} [{}]", bexp_to_text(cond), stmt_to_text(body)),
         Stmt::While { cond, body } => {
             format!("while {} [{}]", bexp_to_text(cond), stmt_to_text(body))
         }
         Stmt::Call { name, args, rets } => {
-            format!("call {name}({}) -> {}", args.join(", "), rets.join(", "))
+            format!("call {}({}) -> {}", name, args.join(", "), rets.join(", "))
         }
-        Stmt::Return { vars } => {
-            if vars.is_empty() {
-                "return".to_string()
-            } else {
-                format!("return {}", vars.join(", "))
-            }
-        }
+        Stmt::Return { vars } => format!("return {}", vars.join(", ")),
     }
 }

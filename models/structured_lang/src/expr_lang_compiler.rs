@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::machine::{ABinOp, AExp, BExp, Environment, RelOp, Stmt, WhileCode, WhileMachine};
+use crate::expr_lang::{ABinOp, AExp, BExp, Environment, ExprCode, ExprLangMachine, RelOp, Stmt};
 use flow_ir::flow_ir::{
     BinOp, Block, Cond, Cont, FlowIrCode, FlowIrMachine, FlowValue, JumpIf, PlaceExpr, Program,
     Region, StaticDef, StaticEnv, Stmt as IrStmt, ValueExpr,
@@ -9,7 +9,7 @@ use utils::number::Number;
 use utils::{Compiler, TextCodec};
 
 #[derive(Debug, Clone, Default)]
-pub struct WhileToFlowIrCompiler;
+pub struct ExprLangToFlowIrCompiler;
 
 #[derive(Debug, Default)]
 struct CompileCtx {
@@ -262,18 +262,18 @@ fn compile_bexp_blocks(
     }
 }
 
-impl WhileToFlowIrCompiler {
-    pub fn compile(code: &WhileCode) -> Result<String, String> {
+impl ExprLangToFlowIrCompiler {
+    pub fn compile(code: &ExprCode) -> Result<String, String> {
         let ir = <Self as Compiler>::compile(code.clone())?;
         Ok(ir.print())
     }
 }
 
-impl Compiler for WhileToFlowIrCompiler {
-    type Source = WhileMachine;
+impl Compiler for ExprLangToFlowIrCompiler {
+    type Source = ExprLangMachine;
     type Target = FlowIrMachine;
 
-    fn compile(source: WhileCode) -> Result<FlowIrCode, String> {
+    fn compile(source: ExprCode) -> Result<FlowIrCode, String> {
         let vars: Vec<String> = collect_vars(&source.0).into_iter().collect();
 
         let mut ctx = CompileCtx::default();
@@ -346,7 +346,7 @@ impl Compiler for WhileToFlowIrCompiler {
                 FlowValue::Num(n) => n,
                 other => {
                     return Err(format!(
-                        "while decode expects numeric static value for {name}, got {}",
+                        "expr decode expects numeric static value for {name}, got {}",
                         other.print()
                     ));
                 }
@@ -430,8 +430,8 @@ mod tests {
 
     #[test]
     fn compile_emits_parseable_flow_ir() {
-        let code = WhileCode::parse("x := 0 ; while x < 3 [ x := x + 1 ]").unwrap();
-        let ir = <WhileToFlowIrCompiler as Compiler>::compile(code).unwrap();
+        let code = ExprCode::parse("x := 0 ; while x < 3 [ x := x + 1 ]").unwrap();
+        let ir = <ExprLangToFlowIrCompiler as Compiler>::compile(code).unwrap();
         let printed = ir.print();
         let reparsed = FlowIrCode::parse(&printed).unwrap();
         assert_eq!(ir, reparsed);

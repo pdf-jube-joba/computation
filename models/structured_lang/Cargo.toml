@@ -1,0 +1,35 @@
+[package]
+name = "structured_lang"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "proc_lang"
+path = "src/bin/proc_lang.rs"
+
+[[bin]]
+name = "data_lang"
+path = "src/bin/data_lang.rs"
+
+[[bin]]
+name = "internal_ctrl"
+path = "src/bin/internal_ctrl.rs"
+
+[[bin]]
+name = "internal_ctrl_to_flow_ir"
+path = "src/bin/internal_ctrl_to_flow_ir.rs"
+
+[[bin]]
+name = "expr_lang"
+path = "src/bin/expr_lang.rs"
+
+[[bin]]
+name = "expr_to_flow_ir"
+path = "src/bin/expr_to_flow_ir.rs"
+
+[dependencies]
+serde.workspace = true
+utils.workspace = true
+flow_ir = { path = "../flow_ir" }
+wasm-bindgen.workspace = true
+serde_json.workspace = true

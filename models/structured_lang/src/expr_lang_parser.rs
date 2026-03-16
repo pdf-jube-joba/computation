@@ -2,7 +2,7 @@ use utils::identifier::Identifier;
 use utils::number::Number;
 use utils::TextCodec;
 
-use crate::machine::*;
+use crate::expr_lang::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Token {
@@ -47,7 +47,7 @@ pub fn parse_env(text: &str) -> Result<Environment, String> {
 
 impl TextCodec for Environment {
     fn parse(text: &str) -> Result<Self, String> {
-        crate::manipulation::parse_env(text)
+        parse_env(text)
     }
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
@@ -58,13 +58,13 @@ impl TextCodec for Environment {
     }
 }
 
-impl TextCodec for WhileCode {
+impl TextCodec for ExprCode {
     fn parse(text: &str) -> Result<Self, String> {
         let tokens = lex(text)?;
         let mut ps = Parser::new(tokens);
         let stmt = ps.parse_stmt()?;
         ps.expect_eof()?;
-        Ok(WhileCode(stmt))
+        Ok(ExprCode(stmt))
     }
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
@@ -432,24 +432,24 @@ mod tests {
     use utils::{Machine, StepResult};
 
     #[test]
-    fn while_code_roundtrip() {
+    fn expr_code_roundtrip() {
         let text = r#"
 while x < 3 [
   if !(x = 1) y := if x < 2 then x + 1 else x - 1 ;
   x := x + 1
 ]
 "#;
-        let parsed = WhileCode::parse(text).unwrap();
+        let parsed = ExprCode::parse(text).unwrap();
         let printed = parsed.print();
-        let reparsed = WhileCode::parse(&printed).unwrap();
+        let reparsed = ExprCode::parse(&printed).unwrap();
         assert_eq!(parsed, reparsed);
     }
 
     #[test]
     fn smallstep_runs() {
-        let code = WhileCode::parse("x := 0 ; while x < 3 [ x := x + 1 ]").unwrap();
+        let code = ExprCode::parse("x := 0 ; while x < 3 [ x := x + 1 ]").unwrap();
         let env = Environment::default();
-        let mut machine = WhileMachine::make(code, env).unwrap();
+        let mut machine = ExprLangMachine::make(code, env).unwrap();
         for _ in 0..100 {
             match machine.step(()).unwrap() {
                 StepResult::Continue { next, .. } => machine = next,

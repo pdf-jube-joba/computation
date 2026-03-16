@@ -414,10 +414,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "data_proc"
-version = "0.1.0"
-
-[[package]]
 name = "debugid"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -775,10 +771,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "internal_ctrl"
-version = "0.1.0"
-
-[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1081,15 +1073,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "proc_lang"
-version = "0.1.0"
-dependencies = [
- "flow_ir",
- "serde",
- "utils",
 ]
 
 [[package]]
@@ -1401,6 +1384,17 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "structured_lang"
+version = "0.1.0"
+dependencies = [
+ "flow_ir",
+ "serde",
+ "serde_json",
+ "utils",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "syn"
@@ -2117,17 +2111,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd48d1679b6858988cb96b154dda0ec5bbb09275b71db46057be37332d5477be"
 dependencies = [
  "wast",
-]
-
-[[package]]
-name = "while_language"
-version = "0.1.0"
-dependencies = [
- "flow_ir",
- "serde",
- "serde_json",
- "utils",
- "wasm-bindgen",
 ]
 
 [[package]]

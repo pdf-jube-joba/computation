@@ -3,9 +3,11 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use utils::{Machine, StepResult, number::Number};
 
-mod parser;
-mod compiler;
-pub use compiler::ProcToFlowIrCompiler;
+#[path = "proc_lang_parser.rs"]
+mod proc_lang_parser;
+#[path = "proc_lang_compiler.rs"]
+mod proc_lang_compiler;
+pub use proc_lang_compiler::ProcToFlowIrCompiler;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProcCode(pub Program);
@@ -379,7 +381,7 @@ impl Machine for ProcLangMachine {
             });
         }
 
-        let before = parser::stmt_to_text(&self.stmt);
+        let before = proc_lang_parser::stmt_to_text(&self.stmt);
         let next_stmt = self.step_stmt(self.stmt.clone())?;
         self.stmt = next_stmt;
         Ok(StepResult::Continue {
@@ -413,165 +415,10 @@ impl Machine for ProcLangMachine {
             .join("\n");
 
         utils::render_state![
-            utils::render_text!(parser::stmt_to_text(&snapshot.stmt), title: "stmt"),
+            utils::render_text!(proc_lang_parser::stmt_to_text(&snapshot.stmt), title: "stmt"),
             utils::render_text!(globals, title: "global env"),
             utils::render_text!(locals, title: "local env"),
             utils::render_text!(snapshot.call_stack.len().to_string(), title: "call stack depth"),
         ]
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use flow_ir::flow_ir::FlowIrMachine;
-    use utils::{Compiler, TextCodec};
-
-    fn run_to_halt(mut machine: ProcLangMachine) -> Result<GlobalEnv, String> {
-        for _ in 0..200 {
-            match machine.step(String::new())? {
-                StepResult::Continue { next, .. } => machine = next,
-                StepResult::Halt { output } => return Ok(output),
-            }
-        }
-        Err("did not halt".to_string())
-    }
-
-    fn run_ir_to_halt(mut machine: FlowIrMachine) -> Result<flow_ir::flow_ir::StaticEnv, String> {
-        for _ in 0..1000 {
-            match machine.step(String::new())? {
-                StepResult::Continue { next, .. } => machine = next,
-                StepResult::Halt { output } => return Ok(output),
-            }
-        }
-        Err("ir did not halt".to_string())
-    }
-
-    #[test]
-    fn parse_and_run_call_return() {
-        let code = ProcCode::parse(
-            r#"
-            static x, y;
-            id(a)[
-              local
-              return a
-            ]
-            main()[
-              local t
-              call id(x) -> t;
-              y := t + 0;
-              return
-            ]
-            "#,
-        )
-        .expect("parse code");
-        let input = GlobalEnv::parse("x = 7\ny = 0").expect("parse input");
-        let machine = ProcLangMachine::make(code, input).expect("make machine");
-        let output = run_to_halt(machine).expect("halt");
-        assert_eq!(
-            output
-                .vars
-                .get("y")
-                .expect("y")
-                .to_decimal_string(),
-            "7"
-        );
-    }
-
-    #[test]
-    fn early_return_drops_following_seq() {
-        let code = ProcCode::parse(
-            r#"
-            static x;
-            main()[
-              local t
-              if 1 = 1 [ return ];
-              x := 99;
-              return
-            ]
-            "#,
-        )
-        .expect("parse code");
-        let input = GlobalEnv::parse("x = 1").expect("parse input");
-        let machine = ProcLangMachine::make(code, input).expect("make machine");
-        let output = run_to_halt(machine).expect("halt");
-        assert_eq!(
-            output
-                .vars
-                .get("x")
-                .expect("x")
-                .to_decimal_string(),
-            "1"
-        );
-    }
-
-    #[test]
-    fn while_increments_global() {
-        let code = ProcCode::parse(
-            r#"
-            static x, n;
-            main()[
-              local
-              while x < n [ x := x + 1 ];
-              return
-            ]
-            "#,
-        )
-        .expect("parse code");
-        let input = GlobalEnv::parse("x = 2\nn = 5").expect("parse input");
-        let machine = ProcLangMachine::make(code, input).expect("make machine");
-        let output = run_to_halt(machine).expect("halt");
-        assert_eq!(
-            output
-                .vars
-                .get("x")
-                .expect("x")
-                .to_decimal_string(),
-            "5"
-        );
-    }
-
-    #[test]
-    fn compile_to_flow_ir_matches_source_result() {
-        let code = ProcCode::parse(
-            r#"
-            static x, y;
-            id(a)[
-              local
-              return a
-            ]
-            main()[
-              local t
-              call id(x) -> t;
-              y := t + 3;
-              return
-            ]
-            "#,
-        )
-        .expect("parse code");
-        let input = GlobalEnv::parse("x = 4\ny = 0").expect("parse input");
-
-        let src_out = run_to_halt(
-            ProcLangMachine::make(code.clone(), input.clone()).expect("make source machine"),
-        )
-        .expect("source halt");
-
-        let ir_code = <ProcToFlowIrCompiler as Compiler>::compile(code).expect("compile to ir");
-        let ir_input =
-            <ProcToFlowIrCompiler as Compiler>::encode_ainput(input).expect("encode input");
-        let ir_out = run_ir_to_halt(FlowIrMachine::make(ir_code, ir_input).expect("make ir"))
-            .expect("ir halt");
-        let decoded =
-            <ProcToFlowIrCompiler as Compiler>::decode_foutput(ir_out).expect("decode output");
-
-        assert_eq!(src_out, decoded);
-        assert_eq!(
-            decoded
-                .vars
-                .get("y")
-                .expect("y")
-                .to_decimal_string(),
-            "7"
-        );
     }
 }

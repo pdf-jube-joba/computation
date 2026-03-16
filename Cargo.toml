@@ -17,8 +17,9 @@ members = [
   "models/rec-tm",
   "models/tiny_isa",
   "models/turing_machine",
-  "models/while_language"
-, "models/proc_lang", "models/internal_ctrl", "models/data_proc", "models/obj_lang"]
+  "models/structured_lang",
+  "models/obj_lang"
+]
 
 exclude = [
   "*/dist",
@@ -34,7 +35,6 @@ logic_circuit = { path = "./models/logic_circuit" }
 my_hdl = { path = "./models/my_hdl" }
 recursive_function =  { path = "./models/recursive_function" }
 turing_machine = { path = "./models/turing_machine" }
-while_lang = { path = "./models/while_language" }
 
 either = "1.0.0"
 anyhow = "1.0.0"

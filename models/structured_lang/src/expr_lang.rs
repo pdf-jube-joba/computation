@@ -1,10 +1,17 @@
+#[path = "expr_lang_compiler.rs"]
+pub mod expr_lang_compiler;
+#[path = "expr_lang_parser.rs"]
+pub mod expr_lang_parser;
+
 use serde::{Deserialize, Serialize};
 use utils::identifier::Identifier;
 use utils::number::Number;
 use utils::{Machine, StepResult};
 
+pub use expr_lang_compiler::ExprLangToFlowIrCompiler;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WhileCode(pub Stmt);
+pub struct ExprCode(pub Stmt);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AExp {
@@ -78,13 +85,13 @@ impl Environment {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WhileMachine {
-    pub code: WhileCode,
+pub struct ExprLangMachine {
+    pub code: ExprCode,
     pub stmt: Stmt,
     pub env: Environment,
 }
 
-impl WhileMachine {
+impl ExprLangMachine {
     fn eval_aexp(exp: &AExp, env: &Environment) -> Result<Number, String> {
         match exp {
             AExp::Var(v) => Ok(env.get(v)),
@@ -164,11 +171,11 @@ impl WhileMachine {
     }
 }
 
-impl Machine for WhileMachine {
-    type Code = WhileCode;
+impl Machine for ExprLangMachine {
+    type Code = ExprCode;
     type AInput = Environment;
     type FOutput = Environment;
-    type SnapShot = WhileMachine;
+    type SnapShot = ExprLangMachine;
     type RInput = ();
     type ROutput = ();
 

@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
+use super::{ABinOp, AExp, Atom, GlobalEnv, ProcCode, ProcDef, ProcLangMachine, RelOp, Stmt};
 use flow_ir::flow_ir::{
     BinOp as IrBinOp, Block, Cond as IrCond, Cont, FlowIrCode, FlowIrMachine, FlowValue, JumpIf,
     PlaceExpr, Program as IrProgram, Region, StaticDef, StaticEnv, Stmt as IrStmt, ValueExpr,
 };
 use utils::number::Number;
 use utils::{Compiler, Machine};
-
-use crate::{ABinOp, AExp, Atom, BExp, GlobalEnv, ProcCode, ProcDef, ProcLangMachine, RelOp, Stmt};
 
 #[derive(Debug, Clone, Default)]
 pub struct ProcToFlowIrCompiler;
@@ -31,7 +30,6 @@ struct ProcScope<'a> {
 struct CompileCtx {
     regions: Vec<Region>,
     region_id: usize,
-    block_id: usize,
     vreg_id: usize,
 }
 
@@ -39,12 +37,6 @@ impl CompileCtx {
     fn fresh_region(&mut self, prefix: &str) -> String {
         let id = self.region_id;
         self.region_id += 1;
-        format!("{prefix}_{id}")
-    }
-
-    fn fresh_block(&mut self, prefix: &str) -> String {
-        let id = self.block_id;
-        self.block_id += 1;
         format!("{prefix}_{id}")
     }
 
@@ -258,59 +250,7 @@ fn compile_return_region(
     Ok(label)
 }
 
-fn compile_cond_region(
-    cond: &BExp,
-    true_region: &str,
-    false_region: &str,
-    scope: &ProcScope<'_>,
-    ctx: &mut CompileCtx,
-) -> Result<String, String> {
-    let region = ctx.fresh_region("cond");
-    let true_block = ctx.fresh_block("true");
-    let false_block = ctx.fresh_block("false");
-    let mut stmts = Vec::new();
-
-    let lhs = ctx.fresh_vreg("cond_lhs");
-    let rhs = ctx.fresh_vreg("cond_rhs");
-    emit_atom_to_vreg(&cond.lhs, &lhs, scope, ctx, &mut stmts)?;
-    emit_atom_to_vreg(&cond.rhs, &rhs, scope, ctx, &mut stmts)?;
-
-    let cond = match cond.op {
-        RelOp::Lt => IrCond::Lt(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
-        RelOp::Eq => IrCond::Eq(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
-        RelOp::Gt => IrCond::Gt(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
-    };
-
-    ctx.regions.push(Region {
-        label: region.clone(),
-        blocks: vec![
-            Block {
-                label: "entry".to_string(),
-                stmts,
-                cont: Cont::Go {
-                    ifs: vec![JumpIf {
-                        cond,
-                        target: ValueExpr::CodeLabel(true_block.clone()),
-                    }],
-                    target: ValueExpr::CodeLabel(false_block.clone()),
-                },
-            },
-            Block {
-                label: true_block,
-                stmts: vec![IrStmt::Nop],
-                cont: enter_region(true_region),
-            },
-            Block {
-                label: false_block,
-                stmts: vec![IrStmt::Nop],
-                cont: enter_region(false_region),
-            },
-        ],
-    });
-    Ok(region)
-}
-
-fn compile_stmt(
+fn compile_stmt_to_region(
     stmt: &Stmt,
     cont_region: &str,
     scope: &ProcScope<'_>,
@@ -331,10 +271,10 @@ fn compile_stmt(
         }
         Stmt::Assign { var, expr } => {
             let label = ctx.fresh_region("assign");
+            let dst = ctx.fresh_vreg("assign");
             let mut stmts = Vec::new();
-            let v = ctx.fresh_vreg("assign");
-            emit_aexp_to_vreg(expr, &v, scope, ctx, &mut stmts)?;
-            emit_store_var(var, ValueExpr::VReg(v), scope, ctx, &mut stmts)?;
+            emit_aexp_to_vreg(expr, &dst, scope, ctx, &mut stmts)?;
+            emit_store_var(var, ValueExpr::VReg(dst), scope, ctx, &mut stmts)?;
             ctx.regions.push(Region {
                 label: label.clone(),
                 blocks: vec![Block {
@@ -346,66 +286,105 @@ fn compile_stmt(
             Ok(label)
         }
         Stmt::Seq(a, b) => {
-            let b_entry = compile_stmt(b, cont_region, scope, ctx)?;
-            compile_stmt(a, &b_entry, scope, ctx)
+            let b_region = compile_stmt_to_region(b, cont_region, scope, ctx)?;
+            compile_stmt_to_region(a, &b_region, scope, ctx)
         }
         Stmt::If { cond, body } => {
-            let body_entry = compile_stmt(body, cont_region, scope, ctx)?;
-            compile_cond_region(cond, &body_entry, cont_region, scope, ctx)
-        }
-        Stmt::While { cond, body } => {
-            let head = ctx.fresh_region("while_head");
-            let body_entry = compile_stmt(body, &head, scope, ctx)?;
-            let cond_entry = compile_cond_region(cond, &body_entry, cont_region, scope, ctx)?;
+            let body_region = compile_stmt_to_region(body, cont_region, scope, ctx)?;
+            let label = ctx.fresh_region("if");
+            let lhs = ctx.fresh_vreg("if_lhs");
+            let rhs = ctx.fresh_vreg("if_rhs");
+            let mut stmts = Vec::new();
+            emit_atom_to_vreg(&cond.lhs, &lhs, scope, ctx, &mut stmts)?;
+            emit_atom_to_vreg(&cond.rhs, &rhs, scope, ctx, &mut stmts)?;
+            let cond = match cond.op {
+                RelOp::Lt => IrCond::Lt(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
+                RelOp::Eq => IrCond::Eq(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
+                RelOp::Gt => IrCond::Gt(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
+            };
             ctx.regions.push(Region {
-                label: head.clone(),
+                label: label.clone(),
                 blocks: vec![Block {
                     label: "entry".to_string(),
-                    stmts: vec![IrStmt::Nop],
-                    cont: enter_region(&cond_entry),
+                    stmts,
+                    cont: Cont::Enter {
+                        ifs: vec![JumpIf {
+                            cond,
+                            target: ValueExpr::CodeLabel(body_region),
+                        }],
+                        target: ValueExpr::CodeLabel(cont_region.to_string()),
+                    },
                 }],
             });
-            Ok(head)
+            Ok(label)
+        }
+        Stmt::While { cond, body } => {
+            let test_region = ctx.fresh_region("while_test");
+            let body_region = compile_stmt_to_region(body, &test_region, scope, ctx)?;
+            let lhs = ctx.fresh_vreg("while_lhs");
+            let rhs = ctx.fresh_vreg("while_rhs");
+            let mut stmts = Vec::new();
+            emit_atom_to_vreg(&cond.lhs, &lhs, scope, ctx, &mut stmts)?;
+            emit_atom_to_vreg(&cond.rhs, &rhs, scope, ctx, &mut stmts)?;
+            let cond = match cond.op {
+                RelOp::Lt => IrCond::Lt(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
+                RelOp::Eq => IrCond::Eq(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
+                RelOp::Gt => IrCond::Gt(ValueExpr::VReg(lhs), ValueExpr::VReg(rhs)),
+            };
+            ctx.regions.push(Region {
+                label: test_region.clone(),
+                blocks: vec![Block {
+                    label: "entry".to_string(),
+                    stmts,
+                    cont: Cont::Enter {
+                        ifs: vec![JumpIf {
+                            cond,
+                            target: ValueExpr::CodeLabel(body_region),
+                        }],
+                        target: ValueExpr::CodeLabel(cont_region.to_string()),
+                    },
+                }],
+            });
+            Ok(test_region)
         }
         Stmt::Call { name, args, rets } => {
-            let callee_entry = scope
+            let ret_region = ctx.fresh_region("call_ret");
+            let ret_label = ValueExpr::CodeLabel(ret_region.clone());
+            let mut call_stmts = Vec::new();
+
+            for arg in args.iter().rev() {
+                let reg = ctx.fresh_vreg("arg");
+                emit_load_var(arg, &reg, scope, ctx, &mut call_stmts)?;
+                call_stmts.push(IrStmt::Push {
+                    src: ValueExpr::VReg(reg),
+                });
+            }
+            call_stmts.push(IrStmt::Push { src: ret_label });
+
+            let target = scope
                 .proc_entry_region
                 .get(name)
                 .cloned()
-                .ok_or_else(|| format!("Unknown callee in compiler: {name}"))?;
+                .ok_or_else(|| format!("Unknown procedure in compiler: {name}"))?;
 
-            let ret_region = ctx.fresh_region("call_ret");
             let call_region = ctx.fresh_region("call");
-
-            let mut call_stmts = Vec::new();
-            for arg in args.iter().rev() {
-                let v = ctx.fresh_vreg("arg");
-                emit_load_var(arg, &v, scope, ctx, &mut call_stmts)?;
-                call_stmts.push(IrStmt::Push {
-                    src: ValueExpr::VReg(v),
-                });
-            }
-            call_stmts.push(IrStmt::Push {
-                src: ValueExpr::CodeLabel(ret_region.clone()),
-            });
-
             ctx.regions.push(Region {
                 label: call_region.clone(),
                 blocks: vec![Block {
                     label: "entry".to_string(),
                     stmts: call_stmts,
-                    cont: enter_region(&callee_entry),
+                    cont: enter_region(&target),
                 }],
             });
 
             let mut ret_stmts = Vec::new();
             for ret in rets {
-                let v = ctx.fresh_vreg("ret");
-                ret_stmts.push(IrStmt::Pop { dst: v.clone() });
-                emit_store_var(ret, ValueExpr::VReg(v), scope, ctx, &mut ret_stmts)?;
+                let reg = ctx.fresh_vreg("ret");
+                ret_stmts.push(IrStmt::Pop { dst: reg.clone() });
+                emit_store_var(ret, ValueExpr::VReg(reg), scope, ctx, &mut ret_stmts)?;
             }
             ctx.regions.push(Region {
-                label: ret_region,
+                label: ret_region.clone(),
                 blocks: vec![Block {
                     label: "entry".to_string(),
                     stmts: ret_stmts,
@@ -419,13 +398,13 @@ fn compile_stmt(
 }
 
 fn build_scope<'a>(
+    program: &'a ProcCode,
     proc: &'a ProcDef,
-    statics: &'a [String],
     proc_entry_region: &'a HashMap<String, String>,
-) -> ProcScope<'a> {
+) -> Result<ProcScope<'a>, String> {
     let mut vars = HashMap::new();
-    for s in statics {
-        vars.insert(s.as_str(), VarLoc::Global);
+    for g in &program.0.statics {
+        vars.insert(g.as_str(), VarLoc::Global);
     }
     for (i, p) in proc.params.iter().enumerate() {
         vars.insert(p.as_str(), VarLoc::Param(i));
@@ -433,12 +412,12 @@ fn build_scope<'a>(
     for (i, l) in proc.locals.iter().enumerate() {
         vars.insert(l.as_str(), VarLoc::Local(i));
     }
-    ProcScope {
+    Ok(ProcScope {
         locals_len: proc.locals.len(),
         params_len: proc.params.len(),
         vars,
         proc_entry_region,
-    }
+    })
 }
 
 impl Compiler for ProcToFlowIrCompiler {
@@ -446,99 +425,91 @@ impl Compiler for ProcToFlowIrCompiler {
     type Target = FlowIrMachine;
 
     fn compile(source: ProcCode) -> Result<FlowIrCode, String> {
-        let mut procs = HashMap::new();
-        for p in &source.0.procs {
-            if procs.insert(p.name.clone(), p.clone()).is_some() {
-                return Err(format!("duplicate procedure in compiler input: {}", p.name));
-            }
-        }
-        let main_proc = procs
-            .get("main")
-            .ok_or_else(|| "missing main procedure".to_string())?;
-        if !main_proc.params.is_empty() {
-            return Err("main must have no parameters".to_string());
-        }
-
-        let mut proc_entry_region = HashMap::new();
-        for p in &source.0.procs {
-            proc_entry_region.insert(p.name.clone(), format!("proc_{}", p.name));
-        }
-
         let mut ctx = CompileCtx::default();
-
-        for p in &source.0.procs {
-            let scope = build_scope(p, &source.0.statics, &proc_entry_region);
-            let normalized = ensure_with_return(p.body.clone());
-            let fallthrough = compile_return_region(&[], &scope, &mut ctx)?;
-            let body_entry = compile_stmt(&normalized, &fallthrough, &scope, &mut ctx)?;
-            let entry_label = proc_entry_region
-                .get(&p.name)
-                .cloned()
-                .ok_or_else(|| format!("internal compiler error: missing entry for {}", p.name))?;
-
-            let mut entry_stmts = Vec::new();
-            for _ in 0..p.locals.len() {
-                entry_stmts.push(IrStmt::Push {
-                    src: ValueExpr::Imm(Number::default()),
-                });
-            }
-            ctx.regions.push(Region {
-                label: entry_label,
-                blocks: vec![Block {
-                    label: "entry".to_string(),
-                    stmts: entry_stmts,
-                    cont: enter_region(&body_entry),
-                }],
-            });
-        }
-
-        let main_entry = proc_entry_region
-            .get("main")
-            .cloned()
-            .ok_or_else(|| "internal compiler error: missing main entry".to_string())?;
-
-        let startup_region = Region {
-            label: "main".to_string(),
-            blocks: vec![Block {
-                label: "entry".to_string(),
-                stmts: vec![IrStmt::Push {
-                    src: ValueExpr::CodeLabel("halt".to_string()),
-                }],
-                cont: enter_region(&main_entry),
-            }],
-        };
-        let halt_region = Region {
-            label: "halt".to_string(),
+        let halt_region = ctx.fresh_region("halt");
+        ctx.regions.push(Region {
+            label: halt_region.clone(),
             blocks: vec![Block {
                 label: "entry".to_string(),
                 stmts: vec![IrStmt::Nop],
                 cont: Cont::Halt { ifs: vec![] },
             }],
-        };
+        });
+
+        let mut entry_regions = HashMap::new();
+        for proc in &source.0.procs {
+            entry_regions.insert(proc.name.clone(), ctx.fresh_region(&format!("proc_{}", proc.name)));
+        }
+
+        for proc in &source.0.procs {
+            let scope = build_scope(&source, proc, &entry_regions)?;
+            let body = ensure_with_return(proc.body.clone());
+            let body_region = compile_stmt_to_region(&body, &halt_region, &scope, &mut ctx)?;
+
+            let mut stmts = Vec::new();
+            for _ in &proc.locals {
+                stmts.push(IrStmt::Push {
+                    src: ValueExpr::Imm(Number::default()),
+                });
+            }
+            let entry = entry_regions.get(&proc.name).unwrap().clone();
+            ctx.regions.push(Region {
+                label: entry,
+                blocks: vec![Block {
+                    label: "entry".to_string(),
+                    stmts,
+                    cont: enter_region(&body_region),
+                }],
+            });
+        }
+
+        let main_entry = entry_regions
+            .get("main")
+            .cloned()
+            .ok_or_else(|| "Procedure 'main' is required".to_string())?;
+        let mut main_stmts = vec![IrStmt::Push {
+            src: ValueExpr::CodeLabel(halt_region.clone()),
+        }];
+        ctx.regions.push(Region {
+            label: "main".to_string(),
+            blocks: vec![Block {
+                label: "entry".to_string(),
+                stmts: {
+                    let s = &mut main_stmts;
+                    s.push(IrStmt::Nop);
+                    s.clone()
+                },
+                cont: enter_region(&main_entry),
+            }],
+        });
 
         let statics = source
             .0
             .statics
             .iter()
-            .map(|s| StaticDef {
-                label: s.clone(),
+            .cloned()
+            .map(|label| StaticDef {
+                label,
                 value: Number::default(),
             })
             .collect();
 
-        let mut regions = vec![startup_region, halt_region];
-        regions.extend(ctx.regions);
-        Ok(FlowIrCode(IrProgram { statics, regions }))
+        Ok(FlowIrCode(IrProgram {
+            statics,
+            regions: ctx.regions,
+        }))
     }
 
     fn encode_ainput(
         ainput: <Self::Source as Machine>::AInput,
     ) -> Result<<Self::Target as Machine>::AInput, String> {
-        let mut entries = std::collections::BTreeMap::new();
-        for (name, value) in ainput.vars {
-            entries.insert(name, FlowValue::Num(value));
-        }
-        Ok(StaticEnv { entries })
+        Ok(StaticEnv {
+            entries: ainput
+                .vars
+                .into_iter()
+                .map(|(k, v)| (k, FlowValue::Num(v)))
+                .collect(),
+        })
     }
 
     fn encode_rinput(
@@ -557,17 +528,13 @@ impl Compiler for ProcToFlowIrCompiler {
         output: <Self::Target as Machine>::FOutput,
     ) -> Result<<Self::Source as Machine>::FOutput, String> {
         let mut vars = std::collections::BTreeMap::new();
-        for (name, value) in output.entries {
-            let n = match value {
-                FlowValue::Num(n) => n,
-                other => {
-                    return Err(format!(
-                        "proc_lang decode expects numeric static value for {name}, got {}",
-                        other.print()
-                    ));
+        for (k, v) in output.entries {
+            match v {
+                FlowValue::Num(n) => {
+                    vars.insert(k, n);
                 }
-            };
-            vars.insert(name, n);
+                other => return Err(format!("expected numeric global for {k}, got {}", other.print())),
+            }
         }
         Ok(GlobalEnv { vars })
     }
