@@ -18,6 +18,8 @@
 \defeq:\mathrel{::=}
 \syntaxmacro:\text{#1} \langle #2 \rangle
 
+\syntaxname:{\textit{#1}}
+
 \LP:{(}
 \RP:{)}
 \LCB:{[}
