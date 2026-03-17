@@ -1,5 +1,0 @@
-{
-    "rust-analyzer.showUnlinkedFileNotification": false,
-    "makefile.configureOnOpen": true,
-    "chatgpt.commentCodeLensEnabled": false
-}
