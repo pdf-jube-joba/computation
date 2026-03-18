@@ -1,1 +1,1 @@
-utils::model_entry!(proc_lang::proc_lang::ProcLangMachine);
+utils::model_entry!(structured_lang::proc_lang::ProcLangMachine);

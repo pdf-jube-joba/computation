@@ -1,1 +1,1 @@
-utils::model_entry!(proc_lang::internal_ctrl::InternalCtrlMachine);
+utils::model_entry!(structured_lang::internal_ctrl::InternalCtrlMachine);
