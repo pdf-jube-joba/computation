@@ -20,12 +20,18 @@ pub struct RepositoryConfig {
 pub struct ServeSettings {
     #[serde(default = "default_port")]
     pub port: u16,
+    #[serde(default = "default_plugin_url_prefix")]
+    pub plugin_url_prefix: String,
+    #[serde(default = "default_policy_url_prefix")]
+    pub policy_url_prefix: String,
 }
 
 impl Default for ServeSettings {
     fn default() -> Self {
         Self {
             port: default_port(),
+            plugin_url_prefix: default_plugin_url_prefix(),
+            policy_url_prefix: default_policy_url_prefix(),
         }
     }
 }
@@ -34,16 +40,28 @@ fn default_port() -> u16 {
     3000
 }
 
+fn default_plugin_url_prefix() -> String {
+    ".plugin".to_owned()
+}
+
+fn default_policy_url_prefix() -> String {
+    ".policy".to_owned()
+}
+
+fn default_policy_get() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct PolicyRule {
     pub path: String,
-    #[serde(rename = "GET")]
+    #[serde(rename = "GET", default = "default_policy_get")]
     pub get: bool,
-    #[serde(rename = "POST")]
+    #[serde(rename = "POST", default)]
     pub post: bool,
-    #[serde(rename = "PUT")]
+    #[serde(rename = "PUT", default)]
     pub put: bool,
-    #[serde(rename = "DELETE")]
+    #[serde(rename = "DELETE", default)]
     pub delete: bool,
 }
 
@@ -80,6 +98,18 @@ impl RepositoryConfig {
     }
 
     fn validate(&self, repository_root: &Utf8Path) -> Result<()> {
+        if self.serve.plugin_url_prefix.trim_matches('/').is_empty() {
+            bail!("serve.plugin_url_prefix must not be empty");
+        }
+        if self.serve.policy_url_prefix.trim_matches('/').is_empty() {
+            bail!("serve.policy_url_prefix must not be empty");
+        }
+        if self.serve.plugin_url_prefix.trim_matches('/')
+            == self.serve.policy_url_prefix.trim_matches('/')
+        {
+            bail!("serve.plugin_url_prefix and serve.policy_url_prefix must be different");
+        }
+
         for policy in &self.policy {
             if policy.path.starts_with(".repo/") || policy.path == ".repo/" || policy.path == ".repo" {
                 bail!("policy path must not target .repo/");
@@ -130,5 +160,47 @@ impl RepositoryConfig {
 impl MountRule {
     pub fn source_relative_path(&self) -> Utf8PathBuf {
         Utf8PathBuf::from(self.source.trim_end_matches('/'))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn policy_rule_defaults_get_only() {
+        let rule: PolicyRule = toml::from_str(
+            r#"
+path = "docs/**"
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(rule.path, "docs/**");
+        assert!(rule.get);
+        assert!(!rule.post);
+        assert!(!rule.put);
+        assert!(!rule.delete);
+    }
+
+    #[test]
+    fn policy_rule_requires_path() {
+        let error = toml::from_str::<PolicyRule>(
+            r#"
+GET = true
+"#,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("missing field `path`"));
+    }
+
+    #[test]
+    fn serve_settings_defaults_prefixes() {
+        let settings: ServeSettings = toml::from_str("").unwrap();
+
+        assert_eq!(settings.port, 3000);
+        assert_eq!(settings.plugin_url_prefix, ".plugin");
+        assert_eq!(settings.policy_url_prefix, ".policy");
     }
 }

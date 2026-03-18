@@ -8,6 +8,7 @@ use std::{env, net::SocketAddr, sync::Arc};
 
 use anyhow::{Result, anyhow, bail};
 use axum::{
+    Json,
     Router,
     extract::{Extension, Path, State},
     middleware,
@@ -53,10 +54,15 @@ async fn main() -> Result<()> {
 
     let identity = IdentityConfig::load();
     let state = Arc::new(AppState { workspace: workspace.clone() });
+    let plugin_run_route = format!("{}/{{name}}/run", route_prefix(workspace.plugin_url_prefix()));
+    let policy_root_route = route_prefix(workspace.policy_url_prefix());
+    let policy_path_route = format!("{}/{{*path}}", policy_root_route);
 
     let app = Router::new()
         .route("/", get(root_handler))
-        .route("/.plugin/{name}/run", post(run_plugin_handler))
+        .route(&plugin_run_route, post(run_plugin_handler))
+        .route(&policy_root_route, get(get_policy_root_handler))
+        .route(&policy_path_route, get(get_policy_path_handler))
         .route(
             "/{*path}",
             get(get_path_handler)
@@ -107,6 +113,10 @@ fn init_tracing() {
         .init();
 }
 
+fn route_prefix(prefix: &str) -> String {
+    format!("/{}", prefix.trim_matches('/'))
+}
+
 async fn root_handler(
     State(state): State<Arc<AppState>>,
     Extension(identity): Extension<RequestIdentity>,
@@ -122,6 +132,19 @@ async fn run_plugin_handler(
     state.workspace.run_manual_plugin(&name, &identity.user).await
         .map(|_| axum::http::StatusCode::NO_CONTENT.into_response())
         .map_err(workspace::WorkspaceError::internal)
+}
+
+async fn get_policy_root_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<workspace::PolicyInspection>, workspace::WorkspaceError> {
+    state.workspace.inspect_policy("").await
+}
+
+async fn get_policy_path_handler(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<String>,
+) -> Result<Json<workspace::PolicyInspection>, workspace::WorkspaceError> {
+    state.workspace.inspect_policy(&path).await
 }
 
 async fn get_path_handler(
@@ -156,4 +179,15 @@ async fn delete_path_handler(
     Path(path): Path<String>,
 ) -> Result<Response, workspace::WorkspaceError> {
     state.workspace.delete_path(&path, &identity.user).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn route_prefix_normalizes_slashes() {
+        assert_eq!(route_prefix(".plugin"), "/.plugin");
+        assert_eq!(route_prefix("/.plugin/"), "/.plugin");
+    }
 }

@@ -2,6 +2,5 @@
 AGENTS.md
 out
 wasm_bundle
-dist
 fonts/
 katex.min.css

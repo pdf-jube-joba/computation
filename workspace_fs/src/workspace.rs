@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
+use axum::Json;
 use axum::{http::StatusCode, response::{IntoResponse, Response}};
 use camino::{Utf8Path, Utf8PathBuf};
+use serde::Serialize;
 
 use crate::{
     config::RepositoryConfig,
@@ -22,6 +24,47 @@ pub enum MethodKind {
     Post,
     Put,
     Delete,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PolicyPermissions {
+    #[serde(rename = "GET")]
+    pub get: bool,
+    #[serde(rename = "POST")]
+    pub post: bool,
+    #[serde(rename = "PUT")]
+    pub put: bool,
+    #[serde(rename = "DELETE")]
+    pub delete: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PolicySpecificity {
+    pub depth: usize,
+    pub chars: usize,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PolicyMatchInfo {
+    pub index: usize,
+    pub pattern: String,
+    pub specificity: PolicySpecificity,
+    pub permissions: PolicyPermissions,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct SelectedPolicyInfo {
+    pub index: usize,
+    pub pattern: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct PolicyInspection {
+    pub path: String,
+    pub matches: Vec<PolicyMatchInfo>,
+    pub selected: Option<SelectedPolicyInfo>,
+    pub effective: PolicyPermissions,
 }
 
 pub struct WorkspaceService {
@@ -81,6 +124,14 @@ impl WorkspaceService {
 
     pub async fn run_manual_plugin(&self, plugin_name: &str, user_identity: &str) -> Result<()> {
         self.plugin_runner().run_manual_plugin(plugin_name, user_identity).await
+    }
+
+    pub fn plugin_url_prefix(&self) -> &str {
+        &self.config.serve.plugin_url_prefix
+    }
+
+    pub fn policy_url_prefix(&self) -> &str {
+        &self.config.serve.policy_url_prefix
     }
 
     pub async fn get_root(&self, user_identity: &str) -> Result<Response, WorkspaceError> {
@@ -187,6 +238,11 @@ impl WorkspaceService {
         Ok(StatusCode::NO_CONTENT.into_response())
     }
 
+    pub async fn inspect_policy(&self, path: &str) -> Result<Json<PolicyInspection>, WorkspaceError> {
+        let inspection = self.inspect_policy_rules(path).map_err(WorkspaceError::internal)?;
+        Ok(Json(inspection))
+    }
+
     async fn directory_response(&self, path: &str, user_identity: &str) -> Result<Response, WorkspaceError> {
         let entries = match self.repository.list_directory(path).await {
             Ok(entries) => entries,
@@ -256,27 +312,80 @@ impl WorkspaceService {
 
     fn enforce_policy(&self, method: MethodKind, path: &str) -> Result<(), WorkspaceError> {
         let normalized = if path.is_empty() { "" } else { path };
-        let mut allowed = true;
-
-        for rule in &self.config.policy {
-            if glob::Pattern::new(&rule.path)
-                .map_err(WorkspaceError::internal)?
-                .matches(normalized)
-            {
-                allowed = match method {
-                    MethodKind::Get => rule.get,
-                    MethodKind::Post => rule.post,
-                    MethodKind::Put => rule.put,
-                    MethodKind::Delete => rule.delete,
-                };
-            }
-        }
+        let allowed = self
+            .resolve_policy(method, normalized)
+            .map_err(WorkspaceError::internal)?
+            .unwrap_or(false);
 
         if allowed {
             Ok(())
         } else {
             Err(WorkspaceError::forbidden("operation denied by policy"))
         }
+    }
+
+    fn resolve_policy(&self, method: MethodKind, path: &str) -> Result<Option<bool>> {
+        let inspection = self.inspect_policy_rules(path)?;
+        Ok(Some(match method {
+            MethodKind::Get => inspection.effective.get,
+            MethodKind::Post => inspection.effective.post,
+            MethodKind::Put => inspection.effective.put,
+            MethodKind::Delete => inspection.effective.delete,
+        })
+        .filter(|allowed| *allowed || inspection.selected.is_some()))
+    }
+
+    fn inspect_policy_rules(&self, path: &str) -> Result<PolicyInspection> {
+        let mut matches = Vec::new();
+        let mut selected: Option<(PolicyMatchInfo, String)> = None;
+
+        for (index, rule) in self.config.policy.iter().enumerate() {
+            if !glob::Pattern::new(&rule.path)?.matches(path) {
+                continue;
+            }
+
+            let candidate = PolicyMatchInfo {
+                index,
+                pattern: rule.path.clone(),
+                specificity: policy_specificity(&rule.path),
+                permissions: PolicyPermissions::from_rule(rule),
+            };
+
+            match selected {
+                Some((ref best, _))
+                    if best.specificity > candidate.specificity
+                        || (best.specificity == candidate.specificity && best.index > candidate.index) => {}
+                Some((ref best, _)) if best.specificity == candidate.specificity => {
+                    selected = Some((candidate.clone(), "later_rule".to_owned()));
+                }
+                Some((ref best, _)) if best.specificity < candidate.specificity => {
+                    selected = Some((candidate.clone(), "more_specific".to_owned()));
+                }
+                None => {
+                    selected = Some((candidate.clone(), "first_match".to_owned()));
+                }
+                _ => {}
+            }
+
+            matches.push(candidate);
+        }
+
+        let effective = selected
+            .as_ref()
+            .map(|(selected, _)| selected.permissions.clone())
+            .unwrap_or_else(PolicyPermissions::deny_all);
+        let selected = selected.map(|(selected, reason)| SelectedPolicyInfo {
+            index: selected.index,
+            pattern: selected.pattern,
+            reason,
+        });
+
+        Ok(PolicyInspection {
+            path: path.to_owned(),
+            matches,
+            selected,
+            effective,
+        })
     }
 
     fn map_create_error(&self, error: anyhow::Error) -> WorkspaceError {
@@ -397,4 +506,156 @@ fn text_response(status: StatusCode, body: String) -> Response {
         [(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")],
         body,
     ).into_response()
+}
+
+fn policy_specificity(pattern: &str) -> PolicySpecificity {
+    let normalized = pattern.trim_end_matches('/');
+    if normalized.is_empty() {
+        return PolicySpecificity { depth: 0, chars: 0 };
+    }
+
+    let mut depth = 0;
+    let mut chars = 0;
+    for segment in normalized.split('/') {
+        if segment.contains('*') || segment.contains('?') || segment.contains('[') {
+            break;
+        }
+        depth += 1;
+        chars += segment.len();
+    }
+
+    PolicySpecificity { depth, chars }
+}
+
+impl PolicyPermissions {
+    fn from_rule(rule: &crate::config::PolicyRule) -> Self {
+        Self {
+            get: rule.get,
+            post: rule.post,
+            put: rule.put,
+            delete: rule.delete,
+        }
+    }
+
+    fn deny_all() -> Self {
+        Self {
+            get: false,
+            post: false,
+            put: false,
+            delete: false,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::{
+        config::{PolicyRule, RepositoryConfig, ServeSettings},
+        repository::FsRepository,
+    };
+
+    fn service(policy: Vec<PolicyRule>) -> WorkspaceService {
+        WorkspaceService::new(
+            Arc::new(FsRepository::open(".".to_owned()).unwrap()),
+            Arc::new(RepositoryConfig {
+                serve: ServeSettings::default(),
+                policy,
+                mount: Vec::new(),
+                plugin: Vec::new(),
+                task: Vec::new(),
+            }),
+            "test".to_owned(),
+        )
+    }
+
+    #[test]
+    fn more_specific_child_policy_wins() {
+        let service = service(vec![
+            PolicyRule {
+                path: "docs/**".to_owned(),
+                get: false,
+                post: false,
+                put: false,
+                delete: false,
+            },
+            PolicyRule {
+                path: "docs/public/**".to_owned(),
+                get: true,
+                post: false,
+                put: false,
+                delete: false,
+            },
+        ]);
+
+        assert_eq!(
+            service.resolve_policy(MethodKind::Get, "docs/public/index.md").unwrap(),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn equal_specificity_uses_later_rule() {
+        let service = service(vec![
+            PolicyRule {
+                path: "docs/**".to_owned(),
+                get: true,
+                post: false,
+                put: false,
+                delete: false,
+            },
+            PolicyRule {
+                path: "docs/**".to_owned(),
+                get: false,
+                post: false,
+                put: false,
+                delete: false,
+            },
+        ]);
+
+        assert_eq!(service.resolve_policy(MethodKind::Get, "docs/a.md").unwrap(), Some(false));
+    }
+
+    #[test]
+    fn no_matching_policy_denies_by_default() {
+        let service = service(vec![PolicyRule {
+            path: "docs/**".to_owned(),
+            get: true,
+            post: false,
+            put: false,
+            delete: false,
+        }]);
+
+        assert_eq!(service.resolve_policy(MethodKind::Get, "notes/a.md").unwrap(), None);
+    }
+
+    #[test]
+    fn inspection_reports_matches_and_selected_rule() {
+        let service = service(vec![
+            PolicyRule {
+                path: "**/*.md".to_owned(),
+                get: true,
+                post: false,
+                put: true,
+                delete: false,
+            },
+            PolicyRule {
+                path: "docs/private/**".to_owned(),
+                get: false,
+                post: false,
+                put: false,
+                delete: false,
+            },
+        ]);
+
+        let inspection = service.inspect_policy_rules("docs/private/a.md").unwrap();
+
+        assert_eq!(inspection.matches.len(), 2);
+        let selected = inspection.selected.unwrap();
+        assert_eq!(selected.pattern, "docs/private/**");
+        assert_eq!(selected.reason, "more_specific");
+        assert_eq!(inspection.effective.get, false);
+    }
 }

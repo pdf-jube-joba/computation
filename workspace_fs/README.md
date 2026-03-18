@@ -16,9 +16,9 @@ HTTP リクエスト経由でディレクトリの編集を行う。
 > 必要があれば wrapper を通すこと。
 
 ## API
-全てのリクエストで `user-identity` （文字列）を設定すること。
+GET を除いたリクエストで `user-identity` （文字列）を設定すること。
 > [!warning]
-> もし設定されていないならリクエストを拒否する。
+> `POST` / `PUT` / `DELETE` で `user-identity` が設定されていないならリクエストを拒否する。
 
 - `/PATH/` はディレクトリに対応し、`/FILE` はファイルに対応する。
 - `GET URL` は内容の取得
@@ -42,15 +42,25 @@ HTTP リクエスト経由でディレクトリの編集を行う。
 > [!warning]
 > URL としては `.repo/` は一切指定できないものとする。
 
+また、 `.repo` 以外で予約されている path の prefix があるが、設定で変えられる。（ `.repo/` は変えられない。）
+以下はデフォルトの prefix
+- plugin を走らせる： `.plugin/`
+- policy を確認する： `.policy/`
+
 ## config
 `REPOSITORY/.repo/config.toml` で設定を書く。
 
 ### serve
-port を指定する。未指定なら `3000`
+port や url prefix の指定をする。
 ```
 [serve]
 port = 3030
+plugin_url_prefix = ".plugin"
+policy_url_prefix = ".policy"
 ```
+- `plugin_url_prefix` は manual plugin 実行 API の prefix
+- `policy_url_prefix` は policy 診断 API の prefix
+- `/` の有無はどちらでもよいが、空文字は不可
 ### policy
 path に対して API 経由での GET/POST/DELETE/PUT をやってよいかを指定できる。
 ```
@@ -105,13 +115,59 @@ name = "build"
 steps = ["build-wasm", "build-autosummary"]
 ```
 
+## policy
+config.toml 以外での設定は受け付けない。
+
+> [!warning]
+> `[policy]` で指定された path 以外は一切公開しない。
+> `path` は必須、それ以外は指定しなくてもいい。
+> 指定しなかった場合： `GET` は `true` `POST/PUT/DELETE` は `false` とする。
+
+### 複数の policy に match する場合の優先度について
+より具体的な path を優先する。
+同じ具体度なら、後ろに書いた rule を優先する。
+この具体の判定は厳密に考えると難しいので、実装依存になる。
+現在の path の policy について調べたいときは後述の API を使うこと。
+
+### policy 診断 API
+`GET /<policy_url_prefix>/PATH` で、その path に対して
+- match した policy 一覧
+- 実際に採用された policy
+- 最終的な GET/POST/PUT/DELETE の有効値
+
+を JSON で返す。
+
+例：
+```json
+{
+  "path": "docs/private/a.md",
+  "matches": [
+    {
+      "index": 0,
+      "pattern": "docs/**",
+      "specificity": { "depth": 1, "chars": 4 },
+      "permissions": { "GET": true, "POST": true, "PUT": true, "DELETE": true }
+    }
+  ],
+  "selected": {
+    "index": 0,
+    "pattern": "docs/**",
+    "reason": "more_specific"
+  },
+  "effective": { "GET": true, "POST": true, "PUT": true, "DELETE": true }
+}
+```
+
+この API は誰でも `GET` できる。
+
+
 ## plugin
 `config.toml` で指定したもののみを対象とする。
 
 実行するタイミングは、
 1. `trigger = "manual"` 以外の場合は、特定の API 操作が呼ばれたとき。
 2. `trigger = "manual"` の場合には、
-  - `POST /.plugin/<PLUGIN_NAME>/run` が来た時
+  - `POST /<plugin_url_prefix>/<PLUGIN_NAME>/run` が来た時
   - `task` で指定されたとき... serve の前に行われる。
 
 > [!warning]
@@ -189,6 +245,7 @@ cargo run -- ./test-repository
 - この server 自体は認証しない
 - 外部 wrapper/proxy が認証済みユーザーをヘッダで渡す前提にする
 - 現在は request ごとに user identity を `String` として request context に積むだけにする
+- `GET` は `user-identity` なしでもよく、その場合は空文字列として扱う
 - user identity のヘッダ名は `user-identity` に固定する
 
 例:
