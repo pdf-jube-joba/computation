@@ -90,10 +90,28 @@ body {
 .md-view p,
 .md-view ul,
 .md-view ol,
+.md-view dl,
 .md-view blockquote,
 .md-view pre,
 .md-view table {
   margin: 0;
+}
+
+.md-view dt {
+  margin-top: 0.9rem;
+  font-weight: 700;
+}
+
+.md-view dd {
+  margin: 0.3rem 0 0 1.4rem;
+}
+
+.md-view dd > :first-child {
+  margin-top: 0;
+}
+
+.md-view dd > :last-child {
+  margin-bottom: 0;
 }
 
 .md-view code,

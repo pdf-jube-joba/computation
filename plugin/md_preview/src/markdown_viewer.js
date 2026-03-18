@@ -27,6 +27,16 @@ export async function renderMarkdownToHtml({text, basePath = "", macros = {}}) {
     .use(remarkRehype, {
       allowDangerousHtml: true,
       handlers: {
+        definitionList(state, node) {
+          return {
+            type: "element",
+            tagName: "dl",
+            properties: {
+              className: ["md-definition-list"],
+            },
+            children: node.children.flatMap(item => definitionItemToHast(state, item)),
+          };
+        },
         inlineMath(state, node) {
           return {
             type: "raw",
@@ -194,6 +204,14 @@ function transformNode(node) {
 
   const nextChildren = [];
   for (const child of node.children) {
+    if (child.type === "paragraph") {
+      const definitionList = transformDefinitionListParagraph(child);
+      if (definitionList) {
+        nextChildren.push(definitionList);
+        continue;
+      }
+    }
+
     if (child.type === "blockquote") {
       nextChildren.push(transformBlockquoteNode(child));
       continue;
@@ -209,6 +227,7 @@ function transformNode(node) {
   }
 
   node.children = nextChildren;
+  mergeAdjacentDefinitionLists(node);
 }
 
 function transformBlockquoteNode(node) {
@@ -323,6 +342,166 @@ function splitMathTextNode(node) {
   return pieces.filter(isNonEmptyNode);
 }
 
+function transformDefinitionListParagraph(node) {
+  const lines = splitInlineChildrenByNewline(node.children || []);
+  if (lines.length < 2) {
+    return null;
+  }
+
+  const termChildren = trimTrailingWhitespace(lineChildrenWithoutTrailingBreak(lines[0]));
+  if (termChildren.length === 0) {
+    return null;
+  }
+
+  const definitions = [];
+  let currentDefinition = null;
+  for (const line of lines.slice(1)) {
+    const marker = extractDefinitionLine(line);
+    if (marker) {
+      currentDefinition = {
+        type: "paragraph",
+        children: trimTrailingWhitespace(trimLeadingWhitespace(marker.children)),
+      };
+      definitions.push(currentDefinition);
+      continue;
+    }
+
+    if (!currentDefinition) {
+      return null;
+    }
+
+    if (currentDefinition.children.length > 0) {
+      currentDefinition.children.push(makeTextNode("\n"));
+    }
+    currentDefinition.children.push(...line);
+    currentDefinition.children = trimTrailingWhitespace(currentDefinition.children);
+  }
+
+  if (definitions.length === 0 || definitions.some(definition => definition.children.length === 0)) {
+    return null;
+  }
+
+  const termParagraph = {type: "paragraph", children: termChildren};
+  transformNode(termParagraph);
+  for (const definition of definitions) {
+    transformNode(definition);
+  }
+
+  return {
+    type: "definitionList",
+    children: [{
+      type: "definitionItem",
+      termChildren: termParagraph.children,
+      definitions,
+    }],
+  };
+}
+
+function splitInlineChildrenByNewline(children) {
+  const lines = [[]];
+
+  for (const child of children) {
+    if (child.type !== "text") {
+      lines.at(-1).push(child);
+      continue;
+    }
+
+    const parts = child.value.split("\n");
+    parts.forEach((part, index) => {
+      if (part.length > 0) {
+        lines.at(-1).push({...child, value: part});
+      }
+      if (index < parts.length - 1) {
+        lines.push([]);
+      }
+    });
+  }
+
+  return lines;
+}
+
+function extractDefinitionLine(children) {
+  if (children.length === 0) {
+    return null;
+  }
+
+  const [firstChild, ...restChildren] = children;
+  if (firstChild.type !== "text") {
+    return null;
+  }
+
+  const match = /^(\s*):(?:[ \t]+|$)/.exec(firstChild.value || "");
+  if (!match) {
+    return null;
+  }
+
+  const remainder = firstChild.value.slice(match[0].length);
+  const nextChildren = remainder.length > 0
+    ? [{...firstChild, value: remainder}, ...restChildren]
+    : restChildren;
+
+  return {
+    children: nextChildren,
+  };
+}
+
+function lineChildrenWithoutTrailingBreak(children) {
+  return children.filter(child => child.type !== "text" || child.value.length > 0);
+}
+
+function trimTrailingWhitespace(children) {
+  if (children.length === 0) {
+    return children;
+  }
+
+  const lastIndex = children.length - 1;
+  const lastChild = children[lastIndex];
+  if (lastChild.type !== "text") {
+    return children;
+  }
+
+  const trimmedValue = lastChild.value.replace(/\s+$/, "");
+  if (trimmedValue.length === 0) {
+    return children.slice(0, lastIndex);
+  }
+
+  return [...children.slice(0, lastIndex), {...lastChild, value: trimmedValue}];
+}
+
+function mergeAdjacentDefinitionLists(node) {
+  if (!Array.isArray(node.children) || node.children.length < 2) {
+    return;
+  }
+
+  const mergedChildren = [];
+  for (const child of node.children) {
+    const previous = mergedChildren.at(-1);
+    if (previous?.type === "definitionList" && child.type === "definitionList") {
+      previous.children.push(...child.children);
+      continue;
+    }
+    mergedChildren.push(child);
+  }
+  node.children = mergedChildren;
+}
+
+function definitionItemToHast(state, item) {
+  return [
+    {
+      type: "element",
+      tagName: "dt",
+      properties: {},
+      children: state.all({type: "paragraph", children: item.termChildren}),
+    },
+    ...item.definitions.map(definition => ({
+      type: "element",
+      tagName: "dd",
+      properties: {},
+      children: state.all({type: "root", children: [definition]}),
+    })),
+  ];
+}
+
 function findNextMath(text, fromIndex) {
   const inlineStart = text.indexOf(INLINE_OPEN, fromIndex);
   const displayStart = text.indexOf(DISPLAY_OPEN, fromIndex);
@@ -367,6 +546,7 @@ function findNextMath(text, fromIndex) {
 
 function escapeMathDelimiters(text) {
   return text
+    .replaceAll("\\\\", "\\\\\\\\")
     .replaceAll(INLINE_OPEN, "\\\\(")
     .replaceAll(INLINE_CLOSE, "\\\\)")
     .replaceAll(DISPLAY_OPEN, "\\\\[")

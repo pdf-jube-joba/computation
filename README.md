@@ -2,87 +2,43 @@
 
 このリポジトリは計算モデルについてのメモです。
 個人的な学習メモや考えたこと、実際に実装してみたコードなどを置いています。
-また、 `mdBook` で視覚的に理解できるように動くモデルを埋め込んであります。
-
-> [!warning]
-> ただし、 SUMMARY.md を自動生成するために makefile 経由での起動を想定しています。
-> 本というよりも、記事の集合としてとらえたほうがいいです。
+また、視覚的に理解できるように動くモデルを（ markdown に）埋め込んであります。
 
 - 計算モデルについて（数学＋α）を書く。
 - あまりがっちりと証明は書かない。
 - インタプリタとかコンパイラを動かす。
 
-## 内容について
+## 内容とディレクトリ構成
 - `rust` 言語で各計算モデルの実装をしてます
     - `rust` 言語からコンパイルした `wasm` と `javascript` を用いてブラウザで動いているのを見れるようにしました。   
     - `WIT + component` と `jco` を使って、 `rust` から `wasm component` を作り、 `js` から利用するためのコードを生成します。
-- `mdBook` を使って `markdown` で各計算モデルについて書いたものをブラウザで見れるようにしています。
-    - 数式を書いたりするために、 `mdbook-katex` を使っています。
-- `make serve` をすると、ブラウザの `localhost:3000` から見ることができます。
-- `generate.py` が扱う入力を変えたあとは、必要に応じて `make generate` または `make md-build` を再実行します。
+- ブラウザで md が編集までできて、 `wasm` とかモデルを動かすことができます。
+
+### 計算モデルについて
+- `utils/` は計算モデル共通で使うライブラリと、計算モデルのインターフェースが書いてあります。また、 `wasm` 化用のマクロもあります。
+- `models/` は計算モデルをたくさんおいています。
+- `docs/` は計算モデルについての文章をおいています。
+- `cli/` は component 化された wasm を元に動きます。詳しくは [cli](./cli/README.md) を見ること。
+### その他について
+- `workspace_fs/` を使って内容を serve します。ブラウザからアクセスして編集もできます。詳しくは [workspace](./workspace_fs/README.md) を見ること。
+- `.repo/` は `workspace_fs/` の設定用です。
+- `plugin/` は `workspace_fs/` のプラグインです。
+    - `plugin/md_preview/` は markdown を html にします。
+        1. markdown の AST 化
+        2. 独自の node を追加（ inline math など。）
+        3. 独自の node の処理（ inline math を katex を呼び出して html node にする。）
+        4. 最終的な html を得る
+    - `plugin/mount_model/` は各計算モデルを
+        1. `cargo build {model} --target wasm32-unknown-unknown` で wasm にビルドする
+        2. `wasm-tools` で wasm の component 化
+        3. `jco` で component のグルーコードを作る（ブラウザがまだ対応してない）
+        4. できた成果物を `script.js`, `renderer.js`, `style.css` とともに plugin の指定場所に入る
+- `viewer/` は markdown の preview と editor を配信しています。
+    editor は `workspace_fs` の性質上、ディレクトリを API 経由で書き換えることができます。
 
 ## 必要なもの
 - `rust` 周り
     - `cargo`
     - wasm 向けの target を追加すること
-- `wasm-tools`
-- `jco` を使って、 wasm component から JS に対応する transpile をする。
-    - `npm install -g @bytecodealliance/jco` をしたので、 `build.py` でこれを呼び出す。
-- `mdbook`
-    - `mdbook-katex` も。
-- `python3`
-
-## ディレクトリ構成
-`Cargo.toml` や `Cargo.lock` は `rust` 言語用のファイルです。
-
-```
-.
-├── utils/                  # utility ライブラリ
-├── models/                 # 各計算モデルとコンパイラの実装など
-├── docs/                   # リポジトリのドキュメントなど
-```
-
-## CLI の使い方
-`utils` には `wasm_bundle/*.component.wasm` を使うための CLI が2つあります。
-
-### `repl-machine` (対話)
-
-```bash
-cargo run -p cli --bin repl-machine -- model <NAME> [--code <CODE>] [--ainput <AINPUT>]
-```
-
-- `--code` を省略すると、起動後に複数行の `code` を入力します。入力確定は `Ctrl-D` です。
-- `--ainput` を省略すると、起動後に `ainput` を1行入力します（空なら Enter）。
-- 起動後は `rinput> ` に1行ずつ入力して `step` と `snapshot` を確認できます。
-- `:begin` / `:end` で複数行入力、 `:q` / `:quit` / `:exit` で終了します。
-
-`compiler` は1機能ずつ実行します。
-
-```bash
-cargo run -p cli --bin repl-machine -- compiler compile-code <NAME> --code <TEXT>
-cargo run -p cli --bin repl-machine -- compiler compile-ainput <NAME> --ainput <TEXT>
-cargo run -p cli --bin repl-machine -- compiler compile-rinput <NAME> --rinput <TEXT>
-cargo run -p cli --bin repl-machine -- compiler decode-routput <NAME> --routput <TEXT>
-cargo run -p cli --bin repl-machine -- compiler decode-foutput <NAME> --foutput <TEXT>
-```
-
-### `pipe-machine` (one-shot / pipe)
-
-`model create` が初期 snapshot JSON を返し、 `model step` は stdin から snapshot JSON を受け取って次の snapshot JSON を返します。
-
-```bash
-cargo run -p cli --bin pipe-machine -- model example_counter create --code 0 --ainput ""
-cargo run -p cli --bin pipe-machine -- model example_counter create --code 0 --ainput "" \
-  | cargo run -p utils --bin pipe-machine -- model example_counter step --rinput inc
-```
-
-## ビルド
-
-wasm 生成と book 生成は役割を分けています。
-
-```bash
-make wasm-build  # build.py: wasm_bundle/ を生成
-make generate    # generate.py: docs/ + wasm_bundle/ -> dist/
-make md-build    # generate + mdbook build dist
-make serve       # generate-clean + mdbook serve dist
-```
+- `wasm-tools` で wasm の component 化をしています。
+- `npm` を使って `plugin/*/` を管理しています。 `npm install` をそれぞれすること。

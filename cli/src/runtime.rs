@@ -22,9 +22,13 @@ fn resolve_component_path(name: &str) -> PathBuf {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("cli has workspace parent");
-    workspace
-        .join("wasm_bundle")
-        .join(format!("{name}.component.wasm"))
+    component_directory(workspace).join(format!("{name}.component.wasm"))
+}
+
+fn component_directory(workspace: &Path) -> PathBuf {
+    std::env::var_os("COMPUTATION_COMPONENT_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace.join(".repo").join("generated").join("build-wasm"))
 }
 
 fn new_engine() -> Result<Engine> {

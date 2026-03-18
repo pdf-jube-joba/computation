@@ -145,6 +145,27 @@ button:disabled {
   line-height: 1.6;
 }
 
+.md-view dl {
+  margin: 0;
+}
+
+.md-view dt {
+  margin-top: 0.9rem;
+  font-weight: 700;
+}
+
+.md-view dd {
+  margin: 0.3rem 0 0 1.4rem;
+}
+
+.md-view dd > :first-child {
+  margin-top: 0;
+}
+
+.md-view dd > :last-child {
+  margin-bottom: 0;
+}
+
 .md-alert {
   padding: 12px 14px;
   border-left: 4px solid #6b7280;

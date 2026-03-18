@@ -9,7 +9,7 @@ source = ".repo/generated/build-md-preview/"
 [[plugin]]
 name = "build-wasm"
 runner = "command"
-command = ["python3", "./plugin/mount_model/build.py", "--clean"]
+command = ["node", "./plugin/mount_model/build.mjs", "--clean"]
 trigger = "manual"
 
 [[plugin]]
