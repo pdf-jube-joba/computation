@@ -4,3 +4,5 @@ out
 wasm_bundle
 fonts/
 katex.min.css
+.repo/cache/
+.repo/generated/

@@ -1,3 +1,17 @@
+[[mount]]
+url_prefix = "/wasm_bundle/"
+source = ".repo/generated/build-wasm/"
+
+[[plugin]]
+name = "build-wasm"
+runner = "command"
+command = ["python3", "./build.py", "--clean"]
+trigger = "manual"
+
+[[task]]
+name = "build-wasm"
+steps = ["build-wasm"]
+
 [[policy]]
 path = "docs/**"
 GET = true

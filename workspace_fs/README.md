@@ -15,6 +15,34 @@ HTTP リクエスト経由でディレクトリの編集を行う。
 > このサーバーではユーザーの認証・https 化は行わない。
 > 必要があれば wrapper を通すこと。
 
+## 起動方法
+
+```bash
+cargo run -- ./test-repository
+```
+
+起動時には読み込んだ serve 設定をログに出す。
+また、各リクエストについて method, path, status code をログに出す。
+
+起動後の例:
+
+- `GET /`:
+  - repository root 直下の一覧
+- `GET /docs/`:
+  - `docs` 直下の一覧
+- `POST /notes/`:
+  - `notes` ディレクトリを作成
+- `GET /index.md`:
+  - `index.md` の本文
+- `PUT /index.md`:
+  - 既存の `index.md` を上書き保存
+- `POST /new.md`:
+  - `new.md` を新規作成
+- `DELETE /notes/`:
+  - 空の `notes` ディレクトリを削除
+- `DELETE /new.md`:
+  - `new.md` を削除
+
 ## API
 URL をほとんどそのままパスとみて、ファイルへの編集が行えるようにする。
 
@@ -211,34 +239,7 @@ POST/PUT/DELETE も同様のものだけ実装する。
 
 ## task
 task が指定されたときに、 serve 前に指定された plugin を順番に起動する。
-
-## 起動方法
-
-```bash
-cargo run -- ./test-repository
-```
-
-起動時には読み込んだ serve 設定をログに出す。
-また、各リクエストについて method, path, status code をログに出す。
-
-起動後の例:
-
-- `GET /`:
-  - repository root 直下の一覧
-- `GET /docs/`:
-  - `docs` 直下の一覧
-- `POST /notes/`:
-  - `notes` ディレクトリを作成
-- `GET /index.md`:
-  - `index.md` の本文
-- `PUT /index.md`:
-  - 既存の `index.md` を上書き保存
-- `POST /new.md`:
-  - `new.md` を新規作成
-- `DELETE /notes/`:
-  - 空の `notes` ディレクトリを削除
-- `DELETE /new.md`:
-  - `new.md` を削除
+task は plugin の順序のみを指定する。それ以外は特にない。
 
 # 実装について
 

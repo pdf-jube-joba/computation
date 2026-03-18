@@ -1,3 +1,5 @@
+use std::process::Stdio;
+
 use anyhow::{Context, Result, bail};
 use camino::{Utf8Path, Utf8PathBuf};
 use glob::Pattern;
@@ -159,7 +161,7 @@ impl<'a> PluginRunner<'a> {
             "running plugin"
         );
 
-        let output = Command::new(&program)
+        let status = Command::new(&program)
             .args(&args)
             .current_dir(context.repository_root.as_std_path())
             .env("WORKSPACE_FS_REPOSITORY_ROOT", context.repository_root.as_str())
@@ -170,13 +172,15 @@ impl<'a> PluginRunner<'a> {
             .env("WORKSPACE_FS_TRIGGER", trigger.as_str())
             .env("WORKSPACE_FS_PATH", context.path.as_deref().unwrap_or(""))
             .env("WORKSPACE_FS_USER_IDENTITY", &context.user_identity)
-            .output()
+            .stdin(Stdio::null())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
             .await
             .with_context(|| format!("failed to run plugin: {}", plugin.name))?;
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            bail!("plugin failed: {}: {}", plugin.name, stderr.trim());
+        if !status.success() {
+            bail!("plugin failed: {}: {}", plugin.name, status);
         }
 
         Ok(())

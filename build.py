@@ -5,12 +5,15 @@ Build wasm component artifacts for model binaries.
 Flow (wasm-only):
 1. cargo build --target wasm32-unknown-unknown
 2. wasm-tools component new
-3. npx jco transpile
+3. jco transpile
+
+Output directory must be provided via WORKSPACE_FS_OUTPUT_DIRECTORY.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -19,7 +22,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent
 MODELS_DIR = REPO_ROOT / "models"
 TARGET_DIR = REPO_ROOT / "target" / "wasm32-unknown-unknown"
-ROOT_BUNDLE_DIR = REPO_ROOT / "wasm_bundle"
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -150,6 +152,7 @@ def build_bin(
     profile: str,
     release: bool,
     out_names: list[str],
+    output_dir: Path,
 ) -> None:
     build_cmd = [
         "cargo",
@@ -169,11 +172,11 @@ def build_bin(
     if not core_wasm.exists():
         raise RuntimeError(f"missing wasm output: {core_wasm}")
 
-    ROOT_BUNDLE_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     for out_name in out_names:
-        component_wasm = ROOT_BUNDLE_DIR / f"{out_name}.component.wasm"
-        jco_js = ROOT_BUNDLE_DIR / f"{out_name}.js"
-        jco_core = ROOT_BUNDLE_DIR / f"{out_name}.core.wasm"
+        component_wasm = output_dir / f"{out_name}.component.wasm"
+        jco_js = output_dir / f"{out_name}.js"
+        jco_core = output_dir / f"{out_name}.core.wasm"
 
         if not is_up_to_date(component_wasm, [core_wasm]):
             run(
@@ -196,7 +199,7 @@ def build_bin(
                     "transpile",
                     str(component_wasm),
                     "-o",
-                    str(ROOT_BUNDLE_DIR),
+                    str(output_dir),
                     "--name",
                     out_name,
                     "--no-typescript",
@@ -233,9 +236,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     ensure_tools()
+    output_dir_env = os.environ.get("WORKSPACE_FS_OUTPUT_DIRECTORY")
+    if not output_dir_env:
+        raise RuntimeError("WORKSPACE_FS_OUTPUT_DIRECTORY is required")
+    output_dir = Path(output_dir_env)
 
-    if args.clean and ROOT_BUNDLE_DIR.exists():
-        shutil.rmtree(ROOT_BUNDLE_DIR)
+    if args.clean and output_dir.exists():
+        shutil.rmtree(output_dir)
 
     profile = "release" if args.release else "debug"
 
@@ -261,7 +268,14 @@ def main() -> int:
             if len(bin_names) == 1 and package_name != bin_name:
                 out_names.append(package_name)
             print(f"[build] package={package_name} bin={bin_name} out={','.join(out_names)}")
-            build_bin(package_name, bin_name, profile=profile, release=args.release, out_names=out_names)
+            build_bin(
+                package_name,
+                bin_name,
+                profile=profile,
+                release=args.release,
+                out_names=out_names,
+                output_dir=output_dir,
+            )
 
     return 0
 
