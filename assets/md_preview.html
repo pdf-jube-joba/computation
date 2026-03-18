@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Preview</title>
+  <link rel="stylesheet" href="./md_preview.css">
+</head>
+<body>
+  <main class="app">
+    <section class="statusbar">
+      <div class="status-label">PATH</div>
+      <div id="path-text" class="status-path"></div>
+    </section>
+
+    <section class="pane">
+      <h1>Preview</h1>
+      <pre id="preview" class="surface"></pre>
+    </section>
+
+    <section class="statusbar">
+      <div id="status-text">Loading ...</div>
+    </section>
+  </main>
+
+  <script type="module" src="./md_preview.js"></script>
+</body>
+</html>
