@@ -89,6 +89,9 @@ pub struct TaskConfig {
 impl RepositoryConfig {
     pub fn load(repository_root: &Utf8Path) -> Result<Self> {
         let config_path = repository_root.join(".repo").join("config.toml");
+        if !config_path.is_file() {
+            bail!("missing .repo/config.toml");
+        }
         let config_text = std::fs::read_to_string(config_path.as_std_path())
             .context("failed to read .repo/config.toml")?;
         let config: Self =

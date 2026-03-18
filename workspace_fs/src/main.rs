@@ -18,7 +18,8 @@ use axum::{
 use config::RepositoryConfig;
 use identity::{IdentityConfig, RequestIdentity, capture_identity};
 use repository::{FsRepository, Repository};
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use workspace::WorkspaceService;
 
@@ -58,6 +59,14 @@ async fn main() -> Result<()> {
     let policy_root_route = route_prefix(workspace.policy_url_prefix());
     let policy_path_route = format!("{}/{{*path}}", policy_root_route);
 
+    tracing::info!(
+        repository = %workspace.repository_root(),
+        port = workspace.serve_port(),
+        plugin_url_prefix = %workspace.plugin_url_prefix(),
+        policy_url_prefix = %workspace.policy_url_prefix(),
+        "serve configuration loaded"
+    );
+
     let app = Router::new()
         .route("/", get(root_handler))
         .route(&plugin_run_route, post(run_plugin_handler))
@@ -70,7 +79,12 @@ async fn main() -> Result<()> {
                 .put(put_path_handler)
                 .delete(delete_path_handler),
         )
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+        )
         .layer(middleware::from_fn_with_state(identity, capture_identity))
         .with_state(state);
 

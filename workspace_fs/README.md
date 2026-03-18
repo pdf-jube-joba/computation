@@ -210,6 +210,9 @@ task が指定されたときに、 serve 前に指定された plugin を順番
 cargo run -- ./test-repository
 ```
 
+起動時には読み込んだ serve 設定をログに出す。
+また、各リクエストについて method, path, status code をログに出す。
+
 起動後の例:
 
 - `GET /`:

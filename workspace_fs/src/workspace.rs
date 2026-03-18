@@ -118,6 +118,10 @@ impl WorkspaceService {
         self.config.serve.port
     }
 
+    pub fn repository_root(&self) -> &Utf8Path {
+        self.repository.repository_root()
+    }
+
     pub async fn run_task(&self, task_name: &str) -> Result<()> {
         self.plugin_runner().run_task(task_name).await
     }
