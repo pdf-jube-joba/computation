@@ -13,6 +13,7 @@ const saveButton = document.querySelector("#save-button");
 const preview = document.querySelector("#preview");
 const editor = document.querySelector("#editor");
 const statusText = document.querySelector("#status-text");
+let previewTimer = null;
 
 function setStatus(message, isError = false) {
   statusText.textContent = message;
@@ -28,6 +29,16 @@ async function updatePreview() {
     basePath: path,
     macros,
   });
+}
+
+function schedulePreviewUpdate() {
+  if (previewTimer !== null) {
+    window.clearTimeout(previewTimer);
+  }
+  previewTimer = window.setTimeout(() => {
+    previewTimer = null;
+    void updatePreview();
+  }, 120);
 }
 
 function setBusy(busy) {
@@ -106,7 +117,7 @@ async function saveFile() {
 loadButton.addEventListener("click", loadFile);
 saveButton.addEventListener("click", saveFile);
 editor.addEventListener("input", () => {
-  void updatePreview();
+  schedulePreviewUpdate();
 });
 pathInput.addEventListener("keydown", event => {
   if (event.key === "Enter") {
@@ -120,6 +131,6 @@ if (initialPath) {
   pathInput.value = initialPath;
   void loadFile();
 } else {
-  void updatePreview();
+  schedulePreviewUpdate();
   setStatus("Set a path and click Load.");
 }

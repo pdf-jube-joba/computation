@@ -60,7 +60,7 @@ listing
 
 - c
 
-> [!TIP]
+> [!note]
 > admonition がデフォルトで入った。
 
 `!NOTE`,`!TIP`,`!IMPORTANT`,`!WARNING`,`!CAUTION`

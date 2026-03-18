@@ -40,8 +40,6 @@ body {
   background: rgba(255, 253, 248, 0.88);
   border: 1px solid var(--border);
   border-radius: 18px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
 }
 
 .toolbar {
@@ -139,7 +137,6 @@ button:disabled {
   background: linear-gradient(180deg, var(--panel) 0%, var(--panel-strong) 100%);
   color: var(--text);
   padding: 16px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 #preview {

@@ -256,7 +256,7 @@ function parseAlertMarker(node) {
     return null;
   }
 
-  const match = /^(?:\s*)\[!([A-Za-z]+)\](?:[ \t]+|$)/.exec(node.value || "");
+  const match = /^(?:\s*)\[!([A-Za-z]+)\](?:\s+|$)/i.exec(node.value || "");
   if (!match) {
     return null;
   }

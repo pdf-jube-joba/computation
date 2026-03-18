@@ -1,4 +1,5 @@
 const OUTPUT_PLACEHOLDER = "\u00a0";
+let nextInstanceId = 0;
 
 export function ensureStyleSheet(options = {}) {
   const already = document.querySelector('link[data-wm-style="true"]');
@@ -17,7 +18,7 @@ export function ensureStyleSheet(options = {}) {
 export async function mountModel(element, options = {}) {
   ensureStyleSheet(options);
   const spec = normalizeMountSpec(options);
-  const module = await loadComponentModule(spec.model, options);
+  const module = await loadComponentModule(spec.model, spec.instanceId, options.bundleBaseUrl);
   const kind = detectComponentKind(module);
   if (kind === "model") {
     await renderModelMount(element, spec.model, module, spec, options);
@@ -43,15 +44,22 @@ function normalizeMountSpec(options) {
     code: options.code || "",
     ainput: options.ainput || "",
     rinput: options.rinput || "",
+    instanceId: options.instanceId || `wm-${nextInstanceId++}`,
   };
 }
 
-async function loadComponentModule(model, options) {
-  return import(assetUrl(`./${model}.js`, options.bundleBaseUrl));
+async function loadComponentModule(model, instanceId, baseUrl) {
+  return import(componentModuleUrl(model, instanceId, baseUrl));
 }
 
 function assetUrl(relativePath, baseUrl) {
   return new URL(relativePath, resolveBaseUrl(baseUrl)).href;
+}
+
+function componentModuleUrl(model, instanceId, baseUrl) {
+  const url = new URL(`./${model}.js`, resolveBaseUrl(baseUrl));
+  url.searchParams.set("instance", instanceId);
+  return url.href;
 }
 
 function resolveBaseUrl(baseUrl) {

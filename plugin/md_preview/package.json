@@ -2,9 +2,6 @@
   "name": "computation",
   "private": true,
   "type": "module",
-  "scripts": {
-    "build": "node ./build.mjs --out-dir ../assets"
-  },
   "dependencies": {
     "katex": "^0.16.38",
     "rehype-stringify": "^10.0.1",

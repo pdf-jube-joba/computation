@@ -31,7 +31,7 @@ await build({
   platform: "browser",
   target: "es2022",
   outfile: path.join(generatedDir, "markdown_viewer.js"),
-  sourcemap: true,
+  sourcemap: false,
   logLevel: "info",
 });
 
