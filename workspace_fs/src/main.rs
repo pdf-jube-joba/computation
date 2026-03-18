@@ -8,8 +8,7 @@ use std::{env, net::SocketAddr, sync::Arc};
 
 use anyhow::{Result, anyhow, bail};
 use axum::{
-    Json,
-    Router,
+    Json, Router,
     extract::{Extension, Path, State},
     middleware,
     response::{IntoResponse, Response},
@@ -54,8 +53,13 @@ async fn main() -> Result<()> {
     }
 
     let identity = IdentityConfig::load();
-    let state = Arc::new(AppState { workspace: workspace.clone() });
-    let plugin_run_route = format!("{}/{{name}}/run", route_prefix(workspace.plugin_url_prefix()));
+    let state = Arc::new(AppState {
+        workspace: workspace.clone(),
+    });
+    let plugin_run_route = format!(
+        "{}/{{name}}/run",
+        route_prefix(workspace.plugin_url_prefix())
+    );
     let policy_root_route = route_prefix(workspace.policy_url_prefix());
     let policy_path_route = format!("{}/{{*path}}", policy_root_route);
 
@@ -122,7 +126,10 @@ fn parse_cli_options() -> Result<CliOptions> {
         }
     }
 
-    Ok(CliOptions { repository_path, task })
+    Ok(CliOptions {
+        repository_path,
+        task,
+    })
 }
 
 fn init_tracing() {
@@ -160,7 +167,10 @@ async fn run_plugin_handler(
     Extension(identity): Extension<RequestIdentity>,
     Path(name): Path<String>,
 ) -> Result<Response, workspace::WorkspaceError> {
-    state.workspace.run_manual_plugin(&name, &identity.user).await
+    state
+        .workspace
+        .run_manual_plugin(&name, &identity.user)
+        .await
         .map(|_| axum::http::StatusCode::NO_CONTENT.into_response())
         .map_err(workspace::WorkspaceError::internal)
 }
@@ -192,7 +202,10 @@ async fn post_path_handler(
     Path(path): Path<String>,
     body: String,
 ) -> Result<Response, workspace::WorkspaceError> {
-    state.workspace.create_path(&path, &body, &identity.user).await
+    state
+        .workspace
+        .create_path(&path, &body, &identity.user)
+        .await
 }
 
 async fn put_path_handler(
@@ -201,7 +214,10 @@ async fn put_path_handler(
     Path(path): Path<String>,
     body: String,
 ) -> Result<Response, workspace::WorkspaceError> {
-    state.workspace.update_file(&path, &body, &identity.user).await
+    state
+        .workspace
+        .update_file(&path, &body, &identity.user)
+        .await
 }
 
 async fn delete_path_handler(

@@ -69,7 +69,8 @@ impl<'a> PluginRunner<'a> {
                 .config
                 .find_plugin(step)
                 .with_context(|| format!("plugin not found for task step: {step}"))?;
-            self.run_plugin(plugin, PluginTrigger::Manual, None, "").await?;
+            self.run_plugin(plugin, PluginTrigger::Manual, None, "")
+                .await?;
         }
 
         Ok(())
@@ -110,7 +111,8 @@ impl<'a> PluginRunner<'a> {
                 continue;
             }
 
-            self.run_plugin(plugin, trigger, Some(path), user_identity).await?;
+            self.run_plugin(plugin, trigger, Some(path), user_identity)
+                .await?;
         }
 
         Ok(())
@@ -164,11 +166,20 @@ impl<'a> PluginRunner<'a> {
         let status = Command::new(&program)
             .args(&args)
             .current_dir(context.repository_root.as_std_path())
-            .env("WORKSPACE_FS_REPOSITORY_ROOT", context.repository_root.as_str())
+            .env(
+                "WORKSPACE_FS_REPOSITORY_ROOT",
+                context.repository_root.as_str(),
+            )
             .env("WORKSPACE_FS_REPOSITORY_NAME", &context.repository_name)
             .env("WORKSPACE_FS_PLUGIN_NAME", &context.plugin_name)
-            .env("WORKSPACE_FS_OUTPUT_DIRECTORY", context.output_directory.as_str())
-            .env("WORKSPACE_FS_CACHE_DIRECTORY", context.cache_directory.as_str())
+            .env(
+                "WORKSPACE_FS_OUTPUT_DIRECTORY",
+                context.output_directory.as_str(),
+            )
+            .env(
+                "WORKSPACE_FS_CACHE_DIRECTORY",
+                context.cache_directory.as_str(),
+            )
             .env("WORKSPACE_FS_TRIGGER", trigger.as_str())
             .env("WORKSPACE_FS_PATH", context.path.as_deref().unwrap_or(""))
             .env("WORKSPACE_FS_USER_IDENTITY", &context.user_identity)

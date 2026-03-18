@@ -1,6 +1,8 @@
 use anyhow::{Context, Result, bail};
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8Path;
 use serde::Deserialize;
+
+use crate::workspace::sanitize_mount_source;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct RepositoryConfig {
@@ -114,7 +116,10 @@ impl RepositoryConfig {
         }
 
         for policy in &self.policy {
-            if policy.path.starts_with(".repo/") || policy.path == ".repo/" || policy.path == ".repo" {
+            if policy.path.starts_with(".repo/")
+                || policy.path == ".repo/"
+                || policy.path == ".repo"
+            {
                 bail!("policy path must not target .repo/");
             }
         }
@@ -123,15 +128,16 @@ impl RepositoryConfig {
             if !mount.url_prefix.starts_with('/') || !mount.url_prefix.ends_with('/') {
                 bail!("mount url_prefix must start and end with /");
             }
-            if !mount.source.starts_with(".repo/generated/") {
-                bail!("mount source must be under .repo/generated/");
-            }
+            sanitize_mount_source(&mount.source)?;
 
             let relative = Utf8Path::new(mount.url_prefix.trim_matches('/'));
             if !relative.as_str().is_empty() {
                 let target = repository_root.join(relative);
                 if target.is_dir() {
-                    bail!("mount url_prefix conflicts with repository directory: {}", mount.url_prefix);
+                    bail!(
+                        "mount url_prefix conflicts with repository directory: {}",
+                        mount.url_prefix
+                    );
                 }
             }
         }
@@ -157,12 +163,6 @@ impl RepositoryConfig {
 
     pub fn find_task(&self, name: &str) -> Option<&TaskConfig> {
         self.task.iter().find(|task| task.name == name)
-    }
-}
-
-impl MountRule {
-    pub fn source_relative_path(&self) -> Utf8PathBuf {
-        Utf8PathBuf::from(self.source.trim_end_matches('/'))
     }
 }
 

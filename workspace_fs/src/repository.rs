@@ -1,10 +1,9 @@
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result, anyhow, bail};
 use async_trait::async_trait;
 use camino::{Utf8Path, Utf8PathBuf};
 use tokio::fs;
-
 
 // .repo 以外を書き換えるインターフェースの提供
 #[async_trait]
@@ -39,12 +38,7 @@ impl FsRepository {
     }
 
     fn resolve_repository_path(&self, requested_path: &str) -> Result<Utf8PathBuf> {
-        let relative = sanitize_relative_path(requested_path, false)?;
-        if is_reserved_path(&relative) {
-            bail!("reserved path");
-        }
-
-        Ok(self.repository_root.join(relative))
+        Ok(self.repository_root.join(requested_path.trim()))
     }
 
     fn resolve_directory_path(&self, requested_path: &str) -> Result<Utf8PathBuf> {
@@ -52,12 +46,9 @@ impl FsRepository {
             return Ok(self.repository_root.clone());
         }
 
-        let relative = sanitize_relative_path(requested_path, true)?;
-        if is_reserved_path(&relative) {
-            bail!("reserved path");
-        }
-
-        Ok(self.repository_root.join(relative))
+        Ok(self
+            .repository_root
+            .join(requested_path.trim().trim_end_matches('/')))
     }
 
     fn ensure_parent_directory_exists(&self, path: &Utf8Path) -> Result<()> {
@@ -94,11 +85,7 @@ impl Repository for FsRepository {
             let dir_entry = dir_entry?;
             let path = dir_entry.path();
             let utf8 = Utf8PathBuf::from_path_buf(path).map_err(|_| anyhow!("non-UTF-8 path"))?;
-            let relative = utf8.strip_prefix(&self.repository_root)?;
-
-            if is_reserved_path(relative) {
-                continue;
-            }
+            utf8.strip_prefix(&self.repository_root)?;
 
             let mut entry = utf8
                 .file_name()
@@ -208,46 +195,4 @@ impl Repository for FsRepository {
             .context("failed to delete file")?;
         Ok(())
     }
-}
-
-fn sanitize_relative_path(input: &str, allow_trailing_slash: bool) -> Result<Utf8PathBuf> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        bail!("path is required");
-    }
-
-    let trimmed = if allow_trailing_slash {
-        trimmed.trim_end_matches('/')
-    } else {
-        trimmed
-    };
-
-    if trimmed.is_empty() {
-        return Ok(Utf8PathBuf::new());
-    }
-
-    let path = Path::new(trimmed);
-    if path.is_absolute() {
-        bail!("absolute paths are not allowed");
-    }
-
-    let mut normalized = Utf8PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::Normal(part) => {
-                let part = part.to_str().ok_or_else(|| anyhow!("path must be UTF-8"))?;
-                normalized.push(part);
-            }
-            Component::CurDir => {}
-            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                bail!("path escapes repository root");
-            }
-        }
-    }
-
-    Ok(normalized)
-}
-
-fn is_reserved_path(path: &Utf8Path) -> bool {
-    matches!(path.components().next(), Some(component) if component.as_str() == ".repo")
 }

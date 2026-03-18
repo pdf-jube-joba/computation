@@ -41,11 +41,7 @@ pub async fn capture_identity(
             None
         }
     }) else {
-        return (
-            StatusCode::BAD_REQUEST,
-            "missing user-identity header",
-        )
-            .into_response();
+        return (StatusCode::BAD_REQUEST, "missing user-identity header").into_response();
     };
 
     request.extensions_mut().insert(RequestIdentity { user });
@@ -66,7 +62,9 @@ mod tests {
     };
     use tower::ServiceExt;
 
-    async fn identity_handler(Extension(identity): Extension<RequestIdentity>) -> impl IntoResponse {
+    async fn identity_handler(
+        Extension(identity): Extension<RequestIdentity>,
+    ) -> impl IntoResponse {
         identity.user
     }
 
