@@ -19,7 +19,7 @@ members = [
   "models/turing_machine",
   "models/structured_lang",
   "models/obj_lang"
-]
+, "workspace_fs"]
 
 exclude = [
   "*/dist",
