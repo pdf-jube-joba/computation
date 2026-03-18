@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
+use axum::body::Body;
 use axum::Json;
-use axum::{http::StatusCode, response::{IntoResponse, Response}};
+use axum::{http::{StatusCode, header}, response::{IntoResponse, Response}};
 use camino::{Utf8Path, Utf8PathBuf};
+use mime_guess::MimeGuess;
 use serde::Serialize;
 
 use crate::{
@@ -158,7 +160,7 @@ impl WorkspaceService {
             return Err(WorkspaceError::bad_request("directory path must end with /"));
         }
 
-        let content = match self.repository.read_text_file(path).await {
+        let content = match self.repository.read_file(path).await {
             Ok(content) => content,
             Err(error) => {
                 let mapped = self.map_read_error(error);
@@ -168,7 +170,7 @@ impl WorkspaceService {
         };
 
         self.run_trigger(PluginTrigger::Get, path, user_identity).await?;
-        Ok(text_response(StatusCode::OK, content))
+        Ok(file_response(StatusCode::OK, content_type_for_path(path), content))
     }
 
     pub async fn create_path(&self, path: &str, body: &str, user_identity: &str) -> Result<Response, WorkspaceError> {
@@ -289,12 +291,16 @@ impl WorkspaceService {
         }
 
         if target.is_file() {
-            let content = tokio::fs::read_to_string(target.as_std_path())
+            let content = tokio::fs::read(target.as_std_path())
                 .await
                 .context("failed to read mounted file")
                 .map_err(WorkspaceError::internal)?;
             tracing::info!(user = %user_identity, path = %request_path, mount = %mount.url_prefix, "mounted file served");
-            return Ok(Some(text_response(StatusCode::OK, content)));
+            return Ok(Some(file_response(
+                StatusCode::OK,
+                content_type_for_path(target.as_str()),
+                content,
+            )));
         }
 
         Ok(None)
@@ -505,11 +511,21 @@ fn map_path_error(error: anyhow::Error) -> WorkspaceError {
 }
 
 fn text_response(status: StatusCode, body: String) -> Response {
-    (
-        status,
-        [(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")],
-        body,
-    ).into_response()
+    file_response(status, "text/plain; charset=utf-8", body.into_bytes())
+}
+
+fn file_response(status: StatusCode, content_type: &str, body: Vec<u8>) -> Response {
+    Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, content_type)
+        .body(Body::from(body))
+        .expect("response builder should accept binary body")
+}
+
+fn content_type_for_path(path: &str) -> &'static str {
+    MimeGuess::from_path(path)
+        .first_raw()
+        .unwrap_or("application/octet-stream")
 }
 
 fn policy_specificity(pattern: &str) -> PolicySpecificity {
@@ -554,6 +570,11 @@ impl PolicyPermissions {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+
+    use axum::{
+        body::to_bytes,
+        http::header::CONTENT_TYPE,
+    };
 
     use super::*;
     use crate::{
@@ -661,5 +682,20 @@ mod tests {
         assert_eq!(selected.pattern, "docs/private/**");
         assert_eq!(selected.reason, "more_specific");
         assert_eq!(inspection.effective.get, false);
+    }
+
+    #[tokio::test]
+    async fn file_response_uses_html_mime_and_binary_body() {
+        let response = file_response(StatusCode::OK, content_type_for_path("assets/md_preview.html"), b"<h1>x</h1>".to_vec());
+        let headers = response.headers();
+
+        assert_eq!(headers.get(CONTENT_TYPE).unwrap(), "text/html");
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"<h1>x</h1>");
+    }
+
+    #[test]
+    fn unknown_extension_falls_back_to_octet_stream() {
+        assert_eq!(content_type_for_path("assets/blob.custombin"), "application/octet-stream");
     }
 }

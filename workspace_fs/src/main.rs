@@ -18,7 +18,7 @@ use axum::{
 use config::RepositoryConfig;
 use identity::{IdentityConfig, RequestIdentity, capture_identity};
 use repository::{FsRepository, Repository};
-use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use workspace::WorkspaceService;
@@ -81,7 +81,14 @@ async fn main() -> Result<()> {
         )
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .make_span_with(|request: &axum::http::Request<_>| {
+                    tracing::info_span!(
+                        "http_request",
+                        method = %request.method(),
+                        path = %request.uri().path(),
+                        user_identity = %request_user_identity(request),
+                    )
+                })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
@@ -129,6 +136,16 @@ fn init_tracing() {
 
 fn route_prefix(prefix: &str) -> String {
     format!("/{}", prefix.trim_matches('/'))
+}
+
+fn request_user_identity<B>(request: &axum::http::Request<B>) -> &str {
+    request
+        .headers()
+        .get("user-identity")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("")
 }
 
 async fn root_handler(
@@ -203,5 +220,15 @@ mod tests {
     fn route_prefix_normalizes_slashes() {
         assert_eq!(route_prefix(".plugin"), "/.plugin");
         assert_eq!(route_prefix("/.plugin/"), "/.plugin");
+    }
+
+    #[test]
+    fn request_user_identity_reads_header() {
+        let request = axum::http::Request::builder()
+            .header("user-identity", "from_browser")
+            .body(())
+            .unwrap();
+
+        assert_eq!(request_user_identity(&request), "from_browser");
     }
 }

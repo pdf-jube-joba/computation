@@ -13,7 +13,7 @@ pub trait Repository: Send + Sync {
     async fn list_directory(&self, path: &str) -> Result<Vec<String>>;
     async fn create_directory(&self, path: &str) -> Result<()>;
     async fn delete_directory(&self, path: &str) -> Result<()>;
-    async fn read_text_file(&self, path: &str) -> Result<String>;
+    async fn read_file(&self, path: &str) -> Result<Vec<u8>>;
     async fn create_text_file(&self, path: &str, content: &str) -> Result<()>;
     async fn write_text_file(&self, path: &str, content: &str) -> Result<()>;
     async fn delete_file(&self, path: &str) -> Result<()>;
@@ -152,9 +152,9 @@ impl Repository for FsRepository {
         Ok(())
     }
 
-    async fn read_text_file(&self, path: &str) -> Result<String> {
+    async fn read_file(&self, path: &str) -> Result<Vec<u8>> {
         let resolved = self.resolve_repository_path(path)?;
-        let content = fs::read_to_string(resolved.as_std_path())
+        let content = fs::read(resolved.as_std_path())
             .await
             .context("failed to read file")?;
         Ok(content)
