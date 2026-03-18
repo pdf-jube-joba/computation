@@ -2,15 +2,33 @@
 url_prefix = "/wasm_bundle/"
 source = ".repo/generated/build-wasm/"
 
+[[mount]]
+url_prefix = "/md-preview-assets/"
+source = ".repo/generated/build-md-preview/"
+
 [[plugin]]
 name = "build-wasm"
 runner = "command"
-command = ["python3", "./build.py", "--clean"]
+command = ["python3", "./plugin/mount_model/build.py", "--clean"]
+trigger = "manual"
+
+[[plugin]]
+name = "build-md-preview"
+runner = "command"
+command = ["node", "./plugin/md_preview/build.mjs", "--out-dir", "{OUTPUT_DIRECTORY}"]
 trigger = "manual"
 
 [[task]]
 name = "build-wasm"
 steps = ["build-wasm"]
+
+[[task]]
+name = "build-md-preview"
+steps = ["build-md-preview"]
+
+[[task]]
+name = "build-all"
+steps = ["build-wasm", "build-md-preview"]
 
 [[policy]]
 path = "docs/**"
@@ -20,7 +38,7 @@ PUT = true
 DELETE = true
 
 [[policy]]
-path = "assets/**"
+path = "viewer/**"
 GET = true
 
 [[policy]]

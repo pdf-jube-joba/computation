@@ -1,3 +1,12 @@
+import {renderMarkdownToElement} from "/md-preview-assets/generated/markdown_viewer.js";
+import {
+  currentFileUrl,
+  fetchTextFile,
+  loadMacros,
+  normalizePath,
+  requestHeaders,
+} from "./markdown_runtime.js";
+
 const pathInput = document.querySelector("#path-input");
 const loadButton = document.querySelector("#load-button");
 const saveButton = document.querySelector("#save-button");
@@ -5,17 +14,20 @@ const preview = document.querySelector("#preview");
 const editor = document.querySelector("#editor");
 const statusText = document.querySelector("#status-text");
 
-function normalizePath(value) {
-  return value.trim().replace(/^\/+/, "");
-}
-
 function setStatus(message, isError = false) {
   statusText.textContent = message;
   statusText.classList.toggle("status-error", isError);
 }
 
-function updatePreview() {
-  preview.textContent = editor.value;
+async function updatePreview() {
+  const path = normalizePath(pathInput.value);
+  const macros = await loadMacros();
+  await renderMarkdownToElement({
+    text: editor.value,
+    element: preview,
+    basePath: path,
+    macros,
+  });
 }
 
 function setBusy(busy) {
@@ -23,20 +35,6 @@ function setBusy(busy) {
   saveButton.disabled = busy;
   pathInput.disabled = busy;
   editor.disabled = busy;
-}
-
-function currentFileUrl() {
-  const path = normalizePath(pathInput.value);
-  if (!path) {
-    throw new Error("path is empty");
-  }
-  return `/${path}`;
-}
-
-function requestHeaders() {
-  return {
-    "user-identity": "from_browser",
-  };
 }
 
 function updateUrlQuery(path) {
@@ -59,17 +57,9 @@ async function loadFile() {
   setBusy(true);
   setStatus(`Loading ${path} ...`);
   try {
-    const response = await fetch(currentFileUrl(), {
-      method: "GET",
-      headers: requestHeaders(),
-    });
-    if (!response.ok) {
-      throw new Error(`GET failed: ${response.status} ${response.statusText}`);
-    }
-
-    const text = await response.text();
+    const text = await fetchTextFile(path);
     editor.value = text;
-    updatePreview();
+    await updatePreview();
     updateUrlQuery(path);
     setStatus(`Loaded ${path}.`);
   } catch (error) {
@@ -89,7 +79,7 @@ async function saveFile() {
   setBusy(true);
   setStatus(`Saving ${path} ...`);
   try {
-    const response = await fetch(currentFileUrl(), {
+    const response = await fetch(currentFileUrl(path), {
       method: "PUT",
       headers: {
         ...requestHeaders(),
@@ -103,7 +93,7 @@ async function saveFile() {
       throw new Error(`PUT failed: ${response.status} ${detail || response.statusText}`);
     }
 
-    updatePreview();
+    await updatePreview();
     updateUrlQuery(path);
     setStatus(`Saved ${path}.`);
   } catch (error) {
@@ -115,7 +105,9 @@ async function saveFile() {
 
 loadButton.addEventListener("click", loadFile);
 saveButton.addEventListener("click", saveFile);
-editor.addEventListener("input", updatePreview);
+editor.addEventListener("input", () => {
+  void updatePreview();
+});
 pathInput.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -128,6 +120,6 @@ if (initialPath) {
   pathInput.value = initialPath;
   void loadFile();
 } else {
-  updatePreview();
+  void updatePreview();
   setStatus("Set a path and click Load.");
 }

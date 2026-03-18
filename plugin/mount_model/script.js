@@ -1,16 +1,65 @@
-function ensureStyleSheet() {
+const OUTPUT_PLACEHOLDER = "\u00a0";
+
+export function ensureStyleSheet(options = {}) {
   const already = document.querySelector('link[data-wm-style="true"]');
-  if (already) return;
-  const href = new URL("./style.css", import.meta.url).href;
+  if (already) {
+    return already;
+  }
+
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = href;
+  link.href = assetUrl("./style.css", options.assetBaseUrl);
   link.dataset.wmStyle = "true";
   document.head.appendChild(link);
+  return link;
 }
-ensureStyleSheet();
 
-const OUTPUT_PLACEHOLDER = "\u00a0";
+export async function mountModel(element, options = {}) {
+  ensureStyleSheet(options);
+  const spec = normalizeMountSpec(options);
+  const module = await loadComponentModule(spec.model, options);
+  const kind = detectComponentKind(module);
+  if (kind === "model") {
+    await renderModelMount(element, spec.model, module, spec, options);
+    return;
+  }
+  if (kind === "compiler") {
+    renderCompilerMount(element, spec.model, module, spec);
+    return;
+  }
+  throw new Error(`unknown component kind for ${spec.model}`);
+}
+
+function normalizeMountSpec(options) {
+  const model = (options.model || "").trim();
+  if (!model) {
+    throw new Error("model is required");
+  }
+  if (model.includes("=>")) {
+    throw new Error(`pipeline syntax is not supported: ${model}`);
+  }
+  return {
+    model,
+    code: options.code || "",
+    ainput: options.ainput || "",
+    rinput: options.rinput || "",
+  };
+}
+
+async function loadComponentModule(model, options) {
+  return import(assetUrl(`./${model}.js`, options.bundleBaseUrl));
+}
+
+function assetUrl(relativePath, baseUrl) {
+  return new URL(relativePath, resolveBaseUrl(baseUrl)).href;
+}
+
+function resolveBaseUrl(baseUrl) {
+  if (!baseUrl) {
+    return import.meta.url;
+  }
+  return new URL(baseUrl, window.location.href);
+}
 
 function setOutputText(el, value) {
   const text = value ?? "";
@@ -23,15 +72,9 @@ function parseJsonString(value, name) {
   }
   try {
     return JSON.parse(value);
-  } catch (e) {
-    throw new Error(`${name} returned invalid JSON: ${e}`);
+  } catch (error) {
+    throw new Error(`${name} returned invalid JSON: ${error}`);
   }
-}
-
-function extractPlainScript(root, className) {
-  const el = root.querySelector(`script.${className}[type="text/plain"]`);
-  if (!el) return "";
-  return el.textContent || "";
 }
 
 function createPanel(host, className, title) {
@@ -44,7 +87,7 @@ function createPanel(host, className, title) {
   body.className = "wm-panel-body";
   panel.append(heading, body);
   host.appendChild(panel);
-  return { panel, body };
+  return {panel, body};
 }
 
 function createField(host, label, className, defaultValue = "", rows = 6) {
@@ -87,8 +130,12 @@ function detectComponentKind(module) {
   ];
   const hasModel = modelFns.every(name => typeof module[name] === "function");
   const hasCompiler = compilerFns.every(name => typeof module[name] === "function");
-  if (hasModel && !hasCompiler) return "model";
-  if (hasCompiler && !hasModel) return "compiler";
+  if (hasModel && !hasCompiler) {
+    return "model";
+  }
+  if (hasCompiler && !hasModel) {
+    return "compiler";
+  }
   if (hasModel && hasCompiler) {
     throw new Error("module exports both model and compiler APIs");
   }
@@ -101,7 +148,7 @@ async function drawCurrentSnapshot(module, renderer) {
   renderer.draw(parseJsonString(rendered, "render"));
 }
 
-async function mountModel(root, name, module, defaults) {
+async function renderModelMount(root, name, module, defaults, options) {
   root.replaceChildren();
   const statusPanel = createPanel(root, "wm-panel-controller-status", `Model: ${name}`);
   const status = createOutput(statusPanel.body, "Status", "wm-controller-status-box");
@@ -143,12 +190,12 @@ async function mountModel(root, name, module, defaults) {
   snapshotContainer.className = "wm-state wm-snapshot-view";
   snapshotPanel.body.appendChild(snapshotContainer);
 
-  const { Renderer } = await import("./renderer.js");
+  const {Renderer} = await import(assetUrl("./renderer.js", options.assetBaseUrl));
   const renderer = new Renderer(snapshotContainer);
   let machineReady = false;
 
-  const setStatus = (message, error = false) => {
-    status.style.color = error ? "red" : "";
+  const setStatus = (message, isError = false) => {
+    status.style.color = isError ? "red" : "";
     setOutputText(status, message || "");
   };
 
@@ -160,9 +207,9 @@ async function mountModel(root, name, module, defaults) {
       setOutputText(routput, "");
       setOutputText(foutput, "");
       setStatus("");
-    } catch (e) {
+    } catch (error) {
       machineReady = false;
-      setStatus(`create failed: ${e}`, true);
+      setStatus(`create failed: ${error}`, true);
     }
   });
 
@@ -187,13 +234,13 @@ async function mountModel(root, name, module, defaults) {
         return;
       }
       throw new Error(`unknown step result kind: ${result.kind}`);
-    } catch (e) {
-      setStatus(`step failed: ${e}`, true);
+    } catch (error) {
+      setStatus(`step failed: ${error}`, true);
     }
   });
 }
 
-function mountCompiler(root, name, module, defaults) {
+function renderCompilerMount(root, name, module, defaults) {
   root.replaceChildren();
   const statusPanel = createPanel(root, "wm-panel-controller-status", `Compiler: ${name}`);
   const status = createOutput(statusPanel.body, "Status", "wm-controller-status-box");
@@ -272,79 +319,23 @@ function mountCompiler(root, name, module, defaults) {
           setOutputText(sourceOutput, await action(targetInput.value));
         }
         setStatus("");
-      } catch (e) {
-        setStatus(`${actionLabel} failed: ${e}`, true);
+      } catch (error) {
+        setStatus(`${actionLabel} failed: ${error}`, true);
       }
     });
 
     row.append(sourceWrap, middle, targetWrap);
     panel.body.appendChild(row);
-    return { button };
   };
 
-  const setStatus = (message, error = false) => {
-    status.style.color = error ? "red" : "";
+  const setStatus = (message, isError = false) => {
+    status.style.color = isError ? "red" : "";
     setOutputText(status, message || "");
   };
 
-  addIoRow("Code", "compile", "wm-field-code", defaults.code, async value => {
-    return module.compileCode(value);
-  }, 8, "source-to-target");
-  addIoRow("AInput", "encode", "wm-field-ainput", defaults.ainput, async value => {
-    return module.encodeAinput(value);
-  }, 6, "source-to-target");
-  addIoRow("RInput", "encode", "wm-field-rinput", defaults.rinput, async value => {
-    return module.encodeRinput(value);
-  }, 4, "source-to-target");
-  addIoRow("ROutput", "decode", "wm-field-routput", "", async value => {
-    return module.decodeRoutput(value);
-  }, 4, "target-to-source");
-  addIoRow("FOutput", "decode", "wm-field-foutput", "", async value => {
-    return module.decodeFoutput(value);
-  }, 4, "target-to-source");
-}
-
-async function mountRoot(root) {
-  const spec = (root.dataset.model || "").trim();
-  const defaults = {
-    code: extractPlainScript(root, "default-code"),
-    ainput: extractPlainScript(root, "default-ainput"),
-    rinput: extractPlainScript(root, "default-rinput"),
-  };
-
-  if (!spec) {
-    root.textContent = "missing data-model";
-    return;
-  }
-  if (spec.includes("=>")) {
-    root.textContent = `pipeline syntax is not supported: ${spec}`;
-    return;
-  }
-
-  try {
-    const module = await import(`./wasm_bundle/${spec}.js`);
-    const kind = detectComponentKind(module);
-    if (kind === "model") {
-      await mountModel(root, spec, module, defaults);
-    } else if (kind === "compiler") {
-      mountCompiler(root, spec, module, defaults);
-    } else {
-      root.textContent = `unknown component kind for ${spec}`;
-    }
-  } catch (e) {
-    root.textContent = `failed to load ${spec}: ${e}`;
-  }
-}
-
-async function setupAll() {
-  const roots = document.querySelectorAll("[data-model]");
-  await Promise.all(Array.from(roots).map(root => mountRoot(root)));
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    setupAll().catch(err => console.error(err));
-  });
-} else {
-  setupAll().catch(err => console.error(err));
+  addIoRow("Code", "compile", "wm-field-code", defaults.code, async value => module.compileCode(value), 8);
+  addIoRow("AInput", "encode", "wm-field-ainput", defaults.ainput, async value => module.encodeAinput(value), 6);
+  addIoRow("RInput", "encode", "wm-field-rinput", defaults.rinput, async value => module.encodeRinput(value), 4);
+  addIoRow("ROutput", "decode", "wm-field-routput", "", async value => module.decodeRoutput(value), 4, "target-to-source");
+  addIoRow("FOutput", "decode", "wm-field-foutput", "", async value => module.decodeFoutput(value), 4, "target-to-source");
 }

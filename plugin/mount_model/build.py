@@ -19,9 +19,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent.parent
 MODELS_DIR = REPO_ROOT / "models"
 TARGET_DIR = REPO_ROOT / "target" / "wasm32-unknown-unknown"
+STATIC_FILES = ("renderer.js", "script.js", "style.css")
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -244,6 +246,9 @@ def main() -> int:
     if args.clean and output_dir.exists():
         shutil.rmtree(output_dir)
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    copy_static_assets(output_dir)
+
     profile = "release" if args.release else "debug"
 
     package_filter = set(args.packages)
@@ -278,6 +283,11 @@ def main() -> int:
             )
 
     return 0
+
+
+def copy_static_assets(output_dir: Path) -> None:
+    for filename in STATIC_FILES:
+        shutil.copy2(SCRIPT_DIR / filename, output_dir / filename)
 
 
 if __name__ == "__main__":

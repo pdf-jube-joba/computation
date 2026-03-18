@@ -145,10 +145,52 @@ button:disabled {
 #preview {
   margin: 0;
   overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
   line-height: 1.6;
-  font-family: "Iosevka", "IBM Plex Mono", monospace;
+}
+
+.md-alert {
+  padding: 12px 14px;
+  border-left: 4px solid #6b7280;
+  border-radius: 10px;
+  background: rgba(107, 114, 128, 0.08);
+}
+
+.md-alert-note {
+  border-left-color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.md-alert-tip {
+  border-left-color: #059669;
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.md-alert-important {
+  border-left-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.md-alert-warning {
+  border-left-color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.md-alert-caution {
+  border-left-color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.md-alert-title {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+.md-alert-body > :first-child {
+  margin-top: 0;
+}
+
+.md-alert-body > :last-child {
+  margin-bottom: 0;
 }
 
 .editor {

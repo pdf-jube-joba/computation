@@ -2,7 +2,8 @@
 AGENTS.md
 out
 wasm_bundle
-fonts/
-katex.min.css
+node_modules
+vendor
+generated
 .repo/cache/
 .repo/generated/

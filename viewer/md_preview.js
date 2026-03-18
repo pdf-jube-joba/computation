@@ -1,37 +1,13 @@
+import {renderMarkdownToElement} from "/md-preview-assets/generated/markdown_viewer.js";
+import {fetchTextFile, loadMacros, normalizePath} from "./markdown_runtime.js";
+
 const pathText = document.querySelector("#path-text");
 const preview = document.querySelector("#preview");
 const statusText = document.querySelector("#status-text");
 
-function normalizePath(value) {
-  return (value || "").trim().replace(/^\/+/, "");
-}
-
 function setStatus(message, isError = false) {
   statusText.textContent = message;
   statusText.classList.toggle("status-error", isError);
-}
-
-function currentFileUrl(path) {
-  if (!path) {
-    throw new Error("path is empty");
-  }
-  return `/${path}`;
-}
-
-function requestHeaders() {
-  return {
-    "user-identity": "from_browser",
-  };
-}
-
-function updateUrlQuery(path) {
-  const url = new URL(window.location.href);
-  if (path) {
-    url.searchParams.set("path", path);
-  } else {
-    url.searchParams.delete("path");
-  }
-  window.history.replaceState({}, "", url);
 }
 
 async function loadFile(path) {
@@ -43,16 +19,13 @@ async function loadFile(path) {
   pathText.textContent = path;
   setStatus(`Loading ${path} ...`);
   try {
-    const response = await fetch(currentFileUrl(path), {
-      method: "GET",
-      headers: requestHeaders(),
+    const [text, macros] = await Promise.all([fetchTextFile(path), loadMacros()]);
+    await renderMarkdownToElement({
+      text,
+      element: preview,
+      basePath: path,
+      macros,
     });
-    if (!response.ok) {
-      throw new Error(`GET failed: ${response.status} ${response.statusText}`);
-    }
-
-    const text = await response.text();
-    preview.textContent = text;
     setStatus(`Loaded ${path}.`);
   } catch (error) {
     setStatus(String(error), true);
@@ -64,6 +37,6 @@ if (initialPath) {
   void loadFile(initialPath);
 } else {
   pathText.textContent = "(missing)";
-  preview.textContent = "";
+  preview.innerHTML = "";
   setStatus("Query parameter `path` is required.", true);
 }
