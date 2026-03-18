@@ -30,11 +30,10 @@ body {
   min-height: 100vh;
   padding: 20px;
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   gap: 14px;
 }
 
-.toolbar,
 .statusbar,
 .pane {
   background: rgba(255, 253, 248, 0.88);
@@ -42,61 +41,12 @@ body {
   border-radius: 18px;
 }
 
-.toolbar {
-  padding: 14px;
-  display: flex;
-  gap: 14px;
-  align-items: end;
-}
-
-.path-field {
-  flex: 1;
-  display: grid;
-  gap: 8px;
-}
-
-.path-field span,
 .pane h1 {
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
   margin: 0;
-}
-
-.path-field input {
-  width: 100%;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--text);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font: inherit;
-}
-
-.actions {
-  display: flex;
-  gap: 10px;
-}
-
-button {
-  border: 0;
-  border-radius: 12px;
-  padding: 12px 18px;
-  background: var(--accent);
-  color: #fffaf4;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:hover {
-  background: var(--accent-strong);
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: wait;
 }
 
 .statusbar {
@@ -221,18 +171,9 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
-  .toolbar,
   .statusbar {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .actions {
-    width: 100%;
-  }
-
-  .actions button {
-    flex: 1;
   }
 
   .panes {

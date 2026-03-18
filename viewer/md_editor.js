@@ -7,13 +7,12 @@ import {
   requestHeaders,
 } from "./markdown_runtime.js";
 
-const pathInput = document.querySelector("#path-input");
-const loadButton = document.querySelector("#load-button");
-const saveButton = document.querySelector("#save-button");
 const preview = document.querySelector("#preview");
 const editor = document.querySelector("#editor");
 const statusText = document.querySelector("#status-text");
+const initialPath = normalizePath(new URL(window.location.href).searchParams.get("path") || "");
 let previewTimer = null;
+let currentPath = initialPath;
 
 function setStatus(message, isError = false) {
   statusText.textContent = message;
@@ -21,12 +20,11 @@ function setStatus(message, isError = false) {
 }
 
 async function updatePreview() {
-  const path = normalizePath(pathInput.value);
   const macros = await loadMacros();
   await renderMarkdownToElement({
     text: editor.value,
     element: preview,
-    basePath: path,
+    basePath: currentPath,
     macros,
   });
 }
@@ -42,37 +40,24 @@ function schedulePreviewUpdate() {
 }
 
 function setBusy(busy) {
-  loadButton.disabled = busy;
-  saveButton.disabled = busy;
-  pathInput.disabled = busy;
   editor.disabled = busy;
 }
 
-function updateUrlQuery(path) {
-  const url = new URL(window.location.href);
-  if (path) {
-    url.searchParams.set("path", path);
-  } else {
-    url.searchParams.delete("path");
-  }
-  window.history.replaceState({}, "", url);
-}
-
-async function loadFile() {
-  const path = normalizePath(pathInput.value);
-  if (!path) {
-    setStatus("Path is empty.", true);
+async function loadFile(path) {
+  const normalizedPath = normalizePath(path);
+  if (!normalizedPath) {
+    setStatus("Missing ?path=... in URL.", true);
     return;
   }
 
   setBusy(true);
-  setStatus(`Loading ${path} ...`);
+  setStatus(`Loading ${normalizedPath} ...`);
   try {
-    const text = await fetchTextFile(path);
+    const text = await fetchTextFile(normalizedPath);
     editor.value = text;
+    currentPath = normalizedPath;
     await updatePreview();
-    updateUrlQuery(path);
-    setStatus(`Loaded ${path}.`);
+    setStatus(`Loaded ${normalizedPath}. Press Ctrl+S to save.`);
   } catch (error) {
     setStatus(String(error), true);
   } finally {
@@ -81,16 +66,15 @@ async function loadFile() {
 }
 
 async function saveFile() {
-  const path = normalizePath(pathInput.value);
-  if (!path) {
-    setStatus("Path is empty.", true);
+  if (!currentPath) {
+    setStatus("Missing ?path=... in URL.", true);
     return;
   }
 
   setBusy(true);
-  setStatus(`Saving ${path} ...`);
+  setStatus(`Saving ${currentPath} ...`);
   try {
-    const response = await fetch(currentFileUrl(path), {
+    const response = await fetch(currentFileUrl(currentPath), {
       method: "PUT",
       headers: {
         ...requestHeaders(),
@@ -105,8 +89,7 @@ async function saveFile() {
     }
 
     await updatePreview();
-    updateUrlQuery(path);
-    setStatus(`Saved ${path}.`);
+    setStatus(`Saved ${currentPath}.`);
   } catch (error) {
     setStatus(String(error), true);
   } finally {
@@ -114,23 +97,19 @@ async function saveFile() {
   }
 }
 
-loadButton.addEventListener("click", loadFile);
-saveButton.addEventListener("click", saveFile);
 editor.addEventListener("input", () => {
   schedulePreviewUpdate();
 });
-pathInput.addEventListener("keydown", event => {
-  if (event.key === "Enter") {
+window.addEventListener("keydown", event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
     event.preventDefault();
-    void loadFile();
+    void saveFile();
   }
 });
 
-const initialPath = normalizePath(new URL(window.location.href).searchParams.get("path") || "");
 if (initialPath) {
-  pathInput.value = initialPath;
-  void loadFile();
+  void loadFile(initialPath);
 } else {
   schedulePreviewUpdate();
-  setStatus("Set a path and click Load.");
+  setStatus("Missing ?path=... in URL.", true);
 }
