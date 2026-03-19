@@ -1,6 +1,10 @@
 {
   "items": [
     {
+      "title": "構造化プログラミング",
+      "href": "./README.md"
+    },
+    {
       "title": "関数と呼び出し",
       "href": "./procesure.md"
     },

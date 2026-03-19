@@ -32,6 +32,10 @@ path = "/"
 GET = true
 
 [[policy]]
+path = "test/"
+GET = true
+
+[[policy]]
 path = "docs/"
 GET = true
 POST = true

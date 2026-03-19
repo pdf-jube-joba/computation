@@ -19,7 +19,6 @@ const statusText = document.querySelector("#status-text");
 const app = document.querySelector(".app");
 const sidebarStateKey = "md-preview-sidebar-collapsed";
 let navigationKeyboardTargets = [];
-let headerLinkGeneration = 0;
 
 function setStatus(message, isError = false) {
   statusText.textContent = message;
@@ -71,11 +70,6 @@ function directoryUrl(directory) {
   return normalizedDirectory ? `/${normalizedDirectory}/` : "/";
 }
 
-function parentDirectoryUrl(path) {
-  const {directory} = splitPath(path);
-  return directoryUrl(directory);
-}
-
 function previewHref(path) {
   return `./md_preview.html?path=${encodeURIComponent(path)}`;
 }
@@ -84,12 +78,8 @@ function editorHref(path) {
   return `./md_editor.html?path=${encodeURIComponent(path)}`;
 }
 
-function infoPathUrl(path) {
-  const normalized = normalizePath(path);
-  if (!normalized) {
-    return "/.info";
-  }
-  return `/.info/${normalized}`;
+function directoryViewHref(path) {
+  return `./directory_view.html?path=${encodeURIComponent(normalizePath(path))}`;
 }
 
 function isExternalLink(path) {
@@ -107,56 +97,23 @@ function toDisplayPath(path) {
   return normalizePath(path) || "/";
 }
 
-async function fetchPathInfo(path) {
-  const response = await fetch(infoPathUrl(path), {
-    method: "GET",
-    headers: requestHeaders(),
-  });
-  if (!response.ok) {
-    return null;
-  }
-  return response.json();
-}
-
-function setActionLinkState(link, targetPath) {
-  if (!targetPath) {
+function setActionLinkState(link, href) {
+  if (!href) {
     link.removeAttribute("href");
     link.setAttribute("aria-disabled", "true");
     return;
   }
 
-  link.href = previewHref(targetPath);
+  link.href = href;
   link.setAttribute("aria-disabled", "false");
 }
 
-async function resolveReadmeTarget(directory) {
-  const readmePath = joinPath(directory, "README.md");
-  const info = await fetchPathInfo(readmePath);
-  if (!info || info.kind !== "file") {
-    return "";
-  }
-  return readmePath;
-}
-
 async function updateHeaderLinks(path) {
-  const generation = ++headerLinkGeneration;
   editLink.href = editorHref(path);
   editLink.setAttribute("aria-disabled", path ? "false" : "true");
-  setActionLinkState(homeLink, "");
-  setActionLinkState(upLink, "");
-
   const {directory} = splitPath(path);
-  const [homeTarget, upTarget] = await Promise.all([
-    resolveReadmeTarget(""),
-    resolveReadmeTarget(directory),
-  ]);
-
-  if (generation !== headerLinkGeneration) {
-    return;
-  }
-
-  setActionLinkState(homeLink, homeTarget);
-  setActionLinkState(upLink, upTarget);
+  setActionLinkState(homeLink, directoryViewHref(""));
+  setActionLinkState(upLink, directoryViewHref(directory));
 }
 
 async function fetchOptionalText(path) {

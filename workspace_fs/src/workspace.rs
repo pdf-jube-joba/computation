@@ -155,7 +155,7 @@ impl WorkspaceService {
             .await?;
         Ok(file_response(
             StatusCode::OK,
-            content_type_for_path(&path),
+            &content_type_for_path(&path),
             content,
         ))
     }
@@ -486,10 +486,16 @@ fn file_response(status: StatusCode, content_type: &str, body: Vec<u8>) -> Respo
         .expect("response builder should accept binary body")
 }
 
-fn content_type_for_path(path: &WorkspacePath) -> &'static str {
-    MimeGuess::from_path(path.as_str())
+fn content_type_for_path(path: &WorkspacePath) -> String {
+    let mime = MimeGuess::from_path(path.as_str())
         .first_raw()
-        .unwrap_or("application/octet-stream")
+        .unwrap_or("application/octet-stream");
+
+    if mime.starts_with("text/") {
+        return format!("{mime}; charset=utf-8");
+    }
+
+    mime.to_string()
 }
 
 #[cfg(test)]
@@ -503,12 +509,12 @@ mod tests {
     async fn file_response_uses_html_mime_and_binary_body() {
         let response = file_response(
             StatusCode::OK,
-            content_type_for_path(&WorkspacePath::from_path_str("assets/md_preview.html").unwrap()),
+            &content_type_for_path(&WorkspacePath::from_path_str("assets/md_preview.html").unwrap()),
             b"<h1>x</h1>".to_vec(),
         );
         let headers = response.headers();
 
-        assert_eq!(headers.get(CONTENT_TYPE).unwrap(), "text/html");
+        assert_eq!(headers.get(CONTENT_TYPE).unwrap(), "text/html; charset=utf-8");
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"<h1>x</h1>");
     }
