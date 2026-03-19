@@ -46,6 +46,9 @@ bnf っぽいものを書く用のやつ
 \NT{var}  &\defeq \NT{ident}
 \end{aligned}\)
 
+## link index の自作
+[[テスト]]
+
 ## markdown 
 ### 定義リスト
 

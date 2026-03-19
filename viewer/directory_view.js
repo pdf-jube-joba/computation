@@ -5,7 +5,9 @@ const PREVIEW_LIMIT = 100;
 const TEXT_EXTENSIONS = new Set(["md", "txt", "rs"]);
 const DEFAULT_SORT = "newest";
 const SORT_VALUES = new Set(["newest", "oldest", "abc"]);
+const LINK_INDEX_URL = "/md-preview-assets/link_index.json";
 
+const modeLabel = document.querySelector("#mode-label");
 const pathText = document.querySelector("#path-text");
 const statusText = document.querySelector("#status-text");
 const boardPane = document.querySelector(".board-pane");
@@ -24,6 +26,10 @@ let observer;
 function setStatus(message, isError = false) {
   statusText.textContent = message;
   statusText.classList.toggle("is-error", isError);
+}
+
+function currentParams() {
+  return new URL(window.location.href).searchParams;
 }
 
 function splitPath(path) {
@@ -67,8 +73,24 @@ function directoryUrl(directory) {
   return normalizedDirectory ? `/${normalizedDirectory}/` : "/";
 }
 
-function directoryViewHref(path) {
-  return `./directory_view.html?path=${encodeURIComponent(normalizePath(path))}&sort=${encodeURIComponent(currentSortMode())}`;
+function currentSortFromLocation() {
+  return currentParams().get("sort") || DEFAULT_SORT;
+}
+
+function currentSortMode() {
+  return sortSelect.value || DEFAULT_SORT;
+}
+
+function directoryViewHref({path = "", link = ""} = {}) {
+  const url = new URL("./directory_view.html", window.location.href);
+  if (path) {
+    url.searchParams.set("path", normalizePath(path));
+  }
+  if (link) {
+    url.searchParams.set("link", link);
+  }
+  url.searchParams.set("sort", currentSortMode());
+  return `${url.pathname}${url.search}`;
 }
 
 function markdownPreviewHref(path) {
@@ -109,17 +131,14 @@ function cleanPeek(text) {
   return text.replace(/\s+/g, " ").trim().slice(0, PREVIEW_LIMIT);
 }
 
-function currentDirectoryPath() {
-  const rawPath = new URL(window.location.href).searchParams.get("path") || "";
-  return normalizePath(rawPath).replace(/\/+$/, "");
-}
-
-function currentSortFromLocation() {
-  return new URL(window.location.href).searchParams.get("sort") || DEFAULT_SORT;
-}
-
-function currentSortMode() {
-  return sortSelect.value || DEFAULT_SORT;
+function currentMode() {
+  const params = currentParams();
+  const link = (params.get("link") || "").trim();
+  if (link) {
+    return {kind: "link", value: link};
+  }
+  const path = normalizePath(params.get("path") || "").replace(/\/+$/, "");
+  return {kind: "directory", value: path};
 }
 
 function setCurrentSortMode(value, {replaceHistory = true} = {}) {
@@ -157,13 +176,51 @@ async function fetchPathInfo(path) {
   return response.json();
 }
 
-async function loadEntriesWithInfo(directory) {
+async function fetchLinkIndex() {
+  const response = await fetch(LINK_INDEX_URL, {
+    method: "GET",
+    headers: requestHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`GET failed: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
+
+async function loadEntriesForDirectory(directory) {
   const names = await fetchDirectoryEntries(directory);
   const results = await Promise.allSettled(names.map(async name => {
     const path = joinPath(directory, name);
     const info = await fetchPathInfo(path);
     return {
       name,
+      title: name,
+      path,
+      modifiedAt: info.modified_at,
+    };
+  }));
+
+  return results
+    .filter(result => result.status === "fulfilled")
+    .map(result => result.value);
+}
+
+async function loadEntriesForLinkTerm(term) {
+  const linkIndex = await fetchLinkIndex();
+  const pages = linkIndex?.terms?.[term]?.pages;
+  if (!Array.isArray(pages)) {
+    return [];
+  }
+
+  const results = await Promise.allSettled(pages.map(async page => {
+    const path = normalizePath(page.path || "");
+    if (!path) {
+      throw new Error("invalid page path");
+    }
+    const info = await fetchPathInfo(path);
+    return {
+      name: path,
+      title: path,
       path,
       modifiedAt: info.modified_at,
     };
@@ -179,7 +236,7 @@ function sortEntries(items, sortMode) {
   const indexed = items.map((item, index) => ({item, index}));
   indexed.sort((left, right) => {
     if (sortMode === "abc") {
-      const byName = collator.compare(left.item.name, right.item.name);
+      const byName = collator.compare(left.item.title, right.item.title);
       return byName || left.index - right.index;
     }
 
@@ -195,7 +252,7 @@ function sortEntries(items, sortMode) {
       return leftHasTime ? -1 : 1;
     }
 
-    const byName = collator.compare(left.item.name, right.item.name);
+    const byName = collator.compare(left.item.title, right.item.title);
     return byName || left.index - right.index;
   });
   return indexed.map(entry => entry.item);
@@ -205,9 +262,9 @@ async function buildDirectoryCard(entry) {
   const children = await fetchDirectoryEntries(entry.path);
   return {
     kind: "directory",
-    title: entry.name.replace(/\/$/, ""),
+    title: entry.title.replace(/\/$/, ""),
     peek: children.join(" ").slice(0, PREVIEW_LIMIT),
-    href: directoryViewHref(entry.path),
+    href: directoryViewHref({path: entry.path}),
   };
 }
 
@@ -216,7 +273,7 @@ async function buildTextFileCard(entry) {
   const extension = fileExtension(entry.path);
   return {
     kind: extension,
-    title: entry.name,
+    title: entry.title,
     peek: cleanPeek(text),
     href: extension === "md" ? markdownPreviewHref(entry.path) : `/${entry.path}`,
   };
@@ -332,31 +389,38 @@ async function rerenderCards() {
   await loadNextPage();
 }
 
-async function loadDirectory(path) {
-  const directory = normalizePath(path).replace(/\/+$/, "");
-  pathText.textContent = directory ? `/${directory}/` : "/";
-  setLinkState(homeLink, directoryViewHref(""));
-  setLinkState(upLink, directory ? directoryViewHref(parentDirectoryPath(directory)) : "");
+async function loadView() {
+  const mode = currentMode();
   cardGrid.innerHTML = "";
   emptyState.hidden = true;
   entries = [];
   nextIndex = 0;
-  setStatus(`Loading ${directory ? `/${directory}/` : "/"} ...`);
 
-  try {
-    entries = await loadEntriesWithInfo(directory);
-    if (!entries.length) {
-      setStatus("Directory is empty.");
-      updateEmptyState();
-      return;
-    }
-    entries = sortEntries(entries, currentSortMode());
-    observeInfiniteScroll();
-    await loadNextPage();
-  } catch (error) {
-    setStatus(String(error), true);
-    updateEmptyState();
+  setLinkState(homeLink, directoryViewHref({path: ""}));
+
+  if (mode.kind === "link") {
+    modeLabel.textContent = "Link";
+    pathText.textContent = `[[${mode.value}]]`;
+    setLinkState(upLink, "");
+    setStatus(`Loading [[${mode.value}]] ...`);
+    entries = await loadEntriesForLinkTerm(mode.value);
+  } else {
+    modeLabel.textContent = "Directory";
+    pathText.textContent = mode.value ? `/${mode.value}/` : "/";
+    setLinkState(upLink, mode.value ? directoryViewHref({path: parentDirectoryPath(mode.value)}) : "");
+    setStatus(`Loading ${mode.value ? `/${mode.value}/` : "/"} ...`);
+    entries = await loadEntriesForDirectory(mode.value);
   }
+
+  if (!entries.length) {
+    setStatus(mode.kind === "link" ? "No linked pages found." : "Directory is empty.");
+    updateEmptyState();
+    return;
+  }
+
+  entries = sortEntries(entries, currentSortMode());
+  observeInfiniteScroll();
+  await loadNextPage();
 }
 
 sortSelect.addEventListener("change", () => {
@@ -365,4 +429,7 @@ sortSelect.addEventListener("change", () => {
 });
 
 setCurrentSortMode(currentSortFromLocation());
-void loadDirectory(currentDirectoryPath());
+void loadView().catch(error => {
+  setStatus(String(error), true);
+  updateEmptyState();
+});

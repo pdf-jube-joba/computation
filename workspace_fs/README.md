@@ -15,10 +15,12 @@ HTTP リクエスト経由でディレクトリの編集を行う。
 > このサーバーではユーザーの認証・https 化は行わない。
 > 必要があれば wrapper を通すこと。
 
+[[テスト]]
+
 ## 起動方法
 
 ```bash
-cargo run -- ./test-repository
+cargo run --bin workspace_fs -- ./test-repository
 ```
 
 起動時には読み込んだ serve 設定をログに出す。

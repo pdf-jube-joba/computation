@@ -4,6 +4,7 @@ This directory contains the browser-side markdown preview build setup.
 Source code lives in `src/`, and `build.mjs` bundles it into an explicitly specified output directory.
 The build script requires `--out-dir <path>` and writes all generated files under that directory.
 It also accepts `--wasm-mount-url <url-prefix>` for the mounted wasm assets used by embedded models.
+It generates `link_index.json` alongside the browser assets by scanning all repository markdown files.
 The generated viewer is used by `viewer/md_preview.js` and `viewer/md_editor.js`.
 When used through `workspace_fs`, mount the plugin output and serve it from `/md-preview-assets/`.
 The plugin also depends on the wasm bundle plugin and expects its mount URL to be passed in.
