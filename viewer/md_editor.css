@@ -52,15 +52,42 @@ body {
 .statusbar {
   padding: 12px 14px;
   display: flex;
-  justify-content: space-between;
   gap: 12px;
-  align-items: center;
+  align-items: baseline;
   color: var(--muted);
   font-size: 14px;
 }
 
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.status-body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.status-action-button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #fffaf2 0%, #f0e6d6 100%);
+  color: var(--text);
+  border-radius: 999px;
+  font: inherit;
+  cursor: pointer;
+  padding: 8px 12px;
+  flex: 0 0 auto;
+}
+
+.status-action-button:hover {
+  background: linear-gradient(180deg, #fff4df 0%, #e9dcc7 100%);
+}
+
 .status-note {
-  text-align: right;
   font-size: 12px;
 }
 

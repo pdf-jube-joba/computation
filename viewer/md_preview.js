@@ -10,11 +10,16 @@ import {
 const pathText = document.querySelector("#path-text");
 const preview = document.querySelector("#preview");
 const navigation = document.querySelector("#navigation");
-const sidebarToggle = document.querySelector("#sidebar-toggle");
-const sidebarClose = document.querySelector("#sidebar-close");
+const sidebarEdgeToggle = document.querySelector("#sidebar-edge-toggle");
+const sidebarDividerToggle = document.querySelector("#sidebar-divider-toggle");
+const editLink = document.querySelector("#edit-link");
+const homeLink = document.querySelector("#home-link");
+const upLink = document.querySelector("#up-link");
 const statusText = document.querySelector("#status-text");
 const app = document.querySelector(".app");
 const sidebarStateKey = "md-preview-sidebar-collapsed";
+let navigationKeyboardTargets = [];
+let headerLinkGeneration = 0;
 
 function setStatus(message, isError = false) {
   statusText.textContent = message;
@@ -23,8 +28,8 @@ function setStatus(message, isError = false) {
 
 function setSidebarCollapsed(collapsed) {
   app.classList.toggle("sidebar-collapsed", collapsed);
-  sidebarToggle.textContent = collapsed ? "Show Navigation" : "Hide Navigation";
-  sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+  sidebarEdgeToggle.setAttribute("aria-expanded", String(!collapsed));
+  sidebarDividerToggle.setAttribute("aria-expanded", String(!collapsed));
   window.localStorage.setItem(sidebarStateKey, collapsed ? "1" : "0");
 }
 
@@ -66,16 +71,92 @@ function directoryUrl(directory) {
   return normalizedDirectory ? `/${normalizedDirectory}/` : "/";
 }
 
+function parentDirectoryUrl(path) {
+  const {directory} = splitPath(path);
+  return directoryUrl(directory);
+}
+
 function previewHref(path) {
   return `./md_preview.html?path=${encodeURIComponent(path)}`;
+}
+
+function editorHref(path) {
+  return `./md_editor.html?path=${encodeURIComponent(path)}`;
+}
+
+function infoPathUrl(path) {
+  const normalized = normalizePath(path);
+  if (!normalized) {
+    return "/.info";
+  }
+  return `/.info/${normalized}`;
 }
 
 function isExternalLink(path) {
   return /^[a-z][a-z0-9+.-]*:/i.test(path);
 }
 
+function canonicalPreviewPath(path) {
+  if (!path || isExternalLink(path)) {
+    return "";
+  }
+  return normalizePath(new URL(String(path), window.location.origin).pathname);
+}
+
 function toDisplayPath(path) {
   return normalizePath(path) || "/";
+}
+
+async function fetchPathInfo(path) {
+  const response = await fetch(infoPathUrl(path), {
+    method: "GET",
+    headers: requestHeaders(),
+  });
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
+}
+
+function setActionLinkState(link, targetPath) {
+  if (!targetPath) {
+    link.removeAttribute("href");
+    link.setAttribute("aria-disabled", "true");
+    return;
+  }
+
+  link.href = previewHref(targetPath);
+  link.setAttribute("aria-disabled", "false");
+}
+
+async function resolveReadmeTarget(directory) {
+  const readmePath = joinPath(directory, "README.md");
+  const info = await fetchPathInfo(readmePath);
+  if (!info || info.kind !== "file") {
+    return "";
+  }
+  return readmePath;
+}
+
+async function updateHeaderLinks(path) {
+  const generation = ++headerLinkGeneration;
+  editLink.href = editorHref(path);
+  editLink.setAttribute("aria-disabled", path ? "false" : "true");
+  setActionLinkState(homeLink, "");
+  setActionLinkState(upLink, "");
+
+  const {directory} = splitPath(path);
+  const [homeTarget, upTarget] = await Promise.all([
+    resolveReadmeTarget(""),
+    resolveReadmeTarget(directory),
+  ]);
+
+  if (generation !== headerLinkGeneration) {
+    return;
+  }
+
+  setActionLinkState(homeLink, homeTarget);
+  setActionLinkState(upLink, upTarget);
 }
 
 async function fetchOptionalText(path) {
@@ -87,7 +168,9 @@ async function fetchOptionalText(path) {
     return null;
   }
   if (!response.ok) {
-    throw new Error(`GET failed: ${response.status} ${response.statusText}`);
+    const error = new Error(`GET failed: ${response.status} ${response.statusText}`);
+    error.status = response.status;
+    throw error;
   }
   return response.text();
 }
@@ -98,7 +181,9 @@ async function fetchDirectoryEntries(directory) {
     headers: requestHeaders(),
   });
   if (!response.ok) {
-    throw new Error(`GET failed: ${response.status} ${response.statusText}`);
+    const error = new Error(`GET failed: ${response.status} ${response.statusText}`);
+    error.status = response.status;
+    throw error;
   }
 
   const text = await response.text();
@@ -106,6 +191,10 @@ async function fetchDirectoryEntries(directory) {
     return [];
   }
   return text.split("\n").map(entry => entry.trim()).filter(Boolean);
+}
+
+function isNotFoundLike(error) {
+  return error?.status === 403 || error?.status === 404;
 }
 
 function parseNavigationEntries(json, directory) {
@@ -148,21 +237,82 @@ function parseNavigationEntries(json, directory) {
 async function loadNavigation(currentPath) {
   const {directory} = splitPath(currentPath);
   const navigationPath = joinPath(directory, "navigation.json");
+  let navigationUnavailable = false;
   try {
     const navigationText = await fetchOptionalText(navigationPath);
     if (navigationText !== null) {
       const parsed = JSON.parse(navigationText);
-      return parseNavigationEntries(parsed, directory);
+      return {
+        mode: "items",
+        source: "navigation_json",
+        items: parseNavigationEntries(parsed, directory),
+      };
     }
+    navigationUnavailable = true;
   } catch (error) {
     console.warn(`failed to load ${navigationPath}, falling back to directory listing`, error);
+    if (isNotFoundLike(error)) {
+      navigationUnavailable = true;
+    }
   }
 
-  const entries = await fetchDirectoryEntries(directory);
-  return entries.map(entry => ({
-    label: entry,
-    path: joinPath(directory, entry),
-  }));
+  try {
+    const entries = await fetchDirectoryEntries(directory);
+    return {
+      mode: "items",
+      source: "directory_listing",
+      items: entries.map(entry => ({
+        label: entry,
+        path: joinPath(directory, entry),
+      })),
+    };
+  } catch (error) {
+    if (navigationUnavailable && isNotFoundLike(error)) {
+      return {
+        mode: "not_permitted",
+        source: "directory_listing",
+        items: [],
+      };
+    }
+    throw error;
+  }
+}
+
+function isTextareaFocused() {
+  return document.activeElement?.tagName === "TEXTAREA";
+}
+
+function isPreviewableNavigationTarget(path) {
+  return canonicalPreviewPath(path).endsWith(".md");
+}
+
+function updateNavigationKeyboardTargets(result, currentPath) {
+  if (result.mode !== "items" || result.source !== "navigation_json") {
+    navigationKeyboardTargets = [];
+    return;
+  }
+
+  const current = canonicalPreviewPath(currentPath);
+  navigationKeyboardTargets = result.items
+    .filter(item => isPreviewableNavigationTarget(item.path))
+    .map(item => canonicalPreviewPath(item.path));
+
+  if (!navigationKeyboardTargets.includes(current)) {
+    navigationKeyboardTargets = [];
+  }
+}
+
+function navigateRelativeFromKeyboard(offset) {
+  const current = canonicalPreviewPath(currentPathFromLocation());
+  const index = navigationKeyboardTargets.indexOf(current);
+  if (index === -1) {
+    return;
+  }
+  const target = navigationKeyboardTargets[index + offset];
+  if (!target) {
+    return;
+  }
+  void navigateTo(target);
 }
 
 function createNavigationLink(item, currentPath) {
@@ -173,8 +323,8 @@ function createNavigationLink(item, currentPath) {
   label.className = "navigation-label";
   label.textContent = item.label;
 
-  const normalizedCurrent = normalizePath(currentPath);
-  const normalizedItemPath = normalizePath(item.path);
+  const normalizedCurrent = canonicalPreviewPath(currentPath);
+  const normalizedItemPath = canonicalPreviewPath(item.path);
   const isCurrent = normalizedItemPath === normalizedCurrent;
 
   const meta = document.createElement("span");
@@ -197,7 +347,7 @@ function createNavigationLink(item, currentPath) {
     link.target = "_blank";
     link.rel = "noreferrer";
   } else if (item.path.endsWith(".md")) {
-    const targetPath = normalizePath(item.path);
+    const targetPath = canonicalPreviewPath(item.path);
     link.href = previewHref(targetPath);
     link.dataset.previewPath = targetPath;
   } else if (item.path.endsWith("/")) {
@@ -213,8 +363,19 @@ function createNavigationLink(item, currentPath) {
   return listItem;
 }
 
-function renderNavigation(items, currentPath) {
+function renderNavigation(result, currentPath) {
   navigation.innerHTML = "";
+  updateNavigationKeyboardTargets(result, currentPath);
+
+  if (result.mode === "not_permitted") {
+    const empty = document.createElement("div");
+    empty.className = "navigation-empty";
+    empty.textContent = "not_permitted";
+    navigation.append(empty);
+    return;
+  }
+
+  const {items} = result;
 
   if (!items.length) {
     const empty = document.createElement("div");
@@ -240,12 +401,25 @@ async function loadFile(path) {
 
   const normalizedPath = normalizePath(path);
   pathText.textContent = normalizedPath;
+  void updateHeaderLinks(normalizedPath);
   setStatus(`Loading ${normalizedPath} ...`);
+  preview.innerHTML = "";
+  navigation.innerHTML = "";
+
+  const navigationPromise = loadNavigation(normalizedPath)
+    .then(result => {
+      renderNavigation(result, normalizedPath);
+      return result;
+    })
+    .catch(error => {
+      navigation.innerHTML = "";
+      throw error;
+    });
+
   try {
-    const [text, macros, navigationItems] = await Promise.all([
+    const [text, macros] = await Promise.all([
       fetchTextFile(normalizedPath),
       loadMacros(),
-      loadNavigation(normalizedPath),
     ]);
     await renderMarkdownToElement({
       text,
@@ -253,11 +427,15 @@ async function loadFile(path) {
       basePath: normalizedPath,
       macros,
     });
-    renderNavigation(navigationItems, normalizedPath);
+    await navigationPromise;
     setStatus(`Loaded ${normalizedPath}.`);
   } catch (error) {
     preview.innerHTML = "";
-    navigation.innerHTML = "";
+    try {
+      await navigationPromise;
+    } catch {
+      navigation.innerHTML = "";
+    }
     setStatus(String(error), true);
   }
 }
@@ -270,6 +448,7 @@ async function navigateTo(path, {pushHistory = true} = {}) {
   const normalizedPath = normalizePath(path);
   if (!normalizedPath) {
     pathText.textContent = "(missing)";
+    void updateHeaderLinks("");
     preview.innerHTML = "";
     navigation.innerHTML = "";
     setStatus("Query parameter `path` is required.", true);
@@ -295,16 +474,33 @@ navigation.addEventListener("click", event => {
   void navigateTo(link.dataset.previewPath);
 });
 
-sidebarToggle.addEventListener("click", () => {
-  setSidebarCollapsed(!app.classList.contains("sidebar-collapsed"));
+sidebarEdgeToggle.addEventListener("click", () => {
+  setSidebarCollapsed(false);
 });
 
-sidebarClose.addEventListener("click", () => {
+sidebarDividerToggle.addEventListener("click", () => {
   setSidebarCollapsed(true);
 });
 
 window.addEventListener("popstate", () => {
   void navigateTo(currentPathFromLocation(), {pushHistory: false});
+});
+
+window.addEventListener("keydown", event => {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+    return;
+  }
+  if (isTextareaFocused()) {
+    return;
+  }
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    navigateRelativeFromKeyboard(-1);
+  }
+  if (event.key === "ArrowRight") {
+    event.preventDefault();
+    navigateRelativeFromKeyboard(1);
+  }
 });
 
 initializeSidebarState();

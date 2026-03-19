@@ -9,45 +9,56 @@
 </head>
 <body>
   <main class="app">
-    <section class="statusbar">
-      <button
-        id="sidebar-toggle"
-        class="sidebar-toggle"
-        type="button"
-        aria-controls="sidebar"
-        aria-expanded="true"
-      >
-        Hide Navigation
-      </button>
-      <div class="status-label">PATH</div>
-      <div id="path-text" class="status-path"></div>
-    </section>
+    <button
+      id="sidebar-edge-toggle"
+      class="sidebar-edge-toggle"
+      type="button"
+      aria-controls="sidebar"
+      aria-expanded="false"
+      aria-label="Show navigation"
+    >
+      ▸
+    </button>
 
     <div class="workspace">
       <aside id="sidebar" class="sidebar-pane" aria-label="Navigation sidebar">
         <div class="sidebar-header">
           <h1>Navigation</h1>
-          <button
-            id="sidebar-close"
-            class="sidebar-close"
-            type="button"
-            aria-label="Close navigation"
-          >
-            ×
-          </button>
         </div>
         <nav id="navigation" class="surface navigation"></nav>
       </aside>
 
-      <section class="pane preview-pane">
-        <h1>Preview</h1>
-        <div id="preview" class="surface"></div>
+      <button
+        id="sidebar-divider-toggle"
+        class="sidebar-divider-toggle"
+        type="button"
+        aria-controls="sidebar"
+        aria-expanded="true"
+        aria-label="Hide navigation"
+      >
+        ◂
+      </button>
+
+      <section class="content-pane">
+        <section class="statusbar">
+          <div class="status-actions">
+            <a id="edit-link" class="status-action-link" href="/">Edit</a>
+            <a id="home-link" class="status-action-link" href="/">Home</a>
+            <a id="up-link" class="status-action-link" href="/">Up</a>
+          </div>
+          <div class="status-body">
+            <div class="status-label">PATH</div>
+            <div id="path-text" class="status-path"></div>
+            <div id="status-text" class="status-text">Loading ...</div>
+          </div>
+        </section>
+
+        <section class="pane preview-pane">
+          <h1>Preview</h1>
+          <div id="preview" class="surface"></div>
+        </section>
       </section>
     </div>
-
-    <section class="statusbar">
-      <div id="status-text">Loading ...</div>
-    </section>
   </main>
 
   <script type="module" src="./md_preview.js"></script>

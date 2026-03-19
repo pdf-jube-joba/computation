@@ -10,6 +10,7 @@ import {
 const preview = document.querySelector("#preview");
 const editor = document.querySelector("#editor");
 const statusText = document.querySelector("#status-text");
+const previewButton = document.querySelector("#preview-button");
 const initialPath = normalizePath(new URL(window.location.href).searchParams.get("path") || "");
 let previewTimer = null;
 let currentPath = initialPath;
@@ -41,6 +42,11 @@ function schedulePreviewUpdate() {
 
 function setBusy(busy) {
   editor.disabled = busy;
+  previewButton.disabled = busy;
+}
+
+function previewHref(path) {
+  return `./md_preview.html?path=${encodeURIComponent(path)}`;
 }
 
 async function loadFile(path) {
@@ -68,7 +74,7 @@ async function loadFile(path) {
 async function saveFile() {
   if (!currentPath) {
     setStatus("Missing ?path=... in URL.", true);
-    return;
+    return false;
   }
 
   setBusy(true);
@@ -90,15 +96,28 @@ async function saveFile() {
 
     await updatePreview();
     setStatus(`Saved ${currentPath}.`);
+    return true;
   } catch (error) {
     setStatus(String(error), true);
+    return false;
   } finally {
     setBusy(false);
   }
 }
 
+async function saveAndOpenPreview() {
+  const saved = await saveFile();
+  if (!saved || !currentPath) {
+    return;
+  }
+  window.location.href = previewHref(currentPath);
+}
+
 editor.addEventListener("input", () => {
   schedulePreviewUpdate();
+});
+previewButton.addEventListener("click", () => {
+  void saveAndOpenPreview();
 });
 window.addEventListener("keydown", event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
