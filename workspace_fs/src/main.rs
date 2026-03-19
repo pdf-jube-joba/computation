@@ -1,6 +1,8 @@
 mod config;
 mod identity;
+mod path;
 mod plugin;
+mod policy;
 mod repository;
 mod workspace;
 
@@ -14,9 +16,11 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use camino::Utf8PathBuf;
 use config::RepositoryConfig;
-use identity::{IdentityConfig, RequestIdentity, capture_identity};
-use repository::{FsRepository, Repository};
+use identity::{IdentityConfig, RequestIdentity, UserIdentity, capture_identity};
+use policy::PolicyInspection;
+use repository::FsRepository;
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -29,7 +33,7 @@ struct AppState {
 
 #[derive(Debug)]
 struct CliOptions {
-    repository_path: String,
+    repository_path: Utf8PathBuf,
     task: Option<String>,
 }
 
@@ -38,14 +42,10 @@ async fn main() -> Result<()> {
     init_tracing();
 
     let cli = parse_cli_options()?;
-    let repository: Arc<dyn Repository> = Arc::new(FsRepository::open(cli.repository_path)?);
-    let repository_name = repository
-        .repository_root()
-        .file_name()
-        .map(ToOwned::to_owned)
-        .unwrap_or_else(|| repository.repository_root().as_str().to_owned());
-    let config = Arc::new(RepositoryConfig::load(repository.repository_root())?);
-    let workspace = Arc::new(WorkspaceService::new(repository, config, repository_name));
+    let repository_root = cli.repository_path.canonicalize_utf8()?;
+    let config = Arc::new(RepositoryConfig::load(&repository_root)?);
+    let repository = Arc::new(FsRepository::open(&repository_root, &config)?);
+    let workspace = Arc::new(WorkspaceService::new(repository, config));
 
     if let Some(task_name) = &cli.task {
         tracing::info!(task = %task_name, "running task before serve");
@@ -56,12 +56,8 @@ async fn main() -> Result<()> {
     let state = Arc::new(AppState {
         workspace: workspace.clone(),
     });
-    let plugin_run_route = format!(
-        "{}/{{name}}/run",
-        route_prefix(workspace.plugin_url_prefix())
-    );
-    let policy_root_route = route_prefix(workspace.policy_url_prefix());
-    let policy_path_route = format!("{}/{{*path}}", policy_root_route);
+    let plugin_run_route = format!("{}/{{name}}/run", workspace.plugin_url_prefix());
+    let policy_route = format!("{}/{{*path}}", workspace.policy_url_prefix());
 
     tracing::info!(
         repository = %workspace.repository_root(),
@@ -74,8 +70,7 @@ async fn main() -> Result<()> {
     let app = Router::new()
         .route("/", get(root_handler))
         .route(&plugin_run_route, post(run_plugin_handler))
-        .route(&policy_root_route, get(get_policy_root_handler))
-        .route(&policy_path_route, get(get_policy_path_handler))
+        .route(&policy_route, get(get_policy_path_handler))
         .route(
             "/{*path}",
             get(get_path_handler)
@@ -86,11 +81,14 @@ async fn main() -> Result<()> {
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(|request: &axum::http::Request<_>| {
+                    let user_identity = UserIdentity::from_headers(request.headers())
+                        .map(|value| value.as_str().to_owned())
+                        .unwrap_or_default();
                     tracing::info_span!(
                         "http_request",
                         method = %request.method(),
                         path = %request.uri().path(),
-                        user_identity = %request_user_identity(request),
+                        user_identity = %user_identity,
                     )
                 })
                 .on_request(DefaultOnRequest::new().level(Level::INFO))
@@ -127,7 +125,7 @@ fn parse_cli_options() -> Result<CliOptions> {
     }
 
     Ok(CliOptions {
-        repository_path,
+        repository_path: Utf8PathBuf::from(repository_path),
         task,
     })
 }
@@ -139,20 +137,6 @@ fn init_tracing() {
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();
-}
-
-fn route_prefix(prefix: &str) -> String {
-    format!("/{}", prefix.trim_matches('/'))
-}
-
-fn request_user_identity<B>(request: &axum::http::Request<B>) -> &str {
-    request
-        .headers()
-        .get("user-identity")
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or("")
 }
 
 async fn root_handler(
@@ -175,17 +159,11 @@ async fn run_plugin_handler(
         .map_err(workspace::WorkspaceError::internal)
 }
 
-async fn get_policy_root_handler(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<workspace::PolicyInspection>, workspace::WorkspaceError> {
-    state.workspace.inspect_policy("").await
-}
-
 async fn get_policy_path_handler(
     State(state): State<Arc<AppState>>,
     Path(path): Path<String>,
-) -> Result<Json<workspace::PolicyInspection>, workspace::WorkspaceError> {
-    state.workspace.inspect_policy(&path).await
+) -> Result<Json<PolicyInspection>, workspace::WorkspaceError> {
+    state.workspace.inspect_policy(&request_path(&path)).await
 }
 
 async fn get_path_handler(
@@ -193,7 +171,10 @@ async fn get_path_handler(
     Extension(identity): Extension<RequestIdentity>,
     Path(path): Path<String>,
 ) -> Result<Response, workspace::WorkspaceError> {
-    state.workspace.get_path(&path, &identity.user).await
+    state
+        .workspace
+        .get_path(&request_path(&path), &identity.user)
+        .await
 }
 
 async fn post_path_handler(
@@ -204,7 +185,7 @@ async fn post_path_handler(
 ) -> Result<Response, workspace::WorkspaceError> {
     state
         .workspace
-        .create_path(&path, &body, &identity.user)
+        .create_path(&request_path(&path), &body, &identity.user)
         .await
 }
 
@@ -216,7 +197,7 @@ async fn put_path_handler(
 ) -> Result<Response, workspace::WorkspaceError> {
     state
         .workspace
-        .update_file(&path, &body, &identity.user)
+        .update_file(&request_path(&path), &body, &identity.user)
         .await
 }
 
@@ -225,7 +206,14 @@ async fn delete_path_handler(
     Extension(identity): Extension<RequestIdentity>,
     Path(path): Path<String>,
 ) -> Result<Response, workspace::WorkspaceError> {
-    state.workspace.delete_path(&path, &identity.user).await
+    state
+        .workspace
+        .delete_path(&request_path(&path), &identity.user)
+        .await
+}
+
+fn request_path(path: &str) -> String {
+    format!("/{path}")
 }
 
 #[cfg(test)]
@@ -233,18 +221,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn route_prefix_normalizes_slashes() {
-        assert_eq!(route_prefix(".plugin"), "/.plugin");
-        assert_eq!(route_prefix("/.plugin/"), "/.plugin");
+    fn request_path_adds_leading_slash() {
+        assert_eq!(request_path("docs/a.md"), "/docs/a.md");
     }
 
     #[test]
-    fn request_user_identity_reads_header() {
+    fn user_identity_from_headers_reads_header() {
         let request = axum::http::Request::builder()
             .header("user-identity", "from_browser")
             .body(())
             .unwrap();
 
-        assert_eq!(request_user_identity(&request), "from_browser");
+        assert_eq!(
+            UserIdentity::from_headers(request.headers())
+                .unwrap()
+                .as_str(),
+            "from_browser"
+        );
     }
 }

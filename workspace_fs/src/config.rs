@@ -1,17 +1,16 @@
 use anyhow::{Context, Result, bail};
 use camino::Utf8Path;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::workspace::sanitize_mount_source;
+use crate::path::WorkspacePath;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct RepositoryConfig {
+    pub name: String,
     #[serde(default)]
     pub serve: ServeSettings,
     #[serde(default)]
-    pub policy: Vec<PolicyRule>,
-    #[serde(default)]
-    pub mount: Vec<MountRule>,
+    pub policy: Vec<Policy>,
     #[serde(default)]
     pub plugin: Vec<PluginConfig>,
     #[serde(default)]
@@ -43,11 +42,11 @@ fn default_port() -> u16 {
 }
 
 fn default_plugin_url_prefix() -> String {
-    ".plugin".to_owned()
+    "/.plugin".into()
 }
 
 fn default_policy_url_prefix() -> String {
-    ".policy".to_owned()
+    "/.policy".into()
 }
 
 fn default_policy_get() -> bool {
@@ -55,8 +54,15 @@ fn default_policy_get() -> bool {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct PolicyRule {
-    pub path: String,
+pub struct Policy {
+    #[serde(deserialize_with = "deserialize_workspace_path")]
+    pub path: WorkspacePath,
+    #[serde(flatten)]
+    pub permissions: PolicyPermissions,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+pub struct PolicyPermissions {
     #[serde(rename = "GET", default = "default_policy_get")]
     pub get: bool,
     #[serde(rename = "POST", default)]
@@ -67,10 +73,15 @@ pub struct PolicyRule {
     pub delete: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct MountRule {
-    pub url_prefix: String,
-    pub source: String,
+impl PolicyPermissions {
+    pub fn deny_all() -> Self {
+        Self {
+            get: false,
+            post: false,
+            put: false,
+            delete: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -79,7 +90,8 @@ pub struct PluginConfig {
     pub runner: String,
     pub command: Vec<String>,
     pub trigger: String,
-    pub path: Option<String>,
+    // URL prefix なので、 `WorkspacePath` ではなく文字列で受け取る。検証は後で行う。
+    pub mount: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -103,42 +115,31 @@ impl RepositoryConfig {
     }
 
     fn validate(&self, repository_root: &Utf8Path) -> Result<()> {
-        if self.serve.plugin_url_prefix.trim_matches('/').is_empty() {
-            bail!("serve.plugin_url_prefix must not be empty");
+        if self.name.is_empty() {
+            bail!("name must not be empty");
         }
-        if self.serve.policy_url_prefix.trim_matches('/').is_empty() {
-            bail!("serve.policy_url_prefix must not be empty");
-        }
-        if self.serve.plugin_url_prefix.trim_matches('/')
-            == self.serve.policy_url_prefix.trim_matches('/')
+        if !self.serve.plugin_url_prefix.starts_with('/')
+            || self.serve.plugin_url_prefix.trim_matches('/').is_empty()
+            || self.serve.plugin_url_prefix.ends_with('/')
         {
+            bail!("serve.plugin_url_prefix must start with /, must not be empty, and must not end with /");
+        }
+        if !self.serve.policy_url_prefix.starts_with('/')
+            || self.serve.policy_url_prefix.trim_matches('/').is_empty()
+            || self.serve.policy_url_prefix.ends_with('/')
+        {
+            bail!("serve.policy_url_prefix must start with /, must not be empty, and must not end with /");
+        }
+        if self.serve.plugin_url_prefix == self.serve.policy_url_prefix {
             bail!("serve.plugin_url_prefix and serve.policy_url_prefix must be different");
         }
 
         for policy in &self.policy {
-            if policy.path.starts_with(".repo/")
-                || policy.path == ".repo/"
-                || policy.path == ".repo"
-            {
+            if contains_glob_metachar(policy.path.as_str()) {
+                bail!("policy path must not use glob syntax");
+            }
+            if policy.path.is_reserved() {
                 bail!("policy path must not target .repo/");
-            }
-        }
-
-        for mount in &self.mount {
-            if !mount.url_prefix.starts_with('/') || !mount.url_prefix.ends_with('/') {
-                bail!("mount url_prefix must start and end with /");
-            }
-            sanitize_mount_source(&mount.source)?;
-
-            let relative = Utf8Path::new(mount.url_prefix.trim_matches('/'));
-            if !relative.as_str().is_empty() {
-                let target = repository_root.join(relative);
-                if target.is_dir() {
-                    bail!(
-                        "mount url_prefix conflicts with repository directory: {}",
-                        mount.url_prefix
-                    );
-                }
             }
         }
 
@@ -151,6 +152,38 @@ impl RepositoryConfig {
             }
             if plugin.command.is_empty() {
                 bail!("plugin command must not be empty");
+            }
+            if plugin.trigger != "manual" {
+                glob::Pattern::new(&plugin.name)
+                    .with_context(|| format!("invalid plugin path pattern: {}", plugin.name))?;
+            }
+            if let Some(mount) = &plugin.mount {
+                if !mount.starts_with('/') || !mount.ends_with('/') {
+                    bail!("plugin mount must start and end with /");
+                }
+
+                let relative = WorkspacePath::from_path_str(mount.trim_matches('/'))
+                    .expect("validated mount path should parse");
+                if relative.as_str() != "." {
+                    let target = relative.join_to(repository_root);
+                    if target.is_dir() {
+                        bail!(
+                            "plugin mount conflicts with repository directory: {}",
+                            mount
+                        );
+                    }
+                }
+
+                if self
+                    .plugin
+                    .iter()
+                    .filter_map(|candidate| candidate.mount.as_ref())
+                    .filter(|candidate| *candidate == mount)
+                    .count()
+                    > 1
+                {
+                    bail!("duplicate plugin mount: {}", mount);
+                }
             }
         }
 
@@ -166,29 +199,42 @@ impl RepositoryConfig {
     }
 }
 
+fn deserialize_workspace_path<'de, D>(deserializer: D) -> std::result::Result<WorkspacePath, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    WorkspacePath::from_path_str(&value).map_err(serde::de::Error::custom)
+}
+
+fn contains_glob_metachar(value: &str) -> bool {
+    value.contains('*') || value.contains('?') || value.contains('[')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn policy_rule_defaults_get_only() {
-        let rule: PolicyRule = toml::from_str(
+        let rule: Policy = toml::from_str(
             r#"
-path = "docs/**"
+path = "docs/"
 "#,
         )
         .unwrap();
 
-        assert_eq!(rule.path, "docs/**");
-        assert!(rule.get);
-        assert!(!rule.post);
-        assert!(!rule.put);
-        assert!(!rule.delete);
+        assert_eq!(rule.path.as_str(), "docs");
+        assert!(rule.path.is_directory());
+        assert!(rule.permissions.get);
+        assert!(!rule.permissions.post);
+        assert!(!rule.permissions.put);
+        assert!(!rule.permissions.delete);
     }
 
     #[test]
     fn policy_rule_requires_path() {
-        let error = toml::from_str::<PolicyRule>(
+        let error = toml::from_str::<Policy>(
             r#"
 GET = true
 "#,
@@ -203,7 +249,96 @@ GET = true
         let settings: ServeSettings = toml::from_str("").unwrap();
 
         assert_eq!(settings.port, 3000);
-        assert_eq!(settings.plugin_url_prefix, ".plugin");
-        assert_eq!(settings.policy_url_prefix, ".policy");
+        assert_eq!(settings.plugin_url_prefix, "/.plugin");
+        assert_eq!(settings.policy_url_prefix, "/.policy");
+    }
+
+    #[test]
+    fn repository_config_rejects_prefix_without_leading_slash() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings {
+                port: 3000,
+                plugin_url_prefix: ".plugin".into(),
+                policy_url_prefix: "/.policy".into(),
+            },
+            policy: Vec::new(),
+            plugin: Vec::new(),
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("serve.plugin_url_prefix must start with /")
+        );
+    }
+
+    #[test]
+    fn repository_config_rejects_prefix_with_trailing_slash() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings {
+                port: 3000,
+                plugin_url_prefix: "/.plugin/".into(),
+                policy_url_prefix: "/.policy/".into(),
+            },
+            policy: Vec::new(),
+            plugin: Vec::new(),
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("serve.plugin_url_prefix must start with /, must not be empty, and must not end with /")
+        );
+    }
+
+    #[test]
+    fn repository_config_requires_name() {
+        let error = toml::from_str::<RepositoryConfig>("").unwrap_err();
+
+        assert!(error.to_string().contains("missing field `name`"));
+    }
+
+    #[test]
+    fn repository_config_rejects_policy_path_with_leading_slash() {
+        let error = toml::from_str::<Policy>(
+            r#"
+path = "/viewer/"
+GET = true
+"#,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("absolute paths are not allowed"));
+    }
+
+    #[test]
+    fn repository_config_rejects_policy_path_with_glob_syntax() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: vec![Policy {
+                path: WorkspacePath::from_path_str("viewer/**").unwrap(),
+                permissions: PolicyPermissions {
+                    get: true,
+                    post: false,
+                    put: false,
+                    delete: false,
+                },
+            }],
+            plugin: Vec::new(),
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(error.to_string().contains("policy path must not use glob syntax"));
     }
 }

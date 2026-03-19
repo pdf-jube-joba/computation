@@ -1,22 +1,18 @@
-[[mount]]
-url_prefix = "/wasm_bundle/"
-source = ".repo/generated/build-wasm/"
-
-[[mount]]
-url_prefix = "/md-preview-assets/"
-source = ".repo/generated/build-md-preview/"
+name = "computation"
 
 [[plugin]]
 name = "build-wasm"
 runner = "command"
 command = ["node", "./plugin/mount_model/build.mjs", "--clean"]
 trigger = "manual"
+mount = "/wasm_bundle/"
 
 [[plugin]]
 name = "build-md-preview"
 runner = "command"
 command = ["node", "./plugin/md_preview/build.mjs", "--out-dir", "{OUTPUT_DIRECTORY}"]
 trigger = "manual"
+mount = "/md-preview-assets/"
 
 [[task]]
 name = "build-wasm"
@@ -31,41 +27,44 @@ name = "build-all"
 steps = ["build-wasm", "build-md-preview"]
 
 [[policy]]
-path = "docs/**"
+path = "docs/"
 GET = true
 POST = true
 PUT = true
 DELETE = true
 
 [[policy]]
-path = "viewer/**"
+path = "viewer/"
 GET = true
 
 [[policy]]
-path = "cli/**"
+path = "cli/"
 GET = true
 
 [[policy]]
-path = "models/**"
-GET = true
-
-[[policy]]
-path = "utils/**"
-GET = true
-
-[[policy]]
-path = "workspace_fs/**"
-GET = true
-
-[[policy]]
-path = "**/*.md"
+path = "models/"
 GET = true
 POST = false
 PUT = true
 DELETE = false
 
 [[policy]]
-path = "*.md"
+path = "utils/"
+GET = true
+
+[[policy]]
+path = "workspace_fs/"
+GET = true
+
+[[policy]]
+path = "README.md"
+GET = true
+POST = false
+PUT = true
+DELETE = false
+
+[[policy]]
+path = "test.md"
 GET = true
 POST = false
 PUT = true

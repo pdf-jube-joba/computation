@@ -1,32 +1,36 @@
-use std::path::PathBuf;
-
 use anyhow::{Context, Result, anyhow, bail};
 use async_trait::async_trait;
 use camino::{Utf8Path, Utf8PathBuf};
 use tokio::fs;
 
+use crate::{config::RepositoryConfig, path::WorkspacePath};
+
 // .repo 以外を書き換えるインターフェースの提供
 #[async_trait]
 pub trait Repository: Send + Sync {
-    fn repository_root(&self) -> &Utf8Path;
-    async fn list_directory(&self, path: &str) -> Result<Vec<String>>;
-    async fn create_directory(&self, path: &str) -> Result<()>;
-    async fn delete_directory(&self, path: &str) -> Result<()>;
-    async fn read_file(&self, path: &str) -> Result<Vec<u8>>;
-    async fn create_text_file(&self, path: &str, content: &str) -> Result<()>;
-    async fn write_text_file(&self, path: &str, content: &str) -> Result<()>;
-    async fn delete_file(&self, path: &str) -> Result<()>;
+    async fn list_directory(&self, path: &WorkspacePath) -> Result<Vec<String>>;
+    async fn create_directory(&self, path: &WorkspacePath) -> Result<()>;
+    async fn delete_directory(&self, path: &WorkspacePath) -> Result<()>;
+    async fn read_file(&self, path: &WorkspacePath) -> Result<Vec<u8>>;
+    async fn create_text_file(&self, path: &WorkspacePath, content: &str) -> Result<()>;
+    async fn write_text_file(&self, path: &WorkspacePath, content: &str) -> Result<()>;
+    async fn delete_file(&self, path: &WorkspacePath) -> Result<()>;
 }
 
 pub struct FsRepository {
     repository_root: Utf8PathBuf,
+    mounts: Vec<MountedDirectory>,
+}
+
+struct MountedDirectory {
+    alias: WorkspacePath,
+    source: WorkspacePath,
 }
 
 impl FsRepository {
-    pub fn open(argument: String) -> Result<Self> {
-        let path = PathBuf::from(argument);
-        let canonical = std::fs::canonicalize(&path)
-            .with_context(|| format!("failed to resolve repository path: {}", path.display()))?;
+    pub fn open(path: &Utf8Path, config: &RepositoryConfig) -> Result<Self> {
+        let canonical = std::fs::canonicalize(path)
+            .with_context(|| format!("failed to resolve repository path: {}", path))?;
         let repository_root = Utf8PathBuf::from_path_buf(canonical)
             .map_err(|_| anyhow!("repository path must be UTF-8"))?;
 
@@ -34,21 +38,37 @@ impl FsRepository {
             bail!("repository path must be a directory");
         }
 
-        Ok(Self { repository_root })
+        Ok(Self {
+            repository_root,
+            mounts: Self::mounts_from_config(config),
+        })
     }
 
-    fn resolve_repository_path(&self, requested_path: &str) -> Result<Utf8PathBuf> {
-        Ok(self.repository_root.join(requested_path.trim()))
+    pub fn repository_root(&self) -> &Utf8Path {
+        &self.repository_root
     }
 
-    fn resolve_directory_path(&self, requested_path: &str) -> Result<Utf8PathBuf> {
-        if requested_path.is_empty() {
-            return Ok(self.repository_root.clone());
+    fn mounts_from_config(config: &RepositoryConfig) -> Vec<MountedDirectory> {
+        config
+            .plugin
+            .iter()
+            .filter_map(|plugin| {
+                plugin.mount.as_ref().map(|mount| MountedDirectory {
+                    alias: WorkspacePath::from_path_str(mount.trim_matches('/'))
+                        .expect("validated mount alias should parse"),
+                    source: WorkspacePath::from_path_str(&format!(".repo/{}/generated", plugin.name))
+                        .expect("generated plugin path should parse"),
+                })
+            })
+            .collect()
+    }
+
+    fn resolve_path(&self, requested_path: &WorkspacePath) -> Result<Utf8PathBuf> {
+        if let Some(resolved) = self.resolve_mounted_path(requested_path) {
+            return Ok(resolved);
         }
-
-        Ok(self
-            .repository_root
-            .join(requested_path.trim().trim_end_matches('/')))
+        self.ensure_not_reserved_path(requested_path)?;
+        Ok(requested_path.join_to(&self.repository_root))
     }
 
     fn ensure_parent_directory_exists(&self, path: &Utf8Path) -> Result<()> {
@@ -66,26 +86,33 @@ impl FsRepository {
 
         Ok(())
     }
-}
 
-#[async_trait]
-impl Repository for FsRepository {
-    fn repository_root(&self) -> &Utf8Path {
-        &self.repository_root
+    fn resolve_mounted_path(&self, requested_path: &WorkspacePath) -> Option<Utf8PathBuf> {
+        let mount = self
+            .mounts
+            .iter()
+            .find(|mount| requested_path.starts_with(&mount.alias))?;
+        let relative = requested_path.strip_prefix(&mount.alias)?;
+        let mut resolved = mount.source.join_to(&self.repository_root);
+        if !relative.is_empty() {
+            resolved.push(relative);
+        }
+        Some(resolved)
     }
 
-    async fn list_directory(&self, path: &str) -> Result<Vec<String>> {
-        let directory = self.resolve_directory_path(path)?;
-        if !directory.is_dir() {
-            bail!("not a directory");
+    fn ensure_not_reserved_path(&self, requested_path: &WorkspacePath) -> Result<()> {
+        if requested_path.is_reserved() {
+            bail!("reserved path");
         }
+        Ok(())
+    }
 
+    fn read_directory_entries(&self, directory: &Utf8Path) -> Result<Vec<String>> {
         let mut entries = Vec::new();
         for dir_entry in std::fs::read_dir(directory.as_std_path())? {
             let dir_entry = dir_entry?;
             let path = dir_entry.path();
             let utf8 = Utf8PathBuf::from_path_buf(path).map_err(|_| anyhow!("non-UTF-8 path"))?;
-            utf8.strip_prefix(&self.repository_root)?;
 
             let mut entry = utf8
                 .file_name()
@@ -102,9 +129,21 @@ impl Repository for FsRepository {
         entries.sort();
         Ok(entries)
     }
+}
 
-    async fn create_directory(&self, path: &str) -> Result<()> {
-        let resolved = self.resolve_directory_path(path)?;
+#[async_trait]
+impl Repository for FsRepository {
+    async fn list_directory(&self, path: &WorkspacePath) -> Result<Vec<String>> {
+        let directory = self.resolve_path(path)?;
+        if !directory.is_dir() {
+            bail!("not a directory");
+        }
+
+        self.read_directory_entries(&directory)
+    }
+
+    async fn create_directory(&self, path: &WorkspacePath) -> Result<()> {
+        let resolved = self.resolve_path(path)?;
 
         if resolved.exists() {
             bail!("directory already exists");
@@ -118,8 +157,8 @@ impl Repository for FsRepository {
         Ok(())
     }
 
-    async fn delete_directory(&self, path: &str) -> Result<()> {
-        let resolved = self.resolve_directory_path(path)?;
+    async fn delete_directory(&self, path: &WorkspacePath) -> Result<()> {
+        let resolved = self.resolve_path(path)?;
 
         if !resolved.exists() {
             bail!("directory not found");
@@ -139,16 +178,15 @@ impl Repository for FsRepository {
         Ok(())
     }
 
-    async fn read_file(&self, path: &str) -> Result<Vec<u8>> {
-        let resolved = self.resolve_repository_path(path)?;
-        let content = fs::read(resolved.as_std_path())
+    async fn read_file(&self, path: &WorkspacePath) -> Result<Vec<u8>> {
+        let resolved = self.resolve_path(path)?;
+        fs::read(resolved.as_std_path())
             .await
-            .context("failed to read file")?;
-        Ok(content)
+            .context("failed to read file")
     }
 
-    async fn create_text_file(&self, path: &str, content: &str) -> Result<()> {
-        let resolved = self.resolve_repository_path(path)?;
+    async fn create_text_file(&self, path: &WorkspacePath, content: &str) -> Result<()> {
+        let resolved = self.resolve_path(path)?;
 
         if resolved.exists() {
             bail!("file already exists");
@@ -162,8 +200,8 @@ impl Repository for FsRepository {
         Ok(())
     }
 
-    async fn write_text_file(&self, path: &str, content: &str) -> Result<()> {
-        let resolved = self.resolve_repository_path(path)?;
+    async fn write_text_file(&self, path: &WorkspacePath, content: &str) -> Result<()> {
+        let resolved = self.resolve_path(path)?;
 
         if !resolved.exists() {
             bail!("file not found");
@@ -179,8 +217,8 @@ impl Repository for FsRepository {
         Ok(())
     }
 
-    async fn delete_file(&self, path: &str) -> Result<()> {
-        let resolved = self.resolve_repository_path(path)?;
+    async fn delete_file(&self, path: &WorkspacePath) -> Result<()> {
+        let resolved = self.resolve_path(path)?;
 
         if !resolved.exists() {
             bail!("file not found");

@@ -1,11 +1,15 @@
 use std::process::Stdio;
 
 use anyhow::{Context, Result, bail};
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use glob::Pattern;
 use tokio::process::Command;
 
-use crate::config::{PluginConfig, RepositoryConfig, TaskConfig};
+use crate::{
+    config::{PluginConfig, RepositoryConfig, TaskConfig},
+    identity::UserIdentity,
+    path::WorkspacePath,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PluginTrigger {
@@ -35,19 +39,19 @@ pub struct PluginContext {
     pub plugin_name: String,
     pub output_directory: Utf8PathBuf,
     pub cache_directory: Utf8PathBuf,
-    pub path: Option<String>,
-    pub user_identity: String,
+    pub path: Option<WorkspacePath>,
+    pub user_identity: UserIdentity,
 }
 
 pub struct PluginRunner<'a> {
-    repository_root: &'a Utf8Path,
+    repository_root: &'a camino::Utf8Path,
     repository_name: &'a str,
     config: &'a RepositoryConfig,
 }
 
 impl<'a> PluginRunner<'a> {
     pub fn new(
-        repository_root: &'a Utf8Path,
+        repository_root: &'a camino::Utf8Path,
         repository_name: &'a str,
         config: &'a RepositoryConfig,
     ) -> Self {
@@ -69,14 +73,18 @@ impl<'a> PluginRunner<'a> {
                 .config
                 .find_plugin(step)
                 .with_context(|| format!("plugin not found for task step: {step}"))?;
-            self.run_plugin(plugin, PluginTrigger::Manual, None, "")
+            self.run_plugin(plugin, PluginTrigger::Manual, None, &UserIdentity::new(""))
                 .await?;
         }
 
         Ok(())
     }
 
-    pub async fn run_manual_plugin(&self, plugin_name: &str, user_identity: &str) -> Result<()> {
+    pub async fn run_manual_plugin(
+        &self,
+        plugin_name: &str,
+        user_identity: &UserIdentity,
+    ) -> Result<()> {
         let plugin = self
             .config
             .find_plugin(plugin_name)
@@ -93,20 +101,17 @@ impl<'a> PluginRunner<'a> {
     pub async fn run_hook_if_matched(
         &self,
         trigger: PluginTrigger,
-        path: &str,
-        user_identity: &str,
+        path: &WorkspacePath,
+        user_identity: &UserIdentity,
     ) -> Result<()> {
         for plugin in &self.config.plugin {
             if parse_trigger(&plugin.trigger)? != trigger {
                 continue;
             }
 
-            let Some(pattern) = &plugin.path else {
-                continue;
-            };
-            if !Pattern::new(pattern)
-                .with_context(|| format!("invalid plugin path pattern: {pattern}"))?
-                .matches(path)
+            if !Pattern::new(&plugin.name)
+                .with_context(|| format!("invalid plugin path pattern: {}", plugin.name))?
+                .matches(path.as_str())
             {
                 continue;
             }
@@ -122,9 +127,10 @@ impl<'a> PluginRunner<'a> {
         &self,
         plugin: &PluginConfig,
         trigger: PluginTrigger,
-        path: Option<&str>,
-        user_identity: &str,
+        path: Option<&WorkspacePath>,
+        user_identity: &UserIdentity,
     ) -> Result<()> {
+        let path_str = path.map(WorkspacePath::as_str);
         let context = PluginContext {
             repository_root: self.repository_root.to_owned(),
             repository_name: self.repository_name.to_owned(),
@@ -132,15 +138,15 @@ impl<'a> PluginRunner<'a> {
             output_directory: self
                 .repository_root
                 .join(".repo")
-                .join("generated")
-                .join(&plugin.name),
+                .join(&plugin.name)
+                .join("generated"),
             cache_directory: self
                 .repository_root
                 .join(".repo")
-                .join("cache")
-                .join(&plugin.name),
-            path: path.map(ToOwned::to_owned),
-            user_identity: user_identity.to_owned(),
+                .join(&plugin.name)
+                .join("cache"),
+            path: path.cloned(),
+            user_identity: user_identity.clone(),
         };
 
         tokio::fs::create_dir_all(context.output_directory.as_std_path())
@@ -150,20 +156,21 @@ impl<'a> PluginRunner<'a> {
             .await
             .context("failed to create plugin cache directory")?;
 
-        let program = expand_placeholder(&plugin.command[0], &context)?;
+        let program = expand_placeholder(&plugin.command[0], &context, trigger)?;
         let args = plugin.command[1..]
             .iter()
-            .map(|arg| expand_placeholder(arg, &context))
+            .map(|arg| expand_placeholder(arg, &context, trigger))
             .collect::<Result<Vec<_>>>()?;
 
         tracing::info!(
             plugin = %plugin.name,
             trigger = %trigger.as_str(),
-            path = %path.unwrap_or(""),
+            path = %path_str.unwrap_or(""),
             "running plugin"
         );
 
-        let status = Command::new(&program)
+        let mut command = Command::new(&program);
+        command
             .args(&args)
             .current_dir(context.repository_root.as_std_path())
             .env(
@@ -181,11 +188,15 @@ impl<'a> PluginRunner<'a> {
                 context.cache_directory.as_str(),
             )
             .env("WORKSPACE_FS_TRIGGER", trigger.as_str())
-            .env("WORKSPACE_FS_PATH", context.path.as_deref().unwrap_or(""))
-            .env("WORKSPACE_FS_USER_IDENTITY", &context.user_identity)
+            .env("WORKSPACE_FS_USER_IDENTITY", context.user_identity.as_str())
             .stdin(Stdio::null())
             .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::inherit());
+        if let Some(path) = path_str {
+            command.env("WORKSPACE_FS_PATH", path);
+        }
+
+        let status = command
             .status()
             .await
             .with_context(|| format!("failed to run plugin: {}", plugin.name))?;
@@ -209,25 +220,32 @@ fn parse_trigger(trigger: &str) -> Result<PluginTrigger> {
     }
 }
 
-fn expand_placeholder(input: &str, context: &PluginContext) -> Result<String> {
+fn expand_placeholder(
+    input: &str,
+    context: &PluginContext,
+    trigger: PluginTrigger,
+) -> Result<String> {
     let mut value = input.to_owned();
+    if context.path.is_none() && contains_path_placeholder(input) {
+        bail!("path placeholder requires request path: {input}");
+    }
+
     let replacements = [
+        ("{REPOSITORY_ROOT}", context.repository_root.as_str()),
         ("{REPOSITORY_NAME}", context.repository_name.as_str()),
         ("{PLUGIN_NAME}", context.plugin_name.as_str()),
         ("{OUTPOST_DIRECTORY}", context.output_directory.as_str()),
         ("{OUTPUT_DIRECTORY}", context.output_directory.as_str()),
-        ("{GET.PATH}", context.path.as_deref().unwrap_or("")),
-        ("{GET.USER-IDENTITY}", context.user_identity.as_str()),
-        ("{POST.PATH}", context.path.as_deref().unwrap_or("")),
-        ("{POST.USER-IDENTITY}", context.user_identity.as_str()),
-        ("{PUT.PATH}", context.path.as_deref().unwrap_or("")),
-        ("{PUT.USER-IDENTITY}", context.user_identity.as_str()),
-        ("{DELETE.PATH}", context.path.as_deref().unwrap_or("")),
-        ("{DELETE.USER-IDENTITY}", context.user_identity.as_str()),
     ];
 
     for (from, to) in replacements {
         value = value.replace(from, to);
+    }
+
+    if let Some((path_placeholder, user_placeholder)) = request_placeholders(trigger) {
+        let path = context.path.as_ref().map(WorkspacePath::as_str).unwrap_or("");
+        value = value.replace(path_placeholder, path);
+        value = value.replace(user_placeholder, context.user_identity.as_str());
     }
 
     if value.contains('{') || value.contains('}') {
@@ -237,5 +255,74 @@ fn expand_placeholder(input: &str, context: &PluginContext) -> Result<String> {
     Ok(value)
 }
 
+fn contains_path_placeholder(input: &str) -> bool {
+    ["{GET.PATH}", "{POST.PATH}", "{PUT.PATH}", "{DELETE.PATH}"]
+        .into_iter()
+        .any(|placeholder| input.contains(placeholder))
+}
+
+fn request_placeholders(trigger: PluginTrigger) -> Option<(&'static str, &'static str)> {
+    match trigger {
+        PluginTrigger::Get => Some(("{GET.PATH}", "{GET.USER-IDENTITY}")),
+        PluginTrigger::Post => Some(("{POST.PATH}", "{POST.USER-IDENTITY}")),
+        PluginTrigger::Put => Some(("{PUT.PATH}", "{PUT.USER-IDENTITY}")),
+        PluginTrigger::Delete => Some(("{DELETE.PATH}", "{DELETE.USER-IDENTITY}")),
+        PluginTrigger::Manual => None,
+    }
+}
+
 #[allow(dead_code)]
 fn _task_reference(_task: &TaskConfig) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn plugin_context(path: Option<&str>) -> PluginContext {
+        PluginContext {
+            repository_root: Utf8PathBuf::from("/repo"),
+            repository_name: "repo".into(),
+            plugin_name: "plugin".into(),
+            output_directory: Utf8PathBuf::from("/repo/.repo/plugin/generated"),
+            cache_directory: Utf8PathBuf::from("/repo/.repo/plugin/cache"),
+            path: path.map(|value| WorkspacePath::from_url(&format!("/{value}")).unwrap()),
+            user_identity: UserIdentity::new("user"),
+        }
+    }
+
+    #[test]
+    fn expand_placeholder_rejects_path_placeholder_without_path() {
+        let error = expand_placeholder("{GET.PATH}", &plugin_context(None), PluginTrigger::Manual)
+            .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("path placeholder requires request path")
+        );
+    }
+
+    #[test]
+    fn expand_placeholder_replaces_trigger_specific_values() {
+        let value = expand_placeholder(
+            "{REPOSITORY_ROOT}:{POST.PATH}:{POST.USER-IDENTITY}",
+            &plugin_context(Some("docs/a.md")),
+            PluginTrigger::Post,
+        )
+        .unwrap();
+
+        assert_eq!(value, "/repo:docs/a.md:user");
+    }
+
+    #[test]
+    fn expand_placeholder_rejects_mismatched_trigger_placeholder() {
+        let error = expand_placeholder(
+            "{GET.USER-IDENTITY}",
+            &plugin_context(Some("docs/a.md")),
+            PluginTrigger::Manual,
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("unknown placeholder"));
+    }
+}

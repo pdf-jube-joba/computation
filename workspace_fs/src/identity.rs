@@ -1,7 +1,7 @@
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::{Method, StatusCode},
+    http::{HeaderMap, Method, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -10,9 +10,40 @@ use axum::{
 pub struct IdentityConfig;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
+pub struct UserIdentity(String);
+
+#[derive(Debug, Clone)]
 pub struct RequestIdentity {
-    pub user: String,
+    pub user: UserIdentity,
+}
+
+impl UserIdentity {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn from_headers(headers: &HeaderMap) -> Option<Self> {
+        headers
+            .get("user-identity")
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(Self::new)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl std::fmt::Display for UserIdentity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 impl IdentityConfig {
@@ -27,16 +58,11 @@ pub async fn capture_identity(
     next: Next,
 ) -> Response {
     let method = request.method().clone();
-    let user = request
-        .headers()
-        .get("user-identity")
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .map(ToOwned::to_owned);
+    let user = UserIdentity::from_headers(request.headers());
 
     let Some(user) = user.filter(|value| !value.is_empty()).or_else(|| {
         if method == Method::GET {
-            Some(String::new())
+            Some(UserIdentity::new(""))
         } else {
             None
         }
@@ -65,7 +91,7 @@ mod tests {
     async fn identity_handler(
         Extension(identity): Extension<RequestIdentity>,
     ) -> impl IntoResponse {
-        identity.user
+        identity.user.as_str().to_owned()
     }
 
     fn app() -> Router {

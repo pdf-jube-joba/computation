@@ -1,21 +1,21 @@
-use std::path::{Component, Path};
 use std::sync::Arc;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::Result;
 use axum::Json;
 use axum::body::Body;
 use axum::{
     http::{StatusCode, header},
     response::{IntoResponse, Response},
 };
-use camino::{Utf8Path, Utf8PathBuf};
 use mime_guess::MimeGuess;
-use serde::Serialize;
 
 use crate::{
     config::RepositoryConfig,
+    identity::UserIdentity,
+    path::WorkspacePath,
     plugin::{PluginRunner, PluginTrigger},
-    repository::Repository,
+    policy::{MethodKind, PolicyInspection, inspect_policy_rules, resolve_policy},
+    repository::{FsRepository, Repository},
 };
 
 #[derive(Debug)]
@@ -24,59 +24,9 @@ pub struct WorkspaceError {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum MethodKind {
-    Get,
-    Post,
-    Put,
-    Delete,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct PolicyPermissions {
-    #[serde(rename = "GET")]
-    pub get: bool,
-    #[serde(rename = "POST")]
-    pub post: bool,
-    #[serde(rename = "PUT")]
-    pub put: bool,
-    #[serde(rename = "DELETE")]
-    pub delete: bool,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PolicySpecificity {
-    pub depth: usize,
-    pub chars: usize,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct PolicyMatchInfo {
-    pub index: usize,
-    pub pattern: String,
-    pub specificity: PolicySpecificity,
-    pub permissions: PolicyPermissions,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct SelectedPolicyInfo {
-    pub index: usize,
-    pub pattern: String,
-    pub reason: String,
-}
-
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-pub struct PolicyInspection {
-    pub path: String,
-    pub matches: Vec<PolicyMatchInfo>,
-    pub selected: Option<SelectedPolicyInfo>,
-    pub effective: PolicyPermissions,
-}
-
 pub struct WorkspaceService {
-    repository: Arc<dyn Repository>,
+    repository: Arc<FsRepository>,
     config: Arc<RepositoryConfig>,
-    repository_name: String,
 }
 
 impl WorkspaceError {
@@ -131,23 +81,15 @@ impl IntoResponse for WorkspaceError {
 }
 
 impl WorkspaceService {
-    pub fn new(
-        repository: Arc<dyn Repository>,
-        config: Arc<RepositoryConfig>,
-        repository_name: String,
-    ) -> Self {
-        Self {
-            repository,
-            config,
-            repository_name,
-        }
+    pub fn new(repository: Arc<FsRepository>, config: Arc<RepositoryConfig>) -> Self {
+        Self { repository, config }
     }
 
     pub fn serve_port(&self) -> u16 {
         self.config.serve.port
     }
 
-    pub fn repository_root(&self) -> &Utf8Path {
+    pub fn repository_root(&self) -> &camino::Utf8Path {
         self.repository.repository_root()
     }
 
@@ -155,7 +97,11 @@ impl WorkspaceService {
         self.plugin_runner().run_task(task_name).await
     }
 
-    pub async fn run_manual_plugin(&self, plugin_name: &str, user_identity: &str) -> Result<()> {
+    pub async fn run_manual_plugin(
+        &self,
+        plugin_name: &str,
+        user_identity: &UserIdentity,
+    ) -> Result<()> {
         self.plugin_runner()
             .run_manual_plugin(plugin_name, user_identity)
             .await
@@ -169,24 +115,19 @@ impl WorkspaceService {
         &self.config.serve.policy_url_prefix
     }
 
-    pub async fn get_root(&self, user_identity: &str) -> Result<Response, WorkspaceError> {
-        self.enforce_policy(MethodKind::Get, "")?;
-        self.directory_response("", user_identity).await
+    pub async fn get_root(&self, user_identity: &UserIdentity) -> Result<Response, WorkspaceError> {
+        self.get_path("/", user_identity).await
     }
 
     pub async fn get_path(
         &self,
-        path: &str,
-        user_identity: &str,
+        url_path: &str,
+        user_identity: &UserIdentity,
     ) -> Result<Response, WorkspaceError> {
-        if let Some(response) = self.mounted_get_response(path, user_identity).await? {
-            return Ok(response);
-        }
-
-        let path = self.normalize_request_path(path, path.ends_with('/'))?;
+        let path = self.normalize_request_path(url_path)?;
         self.enforce_policy(MethodKind::Get, &path)?;
 
-        if path.ends_with('/') {
+        if path.is_directory() {
             return self.directory_response(&path, user_identity).await;
         }
 
@@ -200,7 +141,7 @@ impl WorkspaceService {
             Ok(content) => content,
             Err(error) => {
                 let mapped = self.map_read_error(error);
-                tracing::warn!(user = %user_identity, path = %path, status = %mapped.status, error = %mapped.message, "read failed");
+                tracing::warn!(user = %user_identity, path = %path.as_str(), status = %mapped.status, error = %mapped.message, "read failed");
                 return Err(mapped);
             }
         };
@@ -216,28 +157,32 @@ impl WorkspaceService {
 
     pub async fn create_path(
         &self,
-        path: &str,
+        url_path: &str,
         body: &str,
-        user_identity: &str,
+        user_identity: &UserIdentity,
     ) -> Result<Response, WorkspaceError> {
-        let path = self.normalize_request_path(path, path.ends_with('/'))?;
+        let path = self.normalize_request_path(url_path)?;
         self.enforce_policy(MethodKind::Post, &path)?;
 
-        if path.ends_with('/') {
+        if path.is_directory() {
             match self.repository.create_directory(&path).await {
-                Ok(()) => tracing::info!(user = %user_identity, path = %path, "directory created"),
+                Ok(()) => {
+                    tracing::info!(user = %user_identity, path = %path.as_str(), "directory created")
+                }
                 Err(error) => {
                     let mapped = self.map_create_directory_error(error);
-                    tracing::warn!(user = %user_identity, path = %path, status = %mapped.status, error = %mapped.message, "directory create failed");
+                    tracing::warn!(user = %user_identity, path = %path.as_str(), status = %mapped.status, error = %mapped.message, "directory create failed");
                     return Err(mapped);
                 }
             }
         } else {
             match self.repository.create_text_file(&path, body).await {
-                Ok(()) => tracing::info!(user = %user_identity, path = %path, "file created"),
+                Ok(()) => {
+                    tracing::info!(user = %user_identity, path = %path.as_str(), "file created")
+                }
                 Err(error) => {
                     let mapped = self.map_create_error(error);
-                    tracing::warn!(user = %user_identity, path = %path, status = %mapped.status, error = %mapped.message, "file create failed");
+                    tracing::warn!(user = %user_identity, path = %path.as_str(), status = %mapped.status, error = %mapped.message, "file create failed");
                     return Err(mapped);
                 }
             }
@@ -250,19 +195,19 @@ impl WorkspaceService {
 
     pub async fn update_file(
         &self,
-        path: &str,
+        url_path: &str,
         body: &str,
-        user_identity: &str,
+        user_identity: &UserIdentity,
     ) -> Result<Response, WorkspaceError> {
-        let path = self.normalize_request_path(path, false)?;
+        let path = self.normalize_request_path(url_path)?;
         self.enforce_policy(MethodKind::Put, &path)?;
         reject_directory_path(&path, "cannot update a directory path with PUT")?;
 
         match self.repository.write_text_file(&path, body).await {
-            Ok(()) => tracing::info!(user = %user_identity, path = %path, "file updated"),
+            Ok(()) => tracing::info!(user = %user_identity, path = %path.as_str(), "file updated"),
             Err(error) => {
                 let mapped = self.map_write_error(error);
-                tracing::warn!(user = %user_identity, path = %path, status = %mapped.status, error = %mapped.message, "file update failed");
+                tracing::warn!(user = %user_identity, path = %path.as_str(), status = %mapped.status, error = %mapped.message, "file update failed");
                 return Err(mapped);
             }
         }
@@ -274,27 +219,31 @@ impl WorkspaceService {
 
     pub async fn delete_path(
         &self,
-        path: &str,
-        user_identity: &str,
+        url_path: &str,
+        user_identity: &UserIdentity,
     ) -> Result<Response, WorkspaceError> {
-        let path = self.normalize_request_path(path, path.ends_with('/'))?;
+        let path = self.normalize_request_path(url_path)?;
         self.enforce_policy(MethodKind::Delete, &path)?;
 
-        if path.ends_with('/') {
+        if path.is_directory() {
             match self.repository.delete_directory(&path).await {
-                Ok(()) => tracing::info!(user = %user_identity, path = %path, "directory deleted"),
+                Ok(()) => {
+                    tracing::info!(user = %user_identity, path = %path.as_str(), "directory deleted")
+                }
                 Err(error) => {
                     let mapped = self.map_delete_directory_error(error);
-                    tracing::warn!(user = %user_identity, path = %path, status = %mapped.status, error = %mapped.message, "directory delete failed");
+                    tracing::warn!(user = %user_identity, path = %path.as_str(), status = %mapped.status, error = %mapped.message, "directory delete failed");
                     return Err(mapped);
                 }
             }
         } else {
             match self.repository.delete_file(&path).await {
-                Ok(()) => tracing::info!(user = %user_identity, path = %path, "file deleted"),
+                Ok(()) => {
+                    tracing::info!(user = %user_identity, path = %path.as_str(), "file deleted")
+                }
                 Err(error) => {
                     let mapped = self.map_delete_error(error);
-                    tracing::warn!(user = %user_identity, path = %path, status = %mapped.status, error = %mapped.message, "file delete failed");
+                    tracing::warn!(user = %user_identity, path = %path.as_str(), status = %mapped.status, error = %mapped.message, "file delete failed");
                     return Err(mapped);
                 }
             }
@@ -307,19 +256,18 @@ impl WorkspaceService {
 
     pub async fn inspect_policy(
         &self,
-        path: &str,
+        url_path: &str,
     ) -> Result<Json<PolicyInspection>, WorkspaceError> {
-        let path = self.normalize_request_path(path, path.ends_with('/'))?;
-        let inspection = self
-            .inspect_policy_rules(&path)
-            .map_err(WorkspaceError::internal)?;
-        Ok(Json(inspection))
+        let path = self.normalize_request_path(url_path)?;
+        self.inspect_policy_rules(&path)
+            .map(Json)
+            .map_err(WorkspaceError::internal)
     }
 
     async fn directory_response(
         &self,
-        path: &str,
-        user_identity: &str,
+        path: &WorkspacePath,
+        user_identity: &UserIdentity,
     ) -> Result<Response, WorkspaceError> {
         let entries = match self.repository.list_directory(path).await {
             Ok(entries) => entries,
@@ -335,72 +283,16 @@ impl WorkspaceService {
                 return Err(mapped);
             }
         };
-        let entries = visible_directory_entries(path, entries).map_err(WorkspaceError::internal)?;
-
         self.run_trigger(PluginTrigger::Get, path, user_identity)
             .await?;
         Ok(text_response(StatusCode::OK, entries.join("\n")))
     }
 
-    async fn mounted_get_response(
-        &self,
-        path: &str,
-        user_identity: &str,
-    ) -> Result<Option<Response>, WorkspaceError> {
-        let request_path = if path.is_empty() {
-            "/".to_owned()
-        } else {
-            format!("/{path}")
-        };
-        let Some(mount) = self
-            .config
-            .mount
-            .iter()
-            .find(|mount| request_path.starts_with(&mount.url_prefix))
-        else {
-            return Ok(None);
-        };
-
-        let relative = request_path
-            .strip_prefix(&mount.url_prefix)
-            .unwrap_or_default()
-            .trim_end_matches('/');
-        let source = sanitize_mount_source(&mount.source).map_err(WorkspaceError::internal)?;
-        let mut target = self.repository.repository_root().to_owned();
-        target.push(&source);
-        if !relative.is_empty() {
-            let relative = sanitize_relative_path(relative, false)
-                .map_err(|error| WorkspaceError::bad_request(error.to_string()))?;
-            target.push(relative);
-        }
-
-        if target.is_dir() {
-            let entries = list_internal_directory(&target).map_err(WorkspaceError::internal)?;
-            tracing::info!(user = %user_identity, path = %request_path, mount = %mount.url_prefix, "mounted directory served");
-            return Ok(Some(text_response(StatusCode::OK, entries.join("\n"))));
-        }
-
-        if target.is_file() {
-            let content = tokio::fs::read(target.as_std_path())
-                .await
-                .context("failed to read mounted file")
-                .map_err(WorkspaceError::internal)?;
-            tracing::info!(user = %user_identity, path = %request_path, mount = %mount.url_prefix, "mounted file served");
-            return Ok(Some(file_response(
-                StatusCode::OK,
-                content_type_for_path(target.as_str()),
-                content,
-            )));
-        }
-
-        Ok(None)
-    }
-
     async fn run_trigger(
         &self,
         trigger: PluginTrigger,
-        path: &str,
-        user_identity: &str,
+        path: &WorkspacePath,
+        user_identity: &UserIdentity,
     ) -> Result<(), WorkspaceError> {
         match self
             .plugin_runner()
@@ -418,24 +310,18 @@ impl WorkspaceService {
     fn plugin_runner(&self) -> PluginRunner<'_> {
         PluginRunner::new(
             self.repository.repository_root(),
-            &self.repository_name,
+            &self.config.name,
             &self.config,
         )
     }
 
-    fn normalize_request_path<'a>(
-        &self,
-        path: &'a str,
-        allow_trailing_slash: bool,
-    ) -> Result<std::borrow::Cow<'a, str>, WorkspaceError> {
-        normalize_workspace_path(path, allow_trailing_slash)
-            .map_err(|error| WorkspaceError::bad_request(error.to_string()))
+    fn normalize_request_path(&self, path: &str) -> Result<WorkspacePath, WorkspaceError> {
+        WorkspacePath::from_url(path).map_err(|error| WorkspaceError::bad_request(error.to_string()))
     }
 
-    fn enforce_policy(&self, method: MethodKind, path: &str) -> Result<(), WorkspaceError> {
-        let normalized = if path.is_empty() { "" } else { path };
+    fn enforce_policy(&self, method: MethodKind, path: &WorkspacePath) -> Result<(), WorkspaceError> {
         let allowed = self
-            .resolve_policy(method, normalized)
+            .resolve_policy(method, path)
             .map_err(WorkspaceError::internal)?
             .unwrap_or(false);
 
@@ -446,69 +332,12 @@ impl WorkspaceService {
         }
     }
 
-    fn resolve_policy(&self, method: MethodKind, path: &str) -> Result<Option<bool>> {
-        let inspection = self.inspect_policy_rules(path)?;
-        Ok(Some(match method {
-            MethodKind::Get => inspection.effective.get,
-            MethodKind::Post => inspection.effective.post,
-            MethodKind::Put => inspection.effective.put,
-            MethodKind::Delete => inspection.effective.delete,
-        })
-        .filter(|allowed| *allowed || inspection.selected.is_some()))
+    fn resolve_policy(&self, method: MethodKind, path: &WorkspacePath) -> Result<Option<bool>> {
+        resolve_policy(method, &self.config.policy, path)
     }
 
-    fn inspect_policy_rules(&self, path: &str) -> Result<PolicyInspection> {
-        let mut matches = Vec::new();
-        let mut selected: Option<(PolicyMatchInfo, String)> = None;
-
-        for (index, rule) in self.config.policy.iter().enumerate() {
-            if !glob::Pattern::new(&rule.path)?.matches(path) {
-                continue;
-            }
-
-            let candidate = PolicyMatchInfo {
-                index,
-                pattern: rule.path.clone(),
-                specificity: policy_specificity(&rule.path),
-                permissions: PolicyPermissions::from_rule(rule),
-            };
-
-            match selected {
-                Some((ref best, _))
-                    if best.specificity > candidate.specificity
-                        || (best.specificity == candidate.specificity
-                            && best.index > candidate.index) => {}
-                Some((ref best, _)) if best.specificity == candidate.specificity => {
-                    selected = Some((candidate.clone(), "later_rule".to_owned()));
-                }
-                Some((ref best, _)) if best.specificity < candidate.specificity => {
-                    selected = Some((candidate.clone(), "more_specific".to_owned()));
-                }
-                None => {
-                    selected = Some((candidate.clone(), "first_match".to_owned()));
-                }
-                _ => {}
-            }
-
-            matches.push(candidate);
-        }
-
-        let effective = selected
-            .as_ref()
-            .map(|(selected, _)| selected.permissions.clone())
-            .unwrap_or_else(PolicyPermissions::deny_all);
-        let selected = selected.map(|(selected, reason)| SelectedPolicyInfo {
-            index: selected.index,
-            pattern: selected.pattern,
-            reason,
-        });
-
-        Ok(PolicyInspection {
-            path: path.to_owned(),
-            matches,
-            selected,
-            effective,
-        })
+    fn inspect_policy_rules(&self, path: &WorkspacePath) -> Result<PolicyInspection> {
+        inspect_policy_rules(&self.config.policy, path)
     }
 
     fn map_create_error(&self, error: anyhow::Error) -> WorkspaceError {
@@ -587,127 +416,11 @@ impl WorkspaceService {
     }
 }
 
-fn list_internal_directory(path: &Utf8Path) -> Result<Vec<String>> {
-    let mut entries = Vec::new();
-    for entry in std::fs::read_dir(path.as_std_path())? {
-        let entry = entry?;
-        let path =
-            Utf8PathBuf::from_path_buf(entry.path()).map_err(|_| anyhow!("non-UTF-8 path"))?;
-        let mut name = path
-            .file_name()
-            .ok_or_else(|| anyhow!("invalid directory entry"))?
-            .to_owned();
-        if path.is_dir() {
-            name.push('/');
-        }
-        entries.push(name);
-    }
-    entries.sort();
-    Ok(entries)
-}
-
-fn visible_directory_entries(path: &str, entries: Vec<String>) -> Result<Vec<String>> {
-    let directory = if path.is_empty() {
-        Utf8PathBuf::new()
-    } else {
-        sanitize_relative_path(path, true)?
-    };
-
-    Ok(entries
-        .into_iter()
-        .filter(|entry| {
-            let mut candidate = directory.clone();
-            let entry_name = entry.trim_end_matches('/');
-            candidate.push(entry_name);
-            !is_reserved(&candidate)
-        })
-        .collect())
-}
-
-pub(crate) fn sanitize_mount_source(input: &str) -> Result<Utf8PathBuf> {
-    let normalized = sanitize_relative_path(input, true)?;
-    if !is_mount_source(&normalized) {
-        bail!("mount source must be under .repo/generated/");
-    }
-    Ok(normalized)
-}
-
-fn normalize_workspace_path<'a>(
-    path: &'a str,
-    allow_trailing_slash: bool,
-) -> Result<std::borrow::Cow<'a, str>> {
-    if path.is_empty() {
-        return Ok(std::borrow::Cow::Borrowed(""));
-    }
-
-    let normalized = sanitize_relative_path(path, allow_trailing_slash)?;
-    if is_reserved(&normalized) {
-        bail!("reserved path");
-    }
-
-    let normalized = normalized.into_string();
-    if allow_trailing_slash && path.trim_end().ends_with('/') && !normalized.is_empty() {
-        Ok(std::borrow::Cow::Owned(format!("{normalized}/")))
-    } else if normalized == path {
-        Ok(std::borrow::Cow::Borrowed(path))
-    } else {
-        Ok(std::borrow::Cow::Owned(normalized))
-    }
-}
-
-pub(crate) fn sanitize_relative_path(
-    input: &str,
-    allow_trailing_slash: bool,
-) -> Result<Utf8PathBuf> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        bail!("path is required");
-    }
-
-    let trimmed = if allow_trailing_slash {
-        trimmed.trim_end_matches('/')
-    } else {
-        trimmed
-    };
-
-    if trimmed.is_empty() {
-        return Ok(Utf8PathBuf::new());
-    }
-
-    let path = Path::new(trimmed);
-    if path.is_absolute() {
-        bail!("absolute paths are not allowed");
-    }
-
-    let mut normalized = Utf8PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::Normal(part) => {
-                let part = part.to_str().ok_or_else(|| anyhow!("path must be UTF-8"))?;
-                normalized.push(part);
-            }
-            Component::CurDir => {}
-            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                bail!("path escapes repository root");
-            }
-        }
-    }
-
-    Ok(normalized)
-}
-
-pub(crate) fn is_reserved(path: &Utf8Path) -> bool {
-    matches!(path.components().next(), Some(component) if component.as_str() == ".repo")
-}
-
-fn is_mount_source(path: &Utf8Path) -> bool {
-    let mut components = path.components();
-    matches!(components.next(), Some(component) if component.as_str() == ".repo")
-        && matches!(components.next(), Some(component) if component.as_str() == "generated")
-}
-
-fn reject_directory_path(path: &str, message: &'static str) -> Result<(), WorkspaceError> {
-    if path.ends_with('/') {
+fn reject_directory_path(
+    path: &WorkspacePath,
+    message: &'static str,
+) -> Result<(), WorkspaceError> {
+    if path.is_directory() {
         return Err(WorkspaceError::bad_request(message));
     }
     Ok(())
@@ -736,182 +449,23 @@ fn file_response(status: StatusCode, content_type: &str, body: Vec<u8>) -> Respo
         .expect("response builder should accept binary body")
 }
 
-fn content_type_for_path(path: &str) -> &'static str {
-    MimeGuess::from_path(path)
+fn content_type_for_path(path: &WorkspacePath) -> &'static str {
+    MimeGuess::from_path(path.as_str())
         .first_raw()
         .unwrap_or("application/octet-stream")
 }
 
-fn policy_specificity(pattern: &str) -> PolicySpecificity {
-    let normalized = pattern.trim_end_matches('/');
-    if normalized.is_empty() {
-        return PolicySpecificity { depth: 0, chars: 0 };
-    }
-
-    let mut depth = 0;
-    let mut chars = 0;
-    for segment in normalized.split('/') {
-        if segment.contains('*') || segment.contains('?') || segment.contains('[') {
-            break;
-        }
-        depth += 1;
-        chars += segment.len();
-    }
-
-    PolicySpecificity { depth, chars }
-}
-
-impl PolicyPermissions {
-    fn from_rule(rule: &crate::config::PolicyRule) -> Self {
-        Self {
-            get: rule.get,
-            post: rule.post,
-            put: rule.put,
-            delete: rule.delete,
-        }
-    }
-
-    fn deny_all() -> Self {
-        Self {
-            get: false,
-            post: false,
-            put: false,
-            delete: false,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use axum::{body::to_bytes, http::header::CONTENT_TYPE};
 
     use super::*;
-    use crate::{
-        config::{PolicyRule, RepositoryConfig, ServeSettings},
-        repository::FsRepository,
-    };
-
-    fn service(policy: Vec<PolicyRule>) -> WorkspaceService {
-        WorkspaceService::new(
-            Arc::new(FsRepository::open(".".to_owned()).unwrap()),
-            Arc::new(RepositoryConfig {
-                serve: ServeSettings::default(),
-                policy,
-                mount: Vec::new(),
-                plugin: Vec::new(),
-                task: Vec::new(),
-            }),
-            "test".to_owned(),
-        )
-    }
-
-    #[test]
-    fn more_specific_child_policy_wins() {
-        let service = service(vec![
-            PolicyRule {
-                path: "docs/**".to_owned(),
-                get: false,
-                post: false,
-                put: false,
-                delete: false,
-            },
-            PolicyRule {
-                path: "docs/public/**".to_owned(),
-                get: true,
-                post: false,
-                put: false,
-                delete: false,
-            },
-        ]);
-
-        assert_eq!(
-            service
-                .resolve_policy(MethodKind::Get, "docs/public/index.md")
-                .unwrap(),
-            Some(true)
-        );
-    }
-
-    #[test]
-    fn equal_specificity_uses_later_rule() {
-        let service = service(vec![
-            PolicyRule {
-                path: "docs/**".to_owned(),
-                get: true,
-                post: false,
-                put: false,
-                delete: false,
-            },
-            PolicyRule {
-                path: "docs/**".to_owned(),
-                get: false,
-                post: false,
-                put: false,
-                delete: false,
-            },
-        ]);
-
-        assert_eq!(
-            service
-                .resolve_policy(MethodKind::Get, "docs/a.md")
-                .unwrap(),
-            Some(false)
-        );
-    }
-
-    #[test]
-    fn no_matching_policy_denies_by_default() {
-        let service = service(vec![PolicyRule {
-            path: "docs/**".to_owned(),
-            get: true,
-            post: false,
-            put: false,
-            delete: false,
-        }]);
-
-        assert_eq!(
-            service
-                .resolve_policy(MethodKind::Get, "notes/a.md")
-                .unwrap(),
-            None
-        );
-    }
-
-    #[test]
-    fn inspection_reports_matches_and_selected_rule() {
-        let service = service(vec![
-            PolicyRule {
-                path: "**/*.md".to_owned(),
-                get: true,
-                post: false,
-                put: true,
-                delete: false,
-            },
-            PolicyRule {
-                path: "docs/private/**".to_owned(),
-                get: false,
-                post: false,
-                put: false,
-                delete: false,
-            },
-        ]);
-
-        let inspection = service.inspect_policy_rules("docs/private/a.md").unwrap();
-
-        assert_eq!(inspection.matches.len(), 2);
-        let selected = inspection.selected.unwrap();
-        assert_eq!(selected.pattern, "docs/private/**");
-        assert_eq!(selected.reason, "more_specific");
-        assert_eq!(inspection.effective.get, false);
-    }
 
     #[tokio::test]
     async fn file_response_uses_html_mime_and_binary_body() {
         let response = file_response(
             StatusCode::OK,
-            content_type_for_path("assets/md_preview.html"),
+            content_type_for_path(&WorkspacePath::from_path_str("assets/md_preview.html").unwrap()),
             b"<h1>x</h1>".to_vec(),
         );
         let headers = response.headers();
@@ -924,51 +478,8 @@ mod tests {
     #[test]
     fn unknown_extension_falls_back_to_octet_stream() {
         assert_eq!(
-            content_type_for_path("assets/blob.custombin"),
+            content_type_for_path(&WorkspacePath::from_path_str("assets/blob.custombin").unwrap()),
             "application/octet-stream"
         );
-    }
-
-    #[test]
-    fn sanitize_mount_source_rejects_parent_traversal() {
-        let error = sanitize_mount_source(".repo/generated/../cache").unwrap_err();
-
-        assert!(error.to_string().contains("path escapes repository root"));
-    }
-
-    #[test]
-    fn normalize_workspace_path_rejects_reserved_paths() {
-        let error = normalize_workspace_path(".repo/config.toml", false).unwrap_err();
-
-        assert!(error.to_string().contains("reserved path"));
-    }
-
-    #[test]
-    fn normalize_workspace_path_preserves_directory_suffix() {
-        let normalized = normalize_workspace_path("./docs/", true).unwrap();
-
-        assert_eq!(normalized.as_ref(), "docs/");
-    }
-
-    #[test]
-    fn normalize_workspace_path_rejects_whitespace_only_input() {
-        let error = normalize_workspace_path("   ", false).unwrap_err();
-
-        assert!(error.to_string().contains("path is required"));
-    }
-
-    #[test]
-    fn visible_directory_entries_hides_reserved_root_entry() {
-        let entries = visible_directory_entries(
-            "",
-            vec![
-                ".repo/".to_owned(),
-                "docs/".to_owned(),
-                "readme.md".to_owned(),
-            ],
-        )
-        .unwrap();
-
-        assert_eq!(entries, vec!["docs/".to_owned(), "readme.md".to_owned()]);
     }
 }
