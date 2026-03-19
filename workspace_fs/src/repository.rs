@@ -3,12 +3,17 @@ use async_trait::async_trait;
 use camino::{Utf8Path, Utf8PathBuf};
 use tokio::fs;
 
-use crate::{config::RepositoryConfig, path::WorkspacePath};
+use crate::{
+    config::RepositoryConfig,
+    info::{PathInfo, PathInfoKind},
+    path::WorkspacePath,
+};
 
 // .repo 以外を書き換えるインターフェースの提供
 #[async_trait]
 pub trait Repository: Send + Sync {
     async fn list_directory(&self, path: &WorkspacePath) -> Result<Vec<String>>;
+    async fn path_info(&self, path: &WorkspacePath) -> Result<PathInfo>;
     async fn create_directory(&self, path: &WorkspacePath) -> Result<()>;
     async fn delete_directory(&self, path: &WorkspacePath) -> Result<()>;
     async fn read_file(&self, path: &WorkspacePath) -> Result<Vec<u8>>;
@@ -140,6 +145,30 @@ impl Repository for FsRepository {
         }
 
         self.read_directory_entries(&directory)
+    }
+
+    async fn path_info(&self, path: &WorkspacePath) -> Result<PathInfo> {
+        let resolved = self.resolve_path(path)?;
+        let metadata = fs::metadata(resolved.as_std_path())
+            .await
+            .context("failed to read metadata")?;
+        let kind = if metadata.is_dir() {
+            PathInfoKind::Directory
+        } else {
+            PathInfoKind::File
+        };
+        let size = match kind {
+            PathInfoKind::File => Some(metadata.len()),
+            PathInfoKind::Directory => None,
+        };
+
+        Ok(PathInfo::new(
+            path.as_str(),
+            kind,
+            size,
+            metadata.modified().ok(),
+            metadata.permissions().readonly(),
+        ))
     }
 
     async fn create_directory(&self, path: &WorkspacePath) -> Result<()> {

@@ -25,6 +25,8 @@ pub struct ServeSettings {
     pub plugin_url_prefix: String,
     #[serde(default = "default_policy_url_prefix")]
     pub policy_url_prefix: String,
+    #[serde(default = "default_info_url_prefix")]
+    pub info_url_prefix: String,
 }
 
 impl Default for ServeSettings {
@@ -33,6 +35,7 @@ impl Default for ServeSettings {
             port: default_port(),
             plugin_url_prefix: default_plugin_url_prefix(),
             policy_url_prefix: default_policy_url_prefix(),
+            info_url_prefix: default_info_url_prefix(),
         }
     }
 }
@@ -47,6 +50,10 @@ fn default_plugin_url_prefix() -> String {
 
 fn default_policy_url_prefix() -> String {
     "/.policy".into()
+}
+
+fn default_info_url_prefix() -> String {
+    "/.info".into()
 }
 
 fn default_policy_get() -> bool {
@@ -147,20 +154,25 @@ impl RepositoryConfig {
         if self.name.is_empty() {
             bail!("name must not be empty");
         }
-        if !self.serve.plugin_url_prefix.starts_with('/')
-            || self.serve.plugin_url_prefix.trim_matches('/').is_empty()
-            || self.serve.plugin_url_prefix.ends_with('/')
-        {
-            bail!("serve.plugin_url_prefix must start with /, must not be empty, and must not end with /");
-        }
-        if !self.serve.policy_url_prefix.starts_with('/')
-            || self.serve.policy_url_prefix.trim_matches('/').is_empty()
-            || self.serve.policy_url_prefix.ends_with('/')
-        {
-            bail!("serve.policy_url_prefix must start with /, must not be empty, and must not end with /");
-        }
-        if self.serve.plugin_url_prefix == self.serve.policy_url_prefix {
-            bail!("serve.plugin_url_prefix and serve.policy_url_prefix must be different");
+        validate_url_prefix("serve.plugin_url_prefix", &self.serve.plugin_url_prefix)?;
+        validate_url_prefix("serve.policy_url_prefix", &self.serve.policy_url_prefix)?;
+        validate_url_prefix("serve.info_url_prefix", &self.serve.info_url_prefix)?;
+
+        let prefixes = [
+            ("serve.plugin_url_prefix", self.serve.plugin_url_prefix.as_str()),
+            ("serve.policy_url_prefix", self.serve.policy_url_prefix.as_str()),
+            ("serve.info_url_prefix", self.serve.info_url_prefix.as_str()),
+        ];
+        for index in 0..prefixes.len() {
+            for other_index in (index + 1)..prefixes.len() {
+                if prefixes[index].1 == prefixes[other_index].1 {
+                    bail!(
+                        "{} and {} must be different",
+                        prefixes[index].0,
+                        prefixes[other_index].0
+                    );
+                }
+            }
         }
 
         for policy in &self.policy {
@@ -261,6 +273,13 @@ fn contains_glob_metachar(value: &str) -> bool {
     value.contains('*') || value.contains('?') || value.contains('[')
 }
 
+fn validate_url_prefix(name: &str, value: &str) -> Result<()> {
+    if !value.starts_with('/') || value.trim_matches('/').is_empty() || value.ends_with('/') {
+        bail!("{name} must start with /, must not be empty, and must not end with /");
+    }
+    Ok(())
+}
+
 fn is_valid_plugin_name(value: &str) -> bool {
     let mut chars = value.chars();
     let Some(first) = chars.next() else {
@@ -314,6 +333,7 @@ GET = true
         assert_eq!(settings.port, 3000);
         assert_eq!(settings.plugin_url_prefix, "/.plugin");
         assert_eq!(settings.policy_url_prefix, "/.policy");
+        assert_eq!(settings.info_url_prefix, "/.info");
     }
 
     #[test]
@@ -324,6 +344,7 @@ GET = true
                 port: 3000,
                 plugin_url_prefix: ".plugin".into(),
                 policy_url_prefix: "/.policy".into(),
+                info_url_prefix: "/.info".into(),
             },
             policy: Vec::new(),
             plugin: Vec::new(),
@@ -347,6 +368,7 @@ GET = true
                 port: 3000,
                 plugin_url_prefix: "/.plugin/".into(),
                 policy_url_prefix: "/.policy/".into(),
+                info_url_prefix: "/.info".into(),
             },
             policy: Vec::new(),
             plugin: Vec::new(),
@@ -359,6 +381,30 @@ GET = true
             error
                 .to_string()
                 .contains("serve.plugin_url_prefix must start with /, must not be empty, and must not end with /")
+        );
+    }
+
+    #[test]
+    fn repository_config_rejects_duplicate_virtual_prefixes() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings {
+                port: 3000,
+                plugin_url_prefix: "/.plugin".into(),
+                policy_url_prefix: "/.policy".into(),
+                info_url_prefix: "/.policy".into(),
+            },
+            policy: Vec::new(),
+            plugin: Vec::new(),
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("serve.policy_url_prefix and serve.info_url_prefix must be different")
         );
     }
 

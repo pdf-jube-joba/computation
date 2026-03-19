@@ -12,6 +12,7 @@ use mime_guess::MimeGuess;
 use crate::{
     config::RepositoryConfig,
     identity::UserIdentity,
+    info::PathInfo,
     path::WorkspacePath,
     plugin::{PluginRunner, PluginTrigger},
     policy::{MethodKind, PolicyInspection, inspect_policy_rules, resolve_policy},
@@ -113,6 +114,10 @@ impl WorkspaceService {
 
     pub fn policy_url_prefix(&self) -> &str {
         &self.config.serve.policy_url_prefix
+    }
+
+    pub fn info_url_prefix(&self) -> &str {
+        &self.config.serve.info_url_prefix
     }
 
     pub async fn get_root(&self, user_identity: &UserIdentity) -> Result<Response, WorkspaceError> {
@@ -262,6 +267,30 @@ impl WorkspaceService {
         self.inspect_policy_rules(&path)
             .map(Json)
             .map_err(WorkspaceError::internal)
+    }
+
+    pub async fn get_path_info(&self, url_path: &str) -> Result<Json<PathInfo>, WorkspaceError> {
+        let path = self.normalize_request_path(url_path)?;
+        self.enforce_policy(MethodKind::Get, &path)?;
+
+        let info = self.repository.path_info(&path).await.map_err(|error| {
+            let mapped = self.map_metadata_error(error);
+            tracing::warn!(path = %path.as_str(), status = %mapped.status, error = %mapped.message, "metadata read failed");
+            mapped
+        })?;
+
+        if path.is_directory() && info.kind != crate::info::PathInfoKind::Directory {
+            return Err(WorkspaceError::bad_request(
+                "file path must not end with /",
+            ));
+        }
+        if !path.is_directory() && info.kind == crate::info::PathInfoKind::Directory {
+            return Err(WorkspaceError::bad_request(
+                "directory path must end with /",
+            ));
+        }
+
+        Ok(Json(info))
     }
 
     async fn directory_response(
@@ -414,6 +443,14 @@ impl WorkspaceService {
         }
         map_path_error(error)
     }
+
+    fn map_metadata_error(&self, error: anyhow::Error) -> WorkspaceError {
+        let message = error.to_string();
+        if message.contains("No such file") || message.contains("os error 2") {
+            return WorkspaceError::not_found("path not found");
+        }
+        map_path_error(error)
+    }
 }
 
 fn reject_directory_path(
@@ -460,6 +497,7 @@ mod tests {
     use axum::{body::to_bytes, http::header::CONTENT_TYPE};
 
     use super::*;
+    use crate::info::{PathInfo, PathInfoKind};
 
     #[tokio::test]
     async fn file_response_uses_html_mime_and_binary_body() {
@@ -481,5 +519,18 @@ mod tests {
             content_type_for_path(&WorkspacePath::from_path_str("assets/blob.custombin").unwrap()),
             "application/octet-stream"
         );
+    }
+
+    #[test]
+    fn path_info_requires_directory_suffix_for_directories() {
+        let info = PathInfo::new(
+            "docs",
+            PathInfoKind::Directory,
+            None,
+            None,
+            false,
+        );
+
+        assert_eq!(info.kind, PathInfoKind::Directory);
     }
 }

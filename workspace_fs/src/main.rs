@@ -1,5 +1,6 @@
 mod config;
 mod identity;
+mod info;
 mod path;
 mod plugin;
 mod policy;
@@ -19,6 +20,7 @@ use axum::{
 use camino::Utf8PathBuf;
 use config::RepositoryConfig;
 use identity::{IdentityConfig, RequestIdentity, UserIdentity, capture_identity};
+use info::PathInfo;
 use policy::PolicyInspection;
 use repository::FsRepository;
 use tower_http::trace::{DefaultOnRequest, DefaultOnResponse, TraceLayer};
@@ -58,12 +60,14 @@ async fn main() -> Result<()> {
     });
     let plugin_run_route = format!("{}/{{name}}/run", workspace.plugin_url_prefix());
     let policy_route = format!("{}/{{*path}}", workspace.policy_url_prefix());
+    let info_route = format!("{}/{{*path}}", workspace.info_url_prefix());
 
     tracing::info!(
         repository = %workspace.repository_root(),
         port = workspace.serve_port(),
         plugin_url_prefix = %workspace.plugin_url_prefix(),
         policy_url_prefix = %workspace.policy_url_prefix(),
+        info_url_prefix = %workspace.info_url_prefix(),
         "serve configuration loaded"
     );
 
@@ -71,6 +75,8 @@ async fn main() -> Result<()> {
         .route("/", get(root_handler))
         .route(&plugin_run_route, post(run_plugin_handler))
         .route(&policy_route, get(get_policy_path_handler))
+        .route(workspace.info_url_prefix(), get(get_info_root_handler))
+        .route(&info_route, get(get_info_path_handler))
         .route(
             "/{*path}",
             get(get_path_handler)
@@ -164,6 +170,19 @@ async fn get_policy_path_handler(
     Path(path): Path<String>,
 ) -> Result<Json<PolicyInspection>, workspace::WorkspaceError> {
     state.workspace.inspect_policy(&request_path(&path)).await
+}
+
+async fn get_info_root_handler(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<PathInfo>, workspace::WorkspaceError> {
+    state.workspace.get_path_info("/").await
+}
+
+async fn get_info_path_handler(
+    State(state): State<Arc<AppState>>,
+    Path(path): Path<String>,
+) -> Result<Json<PathInfo>, workspace::WorkspaceError> {
+    state.workspace.get_path_info(&request_path(&path)).await
 }
 
 async fn get_path_handler(
