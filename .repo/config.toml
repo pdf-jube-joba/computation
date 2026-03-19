@@ -28,19 +28,15 @@ name = "build-all"
 steps = ["build-wasm", "build-md-preview"]
 
 [[policy]]
+path = "/"
+GET = true
+
+[[policy]]
 path = "docs/"
 GET = true
 POST = true
 PUT = true
 DELETE = true
-
-[[policy]]
-path = "viewer/"
-GET = true
-
-[[policy]]
-path = "cli/"
-GET = true
 
 [[policy]]
 path = "models/"
@@ -50,7 +46,15 @@ PUT = true
 DELETE = false
 
 [[policy]]
+path = "viewer/"
+GET = true
+
+[[policy]]
 path = "utils/"
+GET = true
+
+[[policy]]
+path = "cli/"
 GET = true
 
 [[policy]]
