@@ -10,14 +10,40 @@
 <body>
   <main class="app">
     <section class="statusbar">
+      <button
+        id="sidebar-toggle"
+        class="sidebar-toggle"
+        type="button"
+        aria-controls="sidebar"
+        aria-expanded="true"
+      >
+        Hide Navigation
+      </button>
       <div class="status-label">PATH</div>
       <div id="path-text" class="status-path"></div>
     </section>
 
-    <section class="pane">
-      <h1>Preview</h1>
-      <div id="preview" class="surface"></div>
-    </section>
+    <div class="workspace">
+      <aside id="sidebar" class="sidebar-pane" aria-label="Navigation sidebar">
+        <div class="sidebar-header">
+          <h1>Navigation</h1>
+          <button
+            id="sidebar-close"
+            class="sidebar-close"
+            type="button"
+            aria-label="Close navigation"
+          >
+            ×
+          </button>
+        </div>
+        <nav id="navigation" class="surface navigation"></nav>
+      </aside>
+
+      <section class="pane preview-pane">
+        <h1>Preview</h1>
+        <div id="preview" class="surface"></div>
+      </section>
+    </div>
 
     <section class="statusbar">
       <div id="status-text">Loading ...</div>
