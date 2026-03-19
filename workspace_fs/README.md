@@ -131,6 +131,7 @@ hook のような形で、プラグインを記述する。内部では `{PLACE_
 [[plugin]]
 name = "convert-md-html"
 runner = "command"
+deps = ["link"]
 command = ["python3", "./convert-md-html.py", "{GET.PATH}"]
 trigger = "GET"
 path = "*.md"
@@ -139,6 +140,8 @@ mount = "/assets/"
 上のプラグインは外部コマンドの invoke を行う：
 `*.md` に該当する GET があったときに `{GET.PATH}` をファイル名で置き換えて実行する。
 また、 `.repo/convert-md-html/generated/` を `/assets/` に mount する。
+
+deps はこの plugin が依存している他の plugin の指定である。
 
 - `mount` は省略可能
 - `mount` を指定した場合、 plugin の出力先 `/.repo/<PLUGIN_NAME>/generated/` がその URL prefix `/<PLUGIN_NAME>/` に公開される
@@ -206,7 +209,14 @@ glob を許さないので、あるファイルやディレクトリにマッチ
 
 ## plugin
 `config.toml` で指定したもののみを対象とする。
+名前は以下のもののみが許可される：`[A-Za-z_][A-Za-z0-9_\-]*`
 
+### deps
+存在している plugin のみ指定出来て、
+循環参照はエラーとする。
+これを記述すると、 deps に追加した他の plugin の公開 URL が得られる。
+
+### 実行タイミングと trigger
 実行するタイミングは、
 1. `trigger = "manual"` 以外の場合は、特定の API 操作が呼ばれたとき。
 2. `trigger = "manual"` の場合には、
@@ -224,6 +234,7 @@ glob を許さないので、あるファイルやディレクトリにマッチ
 [[plugin]]
 name = "wasm-build"
 runner = "command"
+deps = ["delete-by-gitignore"]
 command = ["cargo", "build", "--target", "wasm32-unknown-unknown"]
 trigger = "manual"
 ```
@@ -238,6 +249,11 @@ trigger = "manual"
 - `REPOSITORY_ROOT` ... このリポジトリの絶対パス
 - `PLUGIN_NAME` ... plugin に設定された名前
 - `OUTPOST_DIRECTORY` ... 各 plugin が書き込んでよいパス `.repo/<PLUGIN_NAME>/generated/` のこと
+- `MOUNT_URL` ... `config.toml` で設定されている mount 先の url prefix
+- `MOUNT_{OTHER_PLUGIN_NAME}`
+  - `deps = [...]` で指定されたものに限り、その plugin の `MOUNT_URL` を得ることができる。
+  - ただし、環境変数に合わせるため、 plugin の名前は `-` は `_` に、 英小文字は英大文字にしたうえで、 `[A-Z_][A-Z0-9_]*` に強制される
+  - 例： `deps = ["build-WASM_test"]` なら `MOUNT_BUILD_WASM_TEST` でアクセスできるようになる。
 
 GET
 - `GET.PATH`

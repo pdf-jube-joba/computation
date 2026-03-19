@@ -1,4 +1,4 @@
-import {from_text} from "/md-preview-assets/generated/markdown_viewer.js";
+import {from_text} from "/md-preview-assets/markdown_viewer.js";
 
 let macrosPromise;
 

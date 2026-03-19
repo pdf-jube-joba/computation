@@ -1,4 +1,4 @@
-import {renderMarkdownToElement} from "/md-preview-assets/generated/markdown_viewer.js";
+import {renderMarkdownToElement} from "/md-preview-assets/markdown_viewer.js";
 import {fetchTextFile, loadMacros, normalizePath} from "./markdown_runtime.js";
 
 const pathText = document.querySelector("#path-text");

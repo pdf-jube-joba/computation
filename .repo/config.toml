@@ -10,8 +10,9 @@ mount = "/wasm_bundle/"
 [[plugin]]
 name = "build-md-preview"
 runner = "command"
-command = ["node", "./plugin/md_preview/build.mjs", "--out-dir", "{OUTPUT_DIRECTORY}"]
+command = ["node", "./plugin/md_preview/build.mjs", "--out-dir", "{OUTPUT_DIRECTORY}", "--wasm-mount-url", "{MOUNT_BUILD_WASM}"]
 trigger = "manual"
+deps = ["build-wasm"]
 mount = "/md-preview-assets/"
 
 [[task]]

@@ -54,7 +54,7 @@ impl FsRepository {
             .iter()
             .filter_map(|plugin| {
                 plugin.mount.as_ref().map(|mount| MountedDirectory {
-                    alias: WorkspacePath::from_path_str(mount.trim_matches('/'))
+                    alias: WorkspacePath::from_path_str(mount.trim_start_matches('/'))
                         .expect("validated mount alias should parse"),
                     source: WorkspacePath::from_path_str(&format!(".repo/{}/generated", plugin.name))
                         .expect("generated plugin path should parse"),

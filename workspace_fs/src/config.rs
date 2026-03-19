@@ -90,6 +90,8 @@ pub struct PluginConfig {
     pub runner: String,
     pub command: Vec<String>,
     pub trigger: String,
+    #[serde(default)]
+    pub deps: Vec<String>,
     // URL prefix なので、 `WorkspacePath` ではなく文字列で受け取る。検証は後で行う。
     pub mount: Option<String>,
 }
@@ -108,10 +110,37 @@ impl RepositoryConfig {
         }
         let config_text = std::fs::read_to_string(config_path.as_std_path())
             .context("failed to read .repo/config.toml")?;
-        let config: Self =
+        let mut config: Self =
             toml::from_str(&config_text).context("failed to parse .repo/config.toml")?;
+        config.insert_implicit_mount_policies()?;
         config.validate(repository_root)?;
         Ok(config)
+    }
+
+    fn insert_implicit_mount_policies(&mut self) -> Result<()> {
+        let mut implicit_policies = Vec::new();
+        for plugin in &self.plugin {
+            let Some(mount) = &plugin.mount else {
+                continue;
+            };
+            implicit_policies.push(Policy {
+                path: WorkspacePath::from_path_str(mount.trim_start_matches('/'))?,
+                permissions: PolicyPermissions {
+                    get: true,
+                    post: false,
+                    put: false,
+                    delete: false,
+                },
+            });
+        }
+
+        if implicit_policies.is_empty() {
+            return Ok(());
+        }
+
+        implicit_policies.append(&mut self.policy);
+        self.policy = implicit_policies;
+        Ok(())
     }
 
     fn validate(&self, repository_root: &Utf8Path) -> Result<()> {
@@ -144,14 +173,35 @@ impl RepositoryConfig {
         }
 
         for plugin in &self.plugin {
-            if plugin.name.is_empty() {
-                bail!("plugin name must not be empty");
+            if !is_valid_plugin_name(&plugin.name) {
+                bail!(
+                    "plugin name must match [A-Za-z_][A-Za-z0-9_-]*: {}",
+                    plugin.name
+                );
             }
             if plugin.runner != "command" {
                 bail!("unsupported plugin runner: {}", plugin.runner);
             }
             if plugin.command.is_empty() {
                 bail!("plugin command must not be empty");
+            }
+            for dependency in &plugin.deps {
+                if !is_valid_plugin_name(dependency) {
+                    bail!(
+                        "plugin dependency name must match [A-Za-z_][A-Za-z0-9_-]*: {}",
+                        dependency
+                    );
+                }
+                if dependency == &plugin.name {
+                    bail!("plugin must not depend on itself: {}", plugin.name);
+                }
+                if self.find_plugin(dependency).is_none() {
+                    bail!(
+                        "plugin dependency not found: {} -> {}",
+                        plugin.name,
+                        dependency
+                    );
+                }
             }
             if plugin.trigger != "manual" {
                 glob::Pattern::new(&plugin.name)
@@ -162,7 +212,7 @@ impl RepositoryConfig {
                     bail!("plugin mount must start and end with /");
                 }
 
-                let relative = WorkspacePath::from_path_str(mount.trim_matches('/'))
+                let relative = WorkspacePath::from_path_str(mount.trim_start_matches('/'))
                     .expect("validated mount path should parse");
                 if relative.as_str() != "." {
                     let target = relative.join_to(repository_root);
@@ -209,6 +259,19 @@ where
 
 fn contains_glob_metachar(value: &str) -> bool {
     value.contains('*') || value.contains('?') || value.contains('[')
+}
+
+fn is_valid_plugin_name(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+
+    if !first.is_ascii_alphabetic() && first != '_' {
+        return false;
+    }
+
+    chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
 }
 
 #[cfg(test)]
@@ -340,5 +403,79 @@ GET = true
         let error = config.validate(Utf8Path::new(".")).unwrap_err();
 
         assert!(error.to_string().contains("policy path must not use glob syntax"));
+    }
+
+    #[test]
+    fn mount_inserts_implicit_get_only_policy_before_explicit_rules() {
+        let mut config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: vec![Policy {
+                path: WorkspacePath::from_path_str("assets/").unwrap(),
+                permissions: PolicyPermissions::deny_all(),
+            }],
+            plugin: vec![PluginConfig {
+                name: "assets".into(),
+                runner: "command".into(),
+                command: vec!["echo".into()],
+                trigger: "manual".into(),
+                deps: Vec::new(),
+                mount: Some("/assets/".into()),
+            }],
+            task: Vec::new(),
+        };
+
+        config.insert_implicit_mount_policies().unwrap();
+
+        assert_eq!(config.policy.len(), 2);
+        assert_eq!(config.policy[0].path.as_str(), "assets");
+        assert!(config.policy[0].permissions.get);
+        assert!(!config.policy[0].permissions.post);
+        assert_eq!(config.policy[1].path.as_str(), "assets");
+        assert!(!config.policy[1].permissions.get);
+    }
+
+    #[test]
+    fn repository_config_rejects_invalid_plugin_name() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: Vec::new(),
+            plugin: vec![PluginConfig {
+                name: "bad.name".into(),
+                runner: "command".into(),
+                command: vec!["echo".into()],
+                trigger: "manual".into(),
+                deps: Vec::new(),
+                mount: None,
+            }],
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(error.to_string().contains("plugin name must match"));
+    }
+
+    #[test]
+    fn repository_config_rejects_missing_plugin_dependency() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: Vec::new(),
+            plugin: vec![PluginConfig {
+                name: "preview".into(),
+                runner: "command".into(),
+                command: vec!["echo".into()],
+                trigger: "manual".into(),
+                deps: vec!["build-wasm".into()],
+                mount: None,
+            }],
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(error.to_string().contains("plugin dependency not found"));
     }
 }

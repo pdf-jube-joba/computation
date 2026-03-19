@@ -1,4 +1,4 @@
-import {renderMarkdownToElement} from "/md-preview-assets/generated/markdown_viewer.js";
+import {renderMarkdownToElement} from "/md-preview-assets/markdown_viewer.js";
 import {
   currentFileUrl,
   fetchTextFile,

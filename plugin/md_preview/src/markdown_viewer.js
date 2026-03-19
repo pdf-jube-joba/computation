@@ -9,6 +9,7 @@ const INLINE_OPEN = "\\(";
 const INLINE_CLOSE = "\\)";
 const DISPLAY_OPEN = "\\[";
 const DISPLAY_CLOSE = "\\]";
+const WASM_MOUNT_URL = __WASM_MOUNT_URL__;
 
 export async function renderMarkdownToElement({text, element, basePath = "", macros = {}}) {
   const html = await renderMarkdownToHtml({text, basePath, macros});
@@ -166,8 +167,8 @@ async function mountEmbeddedModels(root) {
         code: extractPlainScript(modelRoot, "default-code"),
         ainput: extractPlainScript(modelRoot, "default-ainput"),
         rinput: extractPlainScript(modelRoot, "default-rinput"),
-        bundleBaseUrl: "/wasm_bundle/",
-        assetBaseUrl: "/wasm_bundle/",
+        bundleBaseUrl: WASM_MOUNT_URL,
+        assetBaseUrl: WASM_MOUNT_URL,
       });
     } catch (error) {
       modelRoot.textContent = `failed to load ${model}: ${error}`;
@@ -176,7 +177,7 @@ async function mountEmbeddedModels(root) {
 }
 
 function wasmMountRuntimeUrl() {
-  return "/wasm_bundle/script.js";
+  return `${WASM_MOUNT_URL}script.js`;
 }
 
 function extractPlainScript(root, className) {
