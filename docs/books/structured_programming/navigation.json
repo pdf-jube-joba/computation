@@ -1,28 +1,20 @@
 {
   "items": [
     {
-      "title": "Home",
-      "href": "/"
-    },
-    {
-      "title": "Up",
-      "href": "../"
-    },
-    {
       "title": "関数と呼び出し",
-      "href": "./procesure.html"
+      "href": "./procesure.md"
     },
     {
       "title": "制御構造",
-      "href": "./control.html"
+      "href": "./control.md"
     },
     {
       "title": "式の導入",
-      "href": "./expression.html"
+      "href": "./expression.md"
     },
     {
       "title": "データ型",
-      "href": "./data_structure.html"
+      "href": "./data_structure.md"
     }
   ]
 }

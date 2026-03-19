@@ -1,40 +1,32 @@
 {
   "items": [
     {
-      "title": "Home",
-      "href": "/"
-    },
-    {
-      "title": "Up",
-      "href": "../"
-    },
-    {
       "title": "低レイヤー",
-      "href": "./index.html"
+      "href": "./README.md"
     },
     {
       "title": "論理回路",
-      "href": "./logic_circuit.html"
+      "href": "./logic_circuit.md"
     },
     {
       "title": "ハードウェア記述言語",
-      "href": "./hardware_description_language.html"
+      "href": "./hardware_description_language.md"
     },
     {
       "title": "コンピュータ",
-      "href": "./computer.html"
+      "href": "./computer.md"
     },
     {
       "title": "アセンブリ言語",
-      "href": "./assembly.html"
+      "href": "./assembly.md"
     },
     {
       "title": "仮想レジスタと Control flow graph",
-      "href": "./cfg_vreg.html"
+      "href": "./cfg_vreg.md"
     },
     {
       "title": "スタックとヒープ",
-      "href": "./stack_and_heap.html"
+      "href": "./stack_and_heap.md"
     }
   ]
 }

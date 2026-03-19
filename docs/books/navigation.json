@@ -1,20 +1,16 @@
 {
   "items": [
     {
-      "title": "Up (一番上へ）",
-      "href": "../"
-    },
-    {
       "title": "計算論の計算モデル",
-      "href": "./models_of_computation/"
+      "href": "./models_of_computation/README.md"
     },
     {
       "title": "低レイヤーの計算モデル",
-      "href": "./hardware/"
+      "href": "./hardware/README.md"
     },
     {
       "title": "構造化プログラミング",
-      "href": "./structured_programming/"
+      "href": "./structured_programming/README.md"
     }
   ],
   "prev_next": false

@@ -1,40 +1,32 @@
 {
   "items": [
     {
-      "title": "Home",
-      "href": "/"
-    },
-    {
-      "title": "Up",
-      "href": "../"
-    },
-    {
       "title": "計算モデルと計算について",
-      "href": "./index.html"
+      "href": "README.md"
     },
     {
       "title": "チューリングマシン",
-      "href": "Turing_machine.html"
+      "href": "Turing_machine.md"
     },
     {
       "title": "goto 言語",
-      "href": "goto_lang.html"
+      "href": "goto_lang.md"
     },
     {
       "title": "ラムダ計算",
-      "href": "lambda_calculus.html"
+      "href": "lambda_calculus.md"
     },
     {
       "title": "再帰関数",
-      "href": "recursive_function.html"
+      "href": "recursive_function.md"
     },
     {
       "title": "再帰関数の計算",
-      "href": "computability.html"
+      "href": "computability.md"
     },
     {
-      "title": " Universal なチューリングマシン",
-      "href": "universal_Turing_machine.html"
+      "title": "Universal なチューリングマシン",
+      "href": "universal_Turing_machine.md"
     }
   ]
 }
