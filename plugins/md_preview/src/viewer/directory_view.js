@@ -17,6 +17,9 @@ const scrollSentinel = document.querySelector("#scroll-sentinel");
 const homeLink = document.querySelector("#home-link");
 const upLink = document.querySelector("#up-link");
 const sortSelect = document.querySelector("#sort-select");
+const newForm = document.querySelector("#new-form");
+const newNameInput = document.querySelector("#new-name");
+const newButton = document.querySelector("#new-button");
 
 let entries = [];
 let nextIndex = 0;
@@ -141,6 +144,11 @@ function currentMode() {
   return {kind: "directory", value: path};
 }
 
+function setCreateEnabled(enabled) {
+  newNameInput.disabled = !enabled;
+  newButton.disabled = !enabled;
+}
+
 function setCurrentSortMode(value, {replaceHistory = true} = {}) {
   const sort = SORT_VALUES.has(value) ? value : DEFAULT_SORT;
   sortSelect.value = sort;
@@ -163,6 +171,22 @@ async function fetchDirectoryEntries(directory) {
 
   const text = await response.text();
   return text.split("\n").map(line => line.trim()).filter(Boolean);
+}
+
+async function createEmptyMarkdownFile(path) {
+  const response = await fetch(currentFileUrl(path), {
+    method: "POST",
+    headers: {
+      ...requestHeaders(),
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+    body: "",
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`POST failed: ${response.status} ${detail || response.statusText}`);
+  }
 }
 
 async function fetchPathInfo(path) {
@@ -397,6 +421,7 @@ async function loadView() {
   nextIndex = 0;
 
   setLinkState(homeLink, directoryViewHref({path: ""}));
+  setCreateEnabled(mode.kind === "directory");
 
   if (mode.kind === "link") {
     modeLabel.textContent = "Link";
@@ -423,9 +448,50 @@ async function loadView() {
   await loadNextPage();
 }
 
+async function handleCreateMarkdown(event) {
+  event.preventDefault();
+  const mode = currentMode();
+  if (mode.kind !== "directory") {
+    setStatus("New markdown is only available in directory mode.", true);
+    return;
+  }
+
+  const rawName = newNameInput.value.trim();
+  const normalizedName = normalizePath(rawName);
+  if (!normalizedName) {
+    setStatus("Enter a markdown filename.", true);
+    return;
+  }
+  if (normalizedName.includes("/")) {
+    setStatus("Filename must not include '/'.", true);
+    return;
+  }
+  if (!normalizedName.endsWith(".md")) {
+    setStatus("Filename must end with .md.", true);
+    return;
+  }
+
+  const path = joinPath(mode.value, normalizedName);
+  setCreateEnabled(false);
+  setStatus(`Creating ${path} ...`);
+  try {
+    await createEmptyMarkdownFile(path);
+    newNameInput.value = "";
+    await loadView();
+    setStatus(`Created ${path}.`);
+  } catch (error) {
+    setStatus(String(error), true);
+  } finally {
+    setCreateEnabled(currentMode().kind === "directory");
+  }
+}
+
 sortSelect.addEventListener("change", () => {
   setCurrentSortMode(sortSelect.value);
   void rerenderCards();
+});
+newForm.addEventListener("submit", event => {
+  void handleCreateMarkdown(event);
 });
 
 setCurrentSortMode(currentSortFromLocation());

@@ -8,6 +8,11 @@
 - あまりがっちりと証明は書かない。
 - インタプリタとかコンパイラを動かす。
 
+## 動かし方（簡単に）
+- `plugins/` 以下のそれぞれのディレクトリで `npm install`
+- `cargo run --bin workspace_fs -- ./ --task build-all`
+- ブラウザで `http://localhost:3000/md/md_preview.html?path=README.md` を閲覧。
+
 ## 内容とディレクトリ構成
 - `rust` 言語で各計算モデルの実装をしてます
     - `rust` 言語からコンパイルした `wasm` と `javascript` を用いてブラウザで動いているのを見れるようにしました。   
