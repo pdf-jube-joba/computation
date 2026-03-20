@@ -11,13 +11,13 @@
 足し算の定義には、原始再帰を使う。
 
 <div data-model="recursive_function">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 let zf = PROJ[1,0].
 let sf = COMP[SUCC: PROJ[3,0]].
 let add = PRIM[z: zf s: sf].
 add
-</script>
-<script type="text/plain" class="default-ainput">
+</template>
+<template data-default-ainput>
 (3, 4)
-</script>
+</template>
 </div>

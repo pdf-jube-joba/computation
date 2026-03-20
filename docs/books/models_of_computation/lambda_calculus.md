@@ -17,9 +17,9 @@
 わかりやすい例が全然ないので、とりあえずいろいろ動く例を載せた。
 
 <div data-model="lambda_calculus">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 (\x. x) y
-</script>
+</template>
 </div>
 
 次はちょっと長い。
@@ -32,9 +32,9 @@
 \(s(2)\) はそうすると次のようになる。
 
 <div data-model="lambda_calculus">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 (\ x y z. (y ((x y) z))) (\s z. (s (s z)))
-</script>
+</template>
 </div>
 
 ともかく step を押すと、ちゃんと \(3\) に対応する表現が得られている。

@@ -12,22 +12,22 @@ Turing machine は次のもので構成される。
 テープにある `a` を全部 `b` に書き換える例。
 テープの最後には `c` をつけること。
 <div data-model="turing_machine">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 start
 goal
 a,start,b,start,R
 b,start,b,start,R
 c,start,c,goal,C
-</script>
-<script type="text/plain" class="default-ainput">
+</template>
+<template data-default-ainput>
 -|a|b,a,b,b,c
-</script>
+</template>
 </div>
 
 テープにある `a` と `b` の"仕分け"を行う例。
 
 <div data-model="turing_machine">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 s
 g
 a,s,a,s,R
@@ -40,10 +40,10 @@ b,b,a,r,L
 b,r,b,r,L
 a,r,a,r,L
 x,r,x,s,R
-</script>
-<script type="text/plain" class="default-ainput">
+</template>
+<template data-default-ainput>
 x|b|a,a,b
-</script>
+</template>
 </div>
 
 ## 具体例

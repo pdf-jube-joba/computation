@@ -4,33 +4,33 @@ markdown がうまく行っているかテストする。
 全部を統一したい。
 
 <div data-model="example_counter">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 5
-</script>
-<script type="text/plain" class="default-rinput">
+</template>
+<template data-default-rinput>
 inc
-</script>
+</template>
 </div>
 
 二個目の配置
 <div data-model="example_counter">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 8
-</script>
-<script type="text/plain" class="default-rinput">
+</template>
+<template data-default-rinput>
 inc
-</script>
+</template>
 </div>
 
 identity compiler の場合
 
 <div data-model="example_counter-example_counter">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 8
-</script>
-<script type="text/plain" class="default-rinput">
+</template>
+<template data-default-rinput>
 inc
-</script>
+</template>
 </div>
 
 ## katex で数式
@@ -109,7 +109,7 @@ markdown の中でタグを配置するときの注意
   }
 
   run();
-</script>
+</template>
 ```
 - `<div>` と `<script>` の間をあけること
 - `<script>` の中に改行を入れないこと

@@ -1,5 +1,5 @@
 <div data-model="logic_circuit">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 graph: one-shot {
     in {I}
     out {O=A.OUT}
@@ -7,9 +7,9 @@ graph: one-shot {
     N, NOT-T {IN=B.OUT0}
     A, AND-F {IN0=B.OUT1, IN1=N.OUT}
 }
-</script>
-<script type="text/plain" class="default-ainput">
-</script>
+</template>
+<template data-default-ainput>
+</template>
 </div>
 
 

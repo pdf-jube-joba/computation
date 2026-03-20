@@ -60,10 +60,10 @@
 こうして再帰関数がラムダ計算で計算可能であることが分かった。
 
 <div data-model="recursive_function-lambda_calculus">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 PRIM[z: PROJ[1, 0] s: COMP[SUCC: PROJ[3, 0]]]
-</script>
-<script type="text/plain" class="default-ainput">
+</template>
+<template data-default-ainput>
 (2, 3)
-</script>
+</template>
 </div>

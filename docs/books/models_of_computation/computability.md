@@ -26,13 +26,13 @@
 
 以下で変換器が書いてある。
 <div data-model="recursive_function-lambda_calculus">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 let zf = PROJ[1,0].
 let sf = COMP[SUCC: PROJ[3,0]].
 let add = PRIM[z: zf s: sf].
 add
-</script>
-<script type="text/plain" class="default-ainput">
+</template>
+<template data-default-ainput>
 (2, 3)
-</script>
+</template>
 </div>

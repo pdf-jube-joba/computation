@@ -7,17 +7,17 @@
 - 10 を超えると、最終的な出力 End が表示されます。
 
 <div data-model="example_counter">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 7
-</script>
-<script type="text/plain" class="default-ainput">
-</script>
+</template>
+<template data-default-ainput>
+</template>
 </div>
 
 <div data-model="example_counter-example_counter">
-<script type="text/plain" class="default-code">
+<template data-default-code>
 7
-</script>
-<script type="text/plain" class="default-ainput">
-</script>
+</template>
+<template data-default-ainput>
+</template>
 </div>

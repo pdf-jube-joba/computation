@@ -34,9 +34,9 @@ export default function createMountEnhancer(config = {}) {
 export const mountModel = createMountEnhancer;
 
 function normalizeMountBaseUrl(config) {
-  const value = config.wasm_mount_url || config.bundleBaseUrl;
+  const value = config.bundleBaseUrl;
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error("mount enhancer requires wasm_mount_url or bundleBaseUrl");
+    throw new Error("mount enhancer requires bundleBaseUrl");
   }
   return value.endsWith("/") ? value : `${value}/`;
 }
@@ -45,11 +45,6 @@ function extractDefaultValue(root, name) {
   const template = root.querySelector(`template[data-${name}]`);
   if (template) {
     return template.content.textContent || "";
-  }
-
-  const script = root.querySelector(`script.${name}[type="text/plain"]`);
-  if (script) {
-    return script.textContent || "";
   }
 
   return "";
