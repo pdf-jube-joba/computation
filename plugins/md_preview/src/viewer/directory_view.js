@@ -1,4 +1,4 @@
-import {fetchTextFile, normalizePath, requestHeaders} from "./markdown_runtime.js";
+import {currentFileUrl, fetchTextFile, normalizePath, requestHeaders} from "./markdown_runtime.js";
 
 const PAGE_SIZE = 24;
 const PREVIEW_LIMIT = 100;

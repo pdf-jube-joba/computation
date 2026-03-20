@@ -10,8 +10,7 @@ import {
 const pathText = document.querySelector("#path-text");
 const preview = document.querySelector("#preview");
 const navigation = document.querySelector("#navigation");
-const sidebarEdgeToggle = document.querySelector("#sidebar-edge-toggle");
-const sidebarDividerToggle = document.querySelector("#sidebar-divider-toggle");
+const sidebarToggle = document.querySelector("#sidebar-toggle");
 const editLink = document.querySelector("#edit-link");
 const homeLink = document.querySelector("#home-link");
 const upLink = document.querySelector("#up-link");
@@ -27,8 +26,9 @@ function setStatus(message, isError = false) {
 
 function setSidebarCollapsed(collapsed) {
   app.classList.toggle("sidebar-collapsed", collapsed);
-  sidebarEdgeToggle.setAttribute("aria-expanded", String(!collapsed));
-  sidebarDividerToggle.setAttribute("aria-expanded", String(!collapsed));
+  sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+  sidebarToggle.setAttribute("aria-label", collapsed ? "Show navigation" : "Hide navigation");
+  sidebarToggle.textContent = collapsed ? "▸" : "◂";
   window.localStorage.setItem(sidebarStateKey, collapsed ? "1" : "0");
 }
 
@@ -431,12 +431,8 @@ navigation.addEventListener("click", event => {
   void navigateTo(link.dataset.previewPath);
 });
 
-sidebarEdgeToggle.addEventListener("click", () => {
-  setSidebarCollapsed(false);
-});
-
-sidebarDividerToggle.addEventListener("click", () => {
-  setSidebarCollapsed(true);
+sidebarToggle.addEventListener("click", () => {
+  setSidebarCollapsed(!app.classList.contains("sidebar-collapsed"));
 });
 
 window.addEventListener("popstate", () => {

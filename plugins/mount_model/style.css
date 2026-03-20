@@ -148,6 +148,26 @@
   background-color: #ffd6d6;
 }
 
+.wm-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 3px solid #2f5f86;
+  background: #f4fbff;
+}
+
+.wm-table th,
+.wm-table td {
+  padding: 10px 12px;
+  border: 1px solid #7ea7c2;
+  vertical-align: top;
+}
+
+.wm-table thead th,
+.wm-table tr:first-child > th,
+.wm-table tr:first-child > td {
+  background: #d8edf8;
+}
+
 .wm-section-title {
   font-size: 1em;
   font-weight: 600;

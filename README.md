@@ -11,7 +11,10 @@
 ## 動かし方（簡単に）
 - `plugins/` 以下のそれぞれのディレクトリで `npm install`
 - `cargo run --bin workspace_fs -- ./ --task build-all`
-- ブラウザで `http://localhost:3000/md/md_preview.html?path=README.md` を閲覧。
+- ブラウザで `localhost:3000/md/md_preview.html?path=README.md` を閲覧。
+    - [example counter（動いている見本）](./models/example_counter/README.md)
+    - [Model 一覧](./md/directory_view.html?link=Model)
+    - [Compiler 一覧](./md/directory_view.html?link=Model)
 
 ## 内容とディレクトリ構成
 - `rust` 言語で各計算モデルの実装をしてます
@@ -38,8 +41,6 @@
         2. `wasm-tools` で wasm の component 化
         3. `jco` で component のグルーコードを作る（ブラウザがまだ対応してない）
         4. できた成果物を `script.js`, `renderer.js`, `style.css` とともに plugin の指定場所に入る
-- `viewer/` は markdown の preview と editor を配信しています。
-    editor は `workspace_fs` の性質上、ディレクトリを API 経由で書き換えることができます。
 
 ## 必要なもの
 - `rust` 周り

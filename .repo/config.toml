@@ -16,7 +16,7 @@ deps = ["build-wasm"]
 mount = "/md/"
 
 [plugin.md_preview]
-macro_path = "docs/macros.txt"
+macro_path = "./macros.txt"
 
 [[plugin.md_preview.enhance]]
 name = "wasm_mount"
