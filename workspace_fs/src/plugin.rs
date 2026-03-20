@@ -234,7 +234,8 @@ impl<'a> PluginRunner<'a> {
                 .await?;
             }
 
-            self.run_plugin(plugin, trigger, path, user_identity).await?;
+            self.run_plugin(plugin, trigger, path, user_identity)
+                .await?;
             visiting.remove(&plugin.name);
             executed.insert(plugin.name.clone());
             Ok(())
@@ -393,7 +394,11 @@ fn expand_placeholder(
     }
 
     if let Some((path_placeholder, user_placeholder)) = request_placeholders(trigger) {
-        let path = context.path.as_ref().map(WorkspacePath::as_str).unwrap_or("");
+        let path = context
+            .path
+            .as_ref()
+            .map(WorkspacePath::as_str)
+            .unwrap_or("");
         value = value.replace(path_placeholder, path);
         value = value.replace(user_placeholder, context.user_identity.as_str());
     }
@@ -414,7 +419,8 @@ fn resolved_plugin_settings_json(
         .extra
         .iter()
         .map(|(key, value)| {
-            resolve_plugin_setting_value(value, context, trigger).map(|resolved| (key.clone(), resolved))
+            resolve_plugin_setting_value(value, context, trigger)
+                .map(|resolved| (key.clone(), resolved))
         })
         .collect::<Result<serde_json::Map<String, JsonValue>>>()?;
     serde_json::to_string(&JsonValue::Object(resolved))
@@ -427,7 +433,9 @@ fn resolve_plugin_setting_value(
     trigger: PluginTrigger,
 ) -> Result<JsonValue> {
     match value {
-        toml::Value::String(text) => Ok(JsonValue::String(expand_placeholder(text, context, trigger)?)),
+        toml::Value::String(text) => Ok(JsonValue::String(expand_placeholder(
+            text, context, trigger,
+        )?)),
         toml::Value::Integer(number) => Ok(JsonValue::from(*number)),
         toml::Value::Float(number) => serde_json::Number::from_f64(*number)
             .map(JsonValue::Number)
@@ -442,14 +450,18 @@ fn resolve_plugin_setting_value(
         toml::Value::Table(table) => table
             .iter()
             .map(|(key, value)| {
-                resolve_plugin_setting_value(value, context, trigger).map(|resolved| (key.clone(), resolved))
+                resolve_plugin_setting_value(value, context, trigger)
+                    .map(|resolved| (key.clone(), resolved))
             })
             .collect::<Result<serde_json::Map<String, JsonValue>>>()
             .map(JsonValue::Object),
     }
 }
 
-fn dependency_mounts(config: &RepositoryConfig, plugin: &PluginConfig) -> Result<BTreeMap<String, String>> {
+fn dependency_mounts(
+    config: &RepositoryConfig,
+    plugin: &PluginConfig,
+) -> Result<BTreeMap<String, String>> {
     let mut mounts = BTreeMap::new();
     for dependency_name in &plugin.deps {
         let dependency = config
@@ -549,10 +561,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
-            value,
-            "/repo:docs/a.md:user:/plugin-assets/:/wasm_bundle/"
-        );
+        assert_eq!(value, "/repo:docs/a.md:user:/plugin-assets/:/wasm_bundle/");
     }
 
     #[test]
@@ -577,29 +586,28 @@ mod tests {
     fn resolved_plugin_settings_json_expands_nested_placeholders() {
         let plugin = plugin_config_with_extra(BTreeMap::from([(
             "md_preview".into(),
-            toml::Value::Table(toml::map::Map::from_iter([
-                (
-                    "enhance".into(),
-                    toml::Value::Array(vec![toml::Value::Table(toml::map::Map::from_iter([
-                        ("name".into(), toml::Value::String("embedded-models".into())),
-                        (
-                            "url".into(),
-                            toml::Value::String("{MOUNT_BUILD_WASM}enhance.js".into()),
-                        ),
-                        (
-                            "settings".into(),
-                            toml::Value::Table(toml::map::Map::from_iter([(
-                                "mount".into(),
-                                toml::Value::String("{MOUNT_BUILD_WASM}".into()),
-                            )])),
-                        ),
-                    ]))]),
-                ),
-            ])),
+            toml::Value::Table(toml::map::Map::from_iter([(
+                "enhance".into(),
+                toml::Value::Array(vec![toml::Value::Table(toml::map::Map::from_iter([
+                    ("name".into(), toml::Value::String("embedded-models".into())),
+                    (
+                        "url".into(),
+                        toml::Value::String("{MOUNT_BUILD_WASM}enhance.js".into()),
+                    ),
+                    (
+                        "settings".into(),
+                        toml::Value::Table(toml::map::Map::from_iter([(
+                            "mount".into(),
+                            toml::Value::String("{MOUNT_BUILD_WASM}".into()),
+                        )])),
+                    ),
+                ]))]),
+            )])),
         )]));
 
-        let json = resolved_plugin_settings_json(&plugin, &plugin_context(None), PluginTrigger::Manual)
-            .unwrap();
+        let json =
+            resolved_plugin_settings_json(&plugin, &plugin_context(None), PluginTrigger::Manual)
+                .unwrap();
 
         assert_eq!(
             json,
@@ -686,14 +694,13 @@ mod tests {
                 steps: vec!["md-preview".into()],
             }],
         };
-        let runner = PluginRunner::new(
-            camino::Utf8Path::new("/repo"),
-            "repo",
-            &config,
-        );
+        let runner = PluginRunner::new(camino::Utf8Path::new("/repo"), "repo", &config);
 
         let plan = runner.plan_task("build", false).unwrap();
-        let names = plan.iter().map(|plugin| plugin.name.as_str()).collect::<Vec<_>>();
+        let names = plan
+            .iter()
+            .map(|plugin| plugin.name.as_str())
+            .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["build-wasm", "md-preview"]);
     }
@@ -731,14 +738,13 @@ mod tests {
                 steps: vec!["md-preview".into()],
             }],
         };
-        let runner = PluginRunner::new(
-            camino::Utf8Path::new("/repo"),
-            "repo",
-            &config,
-        );
+        let runner = PluginRunner::new(camino::Utf8Path::new("/repo"), "repo", &config);
 
         let plan = runner.plan_task("build", true).unwrap();
-        let names = plan.iter().map(|plugin| plugin.name.as_str()).collect::<Vec<_>>();
+        let names = plan
+            .iter()
+            .map(|plugin| plugin.name.as_str())
+            .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["md-preview"]);
     }

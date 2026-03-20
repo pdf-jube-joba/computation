@@ -37,6 +37,7 @@ struct AppState {
 struct CliOptions {
     repository_path: Utf8PathBuf,
     task: Option<String>,
+    task_only: Option<String>,
     skip_deps: bool,
 }
 
@@ -49,6 +50,12 @@ async fn main() -> Result<()> {
     let config = Arc::new(RepositoryConfig::load(&repository_root)?);
     let repository = Arc::new(FsRepository::open(&repository_root, &config)?);
     let workspace = Arc::new(WorkspaceService::new(repository, config));
+
+    if let Some(task_name) = &cli.task_only {
+        tracing::info!(task = %task_name, skip_deps = cli.skip_deps, "running task without serve");
+        workspace.run_task(task_name, cli.skip_deps).await?;
+        return Ok(());
+    }
 
     if let Some(task_name) = &cli.task {
         tracing::info!(task = %task_name, skip_deps = cli.skip_deps, "running task before serve");
@@ -113,11 +120,19 @@ async fn main() -> Result<()> {
 }
 
 fn parse_cli_options() -> Result<CliOptions> {
-    let mut args = env::args().skip(1);
-    let repository_path = args
-        .next()
-        .ok_or_else(|| anyhow!("usage: workspace_fs <repository-path> [--task <name>] [--skip-deps]"))?;
+    parse_cli_args(env::args().skip(1))
+}
+
+fn parse_cli_args<I>(args: I) -> Result<CliOptions>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut args = args.into_iter();
+    let repository_path = args.next().ok_or_else(|| {
+        anyhow!("usage: workspace_fs <repository-path> [--task <name>] [--task-only <name>] [--skip-deps]")
+    })?;
     let mut task = None;
+    let mut task_only = None;
     let mut skip_deps = false;
 
     while let Some(arg) = args.next() {
@@ -128,6 +143,12 @@ fn parse_cli_options() -> Result<CliOptions> {
                     .ok_or_else(|| anyhow!("missing value for --task"))?;
                 task = Some(value);
             }
+            "--task-only" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| anyhow!("missing value for --task-only"))?;
+                task_only = Some(value);
+            }
             "--skip-deps" => {
                 skip_deps = true;
             }
@@ -135,13 +156,18 @@ fn parse_cli_options() -> Result<CliOptions> {
         }
     }
 
-    if skip_deps && task.is_none() {
-        bail!("--skip-deps requires --task");
+    if task.is_some() && task_only.is_some() {
+        bail!("--task and --task-only are mutually exclusive");
+    }
+
+    if skip_deps && task.is_none() && task_only.is_none() {
+        bail!("--skip-deps requires --task or --task-only");
     }
 
     Ok(CliOptions {
         repository_path: Utf8PathBuf::from(repository_path),
         task,
+        task_only,
         skip_deps,
     })
 }
@@ -266,6 +292,45 @@ mod tests {
                 .unwrap()
                 .as_str(),
             "from_browser"
+        );
+    }
+
+    #[test]
+    fn parse_cli_args_accepts_task_only_with_task() {
+        let cli = parse_cli_args([
+            "./repo".to_string(),
+            "--task-only".to_string(),
+            "build".to_string(),
+        ])
+        .unwrap();
+
+        assert_eq!(cli.repository_path, Utf8PathBuf::from("./repo"));
+        assert_eq!(cli.task, None);
+        assert_eq!(cli.task_only.as_deref(), Some("build"));
+        assert!(!cli.skip_deps);
+    }
+
+    #[test]
+    fn parse_cli_args_rejects_task_only_without_value() {
+        let error = parse_cli_args(["./repo".to_string(), "--task-only".to_string()]).unwrap_err();
+
+        assert_eq!(error.to_string(), "missing value for --task-only");
+    }
+
+    #[test]
+    fn parse_cli_args_rejects_task_and_task_only_together() {
+        let error = parse_cli_args([
+            "./repo".to_string(),
+            "--task".to_string(),
+            "serve-build".to_string(),
+            "--task-only".to_string(),
+            "one-shot-build".to_string(),
+        ])
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "--task and --task-only are mutually exclusive"
         );
     }
 }

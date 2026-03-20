@@ -280,9 +280,7 @@ impl WorkspaceService {
         })?;
 
         if path.is_directory() && info.kind != crate::info::PathInfoKind::Directory {
-            return Err(WorkspaceError::bad_request(
-                "file path must not end with /",
-            ));
+            return Err(WorkspaceError::bad_request("file path must not end with /"));
         }
         if !path.is_directory() && info.kind == crate::info::PathInfoKind::Directory {
             return Err(WorkspaceError::bad_request(
@@ -345,10 +343,15 @@ impl WorkspaceService {
     }
 
     fn normalize_request_path(&self, path: &str) -> Result<WorkspacePath, WorkspaceError> {
-        WorkspacePath::from_url(path).map_err(|error| WorkspaceError::bad_request(error.to_string()))
+        WorkspacePath::from_url(path)
+            .map_err(|error| WorkspaceError::bad_request(error.to_string()))
     }
 
-    fn enforce_policy(&self, method: MethodKind, path: &WorkspacePath) -> Result<(), WorkspaceError> {
+    fn enforce_policy(
+        &self,
+        method: MethodKind,
+        path: &WorkspacePath,
+    ) -> Result<(), WorkspaceError> {
         let allowed = self
             .resolve_policy(method, path)
             .map_err(WorkspaceError::internal)?
@@ -509,12 +512,17 @@ mod tests {
     async fn file_response_uses_html_mime_and_binary_body() {
         let response = file_response(
             StatusCode::OK,
-            &content_type_for_path(&WorkspacePath::from_path_str("assets/md_preview.html").unwrap()),
+            &content_type_for_path(
+                &WorkspacePath::from_path_str("assets/md_preview.html").unwrap(),
+            ),
             b"<h1>x</h1>".to_vec(),
         );
         let headers = response.headers();
 
-        assert_eq!(headers.get(CONTENT_TYPE).unwrap(), "text/html; charset=utf-8");
+        assert_eq!(
+            headers.get(CONTENT_TYPE).unwrap(),
+            "text/html; charset=utf-8"
+        );
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"<h1>x</h1>");
     }
@@ -529,13 +537,7 @@ mod tests {
 
     #[test]
     fn path_info_requires_directory_suffix_for_directories() {
-        let info = PathInfo::new(
-            "docs",
-            PathInfoKind::Directory,
-            None,
-            None,
-            false,
-        );
+        let info = PathInfo::new("docs", PathInfoKind::Directory, None, None, false);
 
         assert_eq!(info.kind, PathInfoKind::Directory);
     }

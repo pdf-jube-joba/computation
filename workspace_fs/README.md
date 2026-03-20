@@ -21,10 +21,16 @@ HTTP リクエスト経由でディレクトリの編集を行う。
 
 ```bash
 cargo run --bin workspace_fs -- ./test-repository
+cargo run --bin workspace_fs -- ./test-repository --task build
+cargo run --bin workspace_fs -- ./test-repository --task-only build
 ```
+- `--task-only <name>` は task 実行後に serve せず終了する。`--task <name>` と同時指定は不可。
+- plugin の依存関係に入っているものを含めて実行するが、 `--skip-deps` で依存関係を実行しないようにできる。
 
 起動時には読み込んだ serve 設定をログに出す。
 また、各リクエストについて method, path, status code をログに出す。
+
+
 
 起動後の例:
 
