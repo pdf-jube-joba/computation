@@ -97,6 +97,8 @@ pub struct PluginConfig {
     pub runner: String,
     pub command: Vec<String>,
     pub trigger: String,
+    #[serde(default, deserialize_with = "deserialize_optional_workspace_path")]
+    pub path: Option<WorkspacePath>,
     #[serde(default)]
     pub deps: Vec<String>,
     // URL prefix なので、 `WorkspacePath` ではなく文字列で受け取る。検証は後で行う。
@@ -168,6 +170,7 @@ impl RepositoryConfig {
             ("serve.policy_url_prefix", self.serve.policy_url_prefix.as_str()),
             ("serve.info_url_prefix", self.serve.info_url_prefix.as_str()),
         ];
+        let reserved_url_prefix_paths = reserved_url_prefix_paths(&self.serve)?;
         for index in 0..prefixes.len() {
             for other_index in (index + 1)..prefixes.len() {
                 if prefixes[index].1 == prefixes[other_index].1 {
@@ -187,6 +190,9 @@ impl RepositoryConfig {
             if policy.path.is_reserved() {
                 bail!("policy path must not target .repo/");
             }
+            if path_uses_reserved_url_prefix(&policy.path, &reserved_url_prefix_paths) {
+                bail!("policy path must not target reserved url prefix");
+            }
         }
 
         for plugin in &self.plugin {
@@ -201,6 +207,17 @@ impl RepositoryConfig {
             }
             if plugin.command.is_empty() {
                 bail!("plugin command must not be empty");
+            }
+            if let Some(path) = &plugin.path {
+                if contains_glob_metachar(path.as_str()) {
+                    bail!("plugin path must not use glob syntax");
+                }
+                if path.is_reserved() {
+                    bail!("plugin path must not target .repo/");
+                }
+                if path_uses_reserved_url_prefix(path, &reserved_url_prefix_paths) {
+                    bail!("plugin path must not target reserved url prefix");
+                }
             }
             for dependency in &plugin.deps {
                 if !is_valid_plugin_name(dependency) {
@@ -220,9 +237,12 @@ impl RepositoryConfig {
                     );
                 }
             }
-            if plugin.trigger != "manual" {
-                glob::Pattern::new(&plugin.name)
-                    .with_context(|| format!("invalid plugin path pattern: {}", plugin.name))?;
+            if plugin.trigger == "manual" {
+                if plugin.path.is_some() {
+                    bail!("manual plugin must not set path");
+                }
+            } else if plugin.path.is_none() {
+                bail!("non-manual plugin must set path");
             }
             if let Some(mount) = &plugin.mount {
                 if !mount.starts_with('/') || !mount.ends_with('/') {
@@ -231,6 +251,9 @@ impl RepositoryConfig {
 
                 let relative = WorkspacePath::from_path_str(mount.trim_start_matches('/'))
                     .expect("validated mount path should parse");
+                if path_uses_reserved_url_prefix(&relative, &reserved_url_prefix_paths) {
+                    bail!("plugin mount must not target reserved url prefix");
+                }
                 if relative.as_str() != "." {
                     let target = relative.join_to(repository_root);
                     if target.is_dir() {
@@ -274,6 +297,18 @@ where
     WorkspacePath::from_path_str(&value).map_err(serde::de::Error::custom)
 }
 
+fn deserialize_optional_workspace_path<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<WorkspacePath>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    value
+        .map(|raw| WorkspacePath::from_path_str(&raw).map_err(serde::de::Error::custom))
+        .transpose()
+}
+
 fn contains_glob_metachar(value: &str) -> bool {
     value.contains('*') || value.contains('?') || value.contains('[')
 }
@@ -283,6 +318,23 @@ fn validate_url_prefix(name: &str, value: &str) -> Result<()> {
         bail!("{name} must start with /, must not be empty, and must not end with /");
     }
     Ok(())
+}
+
+fn reserved_url_prefix_paths(settings: &ServeSettings) -> Result<Vec<WorkspacePath>> {
+    [
+        settings.plugin_url_prefix.as_str(),
+        settings.policy_url_prefix.as_str(),
+        settings.info_url_prefix.as_str(),
+    ]
+    .into_iter()
+    .map(|prefix| WorkspacePath::from_path_str(prefix.trim_start_matches('/')))
+    .collect()
+}
+
+fn path_uses_reserved_url_prefix(path: &WorkspacePath, reserved_prefixes: &[WorkspacePath]) -> bool {
+    reserved_prefixes
+        .iter()
+        .any(|reserved_prefix| path.starts_with(reserved_prefix))
 }
 
 fn is_valid_plugin_name(value: &str) -> bool {
@@ -476,6 +528,7 @@ GET = true
                 runner: "command".into(),
                 command: vec!["echo".into()],
                 trigger: "manual".into(),
+                path: None,
                 deps: Vec::new(),
                 mount: Some("/assets/".into()),
                 extra: Default::default(),
@@ -504,6 +557,7 @@ GET = true
                 runner: "command".into(),
                 command: vec!["echo".into()],
                 trigger: "manual".into(),
+                path: None,
                 deps: Vec::new(),
                 mount: None,
                 extra: Default::default(),
@@ -527,6 +581,7 @@ GET = true
                 runner: "command".into(),
                 command: vec!["echo".into()],
                 trigger: "manual".into(),
+                path: None,
                 deps: vec!["build-wasm".into()],
                 mount: None,
                 extra: Default::default(),
@@ -576,5 +631,80 @@ entrypoint = "default"
             enhancer.get("entrypoint").unwrap().as_str(),
             Some("default")
         );
+    }
+
+    #[test]
+    fn repository_config_rejects_policy_path_under_reserved_url_prefix() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: vec![Policy {
+                path: WorkspacePath::from_path_str(".info/cache.txt").unwrap(),
+                permissions: PolicyPermissions {
+                    get: true,
+                    post: false,
+                    put: false,
+                    delete: false,
+                },
+            }],
+            plugin: Vec::new(),
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("policy path must not target reserved url prefix")
+        );
+    }
+
+    #[test]
+    fn repository_config_requires_path_for_non_manual_plugin() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: Vec::new(),
+            plugin: vec![PluginConfig {
+                name: "preview".into(),
+                runner: "command".into(),
+                command: vec!["echo".into()],
+                trigger: "GET".into(),
+                path: None,
+                deps: Vec::new(),
+                mount: None,
+                extra: Default::default(),
+            }],
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(error.to_string().contains("non-manual plugin must set path"));
+    }
+
+    #[test]
+    fn repository_config_rejects_manual_plugin_path() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: Vec::new(),
+            plugin: vec![PluginConfig {
+                name: "preview".into(),
+                runner: "command".into(),
+                command: vec!["echo".into()],
+                trigger: "manual".into(),
+                path: Some(WorkspacePath::from_path_str("docs/").unwrap()),
+                deps: Vec::new(),
+                mount: None,
+                extra: Default::default(),
+            }],
+            task: Vec::new(),
+        };
+
+        let error = config.validate(Utf8Path::new(".")).unwrap_err();
+
+        assert!(error.to_string().contains("manual plugin must not set path"));
     }
 }

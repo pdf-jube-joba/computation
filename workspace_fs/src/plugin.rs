@@ -5,7 +5,6 @@ use std::process::Stdio;
 
 use anyhow::{Context, Result, bail};
 use camino::Utf8PathBuf;
-use glob::Pattern;
 use serde_json::Value as JsonValue;
 use tokio::process::Command;
 
@@ -134,10 +133,7 @@ impl<'a> PluginRunner<'a> {
                 continue;
             }
 
-            if !Pattern::new(&plugin.name)
-                .with_context(|| format!("invalid plugin path pattern: {}", plugin.name))?
-                .matches(path.as_str())
-            {
+            if !plugin_matches_path(plugin, path) {
                 continue;
             }
 
@@ -290,6 +286,22 @@ impl<'a> PluginRunner<'a> {
 
         Ok(())
     }
+}
+
+fn plugin_matches_path(plugin: &PluginConfig, path: &WorkspacePath) -> bool {
+    let Some(plugin_path) = &plugin.path else {
+        return false;
+    };
+
+    if plugin_path.as_str() == "." {
+        return true;
+    }
+
+    if plugin_path.is_directory() {
+        return path.starts_with(plugin_path);
+    }
+
+    plugin_path.as_str() == path.as_str()
 }
 
 fn parse_trigger(trigger: &str) -> Result<PluginTrigger> {
@@ -460,6 +472,7 @@ mod tests {
             runner: "command".into(),
             command: vec!["echo".into()],
             trigger: "manual".into(),
+            path: None,
             deps: vec!["build-wasm".into()],
             mount: Some("/plugin-assets/".into()),
             extra,
@@ -543,5 +556,51 @@ mod tests {
             json,
             r#"{"md_preview":{"enhance":[{"name":"embedded-models","settings":{"mount":"/wasm_bundle/"},"url":"/wasm_bundle/enhance.js"}]}}"#
         );
+    }
+
+    #[test]
+    fn plugin_matches_path_uses_exact_match_for_files() {
+        let plugin = PluginConfig {
+            name: "plugin".into(),
+            runner: "command".into(),
+            command: vec!["echo".into()],
+            trigger: "GET".into(),
+            path: Some(WorkspacePath::from_path_str("docs/a.md").unwrap()),
+            deps: Vec::new(),
+            mount: None,
+            extra: Default::default(),
+        };
+
+        assert!(plugin_matches_path(
+            &plugin,
+            &WorkspacePath::from_path_str("docs/a.md").unwrap()
+        ));
+        assert!(!plugin_matches_path(
+            &plugin,
+            &WorkspacePath::from_path_str("docs/b.md").unwrap()
+        ));
+    }
+
+    #[test]
+    fn plugin_matches_path_uses_prefix_match_for_directories() {
+        let plugin = PluginConfig {
+            name: "plugin".into(),
+            runner: "command".into(),
+            command: vec!["echo".into()],
+            trigger: "GET".into(),
+            path: Some(WorkspacePath::from_path_str("docs/").unwrap()),
+            deps: Vec::new(),
+            mount: None,
+            extra: Default::default(),
+        };
+
+        assert!(plugin_matches_path(
+            &plugin,
+            &WorkspacePath::from_path_str("docs/a.md").unwrap()
+        ));
+        assert!(!plugin_matches_path(
+            &plugin,
+            &WorkspacePath::from_path_str("images/a.md").unwrap()
+        ));
     }
 }

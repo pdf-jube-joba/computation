@@ -25,6 +25,7 @@ pub trait Repository: Send + Sync {
 pub struct FsRepository {
     repository_root: Utf8PathBuf,
     mounts: Vec<MountedDirectory>,
+    reserved_paths: Vec<WorkspacePath>,
 }
 
 struct MountedDirectory {
@@ -46,6 +47,7 @@ impl FsRepository {
         Ok(Self {
             repository_root,
             mounts: Self::mounts_from_config(config),
+            reserved_paths: Self::reserved_paths_from_config(config),
         })
     }
 
@@ -61,11 +63,32 @@ impl FsRepository {
                 plugin.mount.as_ref().map(|mount| MountedDirectory {
                     alias: WorkspacePath::from_path_str(mount.trim_start_matches('/'))
                         .expect("validated mount alias should parse"),
-                    source: WorkspacePath::from_path_str(&format!(".repo/{}/generated", plugin.name))
-                        .expect("generated plugin path should parse"),
+                    source: WorkspacePath::from_path_str(&format!(
+                        ".repo/{}/generated",
+                        plugin.name
+                    ))
+                    .expect("generated plugin path should parse"),
                 })
             })
             .collect()
+    }
+
+    fn reserved_paths_from_config(config: &RepositoryConfig) -> Vec<WorkspacePath> {
+        let mut reserved_paths = vec![
+            WorkspacePath::from_path_str(".repo")
+                .expect(".repo should always parse as workspace path"),
+        ];
+        for prefix in [
+            config.serve.plugin_url_prefix.as_str(),
+            config.serve.policy_url_prefix.as_str(),
+            config.serve.info_url_prefix.as_str(),
+        ] {
+            reserved_paths.push(
+                WorkspacePath::from_path_str(prefix.trim_start_matches('/'))
+                    .expect("validated reserved prefix should parse"),
+            );
+        }
+        reserved_paths
     }
 
     fn resolve_path(&self, requested_path: &WorkspacePath) -> Result<Utf8PathBuf> {
@@ -81,11 +104,10 @@ impl FsRepository {
             bail!("parent directory not found");
         };
 
-        if !parent.exists() {
-            bail!("parent directory not found");
-        }
-
-        if !parent.is_dir() {
+        self.ensure_no_symlink_components(parent, false)?;
+        let metadata = std::fs::symlink_metadata(parent.as_std_path())
+            .context("failed to inspect parent directory")?;
+        if !metadata.is_dir() {
             bail!("parent path is not a directory");
         }
 
@@ -106,9 +128,52 @@ impl FsRepository {
     }
 
     fn ensure_not_reserved_path(&self, requested_path: &WorkspacePath) -> Result<()> {
-        if requested_path.is_reserved() {
+        if self
+            .reserved_paths
+            .iter()
+            .any(|reserved_path| requested_path.starts_with(reserved_path))
+        {
             bail!("reserved path");
         }
+        Ok(())
+    }
+
+    fn ensure_no_symlink_components(
+        &self,
+        path: &Utf8Path,
+        allow_missing_final: bool,
+    ) -> Result<()> {
+        let relative = path
+            .strip_prefix(&self.repository_root)
+            .map_err(|_| anyhow!("resolved path escapes repository root"))?;
+        let mut current = self.repository_root.clone();
+
+        if let Ok(metadata) = std::fs::symlink_metadata(current.as_std_path())
+            && metadata.file_type().is_symlink()
+        {
+            bail!("symlink path is not allowed");
+        }
+
+        for component in relative.components() {
+            current.push(component.as_str());
+            match std::fs::symlink_metadata(current.as_std_path()) {
+                Ok(metadata) => {
+                    if metadata.file_type().is_symlink() {
+                        bail!("symlink path is not allowed");
+                    }
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    if allow_missing_final && current == path {
+                        break;
+                    }
+                    break;
+                }
+                Err(error) => {
+                    return Err(error).context("failed to inspect path");
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -118,13 +183,18 @@ impl FsRepository {
             let dir_entry = dir_entry?;
             let path = dir_entry.path();
             let utf8 = Utf8PathBuf::from_path_buf(path).map_err(|_| anyhow!("non-UTF-8 path"))?;
+            let metadata = std::fs::symlink_metadata(utf8.as_std_path())
+                .context("failed to inspect directory entry")?;
+            if metadata.file_type().is_symlink() {
+                bail!("symlink path is not allowed");
+            }
 
             let mut entry = utf8
                 .file_name()
                 .ok_or_else(|| anyhow!("invalid directory entry"))?
                 .to_owned();
 
-            if utf8.is_dir() {
+            if metadata.is_dir() {
                 entry.push('/');
             }
 
@@ -140,6 +210,7 @@ impl FsRepository {
 impl Repository for FsRepository {
     async fn list_directory(&self, path: &WorkspacePath) -> Result<Vec<String>> {
         let directory = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&directory, false)?;
         if !directory.is_dir() {
             bail!("not a directory");
         }
@@ -149,6 +220,7 @@ impl Repository for FsRepository {
 
     async fn path_info(&self, path: &WorkspacePath) -> Result<PathInfo> {
         let resolved = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&resolved, false)?;
         let metadata = fs::metadata(resolved.as_std_path())
             .await
             .context("failed to read metadata")?;
@@ -173,6 +245,7 @@ impl Repository for FsRepository {
 
     async fn create_directory(&self, path: &WorkspacePath) -> Result<()> {
         let resolved = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&resolved, true)?;
 
         if resolved.exists() {
             bail!("directory already exists");
@@ -188,6 +261,7 @@ impl Repository for FsRepository {
 
     async fn delete_directory(&self, path: &WorkspacePath) -> Result<()> {
         let resolved = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&resolved, false)?;
 
         if !resolved.exists() {
             bail!("directory not found");
@@ -209,6 +283,7 @@ impl Repository for FsRepository {
 
     async fn read_file(&self, path: &WorkspacePath) -> Result<Vec<u8>> {
         let resolved = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&resolved, false)?;
         fs::read(resolved.as_std_path())
             .await
             .context("failed to read file")
@@ -216,6 +291,7 @@ impl Repository for FsRepository {
 
     async fn create_text_file(&self, path: &WorkspacePath, content: &str) -> Result<()> {
         let resolved = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&resolved, true)?;
 
         if resolved.exists() {
             bail!("file already exists");
@@ -231,6 +307,7 @@ impl Repository for FsRepository {
 
     async fn write_text_file(&self, path: &WorkspacePath, content: &str) -> Result<()> {
         let resolved = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&resolved, false)?;
 
         if !resolved.exists() {
             bail!("file not found");
@@ -248,6 +325,7 @@ impl Repository for FsRepository {
 
     async fn delete_file(&self, path: &WorkspacePath) -> Result<()> {
         let resolved = self.resolve_path(path)?;
+        self.ensure_no_symlink_components(&resolved, false)?;
 
         if !resolved.exists() {
             bail!("file not found");
@@ -261,5 +339,97 @@ impl Repository for FsRepository {
             .await
             .context("failed to delete file")?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{ServeSettings, TaskConfig};
+
+    fn test_config() -> RepositoryConfig {
+        RepositoryConfig {
+            name: "repo".into(),
+            serve: ServeSettings::default(),
+            policy: Vec::new(),
+            plugin: Vec::new(),
+            task: Vec::<TaskConfig>::new(),
+        }
+    }
+
+    fn unique_temp_dir(name: &str) -> Utf8PathBuf {
+        let unique = format!(
+            "workspace-fs-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let path = std::env::temp_dir().join(unique);
+        std::fs::create_dir_all(&path).unwrap();
+        Utf8PathBuf::from_path_buf(path).unwrap()
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn read_file_rejects_symlink_ancestor() {
+        use std::os::unix::fs::symlink;
+
+        let root = unique_temp_dir("read-symlink");
+        let outside = unique_temp_dir("outside-read");
+        std::fs::write(outside.join("secret.txt").as_std_path(), "secret").unwrap();
+        symlink(outside.as_std_path(), root.join("secret").as_std_path()).unwrap();
+
+        let repository = FsRepository::open(&root, &test_config()).unwrap();
+        let error = repository
+            .read_file(&WorkspacePath::from_path_str("secret/secret.txt").unwrap())
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("symlink path is not allowed"));
+
+        let _ = std::fs::remove_dir_all(root);
+        let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn write_text_file_rejects_symlink_ancestor() {
+        use std::os::unix::fs::symlink;
+
+        let root = unique_temp_dir("write-symlink");
+        let outside = unique_temp_dir("outside-write");
+        std::fs::write(outside.join("target.txt").as_std_path(), "before").unwrap();
+        symlink(outside.as_std_path(), root.join("secret").as_std_path()).unwrap();
+
+        let repository = FsRepository::open(&root, &test_config()).unwrap();
+        let error = repository
+            .write_text_file(
+                &WorkspacePath::from_path_str("secret/target.txt").unwrap(),
+                "after",
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("symlink path is not allowed"));
+
+        let _ = std::fs::remove_dir_all(root);
+        let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn reserved_virtual_prefix_is_rejected_as_repository_path() {
+        let root = unique_temp_dir("reserved-prefix");
+        let repository = FsRepository::open(&root, &test_config()).unwrap();
+        let error = repository
+            .read_file(&WorkspacePath::from_path_str(".info/cache.txt").unwrap())
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("reserved path"));
+
+        let _ = std::fs::remove_dir_all(root);
     }
 }
