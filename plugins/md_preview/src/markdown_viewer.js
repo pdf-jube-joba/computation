@@ -1,7 +1,7 @@
 import katex from "katex";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
-import {createMarkdownParser} from "./markdown_extensions.js";
+import {createMarkdownParser, prepareMarkdownSource} from "./markdown_extensions.js";
 import {createRemarkRehypeOptions} from "./markdown_to_hast.js";
 
 export async function renderMarkdownToElement({text, element, basePath = "", macros = {}}) {
@@ -23,7 +23,7 @@ export async function renderMarkdownToHtml({text, basePath = "", macros = {}}) {
     }))
     .use(rehypeStringify, {allowDangerousHtml: true});
 
-  const file = await processor.process(String(text || ""));
+  const file = await processor.process(prepareMarkdownSource(text));
   return String(file);
 }
 

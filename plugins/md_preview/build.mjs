@@ -14,10 +14,13 @@ const outDir = args.outDir;
 const repositoryRoot = args.repositoryRoot;
 const katexDistDir = path.join(__dirname, "node_modules", "katex", "dist");
 const katexOutDir = path.join(outDir, "vendor", "katex");
-const macrosSource = path.join(__dirname, "..", "..", "docs", "macros.txt");
-const macrosOutPath = path.join(outDir, "macros.txt");
 const pluginSettings = parsePluginSettings(process.env.WORKSPACE_FS_PLUGIN_SETTINGS_JSON);
-const enhancers = normalizeEnhancers(pluginSettings.md_preview?.enhance, args.wasmMountUrl);
+const enhancers = normalizeEnhancers(pluginSettings.md_preview?.enhance);
+const macrosSource = resolveMacrosSource(
+  pluginSettings.md_preview?.macro_path ?? pluginSettings.md_preview?.macros_path,
+  repositoryRoot,
+);
+const macrosOutPath = path.join(outDir, "macros.txt");
 
 await mkdir(outDir, {recursive: true});
 await mkdir(katexOutDir, {recursive: true});
@@ -44,7 +47,6 @@ await build({
 
 function parseArgs(argv) {
   let outDir = null;
-  let wasmMountUrl = "/wasm_bundle/";
   let repositoryRoot = process.cwd();
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -55,15 +57,6 @@ function parseArgs(argv) {
         throw new Error("missing value for --out-dir");
       }
       outDir = path.resolve(value);
-      index += 1;
-      continue;
-    }
-    if (arg === "--wasm-mount-url") {
-      const value = argv[index + 1];
-      if (!value) {
-        throw new Error("missing value for --wasm-mount-url");
-      }
-      wasmMountUrl = normalizeMountUrl(value);
       index += 1;
       continue;
     }
@@ -83,14 +76,14 @@ function parseArgs(argv) {
     throw new Error("missing required argument: --out-dir <path>");
   }
 
-  return {outDir, wasmMountUrl, repositoryRoot};
+  return {outDir, repositoryRoot};
 }
 
-function normalizeMountUrl(value) {
-  if (!value.startsWith("/") || !value.endsWith("/")) {
-    throw new Error(`invalid mount url: ${value}`);
+function resolveMacrosSource(macroPath, repositoryRoot) {
+  if (typeof macroPath === "string" && macroPath.trim() !== "") {
+    return path.resolve(repositoryRoot, macroPath);
   }
-  return value;
+  return path.join(__dirname, "..", "..", "docs", "macros.txt");
 }
 
 function parsePluginSettings(text) {
@@ -105,7 +98,7 @@ function parsePluginSettings(text) {
   return value;
 }
 
-function normalizeEnhancers(rawEnhancers, wasmMountUrl) {
+function normalizeEnhancers(rawEnhancers) {
   const values = [];
   if (Array.isArray(rawEnhancers)) {
     for (const rawEnhancer of rawEnhancers) {
@@ -130,23 +123,7 @@ function normalizeEnhancers(rawEnhancers, wasmMountUrl) {
       });
     }
   }
-
-  if (values.length > 0) {
-    return values;
-  }
-
-  if (!wasmMountUrl) {
-    return [];
-  }
-
-  return [{
-    name: "wasm_mount",
-    url: `${wasmMountUrl}mount.js`,
-    entrypoint: "default",
-    options: {
-      wasm_mount_url: wasmMountUrl,
-    },
-  }];
+  return values;
 }
 
 async function writeEnhanceRunner(outputPath, enhancers) {

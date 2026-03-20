@@ -5,7 +5,7 @@ const PREVIEW_LIMIT = 100;
 const TEXT_EXTENSIONS = new Set(["md", "txt", "rs"]);
 const DEFAULT_SORT = "newest";
 const SORT_VALUES = new Set(["newest", "oldest", "abc"]);
-const LINK_INDEX_URL = "/md-preview-assets/link_index.json";
+const LINK_INDEX_URL = "./link_index.json";
 
 const modeLabel = document.querySelector("#mode-label");
 const pathText = document.querySelector("#path-text");

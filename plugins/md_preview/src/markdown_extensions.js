@@ -17,7 +17,7 @@ export function createMarkdownParser() {
 
 export function parseMarkdown(text) {
   const parser = createMarkdownParser();
-  return parser.parse(escapeMathDelimiters(String(text || "")));
+  return parser.parse(prepareMarkdownSource(text));
 }
 
 export function transformMarkdownAst(tree) {
@@ -45,6 +45,10 @@ export function remarkComputationExtensions() {
   return tree => {
     transformNode(tree);
   };
+}
+
+export function prepareMarkdownSource(text) {
+  return escapeMathDelimiters(String(text || ""));
 }
 
 function transformNode(node) {
