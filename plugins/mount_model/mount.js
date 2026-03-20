@@ -34,7 +34,10 @@ export default function createMountEnhancer(config = {}) {
 export const mountModel = createMountEnhancer;
 
 function normalizeMountBaseUrl(config) {
-  const value = config.wasm_mount_url || config.bundleBaseUrl || new URL("./", import.meta.url).href;
+  const value = config.wasm_mount_url || config.bundleBaseUrl;
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error("mount enhancer requires wasm_mount_url or bundleBaseUrl");
+  }
   return value.endsWith("/") ? value : `${value}/`;
 }
 

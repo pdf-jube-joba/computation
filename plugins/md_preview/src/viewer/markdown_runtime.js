@@ -37,15 +37,18 @@ export async function loadMacros() {
       headers: requestHeaders(),
     })
       .then(response => {
+        if (response.status === 404) {
+          return null;
+        }
         if (!response.ok) {
           throw new Error(`GET failed: ${response.status} ${response.statusText}`);
         }
         return response.text();
       })
-      .then(from_text)
+      .then(text => (text === null ? {} : from_text(text)))
       .catch(error => {
         console.error("failed to load macros.txt", error);
-        return {};
+        throw error;
       });
   }
 

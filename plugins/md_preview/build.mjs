@@ -1,5 +1,6 @@
 import {build} from "esbuild";
 import {cp, mkdir, writeFile} from "node:fs/promises";
+import {existsSync} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {generateLinkIndex} from "./build_index.mjs";
@@ -25,9 +26,7 @@ const macrosOutPath = path.join(outDir, "macros.txt");
 await mkdir(outDir, {recursive: true});
 await mkdir(katexOutDir, {recursive: true});
 
-if (path.resolve(macrosSource) !== path.resolve(macrosOutPath)) {
-await cp(macrosSource, macrosOutPath);
-}
+await copyMacrosFile(macrosSource, macrosOutPath);
 await cp(path.join(katexDistDir, "katex.min.css"), path.join(katexOutDir, "katex.min.css"));
 await cp(path.join(katexDistDir, "fonts"), path.join(katexOutDir, "fonts"), {recursive: true});
 await cp(viewerSrcDir, outDir, {recursive: true});
@@ -83,7 +82,23 @@ function resolveMacrosSource(macroPath, repositoryRoot) {
   if (typeof macroPath === "string" && macroPath.trim() !== "") {
     return path.resolve(repositoryRoot, macroPath);
   }
-  return path.join(__dirname, "..", "..", "docs", "macros.txt");
+  return null;
+}
+
+async function copyMacrosFile(macrosSource, macrosOutPath) {
+  if (!macrosSource) {
+    return;
+  }
+
+  if (!existsSync(macrosSource)) {
+    throw new Error(`macro_path does not exist: ${macrosSource}`);
+  }
+
+  if (path.resolve(macrosSource) === path.resolve(macrosOutPath)) {
+    return;
+  }
+
+  await cp(macrosSource, macrosOutPath);
 }
 
 function parsePluginSettings(text) {
@@ -105,7 +120,7 @@ function normalizeEnhancers(rawEnhancers) {
       if (!rawEnhancer || typeof rawEnhancer !== "object" || Array.isArray(rawEnhancer)) {
         throw new Error("md_preview.enhance entries must be objects");
       }
-      const {name, url, entrypoint = "default", ...options} = rawEnhancer;
+      const {name, url, entrypoint, ...options} = rawEnhancer;
       if (typeof name !== "string" || name.trim() === "") {
         throw new Error("md_preview enhancer name must be a non-empty string");
       }
