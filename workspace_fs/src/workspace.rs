@@ -94,8 +94,8 @@ impl WorkspaceService {
         self.repository.repository_root()
     }
 
-    pub async fn run_task(&self, task_name: &str) -> Result<()> {
-        self.plugin_runner().run_task(task_name).await
+    pub async fn run_task(&self, task_name: &str, skip_deps: bool) -> Result<()> {
+        self.plugin_runner().run_task(task_name, skip_deps).await
     }
 
     pub async fn run_manual_plugin(

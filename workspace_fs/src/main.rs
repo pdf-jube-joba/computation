@@ -37,6 +37,7 @@ struct AppState {
 struct CliOptions {
     repository_path: Utf8PathBuf,
     task: Option<String>,
+    skip_deps: bool,
 }
 
 #[tokio::main]
@@ -50,8 +51,8 @@ async fn main() -> Result<()> {
     let workspace = Arc::new(WorkspaceService::new(repository, config));
 
     if let Some(task_name) = &cli.task {
-        tracing::info!(task = %task_name, "running task before serve");
-        workspace.run_task(task_name).await?;
+        tracing::info!(task = %task_name, skip_deps = cli.skip_deps, "running task before serve");
+        workspace.run_task(task_name, cli.skip_deps).await?;
     }
 
     let identity = IdentityConfig::load();
@@ -115,8 +116,9 @@ fn parse_cli_options() -> Result<CliOptions> {
     let mut args = env::args().skip(1);
     let repository_path = args
         .next()
-        .ok_or_else(|| anyhow!("usage: workspace_fs <repository-path> [--task <name>]"))?;
+        .ok_or_else(|| anyhow!("usage: workspace_fs <repository-path> [--task <name>] [--skip-deps]"))?;
     let mut task = None;
+    let mut skip_deps = false;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -126,13 +128,21 @@ fn parse_cli_options() -> Result<CliOptions> {
                     .ok_or_else(|| anyhow!("missing value for --task"))?;
                 task = Some(value);
             }
+            "--skip-deps" => {
+                skip_deps = true;
+            }
             _ => bail!("unknown argument: {arg}"),
         }
+    }
+
+    if skip_deps && task.is_none() {
+        bail!("--skip-deps requires --task");
     }
 
     Ok(CliOptions {
         repository_path: Utf8PathBuf::from(repository_path),
         task,
+        skip_deps,
     })
 }
 

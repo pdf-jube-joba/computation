@@ -284,10 +284,21 @@ function sortEntries(items, sortMode) {
 
 async function buildDirectoryCard(entry) {
   const children = await fetchDirectoryEntries(entry.path);
+  let peek = children.join(" ").slice(0, PREVIEW_LIMIT);
+
+  if (children.includes("README.md")) {
+    try {
+      const readmeText = await fetchTextFile(joinPath(entry.path, "README.md"));
+      peek = cleanPeek(readmeText);
+    } catch {
+      // Keep the directory listing preview if README.md cannot be read.
+    }
+  }
+
   return {
     kind: "directory",
     title: entry.title.replace(/\/$/, ""),
-    peek: children.join(" ").slice(0, PREVIEW_LIMIT),
+    peek,
     href: directoryViewHref({path: entry.path}),
   };
 }

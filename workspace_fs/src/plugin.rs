@@ -67,28 +67,22 @@ impl<'a> PluginRunner<'a> {
         }
     }
 
-    pub async fn run_task(&self, task_name: &str) -> Result<()> {
-        let task = self
-            .config
-            .find_task(task_name)
-            .with_context(|| format!("task not found: {task_name}"))?;
-        let mut executed = BTreeSet::new();
+    pub async fn run_task(&self, task_name: &str, skip_deps: bool) -> Result<()> {
+        let plan = self.plan_task(task_name, skip_deps)?;
+        let plan_names = plan
+            .iter()
+            .map(|plugin| plugin.name.as_str())
+            .collect::<Vec<_>>();
+        tracing::info!(
+            task = %task_name,
+            skip_deps,
+            plan = %plan_names.join(" -> "),
+            "task execution plan"
+        );
 
-        for step in &task.steps {
-            let plugin = self
-                .config
-                .find_plugin(step)
-                .with_context(|| format!("plugin not found for task step: {step}"))?;
-            let mut visiting = BTreeSet::new();
-            self.run_plugin_with_dependencies(
-                plugin,
-                PluginTrigger::Manual,
-                None,
-                &UserIdentity::new(""),
-                &mut visiting,
-                &mut executed,
-            )
-            .await?;
+        for plugin in plan {
+            self.run_plugin(plugin, PluginTrigger::Manual, None, &UserIdentity::new(""))
+                .await?;
         }
 
         Ok(())
@@ -149,6 +143,61 @@ impl<'a> PluginRunner<'a> {
             .await?;
         }
 
+        Ok(())
+    }
+
+    fn plan_task(&self, task_name: &str, skip_deps: bool) -> Result<Vec<&PluginConfig>> {
+        let task = self
+            .config
+            .find_task(task_name)
+            .with_context(|| format!("task not found: {task_name}"))?;
+        let mut planned = BTreeSet::new();
+        let mut plan = Vec::new();
+
+        for step in &task.steps {
+            let plugin = self
+                .config
+                .find_plugin(step)
+                .with_context(|| format!("plugin not found for task step: {step}"))?;
+            if skip_deps {
+                if planned.insert(plugin.name.clone()) {
+                    plan.push(plugin);
+                }
+                continue;
+            }
+
+            let mut visiting = BTreeSet::new();
+            self.append_plugin_plan(plugin, &mut visiting, &mut planned, &mut plan)?;
+        }
+
+        Ok(plan)
+    }
+
+    fn append_plugin_plan<'b>(
+        &'b self,
+        plugin: &'b PluginConfig,
+        visiting: &mut BTreeSet<String>,
+        planned: &mut BTreeSet<String>,
+        plan: &mut Vec<&'b PluginConfig>,
+    ) -> Result<()> {
+        if planned.contains(&plugin.name) {
+            return Ok(());
+        }
+        if !visiting.insert(plugin.name.clone()) {
+            bail!("plugin dependency cycle detected at {}", plugin.name);
+        }
+
+        for dependency_name in &plugin.deps {
+            let dependency = self
+                .config
+                .find_plugin(dependency_name)
+                .with_context(|| format!("plugin not found: {dependency_name}"))?;
+            self.append_plugin_plan(dependency, visiting, planned, plan)?;
+        }
+
+        visiting.remove(&plugin.name);
+        planned.insert(plugin.name.clone());
+        plan.push(plugin);
         Ok(())
     }
 
@@ -602,5 +651,95 @@ mod tests {
             &plugin,
             &WorkspacePath::from_path_str("images/a.md").unwrap()
         ));
+    }
+
+    #[test]
+    fn plan_task_orders_dependencies_before_steps() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: crate::config::ServeSettings::default(),
+            policy: Vec::new(),
+            plugin: vec![
+                PluginConfig {
+                    name: "build-wasm".into(),
+                    runner: "command".into(),
+                    command: vec!["echo".into()],
+                    trigger: "manual".into(),
+                    path: None,
+                    deps: Vec::new(),
+                    mount: None,
+                    extra: Default::default(),
+                },
+                PluginConfig {
+                    name: "md-preview".into(),
+                    runner: "command".into(),
+                    command: vec!["echo".into()],
+                    trigger: "manual".into(),
+                    path: None,
+                    deps: vec!["build-wasm".into()],
+                    mount: None,
+                    extra: Default::default(),
+                },
+            ],
+            task: vec![TaskConfig {
+                name: "build".into(),
+                steps: vec!["md-preview".into()],
+            }],
+        };
+        let runner = PluginRunner::new(
+            camino::Utf8Path::new("/repo"),
+            "repo",
+            &config,
+        );
+
+        let plan = runner.plan_task("build", false).unwrap();
+        let names = plan.iter().map(|plugin| plugin.name.as_str()).collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["build-wasm", "md-preview"]);
+    }
+
+    #[test]
+    fn plan_task_skip_deps_uses_task_steps_only() {
+        let config = RepositoryConfig {
+            name: "repo".into(),
+            serve: crate::config::ServeSettings::default(),
+            policy: Vec::new(),
+            plugin: vec![
+                PluginConfig {
+                    name: "build-wasm".into(),
+                    runner: "command".into(),
+                    command: vec!["echo".into()],
+                    trigger: "manual".into(),
+                    path: None,
+                    deps: Vec::new(),
+                    mount: None,
+                    extra: Default::default(),
+                },
+                PluginConfig {
+                    name: "md-preview".into(),
+                    runner: "command".into(),
+                    command: vec!["echo".into()],
+                    trigger: "manual".into(),
+                    path: None,
+                    deps: vec!["build-wasm".into()],
+                    mount: None,
+                    extra: Default::default(),
+                },
+            ],
+            task: vec![TaskConfig {
+                name: "build".into(),
+                steps: vec!["md-preview".into()],
+            }],
+        };
+        let runner = PluginRunner::new(
+            camino::Utf8Path::new("/repo"),
+            "repo",
+            &config,
+        );
+
+        let plan = runner.plan_task("build", true).unwrap();
+        let names = plan.iter().map(|plugin| plugin.name.as_str()).collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["md-preview"]);
     }
 }
