@@ -1,10 +1,8 @@
+use utils::TextCodec;
 use utils::identifier::Identifier;
 use utils::number::Number;
-use utils::TextCodec;
 
-use crate::internal_ctrl::{
-    ABinOp, AExp, Atom, BExp, Environment, InternalCtrlCode, RelOp, Stmt,
-};
+use crate::internal_ctrl::{ABinOp, AExp, Atom, BExp, Environment, InternalCtrlCode, RelOp, Stmt};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Token {
@@ -236,7 +234,9 @@ impl Parser {
 
     fn parse_atom(&mut self) -> Result<Atom, String> {
         match self.next() {
-            Some(Token::Ident(name)) => Ok(Atom::Var(Identifier::new(&name).map_err(|e| e.to_string())?)),
+            Some(Token::Ident(name)) => Ok(Atom::Var(
+                Identifier::new(&name).map_err(|e| e.to_string())?,
+            )),
             Some(Token::Number(num)) => Ok(Atom::Imm(Number::parse(&num)?)),
             _ => Err("Expected atom".to_string()),
         }
@@ -388,7 +388,12 @@ fn bexp_to_text(exp: &BExp) -> String {
         RelOp::Eq => "=",
         RelOp::Gt => ">",
     };
-    format!("{} {} {}", atom_to_text(&exp.lhs), rel, atom_to_text(&exp.rhs))
+    format!(
+        "{} {} {}",
+        atom_to_text(&exp.lhs),
+        rel,
+        atom_to_text(&exp.rhs)
+    )
 }
 
 pub fn stmt_to_text(stmt: &Stmt) -> String {
@@ -396,11 +401,18 @@ pub fn stmt_to_text(stmt: &Stmt) -> String {
         Stmt::Nop => "Nop".to_string(),
         Stmt::Seq(lhs, rhs) => format!("{}; {}", stmt_to_text(lhs), stmt_to_text(rhs)),
         Stmt::Assign { var, expr } => format!("{} := {}", var.as_str(), aexp_to_text(expr)),
-        Stmt::If { cond, body } => format!("if {} {{ {} }}", bexp_to_text(cond), stmt_to_text(body)),
+        Stmt::If { cond, body } => {
+            format!("if {} {{ {} }}", bexp_to_text(cond), stmt_to_text(body))
+        }
         Stmt::Break { label, value } => format!("break :{} {}", label.as_str(), value.as_str()),
         Stmt::Continue { label } => format!("continue :{}", label.as_str()),
         Stmt::Loop { label, body, out } => {
-            format!("loop :{} ({}) -> {}", label.as_str(), stmt_to_text(body), out.as_str())
+            format!(
+                "loop :{} ({}) -> {}",
+                label.as_str(),
+                stmt_to_text(body),
+                out.as_str()
+            )
         }
     }
 }

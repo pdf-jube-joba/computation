@@ -1,5 +1,5 @@
-use utils::number::Number;
 use utils::TextCodec;
+use utils::number::Number;
 
 use crate::flow_ir::*;
 

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use utils::number::Number;
 use utils::TextCodec;
+use utils::number::Number;
 
 use super::{ABinOp, AExp, Atom, BExp, GlobalEnv, ProcCode, ProcDef, Program, RelOp, Stmt};
 
@@ -443,7 +443,12 @@ fn bexp_to_text(exp: &BExp) -> String {
         RelOp::Eq => "=",
         RelOp::Gt => ">",
     };
-    format!("{} {} {}", atom_to_text(&exp.lhs), op, atom_to_text(&exp.rhs))
+    format!(
+        "{} {} {}",
+        atom_to_text(&exp.lhs),
+        op,
+        atom_to_text(&exp.rhs)
+    )
 }
 
 pub fn stmt_to_text(stmt: &Stmt) -> String {

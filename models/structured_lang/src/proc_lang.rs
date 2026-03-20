@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, HashMap};
 use serde::{Deserialize, Serialize};
 use utils::{Machine, StepResult, number::Number};
 
-#[path = "proc_lang_parser.rs"]
-mod proc_lang_parser;
 #[path = "proc_lang_compiler.rs"]
 mod proc_lang_compiler;
+#[path = "proc_lang_parser.rs"]
+mod proc_lang_parser;
 pub use proc_lang_compiler::ProcToFlowIrCompiler;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,11 +67,7 @@ pub enum ABinOp {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AExp {
     Atom(Atom),
-    Bin {
-        lhs: Atom,
-        op: ABinOp,
-        rhs: Atom,
-    },
+    Bin { lhs: Atom, op: ABinOp, rhs: Atom },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -248,9 +244,7 @@ impl ProcLangMachine {
                     Ok(Stmt::Seq(Box::new(next_left), b))
                 }
             },
-            Stmt::Call { name, args, rets } => {
-                self.call_into_proc(&name, &args, &rets, Stmt::Nop)
-            }
+            Stmt::Call { name, args, rets } => self.call_into_proc(&name, &args, &rets, Stmt::Nop),
             Stmt::Return { vars } => {
                 if let Some(frame) = self.call_stack.pop() {
                     if vars.len() != frame.ret_vars.len() {
@@ -309,7 +303,9 @@ impl Machine for ProcLangMachine {
 
         for (name, _) in &ainput.vars {
             if !static_set.contains_key(name) {
-                return Err(format!("AInput contains undeclared static variable: {name}"));
+                return Err(format!(
+                    "AInput contains undeclared static variable: {name}"
+                ));
             }
         }
         for name in static_set.keys() {

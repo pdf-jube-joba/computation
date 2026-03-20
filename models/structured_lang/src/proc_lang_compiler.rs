@@ -61,12 +61,14 @@ fn enter_region(label: &str) -> Cont {
     }
 }
 
-fn stack_index_from_top_stmts(offset_from_top: usize, dst_idx: &str, ctx: &mut CompileCtx) -> Vec<IrStmt> {
+fn stack_index_from_top_stmts(
+    offset_from_top: usize,
+    dst_idx: &str,
+    ctx: &mut CompileCtx,
+) -> Vec<IrStmt> {
     let len = ctx.fresh_vreg("len");
     vec![
-        IrStmt::LGet {
-            dst: len.clone(),
-        },
+        IrStmt::LGet { dst: len.clone() },
         IrStmt::BinOp {
             dst: dst_idx.to_string(),
             lhs: ValueExpr::VReg(len),
@@ -438,7 +440,10 @@ impl Compiler for ProcToFlowIrCompiler {
 
         let mut entry_regions = HashMap::new();
         for proc in &source.0.procs {
-            entry_regions.insert(proc.name.clone(), ctx.fresh_region(&format!("proc_{}", proc.name)));
+            entry_regions.insert(
+                proc.name.clone(),
+                ctx.fresh_region(&format!("proc_{}", proc.name)),
+            );
         }
 
         for proc in &source.0.procs {
@@ -533,7 +538,12 @@ impl Compiler for ProcToFlowIrCompiler {
                 FlowValue::Num(n) => {
                     vars.insert(k, n);
                 }
-                other => return Err(format!("expected numeric global for {k}, got {}", other.print())),
+                other => {
+                    return Err(format!(
+                        "expected numeric global for {k}, got {}",
+                        other.print()
+                    ));
+                }
             }
         }
         Ok(GlobalEnv { vars })

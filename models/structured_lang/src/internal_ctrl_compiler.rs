@@ -335,7 +335,10 @@ impl Compiler for InternalCtrlToFlowIrCompiler {
                     ));
                 }
             };
-            env.set(utils::identifier::Identifier::new(&name).map_err(|e| e.to_string())?, num);
+            env.set(
+                utils::identifier::Identifier::new(&name).map_err(|e| e.to_string())?,
+                num,
+            );
         }
         Ok(env)
     }

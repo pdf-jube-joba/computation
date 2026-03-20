@@ -1,5 +1,5 @@
-use utils::number::Number;
 use utils::TextCodec;
+use utils::number::Number;
 
 use crate::symbolic_asm::{AsmCode, AsmInput, AsmOutput, RawProgramAst};
 

@@ -11,6 +11,7 @@
 7
 </template>
 <template data-default-ainput>
+inc
 </template>
 </div>
 
@@ -19,5 +20,6 @@
 7
 </template>
 <template data-default-ainput>
+dec
 </template>
 </div>

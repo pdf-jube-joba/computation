@@ -1,7 +1,7 @@
-#[path = "internal_ctrl_parser.rs"]
-mod internal_ctrl_parser;
 #[path = "internal_ctrl_compiler.rs"]
 pub mod internal_ctrl_compiler;
+#[path = "internal_ctrl_parser.rs"]
+mod internal_ctrl_parser;
 
 use std::collections::BTreeSet;
 
@@ -33,11 +33,7 @@ pub enum ABinOp {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AExp {
     Atom(Atom),
-    Bin {
-        lhs: Atom,
-        op: ABinOp,
-        rhs: Atom,
-    },
+    Bin { lhs: Atom, op: ABinOp, rhs: Atom },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -225,12 +221,20 @@ impl InternalCtrlMachine {
             },
             Some(Frame::Loop { label, body, out }) => match result {
                 ControlResult::Normal => {
-                    self.stack.push(Frame::Loop { label, body: body.clone(), out });
+                    self.stack.push(Frame::Loop {
+                        label,
+                        body: body.clone(),
+                        out,
+                    });
                     self.exec = Exec::Stmt(body);
                     Ok(())
                 }
                 ControlResult::Continue { label: got } if got == label => {
-                    self.stack.push(Frame::Loop { label, body: body.clone(), out });
+                    self.stack.push(Frame::Loop {
+                        label,
+                        body: body.clone(),
+                        out,
+                    });
                     self.exec = Exec::Result(ControlResult::Normal);
                     Ok(())
                 }
@@ -278,7 +282,10 @@ impl Machine for InternalCtrlMachine {
         }
         for (name, _) in &ainput.vars {
             if !statics.contains(name.as_str()) {
-                return Err(format!("ainput contains undeclared static variable: {}", name.as_str()));
+                return Err(format!(
+                    "ainput contains undeclared static variable: {}",
+                    name.as_str()
+                ));
             }
         }
         for name in &statics {
@@ -300,7 +307,8 @@ impl Machine for InternalCtrlMachine {
             Exec::Stmt(stmt) => self.step_stmt(stmt),
             Exec::Result(result) => {
                 self.unwind(result)?;
-                if matches!(self.exec, Exec::Result(ControlResult::Normal)) && self.stack.is_empty() {
+                if matches!(self.exec, Exec::Result(ControlResult::Normal)) && self.stack.is_empty()
+                {
                     return Ok(StepResult::Halt { output: self.env });
                 }
             }

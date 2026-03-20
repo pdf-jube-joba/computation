@@ -1,6 +1,6 @@
+use utils::TextCodec;
 use utils::identifier::Identifier;
 use utils::number::Number;
-use utils::TextCodec;
 
 use crate::expr_lang::*;
 
