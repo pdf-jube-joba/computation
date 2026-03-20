@@ -1,5 +1,5 @@
 import {build} from "esbuild";
-import {cp, mkdir} from "node:fs/promises";
+import {cp, mkdir, writeFile} from "node:fs/promises";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {generateLinkIndex} from "./build_index.mjs";
@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const srcDir = path.join(__dirname, "src");
+const viewerSrcDir = path.join(srcDir, "viewer");
 const args = parseArgs(process.argv.slice(2));
 const outDir = args.outDir;
 const repositoryRoot = args.repositoryRoot;
@@ -15,15 +16,19 @@ const katexDistDir = path.join(__dirname, "node_modules", "katex", "dist");
 const katexOutDir = path.join(outDir, "vendor", "katex");
 const macrosSource = path.join(__dirname, "..", "..", "docs", "macros.txt");
 const macrosOutPath = path.join(outDir, "macros.txt");
+const pluginSettings = parsePluginSettings(process.env.WORKSPACE_FS_PLUGIN_SETTINGS_JSON);
+const enhancers = normalizeEnhancers(pluginSettings.md_preview?.enhance, args.wasmMountUrl);
 
 await mkdir(outDir, {recursive: true});
 await mkdir(katexOutDir, {recursive: true});
 
 if (path.resolve(macrosSource) !== path.resolve(macrosOutPath)) {
-  await cp(macrosSource, macrosOutPath);
+await cp(macrosSource, macrosOutPath);
 }
 await cp(path.join(katexDistDir, "katex.min.css"), path.join(katexOutDir, "katex.min.css"));
 await cp(path.join(katexDistDir, "fonts"), path.join(katexOutDir, "fonts"), {recursive: true});
+await cp(viewerSrcDir, outDir, {recursive: true});
+await writeEnhanceRunner(path.join(outDir, "enhance_runner.js"), enhancers);
 await generateLinkIndex({outDir, repositoryRoot});
 
 await build({
@@ -33,9 +38,6 @@ await build({
   platform: "browser",
   target: "es2022",
   outfile: path.join(outDir, "markdown_viewer.js"),
-  define: {
-    "__WASM_MOUNT_URL__": JSON.stringify(args.wasmMountUrl),
-  },
   sourcemap: false,
   logLevel: "info",
 });
@@ -89,4 +91,97 @@ function normalizeMountUrl(value) {
     throw new Error(`invalid mount url: ${value}`);
   }
   return value;
+}
+
+function parsePluginSettings(text) {
+  if (!text) {
+    return {};
+  }
+
+  const value = JSON.parse(text);
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("WORKSPACE_FS_PLUGIN_SETTINGS_JSON must be a JSON object");
+  }
+  return value;
+}
+
+function normalizeEnhancers(rawEnhancers, wasmMountUrl) {
+  const values = [];
+  if (Array.isArray(rawEnhancers)) {
+    for (const rawEnhancer of rawEnhancers) {
+      if (!rawEnhancer || typeof rawEnhancer !== "object" || Array.isArray(rawEnhancer)) {
+        throw new Error("md_preview.enhance entries must be objects");
+      }
+      const {name, url, entrypoint = "default", ...options} = rawEnhancer;
+      if (typeof name !== "string" || name.trim() === "") {
+        throw new Error("md_preview enhancer name must be a non-empty string");
+      }
+      if (typeof url !== "string" || url.trim() === "") {
+        throw new Error(`md_preview enhancer ${name} is missing url`);
+      }
+      if (typeof entrypoint !== "string" || entrypoint.trim() === "") {
+        throw new Error(`md_preview enhancer ${name} is missing entrypoint`);
+      }
+      values.push({
+        name,
+        url,
+        entrypoint,
+        options,
+      });
+    }
+  }
+
+  if (values.length > 0) {
+    return values;
+  }
+
+  if (!wasmMountUrl) {
+    return [];
+  }
+
+  return [{
+    name: "wasm_mount",
+    url: `${wasmMountUrl}mount.js`,
+    entrypoint: "default",
+    options: {
+      wasm_mount_url: wasmMountUrl,
+    },
+  }];
+}
+
+async function writeEnhanceRunner(outputPath, enhancers) {
+  const source = `const enhancerSpecs = ${JSON.stringify(enhancers, null, 2)};
+
+let loadedEnhancersPromise = null;
+
+export async function runEnhancers(root, context = {}) {
+  const loadedEnhancers = await loadEnhancers();
+  for (const enhance of loadedEnhancers) {
+    await enhance(root, context);
+  }
+}
+
+async function loadEnhancers() {
+  if (!loadedEnhancersPromise) {
+    loadedEnhancersPromise = Promise.all(enhancerSpecs.map(loadEnhancer));
+  }
+  return loadedEnhancersPromise;
+}
+
+async function loadEnhancer(spec) {
+  const mod = await import(spec.url);
+  const createEnhancer = spec.entrypoint === "default"
+    ? mod.default
+    : mod[spec.entrypoint];
+  if (typeof createEnhancer !== "function") {
+    throw new Error(\`enhancer \${spec.name} does not export \${spec.entrypoint}\`);
+  }
+  const enhance = createEnhancer(spec.options || {});
+  if (typeof enhance !== "function") {
+    throw new Error(\`enhancer \${spec.name} did not return a function\`);
+  }
+  return enhance;
+}
+`;
+  await writeFile(outputPath, source);
 }

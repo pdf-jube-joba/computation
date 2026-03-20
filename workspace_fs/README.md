@@ -160,6 +160,16 @@ deps はこの plugin が依存している他の plugin の指定である。
 > [!note]
 > 将来的には、 `"command"` じゃなくて wasm も指定できるとうれしいが、 interface を考えるのが難しい。
 
+また、 plugin 固有の設定値も書ける。
+```
+[[plugin]]
+name = "md_preview"
+
+[plugin.md_preview]
+enhance = true
+```
+とか
+
 ### task
 plugin をどの順番に実行するかを書いて、起動時に指定する。
 ```

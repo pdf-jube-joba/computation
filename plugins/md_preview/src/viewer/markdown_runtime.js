@@ -1,4 +1,4 @@
-import {from_text} from "/md-preview-assets/markdown_viewer.js";
+import {from_text} from "./markdown_viewer.js";
 
 let macrosPromise;
 
@@ -32,7 +32,7 @@ export async function fetchTextFile(path) {
 
 export async function loadMacros() {
   if (!macrosPromise) {
-    macrosPromise = fetch("/md-preview-assets/macros.txt", {
+    macrosPromise = fetch(new URL("./macros.txt", window.location.href), {
       method: "GET",
       headers: requestHeaders(),
     })

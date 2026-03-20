@@ -101,6 +101,8 @@ pub struct PluginConfig {
     pub deps: Vec<String>,
     // URL prefix なので、 `WorkspacePath` ではなく文字列で受け取る。検証は後で行う。
     pub mount: Option<String>,
+    #[serde(flatten)]
+    pub extra: std::collections::BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -110,6 +112,10 @@ pub struct TaskConfig {
 }
 
 impl RepositoryConfig {
+    pub fn load_toml(text: &str) -> Result<Self> {
+        toml::from_str(text).context("failed to parse .repo/config.toml")
+    }
+
     pub fn load(repository_root: &Utf8Path) -> Result<Self> {
         let config_path = repository_root.join(".repo").join("config.toml");
         if !config_path.is_file() {
@@ -117,8 +123,7 @@ impl RepositoryConfig {
         }
         let config_text = std::fs::read_to_string(config_path.as_std_path())
             .context("failed to read .repo/config.toml")?;
-        let mut config: Self =
-            toml::from_str(&config_text).context("failed to parse .repo/config.toml")?;
+        let mut config = Self::load_toml(&config_text)?;
         config.insert_implicit_mount_policies()?;
         config.validate(repository_root)?;
         Ok(config)
@@ -410,9 +415,15 @@ GET = true
 
     #[test]
     fn repository_config_requires_name() {
-        let error = toml::from_str::<RepositoryConfig>("").unwrap_err();
+        let error = RepositoryConfig::load_toml(
+            r#"
+[serve]
+port = 3000
+"#,
+        )
+        .unwrap_err();
 
-        assert!(error.to_string().contains("missing field `name`"));
+        assert!(error.to_string().contains("failed to parse .repo/config.toml"));
     }
 
     #[test]
@@ -467,6 +478,7 @@ GET = true
                 trigger: "manual".into(),
                 deps: Vec::new(),
                 mount: Some("/assets/".into()),
+                extra: Default::default(),
             }],
             task: Vec::new(),
         };
@@ -494,6 +506,7 @@ GET = true
                 trigger: "manual".into(),
                 deps: Vec::new(),
                 mount: None,
+                extra: Default::default(),
             }],
             task: Vec::new(),
         };
@@ -516,6 +529,7 @@ GET = true
                 trigger: "manual".into(),
                 deps: vec!["build-wasm".into()],
                 mount: None,
+                extra: Default::default(),
             }],
             task: Vec::new(),
         };
@@ -523,5 +537,44 @@ GET = true
         let error = config.validate(Utf8Path::new(".")).unwrap_err();
 
         assert!(error.to_string().contains("plugin dependency not found"));
+    }
+
+    #[test]
+    fn load_toml_preserves_plugin_specific_settings() {
+        let config = RepositoryConfig::load_toml(
+            r#"
+name = "repo"
+
+[[plugin]]
+name = "build-md-preview"
+runner = "command"
+command = ["node", "./plugins/md_preview/build.mjs"]
+trigger = "manual"
+
+[plugin.md_preview]
+enabled = true
+
+[[plugin.md_preview.enhance]]
+name = "embedded-models"
+url = "{MOUNT_BUILD_WASM}enhance.js"
+entrypoint = "default"
+"#,
+        )
+        .unwrap();
+
+        let plugin = &config.plugin[0];
+        let md_preview = plugin.extra.get("md_preview").unwrap().as_table().unwrap();
+        assert_eq!(md_preview.get("enabled").unwrap().as_bool(), Some(true));
+
+        let enhancers = md_preview.get("enhance").unwrap().as_array().unwrap();
+        let enhancer = enhancers[0].as_table().unwrap();
+        assert_eq!(
+            enhancer.get("name").unwrap().as_str(),
+            Some("embedded-models")
+        );
+        assert_eq!(
+            enhancer.get("entrypoint").unwrap().as_str(),
+            Some("default")
+        );
     }
 }

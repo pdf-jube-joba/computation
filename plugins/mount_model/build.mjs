@@ -11,7 +11,7 @@ const SCRIPT_DIR = __dirname;
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..");
 const MODELS_DIR = path.join(REPO_ROOT, "models");
 const TARGET_DIR = path.join(REPO_ROOT, "target", "wasm32-unknown-unknown");
-const STATIC_FILES = ["renderer.js", "script.js", "style.css"];
+const STATIC_FILES = ["renderer.js", "script.js", "style.css", "mount.js"];
 
 const args = parseArgs(process.argv.slice(2));
 const outputDir = process.env.WORKSPACE_FS_OUTPUT_DIRECTORY;

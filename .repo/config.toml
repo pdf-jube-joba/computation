@@ -3,17 +3,22 @@ name = "computation"
 [[plugin]]
 name = "build-wasm"
 runner = "command"
-command = ["node", "./plugin/mount_model/build.mjs", "--clean"]
+command = ["node", "./plugins/mount_model/build.mjs", "--clean"]
 trigger = "manual"
 mount = "/wasm_bundle/"
 
 [[plugin]]
-name = "build-md-preview"
+name = "md-preview"
 runner = "command"
-command = ["node", "./plugin/md_preview/build.mjs", "--out-dir", "{OUTPUT_DIRECTORY}", "--wasm-mount-url", "{MOUNT_BUILD_WASM}"]
+command = ["node", "./plugins/md_preview/build.mjs", "--out-dir", "{OUTPUT_DIRECTORY}", "--wasm-mount-url", "{MOUNT_BUILD_WASM}"]
 trigger = "manual"
 deps = ["build-wasm"]
-mount = "/md-preview-assets/"
+mount = "/md/"
+
+[[plugin.md_preview.enhance]]
+name = "wasm_mount"
+url = "{MOUNT_BUILD_WASM}mount.js"
+entrypoint = "mountModel"
 
 [[task]]
 name = "build-wasm"
@@ -21,11 +26,11 @@ steps = ["build-wasm"]
 
 [[task]]
 name = "build-md-preview"
-steps = ["build-md-preview"]
+steps = ["md-preview"]
 
 [[task]]
 name = "build-all"
-steps = ["build-wasm", "build-md-preview"]
+steps = ["build-wasm", "md-preview"]
 
 [[policy]]
 path = "/"

@@ -92,7 +92,7 @@ export function createRemarkRehypeOptions({basePath, katexMacros, renderKatexNod
 }
 
 export function wikiLinkHref(term) {
-  return `/viewer/directory_view.html?link=${encodeURIComponent(term)}`;
+  return `./directory_view.html?link=${encodeURIComponent(term)}`;
 }
 
 function definitionItemToHast(state, item) {

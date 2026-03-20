@@ -4,13 +4,11 @@ import rehypeStringify from "rehype-stringify";
 import {createMarkdownParser} from "./markdown_extensions.js";
 import {createRemarkRehypeOptions} from "./markdown_to_hast.js";
 
-const WASM_MOUNT_URL = __WASM_MOUNT_URL__;
-
 export async function renderMarkdownToElement({text, element, basePath = "", macros = {}}) {
   const html = await renderMarkdownToHtml({text, basePath, macros});
   element.innerHTML = html;
   element.classList.add("md-view");
-  await mountEmbeddedModels(element);
+  await runConfiguredEnhancers(element, {basePath});
   return element;
 }
 
@@ -64,46 +62,6 @@ function normalizeKatexMacros(macros) {
   return macros;
 }
 
-async function mountEmbeddedModels(root) {
-  const {mountModel} = await import(wasmMountRuntimeUrl());
-  const modelRoots = root.matches?.("[data-model]")
-    ? [root]
-    : Array.from(root.querySelectorAll("[data-model]"));
-
-  await Promise.all(modelRoots.map(async modelRoot => {
-    const model = (modelRoot.dataset.model || "").trim();
-    if (!model) {
-      modelRoot.textContent = "missing data-model";
-      return;
-    }
-
-    try {
-      await mountModel(modelRoot, {
-        model,
-        code: extractPlainScript(modelRoot, "default-code"),
-        ainput: extractPlainScript(modelRoot, "default-ainput"),
-        rinput: extractPlainScript(modelRoot, "default-rinput"),
-        bundleBaseUrl: WASM_MOUNT_URL,
-        assetBaseUrl: WASM_MOUNT_URL,
-      });
-    } catch (error) {
-      modelRoot.textContent = `failed to load ${model}: ${error}`;
-    }
-  }));
-}
-
-function wasmMountRuntimeUrl() {
-  return `${WASM_MOUNT_URL}script.js`;
-}
-
-function extractPlainScript(root, className) {
-  const el = root.querySelector(`script.${className}[type="text/plain"]`);
-  if (!el) {
-    return "";
-  }
-  return el.textContent || "";
-}
-
 function renderKatexNode(node, macros, displayMode) {
   try {
     return katex.renderToString(node.value, {
@@ -128,4 +86,15 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+let enhanceRunnerPromise = null;
+
+async function runConfiguredEnhancers(root, context) {
+  if (!enhanceRunnerPromise) {
+    const enhanceRunnerUrl = new URL("./enhance_runner.js", import.meta.url);
+    enhanceRunnerPromise = import(enhanceRunnerUrl.href);
+  }
+  const {runEnhancers} = await enhanceRunnerPromise;
+  await runEnhancers(root, context);
 }

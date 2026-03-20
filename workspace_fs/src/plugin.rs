@@ -6,6 +6,7 @@ use std::process::Stdio;
 use anyhow::{Context, Result, bail};
 use camino::Utf8PathBuf;
 use glob::Pattern;
+use serde_json::Value as JsonValue;
 use tokio::process::Command;
 
 use crate::{
@@ -235,6 +236,7 @@ impl<'a> PluginRunner<'a> {
             .iter()
             .map(|arg| expand_placeholder(arg, &context, trigger))
             .collect::<Result<Vec<_>>>()?;
+        let settings_json = resolved_plugin_settings_json(plugin, &context, trigger)?;
 
         tracing::info!(
             plugin = %plugin.name,
@@ -261,6 +263,7 @@ impl<'a> PluginRunner<'a> {
                 "WORKSPACE_FS_CACHE_DIRECTORY",
                 context.cache_directory.as_str(),
             )
+            .env("WORKSPACE_FS_PLUGIN_SETTINGS_JSON", settings_json)
             .env("WORKSPACE_FS_TRIGGER", trigger.as_str())
             .env("WORKSPACE_FS_USER_IDENTITY", context.user_identity.as_str())
             .stdin(Stdio::null())
@@ -341,6 +344,50 @@ fn expand_placeholder(
     Ok(value)
 }
 
+fn resolved_plugin_settings_json(
+    plugin: &PluginConfig,
+    context: &PluginContext,
+    trigger: PluginTrigger,
+) -> Result<String> {
+    let resolved = plugin
+        .extra
+        .iter()
+        .map(|(key, value)| {
+            resolve_plugin_setting_value(value, context, trigger).map(|resolved| (key.clone(), resolved))
+        })
+        .collect::<Result<serde_json::Map<String, JsonValue>>>()?;
+    serde_json::to_string(&JsonValue::Object(resolved))
+        .context("failed to serialize plugin settings json")
+}
+
+fn resolve_plugin_setting_value(
+    value: &toml::Value,
+    context: &PluginContext,
+    trigger: PluginTrigger,
+) -> Result<JsonValue> {
+    match value {
+        toml::Value::String(text) => Ok(JsonValue::String(expand_placeholder(text, context, trigger)?)),
+        toml::Value::Integer(number) => Ok(JsonValue::from(*number)),
+        toml::Value::Float(number) => serde_json::Number::from_f64(*number)
+            .map(JsonValue::Number)
+            .ok_or_else(|| anyhow::anyhow!("plugin setting contains non-finite float")),
+        toml::Value::Boolean(value) => Ok(JsonValue::Bool(*value)),
+        toml::Value::Datetime(value) => Ok(JsonValue::String(value.to_string())),
+        toml::Value::Array(values) => values
+            .iter()
+            .map(|item| resolve_plugin_setting_value(item, context, trigger))
+            .collect::<Result<Vec<_>>>()
+            .map(JsonValue::Array),
+        toml::Value::Table(table) => table
+            .iter()
+            .map(|(key, value)| {
+                resolve_plugin_setting_value(value, context, trigger).map(|resolved| (key.clone(), resolved))
+            })
+            .collect::<Result<serde_json::Map<String, JsonValue>>>()
+            .map(JsonValue::Object),
+    }
+}
+
 fn dependency_mounts(config: &RepositoryConfig, plugin: &PluginConfig) -> Result<BTreeMap<String, String>> {
     let mut mounts = BTreeMap::new();
     for dependency_name in &plugin.deps {
@@ -407,6 +454,18 @@ mod tests {
         }
     }
 
+    fn plugin_config_with_extra(extra: BTreeMap<String, toml::Value>) -> PluginConfig {
+        PluginConfig {
+            name: "plugin".into(),
+            runner: "command".into(),
+            command: vec!["echo".into()],
+            trigger: "manual".into(),
+            deps: vec!["build-wasm".into()],
+            mount: Some("/plugin-assets/".into()),
+            extra,
+        }
+    }
+
     #[test]
     fn expand_placeholder_rejects_path_placeholder_without_path() {
         let error = expand_placeholder("{GET.PATH}", &plugin_context(None), PluginTrigger::Manual)
@@ -450,5 +509,39 @@ mod tests {
     fn mount_env_name_normalizes_plugin_names() {
         assert_eq!(mount_env_name("build-wasm"), "MOUNT_BUILD_WASM");
         assert_eq!(mount_env_name("Build_2"), "MOUNT_BUILD_2");
+    }
+
+    #[test]
+    fn resolved_plugin_settings_json_expands_nested_placeholders() {
+        let plugin = plugin_config_with_extra(BTreeMap::from([(
+            "md_preview".into(),
+            toml::Value::Table(toml::map::Map::from_iter([
+                (
+                    "enhance".into(),
+                    toml::Value::Array(vec![toml::Value::Table(toml::map::Map::from_iter([
+                        ("name".into(), toml::Value::String("embedded-models".into())),
+                        (
+                            "url".into(),
+                            toml::Value::String("{MOUNT_BUILD_WASM}enhance.js".into()),
+                        ),
+                        (
+                            "settings".into(),
+                            toml::Value::Table(toml::map::Map::from_iter([(
+                                "mount".into(),
+                                toml::Value::String("{MOUNT_BUILD_WASM}".into()),
+                            )])),
+                        ),
+                    ]))]),
+                ),
+            ])),
+        )]));
+
+        let json = resolved_plugin_settings_json(&plugin, &plugin_context(None), PluginTrigger::Manual)
+            .unwrap();
+
+        assert_eq!(
+            json,
+            r#"{"md_preview":{"enhance":[{"name":"embedded-models","settings":{"mount":"/wasm_bundle/"},"url":"/wasm_bundle/enhance.js"}]}}"#
+        );
     }
 }
