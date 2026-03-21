@@ -14,15 +14,15 @@ export async function renderMarkdownToElement({text, element, basePath = "", mac
 
 export async function renderMarkdownToHtml({text, basePath = "", macros = {}}) {
   const katexMacros = normalizeKatexMacros(macros);
-  const preparedText = preprocessMathMarkdown(text, katexMacros);
+  const prepared = preprocessMathMarkdown(text, katexMacros);
   const processor = createMarkdownParser()
     .use(remarkRehype, createRemarkRehypeOptions({
       basePath,
     }))
     .use(rehypeStringify, {allowDangerousHtml: true});
 
-  const file = await processor.process(prepareMarkdownSource(preparedText));
-  return String(file);
+  const file = await processor.process(prepareMarkdownSource(prepared.text));
+  return injectMathPlaceholders(String(file), prepared.replacements);
 }
 
 export function from_text(text) {
@@ -62,6 +62,7 @@ function normalizeKatexMacros(macros) {
 
 function preprocessMathMarkdown(text, macros) {
   const source = String(text || "");
+  const replacements = [];
   let index = 0;
   let result = "";
   let inFence = false;
@@ -99,19 +100,24 @@ function preprocessMathMarkdown(text, macros) {
     }
 
     if (mathMatch.error) {
-      result += renderMathError(source.slice(mathMatch.start), mathMatch.error, mathMatch.display);
+      result += pushMathReplacement(
+        replacements,
+        renderMathError(source.slice(mathMatch.start), mathMatch.error, mathMatch.display),
+      );
       break;
     }
 
-    result += renderKatexString(mathMatch.content, macros, mathMatch.display);
+    result += pushMathReplacement(
+      replacements,
+      renderKatexString(mathMatch.content, macros, mathMatch.display),
+    );
     index = mathMatch.end;
   }
 
-  return result;
-}
-
-function renderKatexNode(node, macros, displayMode) {
-  return renderKatexString(node.value, macros, displayMode);
+  return {
+    text: result,
+    replacements,
+  };
 }
 
 function renderKatexString(value, macros, displayMode) {
@@ -231,6 +237,20 @@ function findDisplayMathClose(text, fromIndex) {
     }
   }
   return -1;
+}
+
+function pushMathReplacement(replacements, html) {
+  const token = `KATEX_PLACEHOLDER_${replacements.length}_TOKEN`;
+  replacements.push({token, html});
+  return token;
+}
+
+function injectMathPlaceholders(html, replacements) {
+  let result = html;
+  for (const {token, html: replacementHtml} of replacements) {
+    result = result.replaceAll(token, replacementHtml);
+  }
+  return result;
 }
 
 function isLineStart(text, index) {

@@ -1,4 +1,14 @@
 import {currentFileUrl, fetchTextFile, normalizePath, requestHeaders} from "./markdown_runtime.js";
+import {
+  applyTheme,
+  detectNavigationMode,
+  directoryViewHref,
+  fetchDirectoryEntries,
+  joinPath,
+  parentDirectoryPath,
+  previewHref,
+  setLinkState,
+} from "./viewer_common.js";
 
 const PAGE_SIZE = 24;
 const PREVIEW_LIMIT = 100;
@@ -35,47 +45,6 @@ function currentParams() {
   return new URL(window.location.href).searchParams;
 }
 
-function splitPath(path) {
-  const normalized = normalizePath(path);
-  const trimmed = normalized.replace(/\/+$/, "");
-  if (!trimmed) {
-    return {
-      directory: "",
-      name: "",
-    };
-  }
-
-  const lastSlash = trimmed.lastIndexOf("/");
-  if (lastSlash === -1) {
-    return {
-      directory: "",
-      name: trimmed,
-    };
-  }
-
-  return {
-    directory: trimmed.slice(0, lastSlash),
-    name: trimmed.slice(lastSlash + 1),
-  };
-}
-
-function joinPath(directory, entry) {
-  const normalizedDirectory = normalizePath(directory).replace(/\/+$/, "");
-  const normalizedEntry = normalizePath(entry);
-  if (!normalizedDirectory) {
-    return normalizedEntry;
-  }
-  if (!normalizedEntry) {
-    return normalizedDirectory;
-  }
-  return `${normalizedDirectory}/${normalizedEntry}`;
-}
-
-function directoryUrl(directory) {
-  const normalizedDirectory = normalizePath(directory).replace(/\/+$/, "");
-  return normalizedDirectory ? `/${normalizedDirectory}/` : "/";
-}
-
 function currentSortFromLocation() {
   return currentParams().get("sort") || DEFAULT_SORT;
 }
@@ -84,64 +53,13 @@ function currentSortMode() {
   return sortSelect.value || DEFAULT_SORT;
 }
 
-function directoryViewHref({path = "", link = ""} = {}) {
-  const url = new URL("./directory_view.html", window.location.href);
-  if (path) {
-    url.searchParams.set("path", normalizePath(path));
-  }
-  if (link) {
-    url.searchParams.set("link", link);
-  }
-  url.searchParams.set("sort", currentSortMode());
-  return `${url.pathname}${url.search}`;
-}
-
 function markdownPreviewHref(path) {
-  return `./md_preview.html?path=${encodeURIComponent(normalizePath(path))}`;
+  return previewHref(path);
 }
 
 function infoPathUrl(path) {
   const normalized = normalizePath(path);
   return normalized ? `/.info/${normalized}` : "/.info";
-}
-
-function parentDirectoryPath(path) {
-  const normalized = normalizePath(path).replace(/\/+$/, "");
-  if (!normalized) {
-    return "";
-  }
-  const {directory} = splitPath(normalized);
-  return directory;
-}
-
-function setLinkState(link, href) {
-  if (!href) {
-    link.removeAttribute("href");
-    link.setAttribute("aria-disabled", "true");
-    return;
-  }
-  link.href = href;
-  link.setAttribute("aria-disabled", "false");
-}
-
-function fileExtension(path) {
-  const name = path.split("/").pop() || "";
-  const dot = name.lastIndexOf(".");
-  return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
-}
-
-function cleanPeek(text) {
-  return text.replace(/\s+/g, " ").trim().slice(0, PREVIEW_LIMIT);
-}
-
-function currentMode() {
-  const params = currentParams();
-  const link = (params.get("link") || "").trim();
-  if (link) {
-    return {kind: "link", value: link};
-  }
-  const path = normalizePath(params.get("path") || "").replace(/\/+$/, "");
-  return {kind: "directory", value: path};
 }
 
 function setCreateEnabled(enabled) {
@@ -160,17 +78,26 @@ function setCurrentSortMode(value, {replaceHistory = true} = {}) {
   return sort;
 }
 
-async function fetchDirectoryEntries(directory) {
-  const response = await fetch(directoryUrl(directory), {
-    method: "GET",
-    headers: requestHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error(`GET failed: ${response.status} ${response.statusText}`);
-  }
+function fileExtension(path) {
+  const name = path.split("/").pop() || "";
+  const dot = name.lastIndexOf(".");
+  return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
+}
 
-  const text = await response.text();
-  return text.split("\n").map(line => line.trim()).filter(Boolean);
+function cleanPeek(text) {
+  return text.replace(/\s+/g, " ").trim().slice(0, PREVIEW_LIMIT);
+}
+
+function currentMode() {
+  const params = currentParams();
+  const link = (params.get("link") || "").trim();
+  if (link) {
+    return {kind: "link", value: link};
+  }
+  return {
+    kind: "directory",
+    value: normalizePath(params.get("path") || "").replace(/\/+$/, ""),
+  };
 }
 
 async function createEmptyMarkdownFile(path) {
@@ -288,10 +215,9 @@ async function buildDirectoryCard(entry) {
 
   if (children.includes("README.md")) {
     try {
-      const readmeText = await fetchTextFile(joinPath(entry.path, "README.md"));
-      peek = cleanPeek(readmeText);
+      peek = cleanPeek(await fetchTextFile(joinPath(entry.path, "README.md")));
     } catch {
-      // Keep the directory listing preview if README.md cannot be read.
+      // Keep listing preview when README.md cannot be read.
     }
   }
 
@@ -299,7 +225,7 @@ async function buildDirectoryCard(entry) {
     kind: "directory",
     title: entry.title.replace(/\/$/, ""),
     peek,
-    href: directoryViewHref({path: entry.path}),
+    href: directoryViewHref({path: entry.path, sort: currentSortMode()}),
   };
 }
 
@@ -398,10 +324,9 @@ function observeInfiniteScroll() {
   observer?.disconnect();
   observer = new IntersectionObserver(intersections => {
     for (const entry of intersections) {
-      if (!entry.isIntersecting) {
-        continue;
+      if (entry.isIntersecting) {
+        void loadNextPage();
       }
-      void loadNextPage();
     }
   }, {
     root: boardPane,
@@ -424,6 +349,16 @@ async function rerenderCards() {
   await loadNextPage();
 }
 
+async function applyModeTheme(mode) {
+  if (mode.kind === "link") {
+    applyTheme({view: "directory", navigation: "navigation"});
+    return;
+  }
+
+  const navigation = await detectNavigationMode(mode.value).catch(() => "listing");
+  applyTheme({view: "directory", navigation});
+}
+
 async function loadView() {
   const mode = currentMode();
   cardGrid.innerHTML = "";
@@ -431,8 +366,9 @@ async function loadView() {
   entries = [];
   nextIndex = 0;
 
-  setLinkState(homeLink, directoryViewHref({path: ""}));
+  setLinkState(homeLink, directoryViewHref({sort: currentSortMode()}));
   setCreateEnabled(mode.kind === "directory");
+  await applyModeTheme(mode);
 
   if (mode.kind === "link") {
     modeLabel.textContent = "Link";
@@ -443,7 +379,10 @@ async function loadView() {
   } else {
     modeLabel.textContent = "Directory";
     pathText.textContent = mode.value ? `/${mode.value}/` : "/";
-    setLinkState(upLink, mode.value ? directoryViewHref({path: parentDirectoryPath(mode.value)}) : "");
+    setLinkState(
+      upLink,
+      mode.value ? directoryViewHref({path: parentDirectoryPath(mode.value), sort: currentSortMode()}) : "",
+    );
     setStatus(`Loading ${mode.value ? `/${mode.value}/` : "/"} ...`);
     entries = await loadEntriesForDirectory(mode.value);
   }
@@ -501,10 +440,12 @@ sortSelect.addEventListener("change", () => {
   setCurrentSortMode(sortSelect.value);
   void rerenderCards();
 });
+
 newForm.addEventListener("submit", event => {
   void handleCreateMarkdown(event);
 });
 
+applyTheme({view: "directory", navigation: "listing"});
 setCurrentSortMode(currentSortFromLocation());
 void loadView().catch(error => {
   setStatus(String(error), true);
