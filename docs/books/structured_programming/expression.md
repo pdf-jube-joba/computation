@@ -3,12 +3,14 @@
 これは普通に再帰的な定義にすればいい。
 手続きに渡す場合も、式を書ける（ついでに、値も書ける）ようにする。
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 \NT{aexp} &\defeq \\
   &| \sp \NT{var} \sp | \sp \NT{number} \\
   &| \sp \NT{aexp} \sp \NT{binop} \sp \NT{aexp} \\
   &| \sp \T{call} \sp \NT{string} \sp \T{\LP} \sp \syntaxmacro{comma-separated}{aexp} \sp \T{\RP} \\
-\end{aligned}\)
+\end{aligned}
+\]
 
 副作用があるような手続きを呼び出しうるので、
 引数をどの順に計算していくのかが、何を行うかに影響する。

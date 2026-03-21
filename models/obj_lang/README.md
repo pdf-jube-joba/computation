@@ -3,14 +3,15 @@
 # object identity
 object identity を入れるなら、 `new` が欲しい。
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 \NT{x} &\defeq \NT{string} \\
 \NT{f} &\defeq \NT{string} \\
 \\
 \NT{expr} &\defeq \\
     &| \T{this} \\
     &| \NT{object-decl} \\
-    &| \N | \T{\verb|#|true} | \T{\verb|#|false} | \T{null} \\
+    &| \N | \T{\#true} | \T{\#false} | \T{null} \\
     &| \NT{x} | \NT{x} \T{.} \NT{f} \\
     &| \NT{expr} \NT{expr} \\
     &| \T{fun} \NT{x} \T{=>} \NT{expr} \\
@@ -31,7 +32,8 @@ object identity を入れるなら、 `new` が欲しい。
 \\
 \NT{program} &\defeq \NT{object-decl}+ \\
 \\
-\end{aligned}\)
+\end{aligned}
+\]
 
 # message passing and actor model
 ここでは、 object が生成されることはない。
@@ -39,7 +41,8 @@ object identity を入れるなら、 `new` が欲しい。
 
 各 stmt はループしないので停止する。（分岐はすることに注意。）
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 \\
 \NT{bit} &\defeq 0 | 1 \\
 \NT{message} &\defeq \NT{string} \NT{bit}* \\
@@ -56,12 +59,14 @@ object identity を入れるなら、 `new` が欲しい。
     &\syntaxmacro{comma-separated}{\NT{var}} \T{;} \\
 \T{\RSB} \\
 \\
-\end{aligned}\)
+\end{aligned}
+\]
 
 # class based object
 AI の出した構文をちょっと変えた。
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 
 \NT{x} &\defeq \NT{string} \\
 \NT{f} &\defeq \NT{string} \\
@@ -94,6 +99,7 @@ AI の出した構文をちょっと変えた。
 
 \NT{program} &\defeq \NT{object-decl}+ \\
 
-\end{aligned}\)
+\end{aligned}
+\]
 
 

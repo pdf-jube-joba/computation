@@ -1,50 +1,20 @@
 markdown がうまく行っているかテストする。
 
-## モデル表示のテスト
-全部を統一したい。
-
-<div data-model="example_counter">
-<template data-default-code>
-5
-</template>
-<template data-default-rinput>
-inc
-</template>
-</div>
-
-二個目の配置
-<div data-model="example_counter">
-<template data-default-code>
-8
-</template>
-<template data-default-rinput>
-inc
-</template>
-</div>
-
-identity compiler の場合
-
-<div data-model="example_counter-example_counter">
-<template data-default-code>
-8
-</template>
-<template data-default-rinput>
-inc
-</template>
-</div>
-
 ## katex で数式
 ### ヘッダーに数式を書く： \(1\)
-`mdbook-katex` を用いた、 `katex` での数式の表記： \(x = 1, y = 2\)
-
+`katex` での数式の表記： \(x = 1, y = 2\)
 \(\text{日本語}\)
+
+\(a\_b,  c\_d\)
 
 bnf っぽいものを書く用のやつ
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 \NT{stmt} &\defeq \NT{var} \sp \T{add} \sp \NT{var} \\
 \NT{var}  &\defeq \NT{ident}
-\end{aligned}\)
+\end{aligned}
+\]
 
 ## link index の自作
 [[テスト]]
@@ -53,22 +23,21 @@ bnf っぽいものを書く用のやつ
 ### 定義リスト
 
 term
-  : 定義をここに書く
-  : 複数行
+: 定義をここに書く
+: 複数行
   書くこともできる（空白が入る扱い？）
 
 listing
-  : 定義の中で listing をしたい
-    - a
-    - b
-
+: 定義の中で listing をしたい
+  - a
+  - b
 
 term
-  : The quick brown fox jumps over the lazy dog. \(x\)
+: The quick brown fox jumps over the lazy dog. \(x\)
    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam
-  : The quick brown fox jumps over the lazy dog. \(x\)
+: The quick brown fox jumps over the lazy dog. \(x\)
    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam
-  : `mdbook` だと崩れる。
+: `mdbook` だと崩れる。
 
 ### github 方式の admonition
 > [!note]
@@ -116,17 +85,35 @@ markdown の中でタグを配置するときの注意
 どちらかも破ると、html がイメージ通りにできない。
 （上で試してみるといい）
 
-## 定義と定理について
-definition-list の中で listing を使うべきではないという指摘を（AIから）受けました。
+## モデル表示のテスト
+全部を統一したい。
 
-今の使い方
-```
-定義というよりはラベル付け？
-: 定義の前提条件とか
-  - 必要な前提条件の列挙1
-  - 必要な前提条件の列挙2
-  - 「次の条件を満たす」
-    - foobar
-```
+<div data-model="example_counter">
+<template data-default-code>
+5
+</template>
+<template data-default-rinput>
+inc
+</template>
+</div>
 
-確かに、用語の定義みたいな使い方ができてない。
+二個目の配置
+<div data-model="example_counter">
+<template data-default-code>
+8
+</template>
+<template data-default-rinput>
+inc
+</template>
+</div>
+
+identity compiler の場合
+
+<div data-model="example_counter-example_counter">
+<template data-default-code>
+8
+</template>
+<template data-default-rinput>
+inc
+</template>
+</div>

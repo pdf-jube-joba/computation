@@ -9,7 +9,8 @@
   - テープは関数呼び出し前後で共有される。
 - `main` と名前の付いた関数を呼び出して始まる。存在しないならエラーになる。
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 \NT{label}    &\defeq \NT{string} \\
 \NT{var}      &\defeq \NT{string} \\
 \NT{rvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \\
@@ -30,7 +31,8 @@
 
 \NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{\LP} \syntaxmacro{comma-separated}{S} \T{\RP} \\
 \NT{program}    &\defeq \NT{alphabet-decl} \sp \NT{function}+
-\end{aligned}\)
+\end{aligned}
+\]
 
 プログラム状態
 : 実行状態は (tape, head, env) とする。

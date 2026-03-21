@@ -83,7 +83,8 @@ BB: {
 jump by register value があるので、これを生かすためには `.text` ラベルは残す。
 3-address 形式にするとこんな感じ？（これはラベルが消えてる。）
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 \NT{atom} &\defeq \NT{var} \sp | \sp \NT{imm} \\
 \NT{stmt} &\defeq ( \\
     & | \sp \NT{var} \sp \T{:=} \sp \NT{var} \sp \NT{op} \sp \NT{var} \\
@@ -94,7 +95,8 @@ jump by register value があるので、これを生かすためには `.text` 
     & | \sp \T{goto} \sp \NT{label} \\
     & | \sp \T{if} \sp \NT{cond} \sp \T{then} \sp \NT{label} \sp \T{;} \NT{cont}
 \NT{block}  &\defeq \NT{label} \T{\{} \NT{stmt}* \sp \NT{cont} \T{\}}
-\end{aligned}\)
+\end{aligned}
+\]
 
 ここには確かに load/store がない。
 このままでも全然チューリング完全ではある。
@@ -115,12 +117,14 @@ jump by register value があるので、これを生かすためには `.text` 
 レジスタの個数も退避も考えなくてよくなるのでまあうれしい。
 これを加えるとこんな感じの言語になる。（レジスタなので `%` をつける。）
 
-\(\begin{aligned}
+\[
+\begin{aligned}
 \NT{var} & \defeq \T{\%} \sp \NT{string} \\
 \NT{stmt} & \defeq \cdots \\
     & | \NT{load} \sp \NT{var} "from" \NT{label} \\
     & | \NT{store} \sp \NT{atom} "to" \NT{label}
-\end{aligned}\)
+\end{aligned}
+\]
 
 - メモリは場所：アドレスが取れて、 load/store でアクセス。
 - 仮想レジスタは値の記述：アドレスは取れない。

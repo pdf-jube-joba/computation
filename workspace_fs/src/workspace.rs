@@ -412,11 +412,14 @@ impl WorkspaceService {
     }
 
     fn map_read_error(&self, error: anyhow::Error) -> WorkspaceError {
-        let message = error.to_string();
-        if message.contains("No such file") || message.contains("os error 2") {
+        if error_chain_contains(&error, "No such file")
+            || error_chain_contains(&error, "os error 2")
+        {
             return WorkspaceError::not_found("path not found");
         }
-        if message.contains("Is a directory") || message.contains("os error 21") {
+        if error_chain_contains(&error, "Is a directory")
+            || error_chain_contains(&error, "os error 21")
+        {
             return WorkspaceError::bad_request("path is a directory");
         }
         map_path_error(error)
@@ -499,6 +502,12 @@ fn content_type_for_path(path: &WorkspacePath) -> String {
     }
 
     mime.to_string()
+}
+
+fn error_chain_contains(error: &anyhow::Error, needle: &str) -> bool {
+    error
+        .chain()
+        .any(|cause| cause.to_string().contains(needle))
 }
 
 #[cfg(test)]

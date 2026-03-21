@@ -12,11 +12,11 @@
 
 \txtop:\operatorname{#1}
 
-\NT:\langle \text{\textit{#1}} \rangle
-\T:{\mathtt{"{#1}"}}
+\NT: \; \langle \text{\textit{#1}} \rangle \;
+\T:\; \text{\texttt{"{#1}"}} \;
 \sp:\;
 \defeq:\mathrel{::=}
-\syntaxmacro:\text{#1} \langle #2 \rangle
+\syntaxmacro:\text{#1} \left( #2 \right)
 
 \syntaxname:{\textit{#1}}
 
