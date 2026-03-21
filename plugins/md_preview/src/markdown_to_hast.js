@@ -1,4 +1,4 @@
-export function createRemarkRehypeOptions({ basePath, katexMacros, renderKatexNode, renderMathError }) {
+export function createRemarkRehypeOptions({ basePath }) {
   return {
     allowDangerousHtml: true,
     handlers: {
@@ -10,24 +10,6 @@ export function createRemarkRehypeOptions({ basePath, katexMacros, renderKatexNo
             className: ["md-definition-list"],
           },
           children: node.children.flatMap(item => definitionItemToHast(state, item)),
-        };
-      },
-      inlineMath(state, node) {
-        return {
-          type: "raw",
-          value: renderKatexNode(node, katexMacros, false),
-        };
-      },
-      displayMath(state, node) {
-        return {
-          type: "raw",
-          value: renderKatexNode(node, katexMacros, true),
-        };
-      },
-      mathError(state, node) {
-        return {
-          type: "raw",
-          value: renderMathError(node.value, node.message, false),
         };
       },
       alert(state, node) {
