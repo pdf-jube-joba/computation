@@ -1,3 +1,5 @@
+[[Compiler]] [[再帰関数]] [[ラムダ計算]]
+
 ## Church encoding
 
 自然数とラムダ項の対応
