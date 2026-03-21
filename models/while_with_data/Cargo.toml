@@ -1,0 +1,17 @@
+[package]
+name = "while_with_data"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "strarr"
+path = "src/bin/strarr.rs"
+
+[[bin]]
+name = "strtree"
+path = "src/bin/strtree.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+utils.workspace = true
