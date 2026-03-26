@@ -3,4 +3,27 @@ name = "pcf"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "pcf-expr"
+path = "src/bin/expr.rs"
+
+[[bin]]
+name = "pcf-cek"
+path = "src/bin/cek.rs"
+
+[[bin]]
+name = "pcf-secd"
+path = "src/bin/secd.rs"
+
+[[bin]]
+name = "pcf-expr-cek"
+path = "src/bin/expr-cek.rs"
+
+[[bin]]
+name = "pcf-expr-secd"
+path = "src/bin/expr-secd.rs"
+
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+utils.workspace = true

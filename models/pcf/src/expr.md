@@ -28,7 +28,7 @@
 ## 意味論
 reduction の列で意味論が定義できる。
 値渡しにして、 \(\T{print} \N\) は `ROutput` に表示しつつ \(\T{\#unit}\) を返す。
-- if と case では分岐判定部分を簡約して、値が得られたらそのまま適用する。分岐先は簡約しない。
+- if では分岐判定部分を簡約して、値が得られたらそのまま適用する。分岐先は簡約しない。
 - これとは逆に、 `&&` は strict である。
 - 関数適用だけ違って、関数部分も引数部分も値にすること。
 - `AInput` は \(\N\) の tuple として `FOutput` \(\N\) と考える。実行は、プログラム \(M\) と `AInput` \(n_1, \ldots n_k\) を \(((M n_1) \cdots n_k)\) にして実行を始める。
@@ -40,7 +40,7 @@ reduction の列で意味論が定義できる。
 
 \[
 \begin{aligned}
-\T{print} (n \in \N) & \to^{\text{step} n} \T{\#unit} \\
+\T{print} (n \in \N) & \to^{\text{print} n} \T{\#unit} \\
 M \NT{binop} N &\to M' \NT{binop} N && M \to M' \\
 V \NT{binop} N &\to V \NT{binop} N' && N \to N' \\
 V \NT{binop} V' &\to V'' && V, V' \in \text{domain} \NT{binop} \\

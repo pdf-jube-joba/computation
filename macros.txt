@@ -26,3 +26,5 @@
 \RCB:{\}}
 \LSB:{[}
 \RSB:{]}
+\LLB:{\llbracket}
+\RRB:{\rrbracket}
