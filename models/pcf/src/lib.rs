@@ -1,6 +1,7 @@
 pub mod cek_machine;
 pub mod compiler;
 pub mod expr_machine;
+pub mod expr_stmt_machine;
 pub mod secd_machine;
 pub mod syntax;
 
@@ -12,6 +13,7 @@ mod tests {
         cek_machine::CekMachine,
         compiler::{ExprToCekCompiler, ExprToSecdCompiler},
         expr_machine::ExprMachine,
+        expr_stmt_machine::{ExprStmtCode, ExprStmtMachine},
         secd_machine::SecdMachine,
         syntax::{ExprCode, PrintEffect},
     };
@@ -68,5 +70,19 @@ mod tests {
             run_machine::<SecdMachine>(ExprToSecdCompiler::compile(source).unwrap(), vec![5])
                 .unwrap();
         assert_eq!(secd_result, expr_result);
+    }
+
+    #[test]
+    fn expr_stmt_block_preserves_print_order() {
+        let source = ExprStmtCode::parse("{ print 1; 2 } + { print 3; 4 }").unwrap();
+        let result = run_machine::<ExprStmtMachine>(source, vec![]).unwrap();
+        assert_eq!(result, (vec![1, 3], 6));
+    }
+
+    #[test]
+    fn expr_stmt_closure_captures_block_local_binding() {
+        let source = ExprStmtCode::parse("({ let x := 1; fun y => x + y })(2)").unwrap();
+        let result = run_machine::<ExprStmtMachine>(source, vec![]).unwrap();
+        assert_eq!(result, (vec![], 3));
     }
 }

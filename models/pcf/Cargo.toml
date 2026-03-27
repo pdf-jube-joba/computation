@@ -23,6 +23,10 @@ path = "src/bin/expr-cek.rs"
 name = "pcf-expr-secd"
 path = "src/bin/expr-secd.rs"
 
+[[bin]]
+name = "pcf-expr-stmt-cek"
+path = "src/bin/expr-stmt-cek.rs"
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
