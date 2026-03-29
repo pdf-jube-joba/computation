@@ -1159,6 +1159,10 @@ dependencies = [
 [[package]]
 name = "mini_prog"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "utils",
+]
 
 [[package]]
 name = "mio"
