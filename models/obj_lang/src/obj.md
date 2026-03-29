@@ -10,26 +10,28 @@ primitive value はオブジェクトじゃない。
 
 \[
 \begin{aligned}
-\NT{x} &\defeq \NT{string} \\
+\NT{var} &\defeq \NT{string} \\
 \NT{f} &\defeq \NT{string} \\
 \\
 \NT{expr} &\defeq \\
-    &| \T{\#this} \\
-    &| \T{\#new} \T{\LCB} \NT{expr} \T{\RCB} \\
-    &| \N | \T{\#true} | \T{\#false} | \T{\#null} \\
-    &| \NT{x} | \NT{expr} \T{.} \NT{f} \\
-    &| \NT{expr} \T{\LP} \NT{expr} \T{\RP} \\
-    &| \T{let} \NT{var} \T{:=} \NT{expr} \T{in} \NT{expr} &\syntaxname{syntax suger of fun} \\
-    &| \T{fun} \NT{x} \T{=>} \NT{expr} \\
+    &| \T{\#this} | \T{\#new} \\
+    &| \N | \T{\#true} | \T{\#false} | \T{\#unit} \\
+    &| \NT{var} | \NT{expr} \T{.} \NT{f} \\
     &| \NT{expr} \NT{binop} \NT{expr} \\
     &| \NT{expr} \T{===} \NT{expr} & \syntaxname{equality of identity} \\
-    &| \NT{expr} \T{;} \NT{expr} &\syntaxname{stmt concat}\\
+    &| \T{fun} \NT{var} \T{=>} \NT{expr} \\
+    &| \NT{expr} \T{\LP} \NT{expr} \T{\RP} \\
+    &| \T{set-this} \NT{expr} \T{in} \T{\LCB} \NT{stmt} \T{;} \NT{expr} \T{\RCB} \\
+\\
+\NT{stmt} &\defeq \\
+    &| \T{skip} \\
+    &| \NT{stmt} \T{;} \NT{stmt} \\
+    &| \T{let} \NT{var} \T{:=} \NT{expr} &\syntaxname{syntax suger of fun} \\
     &| \NT{expr} \T{.} \NT{f} \T{:=} \NT{expr} \\
-    &| \T{if} \NT{expr} \T{then} \NT{expr} \T{else} \NT{expr} \T{end} \\
-    &| \T{while} \NT{expr} \T{then} \NT{expr} \T{end} \\
+    &| \T{if} \NT{expr} \T{then} \NT{stmt} \T{end} \\
+    &| \T{while} \NT{expr} \T{do} \NT{stmt} \T{end} \\
 \\
 \NT{program} &\defeq \NT{expr} \\
-\\
 \end{aligned}
 \]
 
@@ -44,18 +46,20 @@ primitive value はオブジェクトじゃない。
   - stmt や expr を実行している"主体"みたいなものがあるはずなので、
     状態として object key をスタックに積んで置き、現在の focus しているオブジェクトとして考える。
 - ある意味で、 environment が object になる。ただし、 identity 付き
-- object-decl 中の変数と "this" の評価をどうするかが難しい。
-  - `{ x: 1, m: new { y: x, z: this } }`
-  - `{ x: 1, y: this.x }`
-- stmt と object-decl を消して、 `M.f := N` と `new` だけあればいいようにした。これで、 `new {this.x := 1; this.y := 2; }` が書けて、代わりになる。
-  なお、 `N` の評価結果が return されることにする。なので、 `new {this}` で新たに生成されたオブジェクトが返る。
-- new の中で環境は同じものを使うが、戻った時には回復する `let x := 1 in new { this.y = x; let x := 2 in this}; x` は `this.x` に `1` を入れつつ `new` の外に戻ってきたら `x = 1` になっていてほしい。
-- equality については、ラムダ計算とは違うので、 closure が入ったら比較を拒否することにする。
-
-> [!Note]
+> [!note]
+> **古い記録**
+> - object-decl 中の変数と "this" の評価をどうするかが難しい。
+>  - `{ x: 1, m: new { y: x, z: this } }`
+>  - `{ x: 1, y: this.x }`
+> - stmt と object-decl を消して、 `M.f := N` と `new` だけあればいいようにした。これで、 `new {this.x := 1; this.y := 2; }` が書けて、代わりになる。
+>  なお、 `N` の評価結果が return されることにする。なので、 `new {this}` で新たに生成されたオブジェクトが返る。
+> - new の中で環境は同じものを使うが、戻った時には回復する `let x := 1 in new { this.y = x; let x := 2 in this}; x` は `this.x` に `1` を入れつつ `new` の外に戻ってきたら `x = 1` になっていてほしい。
+> - equality については、ラムダ計算とは違うので、 closure が入ったら比較を拒否することにする。
 > AI と議論していて気が付いたこと： object identity を含むと参照透過性が壊れる。
 > `let x = e in (x === x)` と `e === e` は異なる結果になりうる。
 > Ocaml でも似たようなことは起きていて、 ref 周りがそうっぽい。
+
+やっぱり stmt は別にした方がわかりやすい。
 
 以降はちゃんと練る
 - \(I\) : set ... object identity 用で、なんでもいい
@@ -63,13 +67,11 @@ primitive value はオブジェクトじゃない。
 - \(V\) := \(V_p + \text{cls}(x, M, E) + I\)
 - \(E\) := \(\typeparam{list}{(\NT{var}, V)}\)
 - \(S\) := \(I \pfun \typeparam{list}{(\NT{f}, V)}\)
-- \(F\) :=
-    - \(\text{new}(I)\)
-    - \(\text{Acc}(f)\)
+- \(K\) := \(\text{list}K_f\) where K_f :=
+    - \([] \NT{binop} N, E\)
+    - \(V \NT{binop} [], E\)
     - \([] N, E\)
     - \(\text{cls}(x, M, E) []\)
-    - \([] \NT{binop} N, E\)
-    - \(V \NT{binop} []\)
     - \([] === N, E\)
     - \(V === []\)
     - \(([]; s, E)\)

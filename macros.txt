@@ -20,6 +20,8 @@
 
 \syntaxname:{\textit{#1}}
 
+\typeparam:{\text{#1} {<} #2 {>}}
+
 \LP:{(}
 \RP:{)}
 \LCB:{\{}

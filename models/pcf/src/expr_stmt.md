@@ -25,8 +25,8 @@ expr に加えて stmt を入れる場合のメモ
     &| \T{print} \N &\syntaxname{呼び出し順序確認用} \\
     &| \NT{stmt} \T{;} \NT{stmt} \\
     &| \T{let} \NT{var} \T{:=} \NT{expr} \\
-    &| \T{if} \NT{expr} \T{then} \NT{stmt} \NT{end} \\
-    &| \T{while} \NT{expr} \T{do} \NT{stmt} \NT{end} \\
+    &| \T{if} \NT{expr} \T{then} \NT{stmt} \T{end} \\
+    &| \T{while} \NT{expr} \T{do} \NT{stmt} \T{end} \\
 \end{aligned}
 \]
 
