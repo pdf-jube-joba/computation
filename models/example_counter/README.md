@@ -8,9 +8,9 @@
 
 <div data-model="example_counter">
 <template data-default-code>
-7
+3
 </template>
-<template data-default-ainput>
+<template data-default-rinput>
 inc
 </template>
 </div>
@@ -19,7 +19,7 @@ inc
 <template data-default-code>
 7
 </template>
-<template data-default-ainput>
+<template data-default-rinput>
 dec
 </template>
 </div>
