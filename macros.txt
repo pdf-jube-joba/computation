@@ -30,3 +30,5 @@
 \RSB:{]}
 \LLB:{\llbracket}
 \RRB:{\rrbracket}
+\LANG:{<}
+\RANG:{>}
