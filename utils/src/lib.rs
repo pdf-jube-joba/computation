@@ -2,7 +2,9 @@
 pub use wit_bindgen;
 
 // module for parsing and encoding text
+pub mod lexer;
 pub mod parse;
+pub use lexer::*;
 pub use parse::TextCodec;
 
 // data structures
