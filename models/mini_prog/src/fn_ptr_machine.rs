@@ -20,13 +20,19 @@ pub struct FnDecl {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stmt {
-    Assign { place: PlaceExpr, value: ValueExpr },
+    Assign {
+        place: PlaceExpr,
+        value: ValueExpr,
+    },
     Ifz {
         cond: ValueExpr,
         then_branch: Box<Stmt>,
         else_branch: Box<Stmt>,
     },
-    Call { name: String, args: Vec<ValueExpr> },
+    Call {
+        name: String,
+        args: Vec<ValueExpr>,
+    },
     Return,
 }
 
@@ -101,12 +107,18 @@ impl TextCodec for Value {
         if trimmed == "#null-ptr" {
             return Ok(Self::NullPtr);
         }
-        if let Some(rest) = trimmed.strip_prefix("loc(").and_then(|s| s.strip_suffix(')')) {
+        if let Some(rest) = trimmed
+            .strip_prefix("loc(")
+            .and_then(|s| s.strip_suffix(')'))
+        {
             let (frame_id, slot) = rest
                 .split_once(',')
                 .ok_or_else(|| "expected loc(frame,slot)".to_string())?;
             return Ok(Self::Location(Location {
-                frame_id: frame_id.trim().parse::<usize>().map_err(|e| e.to_string())?,
+                frame_id: frame_id
+                    .trim()
+                    .parse::<usize>()
+                    .map_err(|e| e.to_string())?,
                 slot: slot.trim().parse::<usize>().map_err(|e| e.to_string())?,
             }));
         }

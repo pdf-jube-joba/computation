@@ -575,8 +575,12 @@ fn stmt_to_text(stmt: &Stmt) -> String {
         Stmt::Nop => "Nop".to_string(),
         Stmt::Assign { var, expr } => format!("{} := {}", var.as_str(), aexp_to_text(expr)),
         Stmt::Seq(lhs, rhs) => format!("{} ; {}", stmt_to_text(lhs), stmt_to_text(rhs)),
-        Stmt::If { cond, body } => format!("if {} then {} end", bexp_to_text(cond), stmt_to_text(body)),
-        Stmt::While { cond, body } => format!("while {} {{ {} }}", bexp_to_text(cond), stmt_to_text(body)),
+        Stmt::If { cond, body } => {
+            format!("if {} then {} end", bexp_to_text(cond), stmt_to_text(body))
+        }
+        Stmt::While { cond, body } => {
+            format!("while {} {{ {} }}", bexp_to_text(cond), stmt_to_text(body))
+        }
     }
 }
 
@@ -595,8 +599,8 @@ mod tests {
 
     #[test]
     fn machine_runs() {
-        let code = StrArrCode::parse("x := ['a', 'b'] ; while x == ['a', 'b'] { x := tail x }")
-            .unwrap();
+        let code =
+            StrArrCode::parse("x := ['a', 'b'] ; while x == ['a', 'b'] { x := tail x }").unwrap();
         let mut machine = StrArrMachine::make(code, Environment::default()).unwrap();
         loop {
             match machine.step(()).unwrap() {

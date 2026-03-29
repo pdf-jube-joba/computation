@@ -572,8 +572,14 @@ fn stmt_to_text(stmt: &Stmt) -> String {
         Stmt::Nop => "Nop".to_string(),
         Stmt::Assign { var, expr } => format!("{} := {}", var.as_str(), texp_to_text(expr)),
         Stmt::Seq(lhs, rhs) => format!("{} ; {}", stmt_to_text(lhs), stmt_to_text(rhs)),
-        Stmt::IfEq { cond, body } => format!("ifeq {} then {} end", bexp_to_text(cond), stmt_to_text(body)),
-        Stmt::While { cond, body } => format!("while {} {{ {} }}", bexp_to_text(cond), stmt_to_text(body)),
+        Stmt::IfEq { cond, body } => format!(
+            "ifeq {} then {} end",
+            bexp_to_text(cond),
+            stmt_to_text(body)
+        ),
+        Stmt::While { cond, body } => {
+            format!("while {} {{ {} }}", bexp_to_text(cond), stmt_to_text(body))
+        }
     }
 }
 

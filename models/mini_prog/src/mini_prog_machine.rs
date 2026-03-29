@@ -87,16 +87,30 @@ pub enum UnOp {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Stmt {
-    Assign { place: PlaceExpr, value: ValueExpr },
-    If { cond: ValueExpr, stmt: Box<Stmt> },
+    Assign {
+        place: PlaceExpr,
+        value: ValueExpr,
+    },
+    If {
+        cond: ValueExpr,
+        stmt: Box<Stmt>,
+    },
     Case {
         tag: usize,
         value: ValueExpr,
         stmt: Box<Stmt>,
     },
-    HAlloc { ty: Type, place: PlaceExpr },
-    HFree { value: ValueExpr },
-    Loop { label: String, stmt: Box<Stmt> },
+    HAlloc {
+        ty: Type,
+        place: PlaceExpr,
+    },
+    HFree {
+        value: ValueExpr,
+    },
+    Loop {
+        label: String,
+        stmt: Box<Stmt>,
+    },
     Break(String),
     Continue(String),
     Call {
@@ -817,7 +831,11 @@ fn default_value(ty: &Type) -> Result<Value, String> {
     })
 }
 
-fn project_cell(ty: &Type, value: &Value, projections: &[Projection]) -> Result<(Type, Value), String> {
+fn project_cell(
+    ty: &Type,
+    value: &Value,
+    projections: &[Projection],
+) -> Result<(Type, Value), String> {
     if projections.is_empty() {
         return Ok((ty.clone(), value.clone()));
     }
@@ -902,7 +920,12 @@ fn update_projection(
                 .ok_or_else(|| "sum tag out of bounds".to_string())?;
             Ok(Value::Sum(
                 *found,
-                Box::new(update_projection(variant_ty, value, &projections[1..], new_value)?),
+                Box::new(update_projection(
+                    variant_ty,
+                    value,
+                    &projections[1..],
+                    new_value,
+                )?),
             ))
         }
         _ => Err("invalid assignment target".to_string()),

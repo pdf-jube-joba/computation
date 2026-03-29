@@ -476,7 +476,9 @@ fn step_state(state: State) -> Result<(State, PrintEffect), String> {
                         ))
                     }
                     Value::Bool(false) => Ok((State::Done { env, kont }, PrintEffect(None))),
-                    other => Err(format!("while expects a boolean condition, found {other:?}")),
+                    other => Err(format!(
+                        "while expects a boolean condition, found {other:?}"
+                    )),
                 },
                 Frame::Seq { .. } | Frame::ScopeOut { .. } => {
                     Err("internal CEK error: statement frame during return".to_string())
@@ -579,7 +581,13 @@ fn step_state(state: State) -> Result<(State, PrintEffect), String> {
 fn lookup_env(env: &Env, name: &Identifier) -> Result<Value, String> {
     env.iter()
         .rev()
-        .find_map(|(key, value)| if key == name { Some(value.clone()) } else { None })
+        .find_map(|(key, value)| {
+            if key == name {
+                Some(value.clone())
+            } else {
+                None
+            }
+        })
         .ok_or_else(|| format!("unbound variable: {}", name.as_str()))
 }
 
@@ -964,7 +972,9 @@ impl Parser {
             Some(Token::True) => Ok(Expr::Bool(true)),
             Some(Token::False) => Ok(Expr::Bool(false)),
             Some(Token::Unit) => Ok(Expr::Unit),
-            Some(Token::Ident(name)) => Ok(Expr::Var(Identifier::new(name).map_err(|e| e.to_string())?)),
+            Some(Token::Ident(name)) => {
+                Ok(Expr::Var(Identifier::new(name).map_err(|e| e.to_string())?))
+            }
             Some(Token::Fun) => {
                 let param = self.parse_identifier()?;
                 self.expect_token(Token::Arrow)?;

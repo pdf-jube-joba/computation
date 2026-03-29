@@ -1,8 +1,7 @@
 use utils::TextCodec;
 
 use crate::mini_prog_machine::{
-    BinOp, Block, FnDecl, MiniProgCode, PlaceExpr, Program, StaticDecl, Stmt, Type, UnOp,
-    ValueExpr,
+    BinOp, Block, FnDecl, MiniProgCode, PlaceExpr, Program, StaticDecl, Stmt, Type, UnOp, ValueExpr,
 };
 
 impl TextCodec for MiniProgCode {
@@ -409,7 +408,9 @@ impl Parser {
             }
             Some(Token::Call) => {
                 self.pos += 1;
-                let callee = self.parse_value_expr_until(|parser| matches!(parser.peek(), Some(Token::LParen)))?;
+                let callee = self.parse_value_expr_until(|parser| {
+                    matches!(parser.peek(), Some(Token::LParen))
+                })?;
                 self.expect(Token::LParen)?;
                 let args = self.parse_value_expr_list(Token::RParen)?;
                 self.expect(Token::RParen)?;
@@ -493,7 +494,9 @@ impl Parser {
             }
             Some(Token::LParen) => {
                 self.pos += 1;
-                let value = self.parse_value_expr_until(|parser| matches!(parser.peek(), Some(Token::RParen)))?;
+                let value = self.parse_value_expr_until(|parser| {
+                    matches!(parser.peek(), Some(Token::RParen))
+                })?;
                 self.expect(Token::RParen)?;
                 self.expect(Token::HashLoc)?;
                 PlaceExpr::Deref(Box::new(value))
@@ -515,7 +518,9 @@ impl Parser {
                 }
                 Some(Token::LBracket) => {
                     self.pos += 1;
-                    let index = self.parse_value_expr_until(|parser| matches!(parser.peek(), Some(Token::RBracket)))?;
+                    let index = self.parse_value_expr_until(|parser| {
+                        matches!(parser.peek(), Some(Token::RBracket))
+                    })?;
                     self.expect(Token::RBracket)?;
                     place = PlaceExpr::Index(Box::new(place), Box::new(index));
                 }
@@ -575,7 +580,9 @@ impl Parser {
                 }
                 Some(Token::Bang) => {
                     self.pos += 1;
-                    let expr = stack.pop().ok_or_else(|| "operator '!' needs one operand".to_string())?;
+                    let expr = stack
+                        .pop()
+                        .ok_or_else(|| "operator '!' needs one operand".to_string())?;
                     stack.push(ValueExpr::UnOp(UnOp::Not, Box::new(expr)));
                 }
                 Some(Token::Plus) => self.reduce_binop(&mut stack, BinOp::Add)?,
@@ -600,7 +607,9 @@ impl Parser {
                     self.expect(Token::LParen)?;
                     let tag = self.expect_number()?;
                     self.expect(Token::RParen)?;
-                    let value = stack.pop().ok_or_else(|| "tag needs one operand".to_string())?;
+                    let value = stack
+                        .pop()
+                        .ok_or_else(|| "tag needs one operand".to_string())?;
                     stack.push(ValueExpr::Tag(tag, Box::new(value)));
                 }
                 other => return Err(format!("unexpected token in value expression: {other:?}")),
@@ -615,8 +624,12 @@ impl Parser {
 
     fn reduce_binop(&mut self, stack: &mut Vec<ValueExpr>, op: BinOp) -> Result<(), String> {
         self.pos += 1;
-        let rhs = stack.pop().ok_or_else(|| format!("operator '{op:?}' needs two operands"))?;
-        let lhs = stack.pop().ok_or_else(|| format!("operator '{op:?}' needs two operands"))?;
+        let rhs = stack
+            .pop()
+            .ok_or_else(|| format!("operator '{op:?}' needs two operands"))?;
+        let lhs = stack
+            .pop()
+            .ok_or_else(|| format!("operator '{op:?}' needs two operands"))?;
         stack.push(ValueExpr::BinOp(Box::new(lhs), op, Box::new(rhs)));
         Ok(())
     }
@@ -667,7 +680,10 @@ impl Parser {
         if self.is_eof() {
             Ok(())
         } else {
-            Err(format!("unexpected trailing tokens: {:?}", &self.tokens[self.pos..]))
+            Err(format!(
+                "unexpected trailing tokens: {:?}",
+                &self.tokens[self.pos..]
+            ))
         }
     }
 

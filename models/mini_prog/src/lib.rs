@@ -1,9 +1,9 @@
+pub mod fn_ptr_machine;
 mod fn_ptr_parser;
 mod fn_ptr_render;
+pub mod mini_prog_machine;
 mod mini_prog_parser;
 mod mini_prog_render;
-pub mod fn_ptr_machine;
-pub mod mini_prog_machine;
 
 #[cfg(test)]
 mod tests {
@@ -40,14 +40,12 @@ mod tests {
 
     #[test]
     fn parses_and_runs_assignment() {
-        let output = run(
-            r#"
+        let output = run(r#"
             fn main(x) {
                 assign x := 3;
                 return
             }
-            "#,
-        )
+            "#)
         .unwrap();
         assert!(output.contains("main"));
         assert!(output.contains("3"));
@@ -55,8 +53,7 @@ mod tests {
 
     #[test]
     fn call_can_mutate_callee_local_through_pointer() {
-        let output = run(
-            r#"
+        let output = run(r#"
             fn inc(ptr) {
                 assign (ld ptr) #loc := (ld (ld ptr) #loc) + 1;
                 return
@@ -67,8 +64,7 @@ mod tests {
                 call inc(x #addr);
                 return
             }
-            "#,
-        )
+            "#)
         .unwrap();
         assert!(output.contains("5"));
     }

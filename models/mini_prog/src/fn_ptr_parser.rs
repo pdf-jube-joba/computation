@@ -349,7 +349,10 @@ impl Parser {
         if self.is_eof() {
             Ok(())
         } else {
-            Err(format!("unexpected trailing tokens: {:?}", &self.tokens[self.pos..]))
+            Err(format!(
+                "unexpected trailing tokens: {:?}",
+                &self.tokens[self.pos..]
+            ))
         }
     }
 
