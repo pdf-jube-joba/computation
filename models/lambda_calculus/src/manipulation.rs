@@ -94,85 +94,170 @@ pub mod utility {
 }
 
 pub mod parse {
-    use pest::{iterators::Pair, Parser};
     use utils::identifier::Var;
+    use utils::{lex_tree, DelimKind, Token as LexToken, Tree};
 
     use crate::{
         machine::LambdaTerm,
         manipulation::utility::{self, app_with_nonepmty},
     };
 
-    #[derive(pest_derive::Parser)]
-    #[grammar = "parse.pest"]
-    pub struct Ps;
-
-    pub fn parse_exp(p: Pair<Rule>, ref_vars: &mut Vec<Var>) -> Result<LambdaTerm, String> {
-        assert_eq!(p.as_rule(), Rule::exp);
-        let mut ps = p.into_inner();
-        let term = ps.next().unwrap();
-        match term.as_rule() {
-            Rule::var => {
-                let var_str = term.as_str();
-                let var: Var = ref_vars
-                    .iter()
-                    .rev()
-                    .find_map(|v| {
-                        if v.as_str() == var_str {
-                            Some(v.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(Var::new(var_str));
-                Ok(LambdaTerm::Var(var))
-            }
-            Rule::abs => {
-                let mut ps = term.into_inner();
-                let mut count = 0;
-                while ps.peek().map(|p| p.as_rule()) == Some(Rule::var) {
-                    let var: Var = ps.next().unwrap().as_str().into();
-                    ref_vars.push(var);
-                    count += 1;
-                }
-                let exp = parse_exp(ps.next().unwrap(), ref_vars)?;
-                let exp = utility::lambdas(
-                    ref_vars[ref_vars.len() - count..ref_vars.len()].to_vec(),
-                    exp,
-                );
-                for _ in 0..count {
-                    ref_vars.pop();
-                }
-                Ok(exp)
-            }
-            Rule::exp_paren => {
-                let mut ps = term.into_inner();
-                let first = parse_exp(ps.next().unwrap(), ref_vars)?;
-                let remains = ps
-                    .map(|p| parse_exp(p, ref_vars))
-                    .collect::<Result<Vec<_>, _>>()?;
-                let term = utility::apps(first, remains);
-                Ok(term)
-            }
-            _ => unreachable!("exp should be \"var\" or \"abs\" or \"exp_paren\""),
-        }
-    }
-
     pub fn parse_lambda(code: &str) -> Result<LambdaTerm, String> {
-        let mut code = Ps::parse(Rule::exp, code.trim()).map_err(|e| e.to_string())?;
-        let p = code.next().unwrap();
-        parse_exp(p, &mut Vec::new())
+        parse_lambda_read_to_end(code)
     }
 
     pub fn parse_lambda_read_to_end(code: &str) -> Result<LambdaTerm, String> {
-        let mut code =
-            Ps::parse(Rule::lambda_read_to_end, code.trim()).map_err(|e| e.to_string())?;
-        let p = code.next().unwrap();
-        let ps: Vec<_> = p
-            .into_inner()
-            .filter(|p| p.as_rule() == Rule::exp)
-            .map(|p| parse_exp(p, &mut Vec::new()))
-            .collect::<Result<_, _>>()?;
-        debug_assert!(!ps.is_empty());
-        Ok(app_with_nonepmty(ps))
+        let trees = lex_tree(code).map_err(|e| e.to_string())?;
+        let mut parser = Parser::new(normalize_trees(trees)?);
+        let term = parser.parse_application(&mut Vec::new())?;
+        if !parser.is_eof() {
+            return Err(parser.error_here("unexpected trailing tokens"));
+        }
+        Ok(term)
+    }
+
+    #[derive(Clone, Debug)]
+    enum Node {
+        Token(LexToken),
+        Paren(Vec<Node>),
+    }
+
+    fn normalize_trees(trees: Vec<Tree>) -> Result<Vec<Node>, String> {
+        let mut nodes = Vec::new();
+        for tree in trees {
+            match tree {
+                Tree::Token(LexToken::Whitespace(_) | LexToken::Comment(_)) => {}
+                Tree::Token(token) => nodes.push(Node::Token(token)),
+                Tree::Delim {
+                    delim: DelimKind::Paren,
+                    child,
+                } => nodes.push(Node::Paren(normalize_trees(child)?)),
+                Tree::Delim { delim, .. } => {
+                    return Err(format!("unexpected delimiter in lambda term: {:?}", delim));
+                }
+            }
+        }
+        Ok(nodes)
+    }
+
+    struct Parser {
+        nodes: Vec<Node>,
+        pos: usize,
+    }
+
+    impl Parser {
+        fn new(nodes: Vec<Node>) -> Self {
+            Self { nodes, pos: 0 }
+        }
+
+        fn is_eof(&self) -> bool {
+            self.pos >= self.nodes.len()
+        }
+
+        fn peek(&self) -> Option<&Node> {
+            self.nodes.get(self.pos)
+        }
+
+        fn next(&mut self) -> Option<Node> {
+            let node = self.nodes.get(self.pos).cloned();
+            if node.is_some() {
+                self.pos += 1;
+            }
+            node
+        }
+
+        fn error_here(&self, message: impl Into<String>) -> String {
+            match self.peek() {
+                Some(node) => format!("{} near {:?}", message.into(), node),
+                None => format!("{} at end of input", message.into()),
+            }
+        }
+
+        fn starts_atom(&self) -> bool {
+            matches!(
+                self.peek(),
+                Some(Node::Token(LexToken::Ident(_)))
+                    | Some(Node::Token(LexToken::Symbol('\\')))
+                    | Some(Node::Paren(_))
+            )
+        }
+
+        fn parse_application(&mut self, ref_vars: &mut Vec<Var>) -> Result<LambdaTerm, String> {
+            let mut terms = Vec::new();
+            while self.starts_atom() {
+                terms.push(self.parse_atom(ref_vars)?);
+            }
+
+            if terms.is_empty() {
+                return Err(self.error_here("expected lambda term"));
+            }
+
+            Ok(app_with_nonepmty(terms))
+        }
+
+        fn parse_atom(&mut self, ref_vars: &mut Vec<Var>) -> Result<LambdaTerm, String> {
+            if matches!(self.peek(), Some(Node::Token(LexToken::Symbol('\\')))) {
+                return self.parse_abs(ref_vars);
+            }
+            if matches!(self.peek(), Some(Node::Paren(_))) {
+                let Some(Node::Paren(inner)) = self.next() else {
+                    unreachable!();
+                };
+                let mut parser = Parser::new(inner);
+                let term = parser.parse_application(ref_vars)?;
+                if !parser.is_eof() {
+                    return Err(parser.error_here("unexpected trailing tokens in paren group"));
+                }
+                return Ok(term);
+            }
+            match self.next() {
+                Some(Node::Token(LexToken::Ident(name))) => {
+                    let var = ref_vars
+                        .iter()
+                        .rev()
+                        .find_map(|v| {
+                            if v.as_str() == name {
+                                Some(v.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or_else(|| Var::new(&name));
+                    Ok(LambdaTerm::Var(var))
+                }
+                _ => Err(self.error_here("expected variable, abstraction, or parenthesized term")),
+            }
+        }
+
+        fn parse_abs(&mut self, ref_vars: &mut Vec<Var>) -> Result<LambdaTerm, String> {
+            match self.next() {
+                Some(Node::Token(LexToken::Symbol('\\'))) => {}
+                _ => return Err(self.error_here("expected '\\'")),
+            }
+
+            let mut vars = Vec::new();
+            while matches!(self.peek(), Some(Node::Token(LexToken::Ident(_)))) {
+                let Some(Node::Token(LexToken::Ident(name))) = self.next() else {
+                    unreachable!();
+                };
+                let var = Var::new(&name);
+                ref_vars.push(var.clone());
+                vars.push(var);
+            }
+
+            if vars.is_empty() {
+                return Err(self.error_here("expected binder after '\\'"));
+            }
+
+            match self.next() {
+                Some(Node::Token(LexToken::Symbol('.'))) => {}
+                _ => return Err(self.error_here("expected '.'")),
+            }
+            let body = self.parse_application(ref_vars)?;
+            for _ in 0..vars.len() {
+                ref_vars.pop();
+            }
+            Ok(utility::lambdas(vars, body))
+        }
     }
 }

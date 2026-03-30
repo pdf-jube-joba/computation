@@ -27,6 +27,14 @@ path = "src/bin/expr_lang.rs"
 name = "expr_to_flow_ir"
 path = "src/bin/expr_to_flow_ir.rs"
 
+[[bin]]
+name = "mini_prog"
+path = "src/bin/mini_prog.rs"
+
+[[bin]]
+name = "fn_ptr"
+path = "src/bin/fn_ptr.rs"
+
 [dependencies]
 serde.workspace = true
 utils.workspace = true

@@ -633,7 +633,6 @@ dependencies = [
  "serde",
  "serde_json",
  "utils",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -820,9 +819,6 @@ dependencies = [
 name = "goto_lang"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "pest",
- "pest_derive",
  "serde",
  "serde_json",
  "utils",
@@ -1034,13 +1030,9 @@ dependencies = [
 name = "lambda_calculus"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "pest",
- "pest_derive",
  "serde",
  "serde_json",
  "utils",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1200,14 +1192,6 @@ checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
 dependencies = [
  "mime",
  "unicase",
-]
-
-[[package]]
-name = "mini_prog"
-version = "0.1.0"
-dependencies = [
- "serde",
- "utils",
 ]
 
 [[package]]

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use utils::TextCodec;
 use utils::number::Number;
+use utils::{TextCodec, Token as LexToken, lex};
 
 use super::{ABinOp, AExp, Atom, BExp, GlobalEnv, ProcCode, ProcDef, Program, RelOp, Stmt};
 
@@ -66,80 +66,106 @@ impl TextCodec for ProcCode {
 }
 
 pub fn parse_program(text: &str) -> Result<Program, String> {
-    let mut parser = Parser::new(text)?;
+    let mut parser = Parser::new(lex(text).map_err(|e| e.to_string())?);
     let program = parser.parse_program()?;
-    parser.expect(Token::Eof)?;
+    parser.expect_eof()?;
     Ok(program)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Token {
-    Ident(String),
-    Number(String),
-    Static,
-    Local,
-    Nop,
-    If,
-    While,
-    Call,
-    Return,
-    LParen,
-    RParen,
-    LBrack,
-    RBrack,
-    Comma,
-    Semi,
-    Assign,
-    Arrow,
-    Plus,
-    Minus,
-    Lt,
-    Eq,
-    Gt,
-    Eof,
-}
-
 struct Parser {
-    tokens: Vec<Token>,
+    tokens: Vec<LexToken>,
     pos: usize,
 }
 
 impl Parser {
-    fn new(text: &str) -> Result<Self, String> {
-        Ok(Self {
-            tokens: lex(text)?,
-            pos: 0,
-        })
+    fn new(tokens: Vec<LexToken>) -> Self {
+        let tokens = tokens
+            .into_iter()
+            .filter(|token| !matches!(token, LexToken::Whitespace(_) | LexToken::Comment(_)))
+            .collect();
+        Self { tokens, pos: 0 }
     }
 
-    fn peek(&self) -> &Token {
-        self.tokens.get(self.pos).unwrap_or(&Token::Eof)
+    fn is_eof(&self) -> bool {
+        self.pos >= self.tokens.len()
     }
 
-    fn next(&mut self) -> Token {
-        let t = self.peek().clone();
-        if !matches!(t, Token::Eof) {
+    fn peek(&self) -> Option<&LexToken> {
+        self.tokens.get(self.pos)
+    }
+
+    fn next(&mut self) -> Option<LexToken> {
+        let token = self.tokens.get(self.pos).cloned();
+        if token.is_some() {
             self.pos += 1;
         }
-        t
+        token
     }
 
-    fn expect(&mut self, expect: Token) -> Result<(), String> {
-        let t = self.next();
-        if t == expect {
+    fn expect_eof(&self) -> Result<(), String> {
+        if self.is_eof() {
             Ok(())
         } else {
-            Err(format!("Unexpected token: {:?}, expected {:?}", t, expect))
+            Err(self.error_here("Unexpected trailing tokens"))
+        }
+    }
+
+    fn error_here(&self, message: impl Into<String>) -> String {
+        match self.peek() {
+            Some(token) => format!("{} near {:?}", message.into(), token),
+            None => format!("{} at end of input", message.into()),
+        }
+    }
+
+    fn peek_ident(&self, ident: &str) -> bool {
+        matches!(self.peek(), Some(LexToken::Ident(found)) if found == ident)
+    }
+
+    fn eat_ident(&mut self, ident: &str) -> bool {
+        if self.peek_ident(ident) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_ident(&mut self, ident: &str) -> Result<(), String> {
+        if self.eat_ident(ident) {
+            Ok(())
+        } else {
+            Err(self.error_here(format!("expected keyword '{ident}'")))
+        }
+    }
+
+    fn peek_symbol(&self, ch: char) -> bool {
+        matches!(self.peek(), Some(LexToken::Symbol(found)) if *found == ch)
+    }
+
+    fn eat_symbol(&mut self, ch: char) -> bool {
+        if self.peek_symbol(ch) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_symbol(&mut self, ch: char) -> Result<(), String> {
+        if self.eat_symbol(ch) {
+            Ok(())
+        } else {
+            Err(self.error_here(format!("expected symbol '{ch}'")))
         }
     }
 
     fn parse_program(&mut self) -> Result<Program, String> {
-        self.expect(Token::Static)?;
-        let statics = self.parse_var_list_until(&Token::Semi)?;
-        self.expect(Token::Semi)?;
+        self.expect_ident("static")?;
+        let statics = self.parse_var_list_until_symbol(';')?;
+        self.expect_symbol(';')?;
 
         let mut procs = Vec::new();
-        while !matches!(self.peek(), Token::Eof) {
+        while !self.is_eof() {
             procs.push(self.parse_proc()?);
         }
 
@@ -152,14 +178,14 @@ impl Parser {
 
     fn parse_proc(&mut self) -> Result<ProcDef, String> {
         let name = self.parse_ident()?;
-        self.expect(Token::LParen)?;
-        let params = self.parse_var_list_until(&Token::RParen)?;
-        self.expect(Token::RParen)?;
-        self.expect(Token::LBrack)?;
-        self.expect(Token::Local)?;
+        self.expect_symbol('(')?;
+        let params = self.parse_var_list_until_symbol(')')?;
+        self.expect_symbol(')')?;
+        self.expect_symbol('[')?;
+        self.expect_ident("local")?;
         let locals = self.parse_var_list_stmt_boundary()?;
         let body = self.parse_stmt()?;
-        self.expect(Token::RBrack)?;
+        self.expect_symbol(']')?;
         Ok(ProcDef {
             name,
             params,
@@ -170,24 +196,22 @@ impl Parser {
 
     fn parse_var_list_stmt_boundary(&mut self) -> Result<Vec<String>, String> {
         let mut vars = Vec::new();
-        if matches!(self.peek(), Token::Ident(_)) {
+        if matches!(self.peek(), Some(LexToken::Ident(_))) {
             vars.push(self.parse_ident()?);
-            while matches!(self.peek(), Token::Comma) {
-                self.next();
+            while self.eat_symbol(',') {
                 vars.push(self.parse_ident()?);
             }
         }
         Ok(vars)
     }
 
-    fn parse_var_list_until(&mut self, end: &Token) -> Result<Vec<String>, String> {
+    fn parse_var_list_until_symbol(&mut self, end: char) -> Result<Vec<String>, String> {
         let mut vars = Vec::new();
-        if self.peek() == end {
+        if self.peek_symbol(end) {
             return Ok(vars);
         }
         vars.push(self.parse_ident()?);
-        while matches!(self.peek(), Token::Comma) {
-            self.next();
+        while self.eat_symbol(',') {
             vars.push(self.parse_ident()?);
         }
         Ok(vars)
@@ -195,16 +219,15 @@ impl Parser {
 
     fn parse_ident(&mut self) -> Result<String, String> {
         match self.next() {
-            Token::Ident(s) => Ok(s),
-            t => Err(format!("Expected identifier, got {t:?}")),
+            Some(LexToken::Ident(s)) => Ok(s),
+            _ => Err(self.error_here("expected identifier")),
         }
     }
 
     fn parse_stmt(&mut self) -> Result<Stmt, String> {
         let left = self.parse_stmt_single()?;
-        if matches!(self.peek(), Token::Semi) {
-            self.next();
-            if matches!(self.peek(), Token::RBrack) {
+        if self.eat_symbol(';') {
+            if self.peek_symbol(']') {
                 return Ok(left);
             }
             let right = self.parse_stmt()?;
@@ -215,74 +238,74 @@ impl Parser {
     }
 
     fn parse_stmt_single(&mut self) -> Result<Stmt, String> {
-        match self.peek() {
-            Token::Nop => {
-                self.next();
-                Ok(Stmt::Nop)
-            }
-            Token::If => {
-                self.next();
-                let cond = self.parse_bexp()?;
-                self.expect(Token::LBrack)?;
-                let body = self.parse_stmt()?;
-                self.expect(Token::RBrack)?;
-                Ok(Stmt::If {
-                    cond,
-                    body: Box::new(body),
-                })
-            }
-            Token::While => {
-                self.next();
-                let cond = self.parse_bexp()?;
-                self.expect(Token::LBrack)?;
-                let body = self.parse_stmt()?;
-                self.expect(Token::RBrack)?;
-                Ok(Stmt::While {
-                    cond,
-                    body: Box::new(body),
-                })
-            }
-            Token::Call => {
-                self.next();
-                let name = self.parse_ident()?;
-                self.expect(Token::LParen)?;
-                let args = self.parse_var_list_until(&Token::RParen)?;
-                self.expect(Token::RParen)?;
-                self.expect(Token::Arrow)?;
-                let rets = self.parse_var_list_stmt_boundary()?;
-                Ok(Stmt::Call { name, args, rets })
-            }
-            Token::Return => {
-                self.next();
-                let vars = self.parse_var_list_stmt_boundary()?;
-                Ok(Stmt::Return { vars })
-            }
-            Token::LBrack => {
-                self.next();
-                let inner = self.parse_stmt()?;
-                self.expect(Token::RBrack)?;
-                Ok(inner)
-            }
-            Token::Ident(_) => {
-                let var = self.parse_ident()?;
-                self.expect(Token::Assign)?;
-                let expr = self.parse_aexp()?;
-                Ok(Stmt::Assign { var, expr })
-            }
-            t => Err(format!("Unexpected token in statement: {t:?}")),
+        if self.eat_ident("Nop") {
+            return Ok(Stmt::Nop);
         }
+        if self.eat_ident("if") {
+            let cond = self.parse_bexp()?;
+            self.expect_symbol('[')?;
+            let body = self.parse_stmt()?;
+            self.expect_symbol(']')?;
+            return Ok(Stmt::If {
+                cond,
+                body: Box::new(body),
+            });
+        }
+        if self.eat_ident("while") {
+            let cond = self.parse_bexp()?;
+            self.expect_symbol('[')?;
+            let body = self.parse_stmt()?;
+            self.expect_symbol(']')?;
+            return Ok(Stmt::While {
+                cond,
+                body: Box::new(body),
+            });
+        }
+        if self.eat_ident("call") {
+            let name = self.parse_ident()?;
+            self.expect_symbol('(')?;
+            let args = self.parse_var_list_until_symbol(')')?;
+            self.expect_symbol(')')?;
+            self.expect_symbol('-')?;
+            self.expect_symbol('>')?;
+            let rets = self.parse_var_list_stmt_boundary()?;
+            return Ok(Stmt::Call { name, args, rets });
+        }
+        if self.eat_ident("return") {
+            let vars = self.parse_var_list_stmt_boundary()?;
+            return Ok(Stmt::Return { vars });
+        }
+        if self.eat_symbol('[') {
+            let inner = self.parse_stmt()?;
+            self.expect_symbol(']')?;
+            return Ok(inner);
+        }
+        if matches!(self.peek(), Some(LexToken::Ident(_))) {
+            let var = self.parse_ident()?;
+            self.expect_symbol(':')?;
+            self.expect_symbol('=')?;
+            let expr = self.parse_aexp()?;
+            return Ok(Stmt::Assign { var, expr });
+        }
+        Err(self.error_here("unexpected token in statement"))
     }
 
     fn parse_aexp(&mut self) -> Result<AExp, String> {
         let lhs = self.parse_atom()?;
-        if matches!(self.peek(), Token::Plus | Token::Minus) {
-            let op = match self.next() {
-                Token::Plus => ABinOp::Add,
-                Token::Minus => ABinOp::Sub,
-                _ => unreachable!(),
-            };
+        if self.eat_symbol('+') {
             let rhs = self.parse_atom()?;
-            Ok(AExp::Bin { lhs, op, rhs })
+            Ok(AExp::Bin {
+                lhs,
+                op: ABinOp::Add,
+                rhs,
+            })
+        } else if self.eat_symbol('-') {
+            let rhs = self.parse_atom()?;
+            Ok(AExp::Bin {
+                lhs,
+                op: ABinOp::Sub,
+                rhs,
+            })
         } else {
             Ok(AExp::Atom(lhs))
         }
@@ -290,11 +313,14 @@ impl Parser {
 
     fn parse_bexp(&mut self) -> Result<BExp, String> {
         let lhs = self.parse_atom()?;
-        let op = match self.next() {
-            Token::Lt => RelOp::Lt,
-            Token::Eq => RelOp::Eq,
-            Token::Gt => RelOp::Gt,
-            t => return Err(format!("Expected relation operator, got {t:?}")),
+        let op = if self.eat_symbol('<') {
+            RelOp::Lt
+        } else if self.eat_symbol('=') {
+            RelOp::Eq
+        } else if self.eat_symbol('>') {
+            RelOp::Gt
+        } else {
+            return Err(self.error_here("expected relation operator"));
         };
         let rhs = self.parse_atom()?;
         Ok(BExp { lhs, op, rhs })
@@ -302,119 +328,11 @@ impl Parser {
 
     fn parse_atom(&mut self) -> Result<Atom, String> {
         match self.next() {
-            Token::Ident(s) => Ok(Atom::Var(s)),
-            Token::Number(s) => Ok(Atom::Imm(Number::parse(&s)?)),
-            t => Err(format!("Expected atom, got {t:?}")),
+            Some(LexToken::Ident(s)) => Ok(Atom::Var(s)),
+            Some(LexToken::Number(s)) => Ok(Atom::Imm(Number::parse(&s)?)),
+            _ => Err(self.error_here("expected atom")),
         }
     }
-}
-
-fn lex(text: &str) -> Result<Vec<Token>, String> {
-    let mut tokens = Vec::new();
-    let mut chars = text.chars().peekable();
-    while let Some(&ch) = chars.peek() {
-        if ch.is_whitespace() {
-            chars.next();
-            continue;
-        }
-        if ch.is_ascii_digit() {
-            let mut s = String::new();
-            while let Some(&c) = chars.peek() {
-                if c.is_ascii_digit() {
-                    s.push(c);
-                    chars.next();
-                } else {
-                    break;
-                }
-            }
-            tokens.push(Token::Number(s));
-            continue;
-        }
-        if ch.is_ascii_alphabetic() || ch == '_' {
-            let mut s = String::new();
-            while let Some(&c) = chars.peek() {
-                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                    s.push(c);
-                    chars.next();
-                } else {
-                    break;
-                }
-            }
-            tokens.push(match s.as_str() {
-                "static" => Token::Static,
-                "local" => Token::Local,
-                "Nop" => Token::Nop,
-                "if" => Token::If,
-                "while" => Token::While,
-                "call" => Token::Call,
-                "return" => Token::Return,
-                _ => Token::Ident(s),
-            });
-            continue;
-        }
-        match ch {
-            '(' => {
-                chars.next();
-                tokens.push(Token::LParen);
-            }
-            ')' => {
-                chars.next();
-                tokens.push(Token::RParen);
-            }
-            '[' => {
-                chars.next();
-                tokens.push(Token::LBrack);
-            }
-            ']' => {
-                chars.next();
-                tokens.push(Token::RBrack);
-            }
-            ',' => {
-                chars.next();
-                tokens.push(Token::Comma);
-            }
-            ';' => {
-                chars.next();
-                tokens.push(Token::Semi);
-            }
-            '+' => {
-                chars.next();
-                tokens.push(Token::Plus);
-            }
-            '-' => {
-                chars.next();
-                if chars.peek() == Some(&'>') {
-                    chars.next();
-                    tokens.push(Token::Arrow);
-                } else {
-                    tokens.push(Token::Minus);
-                }
-            }
-            '<' => {
-                chars.next();
-                tokens.push(Token::Lt);
-            }
-            '>' => {
-                chars.next();
-                tokens.push(Token::Gt);
-            }
-            '=' => {
-                chars.next();
-                tokens.push(Token::Eq);
-            }
-            ':' => {
-                chars.next();
-                if chars.next() == Some('=') {
-                    tokens.push(Token::Assign);
-                } else {
-                    return Err("Expected '=' after ':'".to_string());
-                }
-            }
-            _ => return Err(format!("Unexpected character: {ch}")),
-        }
-    }
-    tokens.push(Token::Eof);
-    Ok(tokens)
 }
 
 fn atom_to_text(atom: &Atom) -> String {

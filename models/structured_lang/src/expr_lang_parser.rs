@@ -1,32 +1,8 @@
-use utils::TextCodec;
 use utils::identifier::Identifier;
 use utils::number::Number;
+use utils::{DelimKind, TextCodec, Token as LexToken, Tree, lex_tree};
 
 use crate::expr_lang::*;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Token {
-    Ident(String),
-    Number(String),
-    Nop,
-    If,
-    Then,
-    Else,
-    While,
-    LParen,
-    RParen,
-    LBrack,
-    RBrack,
-    Semi,
-    Assign,
-    Plus,
-    Minus,
-    Lt,
-    Eq,
-    Gt,
-    OrOr,
-    Bang,
-}
 
 pub fn parse_env(text: &str) -> Result<Environment, String> {
     let mut env = Environment::default();
@@ -60,8 +36,8 @@ impl TextCodec for Environment {
 
 impl TextCodec for ExprCode {
     fn parse(text: &str) -> Result<Self, String> {
-        let tokens = lex(text)?;
-        let mut ps = Parser::new(tokens);
+        let trees = lex_tree(text).map_err(|e| e.to_string())?;
+        let mut ps = Parser::new(normalize_trees(trees)?);
         let stmt = ps.parse_stmt()?;
         ps.expect_eof()?;
         Ok(ExprCode(stmt))
@@ -72,38 +48,78 @@ impl TextCodec for ExprCode {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Node {
+    Token(LexToken),
+    Paren(Vec<Node>),
+    Bracket(Vec<Node>),
+}
+
+fn normalize_trees(trees: Vec<Tree>) -> Result<Vec<Node>, String> {
+    let mut out = Vec::new();
+    for tree in trees {
+        match tree {
+            Tree::Token(LexToken::Whitespace(_) | LexToken::Comment(_)) => {}
+            Tree::Token(token) => out.push(Node::Token(token)),
+            Tree::Delim {
+                delim: DelimKind::Paren,
+                child,
+            } => out.push(Node::Paren(normalize_trees(child)?)),
+            Tree::Delim {
+                delim: DelimKind::Bracket,
+                child,
+            } => out.push(Node::Bracket(normalize_trees(child)?)),
+            Tree::Delim { delim, .. } => {
+                return Err(format!("unexpected delimiter in expr_lang: {:?}", delim));
+            }
+        }
+    }
+    Ok(out)
+}
+
 struct Parser {
-    tokens: Vec<Token>,
+    nodes: Vec<Node>,
     pos: usize,
 }
 
 impl Parser {
-    fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0 }
+    fn new(nodes: Vec<Node>) -> Self {
+        Self { nodes, pos: 0 }
     }
 
-    fn peek(&self) -> Option<&Token> {
-        self.tokens.get(self.pos)
+    fn peek(&self) -> Option<&Node> {
+        self.nodes.get(self.pos)
     }
 
-    fn next(&mut self) -> Option<Token> {
-        let t = self.tokens.get(self.pos).cloned();
+    fn next(&mut self) -> Option<Node> {
+        let t = self.nodes.get(self.pos).cloned();
         if t.is_some() {
             self.pos += 1;
         }
         t
     }
 
-    fn expect_eof(&self) -> Result<(), String> {
-        if self.pos == self.tokens.len() {
-            Ok(())
-        } else {
-            Err("Unexpected trailing tokens".to_string())
+    fn error_here(&self, message: impl Into<String>) -> String {
+        match self.peek() {
+            Some(token) => format!("{} near {:?}", message.into(), token),
+            None => format!("{} at end of input", message.into()),
         }
     }
 
-    fn eat(&mut self, tok: &Token) -> bool {
-        if self.peek() == Some(tok) {
+    fn expect_eof(&self) -> Result<(), String> {
+        if self.pos == self.nodes.len() {
+            Ok(())
+        } else {
+            Err(self.error_here("Unexpected trailing tokens"))
+        }
+    }
+
+    fn peek_symbol(&self, ch: char) -> bool {
+        matches!(self.peek(), Some(Node::Token(LexToken::Symbol(found))) if *found == ch)
+    }
+
+    fn eat_symbol(&mut self, ch: char) -> bool {
+        if self.peek_symbol(ch) {
             self.pos += 1;
             true
         } else {
@@ -111,9 +127,38 @@ impl Parser {
         }
     }
 
+    fn expect_symbol(&mut self, ch: char) -> Result<(), String> {
+        if self.eat_symbol(ch) {
+            Ok(())
+        } else {
+            Err(self.error_here(format!("expected symbol '{ch}'")))
+        }
+    }
+
+    fn peek_ident(&self, word: &str) -> bool {
+        matches!(self.peek(), Some(Node::Token(LexToken::Ident(found))) if found == word)
+    }
+
+    fn eat_ident(&mut self, word: &str) -> bool {
+        if self.peek_ident(word) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_ident(&mut self, word: &str) -> Result<(), String> {
+        if self.eat_ident(word) {
+            Ok(())
+        } else {
+            Err(self.error_here(format!("expected keyword '{word}'")))
+        }
+    }
+
     fn parse_stmt(&mut self) -> Result<Stmt, String> {
         let mut left = self.parse_stmt_single()?;
-        while self.eat(&Token::Semi) {
+        while self.eat_symbol(';') {
             let right = self.parse_stmt_single()?;
             left = Stmt::Seq(Box::new(left), Box::new(right));
         }
@@ -121,53 +166,45 @@ impl Parser {
     }
 
     fn parse_stmt_single(&mut self) -> Result<Stmt, String> {
-        match self.peek() {
-            Some(Token::Nop) => {
-                self.next();
-                Ok(Stmt::Nop)
-            }
-            Some(Token::If) => {
-                self.next();
-                let cond = self.parse_bexp()?;
-                let body = self.parse_stmt_single()?;
-                Ok(Stmt::If {
-                    cond,
-                    body: Box::new(body),
-                })
-            }
-            Some(Token::While) => {
-                self.next();
-                let cond = self.parse_bexp()?;
-                self.expect(Token::LBrack)?;
-                let body = self.parse_stmt()?;
-                self.expect(Token::RBrack)?;
-                Ok(Stmt::While {
-                    cond,
-                    body: Box::new(body),
-                })
-            }
-            Some(Token::LParen) => {
-                self.next();
-                let s = self.parse_stmt()?;
-                self.expect(Token::RParen)?;
-                Ok(s)
-            }
-            Some(Token::Ident(_)) => {
-                let var = self.parse_ident()?;
-                self.expect(Token::Assign)?;
-                let expr = self.parse_aexp()?;
-                Ok(Stmt::Assign { var, expr })
-            }
-            _ => Err("Invalid statement".to_string()),
+        if self.eat_ident("Nop") {
+            return Ok(Stmt::Nop);
         }
+        if self.eat_ident("if") {
+            let cond = self.parse_bexp()?;
+            let body = self.parse_stmt_single()?;
+            return Ok(Stmt::If {
+                cond,
+                body: Box::new(body),
+            });
+        }
+        if self.eat_ident("while") {
+            let cond = self.parse_bexp()?;
+            let body = self.parse_bracketed_stmt()?;
+            return Ok(Stmt::While {
+                cond,
+                body: Box::new(body),
+            });
+        }
+        if matches!(self.peek(), Some(Node::Paren(_))) {
+            let s = self.parse_paren_stmt()?;
+            return Ok(s);
+        }
+        if matches!(self.peek(), Some(Node::Token(LexToken::Ident(_)))) {
+            let var = self.parse_ident()?;
+            self.expect_symbol(':')?;
+            self.expect_symbol('=')?;
+            let expr = self.parse_aexp()?;
+            return Ok(Stmt::Assign { var, expr });
+        }
+        Err(self.error_here("Invalid statement"))
     }
 
     fn parse_aexp(&mut self) -> Result<AExp, String> {
-        if self.eat(&Token::If) {
+        if self.eat_ident("if") {
             let cond = self.parse_bexp()?;
-            self.expect(Token::Then)?;
+            self.expect_ident("then")?;
             let then_exp = self.parse_aexp()?;
-            self.expect(Token::Else)?;
+            self.expect_ident("else")?;
             let else_exp = self.parse_aexp()?;
             return Ok(AExp::IfThenElse {
                 cond: Box::new(cond),
@@ -178,9 +215,9 @@ impl Parser {
 
         let mut left = self.parse_aexp_atom()?;
         loop {
-            let op = if self.eat(&Token::Plus) {
+            let op = if self.eat_symbol('+') {
                 Some(ABinOp::Add)
-            } else if self.eat(&Token::Minus) {
+            } else if self.eat_symbol('-') {
                 Some(ABinOp::Sub)
             } else {
                 None
@@ -200,20 +237,19 @@ impl Parser {
 
     fn parse_aexp_atom(&mut self) -> Result<AExp, String> {
         match self.next() {
-            Some(Token::Ident(s)) => Ok(AExp::Var(Identifier::new(&s).map_err(|e| e.to_string())?)),
-            Some(Token::Number(n)) => Ok(AExp::Num(Number::parse(&n)?)),
-            Some(Token::LParen) => {
-                let exp = self.parse_aexp()?;
-                self.expect(Token::RParen)?;
-                Ok(exp)
+            Some(Node::Token(LexToken::Ident(s))) => {
+                Ok(AExp::Var(Identifier::new(&s).map_err(|e| e.to_string())?))
             }
-            _ => Err("Invalid aexp".to_string()),
+            Some(Node::Token(LexToken::Number(n))) => Ok(AExp::Num(Number::parse(&n)?)),
+            Some(Node::Paren(inner)) => Self::parse_group_as_aexp(inner),
+            _ => Err(self.error_here("Invalid aexp")),
         }
     }
 
     fn parse_bexp(&mut self) -> Result<BExp, String> {
         let mut left = self.parse_bexp_not()?;
-        while self.eat(&Token::OrOr) {
+        while self.eat_symbol('|') {
+            self.expect_symbol('|')?;
             let rhs = self.parse_bexp_not()?;
             left = BExp::Or(Box::new(left), Box::new(rhs));
         }
@@ -221,27 +257,28 @@ impl Parser {
     }
 
     fn parse_bexp_not(&mut self) -> Result<BExp, String> {
-        if self.eat(&Token::Bang) {
+        if self.eat_symbol('!') {
             return Ok(BExp::Not(Box::new(self.parse_bexp_not()?)));
         }
         self.parse_bexp_atom()
     }
 
     fn parse_bexp_atom(&mut self) -> Result<BExp, String> {
-        if self.eat(&Token::LParen) {
-            let b = self.parse_bexp()?;
-            self.expect(Token::RParen)?;
-            return Ok(b);
+        if matches!(self.peek(), Some(Node::Paren(_))) {
+            let Some(Node::Paren(inner)) = self.next() else {
+                unreachable!();
+            };
+            return Self::parse_group_as_bexp(inner);
         }
         let lhs = self.parse_aexp()?;
-        let rel = if self.eat(&Token::Lt) {
+        let rel = if self.eat_symbol('<') {
             RelOp::Lt
-        } else if self.eat(&Token::Eq) {
+        } else if self.eat_symbol('=') {
             RelOp::Eq
-        } else if self.eat(&Token::Gt) {
+        } else if self.eat_symbol('>') {
             RelOp::Gt
         } else {
-            return Err("Expected relation operator".to_string());
+            return Err(self.error_here("Expected relation operator"));
         };
         let rhs = self.parse_aexp()?;
         Ok(BExp::Rel {
@@ -253,126 +290,44 @@ impl Parser {
 
     fn parse_ident(&mut self) -> Result<Identifier, String> {
         match self.next() {
-            Some(Token::Ident(s)) => Identifier::new(&s).map_err(|e| e.to_string()),
-            _ => Err("Expected identifier".to_string()),
+            Some(Node::Token(LexToken::Ident(s))) => Identifier::new(&s).map_err(|e| e.to_string()),
+            _ => Err(self.error_here("Expected identifier")),
         }
     }
 
-    fn expect(&mut self, tok: Token) -> Result<(), String> {
-        if self.next() == Some(tok) {
-            Ok(())
-        } else {
-            Err("Unexpected token".to_string())
-        }
+    fn parse_paren_stmt(&mut self) -> Result<Stmt, String> {
+        let Some(Node::Paren(inner)) = self.next() else {
+            return Err(self.error_here("expected parenthesized statement"));
+        };
+        let mut parser = Parser::new(inner);
+        let stmt = parser.parse_stmt()?;
+        parser.expect_eof()?;
+        Ok(stmt)
     }
-}
 
-fn lex(text: &str) -> Result<Vec<Token>, String> {
-    let mut tokens = Vec::new();
-    let mut chars = text.chars().peekable();
-    while let Some(&ch) = chars.peek() {
-        if ch.is_whitespace() {
-            chars.next();
-            continue;
-        }
-        if ch.is_ascii_digit() {
-            let mut s = String::new();
-            while let Some(&c) = chars.peek() {
-                if c.is_ascii_digit() {
-                    s.push(c);
-                    chars.next();
-                } else {
-                    break;
-                }
-            }
-            tokens.push(Token::Number(s));
-            continue;
-        }
-        if ch.is_ascii_alphabetic() || ch == '_' {
-            let mut s = String::new();
-            while let Some(&c) = chars.peek() {
-                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                    s.push(c);
-                    chars.next();
-                } else {
-                    break;
-                }
-            }
-            tokens.push(match s.as_str() {
-                "Nop" => Token::Nop,
-                "if" => Token::If,
-                "then" => Token::Then,
-                "else" => Token::Else,
-                "while" => Token::While,
-                _ => Token::Ident(s),
-            });
-            continue;
-        }
-        match ch {
-            '(' => {
-                chars.next();
-                tokens.push(Token::LParen);
-            }
-            ')' => {
-                chars.next();
-                tokens.push(Token::RParen);
-            }
-            '[' => {
-                chars.next();
-                tokens.push(Token::LBrack);
-            }
-            ']' => {
-                chars.next();
-                tokens.push(Token::RBrack);
-            }
-            ';' => {
-                chars.next();
-                tokens.push(Token::Semi);
-            }
-            '+' => {
-                chars.next();
-                tokens.push(Token::Plus);
-            }
-            '-' => {
-                chars.next();
-                tokens.push(Token::Minus);
-            }
-            '<' => {
-                chars.next();
-                tokens.push(Token::Lt);
-            }
-            '>' => {
-                chars.next();
-                tokens.push(Token::Gt);
-            }
-            '=' => {
-                chars.next();
-                tokens.push(Token::Eq);
-            }
-            '!' => {
-                chars.next();
-                tokens.push(Token::Bang);
-            }
-            ':' => {
-                chars.next();
-                if chars.next() == Some('=') {
-                    tokens.push(Token::Assign);
-                } else {
-                    return Err("Expected '=' after ':'".to_string());
-                }
-            }
-            '|' => {
-                chars.next();
-                if chars.next() == Some('|') {
-                    tokens.push(Token::OrOr);
-                } else {
-                    return Err("Expected '|' after '|'".to_string());
-                }
-            }
-            _ => return Err(format!("Unexpected character: {ch}")),
-        }
+    fn parse_bracketed_stmt(&mut self) -> Result<Stmt, String> {
+        let Some(Node::Bracket(inner)) = self.next() else {
+            return Err(self.error_here("expected bracketed statement"));
+        };
+        let mut parser = Parser::new(inner);
+        let stmt = parser.parse_stmt()?;
+        parser.expect_eof()?;
+        Ok(stmt)
     }
-    Ok(tokens)
+
+    fn parse_group_as_aexp(inner: Vec<Node>) -> Result<AExp, String> {
+        let mut parser = Parser::new(inner);
+        let exp = parser.parse_aexp()?;
+        parser.expect_eof()?;
+        Ok(exp)
+    }
+
+    fn parse_group_as_bexp(inner: Vec<Node>) -> Result<BExp, String> {
+        let mut parser = Parser::new(inner);
+        let exp = parser.parse_bexp()?;
+        parser.expect_eof()?;
+        Ok(exp)
+    }
 }
 
 fn aexp_to_text(exp: &AExp) -> String {

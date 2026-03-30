@@ -9,7 +9,6 @@ members = [
   "models/lambda_calculus",
   "models/lambda_continuations",
   "models/logic_circuit",
-  "models/mini_prog",
   "models/my_hdl",
   "models/recursive_function",
   "models/rec-goto",

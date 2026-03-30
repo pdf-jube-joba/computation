@@ -11,9 +11,5 @@ path = "src/bin/lambda_calculus.rs"
 
 [dependencies]
 utils = { workspace = true }
-pest = { workspace = true }
-pest_derive = { workspace = true }
-anyhow = { workspace = true }
-wasm-bindgen = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

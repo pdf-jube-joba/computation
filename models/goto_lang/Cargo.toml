@@ -9,8 +9,5 @@ path = "src/bin/goto_lang.rs"
 
 [dependencies]
 utils = { workspace = true }
-pest = { workspace = true }
-pest_derive = { workspace = true }
-anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

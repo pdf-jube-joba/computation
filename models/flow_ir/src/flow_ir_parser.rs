@@ -1,5 +1,5 @@
-use utils::TextCodec;
 use utils::number::Number;
+use utils::{TextCodec, Token as LexToken, lex};
 
 use crate::flow_ir::*;
 
@@ -56,12 +56,6 @@ impl TextCodec for FlowValue {
             return Ok(FlowValue::CodeLabel(label.to_string()));
         }
         if let Some(label) = s.strip_prefix("k:@") {
-            if label.is_empty() {
-                return Err("Empty static key".to_string());
-            }
-            return Ok(FlowValue::Key(PlaceKey::Static(label.to_string())));
-        }
-        if let Some(label) = s.strip_prefix('@') {
             if label.is_empty() {
                 return Err("Empty static key".to_string());
             }
@@ -124,365 +118,368 @@ impl TextCodec for StaticEnv {
 }
 
 fn parse_program(text: &str) -> Result<Program, String> {
-    let mut lines = text
-        .lines()
-        .map(|l| l.split("//").next().unwrap_or("").trim().to_string())
-        .collect::<Vec<_>>();
-    lines.retain(|l| !l.is_empty());
-
-    let mut i = 0usize;
+    let tokens = lex(text).map_err(|e| e.to_string())?;
+    let mut parser = Parser::new(tokens);
     let mut statics = Vec::new();
     let mut regions = Vec::new();
-    while i < lines.len() {
-        let line = lines[i].trim();
-        if let Some((label, value)) = parse_static_line(line)? {
+    while !parser.is_eof() {
+        if parser.peek_symbol('@') {
+            let (label, value) = parser.parse_static_def()?;
             statics.push(StaticDef { label, value });
-            i += 1;
             continue;
         }
-        if is_header(line) {
-            let (region, next_i) = parse_region(&lines, i)?;
-            regions.push(region);
-            i = next_i;
+        if parser.peek_symbol(':') {
+            regions.push(parser.parse_region()?);
             continue;
         }
-        return Err(format!("Unexpected top-level line: {line}"));
+        return Err(parser.error_here("expected static definition or region header"));
     }
     Ok(Program { statics, regions })
 }
 
-fn parse_region(lines: &[String], start: usize) -> Result<(Region, usize), String> {
-    let label = parse_header_label(lines[start].trim())?;
-    let mut i = start + 1;
-    let mut blocks = Vec::new();
-
-    while i < lines.len() {
-        let line = lines[i].trim();
-        if line == "}" {
-            break;
-        }
-        if is_header(line) {
-            let (block, next_i) = parse_block(lines, i)?;
-            blocks.push(block);
-            i = next_i;
-            continue;
-        }
-        return Err(format!("Invalid region body line :{}: {}", label, line));
-    }
-
-    if i >= lines.len() || lines[i].trim() != "}" {
-        return Err(format!("Unclosed region: :{}", label));
-    }
-    if blocks.is_empty() {
-        return Err(format!("Region :{} has no blocks", label));
-    }
-
-    Ok((Region { label, blocks }, i + 1))
+struct Parser {
+    tokens: Vec<LexToken>,
+    pos: usize,
 }
 
-fn parse_block(lines: &[String], start: usize) -> Result<(Block, usize), String> {
-    let label = parse_header_label(lines[start].trim())?;
-    let mut i = start + 1;
-    let mut stmts = Vec::new();
-    let mut ifs = Vec::new();
-    let mut cont = None;
+impl Parser {
+    fn new(tokens: Vec<LexToken>) -> Self {
+        let tokens = tokens
+            .into_iter()
+            .filter(|token| !matches!(token, LexToken::Whitespace(_) | LexToken::Comment(_)))
+            .collect();
+        Self { tokens, pos: 0 }
+    }
 
-    while i < lines.len() {
-        let line = lines[i].trim();
-        if line == "}" {
-            break;
+    fn is_eof(&self) -> bool {
+        self.pos >= self.tokens.len()
+    }
+
+    fn peek(&self) -> Option<&LexToken> {
+        self.tokens.get(self.pos)
+    }
+
+    fn next(&mut self) -> Option<LexToken> {
+        let token = self.tokens.get(self.pos).cloned();
+        if token.is_some() {
+            self.pos += 1;
         }
-        if let Some(j) = parse_jump_if(line)? {
-            ifs.push(j);
-            i += 1;
-            continue;
+        token
+    }
+
+    fn error_here(&self, message: impl Into<String>) -> String {
+        match self.peek() {
+            Some(token) => format!("{} near {:?}", message.into(), token),
+            None => format!("{} at end of input", message.into()),
         }
-        if cont.is_none() {
-            if let Some(c) = parse_cont(line, &ifs)? {
-                cont = Some(c);
-                i += 1;
+    }
+
+    fn peek_symbol(&self, ch: char) -> bool {
+        matches!(self.peek(), Some(LexToken::Symbol(found)) if *found == ch)
+    }
+
+    fn eat_symbol(&mut self, ch: char) -> bool {
+        if self.peek_symbol(ch) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_symbol(&mut self, ch: char) -> Result<(), String> {
+        if self.eat_symbol(ch) {
+            Ok(())
+        } else {
+            Err(self.error_here(format!("expected symbol '{}'", ch)))
+        }
+    }
+
+    fn peek_ident(&self, word: &str) -> bool {
+        matches!(self.peek(), Some(LexToken::Ident(found)) if found == word)
+    }
+
+    fn eat_ident(&mut self, word: &str) -> bool {
+        if self.peek_ident(word) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_ident(&mut self, word: &str) -> Result<(), String> {
+        if self.eat_ident(word) {
+            Ok(())
+        } else {
+            Err(self.error_here(format!("expected keyword '{word}'")))
+        }
+    }
+
+    fn parse_name(&mut self, kind: &str) -> Result<String, String> {
+        match self.next() {
+            Some(LexToken::Ident(name)) | Some(LexToken::Number(name)) => Ok(name),
+            _ => Err(self.error_here(format!("expected {kind}"))),
+        }
+    }
+
+    fn parse_static_def(&mut self) -> Result<(String, Number), String> {
+        self.expect_symbol('@')?;
+        let label = self.parse_name("static label")?;
+        let value = self.parse_number_literal()?;
+        Ok((label, value))
+    }
+
+    fn parse_region(&mut self) -> Result<Region, String> {
+        self.expect_symbol(':')?;
+        let label = self.parse_name("region label")?;
+        self.expect_symbol('{')?;
+
+        let mut blocks = Vec::new();
+        while !self.peek_symbol('}') {
+            blocks.push(self.parse_block()?);
+        }
+        self.expect_symbol('}')?;
+
+        if blocks.is_empty() {
+            return Err(format!("Region :{} has no blocks", label));
+        }
+        Ok(Region { label, blocks })
+    }
+
+    fn parse_block(&mut self) -> Result<Block, String> {
+        self.expect_symbol(':')?;
+        let label = self.parse_name("block label")?;
+        self.expect_symbol('{')?;
+
+        let mut stmts = Vec::new();
+        let mut ifs = Vec::new();
+        let mut cont = None;
+
+        while !self.peek_symbol('}') {
+            if self.peek_ident("if") {
+                ifs.push(self.parse_jump_if()?);
                 continue;
             }
-            if let Some(stmt) = parse_stmt(line)? {
-                stmts.push(stmt);
-                i += 1;
+
+            if cont.is_none() && self.peek_cont_start() {
+                cont = Some(self.parse_cont(&ifs)?);
                 continue;
             }
-            return Err(format!("Invalid line in block :{}: {}", label, line));
+
+            if cont.is_some() {
+                return Err(format!("Line exists after terminator in block :{}", label));
+            }
+
+            stmts.push(self.parse_stmt()?);
         }
-        return Err(format!(
-            "Line exists after terminator in block :{}: {}",
-            label, line
-        ));
+
+        self.expect_symbol('}')?;
+        let cont = cont.ok_or_else(|| format!("Missing terminator in block :{}", label))?;
+        Ok(Block { label, stmts, cont })
     }
 
-    if i >= lines.len() || lines[i].trim() != "}" {
-        return Err(format!("Unclosed block: :{}", label));
-    }
-    let cont = cont.ok_or_else(|| format!("Missing terminator in block :{}", label))?;
-    Ok((Block { label, stmts, cont }, i + 1))
-}
-
-fn parse_static_line(line: &str) -> Result<Option<(String, Number)>, String> {
-    if is_header(line) {
-        return Ok(None);
-    }
-    let parts: Vec<_> = line.split_whitespace().collect();
-    if parts.len() != 2 || !parts[0].starts_with('@') {
-        return Ok(None);
-    }
-    let label = parts[0]
-        .strip_prefix('@')
-        .ok_or_else(|| "Invalid static label".to_string())?
-        .to_string();
-    let value = Number::parse(parts[1])?;
-    Ok(Some((label, value)))
-}
-
-fn is_header(line: &str) -> bool {
-    line.starts_with(':') && line.ends_with('{')
-}
-
-fn parse_header_label(line: &str) -> Result<String, String> {
-    line.strip_prefix(':')
-        .and_then(|s| s.strip_suffix('{'))
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .ok_or_else(|| format!("Invalid header: {line}"))
-}
-
-fn parse_stmt(line: &str) -> Result<Option<Stmt>, String> {
-    let line = line.trim();
-    if line == "nop;" {
-        return Ok(Some(Stmt::Nop));
-    }
-    if let Some(rest) = line.strip_prefix("pop ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Stmt::Pop {
-            dst: parse_vreg(body)?,
-        }));
-    }
-    if let Some(rest) = line.strip_prefix("push ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Stmt::Push {
-            src: parse_value_expr(body)?,
-        }));
-    }
-    if let Some(rest) = line.strip_prefix("lget ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Stmt::LGet {
-            dst: parse_vreg(body)?,
-        }));
-    }
-    if let Some(rest) = line.strip_prefix("halloc(") {
-        let body = trim_stmt_end(rest)?;
-        let close = body
-            .find(')')
-            .ok_or_else(|| format!("halloc missing ')': {line}"))?;
-        let size = parse_value_expr(body[..close].trim())?;
-        let dst = parse_vreg(body[close + 1..].trim())?;
-        return Ok(Some(Stmt::HAlloc { size, dst }));
-    }
-    if let Some(rest) = line.strip_prefix("hfree ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Stmt::HFree {
-            handle: parse_value_expr(body)?,
-        }));
-    }
-    if let Some(rest) = line.strip_prefix("print ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Stmt::Print {
-            src: parse_vreg(body)?,
-        }));
-    }
-    if let Some(rest) = line.strip_prefix("input ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Stmt::Input {
-            place: parse_place_expr(body)?,
-        }));
+    fn peek_cont_start(&self) -> bool {
+        self.peek_ident("goto") || self.peek_ident("enter") || self.peek_ident("halt")
     }
 
-    if !line.ends_with(';') {
-        return Ok(None);
-    }
-    let body = &line[..line.len() - 1];
-    let Some((lhs, rhs)) = body.split_once(":=") else {
-        return Ok(None);
-    };
-    let lhs = lhs.trim();
-    let rhs = rhs.trim();
-
-    if lhs.starts_with('%') {
-        let dst = parse_vreg(lhs)?;
-        if let Some(rest) = rhs.strip_prefix("ld ") {
-            let place = parse_place_expr(rest.trim())?;
-            return Ok(Some(Stmt::Load { dst, place }));
+    fn parse_stmt(&mut self) -> Result<Stmt, String> {
+        if self.eat_ident("nop") {
+            self.expect_symbol(';')?;
+            return Ok(Stmt::Nop);
         }
-        if let Some((a, b)) = rhs.split_once(" + ") {
-            return Ok(Some(Stmt::BinOp {
-                dst,
-                lhs: parse_value_expr(a.trim())?,
-                op: BinOp::Add,
-                rhs: parse_value_expr(b.trim())?,
-            }));
+        if self.eat_ident("pop") {
+            let dst = self.parse_vreg()?;
+            self.expect_symbol(';')?;
+            return Ok(Stmt::Pop { dst });
         }
-        if let Some((a, b)) = rhs.split_once(" - ") {
-            return Ok(Some(Stmt::BinOp {
-                dst,
-                lhs: parse_value_expr(a.trim())?,
-                op: BinOp::Sub,
-                rhs: parse_value_expr(b.trim())?,
-            }));
+        if self.eat_ident("push") {
+            let src = self.parse_value_expr()?;
+            self.expect_symbol(';')?;
+            return Ok(Stmt::Push { src });
         }
-        return Ok(Some(Stmt::Assign {
-            dst,
-            src: parse_value_expr(rhs)?,
-        }));
-    }
-
-    let place = parse_place_expr(lhs)?;
-    let src = rhs
-        .strip_prefix("st ")
-        .ok_or_else(|| format!("store stmt requires 'st': {line}"))?;
-    Ok(Some(Stmt::Store {
-        place,
-        src: parse_value_expr(src.trim())?,
-    }))
-}
-
-fn parse_jump_if(line: &str) -> Result<Option<JumpIf>, String> {
-    if !line.starts_with("if ") || !line.ends_with(';') {
-        return Ok(None);
-    }
-    let body = &line[..line.len() - 1];
-    let rest = body
-        .strip_prefix("if ")
-        .ok_or_else(|| format!("Invalid if syntax: {line}"))?;
-    let Some((cond_s, target_s)) = rest.split_once(" then ") else {
-        return Err(format!("Invalid if syntax: {line}"));
-    };
-    Ok(Some(JumpIf {
-        cond: parse_cond(cond_s.trim())?,
-        target: parse_value_expr(target_s.trim())?,
-    }))
-}
-
-fn parse_cont(line: &str, ifs: &[JumpIf]) -> Result<Option<Cont>, String> {
-    if let Some(rest) = line.strip_prefix("goto ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Cont::Go {
-            ifs: ifs.to_vec(),
-            target: parse_value_expr(body)?,
-        }));
-    }
-    if let Some(rest) = line.strip_prefix("enter ") {
-        let body = trim_stmt_end(rest)?;
-        return Ok(Some(Cont::Enter {
-            ifs: ifs.to_vec(),
-            target: parse_value_expr(body)?,
-        }));
-    }
-    if line == "halt;" {
-        return Ok(Some(Cont::Halt { ifs: ifs.to_vec() }));
-    }
-    Ok(None)
-}
-
-fn parse_cond(s: &str) -> Result<Cond, String> {
-    if let Some((a, b)) = s.split_once(" < ") {
-        return Ok(Cond::Lt(
-            parse_value_expr(a.trim())?,
-            parse_value_expr(b.trim())?,
-        ));
-    }
-    if let Some((a, b)) = s.split_once(" = ") {
-        return Ok(Cond::Eq(
-            parse_value_expr(a.trim())?,
-            parse_value_expr(b.trim())?,
-        ));
-    }
-    if let Some((a, b)) = s.split_once(" > ") {
-        return Ok(Cond::Gt(
-            parse_value_expr(a.trim())?,
-            parse_value_expr(b.trim())?,
-        ));
-    }
-    Err(format!("Invalid condition: {s}"))
-}
-
-fn parse_place_expr(s: &str) -> Result<PlaceExpr, String> {
-    let s = s.trim();
-    if let Some(label) = s.strip_prefix('@') {
-        if label.is_empty() {
-            return Err("Empty data-label".to_string());
+        if self.eat_ident("lget") {
+            let dst = self.parse_vreg()?;
+            self.expect_symbol(';')?;
+            return Ok(Stmt::LGet { dst });
         }
-        return Ok(PlaceExpr::Label(label.to_string()));
-    }
-    if let Some(rest) = s.strip_prefix("deref ") {
-        return Ok(PlaceExpr::Deref(parse_vreg(rest.trim())?));
-    }
-    if let Some(rest) = s.strip_prefix("sacc ") {
-        return Ok(PlaceExpr::SAcc(Box::new(parse_value_expr(rest.trim())?)));
-    }
-    if let Some(rest) = s.strip_prefix("hacc(") {
-        let close = rest
-            .find(')')
-            .ok_or_else(|| format!("hacc missing ')': {s}"))?;
-        let handle = parse_value_expr(rest[..close].trim())?;
-        let suffix = rest[close + 1..].trim();
-        let idx_inner = suffix
-            .strip_prefix('[')
-            .and_then(|x| x.strip_suffix(']'))
-            .ok_or_else(|| format!("hacc index form should be [expr]: {s}"))?;
-        let index = parse_value_expr(idx_inner.trim())?;
-        return Ok(PlaceExpr::HAcc {
-            handle: Box::new(handle),
-            index: Box::new(index),
-        });
-    }
-    Err(format!("Invalid place expression: {s}"))
-}
-
-fn parse_value_expr(s: &str) -> Result<ValueExpr, String> {
-    let s = s.trim();
-    if let Some(rest) = s.strip_prefix("ref ") {
-        return Ok(ValueExpr::Ref(parse_place_expr(rest.trim())?));
-    }
-    if s.starts_with('%') {
-        return Ok(ValueExpr::VReg(parse_vreg(s)?));
-    }
-    if let Some(label) = s.strip_prefix(':') {
-        if label.is_empty() {
-            return Err("Empty code-label".to_string());
+        if self.eat_ident("halloc") {
+            self.expect_symbol('(')?;
+            let size = self.parse_value_expr()?;
+            self.expect_symbol(')')?;
+            let dst = self.parse_vreg()?;
+            self.expect_symbol(';')?;
+            return Ok(Stmt::HAlloc { size, dst });
         }
-        return Ok(ValueExpr::CodeLabel(label.to_string()));
-    }
-    if let Some(n) = s.strip_prefix('#') {
-        return Ok(ValueExpr::Imm(Number::parse(n)?));
-    }
-    if s.chars().all(|c| c.is_ascii_digit()) {
-        return Ok(ValueExpr::Imm(Number::parse(s)?));
-    }
-    Err(format!("Invalid value expression: {s}"))
-}
+        if self.eat_ident("hfree") {
+            let handle = self.parse_value_expr()?;
+            self.expect_symbol(';')?;
+            return Ok(Stmt::HFree { handle });
+        }
+        if self.eat_ident("print") {
+            let src = self.parse_vreg()?;
+            self.expect_symbol(';')?;
+            return Ok(Stmt::Print { src });
+        }
+        if self.eat_ident("input") {
+            let place = self.parse_place_expr()?;
+            self.expect_symbol(';')?;
+            return Ok(Stmt::Input { place });
+        }
 
-fn parse_vreg(s: &str) -> Result<Vreg, String> {
-    let body = s
-        .trim()
-        .strip_prefix('%')
-        .ok_or_else(|| format!("Invalid vreg: {s}"))?;
-    if body.is_empty() {
-        return Err(format!("Invalid vreg: {s}"));
-    }
-    Ok(body.to_string())
-}
+        if self.peek_symbol('%') {
+            let dst = self.parse_vreg()?;
+            self.expect_symbol(':')?;
+            self.expect_symbol('=')?;
 
-fn trim_stmt_end(s: &str) -> Result<&str, String> {
-    let s = s.trim();
-    s.strip_suffix(';')
-        .map(str::trim)
-        .ok_or_else(|| format!("Statement should end with ';': {s}"))
+            if self.eat_ident("ld") {
+                let place = self.parse_place_expr()?;
+                self.expect_symbol(';')?;
+                return Ok(Stmt::Load { dst, place });
+            }
+
+            let lhs = self.parse_value_expr()?;
+            if self.eat_symbol('+') {
+                let rhs = self.parse_value_expr()?;
+                self.expect_symbol(';')?;
+                return Ok(Stmt::BinOp {
+                    dst,
+                    lhs,
+                    op: BinOp::Add,
+                    rhs,
+                });
+            }
+            if self.eat_symbol('-') {
+                let rhs = self.parse_value_expr()?;
+                self.expect_symbol(';')?;
+                return Ok(Stmt::BinOp {
+                    dst,
+                    lhs,
+                    op: BinOp::Sub,
+                    rhs,
+                });
+            }
+
+            self.expect_symbol(';')?;
+            return Ok(Stmt::Assign { dst, src: lhs });
+        }
+
+        let place = self.parse_place_expr()?;
+        self.expect_symbol(':')?;
+        self.expect_symbol('=')?;
+        self.expect_ident("st")?;
+        let src = self.parse_value_expr()?;
+        self.expect_symbol(';')?;
+        Ok(Stmt::Store { place, src })
+    }
+
+    fn parse_jump_if(&mut self) -> Result<JumpIf, String> {
+        self.expect_ident("if")?;
+        let cond = self.parse_cond()?;
+        self.expect_ident("then")?;
+        let target = self.parse_value_expr()?;
+        self.expect_symbol(';')?;
+        Ok(JumpIf { cond, target })
+    }
+
+    fn parse_cont(&mut self, ifs: &[JumpIf]) -> Result<Cont, String> {
+        if self.eat_ident("goto") {
+            let target = self.parse_value_expr()?;
+            self.expect_symbol(';')?;
+            return Ok(Cont::Go {
+                ifs: ifs.to_vec(),
+                target,
+            });
+        }
+        if self.eat_ident("enter") {
+            let target = self.parse_value_expr()?;
+            self.expect_symbol(';')?;
+            return Ok(Cont::Enter {
+                ifs: ifs.to_vec(),
+                target,
+            });
+        }
+        if self.eat_ident("halt") {
+            self.expect_symbol(';')?;
+            return Ok(Cont::Halt { ifs: ifs.to_vec() });
+        }
+        Err(self.error_here("expected block terminator"))
+    }
+
+    fn parse_cond(&mut self) -> Result<Cond, String> {
+        let lhs = self.parse_value_expr()?;
+        if self.eat_symbol('<') {
+            let rhs = self.parse_value_expr()?;
+            return Ok(Cond::Lt(lhs, rhs));
+        }
+        if self.eat_symbol('=') {
+            let rhs = self.parse_value_expr()?;
+            return Ok(Cond::Eq(lhs, rhs));
+        }
+        if self.eat_symbol('>') {
+            let rhs = self.parse_value_expr()?;
+            return Ok(Cond::Gt(lhs, rhs));
+        }
+        Err(self.error_here("expected relation operator"))
+    }
+
+    fn parse_place_expr(&mut self) -> Result<PlaceExpr, String> {
+        if self.eat_symbol('@') {
+            let label = self.parse_name("data label")?;
+            return Ok(PlaceExpr::Label(label));
+        }
+        if self.eat_ident("deref") {
+            return Ok(PlaceExpr::Deref(self.parse_vreg()?));
+        }
+        if self.eat_ident("sacc") {
+            return Ok(PlaceExpr::SAcc(Box::new(self.parse_value_expr()?)));
+        }
+        if self.eat_ident("hacc") {
+            self.expect_symbol('(')?;
+            let handle = self.parse_value_expr()?;
+            self.expect_symbol(')')?;
+            self.expect_symbol('[')?;
+            let index = self.parse_value_expr()?;
+            self.expect_symbol(']')?;
+            return Ok(PlaceExpr::HAcc {
+                handle: Box::new(handle),
+                index: Box::new(index),
+            });
+        }
+        Err(self.error_here("expected place expression"))
+    }
+
+    fn parse_value_expr(&mut self) -> Result<ValueExpr, String> {
+        if self.eat_ident("ref") {
+            return Ok(ValueExpr::Ref(self.parse_place_expr()?));
+        }
+        if self.peek_symbol('%') {
+            return Ok(ValueExpr::VReg(self.parse_vreg()?));
+        }
+        if self.eat_symbol(':') {
+            let label = self.parse_name("code label")?;
+            return Ok(ValueExpr::CodeLabel(label));
+        }
+        if self.eat_symbol('#') {
+            return Ok(ValueExpr::Imm(self.parse_number_literal()?));
+        }
+        if matches!(self.peek(), Some(LexToken::Number(_))) {
+            return Ok(ValueExpr::Imm(self.parse_number_literal()?));
+        }
+        Err(self.error_here("expected value expression"))
+    }
+
+    fn parse_number_literal(&mut self) -> Result<Number, String> {
+        match self.next() {
+            Some(LexToken::Number(text)) => Number::parse(&text),
+            _ => Err(self.error_here("expected number literal")),
+        }
+    }
+
+    fn parse_vreg(&mut self) -> Result<Vreg, String> {
+        self.expect_symbol('%')?;
+        self.parse_name("virtual register")
+    }
 }
 
 fn value_to_text(v: &ValueExpr) -> String {
@@ -592,6 +589,29 @@ mod tests {
     }
 
     #[test]
+    fn flow_ir_parses_comments_and_dense_spacing() {
+        roundtrip_code(
+            r#"
+@slot 0 // static
+/* region comment */
+:main{
+  :entry{
+    %p:=ref @slot;
+    if %cond=#0 then :next;
+    goto %p;
+  }
+  :next{
+    halloc(#3)%h;
+    hacc(%h)[#1]:=st #7;
+    %x:=ld hacc(%h)[#1];
+    halt;
+  }
+}
+"#,
+        );
+    }
+
+    #[test]
     fn flow_value_roundtrip() {
         let values = vec![
             FlowValue::Num(Number::from(0usize)),
@@ -609,5 +629,11 @@ mod tests {
             let reparsed = FlowValue::parse(&printed).expect("FlowValue parse should succeed");
             assert_eq!(v, reparsed, "FlowValue roundtrip failed: {printed}");
         }
+    }
+
+    #[test]
+    fn flow_value_rejects_old_static_key_syntax() {
+        let err = FlowValue::parse("@x").unwrap_err();
+        assert_eq!(err, "invalid digit found in string");
     }
 }

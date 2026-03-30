@@ -52,16 +52,16 @@ impl From<Bool> for bool {
 impl TextCodec for Bool {
     fn parse(text: &str) -> Result<Self, String> {
         match text.trim() {
-            "T" | "true" | "1" => Ok(Bool::T),
-            "F" | "false" | "0" => Ok(Bool::F),
+            "#true" => Ok(Bool::T),
+            "#false" => Ok(Bool::F),
             other => Err(format!("Invalid boolean text: {}", other)),
         }
     }
 
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         match self {
-            Bool::T => write!(f, "T"),
-            Bool::F => write!(f, "F"),
+            Bool::T => write!(f, "#true"),
+            Bool::F => write!(f, "#false"),
         }
     }
 }

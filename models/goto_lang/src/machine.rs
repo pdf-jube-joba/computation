@@ -84,11 +84,15 @@ impl TextCodec for Code {
     fn write_fmt(&self, f: &mut impl std::fmt::Write) -> std::fmt::Result {
         for command in &self.0 {
             let line = match command {
-                Command::Clr(var) => format!("clr {}\n", var.as_str()),
-                Command::Inc(var) => format!("inc {}\n", var.as_str()),
-                Command::Dec(var) => format!("dec {}\n", var.as_str()),
-                Command::Cpy(dest, src) => format!("cpy {} {}\n", dest.as_str(), src.as_str()),
-                Command::Ifnz(var, target) => format!("ifnz {} {}\n", var.as_str(), target.print()),
+                Command::Clr(var) => format!("clr {};\n", var.as_str()),
+                Command::Inc(var) => format!("inc {};\n", var.as_str()),
+                Command::Dec(var) => format!("dec {};\n", var.as_str()),
+                Command::Cpy(dest, src) => {
+                    format!("cpy {} <- {};\n", dest.as_str(), src.as_str())
+                }
+                Command::Ifnz(var, target) => {
+                    format!("ifnz {} : {};\n", var.as_str(), target.print())
+                }
             };
             f.write_str(&line)?;
         }

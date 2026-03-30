@@ -1,111 +1,151 @@
 use crate::machine::Command;
-use pest::{Parser, iterators::Pair};
-use utils::{identifier::Identifier as Var, number::Number, parse::ParseTextCodec};
-
-#[derive(pest_derive::Parser)]
-#[grammar = "goto_lang.pest"]
-struct Ps;
-
-pub fn parse_name(ps: Pair<Rule>) -> Var {
-    debug_assert!(ps.as_rule() == Rule::name);
-    let name = ps.as_str();
-    name.parse_tc().unwrap()
-}
-
-pub fn parse_one_statement(ps: Pair<Rule>) -> Result<Command, String> {
-    debug_assert!(ps.as_rule() == Rule::statement);
-    let mut ps = ps.into_inner();
-    let p = ps.next().unwrap();
-    let statement = match p.as_rule() {
-        Rule::inc_statement => {
-            let mut p = p.into_inner();
-            // take one var
-            let var = p.next().unwrap();
-            let var: Var = parse_name(var);
-            Command::Inc(var)
-        }
-        Rule::dec_statement => {
-            let mut p = p.into_inner();
-
-            // take one var
-            let var = p.next().unwrap();
-            let var: Var = parse_name(var);
-            Command::Dec(var)
-        }
-        Rule::clr_statement => {
-            let mut p = p.into_inner();
-
-            // take one var
-            let var = p.next().unwrap();
-            let var: Var = parse_name(var);
-            Command::Clr(var)
-        }
-        Rule::cpy_statement => {
-            let mut p = p.into_inner();
-
-            // take two var
-            let var0 = p.next().unwrap();
-            let var0: Var = parse_name(var0);
-            let var1 = p.next().unwrap();
-            let var1: Var = parse_name(var1);
-            Command::Cpy(var0, var1)
-        }
-        Rule::ifnz_statement => {
-            let mut p = p.into_inner();
-
-            // take var and number
-            let var = p.next().unwrap();
-            let var: Var = parse_name(var);
-            let num: Number = p.next().unwrap().as_str().parse_tc().unwrap();
-            Command::Ifnz(var, num)
-        }
-        _ => {
-            return Err(format!("unreachable {} {:?}", p.as_str(), p.as_rule()));
-        }
-    };
-    Ok(statement)
-}
+use utils::identifier::Identifier as Var;
+use utils::number::Number;
+use utils::{TextCodec, Token as LexToken, lex};
 
 pub fn program(code: &str) -> Result<Vec<Command>, String> {
-    let mut code = Ps::parse(Rule::program, code).map_err(|e| e.to_string())?;
-    let code = code.next().unwrap();
-    let code = code.into_inner();
-    let mut statements = vec![];
-    for p in code {
-        let statement = parse_one_statement(p)?;
-        statements.push(statement);
+    let tokens = lex(code).map_err(|e| e.to_string())?;
+    let mut parser = Parser::new(tokens);
+    let mut statements = Vec::new();
+
+    while !parser.is_eof() {
+        statements.push(parser.parse_statement()?);
+        parser.expect_symbol(';')?;
     }
+
     Ok(statements)
 }
 
 pub fn program_read_to_end(code: &str) -> Result<Vec<Command>, String> {
-    let mut code = Ps::parse(Rule::program_read_to_end, code).map_err(|e| e.to_string())?;
-    let code = code.next().unwrap();
-    let mut code = code.into_inner();
-    let p = code.next().unwrap();
-    assert!(p.as_rule() == Rule::program);
-
-    program(p.as_str())
-}
-
-pub fn parse_env(ps: Pair<Rule>) -> Result<Vec<(Var, Number)>, String> {
-    debug_assert!(ps.as_rule() == Rule::env);
-    let mut env = vec![];
-    for p in ps.into_inner() {
-        debug_assert!(p.as_rule() == Rule::env_one);
-        let mut p = p.into_inner();
-        let name = p.next().unwrap();
-        let name: Var = parse_name(name);
-        let number = p.next().unwrap().as_str().parse_tc().unwrap();
-        env.push((name, number));
-    }
-    Ok(env)
+    program(code)
 }
 
 pub fn env_read_to_end(code: &str) -> Result<Vec<(Var, Number)>, String> {
-    let mut code = Ps::parse(Rule::env, code).map_err(|e| e.to_string())?;
-    let code = code.next().unwrap();
-    parse_env(code)
+    let tokens = lex(code).map_err(|e| e.to_string())?;
+    let mut parser = Parser::new(tokens);
+    let mut env = Vec::new();
+
+    while !parser.is_eof() {
+        let name = parser.parse_name()?;
+        parser.expect_symbol('=')?;
+        let number = parser.parse_number()?;
+        env.push((name, number));
+        parser.eat_symbol(';');
+    }
+
+    Ok(env)
+}
+
+struct Parser {
+    tokens: Vec<LexToken>,
+    pos: usize,
+}
+
+impl Parser {
+    fn new(tokens: Vec<LexToken>) -> Self {
+        let tokens = tokens
+            .into_iter()
+            .filter(|token| !matches!(token, LexToken::Whitespace(_) | LexToken::Comment(_)))
+            .collect();
+        Self { tokens, pos: 0 }
+    }
+
+    fn is_eof(&self) -> bool {
+        self.pos >= self.tokens.len()
+    }
+
+    fn peek(&self) -> Option<&LexToken> {
+        self.tokens.get(self.pos)
+    }
+
+    fn next(&mut self) -> Option<LexToken> {
+        let token = self.tokens.get(self.pos).cloned();
+        if token.is_some() {
+            self.pos += 1;
+        }
+        token
+    }
+
+    fn error_here(&self, message: impl Into<String>) -> String {
+        match self.peek() {
+            Some(token) => format!("{} near {:?}", message.into(), token),
+            None => format!("{} at end of input", message.into()),
+        }
+    }
+
+    fn peek_ident(&self, word: &str) -> bool {
+        matches!(self.peek(), Some(LexToken::Ident(found)) if found == word)
+    }
+
+    fn eat_ident(&mut self, word: &str) -> bool {
+        if self.peek_ident(word) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn peek_symbol(&self, ch: char) -> bool {
+        matches!(self.peek(), Some(LexToken::Symbol(found)) if *found == ch)
+    }
+
+    fn eat_symbol(&mut self, ch: char) -> bool {
+        if self.peek_symbol(ch) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_symbol(&mut self, ch: char) -> Result<(), String> {
+        if self.eat_symbol(ch) {
+            Ok(())
+        } else {
+            Err(self.error_here(format!("expected symbol '{ch}'")))
+        }
+    }
+
+    fn parse_name(&mut self) -> Result<Var, String> {
+        match self.next() {
+            Some(LexToken::Ident(name)) => Var::new(name).map_err(|e| e.to_string()),
+            _ => Err(self.error_here("expected identifier")),
+        }
+    }
+
+    fn parse_number(&mut self) -> Result<Number, String> {
+        match self.next() {
+            Some(LexToken::Number(n)) => Number::parse(&n),
+            _ => Err(self.error_here("expected number")),
+        }
+    }
+
+    fn parse_statement(&mut self) -> Result<Command, String> {
+        if self.eat_ident("inc") {
+            return Ok(Command::Inc(self.parse_name()?));
+        }
+        if self.eat_ident("dec") {
+            return Ok(Command::Dec(self.parse_name()?));
+        }
+        if self.eat_ident("clr") {
+            return Ok(Command::Clr(self.parse_name()?));
+        }
+        if self.eat_ident("cpy") {
+            let dst = self.parse_name()?;
+            self.expect_symbol('<')?;
+            self.expect_symbol('-')?;
+            let src = self.parse_name()?;
+            return Ok(Command::Cpy(dst, src));
+        }
+        if self.eat_ident("ifnz") {
+            let var = self.parse_name()?;
+            self.expect_symbol(':')?;
+            let num = self.parse_number()?;
+            return Ok(Command::Ifnz(var, num));
+        }
+        Err(self.error_here("expected statement"))
+    }
 }
 
 #[cfg(test)]
@@ -123,12 +163,11 @@ mod tests {
     use crate::machine::Code;
 
     use super::*;
+
     #[test]
     fn test_parse_env() {
-        let code = "x = 10 y = 20 z = 30";
-        let mut ps = Ps::parse(Rule::env, code).unwrap();
-        let ps = ps.next().unwrap();
-        let env = parse_env(ps).unwrap();
+        let code = "x = 10; y = 20; z = 30;";
+        let env = env_read_to_end(code).unwrap();
         assert_eq!(env.len(), 3);
         assert_eq!(env[0].0.as_str(), "x");
         assert_eq!(env[0].1, 10.into());
@@ -137,14 +176,15 @@ mod tests {
         assert_eq!(env[2].0.as_str(), "z");
         assert_eq!(env[2].1, 30.into());
     }
+
     #[test]
     fn test_parse_code() {
         let code = "
-        inc x
-        dec y
-        clr z
-        cpy x <- y
-        ifnz z : 0
+        inc x;
+        dec y;
+        clr z;
+        cpy x <- y;
+        ifnz z : 0;
         ";
         let commands = program_read_to_end(code).unwrap();
         assert_eq!(commands.len(), 5);
@@ -175,15 +215,16 @@ mod tests {
             _ => panic!("unexpected command"),
         }
     }
+
     #[test]
     fn test2() {
         let code = "
-cpy y2 <- y
-inc z
-dec y2
-ifnz y2 : 1
-dec x
-ifnz x : 0
+cpy y2 <- y;
+inc z;
+dec y2;
+ifnz y2 : 1;
+dec x;
+ifnz x : 0;
 ";
         let commands = program_read_to_end(code).unwrap();
         assert_eq!(commands.len(), 6);
@@ -191,7 +232,7 @@ ifnz x : 0
             println!("{:?}", c);
         }
 
-        let env = "x = 2 y = 3 z = 0";
+        let env = "x = 2; y = 3; z = 0;";
         let env = env_read_to_end(env).unwrap();
         for (v, n) in &env {
             println!("{} = {}", v.as_str(), n.print());

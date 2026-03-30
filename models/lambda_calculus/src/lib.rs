@@ -195,10 +195,35 @@ impl Machine for LambdaTerm {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn parse_test() {
         let code = r"\x. \y. y";
         let e = LambdaTerm::parse(code).unwrap();
         eprintln!("Parsed term: {}", e.print());
+    }
+
+    #[test]
+    fn parse_application_is_left_associative() {
+        let code = "x y z";
+        let parsed = LambdaTerm::parse(code).unwrap();
+        let x = Var::new("x");
+        let y = Var::new("y");
+        let z = Var::new("z");
+        let expected = LambdaTerm::App(
+            Box::new(LambdaTerm::App(
+                Box::new(LambdaTerm::Var(x)),
+                Box::new(LambdaTerm::Var(y)),
+            )),
+            Box::new(LambdaTerm::Var(z)),
+        );
+        assert_eq!(parsed.print(), expected.print());
+    }
+
+    #[test]
+    fn parse_multi_binder_abstraction() {
+        let code = r"\x y. x";
+        let parsed = LambdaTerm::parse(code).unwrap();
+        assert_eq!(parsed.print(), r"\x. \y. x");
     }
 }
