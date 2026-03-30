@@ -13,37 +13,37 @@ Code も instruction として、スタックマシン方式になる。
 - \(F\) := \(\text{Fun}(x, C, E) + \text{Rec}(f, x, C, E)\) ... いわゆる closure
 - \(V\) := \(\N + \T{\#true} + \T{\#false} + \T{\#unit} + F\)
     - こっちの \(V\) では return 時に closure は評価する際に使った環境をつかむ必要があるので、 \(E\) との recursive な定義になる。
-- \(E\) := \(\text{list}(\NT{var}, V)\)
+- \(E\) := \(\texttt{list}(\NT{var}, V)\)
 - \(S\) := \(\text{list} V\)
 - \(I\) :=
-  - \(\text{push} (\N | \T{\#true} | \T{\#false} | \T{\#unit})\)
-  - \(\text{print}(n)\)
-  - \(\text{acc} (\NT{var})\)
-  - \(\text{mkcls}(x, C) \)
-  - \(\text{mkrec}(f, x, C)\)
-  - \(\text{binop}(\NT{binop})\)
-  - \(\text{unop}(\NT{unop})\)
-  - \(\text{ap}\)
-  - \(\text{ret}\)
-  - \(\text{if}(C, C)\)
-- \(C\) := \(\text{list} I\)
-- \(D\) := \(\text{list}(E, C)\)
+  - \(\T{push} (\N | \T{\#true} | \T{\#false} | \T{\#unit})\)
+  - \(\T{print}(n)\)
+  - \(\T{acc} (\NT{var})\)
+  - \(\T{mkcls}(x, C) \)
+  - \(\T{mkrec}(f, x, C)\)
+  - \(\T{binop}(\NT{binop})\)
+  - \(\T{unop}(\NT{unop})\)
+  - \(\T{ap}\)
+  - \(\T{ret}\)
+  - \(\T{if}(C, C)\)
+- \(C\) := \(\texttt{list} I\)
+- \(D\) := \(\texttt{list}(E, C)\)
 
 状態の遷移：
 \[
 \begin{aligned}
-(S, E, \text{push}(c)::C, D) &\to (c::S, E, C, D) \\
-(S, E, \text{print}(n)::C, D) &\to (S, E, C, D) \\
-(S, E, \text{acc}(x)::C, D) &\to (v::S, E, C, D) && v = \text{lookup}(E, x) \\
-(S, E, \text{mkcls}(x, C)::C_2, D) &\to (\text{Fun}(x, C, E)::S, E, C_2, D) \\
-(S, E, \text{mkrec}(f, x, C)::C_2, D) &\to (\text{Rec}(f, x, C, E)::S, E, C_2, D) \\
-(v_1::v_2::S, E, \text{binop}(b)::C, D) &\to (v'::S, E, C, D) && v' = v \mathrel{b} v' \\
-(v::S, E, \text{unop}(b)::C, D) &\to (v'::S, E, C, D) && v' = \mathop{b} v \\
-(v::\text{Fun}(x, C_f, E_f)::S, E, \text{ap}::C, D) &\to (S, (x, v)::E_f, C_f, (E, C)::D) \\
-(v::\text{Rec}(f, x, C_f, E_f)::S, E, \text{ap}::C, D) &\to (S, (x, v)::(f, \text{Rec}(f, x, C_f, E_f))::E_f, C_f, (E, C)::D) \\
+(S, E, \T{push}(c)::C, D) &\to (c::S, E, C, D) \\
+(S, E, \T{print}(n)::C, D) &\to (S, E, C, D) \\
+(S, E, \T{acc}(x)::C, D) &\to (v::S, E, C, D) && v = \text{lookup}(E, x) \\
+(S, E, \T{mkcls}(x, C)::C_2, D) &\to (\text{Fun}(x, C, E)::S, E, C_2, D) \\
+(S, E, \T{mkrec}(f, x, C)::C_2, D) &\to (\text{Rec}(f, x, C, E)::S, E, C_2, D) \\
+(v_1::v_2::S, E, \T{binop}(b)::C, D) &\to (v'::S, E, C, D) && v' = v \mathrel{b} v' \\
+(v::S, E, \T{unop}(b)::C, D) &\to (v'::S, E, C, D) && v' = \mathop{b} v \\
+(v::\text{Fun}(x, C_f, E_f)::S, E, \T{ap}::C, D) &\to (S, (x, v)::E_f, C_f, (E, C)::D) \\
+(v::\text{Rec}(f, x, C_f, E_f)::S, E, \T{ap}::C, D) &\to (S, (x, v)::(f, \text{Rec}(f, x, C_f, E_f))::E_f, C_f, (E, C)::D) \\
 (S, E, \text{ret}::C, (E_0, C_0)::D) &\to (S, E_0, C_0, D) \\
-(\T{\#true}::S, E, \text{if}(C_t, C_f)::C, D) &\to (S, E, C_t +C, D) \\
-(\T{\#false}::S, E, \text{if}(C_t, C_f)::C, D) &\to (S, E, C_f +C, D) \\
+(\T{\#true}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_t +C, D) \\
+(\T{\#false}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_f +C, D) \\
 \end{aligned}
 \]
 
@@ -54,14 +54,14 @@ Code も instruction として、スタックマシン方式になる。
 
 \[
   \begin{aligned}
-  \LLB c = \N | \T{\#true} | \T{\#false} | \T{\#unit} \RRB &= [\text{push}(c)] \\
-  \LLB \text{print} n \RRB &= \text{print}(n) \\
-  \LLB x \in \NT{var} \RRB &= \text{acc}(x) \\
-  \LLB \T{fun} x \T{=>} M \RRB &= \text{mkcls}(x, \LLB M \RRB) \\
-  \LLB \T{rec} f x \T{=>} M \RRB &= \text{mkrec}(f, x, \LLB M \RRB) \\
-  \LLB e_1 (b \in \NT{binop}) e_2 \RRB &= \LLB e_1 \RRB + \LLB e_2 \RRB + \text{binop}(b) \\
-  \LLB (u \in \NT{unop} e) \RRB &= \LLB e \RRB + \text{unop}(u) \\
-  \LLB e_1 (e_2) \RRB &= \LLB e_1 \RRB + \LLB e_2 \RRB + \text{ap} + \text{ret} \\
-  \LLB \T{if} L M N \RRB &= \LLB L \RRB + \text{if}(\LLB M \RRB, \LLB N \RRB)
+  \LLB c = \N | \T{\#true} | \T{\#false} | \T{\#unit} \RRB &= [\T{push}(c)] \\
+  \LLB \T{print} n \RRB &= \T{print}(n) \\
+  \LLB x \in \NT{var} \RRB &= \T{acc}(x) \\
+  \LLB \T{fun} x \T{=>} M \RRB &= \T{mkcls}(x, \LLB M \RRB) \\
+  \LLB \T{rec} f x \T{=>} M \RRB &= \T{mkrec}(f, x, \LLB M \RRB) \\
+  \LLB e_1 (b \in \NT{binop}) e_2 \RRB &= \LLB e_1 \RRB + \LLB e_2 \RRB + \T{binop}(b) \\
+  \LLB (u \in \NT{unop} e) \RRB &= \LLB e \RRB + \T{unop}(u) \\
+  \LLB e_1 (e_2) \RRB &= \LLB e_1 \RRB + \LLB e_2 \RRB + \T{ap} + \T{ret} \\
+  \LLB \T{if} L M N \RRB &= \LLB L \RRB + \T{if}(\LLB M \RRB, \LLB N \RRB)
   \end{aligned}
 \]

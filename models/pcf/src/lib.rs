@@ -5,6 +5,9 @@ pub mod expr_stmt_machine;
 pub mod secd_machine;
 pub mod syntax;
 
+mod expr_stmt_parser;
+mod syntax_parser;
+
 #[cfg(test)]
 mod tests {
     use utils::{Compiler, Machine, StepResult, TextCodec};
