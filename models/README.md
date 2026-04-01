@@ -116,8 +116,6 @@ world compiler {
 
 そういうものを集めたい。
 - 抽象機械
-    - [] SECD
-    - [] CEK
     - [] ZINC
     - [] CAM
     - [] spinless tagless G machine
@@ -131,3 +129,4 @@ world compiler {
     - [] FRACTRAN
     - [] Grass
     - [] pure lisp
+    - [] rustbelt の lambda rust

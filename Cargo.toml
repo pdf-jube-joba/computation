@@ -18,7 +18,7 @@ members = [
   "models/turing_machine",
   "models/structured_lang",
   "models/obj_lang"
-, "workspace_fs", "models/pcf", "models/while_with_data"]
+, "workspace_fs", "models/pcf", "models/while_with_data", "models/others"]
 
 exclude = [
   "*/dist",
