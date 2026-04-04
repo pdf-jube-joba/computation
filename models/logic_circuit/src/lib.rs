@@ -1,5 +1,6 @@
 pub mod machine;
 pub mod manipulation;
+pub mod parser;
 pub mod parse;
 
 pub use crate::machine::{Graph, LogicCircuit, LogicCircuitTrait, NamedPin, Signal};

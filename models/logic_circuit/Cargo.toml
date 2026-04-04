@@ -15,5 +15,3 @@ anyhow = { workspace = true }
 either = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-pest = { workspace = true }
-pest_derive = { workspace = true }

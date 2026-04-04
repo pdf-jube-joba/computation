@@ -170,14 +170,15 @@ fn compile_stmt(
             };
             let region = ctx.fresh_region("break");
             let reg = ctx.fresh_vreg("break");
-            let mut stmts = Vec::new();
-            stmts.push(IrStmt::Load {
-                dst: reg.clone(),
-                place: as_static_place(value.as_str()),
-            });
-            stmts.push(IrStmt::Push {
-                src: ValueExpr::VReg(reg),
-            });
+            let stmts = vec![
+                IrStmt::Load {
+                    dst: reg.clone(),
+                    place: as_static_place(value.as_str()),
+                },
+                IrStmt::Push {
+                    src: ValueExpr::VReg(reg),
+                },
+            ];
             ctx.regions.push(Region {
                 label: region.clone(),
                 blocks: vec![Block {

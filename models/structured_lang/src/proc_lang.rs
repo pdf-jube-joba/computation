@@ -301,7 +301,7 @@ impl Machine for ProcLangMachine {
             }
         }
 
-        for (name, _) in &ainput.vars {
+        for name in ainput.vars.keys() {
             if !static_set.contains_key(name) {
                 return Err(format!(
                     "AInput contains undeclared static variable: {name}"

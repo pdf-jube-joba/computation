@@ -13,5 +13,3 @@ path = "src/bin/recursive_function.rs"
 utils = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-pest = { workspace = true }
-pest_derive = { workspace = true }

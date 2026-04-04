@@ -313,9 +313,9 @@ fn eval_unop(op: UnOp, value: Value) -> Result<Value, String> {
 }
 
 impl Value {
-    fn as_nat(self) -> Result<usize, String> {
+    fn as_nat(&self) -> Result<usize, String> {
         match self {
-            Value::Nat(value) => Ok(value),
+            Value::Nat(value) => Ok(*value),
             _ => Err("final value is not a natural number".to_string()),
         }
     }
