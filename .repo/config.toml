@@ -39,13 +39,18 @@ steps = ["build-wasm", "md-preview"]
 name = "build"
 steps = ["build-wasm", "md-preview"]
 
+[ignore]
+paths = [
+  ".git",
+  ".codex",
+  "workspace_fs",
+  "plugins",
+  "macros.txt",
+]
+
 [[policy]]
 path = "/"
 GET = true
-
-[[policy]]
-path = "workspace_fs/"
-GET = false
 
 [[policy]]
 path = "test/"
