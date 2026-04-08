@@ -44,6 +44,10 @@ path = "/"
 GET = true
 
 [[policy]]
+path = "workspace_fs/"
+GET = false
+
+[[policy]]
 path = "test/"
 GET = true
 
@@ -71,10 +75,6 @@ GET = true
 
 [[policy]]
 path = "cli/"
-GET = true
-
-[[policy]]
-path = "workspace_fs/"
 GET = true
 
 [[policy]]
