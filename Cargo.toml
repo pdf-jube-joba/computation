@@ -25,6 +25,7 @@ members = [
 
 exclude = [
   "*/dist",
+  "_wfs",
   "workspace_fs/workspace_fs"
 ]
 
