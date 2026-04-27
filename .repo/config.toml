@@ -9,8 +9,7 @@ mount = "/wasm_bundle/"
 
 [[plugin]]
 name = "md-preview"
-runner = "command"
-command = ["node", "./workspace_fs/default_plugins/md_preview/build.mjs", "--out-dir", "{OUTPUT_DIRECTORY}"]
+runner = "default"
 trigger = "manual"
 deps = ["build-wasm"]
 mount = "/md/"
@@ -55,8 +54,8 @@ path = "/"
 GET = true
 
 [[policy]]
-path = "test/"
-GET = true
+path = "_wfs/"
+GET = false
 
 [[policy]]
 path = "docs/"
