@@ -46,6 +46,8 @@ paths = [
   "workspace_fs",
   "plugins",
   "macros.txt",
+  "Cargo.toml",
+  "Cargo.lock"
 ]
 
 [[policy]]

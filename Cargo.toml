@@ -21,11 +21,11 @@ members = [
   "models/pcf",
   "models/while_with_data",
   "models/others"
-]
+, "models/async_await"]
 
 exclude = [
   "*/dist",
-  "workspace_fs/workspace_fs"
+  "_wfs"
 ]
 
 [workspace.dependencies]
