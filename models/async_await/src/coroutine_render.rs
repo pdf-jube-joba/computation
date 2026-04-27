@@ -5,15 +5,15 @@ use crate::coroutine::{CoroutineMachine, Frame};
 pub fn render_machine(snapshot: CoroutineMachine) -> RenderState {
     let status_rows = vec![
         utils::render_row!([
-            utils::render_text!("agents"),
+            utils::render_text!("agents".to_string()),
             utils::render_text!(snapshot.workers.len().to_string())
         ]),
         utils::render_row!([
-            utils::render_text!("queue_len"),
+            utils::render_text!("queue_len".to_string()),
             utils::render_text!(snapshot.queue.len().to_string())
         ]),
         utils::render_row!([
-            utils::render_text!("task_count"),
+            utils::render_text!("task_count".to_string()),
             utils::render_text!(snapshot.tasks.len().to_string())
         ]),
     ];
@@ -82,19 +82,19 @@ pub fn render_machine(snapshot: CoroutineMachine) -> RenderState {
 
     utils::render_state![
         utils::render_table!(
-            columns: vec![utils::render_text!("field"), utils::render_text!("value")],
+            columns: vec![utils::render_text!("field".to_string()), utils::render_text!("value".to_string())],
             rows: status_rows,
             title: "status"
         ),
         utils::render_container!(
             children: [
                 utils::render_table!(
-                    columns: vec![utils::render_text!("var"), utils::render_text!("value")],
+                    columns: vec![utils::render_text!("var".to_string()), utils::render_text!("value".to_string())],
                     rows: var_rows,
                     title: "vars"
                 ),
                 utils::render_table!(
-                    columns: vec![utils::render_text!("id"), utils::render_text!("task")],
+                    columns: vec![utils::render_text!("id".to_string()), utils::render_text!("task".to_string())],
                     rows: task_id_rows,
                     title: "task_ids"
                 )
@@ -104,12 +104,12 @@ pub fn render_machine(snapshot: CoroutineMachine) -> RenderState {
             title: "env"
         ),
         utils::render_table!(
-            columns: vec![utils::render_text!("agent"), utils::render_text!("task")],
+            columns: vec![utils::render_text!("agent".to_string()), utils::render_text!("task".to_string())],
             rows: worker_rows,
             title: "workers"
         ),
         utils::render_table!(
-            columns: vec![utils::render_text!("slot"), utils::render_text!("task")],
+            columns: vec![utils::render_text!("slot".to_string()), utils::render_text!("task".to_string())],
             rows: queue_rows,
             title: "queue"
         ),
@@ -137,9 +137,9 @@ fn render_task(task_id: usize, stack: &[Frame]) -> utils::RenderBlock {
 
     utils::render_table!(
         columns: vec![
-            utils::render_text!("depth"),
-            utils::render_text!("function"),
-            utils::render_text!("pc")
+            utils::render_text!("depth".to_string()),
+            utils::render_text!("function".to_string()),
+            utils::render_text!("pc".to_string())
         ],
         rows: rows,
         title: format!("task {task_id}")

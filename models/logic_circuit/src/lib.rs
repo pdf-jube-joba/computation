@@ -172,24 +172,24 @@ impl Machine for LogicCircuit {
         utils::render_state![
             utils::render_text!(view.kind.to_string(), title: "kind"),
             utils::render_table!(
-                columns: vec![utils::render_text!("name"), utils::render_text!("pin")],
+                columns: vec![utils::render_text!("name".to_string()), utils::render_text!("pin".to_string())],
                 rows: input_rows,
                 title: "inputs"
             ),
             utils::render_table!(
                 columns: vec![
-                    utils::render_text!("name"),
-                    utils::render_text!("pin"),
-                    utils::render_text!("value")
+                    utils::render_text!("name".to_string()),
+                    utils::render_text!("pin".to_string()),
+                    utils::render_text!("value".to_string())
                 ],
                 rows: output_rows,
                 title: "outputs"
             ),
             utils::render_table!(
                 columns: vec![
-                    utils::render_text!("vert"),
-                    utils::render_text!("pin"),
-                    utils::render_text!("value")
+                    utils::render_text!("vert".to_string()),
+                    utils::render_text!("pin".to_string()),
+                    utils::render_text!("value".to_string())
                 ],
                 rows: vert_rows,
                 title: "verts"

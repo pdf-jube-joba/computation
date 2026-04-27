@@ -5,6 +5,10 @@ pub mod expr_stmt_machine;
 pub mod secd_machine;
 pub mod syntax;
 
+mod cek_render;
+mod expr_render;
+mod expr_stmt_render;
+mod secd_render;
 mod expr_stmt_parser;
 mod syntax_parser;
 

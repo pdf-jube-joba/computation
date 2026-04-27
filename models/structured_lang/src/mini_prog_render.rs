@@ -5,19 +5,19 @@ use crate::mini_prog_machine::{Control, Exec, InnerFrame, MiniProgMachine};
 pub fn render_machine(snapshot: MiniProgMachine) -> RenderState {
     let status_rows = vec![
         utils::render_row!([
-            utils::render_text!("function"),
+            utils::render_text!("function".to_string()),
             utils::render_text!(snapshot.current_function.clone())
         ]),
         utils::render_row!([
-            utils::render_text!("exec"),
+            utils::render_text!("exec".to_string()),
             utils::render_text!(exec_text(&snapshot.exec))
         ]),
         utils::render_row!([
-            utils::render_text!("next_local_id"),
+            utils::render_text!("next_local_id".to_string()),
             utils::render_text!(snapshot.next_local_id.to_string())
         ]),
         utils::render_row!([
-            utils::render_text!("next_heap_id"),
+            utils::render_text!("next_heap_id".to_string()),
             utils::render_text!(snapshot.next_heap_id.to_string())
         ]),
     ];
@@ -88,9 +88,9 @@ pub fn render_machine(snapshot: MiniProgMachine) -> RenderState {
                         .collect::<Vec<_>>();
                     utils::render_table!(
                         columns: vec![
-                            utils::render_text!("local"),
-                            utils::render_text!("type"),
-                            utils::render_text!("value")
+                            utils::render_text!("local".to_string()),
+                            utils::render_text!("type".to_string()),
+                            utils::render_text!("value".to_string())
                         ],
                         rows: rows,
                         title: format!("scope {}", scope_depth)
@@ -136,33 +136,33 @@ pub fn render_machine(snapshot: MiniProgMachine) -> RenderState {
 
     utils::render_state![
         utils::render_table!(
-            columns: vec![utils::render_text!("field"), utils::render_text!("value")],
+            columns: vec![utils::render_text!("field".to_string()), utils::render_text!("value".to_string())],
             rows: status_rows,
             title: "status"
         ),
         utils::render_table!(
             columns: vec![
-                utils::render_text!("scope"),
-                utils::render_text!("name"),
-                utils::render_text!("local")
+                utils::render_text!("scope".to_string()),
+                utils::render_text!("name".to_string()),
+                utils::render_text!("local".to_string())
             ],
             rows: env_rows,
             title: "env"
         ),
         utils::render_table!(
             columns: vec![
-                utils::render_text!("name"),
-                utils::render_text!("type"),
-                utils::render_text!("value")
+                utils::render_text!("name".to_string()),
+                utils::render_text!("type".to_string()),
+                utils::render_text!("value".to_string())
             ],
             rows: static_rows,
             title: "statics"
         ),
         utils::render_table!(
             columns: vec![
-                utils::render_text!("heap"),
-                utils::render_text!("type"),
-                utils::render_text!("value")
+                utils::render_text!("heap".to_string()),
+                utils::render_text!("type".to_string()),
+                utils::render_text!("value".to_string())
             ],
             rows: heap_rows,
             title: "heap"
@@ -174,16 +174,16 @@ pub fn render_machine(snapshot: MiniProgMachine) -> RenderState {
             title: "locals"
         ),
         utils::render_table!(
-            columns: vec![utils::render_text!("depth"), utils::render_text!("frame")],
+            columns: vec![utils::render_text!("depth".to_string()), utils::render_text!("frame".to_string())],
             rows: inner_rows,
             title: "inner_k"
         ),
         utils::render_table!(
             columns: vec![
-                utils::render_text!("depth"),
-                utils::render_text!("function"),
-                utils::render_text!("rets"),
-                utils::render_text!("resume")
+                utils::render_text!("depth".to_string()),
+                utils::render_text!("function".to_string()),
+                utils::render_text!("rets".to_string()),
+                utils::render_text!("resume".to_string())
             ],
             rows: fn_rows,
             title: "fn_k"

@@ -124,11 +124,11 @@ impl Machine for TuringMachine {
         utils::render_state![
             utils::render_table!(
                 columns: vec![
-                    utils::render_text!("key_sign"),
-                    utils::render_text!("key_state"),
-                    utils::render_text!("next_sign"),
-                    utils::render_text!("next_state"),
-                    utils::render_text!("direction")
+                    utils::render_text!("key_sign".to_string()),
+                    utils::render_text!("key_state".to_string()),
+                    utils::render_text!("next_sign".to_string()),
+                    utils::render_text!("next_state".to_string()),
+                    utils::render_text!("direction".to_string())
                 ],
                 rows: code_rows,
                 title: "code"

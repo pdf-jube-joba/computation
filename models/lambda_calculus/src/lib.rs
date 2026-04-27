@@ -158,25 +158,25 @@ impl Machine for LambdaTerm {
     fn render(snapshot: Self::SnapShot) -> utils::RenderState {
         fn term_block(term: MarkedTerm) -> utils::RenderBlock {
             match term {
-                MarkedTerm::Var(var) => utils::render_text!(var.as_str()),
+                MarkedTerm::Var(var) => utils::render_text!(var.as_str().to_string()),
                 MarkedTerm::Abs(var, body) => utils::render_container!(
                     children: vec![
-                        utils::render_text!("\\"),
+                        utils::render_text!("\\".to_string()),
                         term_block(MarkedTerm::Var(var)),
-                        utils::render_text!("."),
+                        utils::render_text!(".".to_string()),
                         term_block(*body)
                     ],
                     orientation: utils::RenderOrientation::Horizontal,
                     display: utils::RenderDisplay::Inline
                 ),
                 MarkedTerm::App(lhs, rhs) => utils::render_container!(
-                    children: vec![term_block(*lhs), utils::render_text!(" "), term_block(*rhs)],
+                    children: vec![term_block(*lhs), utils::render_text!(" ".to_string()), term_block(*rhs)],
                     orientation: utils::RenderOrientation::Horizontal,
                     display: utils::RenderDisplay::Inline
                 ),
                 MarkedTerm::Red(var, abs_term, app_term) => utils::render_container!(
                     children: vec![
-                        utils::render_text!(format!("\\ {}.", var.as_str())),
+                        utils::render_text!(format!("\\ {}.", var.as_str().to_string())),
                         term_block(*abs_term),
                         term_block(*app_term)
                     ],

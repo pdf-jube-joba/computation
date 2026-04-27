@@ -324,8 +324,6 @@ impl Machine for TinyIsaMachine {
     }
 
     fn render(snapshot: Self::SnapShot) -> utils::RenderState {
-        let text = serde_json::to_string_pretty(&snapshot)
-            .unwrap_or_else(|_| "failed to serialize snapshot".to_string());
-        utils::render_state![utils::render_text!(text, title: "snapshot")]
+        crate::tiny_isa_render::render_machine(snapshot)
     }
 }

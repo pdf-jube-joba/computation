@@ -7,6 +7,7 @@ pub mod proc_lang;
 
 mod fn_ptr_parser;
 mod fn_ptr_render;
+mod expr_lang_render;
 mod mini_prog_parser;
 mod mini_prog_render;
 

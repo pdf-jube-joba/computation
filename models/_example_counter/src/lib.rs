@@ -94,7 +94,14 @@ impl Machine for Counter {
     }
 
     fn render(snapshot: Self::SnapShot) -> utils::RenderState {
-        utils::render_state![utils::render_text!(snapshot.count.to_string(), title: "count")]
+        utils::render_state![utils::render_table!(
+            columns: vec![utils::render_text!("field".to_string()), utils::render_text!("value".to_string())],
+            rows: vec![utils::render_row!([
+                utils::render_text!("count".to_string()),
+                utils::render_text!(snapshot.count.to_string())
+            ])],
+            title: "status"
+        )]
     }
 }
 

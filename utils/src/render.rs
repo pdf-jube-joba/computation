@@ -81,9 +81,10 @@ macro_rules! render_state {
 #[macro_export]
 macro_rules! render_text {
     ($text:expr $(, $key:ident : $value:expr )* $(,)?) => {{
+        let text: String = $text;
         #[allow(unused_mut)]
         let mut block = $crate::RenderTextBlock {
-            text: ($text).to_string(),
+            text,
             title: None,
             class_name: None,
         };
@@ -236,14 +237,14 @@ mod render_schema_tests {
     #[test]
     fn render_macros_build_valid_shape() {
         let state = render_state![
-            render_text!("hello", title: "greeting"),
+            render_text!("hello".to_string().to_string(), title: "greeting"),
             render_table!(
-                columns: [render_text!("k"), render_text!("v")],
-                rows: [render_row!([render_text!("a"), render_text!("1")], class: "ok")],
+                columns: [render_text!("k".to_string().to_string()), render_text!("v".to_string().to_string())],
+                rows: [render_row!([render_text!("a".to_string().to_string()), render_text!("1".to_string().to_string())], class: "ok")],
                 class: "table-main"
             ),
             render_container!(
-                children: [render_text!("x"), render_text!("y")],
+                children: [render_text!("x".to_string().to_string()), render_text!("y".to_string().to_string())],
                 orientation: RenderOrientation::Horizontal,
                 display: RenderDisplay::Inline
             ),
