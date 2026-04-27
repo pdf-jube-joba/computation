@@ -3,7 +3,7 @@ resolver = "2"
 members = [
   "utils",
   "cli",
-  "models/example_counter",
+  "models/_example_counter",
   "models/flow_ir",
   "models/goto_lang",
   "models/lambda_calculus",
