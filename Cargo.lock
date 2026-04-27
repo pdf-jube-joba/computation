@@ -93,6 +93,12 @@ dependencies = [
 [[package]]
 name = "async_await"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "utils",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "base64"

@@ -3,7 +3,7 @@
 \[
 \begin{aligned}
 \NT{program} &\defeq \NT{func-decl}+ \\
-\NT{func-decl} &\defeq \T{fn} \NT{f-name} \T{\LCB} \NT{stmt}+ \T{\RCB} \\
+\NT{func-decl} &\defeq \T{fn} \NT{f-name} \T{\LCB} \syntaxmacro{semicolon-separated}{\NT{stmt}} \T{\RCB} \\
 \NT{stmt} &\defeq \\
   &| \NT{var} \T{<-} \NT{aexp} \\
   &| \T{if} \NT{bexp} \T{goto} \NT{offset} \\
