@@ -4,9 +4,12 @@
 - `this` 付き
 
 ## 構文
-なんかラムダ計算みたいなのがある。
 method と variable を区別してない。
 primitive value はオブジェクトじゃない。
+変数のキャプチャをしないように、関数定義は別枠にしておく。
+expr が function と recursive な定義じゃないので、
+expr の自由変数の定義時に function を使わないようにして function 単体で変数が閉じているかを議論できる。
+field アクセスはあるが、多分大丈夫そう。
 
 \[
 \begin{aligned}
@@ -18,16 +21,18 @@ primitive value はオブジェクトじゃない。
     &| \N | \T{\#true} | \T{\#false} | \T{\#unit} \\
     &| \NT{var} | \NT{expr} \T{.} \NT{f} \\
     &| \NT{expr} \NT{binop} \NT{expr} \\
-    &| \NT{expr} \T{===} \NT{expr} & \syntaxname{equality of identity} \\
-    &| \T{fun} \NT{var} \T{=>} \NT{expr} \\
+    &| \NT{expr} \T{===} \NT{expr} & \syntaxname{\text{equality of identity}} \\
     &| \NT{expr} \T{\LP} \NT{expr} \T{\RP} \\
-    &| \T{set-this} \NT{expr} \T{in} \T{\LCB} \NT{stmt} \T{;} \NT{expr} \T{\RCB} \\
 \\
+\NT{function} &\defeq \T{fn} \T{\LP} \syntaxmacro{comma-separated}{\NT{var}} \T{\LCB} \\
+  &\syntaxmacro{semicolon-separated}{\NT{stmt}} \\
+  &\T{return} \NT{expr} \T{;} \\
+  &\T{\RCB} \\
+\\
+\NT{rv} &\defeq \NT{expr} | \NT{function} \\
 \NT{stmt} &\defeq \\
-    &| \T{skip} \\
-    &| \NT{stmt} \T{;} \NT{stmt} \\
-    &| \T{let} \NT{var} \T{:=} \NT{expr} &\syntaxname{syntax suger of fun} \\
-    &| \NT{expr} \T{.} \NT{f} \T{:=} \NT{expr} \\
+    &| \T{let} \NT{var} \T{:=} \NT{rv} \T{in} \\
+    &| \NT{expr} \T{.} \NT{f} \T{:=} \NT{rv} \\
     &| \T{if} \NT{expr} \T{then} \NT{stmt} \T{end} \\
     &| \T{while} \NT{expr} \T{do} \NT{stmt} \T{end} \\
 \\
