@@ -31,10 +31,6 @@ name = "build-md-preview"
 steps = ["md-preview"]
 
 [[task]]
-name = "build-all"
-steps = ["build-wasm", "md-preview"]
-
-[[task]]
 name = "build"
 steps = ["build-wasm", "md-preview"]
 

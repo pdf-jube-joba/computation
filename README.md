@@ -12,7 +12,7 @@
 - `plugins/` 以下のそれぞれのディレクトリで `npm install`
 - `cargo run --bin workspace_fs -- ./ --task build-all`
 - ブラウザで `localhost:3000/md/md_preview.html?path=README.md` を閲覧。
-    - [example counter（動いている見本）](./models/example_counter/README.md)
+    - [example counter（動いている見本）](./models/_example_counter/README.md)
     - [Model 一覧](./md/directory_view.html?link=Model)
     - [Compiler 一覧](./md/directory_view.html?link=Model)
 
