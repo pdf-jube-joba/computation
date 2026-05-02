@@ -5,19 +5,19 @@ use crate::fn_ptr_machine::{CallFrame, FnPtrMachine, FrameStore, Value};
 pub fn render_machine(snapshot: FnPtrMachine) -> RenderState {
     let status_rows = vec![
         utils::render_row!([
-            utils::render_text!("control"),
+            utils::render_text!("control".to_string()),
             utils::render_text!(if snapshot.current_stmt.is_some() {
-                "eval"
+                "eval".to_string()
             } else {
-                "next"
+                "next".to_string()
             })
         ]),
         utils::render_row!([
-            utils::render_text!("function"),
+            utils::render_text!("function".to_string()),
             utils::render_text!(snapshot.current_function.clone())
         ]),
         utils::render_row!([
-            utils::render_text!("current"),
+            utils::render_text!("current".to_string()),
             utils::render_text!(
                 snapshot
                     .current_stmt
@@ -27,7 +27,7 @@ pub fn render_machine(snapshot: FnPtrMachine) -> RenderState {
             )
         ]),
         utils::render_row!([
-            utils::render_text!("next_frame_id"),
+            utils::render_text!("next_frame_id".to_string()),
             utils::render_text!(snapshot.next_frame_id.to_string())
         ]),
     ];
@@ -74,15 +74,15 @@ pub fn render_machine(snapshot: FnPtrMachine) -> RenderState {
 
     utils::render_state![
         utils::render_table!(
-            columns: vec![utils::render_text!("field"), utils::render_text!("value")],
+            columns: vec![utils::render_text!("field".to_string()), utils::render_text!("value".to_string())],
             rows: status_rows,
             title: "status"
         ),
         utils::render_table!(
             columns: vec![
-                utils::render_text!("var"),
-                utils::render_text!("location"),
-                utils::render_text!("value")
+                utils::render_text!("var".to_string()),
+                utils::render_text!("location".to_string()),
+                utils::render_text!("value".to_string())
             ],
             rows: env_rows,
             title: "env"
@@ -101,9 +101,9 @@ pub fn render_machine(snapshot: FnPtrMachine) -> RenderState {
         ),
         utils::render_table!(
             columns: vec![
-                utils::render_text!("depth"),
-                utils::render_text!("function"),
-                utils::render_text!("resume_len")
+                utils::render_text!("depth".to_string()),
+                utils::render_text!("function".to_string()),
+                utils::render_text!("resume_len".to_string())
             ],
             rows: fn_k_rows,
             title: "fn_k"
@@ -124,7 +124,7 @@ fn render_store_frame(frame: &FrameStore) -> utils::RenderBlock {
         .collect::<Vec<_>>();
 
     utils::render_table!(
-        columns: vec![utils::render_text!("location"), utils::render_text!("value")],
+        columns: vec![utils::render_text!("location".to_string()), utils::render_text!("value".to_string())],
         rows: rows,
         title: format!("frame {}", frame.frame_id)
     )

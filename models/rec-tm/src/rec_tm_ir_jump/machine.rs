@@ -300,7 +300,7 @@ impl Machine for RecTmIrJumpMachine {
             utils::render_text!(view.pc.to_string(), title: "pc"),
             utils::render_text!(view.instruction.unwrap_or_else(|| "halt".to_string()), title: "next"),
             utils::render_table!(
-                columns: vec![utils::render_text!("var"), utils::render_text!("value")],
+                columns: vec![utils::render_text!("var".to_string()), utils::render_text!("value".to_string())],
                 rows: env_rows,
                 title: "env"
             ),

@@ -186,9 +186,7 @@ impl Machine for StrTreeMachine {
     }
 
     fn render(snapshot: Self::SnapShot) -> utils::RenderState {
-        let text = serde_json::to_string_pretty(&snapshot)
-            .unwrap_or_else(|_| "failed to serialize snapshot".to_string());
-        utils::render_state![utils::render_text!(text, title: "snapshot")]
+        crate::strtree_render::render_machine(snapshot)
     }
 }
 
@@ -567,7 +565,7 @@ fn bexp_to_text(exp: &BExp) -> String {
     }
 }
 
-fn stmt_to_text(stmt: &Stmt) -> String {
+pub(crate) fn stmt_to_text(stmt: &Stmt) -> String {
     match stmt {
         Stmt::Nop => "Nop".to_string(),
         Stmt::Assign { var, expr } => format!("{} := {}", var.as_str(), texp_to_text(expr)),
@@ -583,7 +581,7 @@ fn stmt_to_text(stmt: &Stmt) -> String {
     }
 }
 
-fn value_to_text(value: &Value) -> String {
+pub(crate) fn value_to_text(value: &Value) -> String {
     match value {
         Value::Atom(ch) => format!("atom {}", char_to_text(*ch)),
         Value::Cons(lhs, rhs) => format!("cons {} {}", value_to_text(lhs), value_to_text(rhs)),

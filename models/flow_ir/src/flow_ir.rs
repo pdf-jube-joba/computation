@@ -645,25 +645,25 @@ impl Machine for FlowIrMachine {
             utils::render_text!(snapshot.current_line.to_string(), title: "current_line"),
             utils::render_text!(snapshot.halted.to_string(), title: "halted"),
             utils::render_table!(
-                columns: vec![utils::render_text!("vreg"), utils::render_text!("value")],
+                columns: vec![utils::render_text!("vreg".to_string()), utils::render_text!("value".to_string())],
                 rows: vreg_rows,
                 title: "vregs"
             ),
             utils::render_table!(
-                columns: vec![utils::render_text!("label"), utils::render_text!("value")],
+                columns: vec![utils::render_text!("label".to_string()), utils::render_text!("value".to_string())],
                 rows: static_rows,
                 title: "static"
             ),
             utils::render_table!(
-                columns: vec![utils::render_text!("index"), utils::render_text!("value")],
+                columns: vec![utils::render_text!("index".to_string()), utils::render_text!("value".to_string())],
                 rows: stack_rows,
                 title: "stack"
             ),
             utils::render_table!(
                 columns: vec![
-                    utils::render_text!("handle"),
-                    utils::render_text!("index"),
-                    utils::render_text!("value")
+                    utils::render_text!("handle".to_string()),
+                    utils::render_text!("index".to_string()),
+                    utils::render_text!("value".to_string())
                 ],
                 rows: heap_rows,
                 title: "heap"

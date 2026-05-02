@@ -1,0 +1,14 @@
+[package]
+name = "async_await"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "coroutine"
+path = "src/bin/coroutine.rs"
+
+[dependencies]
+serde.workspace = true
+utils.workspace = true
+wasm-bindgen.workspace = true
+serde_json.workspace = true

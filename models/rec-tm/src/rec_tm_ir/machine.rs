@@ -362,7 +362,7 @@ impl Machine for RecTmIrMachine {
         let mut stack_children = view
             .stack
             .iter()
-            .map(|name| utils::render_text!(name))
+            .map(|name| utils::render_text!(name.to_string()))
             .collect::<Vec<_>>();
         stack_children.push(utils::render_text!(view.function.clone(), class: "highlight"));
 
@@ -399,7 +399,7 @@ impl Machine for RecTmIrMachine {
                 title: "stack"
             ),
             utils::render_table!(
-                columns: vec![utils::render_text!("var"), utils::render_text!("value")],
+                columns: vec![utils::render_text!("var".to_string()), utils::render_text!("value".to_string())],
                 rows: env_rows,
                 title: "env"
             ),

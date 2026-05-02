@@ -164,9 +164,7 @@ impl Machine for StrArrMachine {
     }
 
     fn render(snapshot: Self::SnapShot) -> utils::RenderState {
-        let text = serde_json::to_string_pretty(&snapshot)
-            .unwrap_or_else(|_| "failed to serialize snapshot".to_string());
-        utils::render_state![utils::render_text!(text, title: "snapshot")]
+        crate::strarr_render::render_machine(snapshot)
     }
 }
 
@@ -537,7 +535,7 @@ fn char_to_text(ch: char) -> String {
     }
 }
 
-fn char_list_to_text(chars: &[char]) -> String {
+pub(crate) fn char_list_to_text(chars: &[char]) -> String {
     let items: Vec<_> = chars.iter().copied().map(char_to_text).collect();
     format!("[{}]", items.join(", "))
 }
@@ -570,7 +568,7 @@ fn bexp_to_text(exp: &BExp) -> String {
     }
 }
 
-fn stmt_to_text(stmt: &Stmt) -> String {
+pub(crate) fn stmt_to_text(stmt: &Stmt) -> String {
     match stmt {
         Stmt::Nop => "Nop".to_string(),
         Stmt::Assign { var, expr } => format!("{} := {}", var.as_str(), aexp_to_text(expr)),
