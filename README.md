@@ -36,11 +36,11 @@
         2. 独自の node を追加（ inline math など。）
         3. 独自の node の処理（ inline math を katex を呼び出して html node にする。）
         4. 最終的な html を得る
-    - `plugin/mount_model/` は各計算モデルを
+    - `plugins/mount_model/` は各計算モデルを
         1. `cargo build {model} --target wasm32-unknown-unknown` で wasm にビルドする
         2. `wasm-tools` で wasm の component 化
         3. `jco` で component のグルーコードを作る（ブラウザがまだ対応してない）
-        4. できた成果物を `script.js`, `renderer.js`, `style.css` とともに plugin の指定場所に入る
+        4. できた wasm 成果物を plugin の指定場所に入れる
 
 ## 必要なもの
 - `rust` 周り

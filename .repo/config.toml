@@ -22,10 +22,8 @@ mount = "/md/"
 [plugin.md_preview]
 macro_path = "./macros.txt"
 
-[[plugin.md_preview.enhance]]
-name = "wasm_mount"
-url = "{MOUNT_BUILD_WASM}mount.js"
-entrypoint = "mountModel"
+[plugin.md_preview.md_viewer]
+additional_js = ["assets/header.js"]
 
 [ignore]
 paths = [
@@ -46,6 +44,10 @@ GET = ["me"]
 POST = ["me"]
 PUT = ["me"]
 DELETE = ["me"]
+
+[[policy]]
+path = "assets/"
+GET = ["me"]
 
 [[policy]]
 path = "models/"

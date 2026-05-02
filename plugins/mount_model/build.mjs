@@ -1,4 +1,4 @@
-import {copyFile, mkdir, readdir, readFile, rm, stat} from "node:fs/promises";
+import {mkdir, readdir, readFile, rm, stat} from "node:fs/promises";
 import {existsSync} from "node:fs";
 import path from "node:path";
 import {spawnSync} from "node:child_process";
@@ -11,8 +11,6 @@ const SCRIPT_DIR = __dirname;
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..", "..");
 const MODELS_DIR = path.join(REPO_ROOT, "models");
 const TARGET_DIR = path.join(REPO_ROOT, "target", "wasm32-unknown-unknown");
-const STATIC_FILES = ["renderer.js", "script.js", "style.css", "mount.js"];
-
 const args = parseArgs(process.argv.slice(2));
 const outputDir = process.env.WORKSPACE_FS_OUTPUT_DIRECTORY;
 if (!outputDir) {
@@ -26,7 +24,6 @@ if (args.clean && existsSync(outputDir)) {
 }
 
 await mkdir(outputDir, {recursive: true});
-await copyStaticAssets(outputDir);
 
 const profile = args.release ? "release" : "debug";
 let packages = await findPackages(MODELS_DIR);
@@ -106,7 +103,7 @@ function ensureTools() {
     throw new Error(`missing required tools: ${missing.join(", ")}`);
   }
   if (!existsSync(localBin("jco"))) {
-    throw new Error("missing local jco; run `npm install` in plugin/mount_model");
+    throw new Error("missing local jco; run `npm install` in plugins/mount_model");
   }
 }
 
@@ -132,12 +129,6 @@ function run(cmd, args, cwd = REPO_ROOT) {
   });
   if (result.status !== 0) {
     throw new Error(`command failed (${result.status ?? "signal"}): ${[cmd, ...args].join(" ")}`);
-  }
-}
-
-async function copyStaticAssets(outputDirPath) {
-  for (const filename of STATIC_FILES) {
-    await copyFile(path.join(SCRIPT_DIR, filename), path.join(outputDirPath, filename));
   }
 }
 
