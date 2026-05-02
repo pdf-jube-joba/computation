@@ -1,17 +1,22 @@
 name = "computation"
 
+[serve]
+port = 3001
+plugin_url_prefix = "/.plugin"
+policy_url_prefix = "/.policy"
+info_url_prefix = "/.info"
+
 [[plugin]]
 name = "build-wasm"
 runner = "command"
 command = ["node", "./plugins/mount_model/build.mjs", "--clean"]
-trigger = "manual"
+allow = ["me"]
 mount = "/wasm_bundle/"
 
 [[plugin]]
 name = "md-preview"
 runner = "default"
-trigger = "manual"
-deps = ["build-wasm"]
+allow = ["me"]
 mount = "/md/"
 
 [plugin.md_preview]
@@ -22,75 +27,55 @@ name = "wasm_mount"
 url = "{MOUNT_BUILD_WASM}mount.js"
 entrypoint = "mountModel"
 
-[[task]]
-name = "build-wasm"
-steps = ["build-wasm"]
-
-[[task]]
-name = "build-md-preview"
-steps = ["md-preview"]
-
-[[task]]
-name = "build-all"
-steps = ["build-wasm", "md-preview"]
-
-[[task]]
-name = "build"
-steps = ["build-wasm", "md-preview"]
-
 [ignore]
 paths = [
   ".git",
   ".codex",
-  "workspace_fs",
+  "_wfs",
   "plugins",
   "macros.txt",
 ]
 
 [[policy]]
 path = "/"
-GET = true
-
-[[policy]]
-path = "_wfs/"
-GET = false
+GET = ["me"]
 
 [[policy]]
 path = "docs/"
-GET = true
-POST = true
-PUT = true
-DELETE = true
+GET = ["me"]
+POST = ["me"]
+PUT = ["me"]
+DELETE = ["me"]
 
 [[policy]]
 path = "models/"
-GET = true
-POST = false
-PUT = true
-DELETE = false
+GET = ["me"]
+POST = []
+PUT = ["me"]
+DELETE = []
 
 [[policy]]
 path = "viewer/"
-GET = true
+GET = ["me"]
 
 [[policy]]
 path = "utils/"
-GET = true
+GET = ["me"]
 
 [[policy]]
 path = "cli/"
-GET = true
+GET = ["me"]
 
 [[policy]]
 path = "README.md"
-GET = true
-POST = false
-PUT = true
-DELETE = false
+GET = ["me"]
+POST = []
+PUT = ["me"]
+DELETE = []
 
 [[policy]]
 path = "test.md"
-GET = true
-POST = false
-PUT = true
-DELETE = false
+GET = ["me"]
+POST = []
+PUT = ["me"]
+DELETE = []

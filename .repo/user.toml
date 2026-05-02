@@ -1,0 +1,44 @@
+[[repository]]
+name = "local"
+mode = "spawn"
+port = 3000
+as = "me"
+
+[repository.server]
+port = 3001
+
+[[task]]
+name = "build-wasm"
+
+[[task.step]]
+repository = "local"
+plugin = "build-wasm"
+
+[[task]]
+name = "build-md-preview"
+
+[[task.step]]
+repository = "local"
+plugin = "md-preview"
+
+[[task]]
+name = "build-all"
+
+[[task.step]]
+repository = "local"
+plugin = "build-wasm"
+
+[[task.step]]
+repository = "local"
+plugin = "md-preview"
+
+[[task]]
+name = "build"
+
+[[task.step]]
+repository = "local"
+plugin = "build-wasm"
+
+[[task.step]]
+repository = "local"
+plugin = "md-preview"
