@@ -15,18 +15,7 @@ repository = "local"
 plugin = "build-wasm"
 
 [[task]]
-name = "build-md-preview"
-
-[[task.step]]
-repository = "local"
-plugin = "md-preview"
-
-[[task]]
-name = "build-all"
-
-[[task.step]]
-repository = "local"
-plugin = "build-wasm"
+name = "build-md"
 
 [[task.step]]
 repository = "local"
