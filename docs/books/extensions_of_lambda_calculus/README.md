@@ -1,4 +1,3 @@
 - [再帰](./recursive.md)
-- [継続概念について](./extensions_of_lambda_calculus/continuation.md)
-- [CBPV](./CBPV.md)
-- [linear type](./linear_type.md)
+- [継続概念について](./continuation.md)
+- [duality](./duality.md)

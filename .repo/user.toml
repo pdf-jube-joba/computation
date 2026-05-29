@@ -1,7 +1,7 @@
 [[repository]]
 name = "local"
 mode = "spawn"
-port = 3000
+client_port = 3000
 as = "me"
 
 [repository.server]
@@ -15,7 +15,7 @@ repository = "local"
 plugin = "build-wasm"
 
 [[task]]
-name = "build-md-preview"
+name = "md"
 
 [[task.step]]
 repository = "local"
