@@ -2,8 +2,14 @@ markdown がうまく行っているかテストする。
 
 ## katex で数式
 ### ヘッダーに数式を書く： \(1\)
-`katex` での数式の表記： \(x = 1, y = 2\)
-\(\text{日本語}\)
+`katex` での数式の表記： \(x = 1, y = 2\), 数式内のテキストは\(\text{日本語}\)みたいになる。
+
+ネストする例：`\(\text{ \(1 + \text{if \(n\) is zero then \(2\) else \(k\) }\) }\)`
+こう書くと、\(\text{ \(1 + \text{if \(n\) is zero then \(2\) else \(k\) }\) }\) になる。
+
+```
+\(\text{ \(1 + \text{if \(n\) is zero then \(2\) else \(k\) }\) }\)
+```
 
 \(a\_b,  c\_d\)
 

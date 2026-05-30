@@ -28,10 +28,12 @@ additional_js = ["assets/header.js"]
 [ignore]
 paths = [
   ".git",
+  ".gitignore",
   ".codex",
+  ".agents",
   "_wfs",
+  "Cargo.lock",
   "plugins",
-  "macros.txt",
 ]
 
 [[policy]]
