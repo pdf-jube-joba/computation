@@ -98,3 +98,6 @@ Pierce law は公理ではなくなったので、一応導出を見ておくこ
 
 これを書いていて途中で \(\to R\) がきもいことに気が付いた。
 \(A \vdash B, C\) から \(\vdash (A \to B), C\) とか \(\vdash B, (A \to C)\) にしていいらしい。直感的には \(\vdash (A \to B), (A \to C)\) なのに？
+古典論理での説明としては \((A \to B) \vee C = (\neg A \vee B) \vee C = \neg A \vee (B \vee C)\) とか \(\neg A \vee B \vee \neg A \vee C\) なのでいい。
+ただ直観論理では成り立たないらしい。
+古典論理の場合のモデルは付値だが、直観論理の場合は Kripke frame を使えば成り立たないことが示せるらしい。

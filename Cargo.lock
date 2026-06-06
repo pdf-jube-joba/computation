@@ -850,6 +850,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "krivine_machine"
+version = "0.1.0"
+
+[[package]]
 name = "lambda_calculus"
 version = "0.1.0"
 dependencies = [
