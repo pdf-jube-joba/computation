@@ -27,6 +27,7 @@ one step で進めるのはかなりめんどくさい。
 これをせずに、呼び出し側の環境の下で変数を考えるのが dynamic なスコープになる。
 
 アルファ変換みたいなものは必要らしい。
+ここでは特にアルファ変換を定義しないが、代入の時にはそれを使っていい感じにする。
 
 - \(V\) := \(\NT{term}\) ... これがすごくて、簡約されていないプログラムがここに入りうる。
   ただし、以降では気持ちの整理のために、分けて書いたりする。
@@ -41,6 +42,8 @@ one step で進めるのはかなりめんどくさい。
   - \(\text{eval}\)
   - \(\text{if}(V, V)\)
   - \(\text{cont}(\NT{func})
+  - \(\text{lambda}(x \in \NT{atom}, M)\)
+  - \(\text{restore}(E)\)
 
 この状態で、次のように動く
 \[\begin{aligned}
@@ -53,14 +56,16 @@ one step で進めるのはかなりめんどくさい。
 ((\T{lambda} M), E, K) &\to \text{return}((\T{lambda} M), E, K) \\
 \\
 ((A B), E, K) &\to (B, E, \text{cont}(A)::K) &\text{if \(A\) is in \NT{func} \\
+(((lambda (x \in \NT{atom}) M) B), E, K) &\to (B, E, \text{lambda}(x, M)::K) \\
 ((A B), E, K) &\to (A, E, ([] B)::K) &\text{if \(A\) is not in \NT{func}} \\
 \\
-\text{return}(v, E, ([] T)::K) &\to (T, E, (v [])::K) \\
+\text{return}(V, E, ([] T)::K) &\to (T, E, (V [])::K) \\
 \text{return}(v, E, (V [])::K) &\to (V v, E, K) \\
 \text{return}(v, E, \text{eval}::K) &\to (v, E, K) \\
 \text{return}(v, E, \text{if}(M _ 1, M _ 2)::K) &\to (M _ 1, E, K) &\text{if \(v\) is \T{T}} \\
 \text{return}(v, E, \text{if}(M _ 1, M _ 2)::K) &\to (M _ 2, E, K) &\text{if \(v\) is not \T{T}} \\
+\text{return}(v, E, \text{lambda}(x, M)::K) &\to (M, E[x \mapsto v], \text{restore}(E)::K) \\
 \\
-\text{return}(v, E, \text{cont}()::K) &\to (v, E, K) \\
-\text{return}(v, E, \text{cont}()::K) &\to (v, E, K) \\
+\text{return}(v, E, \text{cont}(eq)::K) &\to (v, E, K) \\
+\text{return}(v, E, \text{cont}(atom)::K) &\to (v, E, K) \\
 \end{aligned}\]
