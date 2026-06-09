@@ -36,36 +36,39 @@ one step で進めるのはかなりめんどくさい。
   - \(\text{atom}\): \(V \to V\) := これは atom かどうかを判定して、 "T" か nil を返す。 
   - \(\text{eq}\): \(V \times V \pfun V\) := これは **両辺が atom の場合に** 同じかどうか判定して、上と同じように返す。
   - \(\text{car}, \text{cdr}, \text{cons}\) なども適切に定義する
-- \(K\) := enum of
+- \(K\) := \(E\) and enum of
   - \([] \NT{term}\)
-  - \(V []\)
   - \(\text{eval}\)
   - \(\text{if}(V, V)\)
-  - \(\text{cont}(\NT{func})
   - \(\text{lambda}(x \in \NT{atom}, M)\)
-  - \(\text{restore}(E)\)
+  - \(\text{cont}(\NT{func})
 
 この状態で、次のように動く
 \[\begin{aligned}
-(\NT{nil}, E, K) &\to \text{return}(\NT{nil}, E, K) \\
-(a \in \NT{atom}, E, K) &\to \text{return}(E[a], E, K) \\
+(\NT{nil}, E, K) &\to \text{return}(\NT{nil}, K) \\
+(a \in \NT{atom}, E, K) &\to \text{return}(E[a], K) \\
+\begin{aligned}\]
+以降は、リストの先頭を見るという構文的な形で対応する。
+リストの先頭が特定の形式をしていなかった場合はそこを評価する。
+評価し終わって戻ってきたときにちゃんとした形じゃなかったら終わり。
+\[\begin{aligned}
+((\T{quote} M), E, K) &\to \text{return}(M, K) \\
+((\T{eval} M), E, K) &\to (M, E, (\text{eval}, E):: K) \\
+((\T{if} ( M (M _ 1 M _ 2) )) , E, K) &\to (M, (\text{if}(M _ 1, M _ 2), E)::K) \\
+(((\T{lambda} (x \in \NT{atom}) M) B), E, K) &\to (B, E, (\text{lambda}(x, M), E)::K) \\
+((\T{lambda} M), E, K) &\to \text{return}((\T{lambda} M), K) \\
 \\
-((\T{quote} M), E, K) &\to \text{return}(M, E, K) \\
-((\T{eval} M), E, K) &\to (M, E, \text{eval}:: K) \\
-((\T{if} ( M (M _ 1 M _ 2) )) , E, K) &\to (M, E, \text{if}(M _ 1, M _ 2)::K) \\
-((\T{lambda} M), E, K) &\to \text{return}((\T{lambda} M), E, K) \\
+((A B), E, K) &\to (B, E, (\text{cont}(A), E)::K) &\text{if \(A\) is in \NT{func}} \\
+((A B), E, K) &\to (A, E, (([] B), E)::K) &\text{if \(A\) is not in \NT{func}} \\
+\end{aligned}\]
+return してきた値を次のようにして継続で処理する。
+\[\begin{aligned}
+\text{return}(v, ([] T, E)::K) &\to ((v T), E, K) \\
+\text{return}(v, (\text{eval}, E)::K) &\to (v, E, K) \\
+\text{return}(v, (\text{if}(M _ 1, M _ 2), E)::K) &\to (M _ 1, E, K) &\text{if \(v\) is \T{T}} \\
+\text{return}(v, (\text{if}(M _ 1, M _ 2), E)::K) &\to (M _ 2, E, K) &\text{if \(v\) is not \T{T}} \\
+\text{return}(v, (\text{lambda}(x, M), E)::K) &\to (M, E[x \mapsto v], K) \\
 \\
-((A B), E, K) &\to (B, E, \text{cont}(A)::K) &\text{if \(A\) is in \NT{func} \\
-(((lambda (x \in \NT{atom}) M) B), E, K) &\to (B, E, \text{lambda}(x, M)::K) \\
-((A B), E, K) &\to (A, E, ([] B)::K) &\text{if \(A\) is not in \NT{func}} \\
-\\
-\text{return}(V, E, ([] T)::K) &\to (T, E, (V [])::K) \\
-\text{return}(v, E, (V [])::K) &\to (V v, E, K) \\
-\text{return}(v, E, \text{eval}::K) &\to (v, E, K) \\
-\text{return}(v, E, \text{if}(M _ 1, M _ 2)::K) &\to (M _ 1, E, K) &\text{if \(v\) is \T{T}} \\
-\text{return}(v, E, \text{if}(M _ 1, M _ 2)::K) &\to (M _ 2, E, K) &\text{if \(v\) is not \T{T}} \\
-\text{return}(v, E, \text{lambda}(x, M)::K) &\to (M, E[x \mapsto v], \text{restore}(E)::K) \\
-\\
-\text{return}(v, E, \text{cont}(eq)::K) &\to (v, E, K) \\
-\text{return}(v, E, \text{cont}(atom)::K) &\to (v, E, K) \\
+\text{return}(v, (\text{cont}(eq), E)::K) &\to (v, E, K) \\
+\text{return}(v, (\text{cont}(atom), E)::K) &\to (v, E, K) \\
 \end{aligned}\]
