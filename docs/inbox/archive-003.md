@@ -1,0 +1,62 @@
+- [参照を備えた多段階計算のための多相的型システム](http://jssst.or.jp/files/user/taikai/2015/PPL/ppl7-2.pdf)
+- [今ちょうどプログラミング言語作ってみたかったんだよね〜、と言うときに見る資料](https://codom.hatenablog.com/entry/2017/09/10/220412)
+- [shift/reset プログラミング入門](http://pllab.is.ocha.ac.jp/~asai/cw2011tutorial/main-j.pdf)
+- [限定継続命令をもつ依存型付き言語の設計](https://www.jstage.jst.go.jp/article/jssst/36/2/36_2_47/_pdf)
+- [プログラミング言語研究のための(高階) 項書換え系入門](http://www.cs.gunma-u.ac.jp/~hamana/Papers/ppltut.pdf)
+- [定理証明リンク集](https://myuon.github.io/posts/start-learning-proof-assistant/)
+- [項書き換え系に基づく制約プログラミング言語システムの実現方式について](https://dl.ndl.go.jp/info:ndljp/pid/8559159)
+- [ソフトウェアの基礎理論と検証技術検証技術](http://www.cs.tsukuba.ac.jp/~kam/lecture/tohoku2002/tohoku-Oct23.pdf)
+- [On the Formalization of Higher Inductive Types and Synthetic Homotopy Theory](https://arxiv.org/abs/1808.10690)
+- [Dependent Types と Refinement Types の違い](https://7colou.red/blog/2018/07-07-difference/index.html)
+- [Proof and Computation](https://www.mathematik.uni-muenchen.de/~schwicht/pcv21.php)
+- [A general definition of dependent type theories](https://arxiv.org/abs/2009.05539)
+- How to implement dependent type theory
+  1. http://math.andrej.com/2012/11/08/how-to-implement-dependent-type-theory-i/
+  2. http://math.andrej.com/2012/11/11/how-to-implement-dependent-type-theory-ii/
+  3. http://math.andrej.com/2012/11/29/how-to-implement-dependent-type-theory-iii/
+- [An implementation of the Lambda Cube in Idris](https://github.com/aatxe/cube.idr)
+- [パイプライン演算子の歴史](https://mametter.hatenablog.com/entry/2019/06/15/192311)
+- [シェルスクリプトでLISP処理系を作ってみた](https://zenn.dev/ytaki0801/articles/c396e3c7d46d0f00ac90)
+- [The Design and Implementation of Typed Scheme](https://www2.ccs.neu.edu/racket/pubs/popl08-thf.pdf)
+- [厳密な仕様記述入門](https://www.ipa.go.jp/files/000026829.pdf)
+- 直観主義命題論理の決定性をCoqで証明した話
+  - slide : https://www.slideshare.net/qnighy/proving-decidability-of-intuitionistic-propositional-calculus-on-coq
+  - GitHub : https://github.com/qnighy/IPC-Coq
+- [Linear Logic Handouts](http://www.cs.cmu.edu/~fp/courses/linear/handouts.html)
+- [Comparison of Two Theorem Provers: Isabelle/HOL and Coq](https://arxiv.org/abs/1808.09701)
+- [線形ラムダ計算の型システムを実装してみた]
+ - Blog : https://letexpr.hatenablog.com/entry/2018/11/15/222959
+ - GitHub : https://github.com/na0214/linear-lambda-calculus
+- [GC撲滅への道 - GC Advent Calendar](https://miura1729.hatenadiary.org/entry/20121205/1354633325)
+- 依存型を使った、型安全なMutable Stateを扱うインタプリタ(STLC+Ref)
+  - Blog : https://opfer-10155.hatenablog.com/entry/2020/11/12/181405
+  [依存型による単純型付きλ計算(STLC)のインタプリタ https://opfer-10155.hatenablog.com/entry/2020/10/28/015806]の続き
+  - GitHub : https://github.com/metaborg/mj.agda
+- [読書案内(大和谷 潔)](http://www.jaist.ac.jp/~kiyoshiy/reading/index.html)
+- [A Lisp Way to Type Theory and Formal Proofs](https://hal.archives-ouvertes.fr/hal-01563373/document)
+- [Algebraic Effectsの型システム入門](https://nymphium.github.io/2019/08/10/ae-type-system.html)
+- [Algebraic effects 自習用資料まとめ](https://medium.com/@kuy/algebraic-effects-自習用資料まとめ-e589fa74607d)
+- [パターンマッチ指向プログラミング言語Egisonとその上に実装された数式処理システム](https://www.egison.org/download/20180916MLDay2.pdf)
+- [From Krivine’s machine to the Caml implementations](https://xavierleroy.org/talks/zam-kazam05.pdf)
+- [Linear Logic and Intuitionistic Logic](https://www.cairn.info/revue-internationale-de-philosophie-2004-4-page-449.htm)
+- [相意味論に関する線型論理の健全性](https://github.com/rharuyama/soundness-for-linear-logic-regarding-phase-semantics)
+- [線形論理の圏論的意味論(サーベイ)](https://github.com/rharuyama/categorical-semantics-of-linear-logic-pub)
+- [Why Type Theory matters](https://www.youtube.com/watch?v=DllYOFw5Qio)
+- [FStar Tips(艮 鮟鱇)](https://anqou.net/teqblog/2020/09/fstar-tips/)
+- [私の基礎研究 – 計算と論理を巡って –](https://www.fos.kuis.kyoto-u.ac.jp/~masahiko/papers/jssst32.pdf)
+- [Build Your Own X ](https://build-your-own-x.vercel.app/)
+- [Normalization for Cubical Type Theory](https://arxiv.org/abs/2101.11479)
+- [項書き換えシステム入門 - 完備化による定理自動証明 -](http://www.nue.ie.niigata-u.ac.jp/toyama/lab-intro/TRS-intro/index.html)
+- [プログラミングする際に今日も役立ってる文献(@ranha)](https://hackmd.io/@ranha/dokugaku)
+- [Definitional Proof-Irrelevance without K](https://hal.inria.fr/hal-01859964v2/document)
+- [証明検証系Mizarを試してみる](https://m-hiyama.hatenablog.com/entry/20161208/1481168410)
+- [Propositions as Types](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.489.4999&rep=rep1&type=pdf)
+- [Inconsistent Type Systems](http://www.cse.chalmers.se/research/group/logic/TypesSS05/Extra/miquel_sl3.pdf)
+- [LLVM Tutorialを勉強するリポジトリ](https://github.com/sonsongithub/llvm-tutorial)
+- [Webassemblyコンパイラを自作しよう](https://zenn.dev/akatsuki/articles/c7a4ece880e54e )
+- [webassemblyの薄い本](https://github.com/ukyo/wasm-usui-book)
+- [話題のFPGAボード: Tang PrimerをWindows10でLチカする]
+  - 本文 : https://fumimaker.net/entry/2020/03/09/222304
+  - GitHub : https://github.com/fumimaker/Hello_TangPrimer
+- [Extending higher-order logic with predicate subtyping](https://hal.inria.fr/hal-01673518v2/document)
+- [線形論理の誕生](https://www.jstage.jst.go.jp/article/sugaku/62/1/62_0621115/_article/-char/ja/)

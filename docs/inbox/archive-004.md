@@ -1,0 +1,63 @@
+- [直観主義論理への招待](https://www.kurims.kyoto-u.ac.jp/~terui/summer2013.pdf)
+- [Programming In Martin-Löf's Type Theory](http://www.cse.chalmers.se/research/group/logic/book/book.pdf)
+- [The collected works of Per Martin-Löf](https://github.com/michaelt/martin-lof)
+- [Semantics of Programming Languages: Structures and Techniques](https://mitpress.mit.edu/books/semantics-programming-languages)
+- [Calculus of Constructions のステージ化](http://pllab.is.ocha.ac.jp/~asai/jpapers/ppl/suzuki06.pdf)
+- [タイプ理論の起源と発展](https://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/151121/1/ronso38_S49_type.pdf)
+- [Semantic-Based Program Verifiers for All Languages](https://dl.acm.org/doi/10.1145/3022671.2984027)
+- [Semantic-Baser Program Verifiers for All languages の紹介](https://gist.github.com/yamarten/9140ee91714f680f0ecb38349a307c62)
+- [Syntax and Semantics of Linear Dependent Types](https://arxiv.org/abs/1405.0033)
+- [General Semantic Construction of Dependent Refinement Type Systems, Categorically](https://arxiv.org/abs/2010.08280)
+- [計算モデルの基礎理論](https://www.iwanami.co.jp/book/b475664.html)
+- Agda による型推論器の定式化
+  - slide : https://www.slideshare.net/ussopyon/agda-45453544
+  - PDF : http://pllab.is.ocha.ac.jp/~asai/jpapers/ppl/kadowaki15.pdf
+    - 続編 [Agda による定式化された型推論器の拡張と改良 http://pllab.is.ocha.ac.jp/~asai/jpapers/ppl/kadowaki16.pdf]
+- [コンピュータサイエンスにおける様相論理](https://www.morikita.co.jp/books/mid/085641)
+- [表示的意味論(2006, 久木田 水生)](https://repository.kulib.kyoto-u.ac.jp/dspace/handle/2433/96270)
+- [Algebraic effects for Functional Programming](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/08/algeff-tr-2016-v3.pdf)
+- [Dependent ML An approach to practical programming with dependent types](https://www.cambridge.org/core/journals/journal-of-functional-programming/article/dependent-ml-an-approach-to-practical-programming-with-dependent-types/4A1FC643ACD49EF31DAF5EB955D2CCC7)
+- [Standard ML Family GitHub Project](https://smlfamily.github.io/)
+- [The History of Standard ML](https://smlfamily.github.io/history/index.html)
+- [A formalization of continuation-passing style calculi in Coq](https://github.com/takanuva/cps)
+- Scheme : A Interpreter for Extended Lambda Calculus
+  - 75 : https://dspace.mit.edu/handle/1721.1/5794
+  - 98 : http://www.cs.ru.nl/~freek/courses/tt-2011/papers/cps/HOSC-11-4-pp405-439.pdf
+- [A Formulae-as-Types Notion of Control]
+  - doi : https://dl.acm.org/doi/10.1145/96709.96714
+  - PDF : https://www.cl.cam.ac.uk/~tgg22/publications/popl90.pdf
+- [Racketの継続オペレータの意味論](https://qiita.com/dico_leque/items/9ca7c5d5c151e8cda66b)
+- [Subtypes for Specifications: Predicate Subtyping in PVS](https://pvs.csl.sri.com/doc/tse98.pdf)
+- [Effects bibliography](https://github.com/yallop/effects-bibliography)
+- [How do you implement Algebraic Effects?](https://nymphium.github.io/pdf/effect_study.html)
+- CPS Semantics: Smoother Nondeterminism in Operational Semantics
+  - hal : https://hal.archives-ouvertes.fr/hal-03255472
+  - PDF : https://www.chargueraud.org/research/2021/cps_semantics/cps_semantics.pdf
+- [An Interval Type Implies Function Extensionality](https://homotopytypetheory.org/2011/04/04/an-interval-type-implies-function-extensionality/)
+- [Scalar and Tensor Parameters for Importing Tensor Index Notation including Einstein Summation Notation](https://arxiv.org/abs/1702.06343)
+- [Equality and dependent type theory](http://www.cse.chalmers.se/~coquand/equality.pdf)
+- [Coq のモジュールさんの気持ちがわかりませんのこと](https://lyrical-logical.hatenadiary.org/entry/20111010/1318255736)
+- [Higher-Order Abstract Syntax](https://www.cs.cmu.edu/~fp/papers/pldi88.pdf)
+- [なんでも継続](http://practical-scheme.net/docs/cont-j.html)
+- [Language Design](https://cs.lmu.edu/~ray/notes/languagedesignnotes/)
+- 型付きλ計算の強正規化定理の形式化
+  - 論文 : http://logic.cs.tsukuba.ac.jp/~sakaguchi/papers/bcthesis.pdf
+  - Github : https://github.com/pi8027/lambda-calculus
+- [計算機に推論できる型、できない型](https://www.wantedly.com/companies/wantedly/post_articles/349494)
+- [GNU Smalltalk 入門](https://wiki.plasticheart.info/gnusmalltalk-primer)
+- [ちょっと Eiffel見物](http://guppy.eng.kagawa-u.ac.jp/~kagawa/publication/eiffel.pdf)
+- [Intuitionism in the Philosophy of Mathematics(Stanford)](https://plato.stanford.edu/entries/intuitionism/)
+- [Michelson：Tezosのスマートコントラクト言語](http://tezos-wiki.jp/wiki/index.php?title=Michelson：Tezosのスマートコントラクト言語)
+- [Trace-Based Control-Flow Analysis](https://hal.inria.fr/hal-03266981/document)
+- [コルーチンを用いた代数的効果の新しい実装方法の提案](http://logic.cs.tsukuba.ac.jp/~sat/pdf/master_thesis.pdf)
+- [One-shot Algebraic Effects as Coroutines](http://logic.cs.tsukuba.ac.jp/~sat/pdf/tfp2020.pdf)
+- [Representing control: a study of the CPS transformation](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.46.84)
+- [構成的集合と公理的集合論入門](https://fuchino.ddo.jp/books/intro-to-set-theory-and-constructibility.pdf)
+- [様相論理の代数的意味論](https://sites.google.com/site/onishitakuro/teaching/advanced-logic-2021)
+- [自作言語の型システムの話](https://qiita.com/cannorin/items/73bacedd11c64293957f)
+- [Rust で Prolog インタプリタ](https://www.youtube.com/watch?v=6_SAhnAovrI)
+- [Agda による PHOAS を用いた CPS 変換の正当性の証明](http://pllab.is.ocha.ac.jp/~asai/jpapers/ppl/ishio18.pdf)
+- “PC”あるいは“Personal Computer”と呼ばれるもの、その変遷を辿る
+  - 連載一覧: https://www.itmedia.co.jp/news/series/21304/
+  - 第一回: https://www.itmedia.co.jp/news/articles/2011/20/news122.html
+- [An Introduction to Algebraic Effects and Handlers. Invited tutorial paper](https://www.sciencedirect.com/science/article/pii/S1571066115000705)

@@ -1,0 +1,63 @@
+- [Bidirectional Typing Rules: A Tutorial](https://davidchristiansen.dk/tutorials/bidirectional.pdf)
+- [A tutorial on call-by-push-value](https://cs.ioc.ee/efftt/levy-slides.pdf)
+- [A pure type system implemented in OCaml ](https://github.com/mmcqd/pure)
+- [A dependent type theory with user defined data types ](https://github.com/mmcqd/datatt)
+- [MinCaml](http://esumii.github.io/min-caml/)
+- [Reproducible Builds](https://reproducible-builds.org/)
+- [Polymorphism is not set-thoeretic](https://hal.inria.fr/inria-00076261/document)
+- [Sets in types, types in sets](https://link.springer.com/chapter/10.1007/BFb0014566)
+- [λprolog の紹介](https://qiita.com/suharahiromichi/items/a046859da0c0883e7304)
+- [a simple implementation of the pure calculus of constructions ](https://github.com/marklemay/calculus-of-constructions)
+- The Little Typer
+  - 出版元 ; https://thelittletyper.com/
+  - GitHub : https://github.com/the-little-typer/pie
+- [CertiCoq](https://github.com/CertiCoq/certicoq)
+- [Normalization by Evaluation(Andreas Abel)](http://www2.tcs.ifi.lmu.de/~abel/talkEAFIT2017.pdf)
+  - https://www.cse.chalmers.se/~abela/talkPPS09.pdf
+- [koka-lang/koka REPL超入門](https://nymphium.github.io/2019/09/15/koka-repl.html)
+- [RustでLチカ](https://misoji-engineer.com/archives/rust-led.html)
+- [Lチカを超えて電子工作をちゃんと知るための「n講」](https://deviceplus.jp/hobby/learning-electronics-01/)
+- [Proof-irrelevance out of excluded-middle and choice in the calculus of constructions](http://doc.rero.ch/record/296148/files/S0956796800001829.pdf)
+- [Thoughts on return, break and continue](https://blog.oberien.de/2022/01/04/thoughts-on-return-break-continue.html)
+- [循環性を受け入れる : 構成主義における可述性の位置づけの変更とその影響](https://repository.kulib.kyoto-u.ac.jp/dspace/handle/2433/173335)
+- A Simplification of Girard's Paradox
+  - https://www.cs.cmu.edu/~kw/scans/hurkens95tlca.pdf
+  - https://link.springer.com/content/pdf/10.1007%2FBFb0014058.pdf
+- Micro C Series
+	1. https://blog.josephmorag.com/posts/mcc0/
+	2. https://blog.josephmorag.com/posts/mcc1/
+	3. https://blog.josephmorag.com/posts/mcc2/
+	4. https://blog.josephmorag.com/posts/mcc3/
+	5. https://blog.josephmorag.com/posts/mcc4/
+- [W-typesによる帰納的データ型の表現](http://msakai.jp/d/20070829.html)
+- [ラムダ計算の型問題を支配する本質的情報について](http://jssst.or.jp/files/user/taikai/2013/ppl5/ppl5-3.pdf)
+- [Lecture Notes on Iris: Higher-Order Concurrent Separation Logic](https://iris-project.org/tutorial-pdfs/iris-lecture-notes.pdf)
+- [lowering async await in rust](https://wiki.cont.run/lowering-async-await-in-rust/)
+- [Dual-context Modal Logic as Left Adjoint of Fitch-style Modal Logic](https://www.jstage.jst.go.jp/article/ipsjjip/27/0/27_77/_pdf)
+  - https://jglobal.jst.go.jp/detail?JGLOBAL_ID=201902265853527423 に抄録あり
+- [Type Inference, Haskell and Dependent Types](https://adam.gundry.co.uk/pub/thesis/)
+- [Coqを用いたソフトウェアスイッチの設計と実装](https://ipsj.ixsq.nii.ac.jp/ej/index.php?active_action=repository_view_main_item_detail&page_id=13&block_id=8&item_id=210108&item_no=1)
+- [An overview of type theories](https://arxiv.org/abs/1411.1029)
+- [Formalizing Simple Refinement Types in Coq](http://www.chargueraud.org/events/coqpl2016/CoqPL_2016_paper_9.pdf)
+- [On Lisp(邦訳)](http://www.asahi-net.or.jp/~kc7k-nd/onlispjhtml/)
+- [F* 言語ワークショップ資料](https://www.slideshare.net/TakuKitamura1/f-238464190)
+- [Web Development for Beginners - A Curriculum](https://github.com/microsoft/Web-Dev-For-Beginners)
+- [Typing is hard](https://3fx.ch/typing-is-hard.html)
+- [dependent sum が dependent product に coding できない理由 (stack overflow)](https://mathoverflow.net/questions/16442/can-dependent-sums-be-encoded-as-dependent-products)
+- [Implement a Dependently Typed Language and Then Some](https://gist.github.com/queertypes/b5c6583783fda7a875c8)
+- [A collection of resources for learning type theory and type theory adjacent fields](https://github.com/jozefg/learn-tt)
+- [「直観主義型理論（ITT, Intuitionistic Type Theory）」勉強会ノート其ノ壱「緒言」「命題と判断」（予習編）](https://cut-elimination.hatenablog.com/entry/2021/04/14/2136)
+- [OCaml の日本語での情報(GitHub)](https://github.com/camlspotter/ocaml-zippy-tutorial-in-japanese)
+- [Lecture notes for a short course on proving/programming in Coq via SSReflect](https://github.com/ilyasergey/pnp)
+- [Categorical Logic Notes](https://github.com/awodey/CatLogNotes)
+- [Hoare Type Theory in Coq](https://github.com/imdea-software/htt)
+- formalized egison
+  - ソースコード: https://github.com/akawashiro/formalized-egison
+  - ブログ記事: https://a-kawashiro.hatenablog.com/entry/2019/12/23/180213
+- [A Dependently Typed Multi-Stage Calculus](https://arxiv.org/abs/1908.02035)
+- [A judgmental reconstruction of modal logic](https://www.cambridge.org/core/journals/mathematical-structures-in-computer-science/article/abs/judgmental-reconstruction-of-modal-logic/975027BB7F07B59619913EAD4CEE52F4)
+- [Hoare Type Theory in Coq](https://github.com/imdea-software/htt)
+- [A proof of cut-elimination theorem in simple type-theory](https://www.jstage.jst.go.jp/article/jmath1948/19/4/19_4_399/_pdf)
+- [構成的数学とその動向](https://www.jstage.jst.go.jp/article/jpssj1968/40/2/40_2_1/_pdf/-char/ja)
+- [SATySFiに多段階計算を入れる構想](https://github.com/gfngfn/SATySFi/wiki/SATySFiに多段階計算を入れる構想)
+- [多段階計算の型システムの基礎](https://www.slideshare.net/bd_gfngfn/ss-232181286)

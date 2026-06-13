@@ -1,0 +1,75 @@
+- [型理論]
+  - 著者：龍田　真
+  - 書籍になっている
+  1. https://www.jstage.jst.go.jp/article/jssst/8/1/8_1_25/_pdf/-char/ja
+  2. https://www.jstage.jst.go.jp/article/jssst/8/2/8_2_136/_pdf/-char/ja
+  3. https://www.jstage.jst.go.jp/article/jssst/8/3/8_3_210/_pdf/-char/ja
+  4. https://www.jstage.jst.go.jp/article/jssst/8/4/8_4_360/_pdf/-char/ja
+- [プログラミング言語の基礎理論]
+  - 著者：大堀　淳
+  - https://www.kyoritsu-pub.co.jp/bookdetail/9784320124509
+- [Lectures on the Curry-Howard isomorphism]
+  - 著者：Morten Heine B. Sørensen , Pawel Urzyczyn
+- [プログラム検証論](https://www.kyoritsu-pub.co.jp/bookdetail/9784320026582)
+  - 著者：林　晋
+  - [[Hoare 論理]]
+- [プログラム意味論の基礎](https://www.saiensu.co.jp/search/?isbn=978-4-7819-1483-1&y=2020)
+  - 著者：小林　直樹, 住井　英二郎
+- [HoTT Book](https://homotopytypetheory.org/book/)
+- [理論計算機科学事典](http://asakura.co.jp/detail.php?book_code=12263)
+- 言語実装 Advent Calendar
+  - [[言語実装]]
+- [Impredicative Strong Existential Equivalent to Type:Type](https://scispace.com/pdf/impredicative-strong-existential-equivalent-to-type-type-18yjckxyfs.pdf)
+  - [[strong sum]] が矛盾する話
+- [Notes on axiomatising Hurkens’s Paradox](https://arxiv.org/pdf/1507.04577.pdf)
+- [An analysis of Girard’s paradox](https://hal.inria.fr/inria-00076023/document)
+- [The computational behaviour of Girard's paradox](https://ecommons.cornell.edu/server/api/core/bitstreams/b0dbc6f1-d16f-432b-ac35-a9a30b7521c6/content)
+- [Coq Library Hurkens](https://coq.inria.fr/library/Coq.Logic.Hurkens.html)
+- [ホモトピー型理論の Progress Report (2013)](https://homotopytypetheory.org/2013/05/20/homotopy-theory-in-type-theory-progress-report/)
+- [Introduction to dependent type theory](http://iml.univ-mrs.fr/~lafont/HETT/coquand1.pdf)
+- [HoTT 覚書](https://m-a-o.hatenablog.com/entry/20120301/p1)
+- [Monadic effects and equational reasonig in Coq](https://github.com/affeldt-aist/monae)
+  - [[Coq]]
+- [非ボックス化型とプリミティブ演算](http://www.kotha.net/ghcguide_ja/7.0.4/primitives.html)
+- [IO モナドと副作用](https://haskell.jp/blog/posts/2020/io-monad-and-sideeffect.html)
+- [RISC-V specification in Coq](https://github.com/mit-plv/riscv-coq)
+  - [[RISC-V]]
+- [ゼロからのOS自作入門(みかん本)](https://book.mynavi.jp/ec/products/detail/id=121220)
+- [この個人サイトは自作OSで動いています](https://seiya.me/this-website-is-now-powered-by-kerla)
+- [Formalization of the Dependent Object Types (DOT) calculus](https://github.com/samuelgruetter/dot-calculus)
+- [Creating Nameless: An Accessible Visual Programming Language](https://medium.com/@nickretallack/creating-nameless-an-accessible-visual-programming-language-1a8984c5478a)
+  - ノードベース？変数みたいな名前付けをなるべくしない
+- [Lambda Prolog](http://www.lix.polytechnique.fr/Labo/Dale.Miller/lProlog/)
+- egison
+  - ホームページ: https://www.egison.org/ja/
+  - Github : https://github.com/egison/egison
+  - 公式チュートリアル : https://www.egison.org/tutorial.pdf
+- Koka
+  - 公式サイト : https://koka-lang.github.io/koka/doc/index.html
+  - Github : https://github.com/koka-lang/koka
+  - 公式入門ページ : https://koka-lang.github.io/koka/doc/book.html
+- [リフレクションの仕組みを作る](https://qiita.com/suharahiromichi/items/9cd109386278b4a22a63)
+  - [[Coq]]
+  - リフレクション（bool と命題の変換）の話
+- [米田テンソル計算](https://m-hiyama.hatenablog.com/entry/2021/11/19/190234)
+- [Implicit argument が絡んで型検査を通らない例](https://lkozima.hatenablog.com/entry/2016/11/27/232815)
+- [Coq Library Classical Fact](https://coq.inria.fr/library/Coq.Logic.ClassicalFacts.html)
+- [Coqのモジュールの基本機能](https://eldesh.hatenablog.com/entry/2022/01/02/232529)
+- [Formalizing Brainfuck in Coq](https://github.com/reynir/Brainfuck)
+- [Propositional logic SAT solver using the DPLL method](https://github.com/benmandrew/Saguaro)
+- [Rust のメモリ管理機能とその特徴](https://garasubo.github.io/hexo/2021/11/07/rust-memory.html)
+- [typed-racket-workshop](https://github.com/degoes-consulting/lambdaconf-2015/tree/master/speakers/markfarrell/typed-racket-workshop)
+- [Linear Dependent Type Theory for Quantum Programming Languages](https://arxiv.org/abs/2004.13472)
+- [コンパイル技法: パターンマッチ](https://zenn.dev/blackenedgold/books/compiling-pattern-matching)
+- [Simple Backus–Naur form (BNF) LaTeX package](https://github.com/Zeta611/simplebnf)
+- [Formalized Refinement types + dependent type](https://github.com/0xd34df00d/refinedt)
+- [Refinement Types for Haskell](http://goto.ucsd.edu/~nvazou/cufp15_liquidHaskell/01-index.html)
+- [Refinement Types: A Tutorial](https://arxiv.org/abs/2010.07763)
+- [A Tutorial on Lamnda Prolog and its Application to Theorem Proving](http://www.lix.polytechnique.fr/~dale/lProlog/felty-tutorial-lprolog97.pdf)
+- [OCaml Programming: Correct + Efficient + Beautiful](https://github.com/cs3110/textbook)
+- [OCaml でゲームボーイエミュレータを書いた話](https://qiita.com/linoscope/items/244d931aaae07df2c27e)
+- [Logic of refinement types](https://link.springer.com/chapter/10.1007/3-540-58085-9_74)
+- [Checking Dependent Types with Normalization by Evaluation: A Tutorial](https://davidchristiansen.dk/tutorials/nbe/)
+- [Should Type Theory replace Set Theory as the Foundation of Mathematics](https://arxiv.org/abs/2111.06368v1)
+- [Type Theory behind GHC internals](https://github.com/lambdaconf/lambdaconf-2018/blob/master/LC18-slides/ghc-tt.pdf)
+- [プログラミング言語周りノート](https://github.com/mizunashi-mana/proglang-notes)

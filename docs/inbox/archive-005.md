@@ -1,0 +1,58 @@
+- [Rustacean のための F# 入門](https://tech.bitbank.cc/fsharp-for-rustacean/)
+- [Handbook of Practical Logic and Automated Reasoning](https://www.cl.cam.ac.uk/~jrh13/atp/)
+- [Computability in Constructive Type Theory](https://ps.uni-saarland.de/~forster/thesis.php)
+- The Theory of Parametricity in Lambda Cube
+  - https://www.kurims.kyoto-u.ac.jp/~kyodo/kokyuroku/contents/pdf/1217-10.pdf
+  - https://www.researchgate.net/publication/228723765_The_Theory_of_Parametricity_in_Lambda_Cube
+- Writing an OS in Rust
+  - 邦訳版: https://os.phil-opp.com/ja/
+- [Haskellでの型レベルプログラミング](https://zenn.dev/mod_poppo/books/haskell-type-level-programming)
+- [低レイヤを知りたい人のためのCコンパイラ](https://www.sigbus.info/compilerbook)
+- Continuity in System T
+  - 記事 : https://prooftheory.blog/2020/05/15/continuity-in-system-t/
+  - Agda : https://cj-xu.github.io/agda/TCont/index.html
+- [Pi-Forall language](https://github.com/sweirich/pi-forall)
+- [Counterexamples in Type Systems](https://counterexamples.org/)
+- [簡易LISP処理系の実装例](https://qiita.com/ytaki0801/items/dcb0fe48cbeab30ac40d)
+- From LCF to HOL: a short history
+  - https://dl.acm.org/doi/10.5555/345868.345890
+  - https://www.cl.cam.ac.uk/archive/mjcg/papers/HolHistory.pdf
+- [仮想機械語シミュレータ](http://www.is.c.titech.ac.jp/~is0000_kashima/MLS/START.html)
+- [What are the differences between MLTT and CIC?](https://proofassistants.stackexchange.com/questions/267/what-are-the-differences-between-mltt-and-cic?stw=2)
+- [Some Domain Theory and Denotational Semantics in Coq](https://www.cs.cmu.edu/~cvarming/papers/archive/domains.pdf)
+- [プログラム意味論とトポロジー --再帰，相互作用，結び目--](https://www.kurims.kyoto-u.ac.jp/~hassei/papers/msj2010sept_slides.pdf)
+- [Cartesian closed categoryについてちょっと書いてみたやつ。](https://wa-iwai.hatenablog.com/entry/2019/12/20/000000)
+- [R5RS](https://schemers.org/Documents/Standards/R5RS/)
+- [F#: How to check that tail recursion calls are optimised](https://alexatnet.com/fsharp-how-to-check-that-tail-recursion-calls-are-optimised/)
+- [Nemerle 入門](https://blog.recyclebin.jp/nemerle)
+- [R5RSのformal semanticsをOCamlで書いた](https://pages.zick.run/2022/r5rsf.html)
+- [F# のコンピュテーション式を使ってコード上でUIをXAMLっぽく書く](https://zenn.dev/flipflap/articles/wpf-with-ces)
+- [Rust でグラフ構造や木構造を作る](https://agtn.hatenablog.com/entry/2017/01/16/151745)
+- [A Classical Sequent Calculus with Dependent Types](https://hal.inria.fr/hal-01519929v3/document)
+- [Typed Equivalence of Effect Handlers and Delimited Control](https://drops.dagstuhl.de/opus/volltexte/2019/10537/)
+- [自然言語における継続とCPS文法](https://mathlog.info/articles/3236)
+- [On the degeneracy of sigma-types in presence of computational classical logic](http://pauillac.inria.fr/~herbelin/articles/tlca-Her05-callcc-sigma-types.pdf)
+- [A Constructive Proof of Dependent Choice, Compatible with Classical Logic](https://doi.org/10.1007/s00153-002-0156-9)
+- [代数的エフェクトを備えた関数型 言語 Koka に対する、エフェクト割り当て最適化](https://prg.is.titech.ac.jp/wp-content/uploads/2021/04/2021-03B-furudono.pdf)
+- [Perceus](https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/)
+- [Type and Effect Systems](http://www.imm.dtu.dk/~fnie/Papers/NiNi99tes.pdf)
+- [The countable reals](https://www.youtube.com/watch?v=4CBFUojXoq4)
+- [Call-by-need and Continuation-passing Style](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.72.3474&rep=rep1&type=pdf)
+- [型付き対称 λ 計算の基礎理論](http://pllab.is.ocha.ac.jp/~asai/jpapers/sakaue.pdf)
+- [STRONG NORMALIZATION OF THE SECOND-ORDER SYMMETRIC LAMBDA–MU CALCULUS](https://staff.aist.go.jp/yoriyuki.yamagata/paper/lambdamu.pdf)
+- [継続｜haskell](http://lotz84.github.io/haskell/continuation.html)
+- [Coroutine モナドとステートマシン](https://myuon.github.io/posts/coroutine-monad-as-state-machine/)
+- [Scheme, Common list, Emacs lisp の比較](https://web.archive.org/web/20030502012659/http://www.ice.nuie.nagoya-u.ac.jp:80/~h003149b/lang/comparison.html)
+- [排中律やPeirce's law](http://chiguri.sblo.jp/category/2791270-3.html)
+- [Curry-Howard correspondence for Classical Logic (MPRI)](http://www.csl.sri.com/users/sgl/Work/Teaching/MPRI/)
+- [Run-time Code Generation and Modal-ML](https://dl.acm.org/doi/10.1145/277650.277727)
+- [A Logical Foundation for Environment Classifiers](http://www.fos.kuis.kyoto-u.ac.jp/~igarashi/papers/classifiers.html)
+- [Call-by-value is dual to call-by-name](https://homepages.inf.ed.ac.uk/wadler/topics/dual.html)
+- [Note for Advanced Functional Programming(Cambridge)](http://ocamllabs.io/iocamljs/)
+- [DSL Implementation in MetaOCaml, Template Haskell, and C++](https://link.springer.com/chapter/10.1007/978-3-540-25935-0_4)
+- [継続とかの話題](https://keens.github.io/blog/2019/06/27/keizokutokanowadaisa_bei/)
+- [プログラミング言語の学会](http://www.kmonos.net/wlog/84.html#_0752080416)
+- [プログラム解析入門](https://docs.google.com/presentation/d/1WHmCLeC5ZPiq2MBOQaZc-pNVWaJanx8eXAkViGl2zws/mobilepresent)
+- [Logic Programming](http://www.cs.cmu.edu/~fp/courses/lp/)
+  - Frank Pfenning による講義
+- [Is it possible to make a recursive closure in Rust?](https://stackoverflow.com/questions/16946888/is-it-possible-to-make-a-recursive-closure-in-rust)
