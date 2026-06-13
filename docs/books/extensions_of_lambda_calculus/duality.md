@@ -156,9 +156,150 @@ CBV との違いとしては、関数適用で、 \(N\) が継続を持つ形に
 ### duality について
 この時点ではそんなに duality が見えない。
 
-## 線形論理
-はのちのちここに書きたい
-
 ## dual calculus
+- Parrigot による lambda mu caluclus
+- Herbelin と Curien による lambda mu mu-tilde calculus
+- Barbanera と Berardi による symmetric lambda calculus
+継続を陽に扱って古典論理に対応する計算体系を定義している。
+ここらへんで、 call by name と call by value が dual という話が出てきたらしい。
+ただ、 reduction 先が複数あって全部の項が equal とみなせたり、ちょっと問題があったりするらしい。
+term と coterm がそれぞれ極性に対応しているので、論理の極性をちゃんとみることでわかりやすくなる。
+
+ここでは Wadler による dual calculus を見る。
+これは古典シーケント計算に対応していて、かつ CBV と CBN の対応が見やすいらしい。
+また、古典論理での双対（ de Morgan 的なもの）も構文レベルで対応が取れる。
+
+\[\begin{aligend}
+\NT{Type} &\defeq \NT{type-var} \\
+& | \NT{Type} \T{and} \NT{type} | \NT{Type} \T{or} \NT{type} \\
+& | \T{neg} \NT{Type} | \NT{Type} \T{implies} \NT{Type} \\
+\\
+\NT{Term} &\defeq \NT{var} \\
+& | \T{pair} \NT{Term} \NT{Term} | \T{inl} \NT{Term} | \T{inr} \NT{Term} | \T{neg} \NT{Coterm} \\
+& | \T{lam} \NT{var} \NT{Term} | \T{abs} \NT{Statement} \NT{co-var} \\
+\\
+\NT{Coterm} &\defeq \NT{co-var} \\
+& | \T{either} \NT{CoTerm} \NT{Coterm} | \T{fst} \NT{Coterm} | \T{snd} \NT{Coterm} | \T{co-neg} \NT{Term} \\
+& | \T{apply} \NT{Term} \NT{Coterm} | \T{co-abs} \NT{var} \NT{Statement} \\
+\\
+\NT{Statement} &\defeq \T{eval} \NT{Term} \NT{Coterm}
+\end{aligned}\]
+term は value を生み出し、 coterm は value を消費する。
+statment は term の cut を行う。
+
+ここでは型変数自体には極性はないらしい。
+シーケントとしてこんな感じに定義する。
+\[\begin{aligned}
+\NT{Ante} &\defeq \text{list of \((\NT{var}, \NT{Type})\)}
+\NT{Succ} &\defeq \text{list of \((\NT{co-var}, \NT{Type})\)}
+\\
+\NT{R-seq} &\defeq \NT{Ante} \T{to} \NT{Succ} \T{|} \NT{Term} \T{:} \NT{Type} \\
+\NT{L-seq} &\defeq \NT{Coterm} \T{:} \NT{Type} \T{|} \NT{Ante} \T{to} \NT{Succ} \\
+\NT{C-seq} &\defeq \NT{Ante} \T{|} \NT{Statement} \T{to} \NT{Succ}
+\end{aligned}\]
+
+computational content としての judgement の解釈：
+- ante にある 各 var に対して value を与えておく。
+- succ にある covar か coterm に対して、value を与える。
+- R-seq \([x: A_i]_i \vdash [\beta_i: B_i]_i | M: B\) の場合、 expression \(M\) を評価すると 「\(B\) の型の値を生み出す」か「\(\beta_i\) になんかの継続を渡す」をやる。
+- L-seq \(K: A | [x_i: A_i]_i \vdash [\beta_i: B_i]_i\) の場合、coterm \(K\) に対して \(A\) の型を持つ value を入れると \(\beta_i\) のいずれかに継続を入れる。
+- C-seq \([x_i: A_i]_i | S \vdash [\beta_i: B_i]_i\) の場合は、 Statement を評価するとどれかに返ってくる。
+
+ルールを書くのはめんどくさい。
+Cut に対応するのは R-seq と L-seq から Statement を得て C-seq にする操作である。
+
+### reduction は？
+普通にやるとこんな感じになる。
+- \(\beta_L\): \(\T{eval} (M, (\T{abs}(x, S)) \to S[x := M]\)
+- \(\beta_R\): \(\T{eval} (\T{co-abs}(S, \alpha), K) \to S[\alpha := K]\) 
+これは合流性を持たない。
+- CBV にするなら \(\beta_L\) の \(M\) は Value のみにする
+- CBN にするなら \(\beta_R\) の \(K\) は Co-Value のみにする
+
+他の部分でも、 \(\T{eval}\) のうち、左側が Value になるようにするのが CBV で、右側が CoValue になるようにするのが CBN になる。
+
+## polarity について
+まあここは後で書く。
+- 古典論理での dual は、 de Morgan の話で、これは \(A\) と \(\neg A\) の入れ替えになっている。ただし、これは値と継続を入れ替える話なので、対応する計算体系には値だけじゃなくて継続を入れるといい。
+- 古典シーケント計算では \(\and\) や \(\or\) の R/L 則に対称性がある。ただし、証明の構築を見るときに、可逆性が消えていたりするので、それを復活させたい。
+- CBV と CBN の dual というのは、ちゃんと値と継続を陽に扱う体系に洗練したときに、どちらを先に簡約していくかに対応している。
 
 ## call by push value
+value と computation をわけるのが call by push value で、ここでいう computation は continuation ではなくて thunk を作るという話になっている。
+そもそも CBV と CBN の duality は value と continuation のどっちを先に見るかという軸での対立になっている。
+だから、 value と continuation を合わせた構文であることが重要。
+一方で、 CBV と CBN の比較として副作用がいつ表れるかを比較するのが、 computational effect の話。
+CBPV は（AIによると） continuation の双対を computation として別枠っぽく見ているととらえられるらしい。
+
+\[\begin{aligned}
+\NT{p-type} &\defeq \T{U} \NT{n-type} | \NT{sum} \NT{p-type} \NT{p-type} | \T{1} | \NT{pair} \NT{n-type} \NT{n-type} \\
+\NT{n-type} &\defeq \T{F} \NT{p-type} | \NT{prod} \NT{n-type} \NT{n-type} | \T{fun} \NT{p-type} \NT{n-type} 
+\end{aligned}]
+
+ここで p-type は value で n-type が computation に対応する。
+- \(\T{U}\) は computation を value にする操作なので、 UB を作るのは thunk で、 UB を消費するのが thunk を起動する force である。
+- \(\T{F}\) は value を computation にする操作で、これは `return  V` に近い。
+
+pair と prod で直積っぽいものが p-type にも n-type にもあるのは、
+- p-type の pair は value の pair で、これは pair にある両方を取り出して `match v with (x, y) => M` してよい。
+- n-type の prod は comp の pair のため、必要に応じてどれかを fst/snd で projection して取り出すことができる。ここでは、 `fst(V, W)` が value にならないように、そもそも fst がついたら computation 側になるような配慮をしている。
+
+\[\begin{aligned}
+\NT{Value} &\defeq \NT{var} | \T{thunk} \NT{Term} \\
+& | \T{inl} \NT{Value} | \T{inr} \NT{Value} \\
+& | \T{pair} \NT{Value} \NT{Value} \\
+\\
+\NT{Term} &\defeq \NT{var} \\
+& | \T{produce} \NT{Value} | \T{force} \NT{Value} \\
+& | \T{let} \T{var} \T{:=} \NT{Value} \T{in} \NT{Term} \\
+& | \T{let2} \NT{Term} \T{to} \NT{var} \T{in} \NT{Term} \\
+& | \T{pm-sum} \NT{Value} \T{with} \T{inl} \NT{var} \T{=>} \NT{Term} \T{|} \T{inr}  \NT{var} \T{=>} \NT{Term} \T{end} \\
+& | \T{pm-pair} \NT{Value} \T{with} \NT{var} \NT{var} \T{=>} \NT{Term}  \\
+& | \T{prod-c} \NT{Term} \NT{Term}  | \T{fst} \NT{Term} | \T{snd} \NT{Term} \\
+& | \T{fun} \NT{var} \NT{Term} | \NT{apply} \NT{Term} \NT{Value} \\
+\end{aligned}\]
+
+let と let2 の比較：
+- let の方は、今すぐに value を得てそれを計算に組み込む。これは文の合成というよりも、命令文？計算上は継続を見ずに V を代入する操作になる。
+- let2 の方はちょっと違って、ここの bind は continuation をとる `let x := [] in N` と continuation の dual っぽい computation の合成操作になっている。つまり、 `() -> A` と `A -> B` の合成に近い。 `produce V` に対応している。
+
+typing は対応しそうな pair と prod と sum と lam については飛ばして書く。
+- \(\Gamma \vdash^c \T{produce} V: \T{F} A\)
+  - \(\Gamma \vdash^v V: A\)
+- \(\Gamma \vdash^v \T{thunk} M: \T{U} B\)
+  - \(\Gamma \vdash^c M: B\)
+- \(\Gamma \vdash^c \T{force} V: B\)
+  - \(\Gamma \vdash^v V: \T{U} B\)
+- \(\Gamma \vdash^c \T{let2} x \T{:=} M \T{in} N: B\)
+  - \(\Gamma \vdash^c M: \T{F} A\)
+  - \(\Gamma, x: A \vdash^c M: B\)
+
+judgement には \(\Gamma \vdash^v \NT{term}: \NT{n-type}\) と \(\Gamma \vdash^c \NT{value}: \NT{p-type}\) の2種類があって、何が value かをこの judgement で定義する。
+
+CK 機械で動作を見る。CEK じゃないのは、環境を考えずにただちに代入を行うから（ closure が生成されない）。
+あと、継続の部分に詰まれることがあまりなくて、 \(M\) だけで話が終わることが多い？気がする。
+lambda に対応するものは確かに継続に push を行うが、 let に対応するものは即座に C 上で代入を行う。この意味では、 let2 が lambda の逆っぽい？
+
+\[\begin{aligned}
+(\T{let}(x, V, M), K) &\to (M[x := M], K) \\
+(\T{let2}(x, M, N), K) &\to (M, (\T{let2}(x, [], N) ::K)) \\
+(\T{produce}(V), (\T{let2}(x, [], N)) K) &\to (N[x := V], K) \\
+(\T{force}(\T{thunk}(M)), K) &\to (M, K) \\
+(\T{pm-pair} (\T{inl} V, (x _ 1, M _ 1), (x _ 2, M _ 2)), K ) &\to (M _ 1[x _ 1 := V] K) \\
+(\T{pm-pair} (\T{inr} V, (x _ 1, M _ 1), (x _ 2, M _ 2)), K ) &\to (M _ 2[x _ 2 := V] K) \\
+(\T{fst} M, K) &\to (M, (\T{fst} [] ):: K) \\
+(\T{snd} M, K) &\to (M, (\T{snd} [] ):: K) \\
+(\T{prod-c} (M _ 1, M _ 2), (\T{fst} [])::K) &\to (M _ 1 , K) \\
+(\T{prod-c} (M _ 1, M _ 2), (\T{snd} [])::K) &\to (M _ 2 , K) \\
+(\T{apply} (M, V)) &\to (M, \T{apply}([], V):: K) \\
+(\T{fun}(x, M), \T{apply}([], V):: K) &\to (M[x := V], K) 
+\end{aligned}\]
+
+
+ちなみに、ここでは computation のうち closed なものに対してのみうまくいく。
+なので、 \(\Gamma\) に対応するような、いつ push されたかわからない variable を取り出そうと思うとちょっと苦労している？
+CK 機械の継続 \(K\) を computation として型付けするような judgement を定義している。
+
+### CBV や CBN との関係
+CBV 側の \(A \to B\) は \(T{U} (A \to \T{F} B)\) として考えることができる。
+CBN 側の \(A \to B\) は \(\T{U} A \to B\) として考えることができる。

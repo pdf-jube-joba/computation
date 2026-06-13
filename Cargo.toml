@@ -21,7 +21,7 @@ members = [
   "models/pcf",
   "models/while_with_data",
   "models/others"
-, "models/async_await", "models/krivine_machine", "models/pure_lisp"]
+, "models/async_await", "models/krivine_machine", "models/pure_lisp", "models/duals"]
 
 exclude = [
   "*/dist",
