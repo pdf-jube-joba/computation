@@ -1,6 +1,6 @@
 # cli
 
-`cli` loads wasm components built under `.repo/generated/build-wasm/` by default.
+`cli` loads wasm components built under `wasm_bundle/` by default.
 If needed, set `COMPUTATION_COMPONENT_DIR` to point to a different directory.
 
 `pipe-machine` is the one-shot interface.

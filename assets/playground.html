@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Computation Playground</title>
+  <link rel="stylesheet" href="./playground.css">
+</head>
+<body>
+  <main class="pg-shell">
+    <section class="pg-hero">
+      <p class="pg-kicker">Computation Playground</p>
+      <h1>生成済み model を切り替えて試す</h1>
+      <p class="pg-lead">
+        <code>/wasm_bundle/</code> の成果物を自動列挙して、その場で読み込みます。
+      </p>
+    </section>
+
+    <section class="pg-toolbar">
+      <label class="pg-control">
+        <span>Model</span>
+        <select id="model-select"></select>
+      </label>
+      <button id="reload-button" type="button">Reload</button>
+      <div id="status-text" class="pg-status" aria-live="polite"></div>
+    </section>
+
+    <section class="pg-layout">
+      <aside class="pg-sidebar">
+        <div class="pg-card">
+          <h2>Current Bundle</h2>
+          <dl class="pg-meta">
+            <div>
+              <dt>Selected</dt>
+              <dd id="selected-model">-</dd>
+            </div>
+            <div>
+              <dt>Count</dt>
+              <dd id="model-count">-</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="pg-card">
+          <h2>Artifacts</h2>
+          <ul class="pg-links">
+            <li><a id="js-link" href="#" target="_blank" rel="noreferrer">JavaScript glue</a></li>
+            <li><a id="component-link" href="#" target="_blank" rel="noreferrer">Component wasm</a></li>
+            <li><a id="core-link" href="#" target="_blank" rel="noreferrer">Core wasm</a></li>
+          </ul>
+        </div>
+      </aside>
+
+      <section class="pg-stage">
+        <div id="playground-root" class="pg-model-host"></div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./playground.js"></script>
+</body>
+</html>

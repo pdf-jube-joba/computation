@@ -28,7 +28,7 @@ fn resolve_component_path(name: &str) -> PathBuf {
 fn component_directory(workspace: &Path) -> PathBuf {
     std::env::var_os("COMPUTATION_COMPONENT_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| workspace.join(".repo").join("generated").join("build-wasm"))
+        .unwrap_or_else(|| workspace.join("wasm_bundle"))
 }
 
 fn new_engine() -> Result<Engine> {

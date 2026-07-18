@@ -15,11 +15,13 @@
     - [example counter（動いている見本）](./models/_example_counter/README.md)
     - [Model 一覧](./md/directory_view.html?link=Model)
     - [Compiler 一覧](./md/directory_view.html?link=Model)
+    - [Playground](./assets/playground.html)
 
 ## 内容とディレクトリ構成
 - `rust` 言語で各計算モデルの実装をしてます
     - `rust` 言語からコンパイルした `wasm` と `javascript` を用いてブラウザで動いているのを見れるようにしました。   
     - `WIT + component` と `jco` を使って、 `rust` から `wasm component` を作り、 `js` から利用するためのコードを生成します。
+    - 生成済みの browser 向け成果物は repo 直下の `wasm_bundle/` に出ます。
 - ブラウザで md が編集までできて、 `wasm` とかモデルを動かすことができます。
 
 ### 計算モデルについて
@@ -40,7 +42,7 @@
         1. `cargo build {model} --target wasm32-unknown-unknown` で wasm にビルドする
         2. `wasm-tools` で wasm の component 化
         3. `jco` で component のグルーコードを作る（ブラウザがまだ対応してない）
-        4. できた wasm 成果物を plugin の指定場所に入れる
+        4. できた wasm 成果物を `wasm_bundle/` に出力する
 
 ## 必要なもの
 - `rust` 周り

@@ -12,6 +12,7 @@ runner = "command"
 command = ["node", "./plugins/mount_model/build.mjs", "--clean"]
 allow = ["me"]
 mount = "/wasm_bundle/"
+source = "wasm_bundle/"
 
 [[plugin]]
 name = "md-preview"
