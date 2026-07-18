@@ -17,3 +17,4 @@
 - [Distributed Systems Programming Has Stalled](https://www.shadaj.me/writing/distributed-programming-stalled)
 - [C# の async/await は実際にどうやって動いているか。](https://blog.neno.dev/entry/2023/05/27/152855)
 - [何故 C# を好むのか。～他の言語と比較しながら～](https://blog.neno.dev/entry/2025/04/14/130323)
+- [Lecture Notes on Sax: Imperative Intermidiate Language](https://www.cs.cmu.edu/~fp/courses/15417-s25/lectures/)
