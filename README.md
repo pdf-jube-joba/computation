@@ -9,9 +9,11 @@
 - インタプリタとかコンパイラを動かす。
 
 ## 動かし方（簡単に）
-- `plugins/` 以下のそれぞれのディレクトリで `npm install`
-- `cargo run --bin workspace_fs -- ./ --task build-all`
-- ブラウザで `localhost:3000/md/md_preview.html?path=README.md` を閲覧。
+- `_wfs/` に submodule を持ってくる: `git submodule update --init --recursive`
+- rust で wasm 向けターゲットと wasm-tools を入れる
+- `plugins/*` と `_wfs/default_plugins/md_preview/` で `npm install`
+- `_wfs/` に移動して `cargo run -- ../` で起動、 `task build` と打つ。
+- ブラウザで (README.md)[localhost:3000/md/md_preview.html?path=README.md] を閲覧。
     - [example counter（動いている見本）](./models/_example_counter/README.md)
     - [Model 一覧](./md/directory_view.html?link=Model)
     - [Compiler 一覧](./md/directory_view.html?link=Model)
