@@ -22,17 +22,6 @@ repository = "local"
 plugin = "md-preview"
 
 [[task]]
-name = "build-ocaml"
-
-[[task.step]]
-repository = "local"
-plugin = "build-ocaml"
-
-[[task.step]]
-repository = "local"
-plugin = "md-preview"
-
-[[task]]
 name = "build"
 
 [[task.step]]

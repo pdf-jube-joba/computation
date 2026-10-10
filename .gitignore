@@ -2,10 +2,12 @@
 AGENTS.md
 out
 wasm_bundle
-ocaml_bundle
 node_modules
 vendor
 generated
 .repo/cache/
 .repo/generated/
 .codex
+
+/_build/
+*.install

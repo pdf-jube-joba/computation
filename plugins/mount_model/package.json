@@ -1,8 +1,5 @@
 {
   "name": "computation-mount-model",
   "private": true,
-  "type": "module",
-  "dependencies": {
-    "@bytecodealliance/jco": "^1.14.0"
-  }
+  "type": "module"
 }

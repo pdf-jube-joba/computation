@@ -1,0 +1,663 @@
+{
+  "version": 1,
+  "description": "All Markdown data-model mounts under models/, docs/, and test.md plus OCaml semantic-test-derived supplemental programs. Templates retain the documented defaults. Every concrete registry implementation must execute successfully; known aliases identify the same API explicitly. Missing endpoints and implementations without runnable coverage fail. --refresh updates the Markdown inventory separately.",
+  "stepInputs": {
+    "lambda_calculus": "0"
+  },
+  "expectedKinds": {
+    "cfg_vreg": "model",
+    "example_counter": "model",
+    "flow_ir": "model",
+    "goto_lang": "model",
+    "lambda_calculus": "model",
+    "logic_circuit": "model",
+    "rec_tm_ir": "model",
+    "rec_tm_ir_jump": "model",
+    "recursive_function": "model",
+    "symbolic_asm": "model",
+    "tiny_isa": "model",
+    "turing_machine": "model",
+    "example_counter-example_counter": "compiler",
+    "recursive_function-lambda_calculus": "compiler",
+    "recursive_function-goto_lang": "compiler",
+    "rec_tm_ir-rec_tm_ir_jump": "compiler",
+    "rec_tm_ir_jump-turing_machine": "compiler",
+    "expr_lang": "model",
+    "proc_lang": "model",
+    "internal_ctrl": "model",
+    "fn_ptr": "model",
+    "mini_prog": "model",
+    "pcf-expr": "model",
+    "pcf-expr-stmt-cek": "model",
+    "pcf-cek": "model",
+    "pcf-secd": "model",
+    "lambda_continuations": "model",
+    "coroutine": "model",
+    "strarr": "model",
+    "strtree": "model",
+    "async_await": "model",
+    "expr_to_flow_ir": "compiler",
+    "internal_ctrl_to_flow_ir": "compiler",
+    "proc_to_flow_ir": "compiler",
+    "pcf-expr-cek": "compiler",
+    "pcf-expr-secd": "compiler",
+    "recursive_function-rec_tm_ir": "compiler",
+    "recursive_function-turing_machine": "compiler",
+    "recursive_function_goto_lang": "compiler",
+    "recursive_function_lambda_calculus": "compiler"
+  },
+  "compilerTargets": {
+    "example_counter-example_counter": {
+      "source": "example_counter",
+      "target": "example_counter"
+    },
+    "recursive_function-lambda_calculus": {
+      "source": "recursive_function",
+      "target": "lambda_calculus"
+    },
+    "recursive_function-goto_lang": {
+      "source": "recursive_function",
+      "target": "goto_lang"
+    },
+    "rec_tm_ir-rec_tm_ir_jump": {
+      "source": "rec_tm_ir",
+      "target": "rec_tm_ir_jump"
+    },
+    "rec_tm_ir_jump-turing_machine": {
+      "source": "rec_tm_ir_jump",
+      "target": "turing_machine"
+    },
+    "expr_to_flow_ir": {
+      "source": "expr_lang",
+      "target": "flow_ir"
+    },
+    "internal_ctrl_to_flow_ir": {
+      "source": "internal_ctrl",
+      "target": "flow_ir"
+    },
+    "proc_to_flow_ir": {
+      "source": "proc_lang",
+      "target": "flow_ir"
+    },
+    "pcf-expr-cek": {
+      "source": "pcf-expr",
+      "target": "pcf-cek"
+    },
+    "pcf-expr-secd": {
+      "source": "pcf-expr",
+      "target": "pcf-secd"
+    },
+    "recursive_function-rec_tm_ir": {
+      "source": "recursive_function",
+      "target": "rec_tm_ir"
+    },
+    "recursive_function-turing_machine": {
+      "source": "recursive_function",
+      "target": "turing_machine"
+    }
+  },
+  "exclusions": [],
+  "fixtures": [
+    {
+      "id": "docs/books/low_layer/assembly.md#1",
+      "source": "docs/books/low_layer/assembly.md",
+      "line": 15,
+      "model": "symbolic_asm",
+      "templates": {}
+    },
+    {
+      "id": "docs/books/low_layer/cfg_vreg.md#1",
+      "source": "docs/books/low_layer/cfg_vreg.md",
+      "line": 10,
+      "model": "cfg_vreg",
+      "templates": {}
+    },
+    {
+      "id": "docs/books/models_of_computation/Turing_machine.md#1",
+      "source": "docs/books/models_of_computation/Turing_machine.md",
+      "line": 14,
+      "model": "turing_machine",
+      "templates": {
+        "code": "start\ngoal\na,start,b,start,R\nb,start,b,start,R\nc,start,c,goal,C",
+        "ainput": "-|a|b,a,b,b,c"
+      }
+    },
+    {
+      "id": "docs/books/models_of_computation/Turing_machine.md#2",
+      "source": "docs/books/models_of_computation/Turing_machine.md",
+      "line": 29,
+      "model": "turing_machine",
+      "templates": {
+        "code": "s\ng\na,s,a,s,R\n-,s,-,g,C\nb,s,b,k,R\nb,k,b,k,R\n-,k,-,g,C\na,k,b,b,L\nb,b,a,r,L\nb,r,b,r,L\na,r,a,r,L\nx,r,x,s,R",
+        "ainput": "x|b|a,a,b"
+      }
+    },
+    {
+      "id": "docs/books/models_of_computation/computability.md#1",
+      "source": "docs/books/models_of_computation/computability.md",
+      "line": 28,
+      "model": "recursive_function-lambda_calculus",
+      "templates": {
+        "code": "let zf = PROJ[1,0].\nlet sf = COMP[SUCC: PROJ[3,0]].\nlet add = PRIM[z: zf s: sf].\nadd",
+        "ainput": "(2, 3)"
+      }
+    },
+    {
+      "id": "docs/books/models_of_computation/goto_lang.md#1",
+      "source": "docs/books/models_of_computation/goto_lang.md",
+      "line": 16,
+      "model": "goto_lang",
+      "templates": {
+        "code": "cpy y2 <- y;\ninc z;\ndec y2;\nifnz y2 : 1;\ndec x;\nifnz x : 0;",
+        "ainput": "x = 3\ny = 4"
+      }
+    },
+    {
+      "id": "docs/books/models_of_computation/lambda_calculus.md#1",
+      "source": "docs/books/models_of_computation/lambda_calculus.md",
+      "line": 19,
+      "model": "lambda_calculus",
+      "templates": {
+        "code": "(\\x. x) y"
+      }
+    },
+    {
+      "id": "docs/books/models_of_computation/lambda_calculus.md#2",
+      "source": "docs/books/models_of_computation/lambda_calculus.md",
+      "line": 34,
+      "model": "lambda_calculus",
+      "templates": {
+        "code": "(\\ x y z. (y ((x y) z))) (\\s z. (s (s z)))"
+      }
+    },
+    {
+      "id": "docs/books/models_of_computation/recursive_function.md#1",
+      "source": "docs/books/models_of_computation/recursive_function.md",
+      "line": 13,
+      "model": "recursive_function",
+      "templates": {
+        "code": "let zf = PROJ[1,0].\nlet sf = COMP[SUCC: PROJ[3,0]].\nlet add = PRIM[z: zf s: sf].\nadd",
+        "ainput": "(3, 4)"
+      }
+    },
+    {
+      "id": "docs/books/structured_programming/README.md#1",
+      "source": "docs/books/structured_programming/README.md",
+      "line": 8,
+      "model": "tiny_isa",
+      "templates": {}
+    },
+    {
+      "id": "models/_example_counter/README.md#1",
+      "source": "models/_example_counter/README.md",
+      "line": 9,
+      "model": "example_counter",
+      "templates": {
+        "code": "3",
+        "rinput": "inc"
+      }
+    },
+    {
+      "id": "models/_example_counter/README.md#2",
+      "source": "models/_example_counter/README.md",
+      "line": 18,
+      "model": "example_counter-example_counter",
+      "templates": {
+        "code": "7",
+        "rinput": "dec"
+      }
+    },
+    {
+      "id": "models/flow_ir/README.md#1",
+      "source": "models/flow_ir/README.md",
+      "line": 27,
+      "model": "flow_ir",
+      "templates": {}
+    },
+    {
+      "id": "models/logic_circuit/README.md#1",
+      "source": "models/logic_circuit/README.md",
+      "line": 162,
+      "model": "logic_circuit",
+      "templates": {
+        "code": "graph: main {\n    in {I}\n    out {O=A.OUT}\n    B, BR-F {IN=I}\n    N, NOT-T {IN=B.OUT0}\n    A, AND-F {IN0=B.OUT1, IN1=N.OUT}\n}",
+        "ainput": ""
+      }
+    },
+    {
+      "id": "models/rec-lam/README.md#1",
+      "source": "models/rec-lam/README.md",
+      "line": 64,
+      "model": "recursive_function-lambda_calculus",
+      "templates": {
+        "code": "PRIM[z: PROJ[1, 0] s: COMP[SUCC: PROJ[3, 0]]]",
+        "ainput": "(2, 3)"
+      }
+    },
+    {
+      "id": "models/rec-tm/src/rec_tm_ir/IR1.md#1",
+      "source": "models/rec-tm/src/rec_tm_ir/IR1.md",
+      "line": 57,
+      "model": "rec_tm_ir",
+      "templates": {}
+    },
+    {
+      "id": "models/rec-tm/src/rec_tm_ir/IR1_IR2.md#1",
+      "source": "models/rec-tm/src/rec_tm_ir/IR1_IR2.md",
+      "line": 76,
+      "model": "rec_tm_ir-rec_tm_ir_jump",
+      "templates": {}
+    },
+    {
+      "id": "models/rec-tm/src/rec_tm_ir_jump/IR2.md#1",
+      "source": "models/rec-tm/src/rec_tm_ir_jump/IR2.md",
+      "line": 26,
+      "model": "rec_tm_ir_jump",
+      "templates": {}
+    },
+    {
+      "id": "models/rec-tm/src/rec_tm_ir_jump/IR2_tm.md#1",
+      "source": "models/rec-tm/src/rec_tm_ir_jump/IR2_tm.md",
+      "line": 28,
+      "model": "rec_tm_ir_jump-turing_machine",
+      "templates": {}
+    },
+    {
+      "id": "models/turing_machine/README.md#1",
+      "source": "models/turing_machine/README.md",
+      "line": 217,
+      "model": "turing_machine",
+      "templates": {
+        "code": "start\ngoal\na,start,b,start,R\nb,start,b,start,R\nc,start,c,goal,C",
+        "ainput": "-|a|b,a,b,b,c"
+      }
+    },
+    {
+      "id": "test.md#1",
+      "source": "test.md",
+      "line": 97,
+      "model": "example_counter",
+      "templates": {
+        "code": "5",
+        "rinput": "inc"
+      }
+    },
+    {
+      "id": "test.md#2",
+      "source": "test.md",
+      "line": 107,
+      "model": "example_counter",
+      "templates": {
+        "code": "8",
+        "rinput": "inc"
+      }
+    },
+    {
+      "id": "test.md#3",
+      "source": "test.md",
+      "line": 118,
+      "model": "example_counter-example_counter",
+      "templates": {
+        "code": "8",
+        "rinput": "inc"
+      }
+    }
+  ],
+  "supplemental": [
+    {
+      "id": "supplemental:goto_lang",
+      "model": "goto_lang",
+      "templates": {
+        "code": "cpy y2 <- y;\ninc z;\ndec y2;\nifnz y2 : 1;\ndec x;\nifnz x : 0;",
+        "ainput": "x = 3\ny = 4",
+        "rinput": ""
+      },
+      "note": "The documented multiplication program with required semicolons.",
+      "evidence": "tests/core_test.ml exercises Goto parsing, assignment steps and snapshot/restore; the supplemental terminated program is the corrected docs/books/models_of_computation/goto_lang.md default."
+    },
+    {
+      "id": "supplemental:logic_circuit",
+      "model": "logic_circuit",
+      "templates": {
+        "code": "graph: main {\n    in {I}\n    out {O=A.OUT}\n    B, BR-F {IN=I}\n    N, NOT-T {IN=B.OUT0}\n    A, AND-F {IN0=B.OUT1, IN1=N.OUT}\n}",
+        "ainput": "",
+        "rinput": "main.I=#true"
+      },
+      "note": "The documented one-shot circuit exported as main; exercises a nonempty typed signal.",
+      "evidence": "models/logic_circuit/test/test_logic_circuit.ml verifies graph: main parsing, typed main.I signals, snapshot restoration, and the one-shot circuit from Example.utils_map."
+    },
+    {
+      "id": "supplemental:tiny_isa",
+      "model": "tiny_isa",
+      "templates": {
+        "code": "0\n64",
+        "ainput": "0,0,0,0,0,0,0,0",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/tiny_isa/test/isa_tests.ml verifies Nop stepping, Halt decoding as word 64, zero-initialized eight-register input, and text roundtrip of [0;64;...]."
+    },
+    {
+      "id": "supplemental:symbolic_asm",
+      "model": "symbolic_asm",
+      "templates": {
+        "code": "nop;\nhalt;",
+        "ainput": "0,0,0,0,0,0,0,0",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/tiny_isa/test/isa_tests.ml explicitly uses assembly \"nop;\\nhalt;\" and compares the next snapshot after restoration."
+    },
+    {
+      "id": "supplemental:cfg_vreg",
+      "model": "cfg_vreg",
+      "templates": {
+        "code": "@main {\n  %v0 := #1;\n  goto #0;\n}",
+        "ainput": "()",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/tiny_isa/test/isa_tests.ml exercises virtual-register assignment, whole-block steps, goto #0, tuple input parsing, and snapshot restoration."
+    },
+    {
+      "id": "supplemental:flow_ir",
+      "model": "flow_ir",
+      "templates": {
+        "code": ":main {\n  :entry {\n    nop;\n    halt;\n  }\n}",
+        "ainput": "",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/flow_ir/test/test_flow_ir.ml parses region/block programs with nop and halt, tests generated text roundtrips and state restoration."
+    },
+    {
+      "id": "supplemental:rec_tm_ir",
+      "model": "rec_tm_ir",
+      "templates": {
+        "code": "alphabet: (a, b)\nfn main() {\n  label entry: {\n    @ := const a\n    RT\n  }\n}",
+        "ainput": "|-|",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/rec-tm/test/test_rec_tm.ml equivalent cases exercise alphabet declarations, fn main/label entry, constant head assignment and RT movement on empty and populated tapes."
+    },
+    {
+      "id": "supplemental:rec_tm_ir_jump",
+      "model": "rec_tm_ir_jump",
+      "templates": {
+        "code": "alphabet: (a, b)\n@ := const a\nRT",
+        "ainput": "|-|",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/rec-tm/test/test_rec_tm.ml exercises Rec_tm_ir_jump parsing and execution of alphabet declarations, head assignments, and RT; equivalent checks compare IR/jump/Turing outputs."
+    },
+    {
+      "id": "supplemental:rec_tm_ir-rec_tm_ir_jump",
+      "model": "rec_tm_ir-rec_tm_ir_jump",
+      "templates": {
+        "code": "alphabet: (a, b)\nfn main() {\n  label entry: {\n    @ := const a\n    RT\n  }\n}",
+        "ainput": "|-|",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/rec-tm/test/test_rec_tm.ml equivalent compiles source IR with Compile_jump, parses generated jump text, and checks source/jump execution equivalence."
+    },
+    {
+      "id": "supplemental:rec_tm_ir_jump-turing_machine",
+      "model": "rec_tm_ir_jump-turing_machine",
+      "templates": {
+        "code": "alphabet: (a, b)\n@ := const a\nRT",
+        "ainput": "|-|",
+        "rinput": ""
+      },
+      "note": "Runnable coverage for an empty documented mount; these inputs are explicit supplements, not replacements for documented defaults.",
+      "evidence": "models/rec-tm/test/test_rec_tm.ml equivalent compiles jump IR with Compile_tm, parses generated Turing text, and checks jump/Turing execution equivalence."
+    },
+    {
+      "id": "supplemental:recursive_function-goto_lang",
+      "model": "recursive_function-goto_lang",
+      "templates": {
+        "code": "SUCC",
+        "ainput": "(3)",
+        "rinput": ""
+      },
+      "note": "Additional registered compiler coverage; the README has no embedded default for this compiler.",
+      "evidence": "models/rec-goto/tests/compiler_tests.ml checks successor compilation with typed and printable APIs and compares source/target evaluations."
+    },
+    {
+      "id": "supplemental:expr_lang",
+      "model": "expr_lang",
+      "templates": {
+        "code": "x := 0 ; while x < 3 [ x := x + 1 ]",
+        "ainput": "",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_expr: loop evaluates x to 3."
+    },
+    {
+      "id": "supplemental:internal_ctrl",
+      "model": "internal_ctrl",
+      "templates": {
+        "code": "static x, y; loop :outer ( if x < 3 { x := x + 1; continue :outer }; break :outer x ) -> y",
+        "ainput": "x = 0\ny = 0",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_ctrl: labeled loop produces x = 3, y = 3."
+    },
+    {
+      "id": "supplemental:proc_lang",
+      "model": "proc_lang",
+      "templates": {
+        "code": "static out;\ninc(x)[local y y := x + 1;return y]\nmain()[local a, b a := 5;call inc(a) -> b;out := b;return]",
+        "ainput": "out = 0",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_proc: procedure call produces out = 6."
+    },
+    {
+      "id": "supplemental:fn_ptr",
+      "model": "fn_ptr",
+      "templates": {
+        "code": "fn inc(ptr) {assign (ld ptr) #loc := (ld (ld ptr) #loc) + 1;return}\nfn main(x) {assign x := 4;call inc(x #addr);return}",
+        "ainput": "",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_fnptr: callee writes through the caller address, producing loc(0, 0) = 5."
+    },
+    {
+      "id": "supplemental:mini_prog",
+      "model": "mini_prog",
+      "templates": {
+        "code": "fn main(x: #num){return ld local x}",
+        "ainput": "(7)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_mini: typed main argument returns 7."
+    },
+    {
+      "id": "supplemental:expr_to_flow_ir",
+      "model": "expr_to_flow_ir",
+      "templates": {
+        "code": "x := 0 ; while x < 3 [ x := x + 1 ]",
+        "ainput": "",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_expr: typed Expr compiler, target text roundtrip and source/target output equality."
+    },
+    {
+      "id": "supplemental:internal_ctrl_to_flow_ir",
+      "model": "internal_ctrl_to_flow_ir",
+      "templates": {
+        "code": "static x, y; loop :outer ( if x < 3 { x := x + 1; continue :outer }; break :outer x ) -> y",
+        "ainput": "x = 0\ny = 0",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_ctrl: typed control compiler and source/Flow IR evaluation equivalence for this exact program."
+    },
+    {
+      "id": "supplemental:proc_to_flow_ir",
+      "model": "proc_to_flow_ir",
+      "templates": {
+        "code": "static out;\ninc(x)[local y y := x + 1;return y]\nmain()[local a, b a := 5;call inc(a) -> b;out := b;return]",
+        "ainput": "out = 0",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/structured_lang/test/test_structured_lang.ml test_proc: typed procedure compiler and source/Flow IR evaluation equivalence for this exact program."
+    },
+    {
+      "id": "supplemental:pcf-expr",
+      "model": "pcf-expr",
+      "templates": {
+        "code": "fun x => fun y => inc (x - y)",
+        "ainput": "(10, 3)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/pcf/tests/pcf_tests.ml differential: direct expression, CEK and SECD machines return 8 for this program/input."
+    },
+    {
+      "id": "supplemental:pcf-cek",
+      "model": "pcf-cek",
+      "templates": {
+        "code": "fun x => fun y => inc (x - y)",
+        "ainput": "(10, 3)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/pcf/tests/pcf_tests.ml differential: direct expression, CEK and SECD machines return 8 for this program/input."
+    },
+    {
+      "id": "supplemental:pcf-expr-stmt-cek",
+      "model": "pcf-expr-stmt-cek",
+      "templates": {
+        "code": "{ print 1; 2 } + { print 3; 4 }",
+        "ainput": "()",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/pcf/tests/pcf_tests.ml stmt: prints 1, then 3, and returns 6."
+    },
+    {
+      "id": "supplemental:pcf-secd",
+      "model": "pcf-secd",
+      "templates": {
+        "code": "[{\"PushNat\":2},{\"PushNat\":3},{\"BinOp\":\"Add\"}]",
+        "ainput": "()",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/pcf/tests/pcf_tests.ml direct Secd_machine.parse_code fixture evaluates the instruction sequence to 5."
+    },
+    {
+      "id": "supplemental:pcf-expr-cek",
+      "model": "pcf-expr-cek",
+      "templates": {
+        "code": "fun x => fun y => inc (x - y)",
+        "ainput": "(10, 3)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/pcf/tests/pcf_tests.ml differential: typed compiler, generated target text parsing and evaluation equivalent to the source result 8."
+    },
+    {
+      "id": "supplemental:pcf-expr-secd",
+      "model": "pcf-expr-secd",
+      "templates": {
+        "code": "fun x => fun y => inc (x - y)",
+        "ainput": "(10, 3)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/pcf/tests/pcf_tests.ml differential: typed compiler, generated target text parsing and evaluation equivalent to the source result 8."
+    },
+    {
+      "id": "supplemental:lambda_continuations",
+      "model": "lambda_continuations",
+      "templates": {
+        "code": "rec f x = ifz x then zero else succ succ @(f (pred x))",
+        "ainput": "(2)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/lambda_continuations/tests/continuations_tests.ml: the No_ext machine returns 4 for the double recursion example."
+    },
+    {
+      "id": "supplemental:coroutine",
+      "model": "coroutine",
+      "templates": {
+        "code": "fn main { run child -> $t; if done $t goto +2; yield; x <- 1 }\nfn child { y <- 1 }",
+        "ainput": "1",
+        "rinput": "0"
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/async_await/test/coroutine_tests.ml: one agent enqueues and runs a child task; source test verifies the exact dequeue/run/yield trace and x = y = 1."
+    },
+    {
+      "id": "supplemental:strarr",
+      "model": "strarr",
+      "templates": {
+        "code": "x := ['a', 'b'] ; while x == ['a', 'b'] { x := tail x }",
+        "ainput": "",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/while_with_data/test/data_tests.ml: character-array loop returns x = ['b']."
+    },
+    {
+      "id": "supplemental:strtree",
+      "model": "strtree",
+      "templates": {
+        "code": "x := cons atom 'a' atom 'b' ; y := left x ; z := atom mtoa right x ; ifeq y == atom 'a' then k := right x end",
+        "ainput": "",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/while_with_data/test/data_tests.ml: tree projections and mtoa produce y = a, z = b, k = b."
+    },
+    {
+      "id": "supplemental:recursive_function-rec_tm_ir",
+      "model": "recursive_function-rec_tm_ir",
+      "templates": {
+        "code": "COMP[SUCC: SUCC]",
+        "ainput": "(2)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/rec-tm/test/test_rec_tm.ml: recursive (Comp(Succ,[Succ])) [2] 4 verifies IR compilation, generated IR text parsing, and source/IR/jump/Turing equivalence."
+    },
+    {
+      "id": "supplemental:recursive_function-turing_machine",
+      "model": "recursive_function-turing_machine",
+      "templates": {
+        "code": "SUCC",
+        "ainput": "(2)",
+        "rinput": ""
+      },
+      "note": "Runnable execution coverage for a concrete registry implementation, using an existing OCaml semantic-test example.",
+      "evidence": "models/rec-tm/test/test_rec_tm.ml: full chain text API compiles SUCC, encodes (2), executes target Turing program, and decodes final output as 3."
+    }
+  ],
+  "aliases": {
+    "recursive_function_goto_lang": {
+      "canonical": "recursive_function-goto_lang",
+      "evidence": "registry/registry.ml registers both names with Compiler Recursive_function_goto_lang.api."
+    },
+    "recursive_function_lambda_calculus": {
+      "canonical": "recursive_function-lambda_calculus",
+      "evidence": "registry/registry.ml registers both names with Compiler Recursive_function_lambda_calculus.api."
+    },
+    "async_await": {
+      "canonical": "coroutine",
+      "evidence": "registry/registry.ml registers both names with Model(module Async_await.Machine)."
+    }
+  }
+}

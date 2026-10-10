@@ -191,3 +191,29 @@ CombEnvCompile := List (\(\String\), LogicCircuits) を与える必要がある�
 
 compile-comb: CombEnvCompile Exp \(\function\) LogicCircuits := compile-comb \(E\) \(e\) = 
   - まあ想像できる通りみたいな感じでいけそう
+
+## OCaml implementation status
+
+`src/my_hdl.ml` ports the implemented Rust APIs: `Value_type`, `Value`,
+`typable_value`, the full `comb_exp_val` evaluator (`eval_to_val`),
+`Parser.parse_value` / `Interface.parse_value`, and direct simple-module state
+observation, output evaluation and clock transitions. All original declaration
+and state shapes, including graph and iterator shapes, have Yojson.Safe codecs.
+Graph/iterator direct methods retain their existing dispatch dependencies.
+
+Observable quirks remain: `Value.new_strct` rejects every nonempty field list
+(the source inverted its insertion check); the text parser therefore rejects
+nonempty structs. Expression `StrctConst` directly constructs them. Conditionals
+and switches evaluate every branch. Variable lookup selects the first binding,
+so sequence bindings do not shadow earlier bindings. Combinational calls do not
+check their declared types. Graph output evaluates its transition expression.
+
+The Rust crate never implemented a type/expression/module source parser, simple
+module construction, general module state/output/clock dispatch, or an HDL
+compiler. These remain explicitly unsupported, with descriptive errors for the
+existing unfinished operations. This library exposes no `Utils.Machine.S` or
+compiler API to register. It does not turn the value parser into an invented
+HDL machine. Original design documents remain available as design material;
+their unfinished semantics are not advertised as implemented.
+
+Run `opam exec -- dune runtest models/my_hdl/test` for implemented-function tests.

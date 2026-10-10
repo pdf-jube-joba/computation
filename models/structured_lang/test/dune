@@ -1,0 +1,4 @@
+(test
+ (name test_structured_lang)
+ (modules test_structured_lang)
+ (libraries structured_lang flow_ir utils yojson))

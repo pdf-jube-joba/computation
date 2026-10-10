@@ -1,0 +1,4 @@
+(test
+ (name compiler_tests)
+ (modules compiler_tests)
+ (libraries utils yojson recursive_function goto_lang recursive_function_goto_lang))

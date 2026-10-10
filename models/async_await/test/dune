@@ -1,0 +1,4 @@
+(test
+ (name coroutine_tests)
+ (modules coroutine_tests)
+ (libraries async_await utils yojson))

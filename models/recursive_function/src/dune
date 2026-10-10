@@ -1,0 +1,5 @@
+(library
+ (name recursive_function)
+ (public_name computation.recursive_function)
+ (libraries utils yojson)
+ (preprocess (pps ppx_deriving_yojson)))

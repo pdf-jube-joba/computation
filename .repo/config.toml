@@ -15,14 +15,6 @@ mount = "/wasm_bundle/"
 source = "wasm_bundle/"
 
 [[plugin]]
-name = "build-ocaml"
-runner = "command"
-command = ["node", "./plugins/mount_ocaml/build.mjs"]
-allow = ["me"]
-mount = "/ocaml_bundle/"
-source = "ocaml_bundle/"
-
-[[plugin]]
 name = "md-preview"
 runner = "default"
 allow = ["me"]
@@ -41,7 +33,8 @@ paths = [
   ".codex",
   ".agents",
   "_wfs",
-  "Cargo.lock",
+  "_build",
+  "computation.install",
   "plugins",
 ]
 
