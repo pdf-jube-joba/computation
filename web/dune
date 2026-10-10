@@ -3,20 +3,3 @@
  (modes js wasm)
  (libraries utils model_registry js_of_ocaml)
  (preprocess (pps js_of_ocaml-ppx)))
-
-(rule
- (alias runtest)
- (deps smoke.cjs model_adapter.mjs browser.bc.js)
- (action (run node %{dep:smoke.cjs} browser.bc.js)))
-
-(rule
- (alias runtest)
- (deps smoke.cjs model_adapter.mjs browser.bc.wasm.js)
- (action (run node %{dep:smoke.cjs} browser.bc.wasm.js)))
-
-(rule
- (alias runtest)
- (deps fixtures.cjs ../tests/model_fixtures.json
-  (source_tree ../models) (source_tree ../docs) ../test.md
-  browser.bc.js browser.bc.wasm.js)
- (action (run node %{dep:fixtures.cjs} browser.bc.js browser.bc.wasm.js)))

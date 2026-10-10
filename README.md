@@ -7,21 +7,40 @@ OCaml で計算モデルを実装し、Markdown に埋め込んでブラウザ�
 
 ```sh
 opam install dune yojson ppx_deriving_yojson js_of_ocaml js_of_ocaml-compiler js_of_ocaml-ppx wasm_of_ocaml-compiler
+```
+
+リポジトリルート（`dune-project` があるディレクトリ）で実行します。
+`opam exec --` は、選択中の opam switch の環境で OCaml と Dune を実行します。
+
+```sh
+# 全体をビルド
 opam exec -- dune build @all
+
+# モデルと CLI のテスト
 opam exec -- dune runtest
+
+# ネイティブ CLI をビルドして実行
+opam exec -- dune exec computation -- list
+opam exec -- dune exec pipe-machine -- model example_counter create --code 5
+
+# ブラウザ向け成果物を wasm_bundle/ に配置
 node plugins/mount_model/build.mjs --clean
 ```
 
+`dune build` の成果物は `_build/` に置かれます。
+`node plugins/mount_model/build.mjs` がブラウザ向けの成果物を `wasm_bundle/` に配置します。
+`_wfs` の `task build-wasm` / `task build` も、このスクリプトを実行します。
+
+特定の成果物だけなら `opam exec -- dune build web/browser.bc.wasm.js` のように
+対象を指定します。`opam exec -- dune clean` は `_build/` を削除し、次回は再ビルドします。
+
 WebAssembly のビルドには Binaryen も必要です。opam の依存関係の案内に従ってください。
-API のテストと配信用ビルドには Node.js を使います。
-`dune runtest` には、モデルの意味論・コンパイラの実行結果・CLI・
-Markdown の実行例を JS / Wasm の両方で確認するテストが含まれます。
+CLI のテストと配信用ビルドには Node.js を使います。
 
 ## ブラウザと Markdown
 
 単に HTTP で配信する場合は、リポジトリルートで `python3 -m http.server 8080` を起動し、
-`http://localhost:8080/web/` または `http://localhost:8080/assets/playground.html` を開きます。
-`web/?backend=js` では JavaScript 版を使えます。
+`http://localhost:8080/assets/playground.html` を開きます。
 
 Markdown のプレビューと編集には独立したサブモジュール `_wfs/` を使います。
 
@@ -30,7 +49,7 @@ cargo run --manifest-path _wfs/Cargo.toml -- .
 ```
 
 起動後の REPL で `task build` を実行すると、モデルの JS / Wasm と md-preview を生成します。
-`http://localhost:3000/md/md_preview.html?path=web/demo.md` が動作例です。
+`http://localhost:3000/md/md_preview.html?path=models/_example_counter/README.md` が動作例です。
 モデルだけなら `task build-wasm`、Markdown 側だけなら `task md` を使えます。
 `_wfs/` は別の Rust リポジトリで、モデルのビルドや CLI には必要ありません。
 
@@ -48,11 +67,12 @@ JS 版はモデル名の末尾に `_js` を付けます。各埋め込みは独�
 
 ## ディレクトリとライブラリ
 
-- `utils/src/`: モデルの共通インターフェース、字句解析、任意精度自然数、JSON と描画。
+- `utils/`: モデルの共通インターフェース、字句解析、任意精度自然数、JSON と描画。
 - `models/`: 計算モデルとモデル間コンパイラ。一つの従来の crate を基本的に一つの Dune library に対応させています。
 - `registry/`: Web と CLI が共有するモデル名・コンパイラ名の一覧。
 - `cli/src/`: ネイティブの対話実行と、snapshot を渡す一回実行の CLI。[使用例](cli/README.md)。
-- `web/`: OCaml と JS の接続、ブラウザ用アダプター、デモと統合テスト。
+- `assets/`: 操作 UI と描画。
+- `web/`: OCaml と JS の接続、ブラウザ用アダプター。
 - `plugins/mount_model/`: Dune の成果物を `wasm_bundle/` に配置する `_wfs` プラグイン。
 - `docs/`: 計算モデルについての文章。
 
@@ -71,8 +91,8 @@ JS 版はモデル名の末尾に `_js` を付けます。各埋め込みは独�
 コードからは `Lambda_calculus` の名前空間で利用できます。複数ファイルのライブラリでは、
 たとえば `Pcf.Syntax` のように library 名の下に各ファイルの module が並びます。
 公開する型と関数は `.mli` で指定でき、実装を隠した抽象型も作れます。
-モデルの契約は [Utils.Machine.S](utils/src/machine.ml)、コンパイラの契約は
-[Utils.Compiler.S](utils/src/compiler.ml) です。Rust の関連型は signature 内の抽象型で表します。
+モデルの契約は [Utils.Machine.S](utils/machine.ml)、コンパイラの契約は
+[Utils.Compiler.S](utils/compiler.ml) です。Rust の関連型は signature 内の抽象型で表します。
 
 opam package は配布・外部依存の単位で、Dune library とは別です。
 今はすべての library を一つの `computation` package にまとめています。
@@ -83,6 +103,14 @@ opam package は配布・外部依存の単位で、Dune library とは別です
 ライブラリとネイティブ CLI をインストールできます。
 
 ## Web のビルド経路
+
+`web/browser.ml` は OCaml のモデルを JavaScript から呼び出すための入口です。
+`web/runtime.mjs` は処理系を読み込み、`web/model_adapter.mjs` は
+`assets/script.js` に合わせた API を提供します。
+
+`registry/registry.ml` は公開名と実装 module の対応表です。
+たとえば `lambda_calculus` という名前を `Lambda_calculus` に対応させ、
+CLI のモデル選択、Markdown の `data-model`、配信用ファイルの一覧で共有します。
 
 OCaml → bytecode → `js_of_ocaml` / `wasm_of_ocaml` → JS ローダーと Wasm アセット、
 という構成です。Wasm Component・WIT・jco は使いません。
@@ -100,11 +128,3 @@ model.restore(saved);
 
 snapshot はモデルごとの JSON です。以前の Rust snapshot 形式との互換性はありません。
 停止したセッションでも保存済み snapshot を描画・復元できます。
-
-起動中の `_wfs` に対して、配信・Markdown 変換・ブラウザ用ローダーも検証できます。
-
-```sh
-node --experimental-vm-modules web/integration.cjs http://localhost:3000
-```
-
-このテストは HTTP と Node.js VM を使い、実ブラウザでのクリック操作は検証しません。
