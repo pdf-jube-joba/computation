@@ -1,6 +1,6 @@
 module N = Utils.Number
 module L = Utils.Lexer
-module Names = Set.Make (String)
+module Names = Utils.Identifier.Set
 
 type binop = Add | Sub | And [@@deriving yojson]
 type unop = Inc | Dec | Not [@@deriving yojson]
@@ -270,11 +270,7 @@ let rec all_names = function
   | e -> free_vars e
 
 let fresh used replacement base =
-  let rec loop i =
-    let x = base ^ "_" ^ string_of_int i in
-    if Names.mem x used || Names.mem x replacement then loop (i + 1) else x
-  in
-  loop 0
+  Utils.Identifier.fresh ~prefix:(base ^ "_") (Names.union used replacement)
 
 let rec rename e from into =
   match e with

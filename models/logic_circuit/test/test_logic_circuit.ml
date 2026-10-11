@@ -106,42 +106,10 @@ let () =
   let duplicate = ok (parse_code (code ^ " graph: main {in {} out {}}")) in
   assert (duplicate = main);
   let signal = ok (parse_rinput " A.IN=#true, B.OUT=#false ") in
-  assert (
-    ok
-      (parse_rinput
-         "\194\160A.IN=\226\128\131#true\194\133,\011B.OUT=#false\012\227\128\128")
-    = signal);
+  assert (ok (parse_rinput "\tA.IN=\r#true\n, B.OUT=#false\012") = signal);
   assert (print_signal signal = "A.IN=#true, B.OUT=#false");
   assert (ok (parse_rinput "  ") = []);
-  let whitespace =
-    [
-      "\t";
-      "\n";
-      "\011";
-      "\012";
-      "\r";
-      " ";
-      "\194\133";
-      "\194\160";
-      "\225\154\128";
-      "\226\128\128";
-      "\226\128\129";
-      "\226\128\130";
-      "\226\128\131";
-      "\226\128\132";
-      "\226\128\133";
-      "\226\128\134";
-      "\226\128\135";
-      "\226\128\136";
-      "\226\128\137";
-      "\226\128\138";
-      "\226\128\168";
-      "\226\128\169";
-      "\226\128\175";
-      "\226\129\159";
-      "\227\128\128";
-    ]
-  in
+  let whitespace = [ "\t"; "\n"; "\012"; "\r"; " " ] in
   List.iter
     (fun ws ->
       assert (ok (parse_rinput ws) = []);
@@ -151,6 +119,7 @@ let () =
         = [ (pin "A" "IN", true) ]))
     whitespace;
   bad (parse_rinput "A.\194\160IN=#true");
+  bad (parse_rinput "\227\128\128A.IN=#true");
   bad (parse_rinput "\226\128\139A.IN=#true");
   bad (parse_ainput "\239\187\191");
   List.iter

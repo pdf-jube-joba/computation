@@ -345,15 +345,8 @@ let render term =
   Utils.Render.state
     [
       Utils.Render.text ~title:"term" (print term);
-      Utils.Render.table ~title:"redexes"
-        ~columns:[ Utils.Render.text "index"; Utils.Render.text "term" ]
-        (List.mapi
-           (fun index term ->
-             [
-               Utils.Render.text (string_of_int index);
-               Utils.Render.text (print term);
-             ])
-           (redexes term));
+      Utils.Render.indexed_table ~title:"redexes" ~columns:[ "index"; "term" ]
+        print (redexes term);
     ]
 
 let routput_json () = `Null

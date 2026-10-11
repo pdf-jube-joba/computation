@@ -136,6 +136,7 @@ let env_from_kont k =
   |> Option.value ~default:[]
 
 let render s =
+  let open Utils.Render in
   let mode, focus, env, k =
     match s.state with
     | EvalExpr (e, env, k) -> ("eval-expr", print e, env, k)
@@ -143,19 +144,16 @@ let render s =
     | Return (v, k) -> ("return", Cek_machine.value_text v, env_from_kont k, k)
     | Done (env, k) -> ("done", "scope complete", env, k)
   in
-  let table = Cek_machine.table in
-  Utils.Render.state
+  state
     [
-      Utils.Render.text ~title:"code" (print s.code);
-      table "state" [ "field"; "value" ]
+      text ~title:"code" (print s.code);
+      text_table ~title:"state" ~columns:[ "field"; "value" ]
         [ [ "mode"; mode ]; [ "focus"; focus ] ];
-      table "env" [ "name"; "value" ]
-        (List.rev_map (fun (x, v) -> [ x; Cek_machine.value_text v ]) env);
-      table "kont" [ "depth"; "frame" ]
-        (List.mapi
-           (fun i f ->
-             [ string_of_int i; Yojson.Safe.to_string (frame_to_yojson f) ])
-           k);
+      assoc_table ~title:"env" ~columns:[ "name"; "value" ]
+        Cek_machine.value_text (List.rev env);
+      indexed_table ~title:"kont" ~columns:[ "depth"; "frame" ]
+        (fun f -> Yojson.Safe.to_string (frame_to_yojson f))
+        k;
     ]
 
 let routput_json = Syntax.routput_json

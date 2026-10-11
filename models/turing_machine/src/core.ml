@@ -248,44 +248,15 @@ let render_tape t =
 
 let render s =
   let index = Option.map fst (next_code s) in
-  let rows =
-    List.mapi
-      (fun i ((a, b), (c, d, e)) ->
-        let row =
-          `Assoc
-            [
-              ( "cells",
-                `List
-                  (List.map Utils.Render.text
-                     [ sign_print a; b; sign_print c; d; direction_print e ]) );
-            ]
-        in
-        if index = Some i then
-          match row with
-          | `Assoc fields ->
-              `Assoc (("className", `String "highlight") :: fields)
-          | _ -> row
-        else row)
-      s.definition.code
-  in
   Utils.Render.state
     [
-      `Assoc
-        [
-          ("kind", `String "table");
-          ("title", `String "code");
-          ( "columns",
-            `List
-              (List.map Utils.Render.text
-                 [
-                   "key_sign";
-                   "key_state";
-                   "next_sign";
-                   "next_state";
-                   "direction";
-                 ]) );
-          ("rows", `List rows);
-        ];
+      Utils.Render.text_table ~title:"code" ?highlight:index
+        ~columns:
+          [ "key_sign"; "key_state"; "next_sign"; "next_state"; "direction" ]
+        (List.map
+           (fun ((a, b), (c, d, e)) ->
+             [ sign_print a; b; sign_print c; d; direction_print e ])
+           s.definition.code);
       Utils.Render.text ~title:"state" s.current_state;
       render_tape s.tape;
     ]

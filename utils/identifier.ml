@@ -18,3 +18,19 @@ let compare = String.compare
 
 module Map = Map.Make (String)
 module Set = Set.Make (String)
+
+let check_unique ~message names =
+  let rec loop seen = function
+    | [] -> ()
+    | name :: rest ->
+        if Set.mem name seen then failwith (message name);
+        loop (Set.add name seen) rest
+  in
+  loop Set.empty names
+
+let fresh ?(prefix = "_") used =
+  let rec loop i =
+    let name = prefix ^ string_of_int i in
+    if Set.mem name used then loop (i + 1) else name
+  in
+  loop 0

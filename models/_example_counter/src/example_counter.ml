@@ -34,25 +34,11 @@ let restore = function
   | _ -> Error "Expected a counter snapshot with a nonnegative count"
 
 let render count =
-  let text value =
-    `Assoc [ ("kind", `String "text"); ("text", `String value) ]
-  in
-  `List
+  Utils.Render.state
     [
-      `Assoc
-        [
-          ("kind", `String "table");
-          ("title", `String "status");
-          ("columns", `List [ text "field"; text "value" ]);
-          ( "rows",
-            `List
-              [
-                `Assoc
-                  [
-                    ("cells", `List [ text "count"; text (string_of_int count) ]);
-                  ];
-              ] );
-        ];
+      Utils.Render.assoc_table ~title:"status" ~columns:[ "field"; "value" ]
+        string_of_int
+        [ ("count", count) ];
     ]
 
 let routput_json text = `String text

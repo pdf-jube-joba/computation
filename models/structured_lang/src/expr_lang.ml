@@ -177,16 +177,7 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.state
-    [
-      Utils.Render.text ~title:"stmt" (stmt_to_text s.stmt);
-      Utils.Render.table ~title:"env"
-        ~columns:[ Utils.Render.text "var"; Utils.Render.text "value" ]
-        (List.map
-           (fun (k, v) ->
-             [ Utils.Render.text k; Utils.Render.text (N.to_string v) ])
-           s.env);
-    ]
+  Utils.Render.statement_env (stmt_to_text s.stmt) N.to_string s.env
 
 let routput_json = unit_json
 let foutput_json e = `String (print_env e)

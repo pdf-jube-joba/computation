@@ -222,59 +222,40 @@ let parse_code =
 
 let parse_ainput = Utils.Machine.natural
 let parse_rinput = Utils.Machine.natural
-
-let set entries name v =
-  List.sort
-    (fun (a, _) (b, _) -> String.compare a b)
-    ((name, v) :: List.remove_assoc name entries)
+let set entries name v = Utils.Assoc.set_sorted name v entries
 
 let parse_env text =
-  L.protect (fun () ->
-      List.fold_left
-        (fun env line ->
-          let line = String.trim line in
-          if line = "" then env
-          else
-            match String.index_opt line '=' with
-            | None -> failwith ("invalid env line: " ^ line)
-            | Some i ->
-                let name = String.trim (String.sub line 0 i)
-                and v =
-                  String.trim
-                    (String.sub line (i + 1) (String.length line - i - 1))
-                in
-                if String.starts_with ~prefix:"$" name then (
-                  let name = String.sub name 1 (String.length name - 1) in
-                  ignore (value (Utils.Identifier.make name));
-                  let id =
-                    if String.lowercase_ascii v = "none" then None
-                    else Some (value (Utils.Machine.natural v))
-                  in
-                  { env with task_ids = set env.task_ids name id })
-                else (
-                  ignore (value (Utils.Identifier.make name));
-                  {
-                    env with
-                    vars =
-                      set env.vars name
-                        (value
-                           (N.of_string
-                              (if String.starts_with ~prefix:"+" v then
-                                 String.sub v 1 (String.length v - 1)
-                               else v)));
-                  }))
-        { vars = []; task_ids = [] }
-        (String.split_on_char '\n' text))
+  Utils.Environment.fold_lines
+    ~invalid_line:(fun line -> "invalid env line: " ^ line)
+    (fun env name v ->
+      if String.starts_with ~prefix:"$" name then (
+        let name = String.sub name 1 (String.length name - 1) in
+        ignore (value (Utils.Identifier.make name));
+        let id =
+          if String.lowercase_ascii v = "none" then None
+          else Some (value (Utils.Machine.natural v))
+        in
+        { env with task_ids = set env.task_ids name id })
+      else (
+        ignore (value (Utils.Identifier.make name));
+        {
+          env with
+          vars =
+            set env.vars name
+              (value
+                 (N.of_string
+                    (if String.starts_with ~prefix:"+" v then
+                       String.sub v 1 (String.length v - 1)
+                     else v)));
+        }))
+    { vars = []; task_ids = [] }
+    text
 
 let env_to_text env =
-  String.concat ""
-    (List.map (fun (n, v) -> n ^ " = " ^ N.to_string v ^ "\n") env.vars
-    @ List.map
-        (fun (n, v) ->
-          "$" ^ n ^ " = "
-          ^ (match v with None -> "none" | Some n -> string_of_int n)
-          ^ "\n")
-        env.task_ids)
+  Utils.Environment.print ~trailing_newline:true N.to_string env.vars
+  ^ Utils.Environment.print ~trailing_newline:true
+      (function None -> "none" | Some n -> string_of_int n)
+      (List.map (fun (n, v) -> ("$" ^ n, v)) env.task_ids)
 
 let get_var env name =
   Option.value ~default:N.zero (List.assoc_opt name env.vars)
@@ -308,13 +289,11 @@ let rec eval_bexp s = function
       id >= 0 && id < Array.length s.tasks && s.tasks.(id) = []
 
 let validate code =
-  let seen = Hashtbl.create 16 in
-  List.iter
-    (fun f ->
-      if Hashtbl.mem seen f.name then failwith ("duplicate function: " ^ f.name);
-      Hashtbl.add seen f.name ())
-    code;
-  if not (Hashtbl.mem seen "main") then failwith "missing main function"
+  let names = List.map (fun f -> f.name) code in
+  Utils.Identifier.check_unique
+    ~message:(fun name -> "duplicate function: " ^ name)
+    names;
+  if not (List.mem "main" names) then failwith "missing main function"
 
 let make code agents =
   L.protect (fun () ->
@@ -430,14 +409,9 @@ let restore json =
 
 let render s =
   let open Utils.Render in
-  let table2 title c1 c2 rows =
-    table ~title
-      ~columns:[ text c1; text c2 ]
-      (List.map (fun (a, b) -> [ text a; text b ]) rows)
-  in
   state
     [
-      table2 "status" "field" "value"
+      assoc_table ~title:"status" ~columns:[ "field"; "value" ] Fun.id
         [
           ("agents", string_of_int (Array.length s.workers));
           ("queue_len", string_of_int (List.length s.queue));
@@ -445,38 +419,26 @@ let render s =
         ];
       container ~title:"env" ~orientation:"horizontal"
         [
-          table2 "vars" "var" "value"
-            (List.map (fun (n, v) -> (n, N.to_string v)) s.env.vars);
-          table2 "task_ids" "id" "task"
-            (List.map
-               (fun (n, id) ->
-                 ( "$" ^ n,
-                   match id with None -> "none" | Some n -> string_of_int n ))
-               s.env.task_ids);
+          assoc_table ~title:"vars" N.to_string s.env.vars;
+          assoc_table ~title:"task_ids" ~columns:[ "id"; "task" ]
+            (function None -> "none" | Some n -> string_of_int n)
+            (List.map (fun (n, id) -> ("$" ^ n, id)) s.env.task_ids);
         ];
-      table2 "workers" "agent" "task"
-        (Array.to_list
-           (Array.mapi
-              (fun i t ->
-                ( string_of_int i,
-                  match t with None -> "idle" | Some n -> string_of_int n ))
-              s.workers));
-      table2 "queue" "slot" "task"
-        (List.mapi (fun i id -> (string_of_int i, string_of_int id)) s.queue);
+      indexed_table ~title:"workers" ~columns:[ "agent"; "task" ]
+        (function None -> "idle" | Some n -> string_of_int n)
+        (Array.to_list s.workers);
+      indexed_table ~title:"queue" ~columns:[ "slot"; "task" ] string_of_int
+        s.queue;
       container ~title:"tasks"
         (Array.to_list
            (Array.mapi
               (fun id stack ->
-                table
+                text_table
                   ~title:(Printf.sprintf "task %d" id)
-                  ~columns:[ text "depth"; text "function"; text "pc" ]
+                  ~columns:[ "depth"; "function"; "pc" ]
                   (List.mapi
                      (fun i f ->
-                       [
-                         text (string_of_int i);
-                         text f.function_name;
-                         text (string_of_int f.pc);
-                       ])
+                       [ string_of_int i; f.function_name; string_of_int f.pc ])
                      (List.rev stack)))
               s.tasks));
     ]

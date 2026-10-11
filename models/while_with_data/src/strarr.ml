@@ -174,7 +174,10 @@ let step s () =
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
-let render s = Data_parser.render (stmt_to_text s.stmt) char_list_to_text s.env
+
+let render s =
+  Utils.Render.statement_env (stmt_to_text s.stmt) char_list_to_text s.env
+
 let routput_json () = `String ""
 let foutput_json env = `String (env_text char_list_to_text env)
 

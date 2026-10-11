@@ -61,11 +61,7 @@ let parse_rinput = empty_input
 let get env name =
   match List.assoc_opt name env with Some value -> value | None -> Number.zero
 
-let set env name value =
-  if List.mem_assoc name env then
-    List.map (fun (key, old) -> (key, if key = name then value else old)) env
-  else env @ [ (name, value) ]
-
+let set env name value = Utils.Assoc.set name value env
 let make commands env = Ok { commands; pc = Number.zero; env }
 
 let step state () =
@@ -101,34 +97,23 @@ let print_command = function
   | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ n ^ ";"
 
 let print_code code = String.concat "\n" (List.map print_command code)
-
-let print_env env =
-  String.concat "\n" (List.map (fun (name, value) -> name ^ " = " ^ value) env)
-
+let print_env = Utils.Environment.print Fun.id
 let routput_json () = `String ""
 let foutput_json env = `String (print_env env)
 
 let render state =
   Render.state
     [
-      Render.table ~title:"status"
-        ~columns:[ Render.text "field"; Render.text "value" ]
+      Render.assoc_table ~title:"status" ~columns:[ "field"; "value" ] Fun.id
         [
-          [ Render.text "pc"; Render.text state.pc ];
-          [
-            Render.text "next";
-            Render.text
-              (match Number.to_int state.pc with
-              | Ok pc -> (
-                  match List.nth_opt state.commands pc with
-                  | Some command -> print_command command
-                  | None -> "halt")
-              | Error _ -> "halt");
-          ];
+          ("pc", state.pc);
+          ( "next",
+            match Number.to_int state.pc with
+            | Ok pc -> (
+                match List.nth_opt state.commands pc with
+                | Some command -> print_command command
+                | None -> "halt")
+            | Error _ -> "halt" );
         ];
-      Render.table ~title:"env"
-        ~columns:[ Render.text "var"; Render.text "value" ]
-        (List.map
-           (fun (name, value) -> [ Render.text name; Render.text value ])
-           state.env);
+      Render.assoc_table ~title:"env" Fun.id state.env;
     ]

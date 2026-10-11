@@ -2,13 +2,8 @@ module N = Utils.Number
 module L = Utils.Lexer
 
 let get = function Ok x -> x | Error e -> failwith e
-
-let set k v xs =
-  if List.mem_assoc k xs then
-    List.map (fun (a, b) -> (a, if a = k then v else b)) xs
-  else xs @ [ (k, v) ]
-
-let sorted xs = List.sort (fun (a, _) (b, _) -> compare a b) xs
+let set = Utils.Assoc.set
+let sorted = Utils.Assoc.sorted
 
 type binop = Add | Sub [@@deriving yojson]
 
@@ -334,42 +329,20 @@ let parse_flow_value text =
       else Num (get (N.of_string s)))
 
 let parse_ainput text =
-  L.protect (fun () ->
-      List.fold_left
-        (fun acc line ->
-          let line = String.trim line in
-          if line = "" then acc
-          else
-            match String.index_opt line '=' with
-            | None -> failwith ("Invalid static input line: " ^ line)
-            | Some i ->
-                let key =
-                  get
-                    (Utils.Identifier.make (String.trim (String.sub line 0 i)))
-                in
-                set key
-                  (get
-                     (parse_flow_value
-                        (String.sub line (i + 1) (String.length line - i - 1))))
-                  acc)
-        []
-        (String.split_on_char '\n' text)
-      |> sorted)
+  Utils.Environment.parse
+    ~invalid_line:(fun line -> "Invalid static input line: " ^ line)
+    parse_flow_value text
+  |> Result.map sorted
 
 let print_env env =
-  String.concat ""
-    (List.map (fun (k, v) -> k ^ " = " ^ value_print v ^ "\n") (sorted env))
+  Utils.Environment.print ~trailing_newline:true value_print (sorted env)
 
 let parse_rinput s = Ok s
 
 let unique kind names =
-  let rec loop seen = function
-    | [] -> ()
-    | x :: xs ->
-        if List.mem x seen then failwith ("Duplicate " ^ kind ^ ": " ^ x);
-        loop (x :: seen) xs
-  in
-  loop [] names
+  Utils.Identifier.check_unique
+    ~message:(fun name -> "Duplicate " ^ kind ^ ": " ^ name)
+    names
 
 let validate (code : code) =
   unique "static label"
@@ -441,8 +414,7 @@ and eval_place s = function
   | SAcc v -> Stack (index (eval_value s v))
   | HAcc (h, i) -> Heap (index (eval_value s h), index (eval_value s i))
 
-let nth xs i err =
-  match List.nth_opt xs i with Some v -> v | None -> failwith err
+let nth = Utils.List_ext.nth
 
 let read_place s = function
   | Static l -> (
@@ -456,9 +428,7 @@ let read_place s = function
         i
         (Printf.sprintf "Invalid heap key: h[%d][%d]" h i)
 
-let replace xs i value err =
-  ignore (nth xs i err);
-  List.mapi (fun j v -> if i = j then value else v) xs
+let replace = Utils.List_ext.replace
 
 let write_place s key value =
   match key with
@@ -671,26 +641,22 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  let text = Utils.Render.text in
-  let table title cols rows =
-    Utils.Render.table ~title ~columns:(List.map text cols)
-      (List.map (List.map text) rows)
-  in
+  let module R = Utils.Render in
   let r = List.nth_opt s.code.regions s.current_region in
   let b = Option.bind r (fun r -> List.nth_opt r.blocks s.current_block) in
-  Utils.Render.state
+  R.state
     [
-      text ~title:"current_region"
+      R.text ~title:"current_region"
         (":"
         ^ Option.fold ~none:"<invalid>" ~some:(fun (r : region) -> r.label) r);
-      text ~title:"current_block"
+      R.text ~title:"current_block"
         (":"
         ^ Option.fold ~none:"<invalid>" ~some:(fun (b : block) -> b.label) b);
-      text ~title:"current_line" (string_of_int s.current_line);
-      text ~title:"halted" (string_of_bool s.halted);
-      table "vregs" [ "vreg"; "value" ]
-        (List.map (fun (k, v) -> [ "%" ^ k; value_print v ]) (sorted s.vregs));
-      table "static" [ "label"; "value" ]
+      R.text ~title:"current_line" (string_of_int s.current_line);
+      R.text ~title:"halted" (string_of_bool s.halted);
+      R.assoc_table ~title:"vregs" ~columns:[ "vreg"; "value" ] value_print
+        (List.map (fun (k, v) -> ("%" ^ k, v)) (sorted s.vregs));
+      R.text_table ~title:"static" ~columns:[ "label"; "value" ]
         (List.map
            (fun (d : static_def) ->
              [
@@ -701,10 +667,9 @@ let render s =
                     ~default:(Num N.zero));
              ])
            s.code.statics);
-      table "stack" [ "index"; "value" ]
-        (List.mapi (fun i v -> [ string_of_int i; value_print v ]) s.stack);
-      table "heap"
-        [ "handle"; "index"; "value" ]
+      R.indexed_table ~title:"stack" value_print s.stack;
+      R.text_table ~title:"heap"
+        ~columns:[ "handle"; "index"; "value" ]
         (List.concat_map
            (fun (h, vs) ->
              List.mapi

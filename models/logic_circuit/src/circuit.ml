@@ -423,8 +423,7 @@ let print_signal signal =
 
 let render circuit =
   let graph = as_graph_group circuit in
-  let row xs = List.map Utils.Render.text xs in
-  let inputs = List.map (fun ((n, p), _) -> row [ n; p ]) graph.inpins_map in
+  let inputs = List.map (fun ((n, p), _) -> [ n; p ]) graph.inpins_map in
   let outputs =
     List.map
       (fun ((n, p), (vert, pin)) ->
@@ -438,25 +437,23 @@ let render circuit =
               | Some (_, b) -> bool_text b
               | None -> "?")
         in
-        row [ n; p; value ])
+        [ n; p; value ])
       graph.otpins_map
   in
   let verts =
     List.concat_map
       (fun (name, c) ->
         List.map
-          (fun ((_, pin), b) -> row [ name; pin; bool_text b ])
+          (fun ((_, pin), b) -> [ name; pin; bool_text b ])
           (get_otputs c))
       graph.verts
   in
   Utils.Render.state
     [
       Utils.Render.text ~title:"kind" (kind circuit);
-      Utils.Render.table ~title:"inputs" ~columns:(row [ "name"; "pin" ]) inputs;
-      Utils.Render.table ~title:"outputs"
-        ~columns:(row [ "name"; "pin"; "value" ])
-        outputs;
-      Utils.Render.table ~title:"verts"
-        ~columns:(row [ "vert"; "pin"; "value" ])
+      Utils.Render.text_table ~title:"inputs" ~columns:[ "name"; "pin" ] inputs;
+      Utils.Render.text_table ~title:"outputs"
+        ~columns:[ "name"; "pin"; "value" ] outputs;
+      Utils.Render.text_table ~title:"verts" ~columns:[ "vert"; "pin"; "value" ]
         verts;
     ]

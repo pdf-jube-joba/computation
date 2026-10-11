@@ -483,7 +483,7 @@ let render s =
   in
   Utils.Render.state
     [
-      table "status" [ "field"; "value" ]
+      Utils.Render.text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [ "pc"; string_of_int s.pc ];
           [ "flag"; string_of_bool s.flag ];
@@ -491,7 +491,9 @@ let render s =
           [ "halted"; string_of_bool s.halted ];
         ];
       registers s.regs;
-      table "data" [ "addr"; "label"; "value" ] data_rows;
+      Utils.Render.text_table ~title:"data"
+        ~columns:[ "addr"; "label"; "value" ]
+        data_rows;
     ]
 
 let routput_json () = `String ""

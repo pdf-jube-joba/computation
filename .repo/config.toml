@@ -34,8 +34,12 @@ paths = [
   ".agents",
   "_wfs",
   "_build",
-  "computation.install",
   "plugins",
+  "dune",
+  "dune-project",
+  "ocamlformat",
+  "computation.install",
+  "computation.opam",
 ]
 
 [[policy]]

@@ -2,16 +2,9 @@ module N = Utils.Number
 module L = Utils.Lexer
 
 let get = function Ok x -> x | Error e -> failwith e
-
-let set k v xs =
-  if List.mem_assoc k xs then
-    List.map (fun (a, b) -> (a, if a = k then v else b)) xs
-  else xs @ [ (k, v) ]
-
-let sorted xs = List.sort (fun (a, _) (b, _) -> compare a b) xs
-
-let lookup k xs err =
-  match List.assoc_opt k xs with Some v -> v | None -> failwith err
+let set = Utils.Assoc.set
+let sorted = Utils.Assoc.sorted
+let lookup = Utils.Assoc.lookup
 
 let ident p =
   let s = L.identifier p in
@@ -22,35 +15,9 @@ let number p = get (N.of_string (L.natural p))
 type env = (Utils.Identifier.t * N.t) list [@@deriving yojson]
 
 let env_get e k = Option.value (List.assoc_opt k e) ~default:N.zero
-
-let parse_env text =
-  L.protect (fun () ->
-      List.fold_left
-        (fun env line ->
-          let line = String.trim line in
-          if line = "" then env
-          else
-            match String.index_opt line '=' with
-            | None -> failwith ("Invalid env line: " ^ line)
-            | Some i ->
-                let k =
-                  get
-                    (Utils.Identifier.make (String.trim (String.sub line 0 i)))
-                in
-                let v =
-                  get
-                    (N.of_string
-                       (String.sub line (i + 1) (String.length line - i - 1)))
-                in
-                set k v env)
-        []
-        (String.split_on_char '\n' text))
-
-let print_env e =
-  String.concat "" (List.map (fun (k, v) -> k ^ " = " ^ N.to_string v ^ "\n") e)
-
-let env_text e =
-  String.concat "\n" (List.map (fun (k, v) -> k ^ " = " ^ N.to_string v) e)
+let parse_env = Utils.Environment.parse N.of_string
+let print_env = Utils.Environment.print ~trailing_newline:true N.to_string
+let env_text = Utils.Environment.print N.to_string
 
 let names_until p endc =
   if L.peek p = L.Symbol endc then []
@@ -64,14 +31,7 @@ let names_until p endc =
 let names_boundary p =
   match L.peek p with L.Ident _ -> names_until p '\000' | _ -> []
 
-let unique message xs =
-  let rec loop seen = function
-    | [] -> ()
-    | x :: xs ->
-        if List.mem x seen then failwith (message x);
-        loop (x :: seen) xs
-  in
-  loop [] xs
+let unique message xs = Utils.Identifier.check_unique ~message xs
 
 let validate_env statics env ~duplicate ~extra ~missing =
   unique duplicate statics;

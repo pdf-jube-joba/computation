@@ -322,14 +322,9 @@ let compile_program (code : code) =
         List.mapi (fun i (s : static_def) -> (s.label, i)) code.statics
       in
       let unique kind labels =
-        let rec loop seen = function
-          | [] -> ()
-          | (label, _) :: rest ->
-              if List.mem label seen then
-                failwith ("Duplicate " ^ kind ^ " label: @" ^ label);
-              loop (label :: seen) rest
-        in
-        loop [] labels
+        Utils.Identifier.check_unique
+          ~message:(fun label -> "Duplicate " ^ kind ^ " label: @" ^ label)
+          (List.map fst labels)
       in
       unique "block" block_index;
       unique "static" static_labels;
@@ -447,7 +442,7 @@ let render s =
   in
   Utils.Render.state
     [
-      table "status" [ "field"; "value" ]
+      Utils.Render.text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [ "block"; string_of_int s.current_block ];
           [
@@ -456,21 +451,14 @@ let render s =
           ];
           [ "halted"; string_of_bool s.halted ];
         ];
-      table "block" [ "index"; "stmt" ]
-        (match current_block with
-        | None -> []
-        | Some b ->
-            List.mapi
-              (fun i stmt -> [ string_of_int i; stmt_to_text stmt ])
-              b.stmts);
-      table "vregs" [ "vreg"; "value" ]
-        (Array.to_list
-           (Array.mapi
-              (fun i n -> [ "v" ^ string_of_int i; N.to_string n ])
-              s.vregs));
-      table "memory" [ "addr"; "value" ]
-        (Array.to_list
-           (Array.mapi (fun i n -> [ string_of_int i; N.to_string n ]) s.memory));
+      Utils.Render.indexed_table ~title:"block" ~columns:[ "index"; "stmt" ]
+        stmt_to_text
+        (match current_block with None -> [] | Some b -> b.stmts);
+      Utils.Render.indexed_table ~title:"vregs" ~columns:[ "vreg"; "value" ]
+        ~index_text:(fun i -> "v" ^ string_of_int i)
+        N.to_string (Array.to_list s.vregs);
+      Utils.Render.indexed_table ~title:"memory" ~columns:[ "addr"; "value" ]
+        N.to_string (Array.to_list s.memory);
     ]
 
 let routput_json () = `String ""

@@ -200,12 +200,7 @@ let inst_text show = function
   | Lt (d, s) -> Printf.sprintf "Lt { rd: %d, rs: %d }" d s
   | Gt (d, s) -> Printf.sprintf "Gt { rd: %d, rs: %d }" d s
 
-let table title columns rows =
-  Utils.Render.table ~title
-    ~columns:(List.map Utils.Render.text columns)
-    (List.map (List.map Utils.Render.text) rows)
-
 let registers regs =
-  table "registers" [ "reg"; "value" ]
-    (Array.to_list
-       (Array.mapi (fun i n -> [ "r" ^ string_of_int i; N.to_string n ]) regs))
+  Utils.Render.indexed_table ~title:"registers" ~columns:[ "reg"; "value" ]
+    ~index_text:(fun i -> "r" ^ string_of_int i)
+    N.to_string (Array.to_list regs)

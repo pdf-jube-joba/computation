@@ -3,7 +3,7 @@ open Ir_common
 module J = Rec_tm_ir_jump
 module T = Turing_machine
 module L = Utils.Lexer
-module Names = Set.Make (String)
+module Names = Utils.Identifier.Set
 
 (* Retain only values which a later instruction can read. Function expansion
    creates fresh variables for each call site, so enumerating every valuation

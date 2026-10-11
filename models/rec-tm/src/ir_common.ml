@@ -124,11 +124,7 @@ let env_create vars =
   List.map (fun s -> (s, None)) (List.sort_uniq String.compare vars)
 
 let env_get env key = Option.value ~default:None (List.assoc_opt key env)
-
-let env_set env key value =
-  List.sort
-    (fun (a, _) (b, _) -> String.compare a b)
-    ((key, value) :: List.remove_assoc key env)
+let env_set env key value = Utils.Assoc.set_sorted key value env
 
 let eval env tape : rvalue -> T.sign = function
   | Var s -> env_get env s
@@ -170,33 +166,17 @@ let validate_tape allowed t =
     (fst (T.tape_into_vec t))
 
 let environment_parse text =
-  L.protect (fun () ->
-      List.fold_left
-        (fun env line ->
-          let line = String.trim line in
-          if line = "" then env
-          else
-            match String.split_on_char '=' line with
-            | [ key; value ] ->
-                let key = String.trim key in
-                ignore (unwrap (Utils.Identifier.make key));
-                if List.mem key keywords then
-                  failwith "Reserved environment variable";
-                env_set env key (unwrap (T.parse_sign value))
-            | _ -> failwith "Invalid environment line")
-        []
-        (String.split_on_char '\n' text))
+  Utils.Environment.fold_lines
+    ~invalid_line:(fun _ -> "Invalid environment line")
+    (fun env key value ->
+      if String.contains value '=' then failwith "Invalid environment line";
+      ignore (unwrap (Utils.Identifier.make key));
+      if List.mem key keywords then failwith "Reserved environment variable";
+      env_set env key (unwrap (T.parse_sign value)))
+    [] text
 
-let environment_print env =
-  String.concat "\n" (List.map (fun (k, v) -> k ^ " = " ^ T.sign_print v) env)
-
-let render_env env =
-  Utils.Render.table ~title:"env"
-    ~columns:(List.map Utils.Render.text [ "var"; "value" ])
-    (List.map
-       (fun (k, v) -> List.map Utils.Render.text [ k; T.sign_print v ])
-       env)
-
+let environment_print = Utils.Environment.print T.sign_print
+let render_env env = Utils.Render.assoc_table ~title:"env" T.sign_print env
 let parse_ainput = T.parse_tape
 let parse_rinput = empty_input
 let routput_json () = `String ""

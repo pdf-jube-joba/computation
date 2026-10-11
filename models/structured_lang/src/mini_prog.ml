@@ -29,8 +29,7 @@ let rec default_value = function
   | Sum [] -> failwith "sum type must have at least one variant"
   | Sum (t :: _) -> Sum_value (0, default_value t)
 
-let nth xs i err =
-  match List.nth_opt xs i with Some x -> x | None -> failwith err
+let nth = Utils.List_ext.nth
 
 let rec project_cell ty value = function
   | [] -> (ty, value)
@@ -55,9 +54,7 @@ let rec project_cell ty value = function
           project_cell (nth ts i "sum tag out of bounds") v ps
       | _ -> failwith "invalid place projection")
 
-let replace xs i v err =
-  ignore (nth xs i err);
-  List.mapi (fun j x -> if i = j then v else x) xs
+let replace = Utils.List_ext.replace
 
 let rec update_projection ty current ps value =
   match ps with
@@ -499,27 +496,23 @@ let restore json =
           s))
 
 let render s =
-  let text = Utils.Render.text in
-  let table title columns rows =
-    Utils.Render.table ~title ~columns:(List.map text columns)
-      (List.map (List.map text) rows)
-  in
+  let open Utils.Render in
   let cell_rows cells =
     List.map
       (fun (id, c) -> [ string_of_int id; type_text c.ty; value_text c.value ])
       (sorted cells)
   in
-  Utils.Render.state
+  state
     [
-      table "status" [ "field"; "value" ]
+      text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [ "function"; s.current_function ];
           [ "exec"; exec_text s.exec ];
           [ "next_local_id"; string_of_int s.next_local_id ];
           [ "next_heap_id"; string_of_int s.next_heap_id ];
         ];
-      table "env"
-        [ "scope"; "name"; "local" ]
+      text_table ~title:"env"
+        ~columns:[ "scope"; "name"; "local" ]
         (List.concat
            (List.mapi
               (fun i scope ->
@@ -527,29 +520,31 @@ let render s =
                   (fun (n, id) -> [ string_of_int i; n; string_of_int id ])
                   (sorted scope))
               s.env));
-      table "statics"
-        [ "name"; "type"; "value" ]
+      text_table ~title:"statics"
+        ~columns:[ "name"; "type"; "value" ]
         (List.map
            (fun (n, c) -> [ n; type_text c.ty; value_text c.value ])
            (sorted s.store.statics));
-      table "heap" [ "heap"; "type"; "value" ] (cell_rows s.store.heap);
-      Utils.Render.container ~title:"locals"
+      text_table ~title:"heap"
+        ~columns:[ "heap"; "type"; "value" ]
+        (cell_rows s.store.heap);
+      container ~title:"locals"
         (List.mapi
            (fun i scopes ->
-             Utils.Render.container
+             container
                ~title:("fn frame " ^ string_of_int i)
                (List.mapi
                   (fun j cells ->
-                    table
-                      ("scope " ^ string_of_int j)
-                      [ "local"; "type"; "value" ]
+                    text_table
+                      ~title:("scope " ^ string_of_int j)
+                      ~columns:[ "local"; "type"; "value" ]
                       (cell_rows cells))
                   scopes))
            s.store.locals);
-      table "inner_k" [ "depth"; "frame" ]
-        (List.mapi (fun i f -> [ string_of_int i; inner_text f ]) s.inner_k);
-      table "fn_k"
-        [ "depth"; "function"; "rets"; "resume" ]
+      indexed_table ~title:"inner_k" ~columns:[ "depth"; "frame" ] inner_text
+        s.inner_k;
+      text_table ~title:"fn_k"
+        ~columns:[ "depth"; "function"; "rets"; "resume" ]
         (List.mapi
            (fun i f ->
              [

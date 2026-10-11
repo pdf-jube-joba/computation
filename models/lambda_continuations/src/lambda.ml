@@ -1,6 +1,6 @@
 module N = Utils.Number
 module L = Utils.Lexer
-module Names = Set.Make (String)
+module Names = Utils.Identifier.Set
 
 (* Abort/Control extend the same structure, so the implemented variable
    operations can be shared with Ctrl. Its reduction is deliberately unsupported. *)
@@ -72,13 +72,7 @@ let rec bound_variables = function
   | Rec (f, x, b) -> Names.add f (Names.add x (bound_variables b))
 
 let all_names e = Names.union (free_variables e) (bound_variables e)
-
-let fresh used =
-  let rec loop i =
-    let x = "_" ^ string_of_int i in
-    if Names.mem x used then loop (i + 1) else x
-  in
-  loop 0
+let fresh used = Utils.Identifier.fresh used
 
 let rec rename e from into =
   match e with

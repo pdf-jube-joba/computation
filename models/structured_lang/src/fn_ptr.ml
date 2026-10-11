@@ -389,14 +389,10 @@ let restore json =
           s))
 
 let render s =
-  let text = Utils.Render.text in
-  let table title columns rows =
-    Utils.Render.table ~title ~columns:(List.map text columns)
-      (List.map (List.map text) rows)
-  in
-  Utils.Render.state
+  let open Utils.Render in
+  state
     [
-      table "status" [ "field"; "value" ]
+      text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [ "control"; (if s.current_stmt = None then "next" else "eval") ];
           [ "function"; s.current_function ];
@@ -406,8 +402,8 @@ let render s =
           ];
           [ "next_frame_id"; string_of_int s.next_frame_id ];
         ];
-      table "env"
-        [ "var"; "location"; "value" ]
+      text_table ~title:"env"
+        ~columns:[ "var"; "location"; "value" ]
         (List.map
            (fun (n, l) ->
              [
@@ -416,20 +412,18 @@ let render s =
                value_text (try store_lookup s l with Failure _ -> Null_ptr);
              ])
            (sorted s.env));
-      Utils.Render.container ~title:"store"
+      container ~title:"store"
         (List.map
            (fun f ->
-             table
-               ("frame " ^ string_of_int f.frame_id)
-               [ "location"; "value" ]
-               (List.map
-                  (fun (l, v) -> [ location_text l; value_text v ])
-                  (sorted f.values)))
+             assoc_table
+               ~title:("frame " ^ string_of_int f.frame_id)
+               ~columns:[ "location"; "value" ] value_text
+               (List.map (fun (l, v) -> (location_text l, v)) (sorted f.values)))
            (List.rev s.store));
-      Utils.Render.container ~title:"inner_k"
+      container ~title:"inner_k"
         (List.map (fun st -> text (stmt_to_text st)) s.inner_k);
-      table "fn_k"
-        [ "depth"; "function"; "resume_len" ]
+      text_table ~title:"fn_k"
+        ~columns:[ "depth"; "function"; "resume_len" ]
         (List.mapi
            (fun i f ->
              [

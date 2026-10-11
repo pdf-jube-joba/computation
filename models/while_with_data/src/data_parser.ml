@@ -103,48 +103,8 @@ let parse f text =
       expect p Eof;
       x)
 
-let set env name value =
-  if List.mem_assoc name env then
-    List.map (fun (k, v) -> (k, if k = name then value else v)) env
-  else env @ [ (name, value) ]
-
-let env parse_value text =
-  Utils.Lexer.protect (fun () ->
-      List.fold_left
-        (fun env line ->
-          let line = String.trim line in
-          if line = "" then env
-          else
-            match String.index_opt line '=' with
-            | None -> fail ("Invalid env line: " ^ line)
-            | Some i ->
-                let name = String.trim (String.sub line 0 i) in
-                let name =
-                  match Utils.Identifier.make name with
-                  | Ok n -> n
-                  | Error e -> fail e
-                in
-                let value =
-                  String.trim
-                    (String.sub line (i + 1) (String.length line - i - 1))
-                in
-                let value =
-                  match parse_value value with Ok v -> v | Error e -> fail e
-                in
-                set env name value)
-        []
-        (String.split_on_char '\n' text))
+let set env name value = Utils.Assoc.set name value env
+let env parse_value text = Utils.Environment.parse parse_value text
 
 let env_text value_text env =
-  String.concat ""
-    (List.map (fun (n, v) -> n ^ " = " ^ value_text v ^ "\n") env)
-
-let render stmt value_text env =
-  let open Utils.Render in
-  state
-    [
-      text ~title:"stmt" stmt;
-      table ~title:"env"
-        ~columns:[ text "var"; text "value" ]
-        (List.map (fun (n, v) -> [ text n; text (value_text v) ]) env);
-    ]
+  Utils.Environment.print ~trailing_newline:true value_text env

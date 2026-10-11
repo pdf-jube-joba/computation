@@ -6,7 +6,7 @@ module Manipulation = Parser
 module Parse = Parser
 
 let parse_code = Parser.parse_main
-let parse_ainput text = Utils.Machine.empty_input (Utf8_trim.trim text)
+let parse_ainput = Utils.Machine.empty_input
 let parse_rinput = Parser.parse_signal
 let print_code (_ : t) = "logic_circuit"
 let make code () = Ok code

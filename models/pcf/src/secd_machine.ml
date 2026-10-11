@@ -283,12 +283,11 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  let table = Cek_machine.table in
-  let indexed f xs = List.mapi (fun i x -> [ string_of_int i; f x ]) xs in
-  Utils.Render.state
+  let open Utils.Render in
+  state
     [
-      Utils.Render.text ~title:"code" (print_code s.code);
-      table "status" [ "field"; "value" ]
+      text ~title:"code" (print_code s.code);
+      text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [
             "next";
@@ -298,13 +297,15 @@ let render s =
           ];
           [ "dump_depth"; string_of_int (List.length s.dump) ];
         ];
-      table "stack" [ "depth"; "value" ] (indexed value_text s.stack);
-      table "env" [ "name"; "value" ]
-        (List.rev_map (fun (x, v) -> [ x; value_text v ]) s.env);
-      table "control" [ "pc"; "instr" ]
-        (indexed (fun i -> Yojson.Safe.to_string (instr_json i)) s.control);
-      table "dump"
-        [ "depth"; "stack"; "env"; "control" ]
+      indexed_table ~title:"stack" ~columns:[ "depth"; "value" ] value_text
+        s.stack;
+      assoc_table ~title:"env" ~columns:[ "name"; "value" ] value_text
+        (List.rev s.env);
+      indexed_table ~title:"control" ~columns:[ "pc"; "instr" ]
+        (fun i -> Yojson.Safe.to_string (instr_json i))
+        s.control;
+      text_table ~title:"dump"
+        ~columns:[ "depth"; "stack"; "env"; "control" ]
         (List.mapi
            (fun i (f : dump_frame) ->
              [

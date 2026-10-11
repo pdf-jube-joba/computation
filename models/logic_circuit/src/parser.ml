@@ -131,7 +131,7 @@ let parse_main_with_maps code maps =
 let parse_main code = parse_main_with_maps code (init_maps ())
 
 let parse_signal text =
-  if Utf8_trim.trim text = "" then Ok []
+  if String.trim text = "" then Ok []
   else
     L.protect (fun () ->
         String.split_on_char ',' text
@@ -139,7 +139,7 @@ let parse_signal text =
             match String.rindex_opt item '=' with
             | None -> raise (L.Error "Expected NAME.PIN=BOOL")
             | Some at ->
-                let pin_text = Utf8_trim.trim (String.sub item 0 at) in
+                let pin_text = String.trim (String.sub item 0 at) in
                 let pin =
                   match String.rindex_opt pin_text '.' with
                   | None -> raise (L.Error "Expected NAME.PIN")
@@ -153,7 +153,7 @@ let parse_signal text =
                         result_exn (Utils.Identifier.make p) )
                 in
                 let b =
-                  Utf8_trim.trim
+                  String.trim
                     (String.sub item (at + 1) (String.length item - at - 1))
                 in
                 let b =

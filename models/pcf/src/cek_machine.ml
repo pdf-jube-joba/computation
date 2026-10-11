@@ -141,29 +141,23 @@ let env_from_kont k =
     k
   |> Option.value ~default:[]
 
-let table title columns rows =
-  Utils.Render.table ~title
-    ~columns:(List.map Utils.Render.text columns)
-    (List.map (List.map Utils.Render.text) rows)
-
 let render s =
+  let open Utils.Render in
   let mode, focus, env, k =
     match s.state with
     | Eval (e, env, k) -> ("eval", print e, env, k)
     | Return (v, k) -> ("return", value_text v, env_from_kont k, k)
   in
-  Utils.Render.state
+  state
     [
-      Utils.Render.text ~title:"code" (print s.code);
-      table "state" [ "field"; "value" ]
+      text ~title:"code" (print s.code);
+      text_table ~title:"state" ~columns:[ "field"; "value" ]
         [ [ "mode"; mode ]; [ "focus"; focus ] ];
-      table "env" [ "name"; "value" ]
-        (List.rev_map (fun (x, v) -> [ x; value_text v ]) env);
-      table "kont" [ "depth"; "frame" ]
-        (List.mapi
-           (fun i f ->
-             [ string_of_int i; Yojson.Safe.to_string (frame_to_yojson f) ])
-           k);
+      assoc_table ~title:"env" ~columns:[ "name"; "value" ] value_text
+        (List.rev env);
+      indexed_table ~title:"kont" ~columns:[ "depth"; "frame" ]
+        (fun f -> Yojson.Safe.to_string (frame_to_yojson f))
+        k;
     ]
 
 let routput_json = Syntax.routput_json

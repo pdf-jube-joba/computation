@@ -83,36 +83,12 @@ let render s =
     | _ -> "halt"
   in
   let memory =
-    table "memory" [ "addr"; "value" ]
-      (Array.to_list
-         (Array.mapi (fun i n -> [ string_of_int i; N.to_string n ]) s.memory))
-  in
-  let memory =
-    match memory with
-    | `Assoc fields ->
-        let rows = List.assoc "rows" fields in
-        let rows =
-          match rows with
-          | `List rows ->
-              `List
-                (List.mapi
-                   (fun i row ->
-                     if pc = Some i then
-                       match row with
-                       | `Assoc fields ->
-                           `Assoc
-                             (fields @ [ ("className", `String "highlight") ])
-                       | _ -> row
-                     else row)
-                   rows)
-          | rows -> rows
-        in
-        `Assoc (("rows", rows) :: List.remove_assoc "rows" fields)
-    | _ -> memory
+    Utils.Render.indexed_table ~title:"memory" ~columns:[ "addr"; "value" ]
+      ?highlight:pc N.to_string (Array.to_list s.memory)
   in
   Utils.Render.state
     [
-      table "status" [ "field"; "value" ]
+      Utils.Render.text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [ "pc"; (match pc with Some n -> string_of_int n | None -> "?") ];
           [ "flag"; string_of_bool s.flag ];

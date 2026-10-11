@@ -255,12 +255,8 @@ let render state =
   Render.state
     [
       Render.text ~title:"function" (print state.function_);
-      Render.table ~title:"input"
-        ~columns:[ Render.text "arg"; Render.text "value" ]
-        (List.mapi
-           (fun index value ->
-             [ Render.text (string_of_int index); Render.text value ])
-           state.input);
+      Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ] Fun.id
+        state.input;
       Render.text ~title:"process" (print_process state.process);
     ]
 
