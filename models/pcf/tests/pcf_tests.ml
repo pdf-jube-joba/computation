@@ -61,25 +61,33 @@ let stmt text expected =
 
 let () =
   let s n = `String n in
-  differential "(fun x => (fun y => 7))(print 1)(print 2)" "()"
+  differential "(\\fun x => (\\fun y => 7))(\\print 1)(\\print 2)" "()"
     ([ s "1"; s "2" ], s "7");
-  differential "rec f x => if #true then x else f(x) fi" "(5)" ([], s "5");
-  differential "fun x => fun y => inc (x - y)" "(10, 3)" ([], s "8");
-  differential "(fun x => (fun f => f(3))(fun y => x + y))(4)" "()" ([], s "7");
-  differential
-    "(rec f x => fun b => if b then x else f(inc x)(#true) fi)(4)(#false)" "()"
+  differential "\\rec f x => \\if \\true \\then x \\else f(x) \\fi" "(5)"
     ([], s "5");
-  differential "(fun x => (fun y => 0)(x))(print 42)" "()" ([ s "42" ], s "0");
-  differential "if not (#false && #true) then 8 else print 99 fi" "()"
+  differential "\\fun x => \\fun y => \\inc (x - y)" "(10, 3)" ([], s "8");
+  differential "(\\fun x => (\\fun f => f(3))(\\fun y => x + y))(4)" "()"
+    ([], s "7");
+  differential
+    "(\\rec f x => \\fun b => \\if b \\then x \\else f(\\inc x)(\\true) \
+     \\fi)(4)(\\false)"
+    "()"
+    ([], s "5");
+  differential "(\\fun x => (\\fun y => 0)(x))(\\print 42)" "()"
+    ([ s "42" ], s "0");
+  differential "\\if \\not (\\false && \\true) \\then 8 \\else \\print 99 \\fi"
+    "()"
     ([], s "8");
-  differential "if #false && (fun z => #true)(print 6) then print 99 else 4 fi"
+  differential
+    "\\if \\false && (\\fun z => \\true)(\\print 6) \\then \\print 99 \\else 4 \
+     \\fi"
     "()"
     ([ s "6" ], s "4");
-  differential "dec inc 0 + 8 - 3" "()" ([], s "5");
-  differential "fun x => x" "(+005)" ([], s "5");
+  differential "\\dec \\inc 0 + 8 - 3" "()" ([], s "5");
+  differential "\\fun x => x" "(+005)" ([], s "5");
   differential
-    "(fun x => (fun f => (fun x => f(2))(9))(rec f y => if #true then x + y \
-     else f(y) fi))(4)"
+    "(\\fun x => (\\fun f => (\\fun x => f(2))(9))(\\rec f y => \\if \\true \
+     \\then x + y \\else f(y) \\fi))(4)"
     "()"
     ([], s "6");
   (* Unlike dec in the continuation language, PCF dec and subtraction reject underflow. *)
@@ -114,35 +122,41 @@ let () =
       in
       loop 100 state)
     [
-      "dec 0";
+      "\\dec 0";
       "1 - 2";
-      "#true + 1";
-      "if 0 then 1 else 2 fi";
+      "\\true + 1";
+      "\\if 0 \\then 1 \\else 2 \\fi";
       "0(1)";
       "x";
-      "#unit";
-      "#false && (print 9)";
+      "\\unit";
+      "\\false && (\\print 9)";
     ];
-  stmt "{ print 1; 2 } + { print 3; 4 }" ([ s "1"; s "3" ], s "6");
-  stmt "({ let x := 1; fun y => x + y })(2)" ([], s "3");
-  stmt "{ let x := 1; let x := 4; x }" ([], s "4");
-  stmt "{ let x := 1; let y := { let x := 2; x }; x + y }" ([], s "3");
-  stmt "{ if #true then print 1; let x := 2 end; x }" ([ s "1" ], s "2");
-  stmt "{ let b := #true; while b do print 9; let b := #false end; 7 }"
-    ([ s "9" ], s "7");
-  stmt "{ while #false do print 99 end; if #false then print 98 end; 6 }"
-    ([], s "6");
-  stmt "(rec f x => { skip; if #true then x else f(x) fi })(5)" ([], s "5");
+  stmt "{ \\print 1; 2 } + { \\print 3; 4 }" ([ s "1"; s "3" ], s "6");
+  stmt "({ \\let x := 1; \\fun y => x + y })(2)" ([], s "3");
+  stmt "{ \\let x := 1; \\let x := 4; x }" ([], s "4");
+  stmt "{ \\let x := 1; \\let y := { \\let x := 2; x }; x + y }" ([], s "3");
+  stmt "{ \\if \\true \\then \\print 1; \\let x := 2 \\end; x }"
+    ([ s "1" ], s "2");
   stmt
-    "{ let x := 4; let f := rec f y => if #true then x + y else f(y) fi; let x \
-     := 9; f(2) }"
+    "{ \\let b := \\true; \\while b \\do \\print 9; \\let b := \\false \\end; \
+     7 }"
+    ([ s "9" ], s "7");
+  stmt
+    "{ \\while \\false \\do \\print 99 \\end; \\if \\false \\then \\print 98 \
+     \\end; 6 }"
     ([], s "6");
-  error (Syntax.parse_code "fun if => 1");
+  stmt "(\\rec f x => { \\skip; \\if \\true \\then x \\else f(x) \\fi })(5)"
+    ([], s "5");
+  stmt
+    "{ \\let x := 4; \\let f := \\rec f y => \\if \\true \\then x + y \\else \
+     f(y) \\fi; \\let x := 9; f(2) }"
+    ([], s "6");
+  error (Syntax.parse_code "\\fun \\if => 1");
   error (Syntax.parse_code "1 trailing");
-  error (Syntax.parse_stmt_code "print 1");
-  error (Syntax.parse_code "{ skip; 1 }");
+  error (Syntax.parse_stmt_code "\\print 1");
+  error (Syntax.parse_code "{ \\skip; 1 }");
   error (Syntax.parse_stmt_code "{ 1 }");
-  error (Syntax.parse_stmt_code "{ skip; }");
+  error (Syntax.parse_stmt_code "{ \\skip; }");
   assert (get (Syntax.parse_ainput "(,001,,2,)") = [ "1"; "2" ]);
   assert (get (Syntax.parse_ainput "(+001, +2)") = [ "1"; "2" ]);
   assert (get (Syntax.parse_effect "+001") = Some "1");
@@ -154,7 +168,7 @@ let () =
   error (Syntax.parse_effect "++1");
   error (Syntax.parse_ainput "1,2");
   error (Expr_machine.parse_rinput "1");
-  let e = get (Syntax.parse_code "fun y => x") in
+  let e = get (Syntax.parse_code "\\fun y => x") in
   let substituted = Syntax.substitute e "x" (Syntax.Var "y") in
   assert (Syntax.Names.elements (Syntax.free_vars substituted) = [ "y" ]);
   assert (substituted = Syntax.Fun ("y_0", Syntax.Var "y"));

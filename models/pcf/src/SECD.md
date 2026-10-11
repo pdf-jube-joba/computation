@@ -17,7 +17,7 @@ Code も instruction として、スタックマシン方式になる。
 - \(S\) := \(\text{list} V\)
 - \(I\) :=
   - \(\T{push} (\N | \T{\#true} | \T{\#false} | \T{\#unit})\)
-  - \(\T{print}(n)\)
+  - \(\T{\textbackslash{}print}(n)\)
   - \(\T{acc} (\NT{var})\)
   - \(\T{mkcls}(x, C) \)
   - \(\T{mkrec}(f, x, C)\)
@@ -25,7 +25,7 @@ Code も instruction として、スタックマシン方式になる。
   - \(\T{unop}(\NT{unop})\)
   - \(\T{ap}\)
   - \(\T{ret}\)
-  - \(\T{if}(C, C)\)
+  - \(\T{\textbackslash{}if}(C, C)\)
 - \(C\) := \(\texttt{list} I\)
 - \(D\) := \(\texttt{list}(E, C)\)
 
@@ -33,7 +33,7 @@ Code も instruction として、スタックマシン方式になる。
 \[
 \begin{aligned}
 (S, E, \T{push}(c)::C, D) &\to (c::S, E, C, D) \\
-(S, E, \T{print}(n)::C, D) &\to (S, E, C, D) \\
+(S, E, \T{\textbackslash{}print}(n)::C, D) &\to (S, E, C, D) \\
 (S, E, \T{acc}(x)::C, D) &\to (v::S, E, C, D) && v = \text{lookup}(E, x) \\
 (S, E, \T{mkcls}(x, C)::C_2, D) &\to (\text{Fun}(x, C, E)::S, E, C_2, D) \\
 (S, E, \T{mkrec}(f, x, C)::C_2, D) &\to (\text{Rec}(f, x, C, E)::S, E, C_2, D) \\
@@ -42,8 +42,8 @@ Code も instruction として、スタックマシン方式になる。
 (v::\text{Fun}(x, C_f, E_f)::S, E, \T{ap}::C, D) &\to (S, (x, v)::E_f, C_f, (E, C)::D) \\
 (v::\text{Rec}(f, x, C_f, E_f)::S, E, \T{ap}::C, D) &\to (S, (x, v)::(f, \text{Rec}(f, x, C_f, E_f))::E_f, C_f, (E, C)::D) \\
 (S, E, \text{ret}::C, (E_0, C_0)::D) &\to (S, E_0, C_0, D) \\
-(\T{\#true}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_t +C, D) \\
-(\T{\#false}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_f +C, D) \\
+(\T{\#true}::S, E, \T{\textbackslash{}if}(C_t, C_f)::C, D) &\to (S, E, C_t +C, D) \\
+(\T{\#false}::S, E, \T{\textbackslash{}if}(C_t, C_f)::C, D) &\to (S, E, C_f +C, D) \\
 \end{aligned}
 \]
 
@@ -55,13 +55,13 @@ Code も instruction として、スタックマシン方式になる。
 \[
   \begin{aligned}
   \LLB c = \N | \T{\#true} | \T{\#false} | \T{\#unit} \RRB &= [\T{push}(c)] \\
-  \LLB \T{print} n \RRB &= \T{print}(n) \\
+  \LLB \T{\textbackslash{}print} n \RRB &= \T{\textbackslash{}print}(n) \\
   \LLB x \in \NT{var} \RRB &= \T{acc}(x) \\
-  \LLB \T{fun} x \T{=>} M \RRB &= \T{mkcls}(x, \LLB M \RRB) \\
-  \LLB \T{rec} f x \T{=>} M \RRB &= \T{mkrec}(f, x, \LLB M \RRB) \\
+  \LLB \T{\textbackslash{}fun} x \T{=>} M \RRB &= \T{mkcls}(x, \LLB M \RRB) \\
+  \LLB \T{\textbackslash{}rec} f x \T{=>} M \RRB &= \T{mkrec}(f, x, \LLB M \RRB) \\
   \LLB e_1 (b \in \NT{binop}) e_2 \RRB &= \LLB e_1 \RRB + \LLB e_2 \RRB + \T{binop}(b) \\
   \LLB (u \in \NT{unop} e) \RRB &= \LLB e \RRB + \T{unop}(u) \\
   \LLB e_1 (e_2) \RRB &= \LLB e_1 \RRB + \LLB e_2 \RRB + \T{ap} + \T{ret} \\
-  \LLB \T{if} L M N \RRB &= \LLB L \RRB + \T{if}(\LLB M \RRB, \LLB N \RRB)
+  \LLB \T{\textbackslash{}if} L M N \RRB &= \LLB L \RRB + \T{\textbackslash{}if}(\LLB M \RRB, \LLB N \RRB)
   \end{aligned}
 \]

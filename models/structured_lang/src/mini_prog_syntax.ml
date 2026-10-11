@@ -126,12 +126,12 @@ type routput = string
 type foutput = N.t [@@deriving yojson]
 
 let rec type_text = function
-  | Num -> "#num"
-  | U8 -> "#u8"
-  | Bool -> "#bool"
-  | Unit -> "#unit"
-  | Ptr -> "#ptr"
-  | Fn -> "#fn"
+  | Num -> "\\num"
+  | U8 -> "\\u8"
+  | Bool -> "\\bool"
+  | Unit -> "\\unit"
+  | Ptr -> "\\ptr"
+  | Fn -> "\\fn"
   | Product ts -> String.concat " * " (List.map type_text ts)
   | Sum ts -> String.concat " + " (List.map type_text ts)
   | Array (t, n) -> "[" ^ type_text t ^ "; " ^ string_of_int n ^ "]"
@@ -145,51 +145,51 @@ let op_text = function
   | Or -> "||"
 
 let rec place_text = function
-  | Static n -> "static " ^ n
-  | Local n -> "local " ^ n
+  | Static n -> "\\static " ^ n
+  | Local n -> "\\local " ^ n
   | Field (p, i) -> place_text p ^ "." ^ string_of_int i
   | Tag_place (p, i) -> place_text p ^ "?" ^ string_of_int i
   | Index (p, v) -> place_text p ^ "[" ^ expr_text v ^ "]"
-  | Deref v -> "(" ^ expr_text v ^ ") #loc"
+  | Deref v -> "(" ^ expr_text v ^ ") \\loc"
 
 and expr_text = function
   | Number n -> N.to_string n
   | Char c -> "'" ^ c ^ "'"
-  | Boolean b -> if b then "#true" else "#false"
-  | Unit_value -> "#unit"
-  | NullPtr -> "#null-ptr"
-  | NullFn -> "#null-fn"
+  | Boolean b -> if b then "\\true" else "\\false"
+  | Unit_value -> "\\unit"
+  | NullPtr -> "\\null-ptr"
+  | NullFn -> "\\null-fn"
   | BinOp (a, op, b) -> expr_text a ^ " " ^ expr_text b ^ " " ^ op_text op
   | UnOp (Not, v) -> expr_text v ^ " !"
   | Pair vs ->
       String.concat ", " (List.map expr_text vs)
-      ^ " pair("
+      ^ " \\pair("
       ^ string_of_int (List.length vs)
       ^ ")"
-  | Tag (t, v) -> expr_text v ^ " tag(" ^ string_of_int t ^ ")"
-  | Load p -> "ld " ^ place_text p
-  | Addr p -> place_text p ^ " #addr"
-  | Function n -> "fn " ^ n
+  | Tag (t, v) -> expr_text v ^ " \\tag(" ^ string_of_int t ^ ")"
+  | Load p -> "\\ld " ^ place_text p
+  | Addr p -> place_text p ^ " \\addr"
+  | Function n -> "\\fn " ^ n
 
 let rec stmt_text = function
-  | Assign (p, v) -> "assign " ^ place_text p ^ " := " ^ expr_text v
-  | If (c, s) -> "if " ^ expr_text c ^ " " ^ stmt_text s
+  | Assign (p, v) -> "\\assign " ^ place_text p ^ " := " ^ expr_text v
+  | If (c, s) -> "\\if " ^ expr_text c ^ " " ^ stmt_text s
   | Case (t, v, s) ->
-      "case " ^ string_of_int t ^ " of " ^ expr_text v ^ " " ^ stmt_text s
-  | HAlloc (t, p) -> "halloc " ^ type_text t ^ " -> " ^ place_text p
-  | HFree v -> "hfree " ^ expr_text v
-  | Loop (l, s) -> "loop " ^ l ^ ": " ^ stmt_text s
-  | Break l -> "break " ^ l
-  | Continue l -> "continue " ^ l
+      "\\case " ^ string_of_int t ^ " \\of " ^ expr_text v ^ " " ^ stmt_text s
+  | HAlloc (t, p) -> "\\halloc " ^ type_text t ^ " -> " ^ place_text p
+  | HFree v -> "\\hfree " ^ expr_text v
+  | Loop (l, s) -> "\\loop " ^ l ^ ": " ^ stmt_text s
+  | Break l -> "\\break " ^ l
+  | Continue l -> "\\continue " ^ l
   | Call (f, args, rets) ->
-      "call " ^ expr_text f ^ "("
+      "\\call " ^ expr_text f ^ "("
       ^ String.concat ", " (List.map expr_text args)
       ^ ") -> "
       ^ String.concat ", " (List.map place_text rets)
   | Return vs ->
-      "return"
+      "\\return"
       ^ if vs = [] then "" else " " ^ String.concat ", " (List.map expr_text vs)
-  | Block b -> "block " ^ block_text b
+  | Block b -> "\\block " ^ block_text b
 
 and block_text b =
   "("
@@ -202,16 +202,16 @@ and block_text b =
 let print (c : code) =
   String.concat "\n"
     (List.map
-       (fun (s : static_decl) -> "static " ^ s.name ^ ": " ^ type_text s.ty)
+       (fun (s : static_decl) -> "\\static " ^ s.name ^ ": " ^ type_text s.ty)
        c.statics
     @ List.map
-        (fun (f : fn_decl) -> "fn " ^ f.name ^ block_text f.block)
+        (fun (f : fn_decl) -> "\\fn " ^ f.name ^ block_text f.block)
         c.functions)
 
 let location_text loc =
   (match loc.key with
     | Heap n -> "heap#" ^ string_of_int n
-    | Static_key n -> "static " ^ n
+    | Static_key n -> "\\static " ^ n
     | Local_key n -> "local#" ^ string_of_int n)
   ^ String.concat ""
       (List.map
@@ -224,14 +224,14 @@ let location_text loc =
 let rec value_text = function
   | Number_value n -> N.to_string n
   | Char_value c -> "'" ^ c ^ "'"
-  | Bool_value b -> if b then "#true" else "#false"
-  | Unit_v -> "#unit"
-  | Ptr_value None -> "#null-ptr"
+  | Bool_value b -> if b then "\\true" else "\\false"
+  | Unit_v -> "\\unit"
+  | Ptr_value None -> "\\null-ptr"
   | Ptr_value (Some l) -> location_text l
-  | FnPtr None -> "#null-fn"
-  | FnPtr (Some n) -> "fn " ^ n
+  | FnPtr None -> "\\null-fn"
+  | FnPtr (Some n) -> "\\fn " ^ n
   | Aggregate vs -> "(" ^ String.concat ", " (List.map value_text vs) ^ ")"
-  | Sum_value (t, v) -> "tag(" ^ string_of_int t ^ ", " ^ value_text v ^ ")"
+  | Sum_value (t, v) -> "\\tag(" ^ string_of_int t ^ ", " ^ value_text v ^ ")"
 
 let exec_text = function
   | Eval s -> "eval " ^ stmt_text s
@@ -243,4 +243,4 @@ let exec_text = function
 let inner_text = function
   | Stmt_frame s -> "stmt " ^ stmt_text s
   | Scope -> "scope"
-  | Loop_frame (l, s) -> "loop " ^ l ^ ": " ^ stmt_text s
+  | Loop_frame (l, s) -> "\\loop " ^ l ^ ": " ^ stmt_text s

@@ -100,12 +100,12 @@ let () =
   check
     (Prim (Mu (Proj (2, 0)), Comp (Succ, [ Proj (3, 0) ])))
     (numbers [ 3; 2 ]);
-  api_check "PRIM[z:PROJ[1,0] s:COMP[SUCC: PROJ[3,0]]]" "(2,4)";
+  api_check "\\PRIM[\\z:\\PROJ[1,0] \\s:\\COMP[\\SUCC: \\PROJ[3,0]]]" "(2,4)";
   api_check
-    "let p = PRIM[z:ZERO s:PROJ[2,1]]. let sub = PRIM[z:PROJ[1,0] s:COMP[p: \
-     PROJ[3,0]]]. MUOP[sub]"
+    "\\let p = \\PRIM[\\z:\\ZERO \\s:\\PROJ[2,1]]. \\let sub = \
+     \\PRIM[\\z:\\PROJ[1,0] \\s:\\COMP[p: \\PROJ[3,0]]]. \\MUOP[sub]"
     "(3)";
-  api_check "COMP[PROJ[2,1]: (SUCC,COMP[SUCC: SUCC])]" "(5)";
+  api_check "\\COMP[\\PROJ[2,1]: (\\SUCC,\\COMP[\\SUCC: \\SUCC])]" "(5)";
   (* Helper inputs may come from different parses with colliding IDs. *)
   let composed =
     C.composition 1 [ C.succ (); C.succ () ] (Option.get (C.projection 2 1))
@@ -134,7 +134,7 @@ let () =
   error (C.api.decode_foutput "(\\x.x) (\\s z.z)");
   error (C.compile (Prim (Zero, Succ)));
   error (C.compile (Mu Zero));
-  error (C.api.compile_code "PROJ[1,2]");
+  error (C.api.compile_code "\\PROJ[1,2]");
   error (C.api.encode_ainput "(-1)");
   error (C.api.encode_ainput "(99999999999999999999999999999999999999999999)");
   let same : L.var = { id = 0; name = "s" } in

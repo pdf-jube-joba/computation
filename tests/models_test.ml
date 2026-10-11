@@ -67,7 +67,7 @@ let () =
   ignore (get (S.make b "8" ""));
   error (S.step a "oops");
   assert (get (S.snapshot a) = C.snapshot 3);
-  ignore (get (S.step a "inc"));
+  ignore (get (S.step a "\\inc"));
   assert (get (S.snapshot b) = C.snapshot 8);
   error (S.restore a (`String "bad"));
   assert (get (S.snapshot a) = C.snapshot 4);

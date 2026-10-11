@@ -13,7 +13,7 @@ step は標準入力の snapshot を復元して一段階実行し、継続時�
 実行時出力・停止時出力を標準エラーへ書きます。停止時の標準出力は空です。
 
 ```sh
-printf '%s\n' '{"count":5}' | opam exec -- dune exec pipe-machine -- model example_counter step --rinput inc
+printf '%s\n' '{"count":5}' | opam exec -- dune exec pipe-machine -- model example_counter step --rinput '\inc'
 ```
 
 描画用 JSON は `model NAME render` で標準入力の snapshot から取得できます。
@@ -31,7 +31,7 @@ RInput を一行ずつ入力します。`:snapshot` は状態の出力、`:quit`
 コンパイラも同じ registry から選べます。
 
 ```sh
-opam exec -- dune exec pipe-machine -- compiler compile-code recursive_function-goto_lang --code SUCC
+opam exec -- dune exec pipe-machine -- compiler compile-code recursive_function-goto_lang --code '\SUCC'
 opam exec -- dune exec pipe-machine -- compiler encode-ainput recursive_function-goto_lang --ainput '(3)'
 ```
 

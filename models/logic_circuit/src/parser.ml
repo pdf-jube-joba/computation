@@ -159,7 +159,7 @@ let parse_main_with_maps code maps =
 
 let parse_main code = parse_main_with_maps code (init_maps ())
 
-let parse_signal text =
+let parse_signal_raw text =
   if Utf8_trim.trim text = "" then Ok []
   else
     L.protect (fun () ->
@@ -187,8 +187,13 @@ let parse_signal text =
                 in
                 let b =
                   match b with
-                  | "#true" -> true
-                  | "#false" -> false
+                  | "\\true" -> true
+                  | "\\false" -> false
                   | _ -> raise (L.Error ("Invalid boolean text: " ^ b))
                 in
                 (pin, b)))
+
+let parse_signal text =
+  match L.protect (fun () -> L.without_comments text) with
+  | Error message -> Error message
+  | Ok text -> parse_signal_raw text

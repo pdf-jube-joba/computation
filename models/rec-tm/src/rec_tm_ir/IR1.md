@@ -16,20 +16,20 @@
 \NT{rvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \\
 \NT{lvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \sp | \sp S \\
 
-\NT{cond}     &\defeq \T{if} \sp \NT{rvalue} \sp \T{=} \sp \NT{rvalue} \\
+\NT{cond}     &\defeq \T{\textbackslash{}if} \sp \NT{rvalue} \sp \T{=} \sp \NT{rvalue} \\
 \NT{stmt}   &\defeq (\\
-  &|\T{LT} |\T{RT}  \\
+  &|\T{\textbackslash{}LT} |\T{\textbackslash{}RT}  \\
   &|\NT{;value} \sp \T{:=} \sp \NT{rvalue} \\
-  &|\T{jump}      \sp \NT{label}  \sp \NT{cond} \\
-  &|\T{break}                     \sp \NT{cond} \\
-  &|\T{continue}                  \sp \NT{cond} \\
-  &|\T{call}      \sp \NT{name} \\
-  &|\T{return}                    \sp \NT{cond} \\
+  &|\T{\textbackslash{}jump}      \sp \NT{label}  \sp \NT{cond} \\
+  &|\T{\textbackslash{}break}                     \sp \NT{cond} \\
+  &|\T{\textbackslash{}continue}                  \sp \NT{cond} \\
+  &|\T{\textbackslash{}call}      \sp \NT{name} \\
+  &|\T{\textbackslash{}return}                    \sp \NT{cond} \\
   ) \T{;} \\
 \NT{block}    &\defeq \NT{label} \sp \T{:} \NT{stmt}* \\
 \NT{function} &\defeq \NT{name} \sp \T{\{} \NT{block} \T{\}} \\
 
-\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{\LP} \syntaxmacro{comma-separated}{S} \T{\RP} \\
+\NT{alphabet-decl} &\defeq \T{\textbackslash{}alphabet} \sp \T{\LP} \syntaxmacro{comma-separated}{S} \T{\RP} \\
 \NT{program}    &\defeq \NT{alphabet-decl} \sp \NT{function}+
 \end{aligned}
 \]
@@ -41,7 +41,7 @@
   - env: \(V \to S\), 有限を除いて \(\mathbb{B}\) に移る
 
 基本命令
-: 
+:
   - LT: head := head - 1
   - RT: head := head + 1
   - @ := w: tape[head] への w の代入

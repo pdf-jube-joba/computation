@@ -22,16 +22,16 @@ call/return で手続呼び出しを行う言語を考える。
 \NT{var-cmm} &\defeq \syntaxmacro{comma-separated}{\NT{var}} \\
 \\
 \NT{stmt} &\defeq \\
-  &| \T{Nop} \\
+  &| \T{\textbackslash{}Nop} \\
   &| \NT{stmt} \T{;} \NT{stmt} \\
   &| \NT{var} \T{:=} \NT{aexp} \\
-  &| \T{if} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
-  &| \T{while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
-  &| \T{call} \NT{name} \T{\LP} \NT{var-cmm} \T{\RP} \T{->} \NT{var-cmm} \\
-  &| \T{return} \NT{var-cmm} \\
+  &| \T{\textbackslash{}if} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
+  &| \T{\textbackslash{}while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
+  &| \T{\textbackslash{}call} \NT{name} \T{\LP} \NT{var-cmm} \T{\RP} \T{->} \NT{var-cmm} \\
+  &| \T{\textbackslash{}return} \NT{var-cmm} \\
 \\
 \NT{proc} &\defeq \NT{string} \T{\LP} \NT{var-cmm} \T{\RP} \T{\LCB} \\
-  &\T{local} \NT{var-cmm} \\
+  &\T{\textbackslash{}local} \NT{var-cmm} \\
   &\NT{stmt} \\
   &\T{\RCB} \\
 \\
@@ -41,7 +41,7 @@ call/return で手続呼び出しを行う言語を考える。
 \]
 
 - \(\T{;}\) は右結合
-- stmt は return で終わらなかったら \(\T{return}\) が入っているものとして扱う。
+- stmt は return で終わらなかったら \(\T{\textbackslash{}return}\) が入っているものとして扱う。
 - static は code の方で宣言だけしておいて、 `AInput` と名前があっているか確認する。
 
 ## 意味論（ small-step ）
@@ -67,14 +67,14 @@ early return ができる。\(s_1; s_2\) がすでに継続の形をしている
   - \(S \defeq (\NT{stmt}, E_{\text{global}}, E_{\text{local}}, K)\) ...これは実行機械の状態
 - 文の実行の仕方
   - \((s_1; s_2, E_g, E_s, K) \to (s_1'; s_2, E_g', E_s', K')\) if \((s_1, E_g, E_s, K) \to (s_1', E_g', E_s', K')\) ... seq rule 意味の与え方が木構造になった。
-  - \((\T{Nop}; s, E, K) \to (s, E, K)\)
-  - \((\T{return} r_i; s, E_g, E, K) \to (\T{return} r_i, E_g, E, K)\) ... return を見たら後ろを捨てる。
-  - \((\T{return}, E_g, E, \emptyset) \to E_g\) ... これがプログラム全体を通した `AInput` から `FOutput` への写像。
-  - \((\T{return} r_{i \in 0 \ldots m'}, E_g, E, (s, E', w_{i \in 0 \ldots m}):: K) \to (s, E_g', E'', K)\)
+  - \((\T{\textbackslash{}Nop}; s, E, K) \to (s, E, K)\)
+  - \((\T{\textbackslash{}return} r_i; s, E_g, E, K) \to (\T{\textbackslash{}return} r_i, E_g, E, K)\) ... return を見たら後ろを捨てる。
+  - \((\T{\textbackslash{}return}, E_g, E, \emptyset) \to E_g\) ... これがプログラム全体を通した `AInput` から `FOutput` への写像。
+  - \((\T{\textbackslash{}return} r_{i \in 0 \ldots m'}, E_g, E, (s, E', w_{i \in 0 \ldots m}):: K) \to (s, E_g', E'', K)\)
     - \(m \neq m'\) なら `Err` として、そうじゃないなら、
       - ローカルへの代入： \(w_i \in E'\) に対しては \(E'' := E'[w_i := \llbracket r_i \rrbracket_{E_g, E} ]\) で更新する。
       - グローバルへの代入： \(w_i \in E_g\) に対しては \(E_g' := E'[w_i := \llbracket r_i \rrbracket_{E_g, E}]\) で更新する。
-  - \((\T{call} \mathit{name} v_{i \in 0 \ldots n} \T{->} w_{i \in 0 \ldots m}; s, E_g, E_l, K) \to (s'; \T{return}, E_g, E', (s, E_l, w_{i \in 0 \ldots m} ):: K)\)
+  - \((\T{\textbackslash{}call} \mathit{name} v_{i \in 0 \ldots n} \T{->} w_{i \in 0 \ldots m}; s, E_g, E_l, K) \to (s'; \T{\textbackslash{}return}, E_g, E', (s, E_l, w_{i \in 0 \ldots m} ):: K)\)
     - \(\mathit{name}\) で宣言されている手続きが \(\mathit{name} p_{i \in 0 \ldots n'} s'\) とする。
     - \(n \neq n'\) なら `Err` でいい、そうじゃないなら、 \(p_i := \llbracket v_i \rrbracket_{E_g, E_s}\) として**値渡し**
     - local variable は \(\NT{proc}\) のときに宣言されているものを \(0\) で fill して渡して、上と合わせて \(E'\) とする。
@@ -82,16 +82,16 @@ early return ができる。\(s_1; s_2\) がすでに継続の形をしている
 
 > [!Note]
 > AI 談
-> - structural operational semantics (Plotkin style?) ... \(s_1; s_2 \to s_1'; s_2\), \(\T{Nop}; s \to s\) にするやりかた
+> - structural operational semantics (Plotkin style?) ... \(s_1; s_2 \to s_1'; s_2\), \(\T{\textbackslash{}Nop}; s \to s\) にするやりかた
 > - abstract machine (SECD, CEK) に近いのは、 \(s_1; s_2\) をみたら \(s_2\) は継続に積むらしい
-> 
+>
 > あとで本当か調べよう。
 > 他に気が付いたこと：
 > call/return がきれいに呼び出しの継続を扱っている。
-> 例えば、 `(call, E, K) -> (s, E', (Nop, E)::K)` みたいにすると seq rule から `(call; s', E, K) -> (s; s', E', (Nop, E)::K)` となる。
+> 例えば、 `(\call, E, K) -> (s, E', (\Nop, E)::K)` みたいにすると seq rule から `(\call; s', E, K) -> (s; s', E', (\Nop, E)::K)` となる。
 > これは `s` での return がうまくハンドルできていない。（本当は `s` に戻ってほしいのに、 `abort` みたいに、全部の継続が捨てられることになる。）
-> なので、 `call; s` という形自体に対する変形ルールが必要になる。**`call` は常に継続をとる！**
-> `call` 側がちゃんとしているので、 `return` は文レベルでの継続を全部捨てる形にしていい。
+> なので、 `\call; s` という形自体に対する変形ルールが必要になる。**`\call` は常に継続をとる！**
+> `\call` 側がちゃんとしているので、 `\return` は文レベルでの継続を全部捨てる形にしていい。
 
 ## 意味論 ( program counter 方式 )
 どの手続きのどの行を実行しているかを追いかければいい。
@@ -112,9 +112,9 @@ proc_lang 側でスタックに触れないので、 push/pop は call/local var
     \(\T{\%} p_i := \T{\%v\_fp} - (i + 1)\) とする。 \(T{sacc} \T{\%} p_i\) で Key が手に入る。\(i + 1\) はコンパイル時に計算できる。
     局所変数の初期化前は、一番上は return address が入っている状態なので注意。
   - local \(x_{i \in 0 \ldots n}\): 局所変数初期化後にスタックの長さを \(\T{\%v\_sp}\) として手に入れておく。
-    \(\T{\%} x_i := \T{\%v\_sp} - i\) とする。 \(\T{sacc} \T{\%} x_i\) で Key が手に入る。
+    \(\T{\%} x_i := \T{\%v\_sp} - i\) とする。 \(\T{\textbackslash{}sacc} \T{\%} x_i\) で Key が手に入る。
 - \(\NT{stmt} _{\text{proc lang}} \to \NT{block} _{\text{flow ir}}+\) は次のようにやる。
-  - \(\T{Nop}\), \(s_1; s_2\), \(x := a\), if/while は while language のときと同じようにやる。
+  - \(\T{\textbackslash{}Nop}\), \(s_1; s_2\), \(x := a\), if/while は while language のときと同じようにやる。
   - call: ブロックを2つにする。
     - 呼び出しブロック：
       - 引数を**右から** ld して push ... 逆順にすると \(- i\) と合う。（これは好み。）
@@ -128,14 +128,14 @@ proc_lang 側でスタックに触れないので、 push/pop は call/local var
     - 返り値 `\%v_ri` を全部 push する。 \(i\) の大きい方から。（ callee は caller に合わせて、 \(w_m\) に入れるべき値から順に push する。）
     - `\%v_ret` に飛ぶ。
 - 各手続きの最初：
-  - \(\T{lget} \T{\%v\_fp}\) で長さを取得。 
+  - \(\T{\textbackslash{}lget} \T{\%v\_fp}\) で長さを取得。
   - local variable を push 0 で確保する。
-  - \(\T{lget} \T{\%v\_sp}\) で長さを取得。
+  - \(\T{\textbackslash{}lget} \T{\%v\_sp}\) で長さを取得。
   - これで call stack は次のような状況になっている。スタックは上から入れるような書き方。
     | 入っている値 | 位置 |
     | --- | --- |
     | 局所変数 \(x_0\) | \(v\_sp\) |
-    | 局所変数 \(x_1\) | \(v\_sp - 1\) | 
+    | 局所変数 \(x_1\) | \(v\_sp - 1\) |
     | ... | ... |
     | 局所変数 \(x_n\) | \(v\_sp - n = v \_fp + 1\) |
     | return addr | \(v\_fp\) |
@@ -144,6 +144,6 @@ proc_lang 側でスタックに触れないので、 push/pop は call/local var
   - このスタックの長さは最終的に関数を抜ける return 以外では変化しない。
     他の手続きを call しても、ちゃんと処理が終わった後はこの長さになっている。
     なので、相対位置を手続きの初めに確定したらあとは計算する必要がない。
-- main だけ戻る先がないので特別扱いする必要がある。コンパイル先の flow_ir で `:halt {halt; }` だけ書かれたものを用意して、
+- main だけ戻る先がないので特別扱いする必要がある。コンパイル先の flow_ir で `:halt {\halt; }` だけ書かれたものを用意して、
   return addr を一番最初に `:halt` に向けて push しておく。
   これで、 main も implicit/explicit return で扱える。

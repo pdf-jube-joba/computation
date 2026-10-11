@@ -6,7 +6,7 @@ expr に加えて stmt を入れる場合のメモ
 \begin{aligned}
 \NT{var} &\defeq \NT{string} \\
 \NT{binop} &\defeq \T{+} | \T{-} | \T{\&\&} \\
-\NT{unop} &\defeq \T{inc} | \T{dec} | \T{not} \\
+\NT{unop} &\defeq \T{\textbackslash{}inc} | \T{\textbackslash{}dec} | \T{\textbackslash{}not} \\
 \\
 \NT{expr} &\defeq \\
     &| \T{\LP} \NT{expr} \T{\RP} & \syntaxname{結合順序の制御用} \\
@@ -14,25 +14,25 @@ expr に加えて stmt を入れる場合のメモ
     &| \NT{var} \\
     &| \NT{expr} \NT{binop} \NT{expr} \\
     &| \NT{unop} \NT{expr} \\
-    &| \T{fun} \NT{var} \T{=>} \NT{expr} \\
-    &| \T{rec} \NT{var} \NT{var} \T{=>} \NT{expr} \\
+    &| \T{\textbackslash{}fun} \NT{var} \T{=>} \NT{expr} \\
+    &| \T{\textbackslash{}rec} \NT{var} \NT{var} \T{=>} \NT{expr} \\
     &| \NT{expr} \T{\LP} \NT{expr} \T{\RP} \\
-    &| \T{if} \NT{expr} \T{then} \NT{expr} \T{else} \NT{expr} \T{fi} \\
+    &| \T{\textbackslash{}if} \NT{expr} \T{\textbackslash{}then} \NT{expr} \T{\textbackslash{}else} \NT{expr} \T{\textbackslash{}fi} \\
     &| \T{\LCB} \NT{stmt} \T{;} \NT{expr} \T{\RCB} \\
 \\
 \NT{stmt} &\defeq \\
-    &| \T{skip} \\
-    &| \T{print} \N &\syntaxname{呼び出し順序確認用} \\
+    &| \T{\textbackslash{}skip} \\
+    &| \T{\textbackslash{}print} \N &\syntaxname{呼び出し順序確認用} \\
     &| \NT{stmt} \T{;} \NT{stmt} \\
-    &| \T{let} \NT{var} \T{:=} \NT{expr} \\
-    &| \T{if} \NT{expr} \T{then} \NT{stmt} \T{end} \\
-    &| \T{while} \NT{expr} \T{do} \NT{stmt} \T{end} \\
+    &| \T{\textbackslash{}let} \NT{var} \T{:=} \NT{expr} \\
+    &| \T{\textbackslash{}if} \NT{expr} \T{\textbackslash{}then} \NT{stmt} \T{\textbackslash{}end} \\
+    &| \T{\textbackslash{}while} \NT{expr} \T{\textbackslash{}do} \NT{stmt} \T{\textbackslash{}end} \\
 \end{aligned}
 \]
 
 ## 意味論
 単体で reduction により意味論を与えることを考えるのは難しいので、 CEK をそのまま意味論に採用する。
-`let` のスコープは \(\T{\{} s \T{;} e \T{\}}\) の block の中だけとする。
+`\let` のスコープは \(\T{\{} s \T{;} e \T{\}}\) の block の中だけとする。
 
 ## CEK
 [CEK](./CEK.md) と同じく、 control, environment, kontinuation による抽象機械をそのまま意味論とみなす。
@@ -44,18 +44,18 @@ expr に加えて stmt を入れる場合のメモ
 - \(V\) := \(\N + \T{\#true} + \T{\#false} + \T{\#unit} + \text{Cls}\)
 - \(E\) := \(\text{list}(\NT{var}, V)\)
     - lookup は先頭から順に探す
-    - `let x := v` は先頭に \((x, v)\) を追加する
+    - `\let x := v` は先頭に \((x, v)\) を追加する
 - \(K\) := \(\text{list}K_f\) where \(K_f\) :=
     - \(([] \NT{binop} M, E)\)
     - \((V \NT{binop} [], E)\)
     - \((\NT{unop} [], E)\)
     - \(([] (N), E)\)
     - \((f \in \text{Cls})[]\)
-    - \((\T{if} [] M N, E)\)
-    - \((\T{let} x \T{:=} [], E)\)
+    - \((\T{\textbackslash{}if} [] M N, E)\)
+    - \((\T{\textbackslash{}let} x \T{:=} [], E)\)
     - \(([] ; s, E)\)
-    - \((\T{if} [] \T{then} s \T{end}, E)\)
-    - \((\T{while} M \T{do} s \T{end}, E)\)
+    - \((\T{\textbackslash{}if} [] \T{\textbackslash{}then} s \T{\textbackslash{}end}, E)\)
+    - \((\T{\textbackslash{}while} M \T{\textbackslash{}do} s \T{\textbackslash{}end}, E)\)
     - \(\text{scopeout}(M)\) ... `stmt` が終わったら、そのときの環境で \(M\) を評価する
     - \(\text{init}\)
 - \(S\) := \(\text{eval-expr}(\NT{expr}, E, K) + \text{return}(V, K) + \text{eval-stmt}(\NT{stmt}, E, K) + \text{done}(E, K)\)
@@ -68,14 +68,14 @@ expr に加えて stmt を入れる場合のメモ
 \[
 \begin{aligned}
 \text{eval-expr}(v, E, K) &\to \text{return}(v, K) && v = n \in \N | \T{\#true} | \T{\#false} | \T{\#unit} \\
-\text{eval-expr}(\T{fun} x \T{=>} M, E, K) &\to \text{return}(\text{Fun}(x, M, E), K) \\
-\text{eval-expr}(\T{rec} f x \T{=>} M, E, K) &\to \text{return}(\text{Rec}(f, x, M, E), K) \\
+\text{eval-expr}(\T{\textbackslash{}fun} x \T{=>} M, E, K) &\to \text{return}(\text{Fun}(x, M, E), K) \\
+\text{eval-expr}(\T{\textbackslash{}rec} f x \T{=>} M, E, K) &\to \text{return}(\text{Rec}(f, x, M, E), K) \\
 \\
 \text{eval-expr}(x, E, K) &\to \text{return}(\text{lookup}(E, x), K) \\
 \text{eval-expr}(M \NT{binop} N, E, K) &\to \text{eval-expr}(M, E, ([] \NT{binop} N, E)::K) \\
 \text{eval-expr}(\NT{unop} M, E, K) &\to \text{eval-expr}(M, E, (\NT{unop} [], E)::K) \\
 \text{eval-expr}(M(N), E, K) &\to \text{eval-expr}(M, E, ([] (N), E)::K) \\
-\text{eval-expr}(\T{if} L M N, E, K) &\to \text{eval-expr}(L, E, (\T{if} [] M N, E)::K) \\
+\text{eval-expr}(\T{\textbackslash{}if} L M N, E, K) &\to \text{eval-expr}(L, E, (\T{\textbackslash{}if} [] M N, E)::K) \\
 \text{eval-expr}(\T{\{} s \T{;} e \T{\}}, E, K) &\to \text{eval-stmt}(s, E, \text{scopeout}(e)::K) \\
 \\
 \text{return}(v, ([] \NT{binop} M, E_0)::K) &\to \text{eval-expr}(M, E_0, (v \NT{binop} [], E_0)::K) \\
@@ -86,28 +86,28 @@ expr に加えて stmt を入れる場合のメモ
 \text{return}(v, (\text{Fun}(x, M, E_f) [])::K) &\to \text{eval-expr}(M, (x, v)::E_f, K) \\
 \text{return}(v, (\text{Rec}(f, x, M, E_f) [])::K) &\to \text{eval-expr}(M, (x, v)::(f, \text{Rec}(f, x, M, E_f))::E_f, K) \\
 \\
-\text{return}(\T{\#true}, (\T{if} [] M N, E_0)::K) &\to \text{eval-expr}(M, E_0, K) \\
-\text{return}(\T{\#false}, (\T{if} [] M N, E_0)::K) &\to \text{eval-expr}(N, E_0, K) \\
+\text{return}(\T{\#true}, (\T{\textbackslash{}if} [] M N, E_0)::K) &\to \text{eval-expr}(M, E_0, K) \\
+\text{return}(\T{\#false}, (\T{\textbackslash{}if} [] M N, E_0)::K) &\to \text{eval-expr}(N, E_0, K) \\
 \\
-\text{eval-stmt}(\T{skip}, E, K) &\to \text{done}(E, K) \\
-\text{eval-stmt}(\T{print} n, E, K) &\to^{\text{print} n} \text{done}(E, K) \\
+\text{eval-stmt}(\T{\textbackslash{}skip}, E, K) &\to \text{done}(E, K) \\
+\text{eval-stmt}(\T{\textbackslash{}print} n, E, K) &\to^{\text{print} n} \text{done}(E, K) \\
 \text{eval-stmt}(s_1 \T{;} s_2, E, K) &\to \text{eval-stmt}(s_1, E, ([] ; s_2, E)::K) \\
-\text{eval-stmt}(\T{let} x \T{:=} M, E, K) &\to \text{eval-expr}(M, E, (\T{let} x \T{:=} [], E)::K) \\
-\text{eval-stmt}(\T{if} M \T{then} s \T{end}, E, K) &\to \text{eval-expr}(M, E, (\T{if} [] \T{then} s \T{end}, E)::K) \\
-\text{eval-stmt}(\T{while} M \T{do} s \T{end}, E, K) &\to \text{eval-expr}(M, E, (\T{while} M \T{do} s \T{end}, E)::K) \\
+\text{eval-stmt}(\T{\textbackslash{}let} x \T{:=} M, E, K) &\to \text{eval-expr}(M, E, (\T{\textbackslash{}let} x \T{:=} [], E)::K) \\
+\text{eval-stmt}(\T{\textbackslash{}if} M \T{\textbackslash{}then} s \T{\textbackslash{}end}, E, K) &\to \text{eval-expr}(M, E, (\T{\textbackslash{}if} [] \T{\textbackslash{}then} s \T{\textbackslash{}end}, E)::K) \\
+\text{eval-stmt}(\T{\textbackslash{}while} M \T{\textbackslash{}do} s \T{\textbackslash{}end}, E, K) &\to \text{eval-expr}(M, E, (\T{\textbackslash{}while} M \T{\textbackslash{}do} s \T{\textbackslash{}end}, E)::K) \\
 \\
-\text{return}(v, (\T{let} x \T{:=} [], E_0)::K) &\to \text{done}((x, v)::E_0, K) \\
-\text{return}(\T{\#true}, (\T{if} [] \T{then} s \T{end}, E_0)::K) &\to \text{eval-stmt}(s, E_0, K) \\
-\text{return}(\T{\#false}, (\T{if} [] \T{then} s \T{end}, E_0)::K) &\to \text{done}(E_0, K) \\
-\text{return}(\T{\#true}, (\T{while} M \T{do} s \T{end}, E_0)::K) &\to \text{eval-stmt}(s, E_0, ([] ; \T{while} M \T{do} s \T{end}, E_0)::K) \\
-\text{return}(\T{\#false}, (\T{while} M \T{do} s \T{end}, E_0)::K) &\to \text{done}(E_0, K) \\
+\text{return}(v, (\T{\textbackslash{}let} x \T{:=} [], E_0)::K) &\to \text{done}((x, v)::E_0, K) \\
+\text{return}(\T{\#true}, (\T{\textbackslash{}if} [] \T{\textbackslash{}then} s \T{\textbackslash{}end}, E_0)::K) &\to \text{eval-stmt}(s, E_0, K) \\
+\text{return}(\T{\#false}, (\T{\textbackslash{}if} [] \T{\textbackslash{}then} s \T{\textbackslash{}end}, E_0)::K) &\to \text{done}(E_0, K) \\
+\text{return}(\T{\#true}, (\T{\textbackslash{}while} M \T{\textbackslash{}do} s \T{\textbackslash{}end}, E_0)::K) &\to \text{eval-stmt}(s, E_0, ([] ; \T{\textbackslash{}while} M \T{\textbackslash{}do} s \T{\textbackslash{}end}, E_0)::K) \\
+\text{return}(\T{\#false}, (\T{\textbackslash{}while} M \T{\textbackslash{}do} s \T{\textbackslash{}end}, E_0)::K) &\to \text{done}(E_0, K) \\
 \\
 \text{done}(E, ([] ; s, E_0)::K) &\to \text{eval-stmt}(s, E, K) \\
 \text{done}(E', \text{scopeout}(M)::K) &\to \text{eval-expr}(M, E', K) \\
 \end{aligned}
 \]
 
-これで、 block の中で入った `let` 束縛は block の評価中だけ使われ、
+これで、 block の中で入った `\let` 束縛は block の評価中だけ使われ、
 block を抜けたあとの環境復元は外側の continuation frame がもともと持っている環境で行われる。
 最終的に \(\text{return}(v, \text{init})\) になったとき、それを結果と思えばよい。
 

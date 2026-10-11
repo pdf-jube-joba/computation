@@ -25,6 +25,7 @@ let env_get e k = Option.value (List.assoc_opt k e) ~default:N.zero
 
 let parse_env text =
   L.protect (fun () ->
+      let text = L.without_comments text in
       List.fold_left
         (fun env line ->
           let line = String.trim line in

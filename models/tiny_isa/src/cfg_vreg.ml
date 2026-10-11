@@ -152,11 +152,13 @@ let parse_cond s =
 let parse_jump_if line =
   if
     not
-      (String.starts_with ~prefix:"if " line
+      (String.starts_with ~prefix:"\\if " line
       && String.ends_with ~suffix:";" line)
   then None
   else
-    match split_once " then " (strip_prefix "if " (strip_suffix ";" line)) with
+    match
+      split_once " \\then " (strip_prefix "\\if " (strip_suffix ";" line))
+    with
     | Some (c, t) ->
         Some
           {
@@ -167,18 +169,18 @@ let parse_jump_if line =
 
 let parse_goto line =
   if
-    String.starts_with ~prefix:"goto " line && String.ends_with ~suffix:";" line
-  then Some (parse_addr_expr (strip_prefix "goto " (strip_suffix ";" line)))
+    String.starts_with ~prefix:"\\goto " line
+    && String.ends_with ~suffix:";" line
+  then Some (parse_addr_expr (strip_prefix "\\goto " (strip_suffix ";" line)))
   else None
 
 let parse_code text =
   Utils.Lexer.protect (fun () ->
+      let text = Utils.Lexer.without_comments text in
       let lines =
         Array.of_list
           (List.filter (( <> ) "")
-             (List.map
-                (fun l -> String.trim (Symbolic_asm.strip_comment l))
-                (String.split_on_char '\n' text)))
+             (List.map String.trim (String.split_on_char '\n' text)))
       in
       let rec top i statics blocks =
         if i = Array.length lines then
@@ -283,10 +285,10 @@ let print (code : code) =
           ^ String.concat ""
               (List.map
                  (fun j ->
-                   "  if " ^ cond_to_text j.cond ^ " then "
+                   "  \\if " ^ cond_to_text j.cond ^ " \\then "
                    ^ addr_to_text j.target ^ ";\n")
                  b.cont.ifs)
-          ^ "  goto " ^ addr_to_text b.cont.jump ^ ";\n}\n")
+          ^ "  \\goto " ^ addr_to_text b.cont.jump ^ ";\n}\n")
         code.blocks)
 
 let parse_ainput text =

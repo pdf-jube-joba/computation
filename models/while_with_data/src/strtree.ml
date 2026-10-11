@@ -32,55 +32,40 @@ type foutput = environment
 type state = { code : code; stmt : stmt; env : environment } [@@deriving yojson]
 
 let rec aexp_to_text = function
-  | Mtoa t -> "mtoa " ^ texp_to_text t
+  | Mtoa t -> "\\mtoa " ^ texp_to_text t
   | AtomChar c -> char_text c
 
 and texp_to_text = function
   | Var n -> n
-  | Atom a -> "atom " ^ aexp_to_text a
-  | Cons (a, b) -> "cons " ^ texp_to_text a ^ " " ^ texp_to_text b
-  | Left a -> "left " ^ texp_to_text a
-  | Right a -> "right " ^ texp_to_text a
+  | Atom a -> "\\atom " ^ aexp_to_text a
+  | Cons (a, b) -> "\\cons " ^ texp_to_text a ^ " " ^ texp_to_text b
+  | Left a -> "\\left " ^ texp_to_text a
+  | Right a -> "\\right " ^ texp_to_text a
 
 let bexp_to_text = function
-  | IsAtom a -> "is-atom " ^ texp_to_text a
+  | IsAtom a -> "\\is-atom " ^ texp_to_text a
   | Eq (a, b) -> "(" ^ texp_to_text a ^ " == " ^ texp_to_text b ^ ")"
 
 let rec stmt_to_text = function
-  | Nop -> "Nop"
+  | Nop -> "\\Nop"
   | Assign (n, a) -> n ^ " := " ^ texp_to_text a
   | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-  | IfEq (c, b) -> "ifeq " ^ bexp_to_text c ^ " then " ^ stmt_to_text b ^ " end"
-  | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
+  | IfEq (c, b) ->
+      "\\ifeq " ^ bexp_to_text c ^ " \\then " ^ stmt_to_text b ^ " \\end"
+  | While (c, b) -> "\\while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
 
 let print = stmt_to_text
 
 let rec value_to_text = function
-  | AtomValue c -> "atom " ^ char_text c
-  | ConsValue (a, b) -> "cons " ^ value_to_text a ^ " " ^ value_to_text b
+  | AtomValue c -> "\\atom " ^ char_text c
+  | ConsValue (a, b) -> "\\cons " ^ value_to_text a ^ " " ^ value_to_text b
 
-let reserved =
-  [
-    "Nop";
-    "ifeq";
-    "then";
-    "end";
-    "while";
-    "is-atom";
-    "mtoa";
-    "atom";
-    "cons";
-    "left";
-    "right";
-  ]
+let parse_name p = let n = ident p in
 
-let parse_name p =
-  let n = ident p in
-  if List.mem n reserved then fail "Expected identifier";
-  n
+                   n
 
 let rec parse_aexp p =
-  if eat p (Word "mtoa") then Mtoa (parse_texp p)
+  if eat p (Keyword "mtoa") then Mtoa (parse_texp p)
   else if eat p (Sym '(') then (
     let a = parse_aexp p in
     expect p (Sym ')');
@@ -88,13 +73,13 @@ let rec parse_aexp p =
   else AtomChar (character p)
 
 and parse_texp p =
-  if eat p (Word "atom") then Atom (parse_aexp p)
-  else if eat p (Word "cons") then
+  if eat p (Keyword "atom") then Atom (parse_aexp p)
+  else if eat p (Keyword "cons") then
     let a = parse_texp p in
     let b = parse_texp p in
     Cons (a, b)
-  else if eat p (Word "left") then Left (parse_texp p)
-  else if eat p (Word "right") then Right (parse_texp p)
+  else if eat p (Keyword "left") then Left (parse_texp p)
+  else if eat p (Keyword "right") then Right (parse_texp p)
   else if eat p (Sym '(') then (
     let a = parse_texp p in
     expect p (Sym ')');
@@ -102,7 +87,7 @@ and parse_texp p =
   else Var (parse_name p)
 
 let parse_bexp p =
-  if eat p (Word "is-atom") then IsAtom (parse_texp p)
+  if eat p (Keyword "is-atom") then IsAtom (parse_texp p)
   else
     (* Rust's printer parenthesizes equality. Accept that printed form too. *)
     let saved = p.pos in
@@ -131,14 +116,14 @@ let rec parse_stmt p =
   loop s
 
 and parse_single p =
-  if eat p (Word "Nop") then Nop
-  else if eat p (Word "ifeq") then (
+  if eat p (Keyword "Nop") then Nop
+  else if eat p (Keyword "ifeq") then (
     let c = parse_bexp p in
-    expect p (Word "then");
+    expect p (Keyword "then");
     let b = parse_stmt p in
-    expect p (Word "end");
+    expect p (Keyword "end");
     IfEq (c, b))
-  else if eat p (Word "while") then (
+  else if eat p (Keyword "while") then (
     let c = parse_bexp p in
     expect p (Sym '{');
     let b = parse_stmt p in

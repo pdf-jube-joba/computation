@@ -46,23 +46,23 @@
 \NT{code-label}  &\defeq \T{:} \NT{string} \\
 \NT{vreg}   &\defeq \T{\% v} \NT{number} \\
 \\
-\NT{value-expr}   &\defeq \NT{vreg} | \NT{imm} | \T{ref}  \NT{place-expr} | \NT{code-label} \\
-\NT{place-expr}   &\defeq \T{deref} \NT{vreg} | \NT{data-label} \\
+\NT{value-expr}   &\defeq \NT{vreg} | \NT{imm} | \T{\textbackslash{}ref}  \NT{place-expr} | \NT{code-label} \\
+\NT{place-expr}   &\defeq \T{\textbackslash{}deref} \NT{vreg} | \NT{data-label} \\
 \\
 \NT{stmt}   &\defeq ( \\
-    &| \NT{vreg}         \T{:=}  \T{ld}  \NT{place-expr} \\
+    &| \NT{vreg}         \T{:=}  \T{\textbackslash{}ld}  \NT{place-expr} \\
     &| \NT{vreg}         \T{:=}  \NT{value-expr} \\
     &| \NT{vreg}         \T{:=}  \NT{value-expr}  \NT{binop}  \NT{value-expr} \\
-    &| \NT{place-expr}   \T{:=}  \T{st}  \NT{value-expr} \\
-    &| \T{print} \NT{vreg} \\
-    &| \T{input} \NT{place-expr} \\
+    &| \NT{place-expr}   \T{:=}  \T{\textbackslash{}st}  \NT{value-expr} \\
+    &| \T{\textbackslash{}print} \NT{vreg} \\
+    &| \T{\textbackslash{}input} \NT{place-expr} \\
     ) \T{;} \\
 \\
 \NT{cond}     &\defeq (\NT{value-expr}  \NT{rel}  \NT{value-expr})\\
-\NT{jump-if}  &\defeq \T{if}    \NT{cond}  \T{then}  \NT{value-expr}  \T{;} \\
-\NT{jump}     &\defeq \T{goto}  \NT{value-expr}  \T{;} \\
-\NT{enter}    &\defeq \T{enter}  \NT{value-expr}  \T{;} \\
-\NT{cont}     &\defeq \NT{jump-if}* (\NT{jump}  |  \NT{enter}  |  \T{halt}) \\
+\NT{jump-if}  &\defeq \T{\textbackslash{}if}    \NT{cond}  \T{\textbackslash{}then}  \NT{value-expr}  \T{;} \\
+\NT{jump}     &\defeq \T{\textbackslash{}goto}  \NT{value-expr}  \T{;} \\
+\NT{enter}    &\defeq \T{\textbackslash{}enter}  \NT{value-expr}  \T{;} \\
+\NT{cont}     &\defeq \NT{jump-if}* (\NT{jump}  |  \NT{enter}  |  \T{\textbackslash{}halt}) \\
 \\
 \NT{block}  &\defeq \NT{code-label} \T{\{} \NT{stmt}*  \NT{cont} \T{\}} \\
 \NT{region} &\defeq \NT{code-label} \T{\{} \NT{block}+ \T{\}} \\
@@ -94,11 +94,11 @@
   - \(\text{eval-value}(e: \text{env}, v: \NT{value-expr}): V\) :=
       - \(v \in \NT{imm}\) ならそのまま \(v = i \in \N\) を使う。
       - \(v \in \NT{vreg}\) なら vreg-env から \(V\) を取り出す。
-      - \(v \in \T{ref} \NT{place-expr}\) なら
+      - \(v \in \T{\textbackslash{}ref} \NT{place-expr}\) なら
         \(\text{eval-place}(e, v) = k \in K\) となる場合に \(k\) を返し、それ以外は `Err` で処理する。
   - \(\text{eval-place}(e: \text{env}, p: \NT{place-expr}): K\) :=
       - \(p \in K\) ならそのまま \(K\) をとる。
-      - \(p \in \T{deref} \NT{vreg}\) ならそこから値を取り出して、 \(k \in K\) だったときにそれを返しそれ以外は `Err` で処理する。
+      - \(p \in \T{\textbackslash{}deref} \NT{vreg}\) ならそこから値を取り出して、 \(k \in K\) だったときにそれを返しそれ以外は `Err` で処理する。
   - \(\text{eval-stmt}\) :=
       - ld は place-expr を評価して出た K で指される場所から V を取り出すだけ。
       - st は place-expr を評価して出た K で指される場所に V を入れるだけ。
@@ -109,8 +109,8 @@
 - block 内でのジャンプ時には vreg-env は同じままとするが、 region を超える場合は \(0_{\text{vreg-env}}\) を用いる。
 
 > [!Note]
-> この定義の仕方を見ると、 \(\T{deref}  \T{ref}  p = p\) となるのが対応関係？
-> \(\T{ref}  \T{deref}  (v: \NT{vreg})\) の意味は、 vreg へ代入されたラベルの取り出しになっている。
+> この定義の仕方を見ると、 \(\T{\textbackslash{}deref}  \T{\textbackslash{}ref}  p = p\) となるのが対応関係？
+> \(\T{\textbackslash{}ref}  \T{\textbackslash{}deref}  (v: \NT{vreg})\) の意味は、 vreg へ代入されたラベルの取り出しになっている。
 > また、ラベルをアドレス値として扱うなら value expression の方に置くべきだが、直接 place と思うことにした。
 
 ## スタック領域
@@ -118,26 +118,26 @@ region をまたがってデータを渡すときに共有される用のメモ�
 関数の引数みたいなものに使ったりするので、ただしく使われている回数を数えないと大変なことになるので、
 このコードを書く側は頑張らないといけない。
 普通のスタックの場合はこんな感じ？
-- `push(): V -> ()` と `pop(): () -> V`
+- `\push(): V -> ()` と `\pop(): () -> V`
 - `get(index: Number): () -> V` と `set(index: Number): V -> ()` でアクセス
 
 今回はこんな感じで入れる。
-- `push`, `pop` は明らかに値だが、副作用っぽいので stmt の方に入れておく。
+- `\push`, `\pop` は明らかに値だが、副作用っぽいので stmt の方に入れておく。
 - `get`, `set` は place を返すように統合する。値としての \(\N\) をハンドル代わりに受け取る。
-  - このハンドルについては、"下からの長さ"でとることとする。例： `get(0); push(10); get(0)` で `get(0)` は同じ場所になる。
-- スタックの長さを取得できるようにする： `lget` で長さを値にする。
+  - このハンドルについては、"下からの長さ"でとることとする。例： `get(0); \push(10); get(0)` で `get(0)` は同じ場所になる。
+- スタックの長さを取得できるようにする： `\lget` で長さを値にする。
 
 ### 構文
 \[
 \begin{aligned}
 \\
 \NT{place-expr} &\defeq \ldots \\
-  &|  \T{sacc}  \NT{value-expr} \\
+  &|  \T{\textbackslash{}sacc}  \NT{value-expr} \\
 \\
 \NT{stmt} &\defeq \ldots \\
-  &|  \T{pop}  \NT{vreg} \\
-  &|  \T{push}  \NT{value-expr} \\
-  &|  \T{lget}  \NT{vreg} \\
+  &|  \T{\textbackslash{}pop}  \NT{vreg} \\
+  &|  \T{\textbackslash{}push}  \NT{value-expr} \\
+  &|  \T{\textbackslash{}lget}  \NT{vreg} \\
 \end{aligned}
 \]
 
@@ -146,13 +146,13 @@ region をまたがってデータを渡すときに共有される用のメモ�
 
 - \(K_{\text{stack}} = \N\), \(K := \cdots + K_{\text{stack}}\)
 - \(\text{stack-env} := K_{\text{stack}} \pfun V\), \(\text{place-env} = \ldots \times \text{stack-env}\) とする。
-- \(\text{eval-place}(\T{sacc}  (v \in \NT{value-expr}) )\) :=
+- \(\text{eval-place}(\T{\textbackslash{}sacc}  (v \in \NT{value-expr}) )\) :=
   \(i \in K_{\text{stack}}\) ただし \(\text{eval-value}(v) = i \in \N\) のとき（それ以外はエラーとする）。
-- \(\text{eval-stmt}(\T{pop}  (v \in \NT{vreg}))\) :=
+- \(\text{eval-stmt}(\T{\textbackslash{}pop}  (v \in \NT{vreg}))\) :=
   pop した値を \(v\) に入れる
-- \(\text{eval-stmt}(\T{push}  (v \in \NT{value-expr}))\) :=
+- \(\text{eval-stmt}(\T{\textbackslash{}push}  (v \in \NT{value-expr}))\) :=
   \(\text{eval-value}(v) = v'\) の結果を push する
-- \(\text{eval-stmt}(\T{lget}  (v \in \NT{vreg}))\) :=
+- \(\text{eval-stmt}(\T{\textbackslash{}lget}  (v \in \NT{vreg}))\) :=
   スタックの長さを \(v\) に入れる。
 
 > [!Note]
@@ -166,8 +166,8 @@ region をまたがってデータを渡すときに共有される用のメモ�
 これはスコープを飛び越えて共有される、ハンドル**値**をもとにアクセスするタイプのヒープを用意する。
 特に、ちゃんと解放するためにハンドル値が失われないように制御しないといけない。
 
-- `halloc(size: Number): () -> Handle` でハンドル値を返す...これを vreg 相当のところやスタックに入れるかは自由にする。
-- `hfree(handle: Handle): ()` でその領域を解放する
+- `\halloc(size: Number): () -> Handle` でハンドル値を返す...これを vreg 相当のところやスタックに入れるかは自由にする。
+- `\hfree(handle: Handle): ()` でその領域を解放する
 - `hget(handle: Handle, index: Number)` は（存在するなら） place を返すようにする。
     - この"存在するなら"は、 handle が割り振られていること、確保されたサイズの中の index が指し示されていること。
 
@@ -179,11 +179,11 @@ region をまたがってデータを渡すときに共有される用のメモ�
 \[
 \begin{aligned}
 \NT{place-expr} &\defeq \ldots \\
-  &|  \T{hacc}  \T{\LP}  \NT{value-expr}  \T{\RP}  \T{\LCB}  \NT{value-expr}  \T{\RCB} \\
+  &|  \T{\textbackslash{}hacc}  \T{\LP}  \NT{value-expr}  \T{\RP}  \T{\LCB}  \NT{value-expr}  \T{\RCB} \\
 \\
 \NT{stmt} &\defeq \ldots \\
-  &|  \T{halloc}  \T{\LP}  \NT{value-expr}  \T{\RP}  \NT{vreg} \\
-  &|  \T{hfree}  \NT{value-expr} \\
+  &|  \T{\textbackslash{}halloc}  \T{\LP}  \NT{value-expr}  \T{\RP}  \NT{vreg} \\
+  &|  \T{\textbackslash{}hfree}  \NT{value-expr} \\
 \end{aligned}
 \]
 
@@ -196,10 +196,10 @@ region をまたがってデータを渡すときに共有される用のメモ�
   \(H\) がちゃんと domain に入っている場合が handle が割り振られている場合で、
   そのときに size \(n\) と各 index \(i \in 0 \ldots n\) ごとに値が格納された領域があるとする。
   halloc で確保されて hfree されていないような handle と、その長さの中に入っている index を合わせた \(K\) のみが有効とする。
-- \(\text{eval-place}(\T{hacc}  \T{\LP}  v_1 \in \NT{value-expr}  \T{\RP}  \T{\LCB}  v_2 \in \NT{value-expr}  \T{\RCB}) \) :=
+- \(\text{eval-place}(\T{\textbackslash{}hacc}  \T{\LP}  v_1 \in \NT{value-expr}  \T{\RP}  \T{\LCB}  v_2 \in \NT{value-expr}  \T{\RCB}) \) :=
   \(\text{eval-value}(v_1) = h \in H\) で \(\text{eval-value}(v_2) = i \in \N\) に評価されるときに、 \((h, i) \in K_{\text{heap}}\) とする。
-- \(\text{eval-stmt}(\T{halloc}  \T{\LP}  (v_1 \in \NT{value-expr})  \T{\RP}  (v \in \NT{vreg}) )\) :=
+- \(\text{eval-stmt}(\T{\textbackslash{}halloc}  \T{\LP}  (v_1 \in \NT{value-expr})  \T{\RP}  (v \in \NT{vreg}) )\) :=
   \(\text{eval-value}(v_1) = n \in \N\) のときに、 \(e_h\) の Domain には含まれてない新しい handle を取り出して、
   それと \(0\) fill されたサイズが \(n\) の領域へのマップを作る。
-- \(\text{eval-stmt}(\T{hfree}  (h \in \NT{value-expr}) )\) :=
+- \(\text{eval-stmt}(\T{\textbackslash{}hfree}  (h \in \NT{value-expr}) )\) :=
   \(\text{eval-value}(v) = h \in H\) に評価されて、 \(e_h\) の Domain に含まれているときに、それを Domain から取り除く。

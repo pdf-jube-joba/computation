@@ -35,7 +35,7 @@ type routput = unit
 type foutput = value
 type state = { code : term; current : term } [@@deriving yojson]
 
-let parse_ainput text =
+let parse_ainput_raw text =
   let text = String.trim text in
   let length = String.length text in
   if length < 2 || text.[0] <> '(' || text.[length - 1] <> ')' then
@@ -51,6 +51,11 @@ let parse_ainput text =
             | Error e -> Error e)
     in
     loop [] (String.split_on_char ',' (String.sub text 1 (length - 2)))
+
+let parse_ainput text =
+  match Utils.Lexer.protect (fun () -> Utils.Lexer.without_comments text) with
+  | Error message -> Error message
+  | Ok text -> parse_ainput_raw text
 
 let parse_rinput = Utils.Machine.empty_input
 

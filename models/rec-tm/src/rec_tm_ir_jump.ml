@@ -27,8 +27,6 @@ type foutput = T.tape
 type state = { program : code; pc : int; env : environment; tape : T.tape }
 [@@deriving yojson]
 
-let keywords = [ "alphabet"; "jump"; "if"; "const"; "LT"; "RT" ]
-
 let parse_code =
   parse (fun p ->
       let alphabet = alphabet p in
@@ -36,13 +34,13 @@ let parse_code =
         if L.eat_keyword p "LT" then Lt
         else if L.eat_keyword p "RT" then Rt
         else if L.eat_keyword p "jump" then
-          let c = condition ~keywords p in
+          let c = condition p in
           let target = L.integer p in
           Jump (target, c)
         else
-          let dst = lvalue ~keywords p in
+          let dst = lvalue p in
           L.expect p ":=";
-          let src = rvalue ~keywords p in
+          let src = rvalue p in
           Assign (dst, src)
       in
       let rec body () =
@@ -54,10 +52,11 @@ let parse_code =
       { alphabet; body = body () })
 
 let stmt_print = function
-  | Lt -> "LT"
-  | Rt -> "RT"
+  | Lt -> "\\LT"
+  | Rt -> "\\RT"
   | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
-  | Jump (target, c) -> "jump" ^ condition_print c ^ " " ^ string_of_int target
+  | Jump (target, c) ->
+      "\\jump" ^ condition_print c ^ " " ^ string_of_int target
 
 let print p =
   alphabet_print p.alphabet

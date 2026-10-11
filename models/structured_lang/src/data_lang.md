@@ -13,19 +13,19 @@
 \\
 \NT{prim-value}    &\defeq \N | \T{\#true} | \T{\#false} \\
 \NT{place-expr}   &\defeq \NT{var} | \NT{place-expr} \T{.left} | \NT{place-expr} \T{.right} | \NT{place-expr} \T{\LSB} \NT{value-expr} \T{\RSB} \\
-\NT{value-expr}   &\defeq \NT{prim-value} | \T{ld} \NT{place-expr} | \T{inl} \NT{value-expr} | \T{inr} \NT{value-expr} \\
+\NT{value-expr}   &\defeq \NT{prim-value} | \T{\textbackslash{}ld} \NT{place-expr} | \T{inl} \NT{value-expr} | \T{inr} \NT{value-expr} \\
 \\
 \NT{stmt}   &\defeq \\
   &| \NT{place-expr} \T{:=} \NT{value-expr} \\
   &| \T{inl} \NT{place-expr} \T{=>} \NT{var} \T{\LCB} \NT{stmts} \T{\RCB} \\
   &| \T{inr} \NT{place-expr} \T{=>} \NT{var} \T{\LCB} \NT{stmts} \T{\RCB} \\
-  &| \T{if} \NT{value-expr} \T{\LCB} \NT{stmts} \T{\RCB} \\
-  &| \T{while} \NT{value-expr} \T{LCB} \NT{stmts} \T{\RCB} \\
+  &| \T{\textbackslash{}if} \NT{value-expr} \T{\LCB} \NT{stmts} \T{\RCB} \\
+  &| \T{\textbackslash{}while} \NT{value-expr} \T{LCB} \NT{stmts} \T{\RCB} \\
 \\
 \NT{stmts} &\defeq \syntaxmacro{semicolon-separated}{\NT{stmt}} \\
 \\
 \NT{type} &\defeq \T{Num} | \T{Bool}\\
-  &| \T{pair} \NT{type} \NT{type} | \T{sum} \NT{type} \NT{type} \\
+  &| \T{\textbackslash{}pair} \NT{type} \NT{type} | \T{sum} \NT{type} \NT{type} \\
   &| \T{arr} \NT{type} \N_{>0} \\
   &| \T{\LP} \NT{type} \T{\RP} \\
 \\
@@ -56,8 +56,8 @@ inl と inr は place を受け取った後に in-place に"中身へのアク�
 - \(V := V_p + (V * V) + [V; \N] + (V + V)\)
   - \(V + V\) 部分は left が \((0, v)\) になり right が \((1, v)\) になっていた。
 
-`ld` を連結した領域に対して行えるので、 \(V_p\) じゃなくて \(V\) の転送ができる。
-`x.left := 1; x.right := 2; y := ld x;`
+`\ld` を連結した領域に対して行えるので、 \(V_p\) じゃなくて \(V\) の転送ができる。
+`x.left := 1; x.right := 2; y := \ld x;`
 
 > [!note]
 >  `inl p => x { x := 1;} ` が書けるようになった時点で、 variable は他の variable と別の領域を確保しているとは限らない。
@@ -120,7 +120,7 @@ inl と inr は place を受け取った後に in-place に"中身へのアク�
 ### メモリ以外の部分
 ところで、 `inl p => x {...}` の導入で必然的にスコープが生まれるので、変数環境はこれを保っておく必要がある。
 そのため、 stmt の評価の時点で状態機械が（残りの文を含めた）スタックを持つことになる。
-なので、 `loop` と同じようにして loop 内の継続と残りの文の継続を分ける必要がある。
+なので、 `\loop` と同じようにして loop 内の継続と残りの文の継続を分ける必要がある。
 
 - \(B\) := \(\text{list}(\NT{var}, L)\) ... 変数がどの location に束縛されているかを表すスタック（スコープ用に束縛状況を保存しておく）。
 - \(K\) := \(\text{scope} + \text{seq}(\NT{stmt})\) ... ループ内の目印と残りの文の継続
@@ -133,12 +133,12 @@ inl と inr は place を受け取った後に in-place に"中身へのアク�
   - それ以外は recursive に呼び出して \(L\) にする。
 - \(\text{eval-stmt}: S \to S\) := \(K\) が \(\text{scope}\) ならそれを \(K\) から削除して \(B\) を pop する。そうじゃない場合は \(K = \text{seq}(s)\) を pop して次のように分岐
   - \(\NT{place-expr} \T{:=} \NT{value-expr}\) なら \(M\) の書き換え
-  - \(\T{if} b [s]\) なら \(b\) を評価して
+  - \(\T{\textbackslash{}if} b [s]\) なら \(b\) を評価して
     - true なら \(K := [s] ++ K\) のように extend する。
     - false なら何もしなくていい。
     - それ以外は `Err`
-  - \(\T{while} b [s]\) は \(b\) を評価して
-    - true なら \(K := [s] ++ [\T{while} b [s]] ++ K\) みたいにする。
+  - \(\T{\textbackslash{}while} b [s]\) は \(b\) を評価して
+    - true なら \(K := [s] ++ [\T{\textbackslash{}while} b [s]] ++ K\) みたいにする。
     - false なら何もしなくていい。
     - それ以外は `Err`
   - \(\T{inl} p x [s]\) の場合には、 \((x, \text{eval-place}(p))\) を \(B\) に積み、 \(K := [s] ++ \text{scope} ++ K\) みたいにする。

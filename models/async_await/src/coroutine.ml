@@ -65,23 +65,23 @@ let rec bexp_to_text = function
       ^ " " ^ aexp_to_text b
   | And (a, b) -> "(" ^ bexp_to_text a ^ " && " ^ bexp_to_text b ^ ")"
   | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
-  | Done n -> "done $" ^ n
+  | Done n -> "\\done $" ^ n
 
 let fmt_offset n = if n >= 0 then "+" ^ string_of_int n else string_of_int n
 
 let stmt_to_text = function
   | Assign (n, a) -> n ^ " <- " ^ aexp_to_text a
-  | IfGoto (b, n) -> "if " ^ bexp_to_text b ^ " goto " ^ fmt_offset n
-  | Goto n -> "goto " ^ fmt_offset n
-  | Call n -> "call " ^ n
-  | Run (n, id) -> "run " ^ n ^ " -> $" ^ id
-  | Yield -> "yield"
+  | IfGoto (b, n) -> "\\if " ^ bexp_to_text b ^ " \\goto " ^ fmt_offset n
+  | Goto n -> "\\goto " ^ fmt_offset n
+  | Call n -> "\\call " ^ n
+  | Run (n, id) -> "\\run " ^ n ^ " -> $" ^ id
+  | Yield -> "\\yield"
 
 let print code =
   String.concat "\n"
     (List.map
        (fun f ->
-         "fn " ^ f.name ^ " {\n"
+         "\\fn " ^ f.name ^ " {\n"
          ^ (if f.body = [] then ""
             else "  " ^ String.concat "; " (List.map stmt_to_text f.body) ^ "\n")
          ^ "}\n")
@@ -246,6 +246,7 @@ let set entries name v =
 
 let parse_env text =
   L.protect (fun () ->
+      let text = L.without_comments text in
       List.fold_left
         (fun env line ->
           let line = String.trim line in
@@ -263,7 +264,7 @@ let parse_env text =
                   let name = String.sub name 1 (String.length name - 1) in
                   ignore (value (Utils.Identifier.make name));
                   let id =
-                    if String.lowercase_ascii v = "none" then None
+                    if String.trim v = "\\none" then None
                     else Some (value (Utils.Machine.natural v))
                   in
                   { env with task_ids = set env.task_ids name id })
@@ -288,7 +289,7 @@ let env_to_text env =
     @ List.map
         (fun (n, v) ->
           "$" ^ n ^ " = "
-          ^ (match v with None -> "none" | Some n -> string_of_int n)
+          ^ (match v with None -> "\\none" | Some n -> string_of_int n)
           ^ "\n")
         env.task_ids)
 
@@ -467,7 +468,7 @@ let render s =
             (List.map
                (fun (n, id) ->
                  ( "$" ^ n,
-                   match id with None -> "none" | Some n -> string_of_int n ))
+                   match id with None -> "\\none" | Some n -> string_of_int n ))
                s.env.task_ids);
         ];
       table2 "workers" "agent" "task"

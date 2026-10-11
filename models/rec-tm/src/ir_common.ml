@@ -8,71 +8,19 @@ type condition = { left : rvalue; right : rvalue } [@@deriving yojson]
 type environment = (string * T.sign) list [@@deriving yojson]
 
 let unwrap = T.unwrap
-
-let keywords =
-  [
-    "alphabet";
-    "fn";
-    "label";
-    "jump";
-    "call";
-    "const";
-    "return";
-    "break";
-    "continue";
-    "if";
-    "LT";
-    "RT";
-  ]
-
-let identifier ?(keywords = keywords) p =
-  let s = L.identifier p in
-  if List.mem s keywords then L.error p ("identifier cannot be a keyword: " ^ s);
-  unwrap (Utils.Identifier.make s)
-
-(* Preserve the original IR lexer, including hyphens inside identifiers. *)
-let create text =
-  let n = String.length text in
-  let alpha = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false in
-  let digit = function '0' .. '9' -> true | _ -> false in
-  let rec scan i acc =
-    if i = n then Array.of_list (List.rev ((L.Eof, n) :: acc))
-    else
-      match text.[i] with
-      | ' ' | '\t' | '\r' | '\n' -> scan (i + 1) acc
-      | c when alpha c || digit c ->
-          let j = ref (i + 1) in
-          while
-            !j < n
-            &&
-            if digit c then digit text.[!j]
-            else alpha text.[!j] || digit text.[!j] || text.[!j] = '-'
-          do
-            incr j
-          done;
-          let s = String.sub text i (!j - i) in
-          scan !j (((if digit c then L.Number s else L.Ident s), i) :: acc)
-      | '-' -> scan (i + 1) ((L.Ident "-", i) :: acc)
-      | ('(' | ')' | '{' | '}' | ',' | '@' | ':' | '=') as c ->
-          scan (i + 1) ((L.Symbol c, i) :: acc)
-      | c -> failwith (Printf.sprintf "Unexpected character '%c'" c)
-  in
-  { L.tokens = scan 0 []; pos = 0 }
-
-let parse f text =
-  L.protect (fun () ->
-      let p = create text in
-      let x = f p in
-      L.expect_eof p;
-      x)
+let identifier p = unwrap (Utils.Identifier.make (L.identifier p))
+let create text = L.create ~identifier_extra:(( = ) '-') text
+let parse f text = Utils.Parser.run ~create f text
 
 let sign p =
   match L.next p with
   | L.Ident s -> unwrap (T.parse_sign s)
+  | L.Symbol '-' -> unwrap (T.parse_sign "-")
   | _ -> L.error p "Expected sign"
 
 let alphabet p =
-  L.expect p "alphabet:(";
+  L.expect_keyword p "alphabet";
+  L.expect p ":(";
   let rec loop () =
     if L.eat_symbol p ')' then []
     else
@@ -84,20 +32,19 @@ let alphabet p =
   in
   loop ()
 
-let lvalue ?keywords p : lvalue =
-  if L.eat_symbol p '@' then Head else Var (identifier ?keywords p)
+let lvalue p : lvalue = if L.eat_symbol p '@' then Head else Var (identifier p)
 
-let rvalue ?keywords p : rvalue =
+let rvalue p : rvalue =
   if L.eat_symbol p '@' then Head
   else if L.eat_keyword p "const" then Const (sign p)
-  else Var (identifier ?keywords p)
+  else Var (identifier p)
 
-let condition ?keywords p =
+let condition p =
   if not (L.eat_keyword p "if") then None
   else
-    let left = rvalue ?keywords p in
+    let left = rvalue p in
     L.expect p "==";
-    let right = rvalue ?keywords p in
+    let right = rvalue p in
     Some { left; right }
 
 let lvalue_print : lvalue -> string = function Var s -> s | Head -> "@"
@@ -105,14 +52,14 @@ let lvalue_print : lvalue -> string = function Var s -> s | Head -> "@"
 let rvalue_print : rvalue -> string = function
   | Var s -> s
   | Head -> "@"
-  | Const s -> "const " ^ T.sign_print s
+  | Const s -> "\\const " ^ T.sign_print s
 
 let condition_print = function
   | None -> ""
-  | Some c -> " if " ^ rvalue_print c.left ^ " == " ^ rvalue_print c.right
+  | Some c -> " \\if " ^ rvalue_print c.left ^ " == " ^ rvalue_print c.right
 
 let alphabet_print a =
-  "alphabet: (" ^ String.concat ", " (List.map T.sign_print a) ^ ")\n"
+  "\\alphabet: (" ^ String.concat ", " (List.map T.sign_print a) ^ ")\n"
 
 let vars_rvalue : rvalue -> string list = function Var s -> [ s ] | _ -> []
 let vars_lvalue : lvalue -> string list = function Var s -> [ s ] | _ -> []
@@ -172,6 +119,7 @@ let validate_tape allowed t =
 
 let environment_parse text =
   L.protect (fun () ->
+      let text = L.without_comments text in
       List.fold_left
         (fun env line ->
           let line = String.trim line in
@@ -181,8 +129,7 @@ let environment_parse text =
             | [ key; value ] ->
                 let key = String.trim key in
                 ignore (unwrap (Utils.Identifier.make key));
-                if List.mem key keywords then
-                  failwith "Reserved environment variable";
+
                 env_set env key (unwrap (T.parse_sign value))
             | _ -> failwith "Invalid environment line")
         []

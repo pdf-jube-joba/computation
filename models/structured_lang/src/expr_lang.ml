@@ -121,12 +121,10 @@ and parse_single p =
     let c = parse_bexp p in
     let b = parse_single p in
     If (c, b)
-  else if L.eat_keyword p "while" then (
+  else if L.eat_keyword p "while" then
     let c = parse_bexp p in
-    L.expect_symbol p '[';
-    let b = parse_stmt p in
-    L.expect_symbol p ']';
-    While (c, b))
+    let b = Utils.Parser.brackets (fun p -> parse_stmt p) p in
+    While (c, b)
   else if L.eat_symbol p '(' then (
     let b = parse_stmt p in
     L.expect_symbol p ')';
@@ -148,7 +146,7 @@ let rec aexp_to_text = function
       ^ (if op = Add then " + " else " - ")
       ^ aexp_to_text b ^ ")"
   | IfThenElse (c, a, b) ->
-      "if " ^ bexp_to_text c ^ " then " ^ aexp_to_text a ^ " else "
+      "\\if " ^ bexp_to_text c ^ " \\then " ^ aexp_to_text a ^ " \\else "
       ^ aexp_to_text b
 
 and bexp_to_text = function
@@ -158,11 +156,11 @@ and bexp_to_text = function
   | Not b -> "!" ^ bexp_to_text b
 
 let rec stmt_to_text = function
-  | Nop -> "Nop"
+  | Nop -> "\\Nop"
   | Assign (v, a) -> v ^ " := " ^ aexp_to_text a
   | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-  | If (c, b) -> "if " ^ bexp_to_text c ^ " " ^ stmt_to_text b
-  | While (c, b) -> "while " ^ bexp_to_text c ^ " [ " ^ stmt_to_text b ^ " ]"
+  | If (c, b) -> "\\if " ^ bexp_to_text c ^ " " ^ stmt_to_text b
+  | While (c, b) -> "\\while " ^ bexp_to_text c ^ " [ " ^ stmt_to_text b ^ " ]"
 
 let print = stmt_to_text
 let make code env = Ok { code; stmt = code; env }

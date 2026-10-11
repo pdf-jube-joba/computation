@@ -80,14 +80,6 @@ let strip_suffix suffix s =
     String.sub s 0 (String.length s - String.length suffix)
   else s
 
-let strip_comment line =
-  let rec scan i =
-    if i + 1 >= String.length line then line
-    else if line.[i] = '/' && line.[i + 1] = '/' then String.sub line 0 i
-    else scan (i + 1)
-  in
-  scan 0
-
 let parse_reg token =
   let t = strip_prefix "r" (strip_prefix "%" (String.trim token)) in
   let n = value (Utils.Machine.natural t) in
@@ -116,6 +108,9 @@ let parse_inst_line line =
   match words (String.trim (strip_suffix ";" (String.trim line))) with
   | [] -> failwith "Empty instruction line"
   | m :: ops ->
+      if not (String.starts_with ~prefix:"\\" m) then
+        failwith "Expected instruction keyword";
+      let m = strip_prefix "\\" m in
       let cond_flag = String.ends_with ~suffix:".f" m in
       {
         mnemonic = (if cond_flag then strip_suffix ".f" m else m);
@@ -125,17 +120,18 @@ let parse_inst_line line =
 
 let parse_directive line =
   match words line with
-  | [ ".text" ] -> Text
-  | [ ".data" ] -> Data
-  | [ ".equ"; name; n ] -> Equ (name, value (number (strip_prefix "#" n)))
+  | [ "\\text" ] -> Text
+  | [ "\\data" ] -> Data
+  | [ "\\equ"; name; n ] -> Equ (name, value (number (strip_prefix "#" n)))
   | _ -> failwith ("Unsupported directive syntax: " ^ line)
 
 let parse_code text =
   Utils.Lexer.protect (fun () ->
+      let text = Utils.Lexer.without_comments text in
       let section = ref Text in
       List.filter_map
         (fun line ->
-          let line = String.trim (strip_comment line) in
+          let line = String.trim line in
           if line = "" then None
           else
             let item =
@@ -148,7 +144,9 @@ let parse_code text =
                 in
                 if n = "" then failwith "Empty label";
                 LabelDef n)
-              else if String.starts_with ~prefix:"." line then (
+              else if
+                List.mem (List.hd (words line)) [ "\\text"; "\\data"; "\\equ" ]
+              then (
                 let d = parse_directive line in
                 (match d with Text | Data -> section := d | Equ _ -> ());
                 Directive d)
@@ -177,15 +175,15 @@ let operand_to_text = function
   | Value v -> raw_value_to_text v
 
 let raw_inst_to_text i =
-  i.mnemonic
+  "\\" ^ i.mnemonic
   ^ (if i.cond_flag then ".f" else "")
   ^ String.concat "" (List.map (fun op -> " " ^ operand_to_text op) i.operands)
   ^ ";"
 
 let item_to_text = function
-  | Directive Text -> ".text"
-  | Directive Data -> ".data"
-  | Directive (Equ (n, v)) -> ".equ " ^ n ^ " #" ^ N.to_string v
+  | Directive Text -> "\\text"
+  | Directive Data -> "\\data"
+  | Directive (Equ (n, v)) -> "\\equ " ^ n ^ " #" ^ N.to_string v
   | LabelDef n -> "@" ^ n ^ ":"
   | Inst i -> raw_inst_to_text i
   | DataValue v -> raw_value_to_text v
@@ -358,7 +356,7 @@ let resolve_raw_value symbols section this_pos = function
               | None ->
                   failwith
                     ("Unknown label reference in "
-                    ^ (if section = Text then ".text" else ".data")
+                    ^ (if section = Text then "\\text" else "\\data")
                     ^ ": @" ^ n))))
 
 let build_debug_info symbols =

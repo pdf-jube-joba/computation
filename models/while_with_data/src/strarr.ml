@@ -33,29 +33,26 @@ let rec aexp_to_text = function
   | Const cs -> char_list_to_text cs
   | Var n -> n
   | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
-  | Head a -> "head " ^ aexp_to_text a
-  | Tail a -> "tail " ^ aexp_to_text a
+  | Head a -> "\\head " ^ aexp_to_text a
+  | Tail a -> "\\tail " ^ aexp_to_text a
 
 let bexp_to_text = function
-  | IsEmpty a -> "is-empty " ^ aexp_to_text a
+  | IsEmpty a -> "\\is-empty " ^ aexp_to_text a
   | Eq (a, b) -> aexp_to_text a ^ " == " ^ aexp_to_text b
 
 let rec stmt_to_text = function
-  | Nop -> "Nop"
+  | Nop -> "\\Nop"
   | Assign (n, a) -> n ^ " := " ^ aexp_to_text a
   | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-  | If (c, b) -> "if " ^ bexp_to_text c ^ " then " ^ stmt_to_text b ^ " end"
-  | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
+  | If (c, b) ->
+      "\\if " ^ bexp_to_text c ^ " \\then " ^ stmt_to_text b ^ " \\end"
+  | While (c, b) -> "\\while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
 
 let print = stmt_to_text
 
-let reserved =
-  [ "Nop"; "if"; "then"; "end"; "while"; "is-empty"; "head"; "tail" ]
+let parse_name p = let n = ident p in
 
-let parse_name p =
-  let n = ident p in
-  if List.mem n reserved then fail "Expected identifier";
-  n
+                   n
 
 let rec parse_aexp p =
   let a = parse_prefix p in
@@ -68,11 +65,11 @@ let rec parse_aexp p =
   loop a
 
 and parse_prefix p =
-  if eat p (Word "head") then Head (parse_prefix p)
-  else if eat p (Word "tail") then Tail (parse_prefix p)
+  if eat p (Keyword "head") then Head (parse_prefix p)
+  else if eat p (Keyword "tail") then Tail (parse_prefix p)
   else
     match next p with
-    | Word n when not (List.mem n reserved) -> Var n
+    | Word n -> Var n
     | Sym '(' ->
         let a = parse_aexp p in
         expect p (Sym ')');
@@ -89,7 +86,7 @@ and parse_prefix p =
     | _ -> fail "Invalid aexp"
 
 let parse_bexp p =
-  if eat p (Word "is-empty") then IsEmpty (parse_aexp p)
+  if eat p (Keyword "is-empty") then IsEmpty (parse_aexp p)
   else
     let a = parse_aexp p in
     expect p (Op "==");
@@ -107,14 +104,14 @@ let rec parse_stmt p =
   loop s
 
 and parse_single p =
-  if eat p (Word "Nop") then Nop
-  else if eat p (Word "if") then (
+  if eat p (Keyword "Nop") then Nop
+  else if eat p (Keyword "if") then (
     let c = parse_bexp p in
-    expect p (Word "then");
+    expect p (Keyword "then");
     let b = parse_stmt p in
-    expect p (Word "end");
+    expect p (Keyword "end");
     If (c, b))
-  else if eat p (Word "while") then (
+  else if eat p (Keyword "while") then (
     let c = parse_bexp p in
     expect p (Sym '{');
     let b = parse_stmt p in

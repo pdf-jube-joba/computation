@@ -48,9 +48,7 @@ let rec parse_stmt p =
   loop a
 
 and parse_block p =
-  L.expect_symbol p '{';
-  let s = parse_stmt p in
-  L.expect_symbol p '}';
+  let s = Utils.Parser.braces (fun p -> parse_stmt p) p in
   s
 
 and parse_single p =
@@ -89,24 +87,24 @@ let parse_ainput = parse_env
 let parse_rinput = Utils.Machine.empty_input
 
 let rec stmt_to_text = function
-  | Nop -> "Nop"
+  | Nop -> "\\Nop"
   | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
   | Assign (v, a) -> v ^ " := " ^ aexp_text a
-  | If (c, b) -> "if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
-  | Break (l, v) -> "break :" ^ l ^ " " ^ v
-  | Continue l -> "continue :" ^ l
-  | Loop (l, b, v) -> "loop :" ^ l ^ " (" ^ stmt_to_text b ^ ") -> " ^ v
+  | If (c, b) -> "\\if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
+  | Break (l, v) -> "\\break :" ^ l ^ " " ^ v
+  | Continue l -> "\\continue :" ^ l
+  | Loop (l, b, v) -> "\\loop :" ^ l ^ " (" ^ stmt_to_text b ^ ") -> " ^ v
 
 let print c =
-  "static"
+  "\\static"
   ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
   ^ "; " ^ stmt_to_text c.body ^ "\n"
 
 let exec_to_text = function
   | Stmt s -> stmt_to_text s
   | Result Normal -> "()"
-  | Result (Break_result (l, v)) -> "break " ^ l ^ " " ^ N.to_string v
-  | Result (Continue_result l) -> "continue " ^ l
+  | Result (Break_result (l, v)) -> "\\break " ^ l ^ " " ^ N.to_string v
+  | Result (Continue_result l) -> "\\continue " ^ l
 
 let make code env =
   L.protect (fun () ->

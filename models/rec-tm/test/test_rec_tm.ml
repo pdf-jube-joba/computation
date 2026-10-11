@@ -36,7 +36,7 @@ let equivalent text input expected =
   let output = run_ir p t in
   check "IR result" (T.tape_equal output (tape expected));
   let jump = get (Compile_jump.compile p) in
-  check "jump roundtrip" (get (J.parse_code (J.print jump)) = jump);
+  check "\\jump roundtrip" (get (J.parse_code (J.print jump)) = jump);
   check "IR to jump equivalence" (T.tape_equal output (run_jump jump t));
   let tm = get (Compile_tm.compile jump) in
   check "Turing roundtrip" (get (T.parse_code (T.print_code tm)) = tm);
@@ -64,55 +64,57 @@ let recursive f input expected =
 
 let () =
   equivalent
-    "alphabet:(a,b) fn f { label entry:{ x:=@ } } fn main {label entry:{x:=@ \
-     RT call f LT @:=x}}"
+    "\\alphabet:(a,b) \\fn f { \\label entry:{ x:=@ } } \\fn main {\\label \
+     entry:{x:=@ \\RT \\call f \\LT @:=x}}"
     "-|a|b" "-|a|b";
   equivalent
-    "alphabet:(a,b) fn g {label entry:{RT p:=@ LT}} fn f {label entry:{call g \
-     @:=p}} fn main {label entry:{x:=@ call f}}"
+    "\\alphabet:(a,b) \\fn g {\\label entry:{\\RT p:=@ \\LT}} \\fn f {\\label \
+     entry:{\\call g @:=p}} \\fn main {\\label entry:{x:=@ \\call f}}"
     "-|a|b" "-|-|b";
   equivalent
-    "alphabet:(a,b) fn main {label first:{@:=const a break @:=const b} label \
-     second:{RT @:=const b}}"
+    "\\alphabet:(a,b) \\fn main {\\label first:{@:=\\const a \\break \
+     @:=\\const b} \\label second:{\\RT @:=\\const b}}"
     "|-|" "a|b|";
   equivalent
-    "alphabet:(a,b) fn main {label loop:{@:=const a RT continue if @==const b} \
-     label done:{@:=const a}}"
+    "\\alphabet:(a,b) \\fn main {\\label loop:{@:=\\const a \\RT \\continue \
+     \\if @==\\const b} \\label done:{@:=\\const a}}"
     "|-|b,b,-" "a,a,a|a|";
   equivalent
-    "alphabet:(a,b) fn f {label entry:{jump done if flag==const a flag:=const \
-     a @:=const a return} label done:{@:=const b}} fn main {label loop:{call f \
-     RT continue if @==const b}}"
+    "\\alphabet:(a,b) \\fn f {\\label entry:{\\jump done \\if flag==\\const a \
+     flag:=\\const a @:=\\const a \\return} \\label done:{@:=\\const b}} \\fn \
+     main {\\label loop:{\\call f \\RT \\continue \\if @==\\const b}}"
     "|-|b,b,-" "a,a,a|-|";
   equivalent
-    "alphabet:(a,b) fn f {label entry:{RT}} fn main {label loop:{call f \
-     continue if @==const b} label done:{@:=const a}}"
+    "\\alphabet:(a,b) \\fn f {\\label entry:{\\RT}} \\fn main {\\label \
+     loop:{\\call f \\continue \\if @==\\const b} \\label done:{@:=\\const a}}"
     "|-|b,b,-" "-,b,b|a|";
   equivalent
-    "alphabet:(a,b) fn f {label entry:{RT}} fn main {label loop:{call f break \
-     @:=const b} label done:{@:=const a}}"
+    "\\alphabet:(a,b) \\fn f {\\label entry:{\\RT}} \\fn main {\\label \
+     loop:{\\call f \\break @:=\\const b} \\label done:{@:=\\const a}}"
     "|-|" "-|a|";
   equivalent
-    "alphabet:(a,b) fn f {label entry:{__flat0_v:=const b @:=__flat0_v}} fn \
-     main {label __init0:{__flat0___flat0_v:=const a call f \
-     @:=__flat0___flat0_v}}"
+    "\\alphabet:(a,b) \\fn f {\\label entry:{__flat0_v:=\\const b \
+     @:=__flat0_v}} \\fn main {\\label __init0:{__flat0___flat0_v:=\\const a \
+     \\call f @:=__flat0___flat0_v}}"
     "|-|" "|a|";
   equivalent
-    "alphabet:(m,a,b,x) fn main {label entry:{mark:=@ jump scan} label \
-     scan:{RT cur:=@ jump done if cur==const x jump scan} label \
-     done:{@:=mark}}"
+    "\\alphabet:(m,a,b,x) \\fn main {\\label entry:{mark:=@ \\jump scan} \
+     \\label scan:{\\RT cur:=@ \\jump done \\if cur==\\const x \\jump scan} \
+     \\label done:{@:=mark}}"
     "-|m|a,b,x,-" "-,m,a,b|m|-";
   equivalent
-    "alphabet:(a,b,c) fn main {label entry:{jump scan_b} label scan_b:{RT v:=@ \
-     jump scan_c if v==const b jump scan_b} label scan_c:{RT v:=@ jump done if \
-     v==const c jump scan_b} label done:{}}"
+    "\\alphabet:(a,b,c) \\fn main {\\label entry:{\\jump scan_b} \\label \
+     scan_b:{\\RT v:=@ \\jump scan_c \\if v==\\const b \\jump scan_b} \\label \
+     scan_c:{\\RT v:=@ \\jump done \\if v==\\const c \\jump scan_b} \\label \
+     done:{}}"
     "-|a|b,c" "-,a,b|c|";
   equivalent
-    "alphabet:(a) fn some-function {label entry-label:{v-1:=const a @:=v-1}} \
-     fn main {label start:{call some-function()}}"
+    "\\alphabet:(a) \\fn some-function {\\label entry-label:{v-1:=\\const a \
+     @:=v-1}} \\fn main {\\label start:{\\call some-function()}}"
     "|-|" "|a|";
   let invalid =
-    "alphabet:(a) fn f {label entry:{call f}} fn main {label entry:{call f}}"
+    "\\alphabet:(a) \\fn f {\\label entry:{\\call f}} \\fn main {\\label \
+     entry:{\\call f}}"
   in
   check "recursion rejected"
     (Result.is_error (I.make (get (I.parse_code invalid)) (tape "|-|")));
@@ -121,33 +123,35 @@ let () =
       check "IR validation"
         (Result.is_error (I.make (get (I.parse_code code)) (tape "|-|"))))
     [
-      "alphabet:() fn main {}";
-      "alphabet:(a) fn main {label entry:{jump missing}}";
-      "alphabet:(a) fn main {label entry:{@:=const b}}";
-      "alphabet:(a) fn main {label entry:{} label entry:{}}";
+      "\\alphabet:() \\fn main {}";
+      "\\alphabet:(a) \\fn main {\\label entry:{\\jump missing}}";
+      "\\alphabet:(a) \\fn main {\\label entry:{@:=\\const b}}";
+      "\\alphabet:(a) \\fn main {\\label entry:{} \\label entry:{}}";
     ];
   let p =
     get
       (I.parse_code
-         "alphabet:(a) fn f {label entry:{RT}} fn main {label entry:{call f \
-          @:=const a}}")
+         "\\alphabet:(a) \\fn f {\\label entry:{\\RT}} \\fn main {\\label \
+          entry:{\\call f @:=\\const a}}")
   in
   let s = get (I.make p (tape "|-|")) in
   let s =
     match get (I.step s ()) with
     | Utils.Machine.Continue { next; _ } -> next
-    | _ -> failwith "call step"
+    | _ -> failwith "\\call step"
   in
   let restored = get (I.restore (I.snapshot s)) in
   check "IR snapshot stack" (T.tape_equal (run I.step s) (run I.step restored));
-  let p = get (J.parse_code "alphabet:(a,b) v:=@ RT jump if v==@ 1 @:=v") in
+  let p =
+    get (J.parse_code "\\alphabet:(a,b) v:=@ \\RT \\jump \\if v==@ 1 @:=v")
+  in
   let s = get (J.make p (tape "|a|b")) in
   let restored = get (J.restore (J.snapshot s)) in
-  check "jump snapshot" (T.tape_equal (run J.step s) (run J.step restored));
+  check "\\jump snapshot" (T.tape_equal (run J.step s) (run J.step restored));
   check "out of range jump"
     (Result.is_error
-       (J.make (get (J.parse_code "alphabet:(a) jump 2")) (tape "|-|")));
-  let p = get (J.parse_code "alphabet:(a,b) @:=missing") in
+       (J.make (get (J.parse_code "\\alphabet:(a) \\jump 2")) (tape "|-|")));
+  let p = get (J.parse_code "\\alphabet:(a,b) @:=missing") in
   check "blank env initialization"
     (T.tape_equal
        (run_jump p (tape "|a|"))
@@ -271,7 +275,7 @@ let () =
   check "mu divergence in Turing" (still_running T.step (get (T.make tm t)));
   let encoded = get (C.api.encode_ainput "(2,0)") in
   check "compiler encoded input" (encoded = "|x|-,l,l,-,x");
-  let compiled = get (Rec_to_tm.api.compile_code "SUCC") in
+  let compiled = get (Rec_to_tm.api.compile_code "\\SUCC") in
   let output =
     run_tm
       (get (T.parse_code compiled))

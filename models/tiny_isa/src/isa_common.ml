@@ -40,6 +40,7 @@ let number text =
      else text)
 
 let lines text =
+  let text = Utils.Lexer.without_comments text in
   List.filter (( <> ) "")
     (List.map String.trim (String.split_on_char '\n' text))
 

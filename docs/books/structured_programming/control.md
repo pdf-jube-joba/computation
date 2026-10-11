@@ -18,13 +18,13 @@
 ```
 i = 0;
 j = 0;
-loop {
+\loop {
   i += 1;
-  if i == 10 {
-    break;
+  \if i == 10 {
+    \break;
   }
-  if i % 2 == 0 {
-    continue;
+  \if i % 2 == 0 {
+    \continue;
   }
   j += 1;
 }
@@ -38,11 +38,11 @@ i = 0;
 j = 0;
 @loop {
   i += 1;
-  if i == 10 {
-    goto @loop_end
+  \if i == 10 {
+    \goto @loop_end
   }
-  if i % 2 == 0 {
-    goto @loop
+  \if i % 2 == 0 {
+    \goto @loop
   }
   j += 1;
 }
@@ -59,10 +59,10 @@ goto になれている人なら後者の方が読みやすいかもしれない
 i = 10;
 j = 10;
 k = 0;
-while (i != 0) {
+\while (i != 0) {
   i -= 1;
   j2 = j;
-  while (j2 != 0) {
+  \while (j2 != 0) {
     j2 -= 1;
     k += 1;
   }
@@ -72,10 +72,10 @@ while (i != 0) {
 ### どれぐらいループを抜けるか？
 ループ構造にはラベルがついていて、 break/continue ではそのラベルを指定できるとうれしい。
 ```
-loop 'outer: {
-  loop 'inner: {
+\loop 'outer: {
+  \loop 'inner: {
     for i in 0..10 'nest: {
-      if i == 8 : break 'outer;
+      \if i == 8 : \break 'outer;
     }
   }
 }
@@ -100,7 +100,7 @@ loop 'outer: {
   i = 20;
   j = 10;
   @label2_2 {
-    goto @label1_1; // `i=10` による初期化が済んでないのにジャンプしているように見える。
+    \goto @label1_1; // `i=10` による初期化が済んでないのにジャンプしているように見える。
   }
 }
 ```
@@ -115,9 +115,9 @@ loop 'outer: {
 
 ```
 'outer: {
-  local i = 0, j = 0, k = 100;
+  \local i = 0, j = 0, k = 100;
   :'inner1 {
-    local i_inner1 = 10;
+    \local i_inner1 = 10;
     // i,j,k にアクセスできる
   }
   :'inner2 {
@@ -129,18 +129,18 @@ loop 'outer: {
 
 変数の名前を解決するやり方によっては、こういうことができる言語もある。
 ```
-fn inc_x() {
+\fn inc_x() {
   // この関数単体では `x` がないのに `x` について言及している。
   x += 1;
 }
 
-fn main() {
+\fn main() {
   large_scope {
-    local x = 10;
+    \local x = 10;
     inc_x();
     // x == 11 になっている？
     small_scope {
-      local x = 5;
+      \local x = 5;
       inc_x();
     }
     // x == 6 になっているのか、 x == 11 のままなのか？
@@ -158,10 +158,10 @@ fn main() {
 あと、できれば、break with value ができるといい。
 ```
 let i = :'outer {
-  :'innner loop {
+  :'innner \loop {
     :'nest for j in 0..10 {
-      if j == 8 {
-        break 'outer j;
+      \if j == 8 {
+        \break 'outer j;
       }
     }
   }
@@ -178,11 +178,11 @@ let i = :'outer {
 ```
 let i = 0;
 :'outer {
-  :'innner loop {
+  :'innner \loop {
     :'nest for j in 0..10 {
-      if i == 8 {
+      \if i == 8 {
         i = j
-        break
+        \break
       };
     }
   }

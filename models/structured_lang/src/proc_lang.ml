@@ -48,18 +48,14 @@ let rec parse_stmt p =
 
 and parse_single p =
   if L.eat_keyword p "Nop" then Nop
-  else if L.eat_keyword p "if" then (
+  else if L.eat_keyword p "if" then
     let c = parse_bexp p in
-    L.expect_symbol p '[';
-    let b = parse_stmt p in
-    L.expect_symbol p ']';
-    If (c, b))
-  else if L.eat_keyword p "while" then (
+    let b = Utils.Parser.brackets (fun p -> parse_stmt p) p in
+    If (c, b)
+  else if L.eat_keyword p "while" then
     let c = parse_bexp p in
-    L.expect_symbol p '[';
-    let b = parse_stmt p in
-    L.expect_symbol p ']';
-    While (c, b))
+    let b = Utils.Parser.brackets (fun p -> parse_stmt p) p in
+    While (c, b)
   else if L.eat_keyword p "call" then (
     let n = ident p in
     L.expect_symbol p '(';
@@ -88,7 +84,7 @@ let parse_code =
           let name = ident p in
           L.expect_symbol p '(';
           let params = names_until p ')' in
-          L.expect p ") [ local";
+          L.expect p ") [ \\local";
           let locals = names_boundary p in
           let body = parse_stmt p in
           L.expect_symbol p ']';
@@ -102,18 +98,18 @@ let parse_ainput text = Result.map sorted (parse_env text)
 let parse_rinput s = Ok s
 
 let rec stmt_to_text = function
-  | Nop -> "Nop"
+  | Nop -> "\\Nop"
   | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
   | Assign (v, a) -> v ^ " := " ^ aexp_text a
-  | If (c, b) -> "if " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
-  | While (c, b) -> "while " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
+  | If (c, b) -> "\\if " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
+  | While (c, b) -> "\\while " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
   | Call (n, args, rets) ->
-      "call " ^ n ^ "(" ^ String.concat ", " args ^ ") -> "
+      "\\call " ^ n ^ "(" ^ String.concat ", " args ^ ") -> "
       ^ String.concat ", " rets
-  | Return vs -> "return " ^ String.concat ", " vs
+  | Return vs -> "\\return " ^ String.concat ", " vs
 
 let print c =
-  "static"
+  "\\static"
   ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
   ^ ";\n"
   ^ String.concat ""
@@ -121,7 +117,7 @@ let print c =
          (fun p ->
            p.name ^ "("
            ^ String.concat ", " p.params
-           ^ ")[\n  local"
+           ^ ")[\n  \\local"
            ^ (if p.locals = [] then "" else " " ^ String.concat ", " p.locals)
            ^ "\n  " ^ stmt_to_text p.body ^ "\n]\n")
          c.procs)

@@ -165,9 +165,7 @@ let parse_code =
         L.expect_keyword p "fn";
         let name = identifier p in
         if L.eat_symbol p '(' then L.expect_symbol p ')';
-        L.expect_symbol p '{';
-        let blocks = blocks () in
-        L.expect_symbol p '}';
+        let blocks = Utils.Parser.braces (fun _p -> blocks ()) p in
         { name; blocks }
       in
       let rec funcs acc =
@@ -183,14 +181,14 @@ let parse_code =
       { alphabet; functions = funcs [] })
 
 let stmt_print = function
-  | Lt -> "LT"
-  | Rt -> "RT"
+  | Lt -> "\\LT"
+  | Rt -> "\\RT"
   | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
-  | Break c -> "break" ^ condition_print c
-  | Continue c -> "continue" ^ condition_print c
-  | Return c -> "return" ^ condition_print c
-  | Jump (label, c) -> "jump " ^ label ^ condition_print c
-  | Call name -> "call " ^ name
+  | Break c -> "\\break" ^ condition_print c
+  | Continue c -> "\\continue" ^ condition_print c
+  | Return c -> "\\return" ^ condition_print c
+  | Jump (label, c) -> "\\jump " ^ label ^ condition_print c
+  | Call name -> "\\call " ^ name
 
 (* Calls are represented by names; print dependencies first so original Rust's parser also accepts compiled text. *)
 let dependency_order p =
@@ -214,11 +212,11 @@ let print p =
   ^ String.concat "\n"
       (List.map
          (fun f ->
-           "fn " ^ f.name ^ "() {\n"
+           "\\fn " ^ f.name ^ "() {\n"
            ^ String.concat ""
                (List.map
                   (fun b ->
-                    "  label " ^ b.label ^ ": {\n"
+                    "  \\label " ^ b.label ^ ": {\n"
                     ^ String.concat ""
                         (List.map
                            (fun s -> "    " ^ stmt_print s ^ "\n")

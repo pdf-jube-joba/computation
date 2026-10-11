@@ -9,8 +9,8 @@
 ```
 0: v := @;
 1: w := v;
-2: RT;
-3: jump 0 if w = @;
+2: \RT;
+3: \jump 0 \if w = @;
 ```
 
 - \(V' \defeq \{v, w\}\)
@@ -20,8 +20,8 @@
 このもとで、
 1. `v := @`     :\(([0, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([1, (v \mapsto s  , w \mapsto s_2)], s), C\)
 2. `w := v`     :\(([1, (v \mapsto s_1, w \mapsto s_1)], s) \mapsto ([2, (v \mapsto s_1, w \mapsto s  )], s), C\)
-3. `RT`         :\(([2, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([3, (v \mapsto s_1, w \mapsto s_2)], s), R\)
-4. `jump ...`   :
+3. `\RT`         :\(([2, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([3, (v \mapsto s_1, w \mapsto s_2)], s), R\)
+4. `\jump ...`   :
   - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([0, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 = s\) の場合に追加
   - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([4, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 \neq s\) の場合に追加
 

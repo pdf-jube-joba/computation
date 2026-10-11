@@ -15,27 +15,27 @@
 以下はもうちょっとちゃんとした仕様
 - 16 bit 固定長が基本、即値があるときだけ後ろからとる。
 - レジスタは \(8\) つとして、 \(3\) bit で表す。
-- \(0\) 番目のレジスタは program counter とする... `mov` や `add` はジャンプ命令になる。
+- \(0\) 番目のレジスタは program counter とする... `\mov` や `\add` はジャンプ命令になる。
 - 比較命令時には flag が格納される。
 - flag を表す `f` が入っている命令なら、 `f` が立っているときには flag が真のときだけ命令を実行する
 - 減算は \(0\) で飽和する。
 
 | 種類 | 命令 | encode | 意味 |
 | ---- | ---- | ------ | ---- |
-| その他 | `nop`       | `0b0000_0000_00_000_000 ??..` | 何もせずに次に行く |
-| その他 | `halt`      | `0b0000_0000_01_000_000 ??..` | 停止する |
-| その他 | `rst`       | `0b0000_0000_00_111_111 ??..` | flag を reset する |
-| メモリ | `ld rd rb`  | `0b0000_0001_00_ddd_bbb ??..` | \(rd \leftarrow M[ rb ]\) |
-| メモリ | `st rs rb`  | `0b0000_0010_00_sss_bbb ??..` | \(M [ rb ] \leftarrow rs\) |
-| 即値   | `ldi rd`    | `0b0000_1000_1f_ddd_000 ii..` | \(rd \leftarrow im\), im は `ii..` からとる。 |
-| 転送   | `mov rd rs` | `0b0000_1000_0f_ddd_sss ??..` | \(rd \leftarrow rs\)      |
-| 算術   | `add rd rs` | `0b0000_0100_0f_ddd_sss ??..` | \(rd \leftarrow rd + rs\) |
-| 算術   | `sub rd rs` | `0b0000_0101_0f_ddd_sss ??..` | \(rd \leftarrow rd - rs\) |
-| 算術   | `addi rd`   | `0b0000_0100_1f_ddd_000 ii..` | \(rd \leftarrow rd + im\) |
-| 算術   | `subi rd`   | `0b0000_0101_1f_ddd_000 ii..` | \(rd \leftarrow rd - im\) |
-| 比較   | `eq rd rs`  | `0b0001_0001_00_ddd_sss ??..` | \(rd = rs \Rightarrow \mathtt{flag}\) |
-| 比較   | `lt rd rs`  | `0b0001_0010_00_ddd_sss ??..` | \(rd < rs \Rightarrow \mathtt{flag}\) |
-| 比較   | `gt rd rs`  | `0b0001_0100_00_ddd_sss ??..` | \(rd > rs \Rightarrow \mathtt{flag}\) |
+| その他 | `\nop`       | `0b0000_0000_00_000_000 ??..` | 何もせずに次に行く |
+| その他 | `\halt`      | `0b0000_0000_01_000_000 ??..` | 停止する |
+| その他 | `\rst`       | `0b0000_0000_00_111_111 ??..` | flag を reset する |
+| メモリ | `\ld rd rb`  | `0b0000_0001_00_ddd_bbb ??..` | \(rd \leftarrow M[ rb ]\) |
+| メモリ | `\st rs rb`  | `0b0000_0010_00_sss_bbb ??..` | \(M [ rb ] \leftarrow rs\) |
+| 即値   | `\ldi rd`    | `0b0000_1000_1f_ddd_000 ii..` | \(rd \leftarrow im\), im は `ii..` からとる。 |
+| 転送   | `\mov rd rs` | `0b0000_1000_0f_ddd_sss ??..` | \(rd \leftarrow rs\)      |
+| 算術   | `\add rd rs` | `0b0000_0100_0f_ddd_sss ??..` | \(rd \leftarrow rd + rs\) |
+| 算術   | `\sub rd rs` | `0b0000_0101_0f_ddd_sss ??..` | \(rd \leftarrow rd - rs\) |
+| 算術   | `\addi rd`   | `0b0000_0100_1f_ddd_000 ii..` | \(rd \leftarrow rd + im\) |
+| 算術   | `\subi rd`   | `0b0000_0101_1f_ddd_000 ii..` | \(rd \leftarrow rd - im\) |
+| 比較   | `\eq rd rs`  | `0b0001_0001_00_ddd_sss ??..` | \(rd = rs \Rightarrow \mathtt{flag}\) |
+| 比較   | `\lt rd rs`  | `0b0001_0010_00_ddd_sss ??..` | \(rd < rs \Rightarrow \mathtt{flag}\) |
+| 比較   | `\gt rd rs`  | `0b0001_0100_00_ddd_sss ??..` | \(rd > rs \Rightarrow \mathtt{flag}\) |
 
 なんかいろいろ考えてビットを配置したが、HDLを触ったことがないので机上の空論になっている。
 
@@ -58,20 +58,20 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 > レジスタが \(4\) で \(0\) 番目が pc ならこんな感じ？
 > | 種類 | 命令 | encode | 意味 |
 > | ---- | ---- | ------ | ---- |
-> | その他 | `nop`       | `0b000_0_00_00 ??..` | 何もせずに次に行く |
-> | その他 | `halt`      | `0b000_0_00_01 ??..` | 停止する |
-> | 即値   | `ldi rd`    | `0b001_0_dd_00 ii..` | \(rd \leftarrow im\), im は `ii..` からとる。 |
-> | 比較   | `lt rd rs`  | `0b000_1_dd_ss ??..` | \(rd < rs \Rightarrow \mathtt{flag}\) |
-> | メモリ | `ld rd rb`  | `0b010_0_dd_bb ??..` | \(rd \leftarrow M[ rb ]\) |
-> | メモリ | `st rs rb`  | `0b011_0_ss_bb ??..` | \(M [ rb ] \leftarrow rs\) |
-> | 転送   | `mov rd rs` | `0b100_f_dd_ss ??..` | \(rd \leftarrow rs\)      |
-> | 算術   | `add rd rs` | `0b101_f_dd_ss ??..` | \(rd \leftarrow rd + rs\) |
-> | 算術   | `sub rd rs` | `0b110_f_dd_ss ??..` | \(rd \leftarrow rd - rs\) |
-> | 算術   | `subi rd`   | 廃止 | imm load して add から |
-> | 算術   | `addi rd`   | 廃止 | imm load して sub から |
-> | 比較   | `eq rd rs`  | 廃止 | lt 2 回やって分岐してないなら |
-> | その他 | `rst`       | 廃止 | （0 < 0） をやる |
-> 
+> | その他 | `\nop`       | `0b000_0_00_00 ??..` | 何もせずに次に行く |
+> | その他 | `\halt`      | `0b000_0_00_01 ??..` | 停止する |
+> | 即値   | `\ldi rd`    | `0b001_0_dd_00 ii..` | \(rd \leftarrow im\), im は `ii..` からとる。 |
+> | 比較   | `\lt rd rs`  | `0b000_1_dd_ss ??..` | \(rd < rs \Rightarrow \mathtt{flag}\) |
+> | メモリ | `\ld rd rb`  | `0b010_0_dd_bb ??..` | \(rd \leftarrow M[ rb ]\) |
+> | メモリ | `\st rs rb`  | `0b011_0_ss_bb ??..` | \(M [ rb ] \leftarrow rs\) |
+> | 転送   | `\mov rd rs` | `0b100_f_dd_ss ??..` | \(rd \leftarrow rs\)      |
+> | 算術   | `\add rd rs` | `0b101_f_dd_ss ??..` | \(rd \leftarrow rd + rs\) |
+> | 算術   | `\sub rd rs` | `0b110_f_dd_ss ??..` | \(rd \leftarrow rd - rs\) |
+> | 算術   | `\subi rd`   | 廃止 | imm load して add から |
+> | 算術   | `\addi rd`   | 廃止 | imm load して sub から |
+> | 比較   | `\eq rd rs`  | 廃止 | lt 2 回やって分岐してないなら |
+> | その他 | `\rst`       | 廃止 | （0 < 0） をやる |
+>
 > これは小さすぎる。特に、まともに使えるレジスタが \(3\) ぐらいしかない。
 > ただし、アセンブリの側でメモリを確保しておけば、廃止した命令がマクロで簡単に書ける。
 > それと、メモリの最初の方をレジスタファイルとして扱うことを最初から述べておけばいい。
@@ -79,12 +79,12 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 ## アセンブリ言語
 普通のアセンブリ言語。
 アセンブリ言語単体での意味論としては、コード領域とデータ領域はアドレス空間の異なる領域にあるとしていい。
-（アセンブリにより、 `.text` のあとに `.data` が来るが、それは保証しなくてよい。）
+（アセンブリにより、 `\text` のあとに `\data` が来るが、それは保証しなくてよい。）
 
 つまり、 **機械語の単体とは異なり**ハーバード型である。
 
 上記の機械語の mnemonic の記述に加えて、以下の機能を付ける。
-- `.text` と `.data` セクションのみ
+- `\text` と `\data` セクションのみ
     - 交互に書いてもいい。
 - ラベルは `@` で始まる。
     - コード用のラベルとデータ用のラベルは分けて、
@@ -92,7 +92,7 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 - `.f` をつけたら、条件分岐を入れる。
     - `@DATA_LEN`, `@CODE_LEN`... それぞれのセクションの長さを記述する。
     - `@THIS` これが書かれている行のアドレスを指す
-- `mov %r0 %r2` のようなジャンプ命令に対応するものは、 `jump %r2` とも書ける。
+- `\mov %r0 %r2` のようなジャンプ命令に対応するものは、 `\jump %r2` とも書ける。
 - アセンブラへの指令や命令（ Directive ）：
     - 特殊な定数値の定義
     - マクロによる疑似命令
@@ -110,9 +110,9 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
     &| \sp \NT{mnemonic} \sp (\T{.f})? \sp \NT{reg}? \sp \NT{reg}? \sp \NT{value} \\
     &) \T{;} \\
 \NT{directive} &\defeq ( \\
-    &| \sp \T{.text} \\
-    &| \sp \T{.data} \\
-    &| \sp \T{.equ} \sp \NT{const} \sp \NT{imm}
+    &| \sp \T{\textbackslash{}text} \\
+    &| \sp \T{\textbackslash{}data} \\
+    &| \sp \T{\textbackslash{}equ} \sp \NT{const} \sp \NT{imm}
     &) \\
 \NT{program} &\defeq ( \\
     &| \sp \NT{directive} \\
@@ -169,8 +169,8 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
     &| \sp \NT{place}   \sp \T{:=} \sp \NT{value} \\
     &) \T{;} \\
 \\
-\NT{jump-if}    &\defeq \T{if}   \sp \NT{cond} \sp \T{then} \sp \NT{addr} \sp \T{;} \\
-\NT{jump}       &\defeq \T{goto} \sp \NT{addr} \sp \T{;} \\
+\NT{jump-if}    &\defeq \T{\textbackslash{}if}   \sp \NT{cond} \sp \T{\textbackslash{}then} \sp \NT{addr} \sp \T{;} \\
+\NT{jump}       &\defeq \T{\textbackslash{}goto} \sp \NT{addr} \sp \T{;} \\
 \NT{cont}   &\defeq \NT{jump-if}* \NT{jump} \\
 \NT{block}  &\defeq \NT{label} \T{\{} \NT{stmt}* \sp \NT{cont} \T{\}} \\
 \\
@@ -203,9 +203,9 @@ AI が生成したものにはちょっと不満もあるが、まあこんな�
 > 例として、 \(n\) レジスタマシンを考える
 > - セルは WORD 単位で自然数は入れられない
 > - \(r_{i \in 0 \ldots n}: \N\) がレジスタでメモリは \(M := \N \to \N\)
-> - stmt は \(r_i := r_j + r_k, r_i := r_j - r_k\) と \(\T{ifz} r_i \T{then} \N\) でレジスタのみから演算と分岐。
-> - もしメモリアクセスが即値だけなら厳しいので、 \(\T{ld} [r_i] \T{->} r_j\) と \(\T{st} r_j \T{->} [r_j]\) を入れる。
-> 
+> - stmt は \(r_i := r_j + r_k, r_i := r_j - r_k\) と \(\T{ifz} r_i \T{\textbackslash{}then} \N\) でレジスタのみから演算と分岐。
+> - もしメモリアクセスが即値だけなら厳しいので、 \(\T{\textbackslash{}ld} [r_i] \T{->} r_j\) と \(\T{\textbackslash{}st} r_j \T{->} [r_j]\) を入れる。
+>
 > \(n > m\) のときに \(n\) レジスタマシンから \(m\) レジスタマシンへ transpile できるか？
 > 最終的なメモリの状態（ \(\text{code} \pfun (M \to M)\)）だけを問題にしたとしても、コンパイルがすごい難しい。
 > 理由は、レジスタのメモリ退避をするためには、つかわれていないメモリを考えないといけないが、実行時にしかどのメモリにアクセスするかが予想できないから。

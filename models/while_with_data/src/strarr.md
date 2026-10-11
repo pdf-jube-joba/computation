@@ -17,18 +17,18 @@
   &| \NT{var} \\
   &| \T{\LR} \NT{aexp} \T{\RP} \\
   &| \NT{aexp} \T{++} \NT{aexp} \\
-  &| \T{head} \NT{aexp} \\
-  &| \T{tail} \NT{aexp} \\
+  &| \T{\textbackslash{}head} \NT{aexp} \\
+  &| \T{\textbackslash{}tail} \NT{aexp} \\
 \NT{bexp} &\defeq \\
-  &| \T{is-empty} \NT{aexp} \\
+  &| \T{\textbackslash{}is-empty} \NT{aexp} \\
   &| \NT{aexp} \T{==} \NT{aexp} \\
 \\
 \NT{stmt} &\defeq \\
-  &| \T{Nop} \\
+  &| \T{\textbackslash{}Nop} \\
   &| \NT{stmt} \T{;} \NT{stmt} \\
   &| \NT{var} \T{:=} \NT{aexp} \\
-  &| \T{if} \NT{bexp} \T{then} \NT{stmt} \T{end} \\
-  &| \T{while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB}
+  &| \T{\textbackslash{}if} \NT{bexp} \T{\textbackslash{}then} \NT{stmt} \T{\textbackslash{}end} \\
+  &| \T{\textbackslash{}while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB}
 
 \end{aligned}
 \]
@@ -39,8 +39,8 @@
 初期環境を \(\NT{var} \mapsto ([] \in V)\) という全域関数と思える。
 
 実装で気を付ける部分
-- \(\T{head} [] = [], \T{tail} [] = []\)
-- \(\T{head} a::v = [a], \T{tail} a::v = v\)
+- \(\T{\textbackslash{}head} [] = [], \T{\textbackslash{}tail} [] = []\)
+- \(\T{\textbackslash{}head} a::v = [a], \T{\textbackslash{}tail} a::v = v\)
 
 とする。
 

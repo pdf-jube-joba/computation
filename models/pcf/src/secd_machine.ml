@@ -181,8 +181,8 @@ let as_nat = function
 
 let value_text = function
   | VNat n -> N.to_string n
-  | VBool b -> if b then "#true" else "#false"
-  | VUnit -> "#unit"
+  | VBool b -> if b then "\\true" else "\\false"
+  | VUnit -> "\\unit"
   | VFun (x, c, _) -> "closure " ^ x ^ " " ^ print_code c
   | VRec (f, x, c, _) -> "recursive closure " ^ f ^ " " ^ x ^ " " ^ print_code c
 

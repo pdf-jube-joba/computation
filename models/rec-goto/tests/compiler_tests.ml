@@ -81,15 +81,15 @@ let () =
     (List.map
        (fun text -> ok (Utils.Number.of_string text))
        [ "123456789012345678901234567890"; "987654321098765432109876543210" ]);
-  api_check "PRIM[z:PROJ[1,0] s:COMP[SUCC: PROJ[3,0]]]" "(2,4)";
+  api_check "\\PRIM[\\z:\\PROJ[1,0] \\s:\\COMP[\\SUCC: \\PROJ[3,0]]]" "(2,4)";
   api_check
-    "let p = PRIM[z:ZERO s:PROJ[2,1]]. let sub = PRIM[z:PROJ[1,0] s:COMP[p: \
-     PROJ[3,0]]]. MUOP[sub]"
+    "\\let p = \\PRIM[\\z:\\ZERO \\s:\\PROJ[2,1]]. \\let sub = \
+     \\PRIM[\\z:\\PROJ[1,0] \\s:\\COMP[p: \\PROJ[3,0]]]. \\MUOP[sub]"
     "(4)";
-  api_check "COMP[PROJ[2,1]: (SUCC,COMP[SUCC: SUCC])]" "(5)";
+  api_check "\\COMP[\\PROJ[2,1]: (\\SUCC,\\COMP[\\SUCC: \\SUCC])]" "(5)";
   assert (
-    ok (C.api.compile_code "SUCC")
-    = "clr __one;\ninc __one;\ncpy y <- x0;\ninc y;\n");
+    ok (C.api.compile_code "\\SUCC")
+    = "\\clr __one;\n\\inc __one;\n\\cpy y <- x0;\n\\inc y;\n");
   assert (ok (C.api.encode_ainput "(2,3)") = "x0 = 2\nx1 = 3\n");
   assert (ok (C.api.encode_ainput "()") = "");
   assert (ok (C.api.decode_foutput "other = 3") = "0");
@@ -97,7 +97,7 @@ let () =
   assert (ok (C.api.decode_routput "") = "");
   error (C.api.encode_rinput "0");
   error (C.api.decode_routput "0");
-  error (C.api.compile_code "PROJ[1,2]");
+  error (C.api.compile_code "\\PROJ[1,2]");
   error (C.compile (Prim (Zero, Succ)));
   error (C.compile (Comp (Succ, [])));
   error (C.api.encode_ainput "(-1)");

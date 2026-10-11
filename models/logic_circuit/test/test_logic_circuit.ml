@@ -64,18 +64,17 @@ let () =
   assert (not (value first));
   assert (value (advance first []));
   let code =
-    "/* comment */ graph: main {in {I} out {O=A.OUT} A, NOT-F {IN=I}}"
+    "/* comment */ \\graph: main {\\in {I} \\out {O=A.OUT} A, NOT-F {IN=I}}"
   in
   let main = ok (parse_code code) in
   assert (
-    ok (parse_code ("/* nested opener /* closes at first terminator */" ^ code))
-    = main);
-  bad (parse_code ("/* nested opener /* */ */" ^ code));
-  bad (parse_code "/* unclosed graph: main {in {} out {}}");
+    ok (parse_code ("/* nested opener /* inner */ outer */" ^ code)) = main);
+  assert (ok (parse_code ("/* nested opener /* */ */" ^ code)) = main);
+  bad (parse_code "/* unclosed \\graph: main {\\in {} \\out {}}");
   assert (ok (parse_code ("// /* ignored opener\n" ^ code)) = main);
   assert (print_code main = "logic_circuit");
   assert (get_inpins main = [ pin "main" "I" ]);
-  assert (print_signal (get_otputs (advance main [])) = "main.O=#true");
+  assert (print_signal (get_otputs (advance main [])) = "main.O=\\true");
   assert (not (value (advance main [ (pin "main" "I", true) ])));
   assert (not (value (advance main [ (pin "A" "IN", true) ])));
   assert (
@@ -84,34 +83,37 @@ let () =
          [ (pin "main" "UNKNOWN", true); (pin "UNKNOWN" "IN", true) ]));
   (* Maps targeting absent vertices are accepted, exactly as in Rust. *)
   let permissive =
-    ok (parse_code "graph: main { in {A, d} out {a=b.c} A, AND-T {} }")
+    ok (parse_code "\\graph: main { \\in {A, d} \\out {a=b.c} A, AND-T {} }")
   in
   assert (get_otpins permissive = [ pin "A" "OUT" ]);
   let permissive_json = render permissive |> Yojson.Safe.to_string in
   assert (String.length permissive_json > 0);
-  bad (parse_code "graph: main {in {} out {} A, NOT-F {} A, NOT-T {}}");
-  bad (parse_code "graph: main {in {} out {} A, NOT-F {IN=absent.OUT}}");
-  bad (parse_code "graph: main {in {} out {} A, NOT-F {IN=X}}");
-  bad (parse_code "graph: main {in {} out {} A, NO-SUCH-GATE {}}");
+  bad (parse_code "\\graph: main {\\in {} \\out {} A, NOT-F {} A, NOT-T {}}");
+  bad (parse_code "\\graph: main {\\in {} \\out {} A, NOT-F {IN=absent.OUT}}");
+  bad (parse_code "\\graph: main {\\in {} \\out {} A, NOT-F {IN=X}}");
+  bad (parse_code "\\graph: main {\\in {} \\out {} A, NO-SUCH-GATE {}}");
   bad
     (parse_code
-       "graph: main {in {} out {} A, BR-F {} B, DLY-F {IN=A.OUT0} C, DLY-F \
-        {IN=A.OUT0}}");
+       "\\graph: main {\\in {} \\out {} A, BR-F {} B, DLY-F {IN=A.OUT0} C, \
+        DLY-F {IN=A.OUT0}}");
   bad
     (parse_code
-       "graph: main {in {} out {} A, DLY-F {} B, AND-F {IN0=A.OUT IN0=A.OUT}}");
-  bad (parse_code "graph: _bad { in {} out {} } trailing");
-  bad (parse_code "graph: 123 {in {} out {}}");
+       "\\graph: main {\\in {} \\out {} A, DLY-F {} B, AND-F {IN0=A.OUT \
+        IN0=A.OUT}}");
+  bad (parse_code "\\graph: _bad { \\in {} \\out {} } trailing");
+  bad (parse_code "\\graph: 123 {\\in {} \\out {}}");
   bad (parse_code "");
-  let duplicate = ok (parse_code (code ^ " graph: main {in {} out {}}")) in
+  let duplicate =
+    ok (parse_code (code ^ " \\graph: main {\\in {} \\out {}}"))
+  in
   assert (duplicate = main);
-  let signal = ok (parse_rinput " A.IN=#true, B.OUT=#false ") in
+  let signal = ok (parse_rinput " A.IN=\\true, B.OUT=\\false ") in
   assert (
     ok
       (parse_rinput
-         "\194\160A.IN=\226\128\131#true\194\133,\011B.OUT=#false\012\227\128\128")
+         "\194\160A.IN=\226\128\131\\true\194\133,\011B.OUT=\\false\012\227\128\128")
     = signal);
-  assert (print_signal signal = "A.IN=#true, B.OUT=#false");
+  assert (print_signal signal = "A.IN=\\true, B.OUT=\\false");
   assert (ok (parse_rinput "  ") = []);
   let whitespace =
     [
@@ -147,15 +149,15 @@ let () =
       assert (ok (parse_rinput ws) = []);
       assert (ok (parse_ainput ws) = ());
       assert (
-        ok (parse_rinput (ws ^ "A.IN=" ^ ws ^ "#true" ^ ws))
+        ok (parse_rinput (ws ^ "A.IN=" ^ ws ^ "\\true" ^ ws))
         = [ (pin "A" "IN", true) ]))
     whitespace;
-  bad (parse_rinput "A.\194\160IN=#true");
-  bad (parse_rinput "\226\128\139A.IN=#true");
+  bad (parse_rinput "A.\194\160IN=\\true");
+  bad (parse_rinput "\226\128\139A.IN=\\true");
   bad (parse_ainput "\239\187\191");
   List.iter
     (fun s -> bad (parse_rinput s))
-    [ "A.IN=true"; "A=#true"; "A.IN=#true,"; "0.IN=#true"; "A .IN=#true" ];
+    [ "A.IN=true"; "A=\\true"; "A.IN=\\true,"; "0.IN=\\true"; "A .IN=\\true" ];
   bad (parse_ainput "unexpected");
   let saved = snapshot first in
   let decoded =
@@ -184,7 +186,7 @@ let () =
   (match ok (S.step main []) with
   | Utils.Machine.Continue { next; output } ->
       assert (output = get_otputs next);
-      assert (S.routput_json output = `String "main.O=#true")
+      assert (S.routput_json output = `String "main.O=\\true")
   | _ -> failwith "Circuits never halt");
   (match render first with
   | `List [ _; _; _; _ ] -> ()
@@ -247,7 +249,9 @@ let () =
       assert (ok (restore (snapshot c)) = c);
       assert (List.length (as_graph_group c).verts > 0))
     [ "RS-latch"; "DFF" ];
-  let iter = ok (parse_code "iter: main {DLY-F, next {OUT=IN} prev {}}") in
+  let iter =
+    ok (parse_code "\\iter: main {DLY-F, \\next {OUT=IN} \\prev {}}")
+  in
   assert (get_inpins iter = [] && get_otputs iter = [] && advance iter [] = iter);
   (* Typed callers can seed the decimal index that Rust's text Identifier
      cannot express. Generated _n_ labels remain distinct and ignored. *)

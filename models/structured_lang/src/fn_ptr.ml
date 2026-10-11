@@ -57,32 +57,34 @@ type foutput = string
 
 let rec place_to_text = function
   | Var v -> v
-  | Deref v -> "(" ^ value_to_text v ^ ") #loc"
+  | Deref v -> "(" ^ value_to_text v ^ ") \\loc"
 
 and value_to_text = function
   | Number n -> Int64.to_string n
-  | NullPtr -> "#null-ptr"
+  | NullPtr -> "\\null-ptr"
   | BinOp (a, op, b) ->
       "(" ^ value_to_text a
       ^ (if op = Add then " + " else " - ")
       ^ value_to_text b ^ ")"
-  | Load p -> "ld " ^ place_to_text p
-  | Addr p -> place_to_text p ^ " #addr"
+  | Load p -> "\\ld " ^ place_to_text p
+  | Addr p -> place_to_text p ^ " \\addr"
 
 let rec stmt_to_text = function
-  | Assign (p, v) -> "assign " ^ place_to_text p ^ " := " ^ value_to_text v
+  | Assign (p, v) -> "\\assign " ^ place_to_text p ^ " := " ^ value_to_text v
   | Ifz (c, a, b) ->
-      "ifz " ^ value_to_text c ^ " then " ^ stmt_to_text a ^ " else "
-      ^ stmt_to_text b ^ " end"
+      "\\ifz " ^ value_to_text c ^ " \\then " ^ stmt_to_text a ^ " \\else "
+      ^ stmt_to_text b ^ " \\end"
   | Call (n, args) ->
-      "call " ^ n ^ "(" ^ String.concat ", " (List.map value_to_text args) ^ ")"
-  | Return -> "return"
+      "\\call " ^ n ^ "("
+      ^ String.concat ", " (List.map value_to_text args)
+      ^ ")"
+  | Return -> "\\return"
 
 let print c =
   String.concat "\n\n"
     (List.map
        (fun f ->
-         "fn " ^ f.name ^ "("
+         "\\fn " ^ f.name ^ "("
          ^ String.concat ", " f.params
          ^ ") { "
          ^ String.concat "; " (List.map stmt_to_text f.body)
@@ -90,22 +92,23 @@ let print c =
        c.functions)
 
 let location_text (l : location) =
-  Printf.sprintf "loc(%d, %d)" l.frame_id l.slot
+  Printf.sprintf "\\loc(%d, %d)" l.frame_id l.slot
 
 let value_text = function
   | Num n -> Int64.to_string n
   | Location l -> location_text l
-  | Null_ptr -> "#null-ptr"
+  | Null_ptr -> "\\null-ptr"
 
 let parse_runtime_value text =
   L.protect (fun () ->
+      let text = L.without_comments text in
       let text = String.trim text in
-      if text = "#null-ptr" then Null_ptr
+      if text = "\\null-ptr" then Null_ptr
       else if
-        String.starts_with ~prefix:"loc(" text
+        String.starts_with ~prefix:"\\loc(" text
         && String.ends_with ~suffix:")" text
       then
-        let body = String.sub text 4 (String.length text - 5) in
+        let body = String.sub text 5 (String.length text - 6) in
         match String.split_on_char ',' body with
         | [ frame; slot ] ->
             let frame_id = get (N.to_int (get (N.of_string frame))) in
@@ -122,7 +125,7 @@ let rec parse_place p =
   | _ ->
       L.expect_symbol p '(';
       let v = parse_value p in
-      L.expect p ") #loc";
+      L.expect p ") \\loc";
       Deref v
 
 and parse_value p =
@@ -139,7 +142,7 @@ and parse_value p =
   loop a
 
 and parse_atom p =
-  if L.eat p "#null-ptr" then NullPtr
+  if L.eat p "\\null-ptr" then NullPtr
   else if L.eat_keyword p "ld" then Load (parse_place p)
   else if L.eat_symbol p '(' then (
     let v = parse_value p in
@@ -150,7 +153,7 @@ and parse_atom p =
     | L.Number _ -> Number (Int64.of_string (L.natural p))
     | _ ->
         let v = parse_place p in
-        L.expect p "#addr";
+        L.expect p "\\addr";
         Addr v
 
 let rec parse_stmt p =

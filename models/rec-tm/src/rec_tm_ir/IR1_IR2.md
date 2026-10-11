@@ -7,20 +7,20 @@
 
 具体例：
 ```
-fn f {
+\fn f {
   entry:
-    return;
+    \return;
 }
 
-fn main {
+\fn main {
   entry:
-    call f;
+    \call f;
   next:
-    call f;
+    \call f;
 }
 ```
 
-ここで単純に `fn f` だけの情報から得られるブロック列を展開すると、
+ここで単純に `\fn f` だけの情報から得られるブロック列を展開すると、
 このようになって同じラベル名が出てきて不適。
 そもそも、どこに帰るのかもわからない。
 ```
@@ -70,7 +70,7 @@ main-next:
 main-end:
 ```
 
-こうして得られたブロック列は、 `call/return/break/continue` free な IR1 である。
+こうして得られたブロック列は、 `\call/\return/\break/\continue` free な IR1 である。
 これを変換するのは簡単で、各ラベルを行数に直しておけばよい。
 
 <div data-model="rec_tm_ir-rec_tm_ir_jump"></div>

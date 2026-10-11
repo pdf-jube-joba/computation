@@ -1,6 +1,6 @@
-(* Both original languages have character literals, including Unicode scalars,
-   and hyphenated identifiers. Keep that lexer distinct from Utils.Lexer. *)
+(* Grammar adapter for the shared lexer; this dialect permits hyphenated names. *)
 type token =
+  | Keyword of string
   | Word of string
   | Character of string
   | Sym of char
@@ -11,22 +11,6 @@ type t = { tokens : token array; mutable pos : int }
 
 let fail = failwith
 
-let scalar_length s i =
-  let c = Char.code s.[i] in
-  if c < 128 then 1
-  else if c land 0xe0 = 0xc0 then 2
-  else if c land 0xf0 = 0xe0 then 3
-  else if c land 0xf8 = 0xf0 then 4
-  else fail "Invalid UTF-8 character"
-
-let scalar s i =
-  let n = scalar_length s i in
-  if i + n > String.length s then fail "Truncated UTF-8 character";
-  for j = i + 1 to i + n - 1 do
-    if Char.code s.[j] land 0xc0 <> 0x80 then fail "Invalid UTF-8 character"
-  done;
-  (String.sub s i n, i + n)
-
 let char_text = function
   | "\n" -> "'\\n'"
   | "\r" -> "'\\r'"
@@ -35,42 +19,28 @@ let char_text = function
   | "'" -> "'\\''"
   | c -> "'" ^ c ^ "'"
 
-let create s =
-  let n = String.length s in
-  let alpha = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false in
-  let alnum c = alpha c || (c >= '0' && c <= '9') || c = '-' in
-  let rec scan i acc =
-    if i = n then Array.of_list (List.rev (Eof :: acc))
+let create text =
+  let raw = Utils.Lexer.tokenize ~identifier_extra:(( = ) '-') text in
+  let rec tokens i acc =
+    if i = Array.length raw then Array.of_list (List.rev acc)
     else
-      match s.[i] with
-      | ' ' | '\n' | '\r' | '\t' -> scan (i + 1) acc
-      | '\'' ->
-          let c, j =
-            if i + 1 >= n then fail "Unterminated character literal"
-            else if s.[i + 1] = '\\' then (
-              if i + 2 >= n then fail "Unterminated escape";
-              let c, k = scalar s (i + 2) in
-              ( (match c with "n" -> "\n" | "r" -> "\r" | "t" -> "\t" | c -> c),
-                k ))
-            else scalar s (i + 1)
-          in
-          if j >= n || s.[j] <> '\'' then fail "Expected closing quote";
-          scan (j + 1) (Character c :: acc)
-      | c when alpha c ->
-          let j = ref (i + 1) in
-          while !j < n && alnum s.[!j] do
-            incr j
-          done;
-          scan !j (Word (String.sub s i (!j - i)) :: acc)
-      | (':' | '+' | '=') as c ->
-          let other = if c = ':' then '=' else c in
-          if i + 1 >= n || s.[i + 1] <> other then fail "Invalid operator";
-          scan (i + 2) (Op (String.sub s i 2) :: acc)
-      | ('(' | ')' | '[' | ']' | '{' | '}' | ',' | ';') as c ->
-          scan (i + 1) (Sym c :: acc)
-      | c -> fail ("Unexpected character: " ^ String.make 1 c)
+      let token =
+        match fst raw.(i) with
+        | Utils.Lexer.Ident s -> Word s
+        | Utils.Lexer.Keyword s -> Keyword s
+        | Utils.Lexer.Character c -> Character c
+        | Utils.Lexer.Eof -> Eof
+        | Utils.Lexer.Symbol ((':' | '+' | '=') as c)
+          when i + 1 < Array.length raw
+               && fst raw.(i + 1)
+                  = Utils.Lexer.Symbol (if c = ':' then '=' else c) ->
+            Op (String.make 1 c ^ String.make 1 (if c = ':' then '=' else c))
+        | Utils.Lexer.Symbol c -> Sym c
+        | _ -> fail "Unexpected token"
+      in
+      tokens (i + match token with Op _ -> 2 | _ -> 1) (token :: acc)
   in
-  { tokens = scan 0 []; pos = 0 }
+  { tokens = tokens 0 []; pos = 0 }
 
 let peek p = p.tokens.(p.pos)
 
@@ -110,6 +80,7 @@ let set env name value =
 
 let env parse_value text =
   Utils.Lexer.protect (fun () ->
+      let text = Utils.Lexer.without_comments text in
       List.fold_left
         (fun env line ->
           let line = String.trim line in

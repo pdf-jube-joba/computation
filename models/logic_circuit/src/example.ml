@@ -1,25 +1,25 @@
 let code =
-  {|graph: one-shot {
-    in {I}
-    out {O=A.OUT}
+  {|\graph: one-shot {
+    \in {I}
+    \out {O=A.OUT}
 
     B, BR-F {IN=I}
     N, NOT-T {IN=B.OUT0}
     A, AND-F {IN0=B.OUT1, IN1=N.OUT}
 }
 
-graph: tick-add1 {
-    in {I}
-    out {O=ON.OUT}
+\graph: tick-add1 {
+    \in {I}
+    \out {O=ON.OUT}
 
     B, BR-F {IN=I}
     D, DLY-F {IN=B.OUT0}
     ON, OR-F {IN0=B.OUT1, IN1=D.OUT}
 }
 
-graph: RS-latch {
-    in {R, S}
-    out {Q=B0.OUT0, nQ=B1.OUT0}
+\graph: RS-latch {
+    \in {R, S}
+    \out {Q=B0.OUT0, nQ=B1.OUT0}
 
     E0, one-shot {I=R}
     T01, tick-add1 {I=E0.O}
@@ -44,9 +44,9 @@ graph: RS-latch {
     B1, BR-T  {IN=N1.OUT }
 }
 
-graph: DFF {
-    in {CK, D}
-    out {Q=R.Q, nQ=R.nQ}
+\graph: DFF {
+    \in {CK, D}
+    \out {Q=R.Q, nQ=R.nQ}
 
     E, one-shot {I=CK}
     B, BR-F {IN=E.O}
@@ -60,9 +60,9 @@ graph: DFF {
     R, RS-latch {R=A2.OUT, S=A1.OUT}
 }
 
-graph: XOR {
-    in {IN0 IN1}
-    out {OUT=O.OUT}
+\graph: XOR {
+    \in {IN0 IN1}
+    \out {OUT=O.OUT}
     B0, BR-F {IN=IN0}
     B1, BR-F {IN=IN1}
     D0, DLY-F {IN=B0.OUT0}
@@ -74,9 +74,9 @@ graph: XOR {
     O, OR-F {IN0=A0.OUT IN1=A1.OUT}
 }
 
-graph: ADDR {
-    in {I0 I1}
-    out {S=X.OUT C=A.OUT}
+\graph: ADDR {
+    \in {I0 I1}
+    \out {S=X.OUT C=A.OUT}
     B0, BR-F {IN=I0}
     B1, BR-F {IN=I1}
     X, XOR {IN0=B0.OUT0 IN1=B1.OUT0}

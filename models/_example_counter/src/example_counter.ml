@@ -10,11 +10,12 @@ type state = int
 let parse_code text = if String.trim text = "" then Ok 0 else natural text
 let parse_ainput = empty_input
 
-let parse_rinput text =
-  match String.trim text with
-  | "inc" -> Ok Increment
-  | "dec" -> Ok Decrement
-  | _ -> Error "Expected inc or dec"
+let parse_rinput =
+  Utils.Lexer.parse (fun p ->
+      match Utils.Lexer.keyword p with
+      | "inc" -> Increment
+      | "dec" -> Decrement
+      | _ -> Utils.Lexer.error p "Expected \\inc or \\dec")
 
 let make code () = Ok code
 

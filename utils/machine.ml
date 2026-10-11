@@ -28,12 +28,15 @@ end
 let ( let* ) = Result.bind
 
 let empty_input text =
-  if String.trim text = "" then Ok () else Error "Expected empty input"
+  Lexer.protect (fun () ->
+      if String.trim (Lexer.without_comments text) = "" then ()
+      else failwith "Expected empty input")
 
 let natural text =
-  match int_of_string_opt (String.trim text) with
-  | Some n when n >= 0 -> Ok n
-  | _ -> Error "Expected a nonnegative OCaml integer"
+  Lexer.protect (fun () ->
+      match int_of_string_opt (String.trim (Lexer.without_comments text)) with
+      | Some n when n >= 0 -> n
+      | _ -> failwith "Expected a nonnegative OCaml integer")
 
 let text_render text =
   `List [ `Assoc [ ("kind", `String "text"); ("text", `String text) ] ]

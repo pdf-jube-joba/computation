@@ -32,31 +32,32 @@ and stmt =
 type print_effect = N.t option [@@deriving yojson]
 
 let print_binop = function Add -> "+" | Sub -> "-" | And -> "&&"
-let print_unop = function Inc -> "inc" | Dec -> "dec" | Not -> "not"
+let print_unop = function Inc -> "\\inc" | Dec -> "\\dec" | Not -> "\\not"
 
 let rec print = function
   | Nat n -> N.to_string n
-  | Bool true -> "#true"
-  | Bool false -> "#false"
-  | Unit -> "#unit"
-  | Print n -> "print " ^ N.to_string n
+  | Bool true -> "\\true"
+  | Bool false -> "\\false"
+  | Unit -> "\\unit"
+  | Print n -> "\\print " ^ N.to_string n
   | Var x -> x
   | BinOp (a, o, b) -> "(" ^ print a ^ " " ^ print_binop o ^ " " ^ print b ^ ")"
   | UnOp (o, e) -> "(" ^ print_unop o ^ " " ^ print e ^ ")"
-  | Fun (x, b) -> "(fun " ^ x ^ " => " ^ print b ^ ")"
-  | Rec (f, x, b) -> "(rec " ^ f ^ " " ^ x ^ " => " ^ print b ^ ")"
+  | Fun (x, b) -> "(\\fun " ^ x ^ " => " ^ print b ^ ")"
+  | Rec (f, x, b) -> "(\\rec " ^ f ^ " " ^ x ^ " => " ^ print b ^ ")"
   | App (f, x) -> print f ^ "(" ^ print x ^ ")"
   | If (c, t, e) ->
-      "(if " ^ print c ^ " then " ^ print t ^ " else " ^ print e ^ " fi)"
+      "(\\if " ^ print c ^ " \\then " ^ print t ^ " \\else " ^ print e
+      ^ " \\fi)"
   | Block (s, e) -> "{ " ^ print_stmt s ^ "; " ^ print e ^ " }"
 
 and print_stmt = function
-  | Skip -> "skip"
-  | PrintStmt n -> "print " ^ N.to_string n
+  | Skip -> "\\skip"
+  | PrintStmt n -> "\\print " ^ N.to_string n
   | Seq (a, b) -> print_stmt a ^ "; " ^ print_stmt b
-  | Let (x, e) -> "let " ^ x ^ " := " ^ print e
-  | IfStmt (c, s) -> "if " ^ print c ^ " then " ^ print_stmt s ^ " end"
-  | While (c, s) -> "while " ^ print c ^ " do " ^ print_stmt s ^ " end"
+  | Let (x, e) -> "\\let " ^ x ^ " := " ^ print e
+  | IfStmt (c, s) -> "\\if " ^ print c ^ " \\then " ^ print_stmt s ^ " \\end"
+  | While (c, s) -> "\\while " ^ print c ^ " \\do " ^ print_stmt s ^ " \\end"
 
 let is_value = function
   | Nat _ | Bool _ | Unit | Fun _ | Rec _ -> true
@@ -67,23 +68,14 @@ let expect_nat = function
   | _ -> Error "final value is not a natural number"
 
 let apply_inputs e inputs = List.fold_left (fun e n -> App (e, Nat n)) e inputs
-
-let reserved statements x =
-  List.mem x
-    ([ "print"; "fun"; "rec"; "if"; "then"; "else"; "fi"; "inc"; "dec"; "not" ]
-    @ if statements then [ "skip"; "let"; "while"; "do"; "end" ] else [])
-
-let identifier statements p =
-  let x = L.identifier p in
-  if reserved statements x then
-    L.error p ("identifier expected, found keyword '" ^ x ^ "'");
-  x
+let identifier _statements p = L.identifier p
 
 let number p =
   match N.of_string (L.natural p) with Ok n -> n | Error e -> L.error p e
 
 let rec expression statements p =
-  if L.peek p = L.Ident "if" then if_expr statements p else binary statements p
+  if L.peek p = L.Keyword "if" then if_expr statements p
+  else binary statements p
 
 and if_expr statements p =
   L.expect_keyword p "if";
@@ -130,28 +122,27 @@ and prefix statements p =
 and atom statements p =
   match L.peek p with
   | L.Number _ -> Nat (number p)
-  | L.Symbol '#' -> (
-      ignore (L.next p);
-      match L.identifier p with
+  | L.Keyword ("true" | "false" | "unit") -> (
+      match L.keyword p with
       | "true" -> Bool true
       | "false" -> Bool false
       | "unit" -> Unit
       | k -> L.error p ("unknown token: #" ^ k))
-  | L.Ident "print" when not statements ->
+  | L.Keyword "print" when not statements ->
       ignore (L.next p);
       Print (number p)
-  | L.Ident "fun" ->
+  | L.Keyword "fun" ->
       ignore (L.next p);
       let x = identifier statements p in
       L.expect p "=>";
       Fun (x, expression statements p)
-  | L.Ident "rec" ->
+  | L.Keyword "rec" ->
       ignore (L.next p);
       let f = identifier statements p in
       let x = identifier statements p in
       L.expect p "=>";
       Rec (f, x, expression statements p)
-  | L.Ident "if" -> if_expr statements p
+  | L.Keyword "if" -> if_expr statements p
   | L.Symbol '(' ->
       ignore (L.next p);
       let e = expression statements p in
@@ -220,7 +211,7 @@ let parse_natural_text text =
     else Error "Expected a natural number"
   else N.of_string text
 
-let parse_ainput text =
+let parse_ainput_raw text =
   let text = String.trim text in
   let length = String.length text in
   if length < 2 || text.[0] <> '(' || text.[length - 1] <> ')' then
@@ -237,6 +228,11 @@ let parse_ainput text =
             | Error e -> Error e)
     in
     loop [] items
+
+let parse_ainput text =
+  match L.protect (fun () -> L.without_comments text) with
+  | Error message -> Error message
+  | Ok text -> parse_ainput_raw text
 
 let print_ainput ns = "(" ^ String.concat ", " (List.map N.to_string ns) ^ ")"
 

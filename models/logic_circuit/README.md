@@ -20,11 +20,11 @@
 > 読み取れてないだけかもしれないが。
 
 ゲートのラベルの定義
-: ラベルと呼ばれる、グラフの頂点に貼り付ける用の集合を次のように（複数に分けて）定義する。 
+: ラベルと呼ばれる、グラフの頂点に貼り付ける用の集合を次のように（複数に分けて）定義する。
   - 論理ゲートのラベルと呼ばれる集合 \(G\) を \(\{\text{AND}, \text{OR}, \text{NOT}\}\) とする。
   - 分岐を行うためのラベルとして \(B = \{\text{BR}\}\) を用意する。
   - 定数を出力するラベル \(C\) を \(\{\text{C0}, \text{C1}\}\) とする。
-  - 入力を捨てるためのラベルとして \(E = \{\text{END}\}\) と定める。 
+  - 入力を捨てるためのラベルとして \(E = \{\text{END}\}\) と定める。
   - 入力ラベル \(I\) を \(\{\text{IN}(n) \mid n \in \mathbb{N}\}\) とする。
   - 出力ラベル \(O\) を \(\{\text{OUT}(n) \mid n \in \mathbb{N}\}\) とする。
   - ラベルの全体\(\text{Label}\) は \(G \cup B \cup C \cup E \cup I \cup O\) とする。
@@ -161,9 +161,9 @@
 
 <div data-model="logic_circuit">
 <template data-default-code>
-graph: main {
-    in {I}
-    out {O=A.OUT}
+\graph: main {
+    \in {I}
+    \out {O=A.OUT}
     B, BR-F {IN=I}
     N, NOT-T {IN=B.OUT0}
     A, AND-F {IN0=B.OUT1, IN1=N.OUT}
@@ -176,7 +176,7 @@ graph: main {
 
 ## 直したいところについて
 現在の問題点
-1. `RInput` と `ROutput` で Signal を扱うのはおかしくて、 
+1. `RInput` と `ROutput` で Signal を扱うのはおかしくて、
   他からのコンパイルの結果として何か（任意有限な自然数のような）ちゃんとした入力を扱うことができていない状態になっている。
     - `AInput` と `FOutput` に対応するものとしての、 Const Gate と End Gate を考えて、これをコードに組み込むとか。
     - input と output をつなぐ仕組み自体は必要になるので、ある意味では `RInput` と `ROutput` 自体は自然？ compose としてはいい考えかも。
@@ -189,7 +189,7 @@ graph: main {
 `src/logic_circuit.ml` exposes `Logic_circuit.S` (also
 `Logic_circuit.Machine`) for the shared `Utils.Machine.S` contract.
 `Circuit` retains gates, synchronous graph composition, iterator state and graph
-views; `Parser`/`Parse` retain `graph:` and `iter:` definitions and signal text.
+views; `Parser`/`Parse` retain `\graph:` and `\iter:` definitions and signal text.
 `Example.utils_map ()` contains all six original example circuits.
 Snapshots use Yojson.Safe codecs and rendering retains the kind, input, output
 and vertex tables. There was no circuit compiler in the original crate.

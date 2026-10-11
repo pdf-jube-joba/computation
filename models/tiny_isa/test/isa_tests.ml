@@ -150,20 +150,20 @@ let () =
   error (I.parse_ainput "x,0,0,0,0,0,0,0");
   error (I.parse_code "64 x");
   let text =
-    ".equ N #7\n\
-     .text\n\
+    "\\equ N #7\n\
+     \\text\n\
      @main:\n\
-     ldi %r1 N;\n\
-     add %r1 #2;\n\
-     ldi %r2 @cell;\n\
-     st %r1 %r2;\n\
-     ld %r3 %r2;\n\
-     eq %r1 %r3;\n\
-     jump.f @end;\n\
-     ldi %r4 #99;\n\
+     \\ldi %r1 N;\n\
+     \\add %r1 #2;\n\
+     \\ldi %r2 @cell;\n\
+     \\st %r1 %r2;\n\
+     \\ld %r3 %r2;\n\
+     \\eq %r1 %r3;\n\
+     \\jump.f @end;\n\
+     \\ldi %r4 #99;\n\
      @end:\n\
-     halt;\n\
-     .data\n\
+     \\halt;\n\
+     \\data\n\
      @cell:\n\
      0\n\
      @THIS\n\
@@ -191,21 +191,21 @@ let () =
   let output =
     run_a 30
       (assembly
-         ".data\n\
+         "\\data\n\
           @a:\n\
           1\n\
-          .text\n\
-          ldi %1 @a\n\
-          .data\n\
+          \\text\n\
+          \\ldi %1 @a\n\
+          \\data\n\
           @b:\n\
           2\n\
-          .text\n\
-          ldi %2 @b;\n\
-          ld %3 %2;\n\
-          add %3 #5;\n\
-          sub %3 #100;\n\
-          mov %4 %3;\n\
-          halt;")
+          \\text\n\
+          \\ldi %2 @b;\n\
+          \\ld %3 %2;\n\
+          \\add %3 #5;\n\
+          \\sub %3 #100;\n\
+          \\mov %4 %3;\n\
+          \\halt;")
   in
   assert (
     output.regs.(1) = "0"
@@ -214,22 +214,23 @@ let () =
     && output.data_memory = [ "1"; "2" ]);
   let output =
     run_a 15
-      (assembly "ldi.f %r1 @unknown;\nldi %r2 #4;\njump %r2;\nldi %r1 #99;\n")
+      (assembly
+         "\\ldi.f %r1 @unknown;\n\\ldi %r2 #4;\n\\jump %r2;\n\\ldi %r1 #99;\n")
   in
   assert (output.regs.(0) = "4" && output.regs.(1) = "0");
   let output =
     run_a 20
       (assembly
-         "ldi %r1 #1;\n\
+         "\\ldi %r1 #1;\n\
           @loop:\n\
-          add %r1 #1;\n\
-          ldi %r2 #4;\n\
-          lt %r1 %r2;\n\
-          jump.f @loop;\n\
-          halt;")
+          \\add %r1 #1;\n\
+          \\ldi %r2 #4;\n\
+          \\lt %r1 %r2;\n\
+          \\jump.f @loop;\n\
+          \\halt;")
   in
   assert (output.regs.(1) = "4");
-  let s = assembly "nop;\nhalt;" in
+  let s = assembly "\\nop;\n\\halt;" in
   let snap = A.snapshot s in
   let restored =
     ok (A.restore (Yojson.Safe.from_string (Yojson.Safe.to_string snap)))
@@ -239,23 +240,25 @@ let () =
   List.iter
     (fun text -> error (A.make (ok (A.parse_code text)) asm_input))
     [
-      "@THIS:\nhalt;";
-      ".equ CODE_LEN #1";
-      "@x:\n@x:\nhalt;";
-      ".equ n #1\n@n:\nhalt;";
-      "nop.f;";
-      "ld.f %r1 %r2;";
-      "eq.f %r1 %r2;";
-      "mov %r1 #2;";
-      "jump;";
-      "unknown;";
-      ".data\n@unknown";
+      "@THIS:\n\\halt;";
+      "\\equ CODE_LEN #1";
+      "@x:\n@x:\n\\halt;";
+      "\\equ n #1\n@n:\n\\halt;";
+      "\\nop.f;";
+      "\\ld.f %r1 %r2;";
+      "\\eq.f %r1 %r2;";
+      "\\mov %r1 #2;";
+      "\\jump;";
+      "\\unknown;";
+      "\\data\n@unknown";
     ];
   List.iter
     (fun text -> error (A.parse_code text))
-    [ ".bss"; "ldi %r8 #1;"; ".data\n1 2"; "@:" ];
-  error (A.step (assembly "ldi %r1 missing;") ());
-  let program = "@cell 3\n@main {\n %v0 := *@cell_invalid;\n goto @main;\n}" in
+    [ ".bss"; "\\ldi %r8 #1;"; "\\data\n1 2"; "@:" ];
+  error (A.step (assembly "\\ldi %r1 missing;") ());
+  let program =
+    "@cell 3\n@main {\n %v0 := *@cell_invalid;\n \\goto @main;\n}"
+  in
   error (C.parse_code program);
   let program =
     "@cell 3\n\
@@ -263,14 +266,14 @@ let () =
     \ %v0 := *[@cell];\n\
     \ %v2 := %v0 + #4;\n\
     \ [@cell] := %v2;\n\
-    \ if %v2 = #7 then @done;\n\
-    \ goto @main;\n\
+    \ \\if %v2 = #7 \\then @done;\n\
+    \ \\goto @main;\n\
      }\n\
      @done {\n\
     \ %v1 := #1;\n\
     \ %v1 := %v1 - #9;\n\
     \ [#3] := %v1;\n\
-    \ goto @main;\n\
+    \ \\goto @main;\n\
      }"
   in
   let code = ok (C.parse_code program) in
@@ -296,15 +299,15 @@ let () =
   let program =
     "@main {\n\
     \ %v0 := #2;\n\
-    \ if #2 > #1 then @first;\n\
-    \ if #1 < #2 then @second;\n\
-    \ goto @main;\n\
+    \ \\if #2 > #1 \\then @first;\n\
+    \ \\if #1 < #2 \\then @second;\n\
+    \ \\goto @main;\n\
      }\n\
      @first {\n\
-    \ goto @main;\n\
+    \ \\goto @main;\n\
      }\n\
      @second {\n\
-    \ goto @main;\n\
+    \ \\goto @main;\n\
      }"
   in
   let s = next_c (ok (C.make (ok (C.parse_code program)) [])) in
@@ -312,11 +315,11 @@ let () =
   let program =
     "@main {\n\
     \ %v0 := @next;\n\
-    \ goto %v0;\n\
+    \ \\goto %v0;\n\
      }\n\
      @next {\n\
     \ [#4] := *[#99];\n\
-    \ goto #0;\n\
+    \ \\goto #0;\n\
      }"
   in
   let s = next_c (ok (C.make (ok (C.parse_code program)) [])) in
@@ -329,10 +332,10 @@ let () =
          "@shared 4\n\
           @main {\n\
          \ %v0 := @shared;\n\
-         \ goto @main;\n\
+         \ \\goto @main;\n\
           }\n\
           @shared {\n\
-         \ goto @main;\n\
+         \ \\goto @main;\n\
           }")
   in
   assert ((next_c (ok (C.make code []))).vregs.(0) = "0");
@@ -340,22 +343,25 @@ let () =
     (fun text -> error (C.make (ok (C.parse_code text)) []))
     [
       "";
-      "@main {\n goto @main;\n}\n@main {\n goto @main;\n}";
-      "@x 0\n@x 1\n@main {\n goto @main;\n}";
+      "@main {\n \\goto @main;\n}\n@main {\n \\goto @main;\n}";
+      "@x 0\n@x 1\n@main {\n \\goto @main;\n}";
     ];
   List.iter
     (fun text -> error (C.parse_code text))
     [
       "@main {\n}";
-      "@main {\n goto #0;\n goto #0;\n}";
-      "@main {\n goto #0;\n %v0 := #1;\n}";
-      "@main {\n goto #0;";
-      "@main {\n %v0 := #1 * #2;\n goto #0;\n}";
+      "@main {\n \\goto #0;\n \\goto #0;\n}";
+      "@main {\n \\goto #0;\n %v0 := #1;\n}";
+      "@main {\n \\goto #0;";
+      "@main {\n %v0 := #1 * #2;\n \\goto #0;\n}";
     ];
   List.iter
     (fun target ->
       let s =
-        ok (C.make (ok (C.parse_code ("@main {\n goto " ^ target ^ ";\n}"))) [])
+        ok
+          (C.make
+             (ok (C.parse_code ("@main {\n \\goto " ^ target ^ ";\n}")))
+             [])
       in
       error (C.step s ()))
     [ "#9"; "@missing" ];
@@ -375,11 +381,11 @@ let () =
     | `List [ _; _; _ ] -> true
     | _ -> false);
   assert (
-    match A.render (assembly "halt;") with
+    match A.render (assembly "\\halt;") with
     | `List [ _; _; _ ] -> true
     | _ -> false);
   assert (match C.render s1 with `List [ _; _; _; _ ] -> true | _ -> false);
   assert (ok (I.parse_code "+64") = [ "64" ]);
-  assert ((run_a 5 (assembly "ldi %r1 #+7;\nhalt;")).regs.(1) = "7");
+  assert ((run_a 5 (assembly "\\ldi %r1 #+7;\n\\halt;")).regs.(1) = "7");
   assert (ok (C.parse_ainput "(+1,+2)") = [ "1"; "2" ]);
   print_endline "tiny ISA, symbolic assembly, and CFG tests passed"

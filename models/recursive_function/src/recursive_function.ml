@@ -69,17 +69,17 @@ let parse_code text =
       (fun p ->
         let bindings = ref [] in
         let rec func () =
-          match Lexer.identifier p with
-          | "ZERO" -> Zero
-          | "SUCC" -> Succ
-          | "PROJ" ->
+          match Lexer.next p with
+          | Lexer.Keyword "ZERO" -> Zero
+          | Lexer.Keyword "SUCC" -> Succ
+          | Lexer.Keyword "PROJ" ->
               Lexer.expect_symbol p '[';
               let n = Lexer.integer p in
               Lexer.expect_symbol p ',';
               let i = Lexer.integer p in
               Lexer.expect_symbol p ']';
               Proj (n, i)
-          | "COMP" ->
+          | Lexer.Keyword "COMP" ->
               Lexer.expect_symbol p '[';
               let outer = func () in
               Lexer.expect_symbol p ':';
@@ -104,23 +104,22 @@ let parse_code text =
               let inner = args () in
               Lexer.expect_symbol p ']';
               Comp (outer, inner)
-          | "PRIM" ->
+          | Lexer.Keyword "PRIM" ->
               Lexer.expect_symbol p '[';
-              Lexer.expect p "z:";
+              Lexer.expect p "\\z:";
               let z = func () in
-              Lexer.expect p "s:";
+              Lexer.expect p "\\s:";
               let s = func () in
               Lexer.expect_symbol p ']';
               Prim (z, s)
-          | "MUOP" ->
-              Lexer.expect_symbol p '[';
-              let f = func () in
-              Lexer.expect_symbol p ']';
+          | Lexer.Keyword "MUOP" ->
+              let f = Parser.brackets (fun _p -> func ()) p in
               Mu f
-          | name -> (
+          | Lexer.Ident name -> (
               match List.assoc_opt name !bindings with
               | Some f -> f
               | None -> Lexer.error p ("Unknown function: " ^ name))
+          | _ -> Lexer.error p "Expected function"
         in
         while Lexer.eat_keyword p "let" do
           let name = Lexer.identifier p in
@@ -237,13 +236,15 @@ let restore json =
   else Ok state
 
 let rec print = function
-  | Zero -> "ZERO"
-  | Succ -> "SUCC"
-  | Proj (n, i) -> Printf.sprintf "PROJ[%d,%d]" n i
+  | Zero -> "\\ZERO"
+  | Succ -> "\\SUCC"
+  | Proj (n, i) -> Printf.sprintf "\\PROJ[%d,%d]" n i
   | Comp (f, args) ->
-      "COMP[" ^ print f ^ ": " ^ String.concat ", " (List.map print args) ^ "]"
-  | Prim (z, s) -> "PRIM[z:" ^ print z ^ " s:" ^ print s ^ "]"
-  | Mu f -> "MUOP[" ^ print f ^ "]"
+      "\\COMP[" ^ print f ^ ": "
+      ^ String.concat ", " (List.map print args)
+      ^ "]"
+  | Prim (z, s) -> "\\PRIM[\\z:" ^ print z ^ " \\s:" ^ print s ^ "]"
+  | Mu f -> "\\MUOP[" ^ print f ^ "]"
 
 let rec print_process = function
   | Result n -> n

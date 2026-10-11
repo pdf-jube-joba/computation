@@ -15,13 +15,13 @@ nested labelled loop + break value/continue を付ける。
 \NT{label}  &\defeq \T{:} \NT{string} \\
 \\
 \NT{stmt} &\defeq \\
-  &| \T{Nop}
+  &| \T{\textbackslash{}Nop}
   &| \NT{stmt} \T{;} \NT{stmt} \\
   &| \NT{var} \T{:=} \NT{aexp} \\
-  &| \T{if} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
-  &| \T{break} \NT{label} \NT{var} \\
-  &| \T{continue} \NT{label} \\
-  &| \T{loop} \NT{label} \T{\LP} \NT{stmt} \T{\RP} \T{->} \NT{var} \\
+  &| \T{\textbackslash{}if} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB} \\
+  &| \T{\textbackslash{}break} \NT{label} \NT{var} \\
+  &| \T{\textbackslash{}continue} \NT{label} \\
+  &| \T{\textbackslash{}loop} \NT{label} \T{\LP} \NT{stmt} \T{\RP} \T{->} \NT{var} \\
 \\
 \NT{program} &\defeq \NT{static} \syntaxmacro{comma-separated}{\NT{var}} \T{;} \\
   &\NT{stmt}
@@ -54,7 +54,7 @@ big step の方が自然に見えるが、 small step にした。
     - \(\text{Seq}(\NT{stmt})\) ... stmt の frame, これは次に実行する文。
   - \(K := \text{List} \langle F \rangle\) ... 現在の context
   - \(R := () + \text{Break}(L, V) + \text{Continue}(L)\) ... 文の評価結果
-    - 書いていたら、 \(\T{Nop}\) と \(()\) が同じような役割になっていた。
+    - 書いていたら、 \(\T{\textbackslash{}Nop}\) と \(()\) が同じような役割になっていた。
   - \(S := (\NT{stmt} + R, E, K)\)
     - stmt を入れるところに文の評価結果としての \(R\) まで入れているのでややこしいです。
 
@@ -73,16 +73,16 @@ big step の方が自然に見えるが、 small step にした。
         - 対応するループをちょうど抜ける。結果を入れておくところは \(()\) に戻す。
   - seq ... \((s_1; s_2, E, K) \to (s_1, E, \text{Seq}(s_2)::K)\) だけでいい。
   - Nop
-    - \((\T{Nop}, E, K) \to ((), E, K)\) ... 結果は `()`
+    - \((\T{\textbackslash{}Nop}, E, K) \to ((), E, K)\) ... 結果は `()`
   - if/assign （control effect なし）
-    - \((\T{if}(b, s), E, K) \to (s, E, K)\) if \(\llbracket b \rrbracket\)
-    - \((\T{if}(b, s), E, K) \to ((), E, K)\) if \(\neg \llbracket b \rrbracket\)
+    - \((\T{\textbackslash{}if}(b, s), E, K) \to (s, E, K)\) if \(\llbracket b \rrbracket\)
+    - \((\T{\textbackslash{}if}(b, s), E, K) \to ((), E, K)\) if \(\neg \llbracket b \rrbracket\)
     - \((x := a, E, K) \to ((), E', K)\) where \(E' := E[x := \llbracket a \rrbracket_E]\)
   - break/continue （control effect をスタックに積む。）
-    - \((\T{break}(L, x), E, K) \to (\text{Break}(L, v), E, K)\) where \(v := \llbracket x \rrbracket_E\)
+    - \((\T{\textbackslash{}break}(L, x), E, K) \to (\text{Break}(L, v), E, K)\) where \(v := \llbracket x \rrbracket_E\)
     - \((\T{Continue}(L), E, K) \to (\text{Continue}(L), E, K)\)
   - loop
-    - \((\T{loop}(L, s, x), E, K) \to ((), E, \text{Loop}(L, s, x)::K)\) ... loop 用のをスタックに積む。
+    - \((\T{\textbackslash{}loop}(L, s, x), E, K) \to ((), E, \text{Loop}(L, s, x)::K)\) ... loop 用のをスタックに積む。
 
 あとは `AInput` としての \(E\) を受け取って \((s, E, \emptyset)\) で動かせばいい。
 

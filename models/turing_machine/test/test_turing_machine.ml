@@ -39,7 +39,11 @@ let () =
     (fun s -> check "invalid tape" (Result.is_error (tape s)))
     [ ""; "a|b"; "a||b"; "|0|"; "|a|b," ];
   let code =
-    "start\ngoal\na,start,b,start,R\nb,start,b,start,R\nc,start,c,goal,C\n"
+    "start\n\
+     goal\n\
+     a,start,b,start,\\R\n\
+     b,start,b,start,\\R\n\
+     c,start,c,goal,\\C\n"
   in
   let d = get (T.parse_code code) in
   check "code roundtrip" (get (T.parse_code (T.print_code d)) = d);
@@ -52,8 +56,8 @@ let () =
   List.iter
     (fun s -> check "invalid code" (Result.is_error (T.parse_code s)))
     [
-      "start\ngoal\na,start,a,start,C\na,start,a,goal,R";
-      "start\ngoal\na,goal,a,start,C";
+      "start\ngoal\na,start,a,start,\\C\na,start,a,goal,\\R";
+      "start\ngoal\na,goal,a,start,\\C";
       "start\ngoal\na,start,a,goal,X";
     ];
   let module B = T.Manipulation.Builder in

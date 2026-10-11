@@ -173,32 +173,33 @@ let alpha_eq a b =
 (* Preserve no_ext's display syntax; write_code emits the checked-in pest syntax. *)
 let rec print = function
   | Var x -> x
-  | Lam (x, b) -> "fun " ^ x ^ " => " ^ print b
+  | Lam (x, b) -> "\\fun " ^ x ^ " => " ^ print b
   | App (a, b) -> "(" ^ print a ^ " " ^ print b ^ ")"
   | Zero -> "0"
-  | Succ e -> "S " ^ print e
-  | Pred e -> "P " ^ print e
-  | IfZ (c, t, f) -> "if " ^ print c ^ " then " ^ print t ^ " else " ^ print f
-  | Let (x, e, b) -> "let " ^ x ^ " = " ^ print e ^ " in \n " ^ print b
-  | Rec (f, x, b) -> "rec " ^ f ^ " " ^ x ^ " = " ^ print b
-  | Abort e -> "abort " ^ print e
-  | Control e -> "control " ^ print e
+  | Succ e -> "\\S " ^ print e
+  | Pred e -> "\\P " ^ print e
+  | IfZ (c, t, f) ->
+      "\\if " ^ print c ^ " \\then " ^ print t ^ " \\else " ^ print f
+  | Let (x, e, b) -> "\\let " ^ x ^ " = " ^ print e ^ " \\in \n " ^ print b
+  | Rec (f, x, b) -> "\\rec " ^ f ^ " " ^ x ^ " = " ^ print b
+  | Abort e -> "\\abort " ^ print e
+  | Control e -> "\\control " ^ print e
 
 let rec write_code = function
   | Var x -> x
-  | Lam (x, b) -> "(fun " ^ x ^ " => " ^ write_code b ^ ")"
+  | Lam (x, b) -> "(\\fun " ^ x ^ " => " ^ write_code b ^ ")"
   | App (a, b) -> "@(" ^ write_code a ^ " " ^ write_code b ^ ")"
-  | Zero -> "zero"
-  | Succ e -> "(succ " ^ write_code e ^ ")"
-  | Pred e -> "(pred " ^ write_code e ^ ")"
+  | Zero -> "\\zero"
+  | Succ e -> "(\\succ " ^ write_code e ^ ")"
+  | Pred e -> "(\\pred " ^ write_code e ^ ")"
   | IfZ (c, t, f) ->
-      "(ifz " ^ write_code c ^ " then " ^ write_code t ^ " else " ^ write_code f
-      ^ ")"
+      "(\\ifz " ^ write_code c ^ " \\then " ^ write_code t ^ " \\else "
+      ^ write_code f ^ ")"
   | Let (x, e, b) ->
-      "(let " ^ x ^ " = " ^ write_code e ^ " in " ^ write_code b ^ ")"
-  | Rec (f, x, b) -> "(rec " ^ f ^ " " ^ x ^ " = " ^ write_code b ^ ")"
-  | Abort e -> "(abort " ^ write_code e ^ ")"
-  | Control e -> "(control " ^ write_code e ^ ")"
+      "(\\let " ^ x ^ " = " ^ write_code e ^ " \\in " ^ write_code b ^ ")"
+  | Rec (f, x, b) -> "(\\rec " ^ f ^ " " ^ x ^ " = " ^ write_code b ^ ")"
+  | Abort e -> "(\\abort " ^ write_code e ^ ")"
+  | Control e -> "(\\control " ^ write_code e ^ ")"
 
 let word p =
   let name = L.identifier p in
@@ -226,32 +227,13 @@ let word p =
   loop ();
   Buffer.contents acc
 
-let variable p =
-  let name = word p in
-  if
-    List.mem name
-      [
-        "fun";
-        "zero";
-        "succ";
-        "pred";
-        "ifz";
-        "then";
-        "else";
-        "let";
-        "in";
-        "rec";
-        "abort";
-        "control";
-      ]
-  then L.error p "expected variable";
-  name
+let variable = word
 
 let rec read_term ~control p =
   match L.peek p with
   | L.Ident name when word { p with L.pos = p.L.pos } <> name ->
       Var (variable p)
-  | L.Ident "fun" ->
+  | L.Keyword "fun" ->
       ignore (L.next p);
       let x = variable p in
       L.expect p "=>";
@@ -274,39 +256,39 @@ let rec read_term ~control p =
       in
       L.expect_symbol p ')';
       a
-  | L.Ident "zero" | L.Number "0" ->
+  | L.Keyword "zero" | L.Number "0" ->
       ignore (L.next p);
       Zero
-  | L.Ident "succ" | L.Ident "S" ->
+  | L.Keyword "succ" | L.Keyword "S" ->
       ignore (L.next p);
       Succ (read_term ~control p)
-  | L.Ident "pred" | L.Ident "P" ->
+  | L.Keyword "pred" | L.Keyword "P" ->
       ignore (L.next p);
       Pred (read_term ~control p)
-  | L.Ident "ifz" | L.Ident "if" ->
+  | L.Keyword "ifz" | L.Keyword "if" ->
       ignore (L.next p);
       let c = read_term ~control p in
       L.expect_keyword p "then";
       let t = read_term ~control p in
       L.expect_keyword p "else";
       IfZ (c, t, read_term ~control p)
-  | L.Ident "let" ->
+  | L.Keyword "let" ->
       ignore (L.next p);
       let x = variable p in
       L.expect_symbol p '=';
       let e = read_term ~control p in
       L.expect_keyword p "in";
       Let (x, e, read_term ~control p)
-  | L.Ident "rec" ->
+  | L.Keyword "rec" ->
       ignore (L.next p);
       let f = variable p in
       let x = variable p in
       L.expect_symbol p '=';
       Rec (f, x, read_term ~control p)
-  | L.Ident "abort" when control ->
+  | L.Keyword "abort" when control ->
       ignore (L.next p);
       Abort (read_term ~control p)
-  | L.Ident "control" when control ->
+  | L.Keyword "control" when control ->
       ignore (L.next p);
       Control (read_term ~control p)
   | _ -> Var (variable p)
@@ -318,19 +300,11 @@ let parse_nat_code =
   (* The unextended grammar treats names such as zero and succ as variables. *)
   let rec read p =
     match L.peek p with
-    | L.Ident "fun" when word { p with L.pos = p.L.pos } = "fun" -> (
-        let saved = p.L.pos in
-        match
-          L.protect (fun () ->
-              ignore (L.next p);
-              let x = word p in
-              L.expect p "=>";
-              Lam (x, read p))
-        with
-        | Ok e -> e
-        | Error _ ->
-            p.L.pos <- saved;
-            Var (word p))
+    | L.Keyword "fun" ->
+        ignore (L.next p);
+        let x = word p in
+        L.expect p "=>";
+        Lam (x, read p)
     | L.Symbol '@' ->
         ignore (L.next p);
         L.expect_symbol p '(';

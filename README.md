@@ -73,7 +73,7 @@ cargo run --manifest-path _wfs/Cargo.toml -- .
 ```html
 <div data-model="example_counter">
 <template data-default-code>3</template>
-<template data-default-rinput>inc</template>
+<template data-default-rinput>\inc</template>
 </div>
 ```
 

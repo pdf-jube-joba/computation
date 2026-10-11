@@ -31,7 +31,7 @@ let next_t s =
 let () =
   let (_ : (module Utils.Machine.S)) = (module A.Machine) in
   let (_ : (module Utils.Machine.S)) = (module T.Machine) in
-  let text = "x := ['a', 'b'] ; while x == ['a', 'b'] { x := tail x }" in
+  let text = "x := ['a', 'b'] ; \\while x == ['a', 'b'] { x := \\tail x }" in
   let code = ok (A.parse_code text) in
   assert (ok (A.parse_code (A.print code)) = code);
   let env = run_a 40 (ok (A.make code [])) in
@@ -39,8 +39,8 @@ let () =
   let code =
     ok
       (A.parse_code
-         "x := ['a'] ; y := head x ++ ['b'] ++ tail x ; if is-empty missing \
-          then z := tail [] end")
+         "x := ['a'] ; y := \\head x ++ ['b'] ++ \\tail x ; \\if \\is-empty \
+          missing \\then z := \\tail [] \\end")
   in
   let env = run_a 40 (ok (A.make code [])) in
   assert (A.get env "y" = [ "a"; "b" ]);
@@ -92,29 +92,34 @@ let () =
               A.While (A.IsEmpty (A.Var "x"), A.Assign ("x", A.Const [ "a" ]))
             ) ));
   let code =
-    ok (T.parse_code "x := atom 'a' ; ifeq is-atom x then y := cons x x end")
+    ok
+      (T.parse_code
+         "x := \\atom 'a' ; \\ifeq \\is-atom x \\then y := \\cons x x \\end")
   in
   assert (ok (T.parse_code (T.print code)) = code);
   let code =
     ok
       (T.parse_code
-         "x := cons atom 'a' atom 'b' ; y := left x ; z := atom mtoa right x ; \
-          ifeq y == atom 'a' then k := right x end")
+         "x := \\cons \\atom 'a' \\atom 'b' ; y := \\left x ; z := \\atom \
+          \\mtoa \\right x ; \\ifeq y == \\atom 'a' \\then k := \\right x \
+          \\end")
   in
   assert (ok (T.parse_code (T.print code)) = code);
   let env = run_t 60 (ok (T.make code [])) in
   assert (List.assoc "y" env = T.AtomValue "a");
   assert (List.assoc "z" env = T.AtomValue "b");
   assert (List.assoc "k" env = T.AtomValue "b");
-  let code = ok (T.parse_code "while is-atom x { x := cons x atom 'z' }") in
+  let code =
+    ok (T.parse_code "\\while \\is-atom x { x := \\cons x \\atom 'z' }")
+  in
   let env = run_t 30 (ok (T.make code [ ("x", T.AtomValue "a") ])) in
   assert (List.assoc "x" env = T.ConsValue (T.AtomValue "a", T.AtomValue "z"));
   let env =
     ok
       (T.parse_ainput
-         "x = cons atom '猫' cons atom '\\n' atom '🙂'\n\
-          x = atom '\\''\n\
-          foo-bar = atom 'é'")
+         "x = \\cons \\atom '猫' \\cons \\atom '\\n' \\atom '🙂'\n\
+          x = \\atom '\\''\n\
+          foo-bar = \\atom 'é'")
   in
   assert (
     ok
@@ -124,7 +129,7 @@ let () =
   let s =
     ok
       (T.make
-         (ok (T.parse_code "y := left x"))
+         (ok (T.parse_code "y := \\left x"))
          [ ("x", T.ConsValue (T.AtomValue "a", T.AtomValue "b")) ])
   in
   let restored =
@@ -137,13 +142,17 @@ let () =
     (fun text -> error (T.step (ok (T.make (ok (T.parse_code text)) [])) ()))
     [
       "x := y";
-      "x := left atom 'a'";
-      "x := right atom 'a'";
-      "x := atom mtoa cons atom 'a' atom 'b'";
+      "x := \\left \\atom 'a'";
+      "x := \\right \\atom 'a'";
+      "x := \\atom \\mtoa \\cons \\atom 'a' \\atom 'b'";
     ];
   List.iter
     (fun text -> error (T.parse_ainput text))
-    [ "x = y"; "x = atom mtoa atom 'a'"; "x = left cons atom 'a' atom 'b'" ];
+    [
+      "x = y";
+      "x = \\atom \\mtoa \\atom 'a'";
+      "x = \\left \\cons \\atom 'a' \\atom 'b'";
+    ];
   List.iter
     (fun text -> error (A.parse_code text))
     [
@@ -151,17 +160,17 @@ let () =
       "x := ['ab']";
       "x := ['a',]";
       "x := [] ;";
-      "if is-empty x then Nop";
+      "\\if \\is-empty x \\then \\Nop";
       "x := [] junk";
     ];
   List.iter
     (fun text -> error (T.parse_code text))
     [
       "";
-      "x := atom ''";
-      "x := atom 'ab'";
-      "while is-atom x { Nop";
-      "x := cons atom 'a'";
+      "x := \\atom ''";
+      "x := \\atom 'ab'";
+      "\\while \\is-atom x { \\Nop";
+      "x := \\cons \\atom 'a'";
     ];
   error (A.parse_rinput "x");
   error (T.parse_rinput "x");
@@ -169,12 +178,15 @@ let () =
   assert (T.routput_json () = `String "");
   assert (match A.render s1 with `List [ _; _ ] -> true | _ -> false);
   assert (match T.render s with `List [ _; _ ] -> true | _ -> false);
-  error (A.parse_code "x := Nop");
-  error (T.parse_code "x := then");
+  error (A.parse_code "x := \\Nop");
+  error (T.parse_code "x := \\then");
   let bad =
     ok
       (T.make
-         (ok (T.parse_code "ifeq left atom 'a' == right atom 'b' then Nop end"))
+         (ok
+            (T.parse_code
+               "\\ifeq \\left \\atom 'a' == \\right \\atom 'b' \\then \\Nop \
+                \\end"))
          [])
   in
   assert (T.step bad () = Error "left expects a cons cell");

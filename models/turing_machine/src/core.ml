@@ -34,13 +34,17 @@ let parse_sign text =
   else Result.map (fun s -> Some s) (Utils.Identifier.make text)
 
 let parse_state text = Utils.Identifier.make (String.trim text)
-let direction_print = function Left -> "L" | Right -> "R" | Constant -> "C"
+
+let direction_print = function
+  | Left -> "\\L"
+  | Right -> "\\R"
+  | Constant -> "\\C"
 
 let parse_direction text =
   match String.trim text with
-  | "L" -> Ok Left
-  | "R" -> Ok Right
-  | "C" -> Ok Constant
+  | "\\L" -> Ok Left
+  | "\\R" -> Ok Right
+  | "\\C" -> Ok Constant
   | s -> Error ("Invalid direction: " ^ s)
 
 let blank_tape = { left = []; head = None; right = [] }
@@ -86,6 +90,7 @@ let tape_equal a b =
 
 let parse_tape text =
   Utils.Lexer.protect (fun () ->
+      let text = Utils.Lexer.without_comments text in
       let side s =
         if String.trim s = "" then []
         else
@@ -127,6 +132,7 @@ let definition init_state accepted_state code =
 
 let parse_code text =
   Utils.Lexer.protect (fun () ->
+      let text = Utils.Lexer.without_comments text in
       match String.split_on_char '\n' text with
       | init :: accepted :: lines ->
           let init = unwrap (parse_state init) in
@@ -138,9 +144,7 @@ let parse_code text =
           let entries =
             List.filter_map
               (fun line ->
-                let line =
-                  String.trim (List.hd (String.split_on_char '#' line))
-                in
+                let line = String.trim line in
                 if line = "" then None
                 else
                   match String.split_on_char ',' line with

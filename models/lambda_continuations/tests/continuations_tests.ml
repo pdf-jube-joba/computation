@@ -45,13 +45,15 @@ let () =
   let set1 =
     List.map parsed
       [
-        "fun x => fun x => x";
-        "fun x => fun y => y";
-        "fun y => fun x => x";
-        "fun y => fun y => y";
+        "\\fun x => \\fun x => x";
+        "\\fun x => \\fun y => y";
+        "\\fun y => \\fun x => x";
+        "\\fun y => \\fun y => y";
       ]
   in
-  let set2 = List.map parsed [ "fun x => fun y => x"; "fun y => fun x => y" ] in
+  let set2 =
+    List.map parsed [ "\\fun x => \\fun y => x"; "\\fun y => \\fun x => y" ]
+  in
   List.iter (fun a -> List.iter (fun b -> assert (T.alpha_eq a b)) set1) set1;
   List.iter (fun a -> List.iter (fun b -> assert (T.alpha_eq a b)) set2) set2;
   List.iter
@@ -59,35 +61,40 @@ let () =
     set1;
   assert (
     not
-      (T.alpha_eq (parsed "fun x => fun x => y") (parsed "fun y => fun y => x")));
+      (T.alpha_eq
+         (parsed "\\fun x => \\fun x => y")
+         (parsed "\\fun y => \\fun y => x")));
   assert (
     T.alpha_eq
-      (parsed "let x = zero in succ x")
-      (parsed "let y = zero in succ y"));
-  assert (T.alpha_eq (parsed "rec f x = @(f x)") (parsed "rec g y = @(g y)"));
+      (parsed "\\let x = \\zero \\in \\succ x")
+      (parsed "\\let y = \\zero \\in \\succ y"));
+  assert (T.alpha_eq (parsed "\\rec f x = @(f x)") (parsed "\\rec g y = @(g y)"));
   assert (
-    not (T.alpha_eq (parsed "rec f x = @(f x)") (parsed "rec g y = @(y g)")));
-  let capture = T.subst (parsed "fun y => x") "x" (T.Var "y") in
+    not (T.alpha_eq (parsed "\\rec f x = @(f x)") (parsed "\\rec g y = @(y g)")));
+  let capture = T.subst (parsed "\\fun y => x") "x" (T.Var "y") in
   assert (T.Names.elements (T.free_variables capture) = [ "y" ]);
-  assert (T.alpha_eq capture (parsed "fun z => y"));
-  let shadow = parsed "fun x => x" in
+  assert (T.alpha_eq capture (parsed "\\fun z => y"));
+  let shadow = parsed "\\fun x => x" in
   assert (T.alpha_eq (T.subst shadow "x" T.Zero) shadow);
-  let e = T.subst (parsed "let y = x in y") "x" (T.Var "y") in
+  let e = T.subst (parsed "\\let y = x \\in y") "x" (T.Var "y") in
   assert (T.Names.elements (T.free_variables e) = [ "y" ]);
-  let e = T.subst (parsed "rec f y = @(x y)") "x" (T.Var "y") in
+  let e = T.subst (parsed "\\rec f y = @(x y)") "x" (T.Var "y") in
   assert (T.Names.elements (T.free_variables e) = [ "y" ]);
   assert (M.is_value (T.Var "x") = None);
-  assert (M.is_value (parsed "fun x => x") <> None);
-  let term = parsed "@((fun x => x) (fun y => fun z => y))" in
+  assert (M.is_value (parsed "\\fun x => x") <> None);
+  let term = parsed "@((\\fun x => x) (\\fun y => \\fun z => y))" in
   assert (M.is_value term = None);
-  assert (T.alpha_eq (Option.get (M.reduce term)) (parsed "fun y => fun z => y"));
-  let double = "rec f x = ifz x then zero else succ succ @(f (pred x))" in
+  assert (
+    T.alpha_eq (Option.get (M.reduce term)) (parsed "\\fun y => \\fun z => y"));
+  let double =
+    "\\rec f x = \\ifz x \\then \\zero \\else \\succ \\succ @(f (\\pred x))"
+  in
   assert (run double "(2)" = T.Num "4");
-  assert (run "fun x => pred x" "(0)" = T.Num "0");
-  assert (run "let x = succ zero in succ x" "()" = T.Num "2");
-  assert (run "ifz zero then succ zero else bad" "()" = T.Num "1");
-  assert (run "ifz succ zero then bad else zero" "()" = T.Num "0");
-  let one = parsed "succ zero" and two = parsed "succ succ zero" in
+  assert (run "\\fun x => \\pred x" "(0)" = T.Num "0");
+  assert (run "\\let x = \\succ \\zero \\in \\succ x" "()" = T.Num "2");
+  assert (run "\\ifz \\zero \\then \\succ \\zero \\else bad" "()" = T.Num "1");
+  assert (run "\\ifz \\succ \\zero \\then bad \\else \\zero" "()" = T.Num "0");
+  let one = parsed "\\succ \\zero" and two = parsed "\\succ \\succ \\zero" in
   let app =
     T.App (T.App (T.Lam ("x", T.Var "x"), T.Lam ("y", T.Var "y")), T.Pred two)
   in
@@ -102,30 +109,33 @@ let () =
   assert (M.reduce (T.IfZ (T.Lam ("x", T.Var "x"), T.Zero, T.Zero)) = None);
   List.iter
     (fun text -> error (M.step (get (M.make (parsed text) [])) ()))
-    [ "x"; "@(zero zero)"; "succ (fun x => x)" ];
-  assert (M.foutput_json (T.Num "2") = `String "S S 0");
-  assert (M.foutput_json (T.Fun ("x", T.Var "x")) = `String "fun x => x");
-  assert (T.print (parsed "let x = zero in succ x") = "let x = 0 in \n S x");
+    [ "x"; "@(\\zero \\zero)"; "\\succ (\\fun x => x)" ];
+  assert (M.foutput_json (T.Num "2") = `String "\\S \\S 0");
+  assert (M.foutput_json (T.Fun ("x", T.Var "x")) = `String "\\fun x => x");
+  assert (
+    T.print (parsed "\\let x = \\zero \\in \\succ x")
+    = "\\let x = 0 \\in \n \\S x");
   List.iter
     (fun text ->
       let e = parsed text in
       assert (get (T.parse_code (T.write_code e)) = e))
     [
       double;
-      "@((fun x => x) (succ zero))";
-      "let x = zero in succ x";
-      "pred succ zero";
+      "@((\\fun x => x) (\\succ \\zero))";
+      "\\let x = \\zero \\in \\succ x";
+      "\\pred \\succ \\zero";
       "x-y_1";
     ];
-  assert (parsed "(S S 0)" = two);
-  assert (parsed "(fun x => x 0)" = T.App (T.Lam ("x", T.Var "x"), T.Zero));
+  assert (parsed "(\\S \\S 0)" = two);
+  assert (parsed "(\\fun x => x 0)" = T.App (T.Lam ("x", T.Var "x"), T.Zero));
   assert (
-    get (Parse.lam_nat "@((fun x => x) y)")
+    get (Parse.lam_nat "@((\\fun x => x) y)")
     = T.App (T.Lam ("x", T.Var "x"), T.Var "y"));
-  error (Parse.lam_nat "succ zero");
-  assert (get (Parse.lam_nat "fun zero => zero") = T.Lam ("zero", T.Var "zero"));
+  error (Parse.lam_nat "\\succ \\zero");
+  assert (get (Parse.lam_nat "\\fun zero => zero") = T.Lam ("zero", T.Var "zero"));
   assert (get (Parse.lam_nat "@(succ pred)") = T.App (T.Var "succ", T.Var "pred"));
   assert (get (Parse.lam_nat "fun") = T.Var "fun");
+  error (Parse.lam_nat "\\fun");
   List.iter
     (fun name ->
       assert (parsed name = T.Var name);
@@ -134,22 +144,23 @@ let () =
     [
       "succ-x"; "zero-x"; "fun-x"; "rec-x"; "S-x"; "control-x"; "x-001"; "x--y";
     ];
-  assert (run "@((fun succ-x => succ-x) (succ zero))" "()" = T.Num "1");
-  error (T.parse_code "abort zero");
+  assert (run "@((\\fun succ-x => succ-x) (\\succ \\zero))" "()" = T.Num "1");
+  error (T.parse_code "\\abort \\zero");
   error (T.parse_code "grab k . k");
-  error (T.parse_code "succ");
+  error (T.parse_code "\\succ");
   error (T.parse_code "@(x)");
-  error (T.parse_code "zero trailing");
+  error (T.parse_code "\\zero trailing");
   (* Ctrl's variable/value operations are implemented; ALL stepping was todo!. *)
   let ctrl =
-    get (Ctrl.parse_code "control (fun k => abort @(k (succ zero)))")
+    get (Ctrl.parse_code "\\control (\\fun k => \\abort @(k (\\succ \\zero)))")
   in
   assert (get (Ctrl.parse_code (T.write_code ctrl)) = ctrl);
   assert (T.Names.is_empty (Ctrl.free_variables ctrl));
   assert (Ctrl.Names.elements (Ctrl.bound_variables ctrl) = [ "k" ]);
   assert (
     Ctrl.alpha_eq ctrl
-      (get (Ctrl.parse_code "control (fun j => abort @(j (succ zero)))")));
+      (get
+         (Ctrl.parse_code "\\control (\\fun j => \\abort @(j (\\succ \\zero)))")));
   assert (
     Ctrl.subst (Ctrl.Abort (Ctrl.Var "x")) "x" Ctrl.Zero = Ctrl.Abort Ctrl.Zero);
   assert (Ctrl.is_value Ctrl.Zero = Some (Ctrl.Num "0"));

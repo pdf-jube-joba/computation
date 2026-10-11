@@ -415,7 +415,7 @@ let as_graph_group = function
             (usable_iter_otpins i);
       }
 
-let bool_text b = if b then "#true" else "#false"
+let bool_text b = if b then "\\true" else "\\false"
 
 let print_signal signal =
   String.concat ", "

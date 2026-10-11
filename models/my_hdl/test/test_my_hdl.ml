@@ -7,20 +7,21 @@ let eval e = ok (eval_to_val [] [] e)
 let env code = { code; mod_env = [] }
 
 let () =
-  assert (ok (parse_value "#true") = Value.Bit true);
+  assert (ok (parse_value "\\true") = Value.Bit true);
   assert (
-    ok (parse_value "/* nested opener /* closes at first terminator */ #true")
+    ok (parse_value "/* nested opener /* inner */ outer */ \\true")
     = Value.Bit true);
   assert (
     ok
-      (parse_value "[/* quoted \" /* } ignored */ #true // /* ignored\n #false]")
+      (parse_value
+         "[/* quoted \" /* } ignored */ */ \\true // /* ignored\n \\false]")
     = Value.Array [ Value.Bit true; Value.Bit false ]);
-  bad (parse_value "/* nested opener /* */ */ #true");
-  bad (parse_value "/* unclosed #true");
+  assert (ok (parse_value "/* nested opener /* */ */ \\true") = Value.Bit true);
+  bad (parse_value "/* unclosed \\true");
   assert (
     ok
       (Interface.parse_value
-         "/* comment */ [#false, <Red>,, [#true #false], {}]")
+         "/* comment */ [\\false, <Red>,, [\\true \\false], {}]")
     = Value.Array
         [
           Value.Bit false;
@@ -35,17 +36,17 @@ let () =
   List.iter
     (fun text -> bad (parse_value text))
     [
-      "{a: #true}";
-      "{a:#true a:#false}";
+      "{a: \\true}";
+      "{a:\\true a:\\false}";
       "[true]";
-      "<#true>";
+      "<\\true>";
       "<123>";
-      "#true trailing";
-      "[#true";
-      "{a #true}";
+      "\\true trailing";
+      "[\\true";
+      "{a \\true}";
       "";
     ];
-  let value = ok (parse_value "[#true <tag> {}]") in
+  let value = ok (parse_value "[\\true <tag> {}]") in
   assert (
     ok
       (Value.of_yojson

@@ -1,59 +1,10 @@
 open Common
 open Mini_prog_syntax
 
-(* Single Unicode scalar character literals are carried as String_lit tokens;
-   all other tokens and comments use the shared lexer. *)
-let create text =
-  let tokens = ref [] in
-  let n = String.length text in
-  let rec scan start i =
-    if i >= n then
-      let p = L.create (String.sub text start (n - start)) in
-      Array.iter
-        (fun (t, k) -> if t <> L.Eof then tokens := (t, k + start) :: !tokens)
-        p.tokens
-    else if i + 1 < n && text.[i] = '/' && text.[i + 1] = '/' then (
-      let j = ref (i + 2) in
-      while !j < n && text.[!j] <> '\n' do
-        incr j
-      done;
-      scan start !j)
-    else if text.[i] = '\'' then (
-      let j = ref (i + 1) in
-      while !j < n && text.[!j] <> '\'' do
-        incr j
-      done;
-      if !j = n then failwith "invalid char literal";
-      let c = String.sub text (i + 1) (!j - i - 1) in
-      let len =
-        if c = "" then 0
-        else
-          let b = Char.code c.[0] in
-          if b < 128 then 1 else if b < 224 then 2 else if b < 240 then 3 else 4
-      in
-      if String.length c <> len || not (Flow_ir.valid_utf8 c) then
-        failwith "invalid char literal";
-      let p = L.create (String.sub text start (i - start)) in
-      Array.iter
-        (fun (t, k) -> if t <> L.Eof then tokens := (t, k + start) :: !tokens)
-        p.tokens;
-      tokens := (L.String_lit c, i) :: !tokens;
-      scan (!j + 1) (!j + 1))
-    else scan start (i + 1)
-  in
-  scan 0 0;
-  { L.tokens = Array.of_list (List.rev ((L.Eof, n) :: !tokens)); pos = 0 }
-
-let parse f text =
-  L.protect (fun () ->
-      let p = create text in
-      let v = f p in
-      L.expect_eof p;
-      v)
+let parse = Utils.Parser.run
 
 let type_atom p =
-  L.expect_symbol p '#';
-  match L.identifier p with
+  match L.keyword p with
   | "num" -> Num
   | "u8" -> U8
   | "bool" -> Bool
@@ -95,7 +46,7 @@ let terminator p =
 
 let stmt_start p =
   match L.peek p with
-  | L.Ident
+  | L.Keyword
       ( "assign" | "if" | "case" | "halloc" | "hfree" | "loop" | "break"
       | "continue" | "call" | "return" | "block" ) ->
       true
@@ -108,7 +59,7 @@ let rec parse_place p =
     else (
       L.expect_symbol p '(';
       let v = parse_value p (fun p -> L.peek p = L.Symbol ')') in
-      L.expect p ") #loc";
+      L.expect p ") \\loc";
       Deref v)
   in
   let rec project pbase =
@@ -146,19 +97,19 @@ and parse_value p stop =
       in
       match L.peek p with
       | L.Number _ -> push (Number (number p))
-      | L.String_lit c ->
+      | L.Character c ->
           ignore (L.next p);
           push (Char c)
-      | _ when L.eat p "#true" -> push (Boolean true)
-      | _ when L.eat p "#false" -> push (Boolean false)
-      | _ when L.eat p "#unit" -> push Unit_value
-      | _ when L.eat p "#null-ptr" -> push NullPtr
-      | _ when L.eat p "#null-fn" -> push NullFn
+      | _ when L.eat p "\\true" -> push (Boolean true)
+      | _ when L.eat p "\\false" -> push (Boolean false)
+      | _ when L.eat p "\\unit" -> push Unit_value
+      | _ when L.eat p "\\null-ptr" -> push NullPtr
+      | _ when L.eat p "\\null-fn" -> push NullFn
       | _ when L.eat_keyword p "fn" -> push (Function (ident p))
       | _ when L.eat_keyword p "ld" -> push (Load (parse_place p))
-      | L.Ident ("static" | "local") | L.Symbol '(' ->
+      | L.Keyword ("static" | "local") | L.Symbol '(' ->
           let place = parse_place p in
-          L.expect p "#addr";
+          L.expect p "\\addr";
           push (Addr place)
       | _ when L.eat_symbol p '!' -> unary (fun v -> UnOp (Not, v))
       | _ when L.eat_symbol p '+' -> binary Add
@@ -168,9 +119,7 @@ and parse_value p stop =
       | _ when L.eat p "&&" -> binary And
       | _ when L.eat p "||" -> binary Or
       | _ when L.eat_keyword p "pair" ->
-          L.expect_symbol p '(';
-          let count = L.integer p in
-          L.expect_symbol p ')';
+          let count = Utils.Parser.parens (fun p -> L.integer p) p in
           let rec take n xs acc =
             if n = 0 then (acc, xs)
             else
@@ -181,9 +130,7 @@ and parse_value p stop =
           let items, ss = take count stack [] in
           loop (Pair items :: ss)
       | _ when L.eat_keyword p "tag" ->
-          L.expect_symbol p '(';
-          let tag = L.integer p in
-          L.expect_symbol p ')';
+          let tag = Utils.Parser.parens (fun p -> L.integer p) p in
           unary (fun v -> Tag (tag, v))
       | _ -> L.error p "Unexpected token in value expression"
   in
@@ -280,7 +227,7 @@ let parse_code =
 
 let parse_ainput text =
   L.protect (fun () ->
-      let s = String.trim text in
+      let s = String.trim (L.without_comments text) in
       if String.length s < 2 || s.[0] <> '(' || s.[String.length s - 1] <> ')'
       then failwith "Expected to start with '(' and end with ')'";
       String.sub s 1 (String.length s - 2)

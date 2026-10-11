@@ -63,7 +63,7 @@
 
 <div data-model="recursive_function-lambda_calculus">
 <template data-default-code>
-PRIM[z: PROJ[1, 0] s: COMP[SUCC: PROJ[3, 0]]]
+\PRIM[\z: \PROJ[1, 0] \s: \COMP[\SUCC: \PROJ[3, 0]]]
 </template>
 <template data-default-ainput>
 (2, 3)

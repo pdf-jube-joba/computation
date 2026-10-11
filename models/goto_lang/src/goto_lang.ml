@@ -24,7 +24,7 @@ let parse_code =
         if Lexer.eof p then List.rev acc
         else
           let command =
-            match Lexer.identifier p with
+            match Lexer.keyword p with
             | "clr" -> Clr (Lexer.identifier p)
             | "inc" -> Inc (Lexer.identifier p)
             | "dec" -> Dec (Lexer.identifier p)
@@ -94,11 +94,11 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let print_command = function
-  | Clr v -> "clr " ^ v ^ ";"
-  | Inc v -> "inc " ^ v ^ ";"
-  | Dec v -> "dec " ^ v ^ ";"
-  | Cpy (d, s) -> "cpy " ^ d ^ " <- " ^ s ^ ";"
-  | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ n ^ ";"
+  | Clr v -> "\\clr " ^ v ^ ";"
+  | Inc v -> "\\inc " ^ v ^ ";"
+  | Dec v -> "\\dec " ^ v ^ ";"
+  | Cpy (d, s) -> "\\cpy " ^ d ^ " <- " ^ s ^ ";"
+  | Ifnz (v, n) -> "\\ifnz " ^ v ^ " : " ^ n ^ ";"
 
 let print_code code = String.concat "\n" (List.map print_command code)
 
