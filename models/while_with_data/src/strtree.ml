@@ -33,7 +33,7 @@ type state = { code : code; stmt : stmt; env : environment } [@@deriving yojson]
 
 let rec aexp_to_text = function
   | Mtoa t -> "mtoa " ^ texp_to_text t
-  | AtomChar c -> char_text c
+  | AtomChar c -> Utils.Char_literal.to_text c
 
 and texp_to_text = function
   | Var n -> n
@@ -56,7 +56,7 @@ let rec stmt_to_text = function
 let print = stmt_to_text
 
 let rec value_to_text = function
-  | AtomValue c -> "atom " ^ char_text c
+  | AtomValue c -> "atom " ^ Utils.Char_literal.to_text c
   | ConsValue (a, b) -> "cons " ^ value_to_text a ^ " " ^ value_to_text b
 
 let reserved =

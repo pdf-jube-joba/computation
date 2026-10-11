@@ -229,7 +229,7 @@ let parse_env text =
     ~invalid_line:(fun line -> "invalid env line: " ^ line)
     (fun env name v ->
       if String.starts_with ~prefix:"$" name then (
-        let name = String.sub name 1 (String.length name - 1) in
+        let name = Utils.String_ext.strip_prefix "$" name in
         ignore (value (Utils.Identifier.make name));
         let id =
           if String.lowercase_ascii v = "none" then None
@@ -238,16 +238,7 @@ let parse_env text =
         { env with task_ids = set env.task_ids name id })
       else (
         ignore (value (Utils.Identifier.make name));
-        {
-          env with
-          vars =
-            set env.vars name
-              (value
-                 (N.of_string
-                    (if String.starts_with ~prefix:"+" v then
-                       String.sub v 1 (String.length v - 1)
-                     else v)));
-        }))
+        { env with vars = set env.vars name (value (N.of_string_with_plus v)) }))
     { vars = []; task_ids = [] }
     text
 

@@ -140,15 +140,8 @@ let parse_code text =
 let parse_ainput =
   Lexer.parse (fun p ->
       Lexer.expect_symbol p '(';
-      let rec items () =
-        if Lexer.peek p = Lexer.Symbol ')' then []
-        else
-          let value = Lexer.natural p in
-          if Lexer.eat_symbol p ',' then value :: items () else [ value ]
-      in
-      let xs = items () in
-      Lexer.expect_symbol p ')';
-      xs)
+      Lexer.separated_until ~allow_trailing:true p ~separator:',' ~closing:')'
+        Lexer.natural)
 
 let parse_rinput = empty_input
 

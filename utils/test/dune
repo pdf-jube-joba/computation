@@ -12,3 +12,8 @@
  (name session_test)
  (modules session_test)
  (libraries utils example_counter))
+
+(test
+ (name parsing_test)
+ (modules parsing_test)
+ (libraries utils))

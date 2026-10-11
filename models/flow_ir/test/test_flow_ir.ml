@@ -57,7 +57,7 @@ let () =
   eq text "Hi";
   eq
     (I.value_print (List.assoc "x" out))
-    (I.value_print (I.Num (I.number_of_bytes "Hi")));
+    (I.value_print (I.Num (Utils.Number.of_bytes "Hi")));
   let out, _ =
     run
       {|@x 0

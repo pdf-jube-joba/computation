@@ -17,46 +17,24 @@ exception Parse_error of string
 
 let tokenize text =
   let length = String.length text in
-  let has i prefix =
-    i + String.length prefix <= length
-    && String.sub text i (String.length prefix) = prefix
-  in
+  let has = Utils.String_ext.starts_at text in
   let start = Utils.Identifier.is_start in
   let continue = Utils.Identifier.is_continue in
   let rec scan i acc =
     if i = length then List.rev (End :: acc)
     else
       match text.[i] with
-      | ' ' | '\t' | '\r' | '\n' -> scan (i + 1) acc
+      | c when Utils.String_ext.is_whitespace c -> scan (i + 1) acc
       | '/' when has i "//" ->
-          let j = ref (i + 2) in
-          while !j < length && text.[!j] <> '\n' do
-            incr j
-          done;
-          scan !j acc
-      | '/' when has i "/*" ->
-          let j = ref (i + 2) and depth = ref 1 in
-          while !j < length && !depth > 0 do
-            if has !j "/*" then (
-              incr depth;
-              j := !j + 2)
-            else if has !j "*/" then (
-              decr depth;
-              j := !j + 2)
-            else incr j
-          done;
-          if !depth <> 0 then raise (Parse_error "Unclosed block comment");
-          scan !j acc
+          scan (Utils.String_ext.skip_line text (i + 2)) acc
+      | '/' when has i "/*" -> scan (Utils.Lexer.skip_block_comment text i) acc
       | '\\' -> scan (i + 1) (Lambda :: acc)
       | '.' -> scan (i + 1) (Dot :: acc)
       | '(' -> scan (i + 1) (Left :: acc)
       | ')' -> scan (i + 1) (Right :: acc)
       | c when start c ->
-          let j = ref (i + 1) in
-          while !j < length && continue text.[!j] do
-            incr j
-          done;
-          scan !j (Name (String.sub text i (!j - i)) :: acc)
+          let j = Utils.String_ext.skip_while continue text (i + 1) in
+          scan j (Name (String.sub text i (j - i)) :: acc)
       | _ ->
           raise
             (Parse_error (Printf.sprintf "Unexpected character at byte %d" i))
@@ -129,7 +107,7 @@ let parse_code text =
     let term = application [] in
     if peek () <> End then fail "Unexpected trailing tokens";
     Ok term
-  with Parse_error message -> Error message
+  with Parse_error message | Utils.Lexer.Error message -> Error message
 
 let parse_ainput text =
   if String.trim text = "" then Ok []

@@ -30,7 +30,7 @@ module Expr_to_cek = struct
           Ok (Syntax.print_effect o));
       decode_foutput =
         (fun text ->
-          let* o = Syntax.parse_natural_text text in
+          let* o = Utils.Number.of_string_with_plus text in
           Ok (Utils.Number.to_string o));
     }
 end

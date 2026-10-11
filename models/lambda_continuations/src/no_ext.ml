@@ -35,22 +35,9 @@ type routput = unit
 type foutput = value
 type state = { code : term; current : term } [@@deriving yojson]
 
-let parse_ainput text =
-  let text = String.trim text in
-  let length = String.length text in
-  if length < 2 || text.[0] <> '(' || text.[length - 1] <> ')' then
-    Error "Expected to start with '(' and end with ')'"
-  else
-    let rec loop acc = function
-      | [] -> Ok (List.rev acc)
-      | x :: xs -> (
-          if String.trim x = "" then loop acc xs
-          else
-            match N.of_string x with
-            | Ok n -> loop (n :: acc) xs
-            | Error e -> Error e)
-    in
-    loop [] (String.split_on_char ',' (String.sub text 1 (length - 2)))
+let parse_ainput =
+  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
+    N.of_string
 
 let parse_rinput = Utils.Machine.empty_input
 

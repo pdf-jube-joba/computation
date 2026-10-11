@@ -301,24 +301,21 @@ let parse_flow_value text =
   L.protect (fun () ->
       let s = String.trim text in
       let prefix p = String.starts_with ~prefix:p s in
-      let rest p =
-        String.sub s (String.length p) (String.length s - String.length p)
-      in
       if prefix ":" then
-        let label = rest ":" in
+        let label = Utils.String_ext.strip_prefix ":" s in
         Code_label (get (Utils.Identifier.make label))
       else if prefix "k:@" then
-        let label = rest "k:@" in
+        let label = Utils.String_ext.strip_prefix "k:@" s in
         Key (Static (get (Utils.Identifier.make label)))
       else if prefix "k:s[" then
-        let body = rest "k:s[" in
+        let body = Utils.String_ext.strip_prefix "k:s[" s in
         if not (String.ends_with ~suffix:"]" body) then
           failwith ("Invalid stack key: " ^ s)
         else
-          let idx = String.sub body 0 (String.length body - 1) in
+          let idx = Utils.String_ext.strip_suffix "]" body in
           Key (Stack (get (N.to_int (get (N.of_string idx)))))
       else if prefix "k:h[" then (
-        let body = rest "k:h[" in
+        let body = Utils.String_ext.strip_prefix "k:h[" s in
         let p = L.create body in
         let handle = L.integer p in
         L.expect p "][";
@@ -515,57 +512,6 @@ let jump_enter s v =
     vregs = [];
   }
 
-let number_of_bytes text =
-  let n = ref N.zero in
-  for i = String.length text - 1 downto 0 do
-    n := N.add (N.mul !n "256") (N.of_int (Char.code text.[i]))
-  done;
-  !n
-
-let bytes_of_number n =
-  let b = Buffer.create 8 in
-  let rec loop n =
-    if not (N.is_zero n) then (
-      let q, r = get (N.divmod n "256") in
-      Buffer.add_char b (Char.chr (get (N.to_int r)));
-      loop q)
-  in
-  loop n;
-  Buffer.contents b
-
-let valid_utf8 s =
-  let n = String.length s in
-  let byte i = Char.code s.[i] in
-  let rec check i =
-    if i = n then true
-    else
-      let a = byte i in
-      if a < 128 then check (i + 1)
-      else
-        let count, lo, hi =
-          if a >= 194 && a <= 223 then (1, 128, 191)
-          else if a = 224 then (2, 160, 191)
-          else if (a >= 225 && a <= 236) || (a >= 238 && a <= 239) then
-            (2, 128, 191)
-          else if a = 237 then (2, 128, 159)
-          else if a = 240 then (3, 144, 191)
-          else if a >= 241 && a <= 243 then (3, 128, 191)
-          else if a = 244 then (3, 128, 143)
-          else (0, 0, 0)
-        in
-        count > 0
-        && i + count < n
-        && byte (i + 1) >= lo
-        && byte (i + 1) <= hi
-        &&
-        let rec rest j =
-          if j > count then check (i + count + 1)
-          else byte (i + j) >= 128 && byte (i + j) <= 191 && rest (j + 1)
-        in
-        rest 2
-  in
-  check 0
-
 let step s input =
   L.protect (fun () ->
       let halt s = Utils.Machine.Halt (sorted s.static_mem) in
@@ -617,13 +563,12 @@ let step s input =
                   failwith (Printf.sprintf "hfree unknown handle: %d" h);
                 ({ s with heap = List.remove_assoc h s.heap }, "")
             | Print r ->
-                let bytes = bytes_of_number (num (reg s r)) in
-                if not (valid_utf8 bytes) then
+                let bytes = N.to_bytes (num (reg s r)) in
+                if not (Utils.Utf8.valid bytes) then
                   failwith "print byte is not valid single-byte UTF-8";
                 (s, bytes)
             | Input p ->
-                ( write_place s (eval_place s p) (Num (number_of_bytes input)),
-                  "" )
+                (write_place s (eval_place s p) (Num (N.of_bytes input)), "")
           in
           continue s o
         else if s.current_line < sl + il then

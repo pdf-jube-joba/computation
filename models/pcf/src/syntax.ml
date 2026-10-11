@@ -207,42 +207,15 @@ and block_contents p =
 let parse_code = L.parse (expression false)
 let parse_stmt_code = L.parse (expression true)
 
-(* Rust's usize text codec accepts a leading '+'. This applies to tuple
-   inputs and effects, rather than the expression lexer or JSON instructions. *)
-let parse_natural_text text =
-  let text = String.trim text in
-  if String.length text > 0 && text.[0] = '+' then
-    let digits = String.sub text 1 (String.length text - 1) in
-    if
-      digits <> ""
-      && String.for_all (function '0' .. '9' -> true | _ -> false) digits
-    then N.of_string digits
-    else Error "Expected a natural number"
-  else N.of_string text
-
-let parse_ainput text =
-  let text = String.trim text in
-  let length = String.length text in
-  if length < 2 || text.[0] <> '(' || text.[length - 1] <> ')' then
-    Error "Expected to start with '(' and end with ')'"
-  else
-    let items = String.split_on_char ',' (String.sub text 1 (length - 2)) in
-    let rec loop acc = function
-      | [] -> Ok (List.rev acc)
-      | x :: xs -> (
-          if String.trim x = "" then loop acc xs
-          else
-            match parse_natural_text x with
-            | Ok n -> loop (n :: acc) xs
-            | Error e -> Error e)
-    in
-    loop [] items
+let parse_ainput =
+  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
+    N.of_string_with_plus
 
 let print_ainput ns = "(" ^ String.concat ", " (List.map N.to_string ns) ^ ")"
 
 let parse_effect text =
   if String.trim text = "" then Ok None
-  else Result.map Option.some (parse_natural_text text)
+  else Result.map Option.some (N.of_string_with_plus text)
 
 let print_effect = function None -> "" | Some n -> N.to_string n
 let routput_json output = `String (print_effect output)

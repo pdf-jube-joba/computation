@@ -14,39 +14,37 @@ let error p message =
   raise (Error (Printf.sprintf "%s at byte %d" message offset))
 
 (* Some source languages close block comments at the first terminator. *)
-let tokenize ?(nested_comments = true) text =
+let skip_block_comment ?(nested_comments = true) text i =
+  let j = ref (i + 2) and depth = ref 1 in
+  while !j < String.length text && !depth > 0 do
+    if nested_comments && String_ext.starts_at text !j "/*" then (
+      incr depth;
+      j := !j + 2)
+    else if String_ext.starts_at text !j "*/" then (
+      decr depth;
+      j := !j + 2)
+    else incr j
+  done;
+  if !depth <> 0 then
+    raise (Error (Printf.sprintf "Unclosed comment at byte %d" i));
+  !j
+
+let tokenize ?(nested_comments = true) ?(character_literals = false) text =
   let n = String.length text in
   let alpha = Identifier.is_start in
   let digit = function '0' .. '9' -> true | _ -> false in
-  let has i prefix =
-    i + String.length prefix <= n
-    && String.sub text i (String.length prefix) = prefix
-  in
+  let has = String_ext.starts_at text in
   let rec scan i acc =
     if i >= n then Array.of_list (List.rev ((Eof, n) :: acc))
     else
       match text.[i] with
-      | ' ' | '\n' | '\r' | '\t' -> scan (i + 1) acc
-      | '/' when has i "//" ->
-          let j = ref (i + 2) in
-          while !j < n && text.[!j] <> '\n' do
-            incr j
-          done;
-          scan !j acc
+      | c when String_ext.is_whitespace c -> scan (i + 1) acc
+      | '/' when has i "//" -> scan (String_ext.skip_line text (i + 2)) acc
       | '/' when has i "/*" ->
-          let j = ref (i + 2) and depth = ref 1 in
-          while !j < n && !depth > 0 do
-            if nested_comments && has !j "/*" then (
-              incr depth;
-              j := !j + 2)
-            else if has !j "*/" then (
-              decr depth;
-              j := !j + 2)
-            else incr j
-          done;
-          if !depth <> 0 then
-            raise (Error (Printf.sprintf "Unclosed comment at byte %d" i));
-          scan !j acc
+          scan (skip_block_comment ~nested_comments text i) acc
+      | '\'' when character_literals ->
+          let c, j = Char_literal.read text i in
+          scan j ((String_lit c, i) :: acc)
       | '"' ->
           let j = ref (i + 1) and escaped = ref false in
           while !j < n && (!escaped || text.[!j] <> '"') do
@@ -67,25 +65,18 @@ let tokenize ?(nested_comments = true) text =
           scan (!j + 1) ((String_lit value, i) :: acc)
       | c when alpha c || digit c ->
           let is_number = digit c in
-          let j = ref (i + 1) in
-          while
-            !j < n
-            &&
-            if is_number then digit text.[!j]
-            else Identifier.is_continue text.[!j]
-          do
-            incr j
-          done;
-          let word = String.sub text i (!j - i) in
-          scan !j (((if is_number then Number word else Ident word), i) :: acc)
+          let predicate = if is_number then digit else Identifier.is_continue in
+          let j = String_ext.skip_while predicate text (i + 1) in
+          let word = String.sub text i (j - i) in
+          scan j (((if is_number then Number word else Ident word), i) :: acc)
       | c when Char.code c < 128 && c <> '\000' ->
           scan (i + 1) ((Symbol c, i) :: acc)
       | _ -> raise (Error (Printf.sprintf "Unexpected character at byte %d" i))
   in
   scan 0 []
 
-let create ?(nested_comments = true) text =
-  { tokens = tokenize ~nested_comments text; pos = 0 }
+let create ?(nested_comments = true) ?(character_literals = false) text =
+  { tokens = tokenize ~nested_comments ~character_literals text; pos = 0 }
 
 let peek p = fst p.tokens.(p.pos)
 
@@ -160,8 +151,8 @@ let parse_with create f text =
       expect_eof p;
       value)
 
-let parse ?(nested_comments = true) f text =
-  parse_with (create ~nested_comments) f text
+let parse ?(nested_comments = true) ?(character_literals = false) f text =
+  parse_with (create ~nested_comments ~character_literals) f text
 
 (* Consume the closing symbol. When supplied, skip_separator allows separators
    to be omitted, repeated, or placed before/after the items. *)
@@ -182,3 +173,15 @@ let rec separated p ~separator item =
   let first = item p in
   if eat_symbol p separator then first :: separated p ~separator item
   else [ first ]
+
+let separated_until ?(allow_trailing = false) p ~separator ~closing item =
+  let rec loop acc =
+    let value = item p in
+    let acc = value :: acc in
+    if eat_symbol p separator then
+      if allow_trailing && eat_symbol p closing then List.rev acc else loop acc
+    else (
+      expect_symbol p closing;
+      List.rev acc)
+  in
+  if eat_symbol p closing then [] else loop []

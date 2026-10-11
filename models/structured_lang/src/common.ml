@@ -20,13 +20,7 @@ let print_env = Utils.Environment.print ~trailing_newline:true N.to_string
 let env_text = Utils.Environment.print N.to_string
 
 let names_until p endc =
-  if L.peek p = L.Symbol endc then []
-  else
-    let rec loop acc =
-      let x = ident p in
-      if L.eat_symbol p ',' then loop (x :: acc) else List.rev (x :: acc)
-    in
-    loop []
+  if L.peek p = L.Symbol endc then [] else L.separated p ~separator:',' ident
 
 let names_boundary p =
   match L.peek p with L.Ident _ -> names_until p '\000' | _ -> []

@@ -27,7 +27,7 @@ type foutput = environment
 type state = { code : code; stmt : stmt; env : environment } [@@deriving yojson]
 
 let char_list_to_text cs =
-  "[" ^ String.concat ", " (List.map char_text cs) ^ "]"
+  "[" ^ String.concat ", " (List.map Utils.Char_literal.to_text cs) ^ "]"
 
 let rec aexp_to_text = function
   | Const cs -> char_list_to_text cs

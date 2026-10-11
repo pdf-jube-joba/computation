@@ -1,3 +1,4 @@
+module Text = Utils.String_ext
 open Isa_common
 
 type addr_expr = VReg of int | Label of Utils.Identifier.t | Imm of N.t
@@ -61,33 +62,17 @@ type state = {
 }
 [@@deriving yojson]
 
-let strip_prefix = Symbolic_asm.strip_prefix
-let strip_suffix = Symbolic_asm.strip_suffix
-let words = Symbolic_asm.words
-
-let split_once sep text =
-  let len = String.length sep in
-  let rec find i =
-    if i + len > String.length text then None
-    else if String.sub text i len = sep then
-      Some
-        ( String.sub text 0 i,
-          String.sub text (i + len) (String.length text - i - len) )
-    else find (i + 1)
-  in
-  find 0
-
 let parse_vreg s =
   if not (String.starts_with ~prefix:"%v" s) then failwith ("Invalid vreg: " ^ s)
-  else value (Utils.Machine.natural (strip_prefix "%v" s))
+  else value (Utils.Machine.natural (Text.strip_prefix "%v" s))
 
 let parse_addr_expr s =
   let s = String.trim s in
   if String.starts_with ~prefix:"%v" s then VReg (parse_vreg s)
   else if String.starts_with ~prefix:"@" s then
-    Label (value (Utils.Identifier.make (strip_prefix "@" s)))
+    Label (value (Utils.Identifier.make (Text.strip_prefix "@" s)))
   else if String.starts_with ~prefix:"#" s then
-    Imm (value (number (strip_prefix "#" s)))
+    Imm (value (number (Text.strip_prefix "#" s)))
   else if
     s <> "" && String.for_all (function '0' .. '9' -> true | _ -> false) s
   then Imm (value (number s))
@@ -97,12 +82,13 @@ let parse_place_expr s =
   let s = String.trim s in
   if not (String.starts_with ~prefix:"[" s && String.ends_with ~suffix:"]" s)
   then failwith ("Invalid place expr: " ^ s);
-  parse_addr_expr (String.trim (strip_suffix "]" (strip_prefix "[" s)))
+  parse_addr_expr
+    (String.trim (Text.strip_suffix "]" (Text.strip_prefix "[" s)))
 
 let parse_value_expr s =
   let s = String.trim s in
   if String.starts_with ~prefix:"*" s then
-    Deref (parse_place_expr (strip_prefix "*" s))
+    Deref (parse_place_expr (Text.strip_prefix "*" s))
   else
     match parse_addr_expr s with
     | VReg n -> VRegValue n
@@ -112,13 +98,13 @@ let parse_value_expr s =
 let parse_stmt line =
   if not (String.ends_with ~suffix:";" line) then None
   else
-    match split_once ":=" (String.trim (strip_suffix ";" line)) with
+    match Text.split_once ":=" (String.trim (Text.strip_suffix ";" line)) with
     | None -> None
     | Some (lhs, rhs) ->
         let lhs = String.trim lhs and rhs = String.trim rhs in
         if String.starts_with ~prefix:"%v" lhs then
           let dst = parse_vreg lhs in
-          match words rhs with
+          match Text.words rhs with
           | [ src ] -> Some (Assign (dst, parse_value_expr src))
           | [ lhs; op; rhs ] ->
               let lhs = parse_value_expr lhs and rhs = parse_value_expr rhs in
@@ -139,7 +125,7 @@ let parse_cond s =
     Option.map
       (fun (a, b) ->
         ctor (parse_value_expr (String.trim a), parse_value_expr (String.trim b)))
-      (split_once sep s)
+      (Text.split_once sep s)
   in
   match make " < " (fun (a, b) -> Lt (a, b)) with
   | Some c -> c
@@ -158,7 +144,10 @@ let parse_jump_if line =
       && String.ends_with ~suffix:";" line)
   then None
   else
-    match split_once " then " (strip_prefix "if " (strip_suffix ";" line)) with
+    match
+      Text.split_once " then "
+        (Text.strip_prefix "if " (Text.strip_suffix ";" line))
+    with
     | Some (c, t) ->
         Some
           {
@@ -170,7 +159,9 @@ let parse_jump_if line =
 let parse_goto line =
   if
     String.starts_with ~prefix:"goto " line && String.ends_with ~suffix:";" line
-  then Some (parse_addr_expr (strip_prefix "goto " (strip_suffix ";" line)))
+  then
+    Some
+      (parse_addr_expr (Text.strip_prefix "goto " (Text.strip_suffix ";" line)))
   else None
 
 let parse_code text =
@@ -179,7 +170,7 @@ let parse_code text =
         Array.of_list
           (List.filter (( <> ) "")
              (List.map
-                (fun l -> String.trim (Symbolic_asm.strip_comment l))
+                (fun l -> String.trim (Text.strip_line_comment "//" l))
                 (String.split_on_char '\n' text)))
       in
       let rec top i statics blocks =
@@ -192,7 +183,7 @@ let parse_code text =
             && String.ends_with ~suffix:"{" line
           then
             let label =
-              String.trim (strip_suffix "{" (strip_prefix "@" line))
+              String.trim (Text.strip_suffix "{" (Text.strip_prefix "@" line))
             in
             let label = value (Utils.Identifier.make label) in
             let rec block j stmts ifs jump =
@@ -233,14 +224,15 @@ let parse_code text =
             let b, j = block (i + 1) [] [] None in
             top j statics (b :: blocks)
           else
-            match words line with
+            match Text.words line with
             | [ label; n ]
               when String.starts_with ~prefix:"@" label
                    && not (String.ends_with ~suffix:":" label) ->
                 let s : static_def =
                   {
                     label =
-                      value (Utils.Identifier.make (strip_prefix "@" label));
+                      value
+                        (Utils.Identifier.make (Text.strip_prefix "@" label));
                     value = value (number n);
                   }
                 in
@@ -295,18 +287,8 @@ let print (code : code) =
           ^ "  goto " ^ addr_to_text b.cont.jump ^ ";\n}\n")
         code.blocks)
 
-let parse_ainput text =
-  Utils.Lexer.protect (fun () ->
-      let text = String.trim text in
-      if
-        not
-          (String.starts_with ~prefix:"(" text
-          && String.ends_with ~suffix:")" text)
-      then failwith "Expected to start with '(' and end with ')'";
-      String.split_on_char ',' (strip_suffix ")" (strip_prefix "(" text))
-      |> List.map String.trim
-      |> List.filter (( <> ) "")
-      |> List.map (fun n -> value (number n)))
+let parse_ainput =
+  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:',' number
 
 let parse_rinput = Utils.Machine.empty_input
 

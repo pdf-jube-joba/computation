@@ -144,7 +144,7 @@ let parse_code text =
             List.filter_map
               (fun line ->
                 let line =
-                  String.trim (List.hd (String.split_on_char '#' line))
+                  String.trim (Utils.String_ext.strip_line_comment "#" line)
                 in
                 if line = "" then None
                 else

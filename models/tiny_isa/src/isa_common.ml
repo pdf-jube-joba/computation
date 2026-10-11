@@ -32,32 +32,20 @@ let write array addr v =
   out.(addr) <- v;
   out
 
-let number text =
-  let text = String.trim text in
-  N.of_string
-    (if String.starts_with ~prefix:"+" text then
-       String.sub text 1 (String.length text - 1)
-     else text)
-
-let lines text =
-  List.filter (( <> ) "")
-    (List.map String.trim (String.split_on_char '\n' text))
+let number = N.of_string_with_plus
 
 let parse_numbers text =
   Utils.Lexer.protect (fun () ->
-      List.map (fun n -> value (number n)) (lines text))
+      List.map (fun n -> value (number n)) (Utils.String_ext.lines text))
 
 let print_numbers ns = String.concat "\n" (List.map N.to_string ns)
 
 let parse_image text =
   Utils.Lexer.protect (fun () ->
-      match lines text with
+      match Utils.String_ext.lines text with
       | [] -> failwith "Expected first line with 8 registers"
       | reg_line :: mem ->
-          let parts =
-            List.filter (( <> ) "")
-              (List.map String.trim (String.split_on_char ',' reg_line))
-          in
+          let parts = Utils.String_ext.split_nonempty ',' reg_line in
           if List.length parts <> 8 then
             failwith "Expected 8 registers on the first line (comma separated)";
           ( Array.of_list (List.map (fun s -> value (number s)) parts),

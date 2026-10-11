@@ -42,19 +42,14 @@ let create text =
     if i = n then Array.of_list (List.rev ((L.Eof, n) :: acc))
     else
       match text.[i] with
-      | ' ' | '\t' | '\r' | '\n' -> scan (i + 1) acc
+      | c when Utils.String_ext.is_whitespace c -> scan (i + 1) acc
       | c when alpha c || digit c ->
-          let j = ref (i + 1) in
-          while
-            !j < n
-            &&
-            if digit c then digit text.[!j]
-            else Utils.Identifier.is_continue text.[!j]
-          do
-            incr j
-          done;
-          let s = String.sub text i (!j - i) in
-          scan !j (((if digit c then L.Number s else L.Ident s), i) :: acc)
+          let predicate =
+            if digit c then digit else Utils.Identifier.is_continue
+          in
+          let j = Utils.String_ext.skip_while predicate text (i + 1) in
+          let s = String.sub text i (j - i) in
+          scan j (((if digit c then L.Number s else L.Ident s), i) :: acc)
       | '-' -> scan (i + 1) ((L.Symbol '-', i) :: acc)
       | ('(' | ')' | '{' | '}' | ',' | '@' | ':' | '=') as c ->
           scan (i + 1) ((L.Symbol c, i) :: acc)
@@ -72,16 +67,7 @@ let sign p =
 
 let alphabet p =
   L.expect p "alphabet:(";
-  let rec loop () =
-    if L.eat_symbol p ')' then []
-    else
-      let s = sign p in
-      if L.eat_symbol p ',' then s :: loop ()
-      else (
-        L.expect_symbol p ')';
-        [ s ])
-  in
-  loop ()
+  L.separated_until ~allow_trailing:true p ~separator:',' ~closing:')' sign
 
 let lvalue ?keywords p : lvalue =
   if L.eat_symbol p '@' then Head else Var (identifier ?keywords p)

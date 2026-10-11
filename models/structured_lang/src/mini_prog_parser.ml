@@ -1,50 +1,7 @@
 open Common
 open Mini_prog_syntax
 
-(* Single Unicode scalar character literals are carried as String_lit tokens;
-   all other tokens and comments use the shared lexer. *)
-let create text =
-  let tokens = ref [] in
-  let n = String.length text in
-  let rec scan start i =
-    if i >= n then
-      let p = L.create (String.sub text start (n - start)) in
-      Array.iter
-        (fun (t, k) -> if t <> L.Eof then tokens := (t, k + start) :: !tokens)
-        p.tokens
-    else if i + 1 < n && text.[i] = '/' && text.[i + 1] = '/' then (
-      let j = ref (i + 2) in
-      while !j < n && text.[!j] <> '\n' do
-        incr j
-      done;
-      scan start !j)
-    else if text.[i] = '\'' then (
-      let j = ref (i + 1) in
-      while !j < n && text.[!j] <> '\'' do
-        incr j
-      done;
-      if !j = n then failwith "invalid char literal";
-      let c = String.sub text (i + 1) (!j - i - 1) in
-      let len =
-        if c = "" then 0
-        else
-          let b = Char.code c.[0] in
-          if b < 128 then 1 else if b < 224 then 2 else if b < 240 then 3 else 4
-      in
-      if String.length c <> len || not (Flow_ir.valid_utf8 c) then
-        failwith "invalid char literal";
-      let p = L.create (String.sub text start (i - start)) in
-      Array.iter
-        (fun (t, k) -> if t <> L.Eof then tokens := (t, k + start) :: !tokens)
-        p.tokens;
-      tokens := (L.String_lit c, i) :: !tokens;
-      scan (!j + 1) (!j + 1))
-    else scan start (i + 1)
-  in
-  scan 0 0;
-  { L.tokens = Array.of_list (List.rev ((L.Eof, n) :: !tokens)); pos = 0 }
-
-let parse f text = L.parse_with create f text
+let parse f text = L.parse ~character_literals:true f text
 
 let type_atom p =
   L.expect_symbol p '#';
@@ -273,12 +230,6 @@ let parse_code =
       in
       loop [] [])
 
-let parse_ainput text =
-  L.protect (fun () ->
-      let s = String.trim text in
-      if String.length s < 2 || s.[0] <> '(' || s.[String.length s - 1] <> ')'
-      then failwith "Expected to start with '(' and end with ')'";
-      String.sub s 1 (String.length s - 2)
-      |> String.split_on_char ','
-      |> List.filter (fun s -> String.trim s <> "")
-      |> List.map (fun s -> get (N.of_string s)))
+let parse_ainput =
+  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
+    N.of_string

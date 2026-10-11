@@ -1,3 +1,4 @@
+module Text = Utils.String_ext
 open Isa_common
 
 type raw_value =
@@ -69,31 +70,8 @@ type state = {
 }
 [@@deriving yojson]
 
-let words line =
-  String.split_on_char ' '
-    (String.map (function '\t' | '\r' | '\n' -> ' ' | c -> c) line)
-  |> List.filter (( <> ) "")
-
-let strip_prefix prefix s =
-  if String.starts_with ~prefix s then
-    String.sub s (String.length prefix) (String.length s - String.length prefix)
-  else s
-
-let strip_suffix suffix s =
-  if String.ends_with ~suffix s then
-    String.sub s 0 (String.length s - String.length suffix)
-  else s
-
-let strip_comment line =
-  let rec scan i =
-    if i + 1 >= String.length line then line
-    else if line.[i] = '/' && line.[i + 1] = '/' then String.sub line 0 i
-    else scan (i + 1)
-  in
-  scan 0
-
 let parse_reg token =
-  let t = strip_prefix "r" (strip_prefix "%" (String.trim token)) in
+  let t = Text.strip_prefix "r" (Text.strip_prefix "%" (String.trim token)) in
   let n = value (Utils.Machine.natural t) in
   if n >= 8 then
     failwith (Printf.sprintf "Register out of range (expected 0..=7): %d" n);
@@ -103,9 +81,9 @@ let parse_raw_value token =
   let t = String.trim token in
   if t = "" then failwith "Empty value";
   if String.starts_with ~prefix:"#" t then
-    Imm (value (number (strip_prefix "#" t)))
+    Imm (value (number (Text.strip_prefix "#" t)))
   else if String.starts_with ~prefix:"@" t then
-    let name = strip_prefix "@" t in
+    let name = Text.strip_prefix "@" t in
     Label (value (Utils.Identifier.make name))
   else if String.for_all (function '0' .. '9' -> true | _ -> false) t then
     Imm (value (number t))
@@ -116,23 +94,24 @@ let parse_operand t =
   else Value (parse_raw_value t)
 
 let parse_inst_line line =
-  match words (String.trim (strip_suffix ";" (String.trim line))) with
+  match Text.words (String.trim (Text.strip_suffix ";" (String.trim line))) with
   | [] -> failwith "Empty instruction line"
   | m :: ops ->
       let cond_flag = String.ends_with ~suffix:".f" m in
       {
-        mnemonic = (if cond_flag then strip_suffix ".f" m else m);
+        mnemonic = (if cond_flag then Text.strip_suffix ".f" m else m);
         cond_flag;
         operands = List.map parse_operand ops;
       }
 
 let parse_directive line =
-  match words line with
+  match Text.words line with
   | [ ".text" ] -> Text
   | [ ".data" ] -> Data
   | [ ".equ"; name; n ] ->
       Equ
-        (value (Utils.Identifier.make name), value (number (strip_prefix "#" n)))
+        ( value (Utils.Identifier.make name),
+          value (number (Text.strip_prefix "#" n)) )
   | _ -> failwith ("Unsupported directive syntax: " ^ line)
 
 let parse_code text =
@@ -140,7 +119,7 @@ let parse_code text =
       let section = ref Text in
       List.filter_map
         (fun line ->
-          let line = String.trim (strip_comment line) in
+          let line = String.trim (Text.strip_line_comment "//" line) in
           if line = "" then None
           else
             let item =
@@ -149,7 +128,8 @@ let parse_code text =
                 && String.ends_with ~suffix:":" line
               then
                 let n =
-                  String.trim (strip_suffix ":" (strip_prefix "@" line))
+                  String.trim
+                    (Text.strip_suffix ":" (Text.strip_prefix "@" line))
                 in
                 LabelDef (value (Utils.Identifier.make n))
               else if String.starts_with ~prefix:"." line then (
@@ -161,9 +141,9 @@ let parse_code text =
                 | Text -> Inst (parse_inst_line line)
                 | Data ->
                     let line =
-                      String.trim (strip_suffix ";" (String.trim line))
+                      String.trim (Text.strip_suffix ";" (String.trim line))
                     in
-                    if List.length (words line) <> 1 then
+                    if List.length (Text.words line) <> 1 then
                       failwith "Data value line must contain a single value";
                     DataValue (parse_raw_value line)
                 | Equ _ -> assert false
