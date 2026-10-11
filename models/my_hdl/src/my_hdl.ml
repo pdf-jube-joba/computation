@@ -2,8 +2,8 @@ module Value_type = struct
   type t =
     | Bit
     | Array of Utils.Number.t * t
-    | Strct of (string * t) list
-    | Enume of string list
+    | Strct of (Utils.Identifier.t * t) list
+    | Enume of Utils.Identifier.t list
   [@@deriving yojson]
 end
 
@@ -11,8 +11,8 @@ module Value = struct
   type t =
     | Bit of bool
     | Array of t list
-    | Strct of (string * t) list
-    | Enume of string
+    | Strct of (Utils.Identifier.t * t) list
+    | Enume of Utils.Identifier.t
   [@@deriving yojson]
 
   let new_bit b = Bit b
@@ -68,22 +68,22 @@ let typable_value value expected =
 
 type comb_exp_val =
   | Val of value
-  | Var of string
+  | Var of Utils.Identifier.t
   | And of comb_exp_val * comb_exp_val
   | Or of comb_exp_val * comb_exp_val
   | Not of comb_exp_val
   | IfCond of comb_exp_val * comb_exp_val * comb_exp_val
   | ArrayAcc of comb_exp_val * Utils.Number.t
   | ArrayConst of comb_exp_val list
-  | FieldAcc of comb_exp_val * string
-  | StrctConst of (string * comb_exp_val) list
-  | Switch of comb_exp_val * (string * comb_exp_val) list
-  | SeqAndFinal of (string * comb_exp_val) list * comb_exp_val
-  | CombModule of string * comb_exp_val
+  | FieldAcc of comb_exp_val * Utils.Identifier.t
+  | StrctConst of (Utils.Identifier.t * comb_exp_val) list
+  | Switch of comb_exp_val * (Utils.Identifier.t * comb_exp_val) list
+  | SeqAndFinal of (Utils.Identifier.t * comb_exp_val) list * comb_exp_val
+  | CombModule of Utils.Identifier.t * comb_exp_val
 [@@deriving yojson]
 
 type comb_module = {
-  name : string;
+  name : Utils.Identifier.t;
   input_type : value_type;
   otput_type : value_type;
   comb_func : comb_exp_val;
@@ -203,7 +203,7 @@ type general_module =
   | Iter of iter_module
 
 and graph_module = {
-  state_name_machines : (string * general_module) list;
+  state_name_machines : (Utils.Identifier.t * general_module) list;
   input_type : value_type;
   otput_type : value_type;
   trans_func : comb_exp_val;
@@ -224,7 +224,7 @@ type general_module_state =
   | IterState of iter_module_state
 
 and graph_module_state = {
-  states_machines : (string * general_module_state) list;
+  states_machines : (Utils.Identifier.t * general_module_state) list;
   trans_func : code_env;
   otput_func : code_env;
 }
@@ -375,40 +375,10 @@ let iter_clock (machine : iter_module_state) input =
       { machine with state_machines })
 
 module Parser = struct
-  module L = Source_lexer
+  module L = Utils.Lexer
 
-  let name p =
-    let first =
-      match L.next p with
-      | L.Ident s -> s
-      | L.Symbol (('-' | '_') as c) -> String.make 1 c
-      | _ -> L.error p "expected name"
-    in
-    let rec tail s =
-      match L.peek p with
-      | L.Symbol (('-' | '_') as c) ->
-          ignore (L.next p);
-          let suffix =
-            match L.next p with
-            | L.Ident s | L.Number s -> s
-            | _ -> L.error p "expected name"
-          in
-          tail (s ^ String.make 1 c ^ suffix)
-      | _ -> s
-    in
-    tail first
-
-  let rec skip_commas p = if L.eat_symbol p ',' then skip_commas p
-
-  let block p closing item =
-    let rec loop acc =
-      skip_commas p;
-      if L.eat_symbol p closing then List.rev acc
-      else
-        let value = item p in
-        loop (value :: acc)
-    in
-    loop []
+  let name = L.identifier
+  let block p closing item = L.many_until ~skip_separator:',' p ~closing item
 
   let rec value p =
     if L.eat p "#true" then Value.Bit true
@@ -431,7 +401,7 @@ module Parser = struct
       Value.Enume name)
     else L.error p "expected value"
 
-  let parse_value = L.parse value
+  let parse_value = L.parse ~nested_comments:false value
 end
 
 module Interface = struct

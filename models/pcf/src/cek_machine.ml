@@ -6,10 +6,10 @@ type value =
   | VNat of N.t
   | VBool of bool
   | VUnit
-  | VFun of string * expr * env
-  | VRec of string * string * expr * env
+  | VFun of Utils.Identifier.t * expr * env
+  | VRec of Utils.Identifier.t * Utils.Identifier.t * expr * env
 
-and env = (string * value) list [@@deriving yojson]
+and env = (Utils.Identifier.t * value) list [@@deriving yojson]
 
 type frame =
   | BinOpLeft of binop * expr * env

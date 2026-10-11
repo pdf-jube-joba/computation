@@ -13,14 +13,14 @@ let sorted xs = List.sort (fun (a, _) (b, _) -> compare a b) xs
 type binop = Add | Sub [@@deriving yojson]
 
 type value_expr =
-  | VReg of string
+  | VReg of Utils.Identifier.t
   | Imm of N.t
-  | CodeLabel of string
+  | CodeLabel of Utils.Identifier.t
   | Ref of place_expr
 
 and place_expr =
-  | Label of string
-  | Deref of string
+  | Label of Utils.Identifier.t
+  | Deref of Utils.Identifier.t
   | SAcc of value_expr
   | HAcc of value_expr * value_expr
 [@@deriving yojson]
@@ -33,16 +33,16 @@ type cond =
 
 type stmt =
   | Nop
-  | Load of string * place_expr
-  | Assign of string * value_expr
-  | BinOp of string * value_expr * binop * value_expr
+  | Load of Utils.Identifier.t * place_expr
+  | Assign of Utils.Identifier.t * value_expr
+  | BinOp of Utils.Identifier.t * value_expr * binop * value_expr
   | Store of place_expr * value_expr
-  | Pop of string
+  | Pop of Utils.Identifier.t
   | Push of value_expr
-  | LGet of string
-  | HAlloc of value_expr * string
+  | LGet of Utils.Identifier.t
+  | HAlloc of value_expr * Utils.Identifier.t
   | HFree of value_expr
-  | Print of string
+  | Print of Utils.Identifier.t
   | Input of place_expr
 [@@deriving yojson]
 
@@ -54,22 +54,31 @@ type cont =
   | Halt of jump_if list
 [@@deriving yojson]
 
-type block = { label : string; stmts : stmt list; cont : cont }
+type block = { label : Utils.Identifier.t; stmts : stmt list; cont : cont }
 [@@deriving yojson]
 
-type region = { label : string; blocks : block list } [@@deriving yojson]
-type static_def = { label : string; value : N.t } [@@deriving yojson]
+type region = { label : Utils.Identifier.t; blocks : block list }
+[@@deriving yojson]
+
+type static_def = { label : Utils.Identifier.t; value : N.t }
+[@@deriving yojson]
 
 type code = { statics : static_def list; regions : region list }
 [@@deriving yojson]
 
-type place_key = Static of string | Stack of int | Heap of int * int
+type place_key =
+  | Static of Utils.Identifier.t
+  | Stack of int
+  | Heap of int * int
 [@@deriving yojson]
 
-type flow_value = Num of N.t | Code_label of string | Key of place_key
+type flow_value =
+  | Num of N.t
+  | Code_label of Utils.Identifier.t
+  | Key of place_key
 [@@deriving yojson]
 
-type ainput = (string * flow_value) list [@@deriving yojson]
+type ainput = (Utils.Identifier.t * flow_value) list [@@deriving yojson]
 type foutput = ainput [@@deriving yojson]
 type rinput = string
 type routput = string
@@ -79,7 +88,7 @@ type state = {
   current_region : int;
   current_block : int;
   current_line : int;
-  vregs : (string * flow_value) list;
+  vregs : (Utils.Identifier.t * flow_value) list;
   static_mem : ainput;
   stack : flow_value list;
   heap : (int * flow_value list) list;
@@ -167,10 +176,7 @@ let print (p : code) =
     p.regions;
   Buffer.contents b
 
-let name p =
-  match L.next p with
-  | L.Ident s | L.Number s -> s
-  | _ -> L.error p "Expected name"
+let name = L.identifier
 
 let vreg p =
   L.expect_symbol p '%';
@@ -290,11 +296,7 @@ let parse_code =
           L.expect_symbol p ':';
           let label = name p in
           L.expect_symbol p '{';
-          let rec blocks acc =
-            if L.eat_symbol p '}' then List.rev acc
-            else blocks (parse_block p :: acc)
-          in
-          let blocks = blocks [] in
+          let blocks = L.many_until p ~closing:'}' parse_block in
           if blocks = [] then L.error p "Region has no blocks";
           loop ss ({ label; blocks } :: rs))
       in
@@ -307,14 +309,12 @@ let parse_flow_value text =
       let rest p =
         String.sub s (String.length p) (String.length s - String.length p)
       in
-      if prefix ":" then (
+      if prefix ":" then
         let label = rest ":" in
-        if label = "" then failwith "Empty code label";
-        Code_label label)
-      else if prefix "k:@" then (
+        Code_label (get (Utils.Identifier.make label))
+      else if prefix "k:@" then
         let label = rest "k:@" in
-        if label = "" then failwith "Empty static key";
-        Key (Static label))
+        Key (Static (get (Utils.Identifier.make label)))
       else if prefix "k:s[" then
         let body = rest "k:s[" in
         if not (String.ends_with ~suffix:"]" body) then
@@ -343,8 +343,10 @@ let parse_ainput text =
             match String.index_opt line '=' with
             | None -> failwith ("Invalid static input line: " ^ line)
             | Some i ->
-                let key = String.trim (String.sub line 0 i) in
-                if key = "" then failwith "Empty static input key";
+                let key =
+                  get
+                    (Utils.Identifier.make (String.trim (String.sub line 0 i)))
+                in
                 set key
                   (get
                      (parse_flow_value

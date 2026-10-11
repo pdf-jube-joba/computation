@@ -2,7 +2,7 @@ open Common
 
 type binop = Add | Sub [@@deriving yojson]
 
-type place_expr = Var of string | Deref of value_expr
+type place_expr = Var of Utils.Identifier.t | Deref of value_expr
 
 and value_expr =
   | Number of int64
@@ -15,11 +15,15 @@ and value_expr =
 type stmt =
   | Assign of place_expr * value_expr
   | Ifz of value_expr * stmt * stmt
-  | Call of string * value_expr list
+  | Call of Utils.Identifier.t * value_expr list
   | Return
 [@@deriving yojson]
 
-type fn_decl = { name : string; params : string list; body : stmt list }
+type fn_decl = {
+  name : Utils.Identifier.t;
+  params : Utils.Identifier.t list;
+  body : stmt list;
+}
 [@@deriving yojson]
 
 type code = { functions : fn_decl list } [@@deriving yojson]
@@ -32,17 +36,17 @@ type frame_store = { frame_id : int; values : (location * value) list }
 [@@deriving yojson]
 
 type call_frame = {
-  env : (string * location) list;
+  env : (Utils.Identifier.t * location) list;
   inner_k : stmt list;
-  function_name : string;
+  function_name : Utils.Identifier.t;
 }
 [@@deriving yojson]
 
 type state = {
   code : code;
-  current_function : string;
+  current_function : Utils.Identifier.t;
   current_stmt : stmt option;
-  env : (string * location) list;
+  env : (Utils.Identifier.t * location) list;
   store : frame_store list;
   inner_k : stmt list;
   fn_k : call_frame list;
@@ -61,7 +65,7 @@ let rec place_to_text = function
 
 and value_to_text = function
   | Number n -> Int64.to_string n
-  | NullPtr -> "#null-ptr"
+  | NullPtr -> "#null_ptr"
   | BinOp (a, op, b) ->
       "(" ^ value_to_text a
       ^ (if op = Add then " + " else " - ")
@@ -95,12 +99,12 @@ let location_text (l : location) =
 let value_text = function
   | Num n -> Int64.to_string n
   | Location l -> location_text l
-  | Null_ptr -> "#null-ptr"
+  | Null_ptr -> "#null_ptr"
 
 let parse_runtime_value text =
   L.protect (fun () ->
       let text = String.trim text in
-      if text = "#null-ptr" then Null_ptr
+      if text = "#null_ptr" then Null_ptr
       else if
         String.starts_with ~prefix:"loc(" text
         && String.ends_with ~suffix:")" text
@@ -139,7 +143,7 @@ and parse_value p =
   loop a
 
 and parse_atom p =
-  if L.eat p "#null-ptr" then NullPtr
+  if L.eat p "#null_ptr" then NullPtr
   else if L.eat_keyword p "ld" then Load (parse_place p)
   else if L.eat_symbol p '(' then (
     let v = parse_value p in
@@ -278,7 +282,7 @@ let rec eval_place s = function
   | Deref v -> (
       match eval_value s v with
       | Location loc -> loc
-      | Null_ptr -> failwith "cannot dereference #null-ptr"
+      | Null_ptr -> failwith "cannot dereference #null_ptr"
       | Num _ -> failwith "dereference expects a location value")
 
 and eval_value s = function

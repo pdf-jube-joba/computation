@@ -3,24 +3,30 @@ open Common
 type stmt =
   | Nop
   | Seq of stmt * stmt
-  | Assign of string * aexp
+  | Assign of Utils.Identifier.t * aexp
   | If of bexp * stmt
   | While of bexp * stmt
-  | Call of string * string list * string list
-  | Return of string list
+  | Call of
+      Utils.Identifier.t * Utils.Identifier.t list * Utils.Identifier.t list
+  | Return of Utils.Identifier.t list
 [@@deriving yojson]
 
 type proc_def = {
-  name : string;
-  params : string list;
-  locals : string list;
+  name : Utils.Identifier.t;
+  params : Utils.Identifier.t list;
+  locals : Utils.Identifier.t list;
   body : stmt;
 }
 [@@deriving yojson]
 
-type code = { statics : string list; procs : proc_def list } [@@deriving yojson]
+type code = { statics : Utils.Identifier.t list; procs : proc_def list }
+[@@deriving yojson]
 
-type frame = { stmt : stmt; local_env : env; ret_vars : string list }
+type frame = {
+  stmt : stmt;
+  local_env : env;
+  ret_vars : Utils.Identifier.t list;
+}
 [@@deriving yojson]
 
 type state = {

@@ -1,6 +1,6 @@
 open Utils.Machine
 
-type var = { id : int; name : string }
+type var = { id : int; name : Utils.Identifier.t }
 type term = Var of var | Abs of var * term | App of term * term
 type code = term
 type ainput = term list
@@ -21,10 +21,8 @@ let tokenize text =
     i + String.length prefix <= length
     && String.sub text i (String.length prefix) = prefix
   in
-  let start = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false in
-  let continue c =
-    start c || match c with '0' .. '9' | '-' | '\'' -> true | _ -> false
-  in
+  let start = Utils.Identifier.is_start in
+  let continue = Utils.Identifier.is_continue in
   let rec scan i acc =
     if i = length then List.rev (End :: acc)
     else
@@ -254,7 +252,7 @@ let print term =
     | Some name -> name
     | None ->
         let rec choose name =
-          if Hashtbl.mem used name then choose (name ^ "'") else name
+          if Hashtbl.mem used name then choose (name ^ "_") else name
         in
         let name = choose var.name in
         Hashtbl.add names var.id name;
@@ -292,7 +290,7 @@ let restore json =
     | `Assoc fields -> (
         match (List.assoc_opt "id" fields, List.assoc_opt "name" fields) with
         | Some (`Int id), Some (`String name)
-          when id >= 0 && id < max_int && name <> "" -> (
+          when id >= 0 && id < max_int && Utils.Identifier.valid name -> (
             match Hashtbl.find_opt vars id with
             | Some var when var.name <> name ->
                 Error "Conflicting variable names"

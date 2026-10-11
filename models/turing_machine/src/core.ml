@@ -1,18 +1,19 @@
 open Utils.Machine
 
 type direction = Right | Constant | Left [@@deriving yojson]
-type sign = string option [@@deriving yojson]
+type sign = Utils.Identifier.t option [@@deriving yojson]
 
 type tape = { left : sign list; head : sign; right : sign list }
 [@@deriving yojson]
 
 (* Both sides are stored nearest to the head first. *)
-type code_entry = (sign * string) * (sign * string * direction)
+type code_entry =
+  (sign * Utils.Identifier.t) * (sign * Utils.Identifier.t * direction)
 [@@deriving yojson]
 
 type code = {
-  init_state : string;
-  accepted_state : string list;
+  init_state : Utils.Identifier.t;
+  accepted_state : Utils.Identifier.t list;
   code : code_entry list;
 }
 [@@deriving yojson]
@@ -22,7 +23,11 @@ type rinput = unit
 type routput = unit
 type foutput = tape
 
-type state = { definition : code; current_state : string; tape : tape }
+type state = {
+  definition : code;
+  current_state : Utils.Identifier.t;
+  tape : tape;
+}
 [@@deriving yojson]
 
 let unwrap = function Ok v -> v | Error e -> failwith e
@@ -338,7 +343,7 @@ module Direction = struct
 end
 
 module State = struct
-  type t = string
+  type t = Utils.Identifier.t
 
   let parse = parse_state
   let print s = s

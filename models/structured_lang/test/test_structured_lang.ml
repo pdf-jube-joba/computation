@@ -222,7 +222,7 @@ let test_fnptr () =
       let value = get (F.parse_runtime_value text) in
       if get (F.parse_runtime_value (F.print_runtime_value value)) <> value then
         failwith "FnPtr value roundtrip")
-    [ "-7"; "#null-ptr"; "loc(3, 2)" ];
+    [ "-7"; "#null_ptr"; "loc(3, 2)" ];
   let source =
     {|fn inc(ptr) {assign (ld ptr) #loc := (ld (ld ptr) #loc) + 1;return}
  fn main(x) {assign x := 4;call inc(x #addr);return}|}
@@ -317,7 +317,7 @@ let test_mini () =
   eq
     (run
        {|static u:#unit static p:#ptr static f:#fn
- fn main(){if ld static u #unit == ld static p #null-ptr == && ld static f #null-fn == && return 1;return 0}|}
+ fn main(){if ld static u #unit == ld static p #null_ptr == && ld static f #null_fn == && return 1;return 0}|}
        [])
     "1";
   eq
@@ -346,7 +346,7 @@ let test_mini () =
        [ "5" ])
     "5";
   let source =
-    "fn main(){block(p:#ptr){assign local p := #null-ptr;return ld (ld local \
+    "fn main(){block(p:#ptr){assign local p := #null_ptr;return ld (ld local \
      p) #loc}}"
   in
   let rec expect_runtime_error fuel s =

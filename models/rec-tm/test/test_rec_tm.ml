@@ -108,8 +108,8 @@ let () =
      v==const c jump scan_b} label done:{}}"
     "-|a|b,c" "-,a,b|c|";
   equivalent
-    "alphabet:(a) fn some-function {label entry-label:{v-1:=const a @:=v-1}} \
-     fn main {label start:{call some-function()}}"
+    "alphabet:(a) fn some_function {label entry_label:{v_1:=const a @:=v_1}} \
+     fn main {label start:{call some_function()}}"
     "|-|" "|a|";
   let invalid =
     "alphabet:(a) fn f {label entry:{call f}} fn main {label entry:{call f}}"

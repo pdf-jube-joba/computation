@@ -164,9 +164,9 @@
 graph: main {
     in {I}
     out {O=A.OUT}
-    B, BR-F {IN=I}
-    N, NOT-T {IN=B.OUT0}
-    A, AND-F {IN0=B.OUT1, IN1=N.OUT}
+    B, BR_F {IN=I}
+    N, NOT_T {IN=B.OUT0}
+    A, AND_F {IN0=B.OUT1, IN1=N.OUT}
 }
 </template>
 <template data-default-ainput>

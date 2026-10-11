@@ -1,6 +1,9 @@
 open Isa_common
 
-type raw_value = Imm of N.t | Label of string | Const of string
+type raw_value =
+  | Imm of N.t
+  | Label of Utils.Identifier.t
+  | Const of Utils.Identifier.t
 [@@deriving yojson]
 
 type raw_operand = Reg of int | Value of raw_value [@@deriving yojson]
@@ -12,11 +15,12 @@ type raw_inst = {
 }
 [@@deriving yojson]
 
-type raw_directive = Text | Data | Equ of string * N.t [@@deriving yojson]
+type raw_directive = Text | Data | Equ of Utils.Identifier.t * N.t
+[@@deriving yojson]
 
 type raw_item =
   | Directive of raw_directive
-  | LabelDef of string
+  | LabelDef of Utils.Identifier.t
   | Inst of raw_inst
   | DataValue of raw_value
 [@@deriving yojson]
@@ -31,17 +35,17 @@ type asm_output = { regs : N.t array; data_memory : N.t list }
 [@@deriving yojson]
 
 type symbols = {
-  consts : (string * N.t) list;
-  text_labels : (string * int) list;
-  data_labels : (string * int) list;
+  consts : (Utils.Identifier.t * N.t) list;
+  text_labels : (Utils.Identifier.t * int) list;
+  data_labels : (Utils.Identifier.t * int) list;
   code_len : int;
   data_len : int;
 }
 [@@deriving yojson]
 
 type debug_info = {
-  text_labels_by_addr : (int * string list) list;
-  data_labels_by_addr : (int * string list) list;
+  text_labels_by_addr : (int * Utils.Identifier.t list) list;
+  data_labels_by_addr : (int * Utils.Identifier.t list) list;
 }
 [@@deriving yojson]
 
@@ -100,13 +104,12 @@ let parse_raw_value token =
   if t = "" then failwith "Empty value";
   if String.starts_with ~prefix:"#" t then
     Imm (value (number (strip_prefix "#" t)))
-  else if String.starts_with ~prefix:"@" t then (
+  else if String.starts_with ~prefix:"@" t then
     let name = strip_prefix "@" t in
-    if name = "" then failwith "Empty label value";
-    Label name)
+    Label (value (Utils.Identifier.make name))
   else if String.for_all (function '0' .. '9' -> true | _ -> false) t then
     Imm (value (number t))
-  else Const t
+  else Const (value (Utils.Identifier.make t))
 
 let parse_operand t =
   if String.starts_with ~prefix:"%" t then Reg (parse_reg t)
@@ -127,7 +130,9 @@ let parse_directive line =
   match words line with
   | [ ".text" ] -> Text
   | [ ".data" ] -> Data
-  | [ ".equ"; name; n ] -> Equ (name, value (number (strip_prefix "#" n)))
+  | [ ".equ"; name; n ] ->
+      Equ
+        (value (Utils.Identifier.make name), value (number (strip_prefix "#" n)))
   | _ -> failwith ("Unsupported directive syntax: " ^ line)
 
 let parse_code text =
@@ -142,12 +147,11 @@ let parse_code text =
               if
                 String.starts_with ~prefix:"@" line
                 && String.ends_with ~suffix:":" line
-              then (
+              then
                 let n =
                   String.trim (strip_suffix ":" (strip_prefix "@" line))
                 in
-                if n = "" then failwith "Empty label";
-                LabelDef n)
+                LabelDef (value (Utils.Identifier.make n))
               else if String.starts_with ~prefix:"." line then (
                 let d = parse_directive line in
                 (match d with Text | Data -> section := d | Equ _ -> ());

@@ -2,7 +2,7 @@ open Data_parser
 
 type aexp =
   | Const of string list
-  | Var of string
+  | Var of Utils.Identifier.t
   | Concat of aexp * aexp
   | Head of aexp
   | Tail of aexp
@@ -12,14 +12,14 @@ type bexp = IsEmpty of aexp | Eq of aexp * aexp [@@deriving yojson]
 
 type stmt =
   | Nop
-  | Assign of string * aexp
+  | Assign of Utils.Identifier.t * aexp
   | Seq of stmt * stmt
   | If of bexp * stmt
   | While of bexp * stmt
 [@@deriving yojson]
 
 type code = stmt [@@deriving yojson]
-type environment = (string * string list) list [@@deriving yojson]
+type environment = (Utils.Identifier.t * string list) list [@@deriving yojson]
 type ainput = environment
 type rinput = unit
 type routput = unit
@@ -37,7 +37,7 @@ let rec aexp_to_text = function
   | Tail a -> "tail " ^ aexp_to_text a
 
 let bexp_to_text = function
-  | IsEmpty a -> "is-empty " ^ aexp_to_text a
+  | IsEmpty a -> "is_empty " ^ aexp_to_text a
   | Eq (a, b) -> aexp_to_text a ^ " == " ^ aexp_to_text b
 
 let rec stmt_to_text = function
@@ -50,7 +50,7 @@ let rec stmt_to_text = function
 let print = stmt_to_text
 
 let reserved =
-  [ "Nop"; "if"; "then"; "end"; "while"; "is-empty"; "head"; "tail" ]
+  [ "Nop"; "if"; "then"; "end"; "while"; "is_empty"; "head"; "tail" ]
 
 let parse_name p =
   let n = ident p in
@@ -89,7 +89,7 @@ and parse_prefix p =
     | _ -> fail "Invalid aexp"
 
 let parse_bexp p =
-  if eat p (Word "is-empty") then IsEmpty (parse_aexp p)
+  if eat p (Word "is_empty") then IsEmpty (parse_aexp p)
   else
     let a = parse_aexp p in
     expect p (Op "==");

@@ -64,7 +64,7 @@ let () =
   assert (not (value first));
   assert (value (advance first []));
   let code =
-    "/* comment */ graph: main {in {I} out {O=A.OUT} A, NOT-F {IN=I}}"
+    "/* comment */ graph: main {in {I} out {O=A.OUT} A, NOT_F {IN=I}}"
   in
   let main = ok (parse_code code) in
   assert (
@@ -84,22 +84,22 @@ let () =
          [ (pin "main" "UNKNOWN", true); (pin "UNKNOWN" "IN", true) ]));
   (* Maps targeting absent vertices are accepted, exactly as in Rust. *)
   let permissive =
-    ok (parse_code "graph: main { in {A, d} out {a=b.c} A, AND-T {} }")
+    ok (parse_code "graph: main { in {A, d} out {a=b.c} A, AND_T {} }")
   in
   assert (get_otpins permissive = [ pin "A" "OUT" ]);
   let permissive_json = render permissive |> Yojson.Safe.to_string in
   assert (String.length permissive_json > 0);
-  bad (parse_code "graph: main {in {} out {} A, NOT-F {} A, NOT-T {}}");
-  bad (parse_code "graph: main {in {} out {} A, NOT-F {IN=absent.OUT}}");
-  bad (parse_code "graph: main {in {} out {} A, NOT-F {IN=X}}");
-  bad (parse_code "graph: main {in {} out {} A, NO-SUCH-GATE {}}");
+  bad (parse_code "graph: main {in {} out {} A, NOT_F {} A, NOT_T {}}");
+  bad (parse_code "graph: main {in {} out {} A, NOT_F {IN=absent.OUT}}");
+  bad (parse_code "graph: main {in {} out {} A, NOT_F {IN=X}}");
+  bad (parse_code "graph: main {in {} out {} A, NO_SUCH_GATE {}}");
   bad
     (parse_code
-       "graph: main {in {} out {} A, BR-F {} B, DLY-F {IN=A.OUT0} C, DLY-F \
+       "graph: main {in {} out {} A, BR_F {} B, DLY_F {IN=A.OUT0} C, DLY_F \
         {IN=A.OUT0}}");
   bad
     (parse_code
-       "graph: main {in {} out {} A, DLY-F {} B, AND-F {IN0=A.OUT IN0=A.OUT}}");
+       "graph: main {in {} out {} A, DLY_F {} B, AND_F {IN0=A.OUT IN0=A.OUT}}");
   bad (parse_code "graph: _bad { in {} out {} } trailing");
   bad (parse_code "graph: 123 {in {} out {}}");
   bad (parse_code "");
@@ -193,31 +193,31 @@ let () =
   assert (
     List.map fst (Manipulation.init_maps ())
     = [
-        "NOT-T";
-        "NOT-F";
-        "AND-T";
-        "AND-F";
-        "OR-T";
-        "OR-F";
-        "CST-T";
-        "CST-F";
-        "BR-T";
-        "BR-F";
+        "NOT_T";
+        "NOT_F";
+        "AND_T";
+        "AND_F";
+        "OR_T";
+        "OR_F";
+        "CST_T";
+        "CST_F";
+        "BR_T";
+        "BR_F";
         "END";
-        "DLY-T";
-        "DLY-F";
+        "DLY_T";
+        "DLY_F";
       ]);
-  assert (Manipulation.by_const "my-gate_1" = "my-gate_1");
+  assert (Manipulation.by_const "my_gate_1" = "my_gate_1");
   (try
      ignore (Manipulation.by_const "123");
      failwith "Expected invalid identifier"
    with Invalid_argument _ -> ());
   assert (List.length library = 19);
-  let one_shot = List.assoc "one-shot" library in
-  let pulse = advance one_shot [ (pin "one-shot" "I", true) ] in
+  let one_shot = List.assoc "one_shot" library in
+  let pulse = advance one_shot [ (pin "one_shot" "I", true) ] in
   assert (not (value pulse));
-  assert (value (advance pulse [ (pin "one-shot" "I", true) ]));
-  assert (not (value (clocks 6 one_shot [ (pin "one-shot" "I", true) ])));
+  assert (value (advance pulse [ (pin "one_shot" "I", true) ]));
+  assert (not (value (clocks 6 one_shot [ (pin "one_shot" "I", true) ])));
   let xor = List.assoc "XOR" library in
   List.iter
     (fun a ->
@@ -246,8 +246,8 @@ let () =
       let c = clocks 20 (List.assoc name library) [] in
       assert (ok (restore (snapshot c)) = c);
       assert (List.length (as_graph_group c).verts > 0))
-    [ "RS-latch"; "DFF" ];
-  let iter = ok (parse_code "iter: main {DLY-F, next {OUT=IN} prev {}}") in
+    [ "RS_latch"; "DFF" ];
+  let iter = ok (parse_code "iter: main {DLY_F, next {OUT=IN} prev {}}") in
   assert (get_inpins iter = [] && get_otputs iter = [] && advance iter [] = iter);
   (* Typed callers can seed the decimal index that Rust's text Identifier
      cannot express. Generated _n_ labels remain distinct and ignored. *)

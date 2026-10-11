@@ -1,5 +1,5 @@
-(* Both original languages have character literals, including Unicode scalars,
-   and hyphenated identifiers. Keep that lexer distinct from Utils.Lexer. *)
+(* Both languages have character literals, including Unicode scalars.
+   Keep that lexer distinct from Utils.Lexer. *)
 type token =
   | Word of string
   | Character of string
@@ -37,8 +37,8 @@ let char_text = function
 
 let create s =
   let n = String.length s in
-  let alpha = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false in
-  let alnum c = alpha c || (c >= '0' && c <= '9') || c = '-' in
+  let alpha = Utils.Identifier.is_start in
+  let alnum = Utils.Identifier.is_continue in
   let rec scan i acc =
     if i = n then Array.of_list (List.rev (Eof :: acc))
     else

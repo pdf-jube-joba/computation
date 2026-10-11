@@ -35,7 +35,7 @@
   &| \T{left} \NT{texp} \\
   &| \T{right} \NT{texp} \\
 \NT{bexp} &\defeq \\
-  &| \NT{is-atom} \NT{texp} \\
+  &| \NT{is_atom} \NT{texp} \\
   &| \NT{texp} \T{==} \NT{texp} \\
 \\
 \NT{stmt} &\defeq \\

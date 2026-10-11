@@ -3,7 +3,7 @@ open Data_parser
 type aexp = Mtoa of texp | AtomChar of string
 
 and texp =
-  | Var of string
+  | Var of Utils.Identifier.t
   | Atom of aexp
   | Cons of texp * texp
   | Left of texp
@@ -14,7 +14,7 @@ type bexp = IsAtom of texp | Eq of texp * texp [@@deriving yojson]
 
 type stmt =
   | Nop
-  | Assign of string * texp
+  | Assign of Utils.Identifier.t * texp
   | Seq of stmt * stmt
   | IfEq of bexp * stmt
   | While of bexp * stmt
@@ -24,7 +24,7 @@ type value = AtomValue of string | ConsValue of value * value
 [@@deriving yojson]
 
 type code = stmt [@@deriving yojson]
-type environment = (string * value) list [@@deriving yojson]
+type environment = (Utils.Identifier.t * value) list [@@deriving yojson]
 type ainput = environment
 type rinput = unit
 type routput = unit
@@ -43,7 +43,7 @@ and texp_to_text = function
   | Right a -> "right " ^ texp_to_text a
 
 let bexp_to_text = function
-  | IsAtom a -> "is-atom " ^ texp_to_text a
+  | IsAtom a -> "is_atom " ^ texp_to_text a
   | Eq (a, b) -> "(" ^ texp_to_text a ^ " == " ^ texp_to_text b ^ ")"
 
 let rec stmt_to_text = function
@@ -66,7 +66,7 @@ let reserved =
     "then";
     "end";
     "while";
-    "is-atom";
+    "is_atom";
     "mtoa";
     "atom";
     "cons";
@@ -102,7 +102,7 @@ and parse_texp p =
   else Var (parse_name p)
 
 let parse_bexp p =
-  if eat p (Word "is-atom") then IsAtom (parse_texp p)
+  if eat p (Word "is_atom") then IsAtom (parse_texp p)
   else
     (* Rust's printer parenthesizes equality. Accept that printed form too. *)
     let saved = p.pos in

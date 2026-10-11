@@ -1,5 +1,5 @@
-type pin = string [@@deriving yojson]
-type named_pin = string * pin [@@deriving yojson]
+type pin = Utils.Identifier.t [@@deriving yojson]
+type named_pin = Utils.Identifier.t * pin [@@deriving yojson]
 type signal = (named_pin * bool) list [@@deriving yojson]
 type gate_kind = Cst | Not | And | Or | Br | Delay | End [@@deriving yojson]
 type gate = { gate_kind : gate_kind; state : bool } [@@deriving yojson]
@@ -7,15 +7,15 @@ type gate = { gate_kind : gate_kind; state : bool } [@@deriving yojson]
 type t = Gate of gate | Mix of mix | Iter of iter
 
 and mix = {
-  kind : string;
-  verts : (string * t) list;
+  kind : Utils.Identifier.t;
+  verts : (Utils.Identifier.t * t) list;
   edges : (named_pin * named_pin) list;
   inpin_maps : (pin * named_pin) list;
   otpin_maps : (pin * named_pin) list;
 }
 
 and iter = {
-  kind : string;
+  kind : Utils.Identifier.t;
   init : t;
   used : t list;
   next_edges : (pin * pin) list;
@@ -26,7 +26,7 @@ and iter = {
 [@@deriving yojson]
 
 type graph = {
-  verts : (string * t) list;
+  verts : (Utils.Identifier.t * t) list;
   edges : (named_pin * named_pin) list;
   inpins_map : (named_pin * named_pin) list;
   otpins_map : (named_pin * named_pin) list;

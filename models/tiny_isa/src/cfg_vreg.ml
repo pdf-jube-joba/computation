@@ -1,6 +1,6 @@
 open Isa_common
 
-type addr_expr = VReg of int | Label of string | Imm of N.t
+type addr_expr = VReg of int | Label of Utils.Identifier.t | Imm of N.t
 [@@deriving yojson]
 
 type place_expr = addr_expr [@@deriving yojson]
@@ -8,7 +8,7 @@ type place_expr = addr_expr [@@deriving yojson]
 type value_expr =
   | VRegValue of int
   | ImmValue of N.t
-  | LabelValue of string
+  | LabelValue of Utils.Identifier.t
   | Deref of place_expr
 [@@deriving yojson]
 
@@ -29,10 +29,11 @@ type stmt =
 type jump_if = { cond : cond; target : addr_expr } [@@deriving yojson]
 type cont = { ifs : jump_if list; jump : addr_expr } [@@deriving yojson]
 
-type block = { label : string; stmts : stmt list; cont : cont }
+type block = { label : Utils.Identifier.t; stmts : stmt list; cont : cont }
 [@@deriving yojson]
 
-type static_def = { label : string; value : N.t } [@@deriving yojson]
+type static_def = { label : Utils.Identifier.t; value : N.t }
+[@@deriving yojson]
 
 type code = { statics : static_def list; blocks : block list }
 [@@deriving yojson]
@@ -40,8 +41,8 @@ type code = { statics : static_def list; blocks : block list }
 type compiled_program = {
   blocks : block array;
   entry_block : int;
-  block_index : (string * int) list;
-  static_labels : (string * int) list;
+  block_index : (Utils.Identifier.t * int) list;
+  static_labels : (Utils.Identifier.t * int) list;
 }
 [@@deriving yojson]
 
@@ -83,7 +84,8 @@ let parse_vreg s =
 let parse_addr_expr s =
   let s = String.trim s in
   if String.starts_with ~prefix:"%v" s then VReg (parse_vreg s)
-  else if String.starts_with ~prefix:"@" s then Label (strip_prefix "@" s)
+  else if String.starts_with ~prefix:"@" s then
+    Label (value (Utils.Identifier.make (strip_prefix "@" s)))
   else if String.starts_with ~prefix:"#" s then
     Imm (value (number (strip_prefix "#" s)))
   else if
@@ -188,11 +190,11 @@ let parse_code text =
           if
             String.starts_with ~prefix:"@" line
             && String.ends_with ~suffix:"{" line
-          then (
+          then
             let label =
               String.trim (strip_suffix "{" (strip_prefix "@" line))
             in
-            if label = "" then failwith ("Invalid block header: " ^ line);
+            let label = value (Utils.Identifier.make label) in
             let rec block j stmts ifs jump =
               if j = Array.length lines then
                 failwith ("Unclosed block: @" ^ label);
@@ -229,14 +231,18 @@ let parse_code text =
                     )
             in
             let b, j = block (i + 1) [] [] None in
-            top j statics (b :: blocks))
+            top j statics (b :: blocks)
           else
             match words line with
             | [ label; n ]
               when String.starts_with ~prefix:"@" label
                    && not (String.ends_with ~suffix:":" label) ->
                 let s : static_def =
-                  { label = strip_prefix "@" label; value = value (number n) }
+                  {
+                    label =
+                      value (Utils.Identifier.make (strip_prefix "@" label));
+                    value = value (number n);
+                  }
                 in
                 top (i + 1) (s :: statics) blocks
             | _ -> failwith ("Unexpected top-level line: " ^ line)

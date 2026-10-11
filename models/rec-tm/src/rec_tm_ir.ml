@@ -3,9 +3,13 @@ open Ir_common
 module T = Turing_machine
 module L = Utils.Lexer
 
-type lvalue = Ir_common.lvalue = Var of string | Head [@@deriving yojson]
+type lvalue = Ir_common.lvalue = Var of Utils.Identifier.t | Head
+[@@deriving yojson]
 
-type rvalue = Ir_common.rvalue = Var of string | Head | Const of T.sign
+type rvalue = Ir_common.rvalue =
+  | Var of Utils.Identifier.t
+  | Head
+  | Const of T.sign
 [@@deriving yojson]
 
 type condition = Ir_common.condition = { left : rvalue; right : rvalue }
@@ -17,13 +21,16 @@ type stmt =
   | Assign of lvalue * rvalue
   | Break of condition option
   | Continue of condition option
-  | Jump of string * condition option
+  | Jump of Utils.Identifier.t * condition option
   | Return of condition option
-  | Call of string
+  | Call of Utils.Identifier.t
 [@@deriving yojson]
 
-type block = { label : string; body : stmt list } [@@deriving yojson]
-type func = { name : string; blocks : block list } [@@deriving yojson]
+type block = { label : Utils.Identifier.t; body : stmt list }
+[@@deriving yojson]
+
+type func = { name : Utils.Identifier.t; blocks : block list }
+[@@deriving yojson]
 
 type code = { alphabet : T.sign list; functions : func list }
 [@@deriving yojson]
@@ -34,7 +41,7 @@ type routput = unit
 type foutput = T.tape
 
 type frame = {
-  function_ : string;
+  function_ : Utils.Identifier.t;
   env : environment;
   blocks : block list;
   pc : int * int;

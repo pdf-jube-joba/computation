@@ -3,9 +3,13 @@ open Ir_common
 module T = Turing_machine
 module L = Utils.Lexer
 
-type lvalue = Ir_common.lvalue = Var of string | Head [@@deriving yojson]
+type lvalue = Ir_common.lvalue = Var of Utils.Identifier.t | Head
+[@@deriving yojson]
 
-type rvalue = Ir_common.rvalue = Var of string | Head | Const of T.sign
+type rvalue = Ir_common.rvalue =
+  | Var of Utils.Identifier.t
+  | Head
+  | Const of T.sign
 [@@deriving yojson]
 
 type condition = Ir_common.condition = { left : rvalue; right : rvalue }

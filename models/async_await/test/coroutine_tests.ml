@@ -131,13 +131,13 @@ let () =
   let code =
     ok
       (C.parse_code
-         "fn main { foo-bar <- 7; call child-task; run child-task -> $task-id; \
+         "fn main { foo_bar <- 7; call child_task; run child_task -> $task_id; \
           yield }\n\
-          fn child-task { result <- 3 }")
+          fn child_task { result <- 3 }")
   in
   assert (ok (C.parse_code (C.print code)) = code);
   let env, _ = run 40 (ok (C.make code 1)) [] in
-  assert (C.get_var env "foo-bar" = "7" && C.get_var env "result" = "3");
-  assert (List.assoc "task-id" env.task_ids = Some 1);
-  assert (C.get_var (ok (C.parse_env "foo-bar = +7")) "foo-bar" = "7");
+  assert (C.get_var env "foo_bar" = "7" && C.get_var env "result" = "3");
+  assert (List.assoc "task_id" env.task_ids = Some 1);
+  assert (C.get_var (ok (C.parse_env "foo_bar = +7")) "foo_bar" = "7");
   print_endline "coroutine tests passed"

@@ -14,7 +14,7 @@ mini_prog はいろいろ詰め込んでいてよくわからないので、こ�
     &\syntaxname{dereference} \\
 \\
 \NT{value-expr} &\defeq \\
-  &| \N | \T{\#null-ptr} \\
+  &| \N | \T{\#null_ptr} \\
   &| \NT{value-expr} \NT{value-expr} \NT{binop} \\
   &| \T{ld} \NT{place-expr}
     &\syntaxname{load from location} \\
@@ -43,7 +43,7 @@ location ~ pointer みたいに使える。
 local の導入方法は関数しかない。
 
 - \(L\): set ... location 用でなんでもいい。（例えば、 frameId * offset とか。）
-- \(V\) := \(\N + L + \T{\#null-ptr}\)
+- \(V\) := \(\N + L + \T{\#null_ptr}\)
 - \(E\) := \(\NT{var} \pfun L\)
 - \(S\) := \(\texttt{list}(L \to V)\) ... store だが、関数呼び出し前後で push/pop する。（ call stack に対応）
 - \(S[l := v]\) := \(l\) が \(S\) に存在する場合に限り \(S[l]\) を \(v\) で上書きしたものとする。

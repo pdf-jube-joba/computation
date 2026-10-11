@@ -44,12 +44,7 @@ let create text =
   scan 0 0;
   { L.tokens = Array.of_list (List.rev ((L.Eof, n) :: !tokens)); pos = 0 }
 
-let parse f text =
-  L.protect (fun () ->
-      let p = create text in
-      let v = f p in
-      L.expect_eof p;
-      v)
+let parse f text = L.parse_with create f text
 
 let type_atom p =
   L.expect_symbol p '#';
@@ -152,8 +147,8 @@ and parse_value p stop =
       | _ when L.eat p "#true" -> push (Boolean true)
       | _ when L.eat p "#false" -> push (Boolean false)
       | _ when L.eat p "#unit" -> push Unit_value
-      | _ when L.eat p "#null-ptr" -> push NullPtr
-      | _ when L.eat p "#null-fn" -> push NullFn
+      | _ when L.eat p "#null_ptr" -> push NullPtr
+      | _ when L.eat p "#null_fn" -> push NullFn
       | _ when L.eat_keyword p "fn" -> push (Function (ident p))
       | _ when L.eat_keyword p "ld" -> push (Load (parse_place p))
       | L.Ident ("static" | "local") | L.Symbol '(' ->

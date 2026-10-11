@@ -28,8 +28,8 @@ let () =
           Value.Array [ Value.Bit true; Value.Bit false ];
           Value.Strct [];
         ]);
-  assert (ok (parse_value "<A-b_1>") = Value.Enume "A-b_1");
-  assert (ok (parse_value "<->") = Value.Enume "-");
+  assert (ok (parse_value "<A_b_1>") = Value.Enume "A_b_1");
+  assert (ok (parse_value "<_>") = Value.Enume "_");
   assert (Value.new_strct [] = Some (Value.Strct []));
   assert (Value.new_strct [ ("field", Value.Bit true) ] = None);
   List.iter

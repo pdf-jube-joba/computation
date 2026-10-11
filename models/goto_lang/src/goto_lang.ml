@@ -2,15 +2,15 @@ open Utils
 open Machine
 
 type command =
-  | Clr of string
-  | Inc of string
-  | Dec of string
-  | Cpy of string * string
-  | Ifnz of string * Number.t
+  | Clr of Utils.Identifier.t
+  | Inc of Utils.Identifier.t
+  | Dec of Utils.Identifier.t
+  | Cpy of Utils.Identifier.t * Utils.Identifier.t
+  | Ifnz of Utils.Identifier.t * Number.t
 [@@deriving yojson]
 
 type code = command list [@@deriving yojson]
-type ainput = (string * Number.t) list [@@deriving yojson]
+type ainput = (Utils.Identifier.t * Number.t) list [@@deriving yojson]
 type rinput = unit
 type routput = unit
 type foutput = ainput

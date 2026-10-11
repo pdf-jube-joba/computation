@@ -19,7 +19,7 @@ let ident p =
 
 let number p = get (N.of_string (L.natural p))
 
-type env = (string * N.t) list [@@deriving yojson]
+type env = (Utils.Identifier.t * N.t) list [@@deriving yojson]
 
 let env_get e k = Option.value (List.assoc_opt k e) ~default:N.zero
 
@@ -85,7 +85,7 @@ let validate_env statics env ~duplicate ~extra ~missing =
 let string_json s = `String s
 let unit_json () = `String ""
 
-type atom = Var of string | Imm of N.t [@@deriving yojson]
+type atom = Var of Utils.Identifier.t | Imm of N.t [@@deriving yojson]
 type abinop = Add | Sub [@@deriving yojson]
 type aexp = Atom of atom | Bin of atom * abinop * atom [@@deriving yojson]
 type relop = Lt | Eq | Gt [@@deriving yojson]

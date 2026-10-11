@@ -11,11 +11,11 @@ type expr =
   | Bool of bool
   | Unit
   | Print of N.t
-  | Var of string
+  | Var of Utils.Identifier.t
   | BinOp of expr * binop * expr
   | UnOp of unop * expr
-  | Fun of string * expr
-  | Rec of string * string * expr
+  | Fun of Utils.Identifier.t * expr
+  | Rec of Utils.Identifier.t * Utils.Identifier.t * expr
   | App of expr * expr
   | If of expr * expr * expr
   | Block of stmt * expr
@@ -24,7 +24,7 @@ and stmt =
   | Skip
   | PrintStmt of N.t
   | Seq of stmt * stmt
-  | Let of string * expr
+  | Let of Utils.Identifier.t * expr
   | IfStmt of expr * stmt
   | While of expr * stmt
 [@@deriving yojson]

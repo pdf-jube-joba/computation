@@ -3,24 +3,27 @@ open Common
 type stmt =
   | Nop
   | Seq of stmt * stmt
-  | Assign of string * aexp
+  | Assign of Utils.Identifier.t * aexp
   | If of bexp * stmt
-  | Break of string * string
-  | Continue of string
-  | Loop of string * stmt * string
+  | Break of Utils.Identifier.t * Utils.Identifier.t
+  | Continue of Utils.Identifier.t
+  | Loop of Utils.Identifier.t * stmt * Utils.Identifier.t
 [@@deriving yojson]
 
-type code = { statics : string list; body : stmt } [@@deriving yojson]
+type code = { statics : Utils.Identifier.t list; body : stmt }
+[@@deriving yojson]
 
 type control =
   | Normal
-  | Break_result of string * N.t
-  | Continue_result of string
+  | Break_result of Utils.Identifier.t * N.t
+  | Continue_result of Utils.Identifier.t
 [@@deriving yojson]
 
 type exec = Stmt of stmt | Result of control [@@deriving yojson]
 
-type frame = Loop_frame of string * stmt * string | Seq_frame of stmt
+type frame =
+  | Loop_frame of Utils.Identifier.t * stmt * Utils.Identifier.t
+  | Seq_frame of stmt
 [@@deriving yojson]
 
 type ainput = env [@@deriving yojson]

@@ -12,7 +12,7 @@ type frame =
   | AppFun of expr * env
   | AppArg of value
   | IfExpr of expr * expr * env
-  | LetFrame of string * env
+  | LetFrame of Utils.Identifier.t * env
   | SeqFrame of stmt
   | IfStmtFrame of stmt * env
   | WhileFrame of expr * stmt * env

@@ -39,7 +39,7 @@ let () =
   let code =
     ok
       (A.parse_code
-         "x := ['a'] ; y := head x ++ ['b'] ++ tail x ; if is-empty missing \
+         "x := ['a'] ; y := head x ++ ['b'] ++ tail x ; if is_empty missing \
           then z := tail [] end")
   in
   let env = run_a 40 (ok (A.make code [])) in
@@ -48,11 +48,11 @@ let () =
   let env =
     ok
       (A.parse_ainput
-         "foo-bar = ['猫', '\\n', '\\r', '\\t', '\\\\', '\\'']\n\
+         "foo_bar = ['猫', '\\n', '\\r', '\\t', '\\\\', '\\'']\n\
           x = []\n\
-          foo-bar = ['🙂']")
+          foo_bar = ['🙂']")
   in
-  assert (A.get env "foo-bar" = [ "🙂" ]);
+  assert (A.get env "foo_bar" = [ "🙂" ]);
   assert (
     ok
       (A.parse_ainput
@@ -92,7 +92,7 @@ let () =
               A.While (A.IsEmpty (A.Var "x"), A.Assign ("x", A.Const [ "a" ]))
             ) ));
   let code =
-    ok (T.parse_code "x := atom 'a' ; ifeq is-atom x then y := cons x x end")
+    ok (T.parse_code "x := atom 'a' ; ifeq is_atom x then y := cons x x end")
   in
   assert (ok (T.parse_code (T.print code)) = code);
   let code =
@@ -106,7 +106,7 @@ let () =
   assert (List.assoc "y" env = T.AtomValue "a");
   assert (List.assoc "z" env = T.AtomValue "b");
   assert (List.assoc "k" env = T.AtomValue "b");
-  let code = ok (T.parse_code "while is-atom x { x := cons x atom 'z' }") in
+  let code = ok (T.parse_code "while is_atom x { x := cons x atom 'z' }") in
   let env = run_t 30 (ok (T.make code [ ("x", T.AtomValue "a") ])) in
   assert (List.assoc "x" env = T.ConsValue (T.AtomValue "a", T.AtomValue "z"));
   let env =
@@ -114,7 +114,7 @@ let () =
       (T.parse_ainput
          "x = cons atom '猫' cons atom '\\n' atom '🙂'\n\
           x = atom '\\''\n\
-          foo-bar = atom 'é'")
+          foo_bar = atom 'é'")
   in
   assert (
     ok
@@ -151,7 +151,7 @@ let () =
       "x := ['ab']";
       "x := ['a',]";
       "x := [] ;";
-      "if is-empty x then Nop";
+      "if is_empty x then Nop";
       "x := [] junk";
     ];
   List.iter
@@ -160,7 +160,7 @@ let () =
       "";
       "x := atom ''";
       "x := atom 'ab'";
-      "while is-atom x { Nop";
+      "while is_atom x { Nop";
       "x := cons atom 'a'";
     ];
   error (A.parse_rinput "x");

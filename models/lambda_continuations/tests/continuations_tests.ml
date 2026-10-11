@@ -115,7 +115,7 @@ let () =
       "@((fun x => x) (succ zero))";
       "let x = zero in succ x";
       "pred succ zero";
-      "x-y_1";
+      "x_y_1";
     ];
   assert (parsed "(S S 0)" = two);
   assert (parsed "(fun x => x 0)" = T.App (T.Lam ("x", T.Var "x"), T.Zero));
@@ -132,9 +132,9 @@ let () =
       assert (get (Parse.lam_nat name) = T.Var name);
       assert (get (T.parse_code (T.write_code (T.Var name))) = T.Var name))
     [
-      "succ-x"; "zero-x"; "fun-x"; "rec-x"; "S-x"; "control-x"; "x-001"; "x--y";
+      "succ_x"; "zero_x"; "fun_x"; "rec_x"; "S_x"; "control_x"; "x_001"; "x__y";
     ];
-  assert (run "@((fun succ-x => succ-x) (succ zero))" "()" = T.Num "1");
+  assert (run "@((fun succ_x => succ_x) (succ zero))" "()" = T.Num "1");
   error (T.parse_code "abort zero");
   error (T.parse_code "grab k . k");
   error (T.parse_code "succ");

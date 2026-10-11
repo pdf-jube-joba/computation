@@ -1,7 +1,7 @@
 open Common
 
 type aexp =
-  | Var of string
+  | Var of Utils.Identifier.t
   | Num of N.t
   | BinOp of aexp * abinop * aexp
   | IfThenElse of bexp * aexp * aexp
@@ -11,7 +11,7 @@ and bexp = Rel of aexp * relop * aexp | Or of bexp * bexp | Not of bexp
 
 type stmt =
   | Nop
-  | Assign of string * aexp
+  | Assign of Utils.Identifier.t * aexp
   | Seq of stmt * stmt
   | If of bexp * stmt
   | While of bexp * stmt

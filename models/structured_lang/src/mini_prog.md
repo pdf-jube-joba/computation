@@ -38,7 +38,7 @@
 \\
 \NT{value-expr} &\defeq \\
   &| \N | \T{'} \NT{char} \T{'} | \T{\#true} | \T{\#false} | \T{\#unit} &\syntaxname{primitive value} \\
-  &| \T{\#null-ptr} | \T{\#null-fn} \\
+  &| \T{\#null_ptr} | \T{\#null_fn} \\
   &| \NT{value-expr} \NT{value-expr} \NT{binop} | \NT{value-expr} \NT{unop}  &\syntaxname{binop, unop} \\
   &| \NT{value-expr} (\T{,} \NT{value-expr})+ \T{pair} \T{\LP} \N \T{\RP} &\syntaxname{pair} \\
   &| \NT{value-expr} \T{tag} \T{\LP} \N \T{\RP} &\syntaxname{tagged sum} \\
@@ -86,14 +86,14 @@ location 自体を first class にもってくることでそのまま pointer �
 - \(V\) := sum of
   - \(V_p\) := sum of (メモリセル一つ分)
     - \(\N + \T{'} \NT{char} \T{'} + \T{\#true} + \T{\#false} + \T{\#unit}\)
-    - \(\T{\#null-ptr} + L\) ... データメモリへの"ポインタ"
-    - \(\T{\#null-fn} + \NT{fn-name}\) ... 関数ラベルへの"ポインタ"
+    - \(\T{\#null_ptr} + L\) ... データメモリへの"ポインタ"
+    - \(\T{\#null_fn} + \NT{fn-name}\) ... 関数ラベルへの"ポインタ"
   - \(V * V + V * V * V +\) ...pair と array
     - 一緒にしない方がいい？一応、型の方で防ぐことができる。
   - \(\N \times V\) ... sum
 - \(\text{type-match}(v: V, t: \NT{type}): \Bool\) := match (v, t) で以下の場合のみ true
   - \((n \in \N, t = \T{\#Number})\), \((c \in \NT{char}, \T{\#char})\), bool, unit も同じく。
-  - \((\T{\#null-ptr} | L, \T{\#ptr})\), \((\T{\#null-fn} | \NT{fn-name}, T{\#fn})\)
+  - \((\T{\#null_ptr} | L, \T{\#ptr})\), \((\T{\#null_fn} | \NT{fn-name}, T{\#fn})\)
   - \(((v_0, \ldots, v_n), (t_0 * \cdots * t_m))\) で \(n = m\), \(\text{type-match}(v_i, t_i)\)
   - \(((v_0, \ldots, v_n), [t; m])\) で \(\text{type-match}(v_i, t)\), \(n = m\)
   - \(((k \in \N, v), t_0 + \cdots t_n)\) で \(k \leq n\), \(\text{type-match}(v, t)\)
@@ -107,7 +107,7 @@ location 自体を first class にもってくることでそのまま pointer �
   - 変数と location の結びつきは関数間では共有されないので、これは scope だけ管理するため list でいい。
 
 まずはこんな感じで定義しておく。次に補助
-- \(\text{default-value}(t: \NT{type}): V\) := \(0 \in \N \T{'\textbackslash 0'} | \T{\#false} | \T{\#null-ptr} | \T{\#null-fn}\) を型に合わせて作る。
+- \(\text{default-value}(t: \NT{type}): V\) := \(0 \in \N \T{'\textbackslash 0'} | \T{\#false} | \T{\#null_ptr} | \T{\#null_fn}\) を型に合わせて作る。
 - \(S[l := v]\) は \(l\) の指す場所を上書きする（ persistent update ）
   1. \(l\) が \(S\) に存在し \(\text{type-match}(v, S[l].0)\) のときに限り
   2. \(S[l].1\) を \(v\) で上書きしたものとする。

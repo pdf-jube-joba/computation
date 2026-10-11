@@ -2,10 +2,13 @@ open Utils.Machine
 module T = Turing_machine
 module L = Utils.Lexer
 
-type lvalue = Var of string | Head [@@deriving yojson]
-type rvalue = Var of string | Head | Const of T.sign [@@deriving yojson]
+type lvalue = Var of Utils.Identifier.t | Head [@@deriving yojson]
+
+type rvalue = Var of Utils.Identifier.t | Head | Const of T.sign
+[@@deriving yojson]
+
 type condition = { left : rvalue; right : rvalue } [@@deriving yojson]
-type environment = (string * T.sign) list [@@deriving yojson]
+type environment = (Utils.Identifier.t * T.sign) list [@@deriving yojson]
 
 let unwrap = T.unwrap
 
@@ -30,10 +33,10 @@ let identifier ?(keywords = keywords) p =
   if List.mem s keywords then L.error p ("identifier cannot be a keyword: " ^ s);
   unwrap (Utils.Identifier.make s)
 
-(* Preserve the original IR lexer, including hyphens inside identifiers. *)
+(* The IR has a restricted set of symbols and uses '-' for the blank sign. *)
 let create text =
   let n = String.length text in
-  let alpha = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false in
+  let alpha = Utils.Identifier.is_start in
   let digit = function '0' .. '9' -> true | _ -> false in
   let rec scan i acc =
     if i = n then Array.of_list (List.rev ((L.Eof, n) :: acc))
@@ -46,28 +49,24 @@ let create text =
             !j < n
             &&
             if digit c then digit text.[!j]
-            else alpha text.[!j] || digit text.[!j] || text.[!j] = '-'
+            else Utils.Identifier.is_continue text.[!j]
           do
             incr j
           done;
           let s = String.sub text i (!j - i) in
           scan !j (((if digit c then L.Number s else L.Ident s), i) :: acc)
-      | '-' -> scan (i + 1) ((L.Ident "-", i) :: acc)
+      | '-' -> scan (i + 1) ((L.Symbol '-', i) :: acc)
       | ('(' | ')' | '{' | '}' | ',' | '@' | ':' | '=') as c ->
           scan (i + 1) ((L.Symbol c, i) :: acc)
       | c -> failwith (Printf.sprintf "Unexpected character '%c'" c)
   in
   { L.tokens = scan 0 []; pos = 0 }
 
-let parse f text =
-  L.protect (fun () ->
-      let p = create text in
-      let x = f p in
-      L.expect_eof p;
-      x)
+let parse f text = L.parse_with create f text
 
 let sign p =
   match L.next p with
+  | L.Symbol '-' -> None
   | L.Ident s -> unwrap (T.parse_sign s)
   | _ -> L.error p "Expected sign"
 

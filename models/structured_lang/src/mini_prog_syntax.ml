@@ -16,8 +16,8 @@ type binop = Add | Sub | Eq | Lt | And | Or [@@deriving yojson]
 type unop = Not [@@deriving yojson]
 
 type place_expr =
-  | Static of string
-  | Local of string
+  | Static of Utils.Identifier.t
+  | Local of Utils.Identifier.t
   | Field of place_expr * int
   | Tag_place of place_expr * int
   | Index of place_expr * value_expr
@@ -36,7 +36,7 @@ and value_expr =
   | Tag of int * value_expr
   | Load of place_expr
   | Addr of place_expr
-  | Function of string
+  | Function of Utils.Identifier.t
 [@@deriving yojson]
 
 type stmt =
@@ -45,23 +45,26 @@ type stmt =
   | Case of int * value_expr * stmt
   | HAlloc of ty * place_expr
   | HFree of value_expr
-  | Loop of string * stmt
-  | Break of string
-  | Continue of string
+  | Loop of Utils.Identifier.t * stmt
+  | Break of Utils.Identifier.t
+  | Continue of Utils.Identifier.t
   | Call of value_expr * value_expr list * place_expr list
   | Return of value_expr list
   | Block of block
 
-and block = { bindings : (string * ty) list; stmts : stmt list }
+and block = { bindings : (Utils.Identifier.t * ty) list; stmts : stmt list }
 [@@deriving yojson]
 
-type static_decl = { name : string; ty : ty } [@@deriving yojson]
-type fn_decl = { name : string; block : block } [@@deriving yojson]
+type static_decl = { name : Utils.Identifier.t; ty : ty } [@@deriving yojson]
+type fn_decl = { name : Utils.Identifier.t; block : block } [@@deriving yojson]
 
 type code = { statics : static_decl list; functions : fn_decl list }
 [@@deriving yojson]
 
-type location_key = Heap of int | Static_key of string | Local_key of int
+type location_key =
+  | Heap of int
+  | Static_key of Utils.Identifier.t
+  | Local_key of int
 [@@deriving yojson]
 
 type projection = Field_proj of int | Tag_proj of int | Index_proj of int
@@ -76,7 +79,7 @@ type value =
   | Bool_value of bool
   | Unit_v
   | Ptr_value of location option
-  | FnPtr of string option
+  | FnPtr of Utils.Identifier.t option
   | Aggregate of value list
   | Sum_value of int * value
 [@@deriving yojson]
@@ -85,23 +88,29 @@ type cell = { ty : ty; value : value } [@@deriving yojson]
 
 type store = {
   heap : (int * cell) list;
-  statics : (string * cell) list;
+  statics : (Utils.Identifier.t * cell) list;
   locals : (int * cell) list list list;
 }
 [@@deriving yojson]
 
-type control = Next | Break_ctrl of string | Continue_ctrl of string
+type control =
+  | Next
+  | Break_ctrl of Utils.Identifier.t
+  | Continue_ctrl of Utils.Identifier.t
 [@@deriving yojson]
 
 type exec = Eval of stmt | Ctrl of control | Ret of value list
 [@@deriving yojson]
 
-type inner_frame = Stmt_frame of stmt | Scope | Loop_frame of string * stmt
+type inner_frame =
+  | Stmt_frame of stmt
+  | Scope
+  | Loop_frame of Utils.Identifier.t * stmt
 [@@deriving yojson]
 
 type fn_frame = {
-  function_name : string;
-  env : (string * int) list list;
+  function_name : Utils.Identifier.t;
+  env : (Utils.Identifier.t * int) list list;
   ret_locs : location list;
   inner_k : inner_frame list;
 }
@@ -109,9 +118,9 @@ type fn_frame = {
 
 type state = {
   code : code;
-  current_function : string;
+  current_function : Utils.Identifier.t;
   exec : exec;
-  env : (string * int) list list;
+  env : (Utils.Identifier.t * int) list list;
   store : store;
   inner_k : inner_frame list;
   fn_k : fn_frame list;
@@ -157,8 +166,8 @@ and expr_text = function
   | Char c -> "'" ^ c ^ "'"
   | Boolean b -> if b then "#true" else "#false"
   | Unit_value -> "#unit"
-  | NullPtr -> "#null-ptr"
-  | NullFn -> "#null-fn"
+  | NullPtr -> "#null_ptr"
+  | NullFn -> "#null_fn"
   | BinOp (a, op, b) -> expr_text a ^ " " ^ expr_text b ^ " " ^ op_text op
   | UnOp (Not, v) -> expr_text v ^ " !"
   | Pair vs ->
@@ -226,9 +235,9 @@ let rec value_text = function
   | Char_value c -> "'" ^ c ^ "'"
   | Bool_value b -> if b then "#true" else "#false"
   | Unit_v -> "#unit"
-  | Ptr_value None -> "#null-ptr"
+  | Ptr_value None -> "#null_ptr"
   | Ptr_value (Some l) -> location_text l
-  | FnPtr None -> "#null-fn"
+  | FnPtr None -> "#null_fn"
   | FnPtr (Some n) -> "fn " ^ n
   | Aggregate vs -> "(" ^ String.concat ", " (List.map value_text vs) ^ ")"
   | Sum_value (t, v) -> "tag(" ^ string_of_int t ^ ", " ^ value_text v ^ ")"

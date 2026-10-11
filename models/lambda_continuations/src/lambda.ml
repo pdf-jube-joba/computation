@@ -5,21 +5,21 @@ module Names = Set.Make (String)
 (* Abort/Control extend the same structure, so the implemented variable
    operations can be shared with Ctrl. Its reduction is deliberately unsupported. *)
 type term =
-  | Var of string
-  | Lam of string * term
+  | Var of Utils.Identifier.t
+  | Lam of Utils.Identifier.t * term
   | App of term * term
   | Zero
   | Succ of term
   | Pred of term
   | IfZ of term * term * term
-  | Let of string * term * term
-  | Rec of string * string * term
+  | Let of Utils.Identifier.t * term * term
+  | Rec of Utils.Identifier.t * Utils.Identifier.t * term
   | Abort of term
   | Control of term
 [@@deriving yojson]
 
 type lam = term [@@deriving yojson]
-type value = Fun of string * term | Num of N.t [@@deriving yojson]
+type value = Fun of Utils.Identifier.t * term | Num of N.t [@@deriving yojson]
 
 let n_v x = Var x
 let n_l x b = Lam (x, b)
@@ -200,31 +200,7 @@ let rec write_code = function
   | Abort e -> "(abort " ^ write_code e ^ ")"
   | Control e -> "(control " ^ write_code e ^ ")"
 
-let word p =
-  let name = L.identifier p in
-  (* The pest variable production permits a hyphen inside a name. Only join
-     adjacent tokens, so spaced syntax remains unambiguous. *)
-  let last_end = ref (snd p.L.tokens.(p.L.pos - 1) + String.length name) in
-  let acc = Buffer.create 16 in
-  Buffer.add_string acc name;
-  let rec loop () =
-    let tok, offset = p.L.tokens.(p.L.pos) in
-    if offset = !last_end then
-      match tok with
-      | L.Symbol '-' ->
-          ignore (L.next p);
-          Buffer.add_char acc '-';
-          incr last_end;
-          loop ()
-      | L.Ident s | L.Number s ->
-          ignore (L.next p);
-          Buffer.add_string acc s;
-          last_end := !last_end + String.length s;
-          loop ()
-      | _ -> ()
-  in
-  loop ();
-  Buffer.contents acc
+let word = L.identifier
 
 let variable p =
   let name = word p in

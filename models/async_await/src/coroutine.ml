@@ -3,7 +3,7 @@ module N = Utils.Number
 
 let value = function Ok v -> v | Error e -> failwith e
 
-type aatom = Var of string | Imm of N.t [@@deriving yojson]
+type aatom = Var of Utils.Identifier.t | Imm of N.t [@@deriving yojson]
 type abinop = Add | Sub | Mul [@@deriving yojson]
 type aexp = Atom of aatom | Bin of aexp * abinop * aexp [@@deriving yojson]
 type relop = Eq | Ne | Lt [@@deriving yojson]
@@ -13,28 +13,32 @@ type bexp =
   | Rel of aexp * relop * aexp
   | And of bexp * bexp
   | Or of bexp * bexp
-  | Done of string
+  | Done of Utils.Identifier.t
 [@@deriving yojson]
 
 type stmt =
-  | Assign of string * aexp
+  | Assign of Utils.Identifier.t * aexp
   | IfGoto of bexp * int
   | Goto of int
-  | Call of string
-  | Run of string * string
+  | Call of Utils.Identifier.t
+  | Run of Utils.Identifier.t * Utils.Identifier.t
   | Yield
 [@@deriving yojson]
 
-type fn_decl = { name : string; body : stmt list } [@@deriving yojson]
+type fn_decl = { name : Utils.Identifier.t; body : stmt list }
+[@@deriving yojson]
+
 type code = fn_decl list [@@deriving yojson]
 
 type global_env = {
-  vars : (string * N.t) list;
-  task_ids : (string * int option) list;
+  vars : (Utils.Identifier.t * N.t) list;
+  task_ids : (Utils.Identifier.t * int option) list;
 }
 [@@deriving yojson]
 
-type frame = { function_name : string; pc : int } [@@deriving yojson]
+type frame = { function_name : Utils.Identifier.t; pc : int }
+[@@deriving yojson]
+
 type ainput = int
 type rinput = int
 type routput = string
@@ -162,27 +166,7 @@ let rec parse_bexp_bp p min_bp =
   in
   loop lhs
 
-(* Function, assignment, call and run names are validated as whole strings
-   by the Rust statement parser; those names may contain hyphens. Expression
-   identifiers retain the original lexer rules. *)
-let statement_identifier p =
-  let name = L.identifier p in
-  let rec suffix name =
-    if L.peek p = L.Symbol '-' && fst p.L.tokens.(p.L.pos + 1) <> L.Symbol '>'
-    then (
-      ignore (L.next p);
-      let name = name ^ "-" in
-      let name =
-        match L.peek p with
-        | L.Ident n | L.Number n ->
-            ignore (L.next p);
-            name ^ n
-        | _ -> name
-      in
-      suffix name)
-    else value (Utils.Identifier.make name)
-  in
-  suffix name
+let statement_identifier = L.identifier
 
 let parse_offset p =
   let sign =

@@ -13,9 +13,10 @@ let error p message =
   let _, offset = p.tokens.(min p.pos (Array.length p.tokens - 1)) in
   raise (Error (Printf.sprintf "%s at byte %d" message offset))
 
-let tokenize text =
+(* Some source languages close block comments at the first terminator. *)
+let tokenize ?(nested_comments = true) text =
   let n = String.length text in
-  let alpha = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false in
+  let alpha = Identifier.is_start in
   let digit = function '0' .. '9' -> true | _ -> false in
   let has i prefix =
     i + String.length prefix <= n
@@ -35,7 +36,7 @@ let tokenize text =
       | '/' when has i "/*" ->
           let j = ref (i + 2) and depth = ref 1 in
           while !j < n && !depth > 0 do
-            if has !j "/*" then (
+            if nested_comments && has !j "/*" then (
               incr depth;
               j := !j + 2)
             else if has !j "*/" then (
@@ -71,7 +72,7 @@ let tokenize text =
             !j < n
             &&
             if is_number then digit text.[!j]
-            else alpha text.[!j] || digit text.[!j]
+            else Identifier.is_continue text.[!j]
           do
             incr j
           done;
@@ -83,7 +84,9 @@ let tokenize text =
   in
   scan 0 []
 
-let create text = { tokens = tokenize text; pos = 0 }
+let create ?(nested_comments = true) text =
+  { tokens = tokenize ~nested_comments text; pos = 0 }
+
 let peek p = fst p.tokens.(p.pos)
 
 let next p =
@@ -150,12 +153,30 @@ let protect f =
   with Error message | Failure message | Invalid_argument message ->
     Result.Error message
 
-let parse f text =
+let parse_with create f text =
   protect (fun () ->
       let p = create text in
       let value = f p in
       expect_eof p;
       value)
+
+let parse ?(nested_comments = true) f text =
+  parse_with (create ~nested_comments) f text
+
+(* Consume the closing symbol. When supplied, skip_separator allows separators
+   to be omitted, repeated, or placed before/after the items. *)
+let many_until ?skip_separator p ~closing item =
+  let rec skip () =
+    match skip_separator with Some c when eat_symbol p c -> skip () | _ -> ()
+  in
+  let rec loop acc =
+    skip ();
+    if eat_symbol p closing then List.rev acc
+    else
+      let value = item p in
+      loop (value :: acc)
+  in
+  loop []
 
 let rec separated p ~separator item =
   let first = item p in

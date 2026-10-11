@@ -1,7 +1,7 @@
 open Circuit
-module L = Source_lexer
+module L = Utils.Lexer
 
-type library = (string * t) list
+type library = (Utils.Identifier.t * t) list
 
 let by_const name =
   match Utils.Identifier.make name with
@@ -13,7 +13,7 @@ let init_maps () =
     List.concat_map
       (fun k ->
         List.map
-          (fun b -> ((gate_name k ^ if b then "-T" else "-F"), new_gate k b))
+          (fun b -> ((gate_name k ^ if b then "_T" else "_F"), new_gate k b))
           [ true; false ])
       kinds
   in
@@ -27,41 +27,11 @@ let insert library (name, circuit) =
   if List.mem_assoc name library then library else library @ [ (name, circuit) ]
 
 let result_exn = function Ok x -> x | Error message -> raise (L.Error message)
-
-let name p =
-  let first =
-    match L.next p with
-    | L.Ident s | L.Number s -> s
-    | L.Symbol (('-' | '_') as c) -> String.make 1 c
-    | _ -> L.error p "Expected name"
-  in
-  let rec tail s =
-    match L.peek p with
-    | L.Symbol (('-' | '_') as c) ->
-        ignore (L.next p);
-        let suffix =
-          match L.next p with
-          | L.Ident s | L.Number s -> s
-          | _ -> L.error p "Expected name"
-        in
-        tail (s ^ String.make 1 c ^ suffix)
-    | _ -> s
-  in
-  tail first
-
-let identifier p = result_exn (Utils.Identifier.make (name p))
-let rec skip_commas p = if L.eat_symbol p ',' then skip_commas p
+let identifier = L.identifier
 
 let block p item =
   L.expect_symbol p '{';
-  let rec loop acc =
-    skip_commas p;
-    if L.eat_symbol p '}' then List.rev acc
-    else
-      let x = item p in
-      loop (x :: acc)
-  in
-  loop []
+  L.many_until ~skip_separator:',' p ~closing:'}' item
 
 let named_pin p =
   let n = identifier p in
@@ -149,7 +119,8 @@ let definitions p maps =
   done;
   !maps
 
-let parse code maps = L.parse (fun p -> definitions p maps) code
+let parse code maps =
+  L.parse ~nested_comments:false (fun p -> definitions p maps) code
 
 let parse_main_with_maps code maps =
   Result.bind (parse code maps) (fun maps ->

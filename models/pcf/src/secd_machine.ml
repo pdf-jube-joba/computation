@@ -7,9 +7,9 @@ type instr =
   | PushBool of bool
   | PushUnit
   | Print of N.t
-  | Acc of string
-  | MkCls of string * instr list
-  | MkRec of string * string * instr list
+  | Acc of Utils.Identifier.t
+  | MkCls of Utils.Identifier.t * instr list
+  | MkRec of Utils.Identifier.t * Utils.Identifier.t * instr list
   | BinOp of binop
   | UnOp of unop
   | Ap
@@ -21,10 +21,10 @@ type value =
   | VNat of N.t
   | VBool of bool
   | VUnit
-  | VFun of string * instr list * env
-  | VRec of string * string * instr list * env
+  | VFun of Utils.Identifier.t * instr list * env
+  | VRec of Utils.Identifier.t * Utils.Identifier.t * instr list * env
 
-and env = (string * value) list [@@deriving yojson]
+and env = (Utils.Identifier.t * value) list [@@deriving yojson]
 
 type dump_frame = { stack : value list; env : env; control : instr list }
 [@@deriving yojson]

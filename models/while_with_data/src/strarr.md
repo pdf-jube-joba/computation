@@ -20,7 +20,7 @@
   &| \T{head} \NT{aexp} \\
   &| \T{tail} \NT{aexp} \\
 \NT{bexp} &\defeq \\
-  &| \T{is-empty} \NT{aexp} \\
+  &| \T{is_empty} \NT{aexp} \\
   &| \NT{aexp} \T{==} \NT{aexp} \\
 \\
 \NT{stmt} &\defeq \\
