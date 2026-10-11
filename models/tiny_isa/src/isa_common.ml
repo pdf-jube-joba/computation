@@ -34,26 +34,35 @@ let write array addr v =
 
 let number = N.of_string_with_plus
 
-let parse_numbers text =
-  Utils.Lexer.protect (fun () ->
-      List.map (fun n -> value (number n)) (Utils.String_ext.lines text))
+module Numbers = struct
+  type t = N.t list
 
-let print_numbers ns = String.concat "\n" (List.map N.to_string ns)
+  let parse text =
+    Utils.Lexer.protect (fun () ->
+        List.map (fun n -> value (number n)) (Utils.String_ext.lines text))
 
-let parse_image text =
-  Utils.Lexer.protect (fun () ->
-      match Utils.String_ext.lines text with
-      | [] -> failwith "Expected first line with 8 registers"
-      | reg_line :: mem ->
-          let parts = Utils.String_ext.split_nonempty ',' reg_line in
-          if List.length parts <> 8 then
-            failwith "Expected 8 registers on the first line (comma separated)";
-          ( Array.of_list (List.map (fun s -> value (number s)) parts),
-            List.map (fun s -> value (number s)) mem ))
+  let print ns = String.concat "\n" (List.map N.to_string ns)
+end
 
-let print_image regs mem =
-  String.concat ", " (List.map N.to_string (Array.to_list regs))
-  ^ if mem = [] then "" else "\n" ^ print_numbers mem
+module Image = struct
+  type t = N.t array * N.t list
+
+  let parse text =
+    Utils.Lexer.protect (fun () ->
+        match Utils.String_ext.lines text with
+        | [] -> failwith "Expected first line with 8 registers"
+        | reg_line :: mem ->
+            let parts = Utils.String_ext.split_nonempty ',' reg_line in
+            if List.length parts <> 8 then
+              failwith
+                "Expected 8 registers on the first line (comma separated)";
+            ( Array.of_list (List.map (fun s -> value (number s)) parts),
+              List.map (fun s -> value (number s)) mem ))
+
+  let print (regs, mem) =
+    String.concat ", " (List.map N.to_string (Array.to_list regs))
+    ^ if mem = [] then "" else "\n" ^ Numbers.print mem
+end
 
 let validate_regs regs =
   if Array.length regs <> 8 then failwith "Expected 8 registers"

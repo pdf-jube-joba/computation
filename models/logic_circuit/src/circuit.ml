@@ -415,11 +415,41 @@ let as_graph_group = function
             (usable_iter_otpins i);
       }
 
-let bool_text b = if b then "#true" else "#false"
+module Signal = struct
+  type t = signal
 
-let print_signal signal =
-  String.concat ", "
-    (List.map (fun ((n, p), b) -> n ^ "." ^ p ^ "=" ^ bool_text b) signal)
+  let value = function Ok value -> value | Error error -> failwith error
+  let parse_bool text = Utils.Bool.to_bool (value (Utils.Bool.parse text))
+  let print_bool value = Utils.Bool.print (Utils.Bool.of_bool value)
+
+  let parse_pin text =
+    let text = String.trim text in
+    match String.rindex_opt text '.' with
+    | None -> failwith "Expected NAME.PIN"
+    | Some dot ->
+        let name = String.sub text 0 dot in
+        let pin = String.sub text (dot + 1) (String.length text - dot - 1) in
+        (value (Utils.Identifier.make name), value (Utils.Identifier.make pin))
+
+  let parse_item text =
+    match String.rindex_opt text '=' with
+    | None -> failwith "Expected NAME.PIN=BOOL"
+    | Some at ->
+        let pin = parse_pin (String.sub text 0 at) in
+        let value = String.sub text (at + 1) (String.length text - at - 1) in
+        (pin, parse_bool value)
+
+  let print_item ((name, pin), value) =
+    name ^ "." ^ pin ^ "=" ^ print_bool value
+
+  let parse text =
+    if String.trim text = "" then Ok []
+    else
+      Utils.Lexer.protect (fun () ->
+          List.map parse_item (String.split_on_char ',' text))
+
+  let print signal = String.concat ", " (List.map print_item signal)
+end
 
 let render circuit =
   let graph = as_graph_group circuit in
@@ -434,7 +464,7 @@ let render circuit =
               match
                 List.find_opt (fun ((_, p), _) -> p = pin) (get_otputs c)
               with
-              | Some (_, b) -> bool_text b
+              | Some (_, b) -> Signal.print_bool b
               | None -> "?")
         in
         [ n; p; value ])
@@ -444,7 +474,7 @@ let render circuit =
     List.concat_map
       (fun (name, c) ->
         List.map
-          (fun ((_, pin), b) -> [ name; pin; bool_text b ])
+          (fun ((_, pin), b) -> [ name; pin; Signal.print_bool b ])
           (get_otputs c))
       graph.verts
   in

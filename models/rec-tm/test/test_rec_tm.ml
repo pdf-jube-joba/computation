@@ -14,7 +14,7 @@ module _ : Utils.Compiler.S = Rec_to_tm
 
 let get = function Ok v -> v | Error e -> failwith e
 let check s b = if not b then failwith s
-let tape s = get (T.parse_tape s)
+let tape s = get (T.Tape.parse s)
 
 let run step s =
   let rec loop n s =
@@ -226,7 +226,7 @@ let () =
     let t = get (C.write_usize args) in
     let out = run_ir p t in
     check
-      ("primitive/mu result " ^ R.print f ^ " tape=" ^ T.print_tape out)
+      ("primitive/mu result " ^ R.print f ^ " tape=" ^ T.Tape.print out)
       (C.read_right_one_usize out = Some [ expected ]);
     let jump = get (Compile_jump.compile p) in
     check "primitive/mu jump equivalence" (T.tape_equal out (run_jump jump t));
@@ -278,7 +278,7 @@ let () =
       (tape (get (Rec_to_tm.api.encode_ainput "(2)")))
   in
   check "full chain text API"
-    (get (Rec_to_tm.api.decode_foutput (T.print_tape output)) = "3");
+    (get (Rec_to_tm.api.decode_foutput (T.Tape.print output)) = "3");
   check "output decode wrong head"
     (Result.is_error (C.decode_foutput (tape "|-|x")));
   check "output decode tuple"

@@ -287,9 +287,6 @@ let print (code : code) =
           ^ "  goto " ^ addr_to_text b.cont.jump ^ ";\n}\n")
         code.blocks)
 
-let print_memory memory =
-  "(" ^ String.concat ", " (List.map N.to_string memory) ^ ")"
-
 let compile_program (code : code) =
   Utils.Lexer.protect (fun () ->
       let block_index =

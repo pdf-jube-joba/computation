@@ -31,22 +31,39 @@ type state = {
 [@@deriving yojson]
 
 let unwrap = function Ok v -> v | Error e -> failwith e
-let sign_print = function None -> "-" | Some s -> s
 
-let parse_sign text =
-  let text = String.trim text in
-  if text = "-" then Ok None
-  else Result.map (fun s -> Some s) (Utils.Identifier.make text)
+module Sign = struct
+  type t = sign
 
-let parse_state text = Utils.Identifier.make (String.trim text)
-let direction_print = function Left -> "L" | Right -> "R" | Constant -> "C"
+  let blank = None
 
-let parse_direction text =
-  match String.trim text with
-  | "L" -> Ok Left
-  | "R" -> Ok Right
-  | "C" -> Ok Constant
-  | s -> Error ("Invalid direction: " ^ s)
+  let parse text =
+    let text = String.trim text in
+    if text = "-" then Ok None
+    else Result.map (fun s -> Some s) (Utils.Identifier.make text)
+
+  let print = function None -> "-" | Some s -> s
+end
+
+module State = struct
+  type t = Utils.Identifier.t
+
+  let parse text = Utils.Identifier.make (String.trim text)
+  let print text = text
+end
+
+module Direction = struct
+  type t = direction = Right | Constant | Left
+
+  let parse text =
+    match String.trim text with
+    | "L" -> Ok Left
+    | "R" -> Ok Right
+    | "C" -> Ok Constant
+    | s -> Error ("Invalid direction: " ^ s)
+
+  let print = function Left -> "L" | Right -> "R" | Constant -> "C"
+end
 
 let blank_tape = { left = []; head = None; right = [] }
 
@@ -89,38 +106,51 @@ let tape_equal a b =
   in
   a.head = b.head && side a.left b.left && side a.right b.right
 
-let parse_tape text =
-  Utils.Lexer.protect (fun () ->
-      let side s =
-        if String.trim s = "" then []
-        else
-          List.map (fun x -> unwrap (parse_sign x)) (String.split_on_char ',' s)
-      in
-      match String.split_on_char '|' text with
-      | [ l; h; r ] ->
-          {
-            left = List.rev (side l);
-            head = unwrap (parse_sign h);
-            right = side r;
-          }
-      | _ -> failwith "Invalid tape format | format ... 0,1,2|3|4,5,6")
+module Tape = struct
+  type t = tape
 
-let print_tape t =
-  String.concat "," (List.map sign_print (List.rev t.left))
-  ^ "|" ^ sign_print t.head ^ "|"
-  ^ String.concat "," (List.map sign_print t.right)
+  let blank = blank_tape
+  let from_vec = tape_from_vec
+  let into_vec = tape_into_vec
+  let head_read = head_read
+  let head_write = head_write
+  let move_to = move_to
+  let equal = tape_equal
+
+  let parse_side text =
+    if String.trim text = "" then []
+    else
+      List.map (fun x -> unwrap (Sign.parse x)) (String.split_on_char ',' text)
+
+  let print_side signs = String.concat "," (List.map Sign.print signs)
+
+  let parse text =
+    Utils.Lexer.protect (fun () ->
+        match String.split_on_char '|' text with
+        | [ l; h; r ] ->
+            {
+              left = List.rev (parse_side l);
+              head = unwrap (Sign.parse h);
+              right = parse_side r;
+            }
+        | _ -> failwith "Invalid tape format | format ... 0,1,2|3|4,5,6")
+
+  let print t =
+    print_side (List.rev t.left)
+    ^ "|" ^ Sign.print t.head ^ "|" ^ print_side t.right
+end
 
 let definition init_state accepted_state code =
   Utils.Lexer.protect (fun () ->
-      ignore (unwrap (parse_state init_state));
-      List.iter (fun s -> ignore (unwrap (parse_state s))) accepted_state;
+      ignore (unwrap (State.parse init_state));
+      List.iter (fun s -> ignore (unwrap (State.parse s))) accepted_state;
       let seen = Hashtbl.create 16 in
       List.iter
         (fun ((sign, state), (next_sign, next_state, _)) ->
-          ignore (unwrap (parse_state state));
-          ignore (unwrap (parse_state next_state));
+          ignore (unwrap (State.parse state));
+          ignore (unwrap (State.parse next_state));
           List.iter
-            (fun sign -> ignore (unwrap (parse_sign (sign_print sign))))
+            (fun sign -> ignore (unwrap (Sign.parse (Sign.print sign))))
             [ sign; next_sign ];
           if List.mem state accepted_state then
             failwith "Code contains accepted state";
@@ -134,10 +164,10 @@ let parse_code text =
   Utils.Lexer.protect (fun () ->
       match String.split_on_char '\n' text with
       | init :: accepted :: lines ->
-          let init = unwrap (parse_state init) in
+          let init = unwrap (State.parse init) in
           let accepted =
             List.map
-              (fun s -> unwrap (parse_state s))
+              (fun s -> unwrap (State.parse s))
               (String.split_on_char ',' accepted)
           in
           let entries =
@@ -151,10 +181,10 @@ let parse_code text =
                   match String.split_on_char ',' line with
                   | a :: b :: c :: d :: e :: _ ->
                       Some
-                        ( (unwrap (parse_sign a), unwrap (parse_state b)),
-                          ( unwrap (parse_sign c),
-                            unwrap (parse_state d),
-                            unwrap (parse_direction e) ) )
+                        ( (unwrap (Sign.parse a), unwrap (State.parse b)),
+                          ( unwrap (Sign.parse c),
+                            unwrap (State.parse d),
+                            unwrap (Direction.parse e) ) )
                   | _ -> failwith ("Invalid code entry: " ^ line))
               lines
           in
@@ -185,7 +215,7 @@ let print_code d =
       (List.map
          (fun ((a, b), (c, d, e)) ->
            String.concat ","
-             [ sign_print a; b; sign_print c; d; direction_print e ]
+             [ Sign.print a; b; Sign.print c; d; Direction.print e ]
            ^ "\n")
          d.code)
 
@@ -229,8 +259,8 @@ let restore json =
     definition s.definition.init_state s.definition.accepted_state
       s.definition.code
   in
-  let* _ = parse_state s.current_state in
-  let* _ = parse_tape (print_tape s.tape) in
+  let* _ = State.parse s.current_state in
+  let* _ = Tape.parse (Tape.print s.tape) in
   Ok s
 
 let render_tape t =
@@ -239,8 +269,8 @@ let render_tape t =
     (List.mapi
        (fun i s ->
          if i = pos then
-           Utils.Render.text ~class_name:"highlight" (sign_print s)
-         else Utils.Render.text (sign_print s))
+           Utils.Render.text ~class_name:"highlight" (Sign.print s)
+         else Utils.Render.text (Sign.print s))
        signs)
 
 let render s =
@@ -252,19 +282,13 @@ let render s =
           [ "key_sign"; "key_state"; "next_sign"; "next_state"; "direction" ]
         (List.map
            (fun ((a, b), (c, d, e)) ->
-             [ sign_print a; b; sign_print c; d; direction_print e ])
+             [ Sign.print a; b; Sign.print c; d; Direction.print e ])
            s.definition.code);
       Utils.Render.text ~title:"state" s.current_state;
       render_tape s.tape;
     ]
 
-module Ainput = struct
-  type t = ainput
-
-  let parse = parse_tape
-  let print = print_tape
-end
-
+module Ainput = Tape
 module Rinput = Utils.Text.Unit
 module Routput = Utils.Text.Unit
 module Foutput = Ainput
@@ -284,42 +308,6 @@ module Machine = struct
   let snapshot = snapshot
   let restore = restore
   let render = render
-end
-
-module Tape = struct
-  type t = tape
-
-  let blank = blank_tape
-  let from_vec = tape_from_vec
-  let into_vec = tape_into_vec
-  let head_read = head_read
-  let head_write = head_write
-  let move_to = move_to
-  let equal = tape_equal
-  let parse = parse_tape
-  let print = print_tape
-end
-
-module Sign = struct
-  type t = sign
-
-  let blank = None
-  let parse = parse_sign
-  let print = sign_print
-end
-
-module Direction = struct
-  type t = direction = Right | Constant | Left
-
-  let parse = parse_direction
-  let print = direction_print
-end
-
-module State = struct
-  type t = Utils.Identifier.t
-
-  let parse = parse_state
-  let print s = s
 end
 
 module Definition = struct

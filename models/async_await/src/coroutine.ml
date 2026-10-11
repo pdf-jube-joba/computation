@@ -222,29 +222,38 @@ let parse_code =
 
 let set entries name v = Utils.Assoc.set_sorted name v entries
 
-let parse_env text =
-  Utils.Environment.fold_lines
-    ~invalid_line:(fun line -> "invalid env line: " ^ line)
-    (fun env name v ->
-      if String.starts_with ~prefix:"$" name then (
-        let name = Utils.String_ext.strip_prefix "$" name in
-        ignore (value (Utils.Identifier.make name));
-        let id =
-          if String.lowercase_ascii v = "none" then None
-          else Some (value (Utils.Text.Natural_int.parse v))
-        in
-        { env with task_ids = set env.task_ids name id })
-      else (
-        ignore (value (Utils.Identifier.make name));
-        { env with vars = set env.vars name (value (N.of_string_with_plus v)) }))
-    { vars = []; task_ids = [] }
-    text
+module Foutput = struct
+  type t = foutput
 
-let env_to_text env =
-  Utils.Environment.print ~trailing_newline:true N.to_string env.vars
-  ^ Utils.Environment.print ~trailing_newline:true
-      (function None -> "none" | Some n -> string_of_int n)
-      (List.map (fun (n, v) -> ("$" ^ n, v)) env.task_ids)
+  let parse_task_id text =
+    if String.lowercase_ascii text = "none" then None
+    else Some (value (Utils.Text.Natural_int.parse text))
+
+  let print_task_id = function None -> "none" | Some n -> string_of_int n
+
+  let parse text =
+    Utils.Environment.fold_lines
+      ~invalid_line:(fun line -> "invalid env line: " ^ line)
+      (fun env name v ->
+        if String.starts_with ~prefix:"$" name then (
+          let name = Utils.String_ext.strip_prefix "$" name in
+          ignore (value (Utils.Identifier.make name));
+          let id = parse_task_id v in
+          { env with task_ids = set env.task_ids name id })
+        else (
+          ignore (value (Utils.Identifier.make name));
+          {
+            env with
+            vars = set env.vars name (value (N.of_string_with_plus v));
+          }))
+      { vars = []; task_ids = [] }
+      text
+
+  let print env =
+    Utils.Environment.print ~trailing_newline:true N.to_string env.vars
+    ^ Utils.Environment.print ~trailing_newline:true print_task_id
+        (List.map (fun (n, v) -> ("$" ^ n, v)) env.task_ids)
+end
 
 let get_var env name =
   Option.value ~default:N.zero (List.assoc_opt name env.vars)
@@ -435,13 +444,6 @@ let render s =
 module Ainput = Utils.Text.Natural_int
 module Rinput = Utils.Text.Natural_int
 module Routput = Utils.Text.String
-
-module Foutput = struct
-  type t = foutput
-
-  let parse = parse_env
-  let print = env_to_text
-end
 
 module Machine = struct
   module Ainput = Ainput

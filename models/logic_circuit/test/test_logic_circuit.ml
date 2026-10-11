@@ -75,7 +75,7 @@ let () =
   assert (ok (parse_code ("// /* ignored opener\n" ^ code)) = main);
   assert (print_code main = "logic_circuit");
   assert (get_inpins main = [ pin "main" "I" ]);
-  assert (print_signal (get_otputs (advance main [])) = "main.O=#true");
+  assert (Signal.print (get_otputs (advance main [])) = "main.O=#true");
   assert (not (value (advance main [ (pin "main" "I", true) ])));
   assert (not (value (advance main [ (pin "A" "IN", true) ])));
   assert (
@@ -107,7 +107,7 @@ let () =
   assert (duplicate = main);
   let signal = ok (Rinput.parse " A.IN=#true, B.OUT=#false ") in
   assert (ok (Rinput.parse "\tA.IN=\r#true\n, B.OUT=#false\012") = signal);
-  assert (print_signal signal = "A.IN=#true, B.OUT=#false");
+  assert (Signal.print signal = "A.IN=#true, B.OUT=#false");
   assert (ok (Rinput.parse "  ") = []);
   let whitespace = [ "\t"; "\n"; "\012"; "\r"; " " ] in
   List.iter

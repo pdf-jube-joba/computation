@@ -55,10 +55,6 @@ let rec stmt_to_text = function
 
 let print = stmt_to_text
 
-let rec value_to_text = function
-  | AtomValue c -> "atom " ^ Utils.Char_literal.to_text c
-  | ConsValue (a, b) -> "cons " ^ value_to_text a ^ " " ^ value_to_text b
-
 let reserved =
   [
     "Nop";
@@ -156,14 +152,24 @@ and parse_single p =
 
 let parse_code = parse parse_stmt
 
-let rec lower_value = function
-  | Atom (AtomChar c) -> AtomValue c
-  | Cons (a, b) -> ConsValue (lower_value a, lower_value b)
-  | Var n -> fail ("unexpected variable in value: " ^ n)
-  | Atom (Mtoa _) -> fail "unexpected mtoa in value"
-  | Left _ | Right _ -> fail "unexpected projection in value"
+module Ainput = struct
+  type t = ainput
 
-let parse_value = parse (fun p -> lower_value (parse_texp p))
+  let rec print_value = function
+    | AtomValue c -> "atom " ^ Utils.Char_literal.to_text c
+    | ConsValue (a, b) -> "cons " ^ print_value a ^ " " ^ print_value b
+
+  let rec lower_value = function
+    | Atom (AtomChar c) -> AtomValue c
+    | Cons (a, b) -> ConsValue (lower_value a, lower_value b)
+    | Var n -> fail ("unexpected variable in value: " ^ n)
+    | Atom (Mtoa _) -> fail "unexpected mtoa in value"
+    | Left _ | Right _ -> fail "unexpected projection in value"
+
+  let parse_value = parse (fun p -> lower_value (parse_texp p))
+  let parse = Utils.Environment.parse parse_value
+  let print = Utils.Environment.print ~trailing_newline:true print_value
+end
 
 let rec eval_aexp env = function
   | AtomChar c -> c
@@ -222,14 +228,7 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.statement_env (stmt_to_text s.stmt) value_to_text s.env
-
-module Ainput = struct
-  type t = ainput
-
-  let parse = env parse_value
-  let print = env_text value_to_text
-end
+  Utils.Render.statement_env (stmt_to_text s.stmt) Ainput.print_value s.env
 
 module Rinput = Utils.Text.Unit
 module Routput = Utils.Text.Unit

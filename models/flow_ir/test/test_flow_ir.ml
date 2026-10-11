@@ -44,11 +44,11 @@ let () =
   if get (I.parse_code (I.print dense)) <> dense then failwith "Dense roundtrip";
   List.iter
     (fun s ->
-      let v = get (I.parse_flow_value s) in
-      if get (I.parse_flow_value (I.value_print v)) <> v then
+      let v = get (I.Ainput.parse_value s) in
+      if get (I.Ainput.parse_value (I.Ainput.print_value v)) <> v then
         failwith "Value roundtrip")
     [ "123"; ":next"; "k:@slot"; "k:s[3]"; "k:h[2][4]" ];
-  eq (I.print_env (get (I.Ainput.parse "z=3\na=1\nz=5"))) "a = 1\nz = 5\n";
+  eq (I.Ainput.print (get (I.Ainput.parse "z=3\na=1\nz=5"))) "a = 1\nz = 5\n";
   let out, text =
     run ~input:"Hi" {|@x 0
 :main{:entry{input @x; %x:=ld @x; print %x; halt;}}|}
@@ -56,22 +56,22 @@ let () =
   in
   eq text "Hi";
   eq
-    (I.value_print (List.assoc "x" out))
-    (I.value_print (I.Num (Utils.Number.of_bytes "Hi")));
+    (I.Ainput.print_value (List.assoc "x" out))
+    (I.Ainput.print_value (I.Num (Utils.Number.of_bytes "Hi")));
   let out, _ =
     run
       {|@x 0
 :main{:entry{%p:=ref @x;deref %p:=st #7;push #11;push #13;pop %b;%a:=ld sacc #0;lget %l;%sum:=%a+%b;%sum:=%sum+%l;@x:=st %sum;halt;}}|}
       ""
   in
-  eq (I.value_print (List.assoc "x" out)) "25";
+  eq (I.Ainput.print_value (List.assoc "x" out)) "25";
   let out, _ =
     run
       {|@x 0
 :main{:entry{halloc(#2)%h;hacc(%h)[#1]:=st #65;%p:=ref hacc(%h)[#1];%v:=ld deref %p;@x:=st %v;hfree %h;halt;}}|}
       ""
   in
-  eq (I.value_print (List.assoc "x" out)) "65";
+  eq (I.Ainput.print_value (List.assoc "x" out)) "65";
   let out, _ =
     run
       {|@x 0
@@ -79,19 +79,19 @@ let () =
 :other{:entry{@x:=st %a;halt;}}|}
       ""
   in
-  eq (I.value_print (List.assoc "x" out)) "0";
+  eq (I.Ainput.print_value (List.assoc "x" out)) "0";
   let out, _ =
     run
       {|@x 0
 :main{:entry{%jmp:=:next;goto %jmp;}:next{@x:=st #3;if #1=#1 then :done;goto :next;}:done{halt;}}|}
       ""
   in
-  eq (I.value_print (List.assoc "x" out)) "3";
+  eq (I.Ainput.print_value (List.assoc "x" out)) "3";
   let huge = "1234567890123456789012345678901234567890" in
   let out, _ =
     run ("@x 0\n:main{:entry{%n:=#" ^ huge ^ ";%n:=%n+#1;@x:=st %n;halt;}}") ""
   in
-  eq (I.value_print (List.assoc "x" out)) (Utils.Number.succ huge);
+  eq (I.Ainput.print_value (List.assoc "x" out)) (Utils.Number.succ huge);
   error (I.make (get (I.parse_code ":other{:entry{halt;}}")) []);
   error (I.make (get (I.parse_code "@x 0 @x 1 :main{:entry{halt;}}")) []);
   error (I.make (get (I.parse_code ":main{:entry{halt;}:entry{halt;}}")) []);

@@ -97,9 +97,9 @@ let () =
     | _ -> false);
   error (C.step s 2);
   error (C.step s (-1));
-  let env = ok (C.parse_env "z = 2\na = 1\n$t = NONE\n$u = 4\na = 3") in
-  assert (C.env_to_text env = "a = 3\nz = 2\n$t = none\n$u = 4\n");
-  assert (ok (C.parse_env (C.env_to_text env)) = env);
+  let env = ok (C.Foutput.parse "z = 2\na = 1\n$t = NONE\n$u = 4\na = 3") in
+  assert (C.Foutput.print env = "a = 3\nz = 2\n$t = none\n$u = 4\n");
+  assert (ok (C.Foutput.parse (C.Foutput.print env)) = env);
   error (C.make code 0);
   error (C.make (ok (C.parse_code "fn other {}")) 1);
   error (C.make (ok (C.parse_code "fn main {}\nfn main {}")) 1);
@@ -139,5 +139,5 @@ let () =
   let env, _ = run 40 (ok (C.make code 1)) [] in
   assert (C.get_var env "foo_bar" = "7" && C.get_var env "result" = "3");
   assert (List.assoc "task_id" env.task_ids = Some 1);
-  assert (C.get_var (ok (C.parse_env "foo_bar = +7")) "foo_bar" = "7");
+  assert (C.get_var (ok (C.Foutput.parse "foo_bar = +7")) "foo_bar" = "7");
   print_endline "coroutine tests passed"

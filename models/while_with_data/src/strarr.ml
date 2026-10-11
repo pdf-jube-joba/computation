@@ -26,29 +26,6 @@ type routput = unit
 type foutput = environment
 type state = { code : code; stmt : stmt; env : environment } [@@deriving yojson]
 
-let char_list_to_text cs =
-  "[" ^ String.concat ", " (List.map Utils.Char_literal.to_text cs) ^ "]"
-
-let rec aexp_to_text = function
-  | Const cs -> char_list_to_text cs
-  | Var n -> n
-  | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
-  | Head a -> "head " ^ aexp_to_text a
-  | Tail a -> "tail " ^ aexp_to_text a
-
-let bexp_to_text = function
-  | IsEmpty a -> "is_empty " ^ aexp_to_text a
-  | Eq (a, b) -> aexp_to_text a ^ " == " ^ aexp_to_text b
-
-let rec stmt_to_text = function
-  | Nop -> "Nop"
-  | Assign (n, a) -> n ^ " := " ^ aexp_to_text a
-  | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-  | If (c, b) -> "if " ^ bexp_to_text c ^ " then " ^ stmt_to_text b ^ " end"
-  | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
-
-let print = stmt_to_text
-
 let reserved =
   [ "Nop"; "if"; "then"; "end"; "while"; "is_empty"; "head"; "tail" ]
 
@@ -132,12 +109,41 @@ and parse_single p =
 
 let parse_code = parse parse_stmt
 
-let parse_value =
-  parse (fun p ->
-      match parse_aexp p with
-      | Const cs -> cs
-      | _ -> fail "Expected constant character list")
+module Ainput = struct
+  type t = ainput
 
+  let print_value cs =
+    "[" ^ String.concat ", " (List.map Utils.Char_literal.to_text cs) ^ "]"
+
+  let parse_value =
+    parse (fun p ->
+        match parse_aexp p with
+        | Const cs -> cs
+        | _ -> fail "Expected constant character list")
+
+  let parse = Utils.Environment.parse parse_value
+  let print = Utils.Environment.print ~trailing_newline:true print_value
+end
+
+let rec aexp_to_text = function
+  | Const cs -> Ainput.print_value cs
+  | Var n -> n
+  | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
+  | Head a -> "head " ^ aexp_to_text a
+  | Tail a -> "tail " ^ aexp_to_text a
+
+let bexp_to_text = function
+  | IsEmpty a -> "is_empty " ^ aexp_to_text a
+  | Eq (a, b) -> aexp_to_text a ^ " == " ^ aexp_to_text b
+
+let rec stmt_to_text = function
+  | Nop -> "Nop"
+  | Assign (n, a) -> n ^ " := " ^ aexp_to_text a
+  | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
+  | If (c, b) -> "if " ^ bexp_to_text c ^ " then " ^ stmt_to_text b ^ " end"
+  | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
+
+let print = stmt_to_text
 let get env n = Option.value ~default:[] (List.assoc_opt n env)
 
 let rec eval_aexp env = function
@@ -174,14 +180,7 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.statement_env (stmt_to_text s.stmt) char_list_to_text s.env
-
-module Ainput = struct
-  type t = ainput
-
-  let parse = env parse_value
-  let print = env_text char_list_to_text
-end
+  Utils.Render.statement_env (stmt_to_text s.stmt) Ainput.print_value s.env
 
 module Rinput = Utils.Text.Unit
 module Routput = Utils.Text.Unit

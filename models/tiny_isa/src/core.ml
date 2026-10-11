@@ -19,8 +19,8 @@ type state = {
 }
 [@@deriving yojson]
 
-let parse_code = parse_numbers
-let print = print_numbers
+let parse_code = Numbers.parse
+let print = Numbers.print
 
 let make code (input : ainput) =
   Utils.Lexer.protect (fun () ->
@@ -100,9 +100,9 @@ module Ainput = struct
   let parse text =
     Result.map
       (fun (register, memory) -> { register; memory })
-      (parse_image text)
+      (Image.parse text)
 
-  let print = fun (image : t) -> print_image image.register image.memory
+  let print = fun (image : t) -> Image.print (image.register, image.memory)
 end
 
 module Rinput = Utils.Text.Unit

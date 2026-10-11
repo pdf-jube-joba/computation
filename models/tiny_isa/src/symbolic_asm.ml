@@ -470,9 +470,9 @@ module Ainput = struct
   let parse text =
     Result.map
       (fun (regs, data_extension) -> { regs; data_extension })
-      (parse_image text)
+      (Image.parse text)
 
-  let print = fun (image : t) -> print_image image.regs image.data_extension
+  let print = fun (image : t) -> Image.print (image.regs, image.data_extension)
 end
 
 module Rinput = Utils.Text.Unit
@@ -484,9 +484,9 @@ module Foutput = struct
   let parse text =
     Result.map
       (fun (regs, data_memory) -> ({ regs; data_memory } : asm_output))
-      (parse_image text)
+      (Image.parse text)
 
-  let print = fun (image : t) -> print_image image.regs image.data_memory
+  let print = fun (image : t) -> Image.print (image.regs, image.data_memory)
 end
 
 module Machine = struct

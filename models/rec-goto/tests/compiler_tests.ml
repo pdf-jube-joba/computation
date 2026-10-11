@@ -44,7 +44,7 @@ let api_check text input =
   let code = ok (Goto_lang.parse_code (ok (C.api.compile_code text))) in
   let env = ok (Goto_lang.Ainput.parse (ok (C.api.encode_ainput input))) in
   let result = run_code code env in
-  assert (ok (C.api.decode_foutput (Goto_lang.print_env result)) = expected)
+  assert (ok (C.api.decode_foutput (Goto_lang.Ainput.print result)) = expected)
 
 let () =
   check Zero [];

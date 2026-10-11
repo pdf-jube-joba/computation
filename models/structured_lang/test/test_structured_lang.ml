@@ -219,8 +219,8 @@ main()[local a a := 5;call f(a) -> a;out := a;return]|}
 let test_fnptr () =
   List.iter
     (fun text ->
-      let value = get (F.parse_runtime_value text) in
-      if get (F.parse_runtime_value (F.print_runtime_value value)) <> value then
+      let value = get (F.Runtime_value.parse text) in
+      if get (F.Runtime_value.parse (F.Runtime_value.print value)) <> value then
         failwith "FnPtr value roundtrip")
     [ "-7"; "#null_ptr"; "loc(3, 2)" ];
   let source =

@@ -181,7 +181,7 @@ let render s =
   Utils.Render.state
     [
       Utils.Render.text ~title:"exec" (exec_to_text s.exec);
-      Utils.Render.text ~title:"env" (env_text s.env);
+      Utils.Render.text ~title:"env" (Env.print_inline s.env);
       Utils.Render.text ~title:"stack"
         (String.concat "\n"
            (List.map

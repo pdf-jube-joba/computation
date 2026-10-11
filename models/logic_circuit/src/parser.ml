@@ -129,37 +129,3 @@ let parse_main_with_maps code maps =
       | None -> Error "not found main")
 
 let parse_main code = parse_main_with_maps code (init_maps ())
-
-let parse_signal text =
-  if String.trim text = "" then Ok []
-  else
-    L.protect (fun () ->
-        String.split_on_char ',' text
-        |> List.map (fun item ->
-            match String.rindex_opt item '=' with
-            | None -> raise (L.Error "Expected NAME.PIN=BOOL")
-            | Some at ->
-                let pin_text = String.trim (String.sub item 0 at) in
-                let pin =
-                  match String.rindex_opt pin_text '.' with
-                  | None -> raise (L.Error "Expected NAME.PIN")
-                  | Some dot ->
-                      let n = String.sub pin_text 0 dot in
-                      let p =
-                        String.sub pin_text (dot + 1)
-                          (String.length pin_text - dot - 1)
-                      in
-                      ( result_exn (Utils.Identifier.make n),
-                        result_exn (Utils.Identifier.make p) )
-                in
-                let b =
-                  String.trim
-                    (String.sub item (at + 1) (String.length item - at - 1))
-                in
-                let b =
-                  match b with
-                  | "#true" -> true
-                  | "#false" -> false
-                  | _ -> raise (L.Error ("Invalid boolean text: " ^ b))
-                in
-                (pin, b)))

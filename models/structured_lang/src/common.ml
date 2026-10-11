@@ -15,15 +15,13 @@ let number p = get (N.of_string (L.natural p))
 type env = (Utils.Identifier.t * N.t) list [@@deriving yojson]
 
 let env_get e k = Option.value (List.assoc_opt k e) ~default:N.zero
-let parse_env = Utils.Environment.parse N.of_string
-let print_env = Utils.Environment.print ~trailing_newline:true N.to_string
-let env_text = Utils.Environment.print N.to_string
 
 module Env = struct
   type t = env
 
-  let parse = parse_env
-  let print = print_env
+  let parse = Utils.Environment.parse N.of_string
+  let print = Utils.Environment.print ~trailing_newline:true N.to_string
+  let print_inline = Utils.Environment.print N.to_string
 end
 
 let names_until p endc =

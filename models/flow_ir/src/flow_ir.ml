@@ -92,14 +92,55 @@ type state = {
 }
 [@@deriving yojson]
 
-let ifs = function Go (xs, _) | Enter (xs, _) | Halt xs -> xs
+module Ainput = struct
+  type t = ainput
 
-let value_print = function
-  | Num n -> N.to_string n
-  | Code_label l -> ":" ^ l
-  | Key (Static l) -> "k:@" ^ l
-  | Key (Stack i) -> Printf.sprintf "k:s[%d]" i
-  | Key (Heap (h, i)) -> Printf.sprintf "k:h[%d][%d]" h i
+  let print_value = function
+    | Num n -> N.to_string n
+    | Code_label l -> ":" ^ l
+    | Key (Static l) -> "k:@" ^ l
+    | Key (Stack i) -> Printf.sprintf "k:s[%d]" i
+    | Key (Heap (h, i)) -> Printf.sprintf "k:h[%d][%d]" h i
+
+  let parse_value text =
+    L.protect (fun () ->
+        let s = String.trim text in
+        let prefix p = String.starts_with ~prefix:p s in
+        if prefix ":" then
+          let label = Utils.String_ext.strip_prefix ":" s in
+          Code_label (get (Utils.Identifier.make label))
+        else if prefix "k:@" then
+          let label = Utils.String_ext.strip_prefix "k:@" s in
+          Key (Static (get (Utils.Identifier.make label)))
+        else if prefix "k:s[" then
+          let body = Utils.String_ext.strip_prefix "k:s[" s in
+          if not (String.ends_with ~suffix:"]" body) then
+            failwith ("Invalid stack key: " ^ s)
+          else
+            let idx = Utils.String_ext.strip_suffix "]" body in
+            Key (Stack (get (N.to_int (get (N.of_string idx)))))
+        else if prefix "k:h[" then (
+          let body = Utils.String_ext.strip_prefix "k:h[" s in
+          let p = L.create body in
+          let handle = L.integer p in
+          L.expect p "][";
+          let index = L.integer p in
+          L.expect_symbol p ']';
+          L.expect_eof p;
+          Key (Heap (handle, index)))
+        else Num (get (N.of_string s)))
+
+  let parse text =
+    Utils.Environment.parse
+      ~invalid_line:(fun line -> "Invalid static input line: " ^ line)
+      parse_value text
+    |> Result.map sorted
+
+  let print env =
+    Utils.Environment.print ~trailing_newline:true print_value (sorted env)
+end
+
+let ifs = function Go (xs, _) | Enter (xs, _) | Halt xs -> xs
 
 let rec value_to_text = function
   | VReg r -> "%" ^ r
@@ -297,37 +338,6 @@ let parse_code =
       in
       loop [] [])
 
-let parse_flow_value text =
-  L.protect (fun () ->
-      let s = String.trim text in
-      let prefix p = String.starts_with ~prefix:p s in
-      if prefix ":" then
-        let label = Utils.String_ext.strip_prefix ":" s in
-        Code_label (get (Utils.Identifier.make label))
-      else if prefix "k:@" then
-        let label = Utils.String_ext.strip_prefix "k:@" s in
-        Key (Static (get (Utils.Identifier.make label)))
-      else if prefix "k:s[" then
-        let body = Utils.String_ext.strip_prefix "k:s[" s in
-        if not (String.ends_with ~suffix:"]" body) then
-          failwith ("Invalid stack key: " ^ s)
-        else
-          let idx = Utils.String_ext.strip_suffix "]" body in
-          Key (Stack (get (N.to_int (get (N.of_string idx)))))
-      else if prefix "k:h[" then (
-        let body = Utils.String_ext.strip_prefix "k:h[" s in
-        let p = L.create body in
-        let handle = L.integer p in
-        L.expect p "][";
-        let index = L.integer p in
-        L.expect_symbol p ']';
-        L.expect_eof p;
-        Key (Heap (handle, index)))
-      else Num (get (N.of_string s)))
-
-let print_env env =
-  Utils.Environment.print ~trailing_newline:true value_print (sorted env)
-
 let unique kind names =
   Utils.Identifier.check_unique
     ~message:(fun name -> "Duplicate " ^ kind ^ ": " ^ name)
@@ -382,7 +392,7 @@ let reg s r = Option.value (List.assoc_opt r s.vregs) ~default:(Num N.zero)
 
 let num = function
   | Num n -> n
-  | v -> failwith ("Expected number, got " ^ value_print v)
+  | v -> failwith ("Expected number, got " ^ Ainput.print_value v)
 
 let index v = get (N.to_int (num v))
 
@@ -399,7 +409,9 @@ and eval_place s = function
   | Deref r -> (
       match reg s r with
       | Key k -> k
-      | v -> failwith ("deref expects place key in vreg, got " ^ value_print v))
+      | v ->
+          failwith
+            ("deref expects place key in vreg, got " ^ Ainput.print_value v))
   | SAcc v -> Stack (index (eval_value s v))
   | HAcc (h, i) -> Heap (index (eval_value s h), index (eval_value s i))
 
@@ -462,8 +474,8 @@ let eval_cond s c =
       failwith
         ("Condition "
         ^ (if op < 0 then "lt" else "gt")
-        ^ " supports only numbers, got " ^ value_print a ^ " and "
-        ^ value_print b)
+        ^ " supports only numbers, got " ^ Ainput.print_value a ^ " and "
+        ^ Ainput.print_value b)
 
 let find_idx f xs err =
   let rec loop i = function
@@ -475,7 +487,7 @@ let find_idx f xs err =
 let target s v =
   match eval_value s v with
   | Code_label l -> l
-  | x -> failwith ("jump target expects code label, got " ^ value_print x)
+  | x -> failwith ("jump target expects code label, got " ^ Ainput.print_value x)
 
 let jump_go s v =
   let l = target s v in
@@ -591,41 +603,31 @@ let render s =
         ^ Option.fold ~none:"<invalid>" ~some:(fun (b : block) -> b.label) b);
       R.text ~title:"current_line" (string_of_int s.current_line);
       R.text ~title:"halted" (string_of_bool s.halted);
-      R.assoc_table ~title:"vregs" ~columns:[ "vreg"; "value" ] value_print
+      R.assoc_table ~title:"vregs" ~columns:[ "vreg"; "value" ]
+        Ainput.print_value
         (List.map (fun (k, v) -> ("%" ^ k, v)) (sorted s.vregs));
       R.text_table ~title:"static" ~columns:[ "label"; "value" ]
         (List.map
            (fun (d : static_def) ->
              [
                "@" ^ d.label;
-               value_print
+               Ainput.print_value
                  (Option.value
                     (List.assoc_opt d.label s.static_mem)
                     ~default:(Num N.zero));
              ])
            s.code.statics);
-      R.indexed_table ~title:"stack" value_print s.stack;
+      R.indexed_table ~title:"stack" Ainput.print_value s.stack;
       R.text_table ~title:"heap"
         ~columns:[ "handle"; "index"; "value" ]
         (List.concat_map
            (fun (h, vs) ->
              List.mapi
-               (fun i v -> [ string_of_int h; string_of_int i; value_print v ])
+               (fun i v ->
+                 [ string_of_int h; string_of_int i; Ainput.print_value v ])
                vs)
            (sorted s.heap));
     ]
-
-module Ainput = struct
-  type t = ainput
-
-  let parse text =
-    Utils.Environment.parse
-      ~invalid_line:(fun line -> "Invalid static input line: " ^ line)
-      parse_flow_value text
-    |> Result.map sorted
-
-  let print = print_env
-end
 
 module Rinput = Utils.Text.String
 module Routput = Utils.Text.String

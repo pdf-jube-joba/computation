@@ -66,7 +66,3 @@ let parse f text =
       x)
 
 let set env name value = Utils.Assoc.set name value env
-let env parse_value text = Utils.Environment.parse parse_value text
-
-let env_text value_text env =
-  Utils.Environment.print ~trailing_newline:true value_text env

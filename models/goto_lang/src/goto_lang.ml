@@ -82,7 +82,6 @@ let print_command = function
   | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ n ^ ";"
 
 let print_code code = String.concat "\n" (List.map print_command code)
-let print_env = Utils.Environment.print Fun.id
 
 let render state =
   Render.state
@@ -117,7 +116,7 @@ module Ainput = struct
         in
         loop [])
 
-  let print = print_env
+  let print = Utils.Environment.print Fun.id
 end
 
 module Rinput = Utils.Text.Unit

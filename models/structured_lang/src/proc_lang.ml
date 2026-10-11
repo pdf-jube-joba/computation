@@ -274,8 +274,10 @@ let render s =
   Utils.Render.state
     [
       Utils.Render.text ~title:"stmt" (stmt_to_text s.stmt);
-      Utils.Render.text ~title:"global env" (env_text (sorted s.global_env));
-      Utils.Render.text ~title:"local env" (env_text (sorted s.local_env));
+      Utils.Render.text ~title:"global env"
+        (Env.print_inline (sorted s.global_env));
+      Utils.Render.text ~title:"local env"
+        (Env.print_inline (sorted s.local_env));
       Utils.Render.text ~title:"call stack depth"
         (string_of_int (List.length s.call_stack));
     ]
@@ -283,8 +285,8 @@ let render s =
 module Ainput = struct
   type t = ainput
 
-  let parse text = Result.map sorted (parse_env text)
-  let print = fun env -> print_env (sorted env)
+  let parse text = Result.map sorted (Env.parse text)
+  let print = fun env -> Env.print (sorted env)
 end
 
 module Rinput = Utils.Text.String

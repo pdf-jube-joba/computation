@@ -61,7 +61,7 @@ let parse f text = L.parse_with create f text
 let sign p =
   match L.next p with
   | L.Symbol '-' -> None
-  | L.Ident s -> unwrap (T.parse_sign s)
+  | L.Ident s -> unwrap (T.Sign.parse s)
   | _ -> L.error p "Expected sign"
 
 let alphabet p =
@@ -89,14 +89,14 @@ let lvalue_print : lvalue -> string = function Var s -> s | Head -> "@"
 let rvalue_print : rvalue -> string = function
   | Var s -> s
   | Head -> "@"
-  | Const s -> "const " ^ T.sign_print s
+  | Const s -> "const " ^ T.Sign.print s
 
 let condition_print = function
   | None -> ""
   | Some c -> " if " ^ rvalue_print c.left ^ " == " ^ rvalue_print c.right
 
 let alphabet_print a =
-  "alphabet: (" ^ String.concat ", " (List.map T.sign_print a) ^ ")\n"
+  "alphabet: (" ^ String.concat ", " (List.map T.Sign.print a) ^ ")\n"
 
 let vars_rvalue : rvalue -> string list = function Var s -> [ s ] | _ -> []
 let vars_lvalue : lvalue -> string list = function Var s -> [ s ] | _ -> []
@@ -134,7 +134,7 @@ let normalized_alphabet a =
 
 let validate_rvalue allowed : rvalue -> unit = function
   | Const s when not (List.mem s allowed) ->
-      failwith ("Unknown sign in const: " ^ T.sign_print s)
+      failwith ("Unknown sign in const: " ^ T.Sign.print s)
   | _ -> ()
 
 let validate_cond allowed = function
@@ -147,20 +147,26 @@ let validate_tape allowed t =
   List.iter
     (fun s ->
       if not (List.mem s allowed) then
-        failwith ("Unknown sign on tape: " ^ T.sign_print s))
+        failwith ("Unknown sign on tape: " ^ T.Sign.print s))
     (fst (T.tape_into_vec t))
 
-let environment_parse text =
-  Utils.Environment.fold_lines
-    ~invalid_line:(fun _ -> "Invalid environment line")
-    (fun env key value ->
-      if String.contains value '=' then failwith "Invalid environment line";
-      ignore (unwrap (Utils.Identifier.make key));
-      if List.mem key keywords then failwith "Reserved environment variable";
-      env_set env key (unwrap (T.parse_sign value)))
-    [] text
+module Env = struct
+  type t = (Utils.Identifier.t * T.sign) list
 
-let environment_print = Utils.Environment.print T.sign_print
-let render_env env = Utils.Render.assoc_table ~title:"env" T.sign_print env
+  let parse_entry env key value =
+    if String.contains value '=' then failwith "Invalid environment line";
+    ignore (unwrap (Utils.Identifier.make key));
+    if List.mem key keywords then failwith "Reserved environment variable";
+    env_set env key (unwrap (T.Sign.parse value))
+
+  let parse text =
+    Utils.Environment.fold_lines
+      ~invalid_line:(fun _ -> "Invalid environment line")
+      parse_entry [] text
+
+  let print = Utils.Environment.print T.Sign.print
+end
+
+let render_env env = Utils.Render.assoc_table ~title:"env" T.Sign.print env
 
 module Tape = T.Ainput

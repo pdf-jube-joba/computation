@@ -20,14 +20,7 @@ let machine_step state input =
     (Circuit.step state input)
 
 module Ainput = Utils.Text.Unit
-
-module Rinput = struct
-  type t = signal
-
-  let parse = Parser.parse_signal
-  let print = print_signal
-end
-
+module Rinput = Circuit.Signal
 module Routput = Rinput
 module Foutput = Utils.Text.Unit
 

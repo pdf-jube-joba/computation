@@ -1,7 +1,7 @@
 module T = Turing_machine
 
 let get = function Ok v -> v | Error e -> failwith e
-let tape = T.parse_tape
+let tape = T.Tape.parse
 let check s b = if not b then failwith s
 
 let run s =
@@ -16,11 +16,11 @@ let run s =
 
 let () =
   List.iter
-    (fun text -> check "tape roundtrip" (T.print_tape (get (tape text)) = text))
+    (fun text -> check "tape roundtrip" (T.Tape.print (get (tape text)) = text))
     [ "-|d|e,f,g"; "a|b|c"; "-|-|-"; "a,b|-|c,d"; "|-|" ];
   let v =
     List.map
-      (fun s -> get (T.parse_sign s))
+      (fun s -> get (T.Sign.parse s))
       [ "a"; "b"; "c"; "d"; "e"; "f"; "g" ]
   in
   let t = get (T.tape_from_vec v 3) in
@@ -46,7 +46,7 @@ let () =
   let s = get (T.make d (get (tape "-|a|b,a,b,b,c"))) in
   let restored = get (T.restore (T.snapshot s)) in
   check "snapshot" (T.snapshot restored = T.snapshot s);
-  check "termination" (T.print_tape (run restored) = "-,b,b,b,b,b|c|");
+  check "termination" (T.Tape.print (run restored) = "-,b,b,b,b,b|c|");
   check "missing transition halts"
     (T.tape_equal (run (get (T.make d (get (tape "|-|"))))) (get (tape "|-|")));
   List.iter

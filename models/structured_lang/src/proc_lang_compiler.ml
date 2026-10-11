@@ -194,10 +194,11 @@ let decode_foutput values =
           | I.Num n -> (k, n)
           | _ ->
               failwith
-                ("expected numeric global for " ^ k ^ ", got " ^ I.value_print v))
+                ("expected numeric global for " ^ k ^ ", got "
+               ^ I.Ainput.print_value v))
         (sorted values))
 
 let api =
   text_api ~parse_code:P.parse_code ~compile ~parse_ainput:P.Ainput.parse
-    ~encode_ainput ~print_ainput:I.print_env ~parse_rinput:P.Rinput.parse
-    ~encode_rinput ~decode_routput ~decode_foutput ~print_foutput:print_env
+    ~encode_ainput ~print_ainput:I.Ainput.print ~parse_rinput:P.Rinput.parse
+    ~encode_rinput ~decode_routput ~decode_foutput ~print_foutput:Env.print

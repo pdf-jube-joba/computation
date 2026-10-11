@@ -43,7 +43,6 @@ let lam_to_value = function
   | Lam (x, b) -> Some (Fun (x, b))
   | e -> Option.map (fun n -> Num n) (exp_to_num e)
 
-let value_to_lam = function Fun (x, b) -> Lam (x, b) | Num n -> num_to_exp n
 let is_value = lam_to_value
 
 let rec free_variables = function
@@ -320,11 +319,15 @@ let parse_nat_code =
 module Value = struct
   type t = value
 
+  let to_term = function
+    | Fun (x, body) -> Lam (x, body)
+    | Num n -> num_to_exp n
+
   let parse text =
     Result.bind (parse_ctrl_code text) (fun term ->
         match is_value term with
         | Some value -> Ok value
         | None -> Error "Expected a value")
 
-  let print = fun value -> print (value_to_lam value)
+  let print value = print (to_term value)
 end

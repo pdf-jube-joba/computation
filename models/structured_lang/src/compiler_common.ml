@@ -78,7 +78,7 @@ let decode_foutput model values =
             | _ ->
                 failwith
                   (model ^ " decode expects numeric static value for " ^ k
-                 ^ ", got " ^ I.value_print v)
+                 ^ ", got " ^ I.Ainput.print_value v)
           in
           ignore (get (Utils.Identifier.make k));
           (k, n))

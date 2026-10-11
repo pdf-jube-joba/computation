@@ -70,7 +70,7 @@ let concat ctx =
 
 let shift_left_x _ctx s =
   fn
-    ("shift_left_put_" ^ T.sign_print s)
+    ("shift_left_put_" ^ T.Sign.print s)
     [
       block "initially" [ store "put" Head; put s; Lt ];
       block "loop" (swap @ [ Return (var_is "put" x); Lt; Continue None ]);
@@ -411,10 +411,10 @@ let api : Utils.Compiler.api =
       (fun text ->
         let* ns = R.Ainput.parse text in
         let* t = write ns in
-        Ok (T.print_tape t));
+        Ok (T.Tape.print t));
     decode_foutput =
       (fun text ->
-        let* t = T.parse_tape text in
+        let* t = T.Tape.parse text in
         let* n = decode_foutput t in
         Ok (N.to_string n));
   }

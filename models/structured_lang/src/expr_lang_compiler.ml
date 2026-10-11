@@ -147,7 +147,7 @@ let decode_foutput = decode_foutput "expr"
 
 let api =
   text_api ~parse_code:E.parse_code ~compile ~parse_ainput:E.Ainput.parse
-    ~encode_ainput ~print_ainput:I.print_env ~parse_rinput:E.Rinput.parse
+    ~encode_ainput ~print_ainput:I.Ainput.print ~parse_rinput:E.Rinput.parse
     ~encode_rinput
     ~decode_routput:(fun _ -> Ok "")
-    ~decode_foutput ~print_foutput:print_env
+    ~decode_foutput ~print_foutput:Env.print

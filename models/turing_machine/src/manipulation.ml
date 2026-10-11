@@ -21,7 +21,7 @@ module Builder = struct
   let new_builder name init_state =
     let open Utils.Machine in
     let* name = Utils.Identifier.make name in
-    let* init_state = parse_state init_state in
+    let* init_state = State.parse init_state in
     Ok { name; init_state; accepted_state = []; code = [] }
 
   let of_entry ((key_sign, key_state), (value_sign, value_state, direction)) =
@@ -67,7 +67,7 @@ module Graph_compose = struct
           g.assign_edge_to_state;
         let name i state =
           unwrap
-            (parse_state (Printf.sprintf "v%d_%s_%s" i vertices.(i).name state))
+            (State.parse (Printf.sprintf "v%d_%s_%s" i vertices.(i).name state))
         in
         let signs =
           List.sort_uniq compare

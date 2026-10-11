@@ -93,32 +93,34 @@ let print c =
          ^ " }")
        c.functions)
 
-let location_text (l : location) =
-  Printf.sprintf "loc(%d, %d)" l.frame_id l.slot
+module Runtime_value = struct
+  type t = value
 
-let value_text = function
-  | Num n -> Int64.to_string n
-  | Location l -> location_text l
-  | Null_ptr -> "#null_ptr"
+  let location_text (l : location) =
+    Printf.sprintf "loc(%d, %d)" l.frame_id l.slot
 
-let parse_runtime_value text =
-  L.protect (fun () ->
-      let text = String.trim text in
-      if text = "#null_ptr" then Null_ptr
-      else if
-        String.starts_with ~prefix:"loc(" text
-        && String.ends_with ~suffix:")" text
-      then
-        let body = String.sub text 4 (String.length text - 5) in
-        match String.split_on_char ',' body with
-        | [ frame; slot ] ->
-            let frame_id = get (N.to_int (get (N.of_string frame))) in
-            let slot = get (N.to_int (get (N.of_string slot))) in
-            Location { frame_id; slot }
-        | _ -> failwith "expected loc(frame,slot)"
-      else Num (Int64.of_string text))
+  let print = function
+    | Num n -> Int64.to_string n
+    | Location l -> location_text l
+    | Null_ptr -> "#null_ptr"
 
-let print_runtime_value = value_text
+  let parse text =
+    L.protect (fun () ->
+        let text = String.trim text in
+        if text = "#null_ptr" then Null_ptr
+        else if
+          String.starts_with ~prefix:"loc(" text
+          && String.ends_with ~suffix:")" text
+        then
+          let body = String.sub text 4 (String.length text - 5) in
+          match String.split_on_char ',' body with
+          | [ frame; slot ] ->
+              let frame_id = get (N.to_int (get (N.of_string frame))) in
+              let slot = get (N.to_int (get (N.of_string slot))) in
+              Location { frame_id; slot }
+          | _ -> failwith "expected loc(frame,slot)"
+        else Num (Int64.of_string text))
+end
 
 let rec parse_place p =
   match L.peek p with
@@ -254,7 +256,7 @@ let make code () =
 
 let store_lookup s loc =
   let rec loop = function
-    | [] -> failwith ("unknown location: " ^ location_text loc)
+    | [] -> failwith ("unknown location: " ^ Runtime_value.location_text loc)
     | f :: fs -> (
         match List.assoc_opt loc f.values with Some v -> v | None -> loop fs)
   in
@@ -262,7 +264,7 @@ let store_lookup s loc =
 
 let store_assign s loc value =
   let rec loop = function
-    | [] -> failwith ("unknown location: " ^ location_text loc)
+    | [] -> failwith ("unknown location: " ^ Runtime_value.location_text loc)
     | f :: fs ->
         if List.mem_assoc loc f.values then
           { f with values = set loc value f.values } :: fs
@@ -272,7 +274,7 @@ let store_assign s loc value =
 
 let expect_number = function
   | Num n -> n
-  | v -> failwith ("expected a number, found " ^ value_text v)
+  | v -> failwith ("expected a number, found " ^ Runtime_value.print v)
 
 let rec eval_place s = function
   | Var v -> lookup v s.env ("unknown variable: " ^ v)
@@ -296,7 +298,10 @@ let format_final_state s f =
   let values indent f =
     String.concat ""
       (List.map
-         (fun (l, v) -> indent ^ location_text l ^ " = " ^ value_text v ^ "\n")
+         (fun (l, v) ->
+           indent
+           ^ Runtime_value.location_text l
+           ^ " = " ^ Runtime_value.print v ^ "\n")
          (sorted f.values))
   in
   "halted\ncurrent_function: " ^ s.current_function ^ "\nfinished_frame: "
@@ -329,7 +334,8 @@ let step s () =
             match v with
             | Num 0L -> a
             | Num _ -> b
-            | _ -> failwith ("ifz expects a number, found " ^ value_text v)
+            | _ ->
+                failwith ("ifz expects a number, found " ^ Runtime_value.print v)
           in
           continue { s with current_stmt = Some selected }
       | Some (Call (name, args)) ->
@@ -405,8 +411,9 @@ let render s =
            (fun (n, l) ->
              [
                n;
-               location_text l;
-               value_text (try store_lookup s l with Failure _ -> Null_ptr);
+               Runtime_value.location_text l;
+               Runtime_value.print
+                 (try store_lookup s l with Failure _ -> Null_ptr);
              ])
            (sorted s.env));
       container ~title:"store"
@@ -414,8 +421,10 @@ let render s =
            (fun f ->
              assoc_table
                ~title:("frame " ^ string_of_int f.frame_id)
-               ~columns:[ "location"; "value" ] value_text
-               (List.map (fun (l, v) -> (location_text l, v)) (sorted f.values)))
+               ~columns:[ "location"; "value" ] Runtime_value.print
+               (List.map
+                  (fun (l, v) -> (Runtime_value.location_text l, v))
+                  (sorted f.values)))
            (List.rev s.store));
       container ~title:"inner_k"
         (List.map (fun st -> text (stmt_to_text st)) s.inner_k);
