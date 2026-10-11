@@ -1,0 +1,5 @@
+(library
+ (name example_counter)
+ (public_name computation.example_counter)
+ (libraries utils yojson)
+ (preprocess (pps ppx_deriving_yojson)))

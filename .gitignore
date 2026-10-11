@@ -8,3 +8,6 @@ generated
 .repo/cache/
 .repo/generated/
 .codex
+
+/_build/
+*.install

@@ -1,0 +1,4 @@
+(test
+ (name test_rec_tm)
+ (modules test_rec_tm)
+ (libraries recursive_function_turing_machine recursive_function turing_machine utils yojson))

@@ -1,0 +1,3 @@
+(tests
+ (names models_test core_test)
+ (libraries utils example_counter lambda_calculus goto_lang recursive_function))

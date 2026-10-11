@@ -1,0 +1,4 @@
+(rule
+ (alias runtest)
+ (deps cli_tests.cjs ../src/main.exe)
+ (action (run node %{dep:cli_tests.cjs} %{dep:../src/main.exe})))

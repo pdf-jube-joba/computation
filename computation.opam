@@ -1,0 +1,19 @@
+opam-version: "2.0"
+synopsis: "Executable models of computation"
+maintainer: "pdf-jube-joba"
+authors: "pdf-jube-joba"
+license: "CC0-1.0"
+homepage: "https://github.com/pdf-jube-joba/computation"
+bug-reports: "https://github.com/pdf-jube-joba/computation/issues"
+dev-repo: "git+https://github.com/pdf-jube-joba/computation.git"
+depends: [
+  "ocaml" {>= "5.0"}
+  "dune" {>= "3.17"}
+  "yojson"
+  "ppx_deriving_yojson"
+  "js_of_ocaml"
+  "js_of_ocaml-compiler"
+  "js_of_ocaml-ppx"
+  "wasm_of_ocaml-compiler"
+]
+build: [["dune" "build" "-p" name "-j" jobs]]

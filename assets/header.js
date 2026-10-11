@@ -56,7 +56,7 @@
           code: extractDefaultValue(modelRoot, "default-code"),
           ainput: extractDefaultValue(modelRoot, "default-ainput"),
           rinput: extractDefaultValue(modelRoot, "default-rinput"),
-          bundleBaseUrl,
+          bundleBaseUrl: modelRoot.dataset.bundleBaseUrl || bundleBaseUrl,
           assetBaseUrl,
         });
       } catch (error) {

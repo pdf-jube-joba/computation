@@ -1,0 +1,5 @@
+(library
+ (name structured_lang)
+ (public_name computation.structured_lang)
+ (libraries utils yojson flow_ir)
+ (preprocess (pps ppx_deriving_yojson)))

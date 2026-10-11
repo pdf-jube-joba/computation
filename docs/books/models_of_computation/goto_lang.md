@@ -15,12 +15,12 @@ Turing machine よりはこっちの方が理解しやすそう。
 \(x * y\) を計算するプログラム：
 <div data-model="goto_lang">
 <template data-default-code>
-cpy y2 <- y
-inc z
-dec y2
-ifnz y2 : 1
-dec x
-ifnz x : 0
+cpy y2 <- y;
+inc z;
+dec y2;
+ifnz y2 : 1;
+dec x;
+ifnz x : 0;
 </template>
 <template data-default-ainput>
 x = 3

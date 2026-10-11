@@ -1,0 +1,5 @@
+(library
+ (name lambda_continuations)
+ (public_name computation.lambda_continuations)
+ (libraries utils yojson)
+ (preprocess (pps ppx_deriving_yojson)))

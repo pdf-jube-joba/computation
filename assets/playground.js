@@ -10,10 +10,11 @@ const selectedModelText = document.querySelector("#selected-model");
 const modelCountText = document.querySelector("#model-count");
 const root = document.querySelector("#playground-root");
 const jsLink = document.querySelector("#js-link");
-const componentLink = document.querySelector("#component-link");
-const coreLink = document.querySelector("#core-link");
+const loaderLink = document.querySelector("#loader-link");
+const wasmLink = document.querySelector("#wasm-link");
 
 let availableModels = [];
+let bundleManifest = {entries: [], loaders: {}};
 let mountSequence = 0;
 
 function setStatus(message, isError = false) {
@@ -44,10 +45,11 @@ function artifactUrl(fileName) {
 }
 
 function setArtifactLinks(model) {
+  const entry = bundleManifest.entries.find(entry => entry.name === model);
   const entries = [
     [jsLink, `${model}.js`],
-    [componentLink, `${model}.component.wasm`],
-    [coreLink, `${model}.core.wasm`],
+    [loaderLink, bundleManifest.loaders[entry?.backend || "wasm"]],
+    [wasmLink, "browser.bc.wasm.assets/"],
   ];
   for (const [link, fileName] of entries) {
     link.href = artifactUrl(fileName);
@@ -55,18 +57,13 @@ function setArtifactLinks(model) {
 }
 
 async function fetchAvailableModels() {
-  const response = await fetch(bundleBaseUrl, {method: "GET"});
+  const response = await fetch(artifactUrl("models.json"), {method: "GET"});
   if (!response.ok) {
     throw new Error(`GET ${bundleBaseUrl} failed: ${response.status} ${response.statusText}`);
   }
 
-  const text = await response.text();
-  const names = text
-    .split("\n")
-    .map(entry => entry.trim())
-    .filter(entry => entry.endsWith(".js"))
-    .map(entry => entry.slice(0, -3))
-    .filter(Boolean);
+  bundleManifest = await response.json();
+  const names = bundleManifest.entries.map(entry => entry.name);
 
   return Array.from(new Set(names)).sort((left, right) => left.localeCompare(right));
 }

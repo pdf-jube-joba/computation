@@ -1,110 +1,39 @@
-ここはいろんな計算モデルとコンパイラを置いておくところ
+# 計算モデルとコンパイラ
 
-## 抽象的なインターフェースについて
-`utils/lib.rs` にある定義はこんな感じ。
+各ディレクトリの `src/dune` が一つのライブラリを定義し、`src/*.ml` がその module です。
+Web と CLI の公開名は `registry/registry.ml` に登録します。
 
-```rust
-pub enum StepResult<M: Machine> {
-    Continue { next: M, output: M::ROutput },
-    Halt { output: M::FOutput },
-}
+## モデルの契約
 
-// trait for models of computation
-pub trait Machine: Sized {
-    // "semantics" of the models
-    // a model can be considered as a partial function (Code, AInput) -> FOutput
-    // static code
-    type Code: TextCodec;
-    // ahead of time input
-    type AInput: TextCodec;
-    // final output at halt
-    type FOutput: TextCodec;
+`Utils.Machine.S` はコード、入力、出力、状態の型を抽象化した module signature です。
 
-    // small step semantics of the models
-    // runtime input (some kind of "effect" or "interaction" with the outside world)
-    type RInput: TextCodec;
-    // runtime output (some kind of "effect" or "interaction" with the outside world)
-    type ROutput: TextCodec;
-
-    // representation of the current state
-    type SnapShot: serde::Serialize + serde::de::DeserializeOwned;
-
-    // parsing
-    fn parse_code(code: &str) -> Result<Self::Code, String> {
-        Self::Code::parse(code)
-    }
-    fn parse_ainput(ainput: &str) -> Result<Self::AInput, String> {
-        Self::AInput::parse(ainput)
-    }
-    fn parse_rinput(rinput: &str) -> Result<Self::RInput, String> {
-        Self::RInput::parse(rinput)
-    }
-
-    // semantics
-    fn make(code: Self::Code, ainput: Self::AInput) -> Result<Self, String>;
-    fn step(self, rinput: Self::RInput) -> Result<StepResult<Self>, String>;
-
-    // save/restore snapshot of the current state
-    fn snapshot(&self) -> Self::SnapShot;
-    fn restore(snapshot: Self::SnapShot) -> Self;
-
-    // rendering of Snapshot for web
-    fn render(snapshot: Self::SnapShot) -> RenderState;
-}
-
-pub trait Compiler: Sized {
-    type Source: Machine;
-    type Target: Machine;
-
-    // compile of code
-    fn compile(
-        source: <<Self as Compiler>::Source as Machine>::Code,
-    ) -> Result<<<Self as Compiler>::Target as Machine>::Code, String>;
-    // encoding/decoding of inputs and outputs ... how to interpret the source/target code as the same "program"?
-    fn encode_ainput(
-        ainput: <<Self as Compiler>::Source as Machine>::AInput,
-    ) -> Result<<<Self as Compiler>::Target as Machine>::AInput, String>;
-    fn encode_rinput(
-        rinput: <<Self as Compiler>::Source as Machine>::RInput,
-    ) -> Result<<<Self as Compiler>::Target as Machine>::RInput, String>;
-    fn decode_routput(
-        output: <<Self as Compiler>::Target as Machine>::ROutput,
-    ) -> Result<<<Self as Compiler>::Source as Machine>::ROutput, String>;
-    fn decode_foutput(
-        output: <<Self as Compiler>::Target as Machine>::FOutput,
-    ) -> Result<<<Self as Compiler>::Source as Machine>::FOutput, String>;
-}
+```ocaml
+type ('state, 'routput, 'foutput) step_result =
+  | Continue of { next : 'state; output : 'routput }
+  | Halt of 'foutput
 ```
 
-これを受けての wasm interface はこんな感じ。
-```
-package computation:web;
+`make` は初期状態を生成し、`step` は一段階の遷移を返します。
+`parse_code` / `parse_ainput` / `parse_rinput` は外部のテキストをモデルの型に変換します。
+`Utils.Session.Make` functor が共通のセッション管理を実装します。
+エラーでは元の状態を保持し、停止ではセッションを終了します。
 
-world model {
-  export make: func(code: string, ainput: string) -> result<_, string>;
-  export step: func(rinput: string) -> result<string, string>;
-  export snapshot: func() -> result<string, string>;
-  export restore: func(snapshot: string) -> result<_, string>;
-  export render: func(snapshot: string) -> result<string, string>;
-}
+snapshot は `Yojson.Safe.t` に保存し、モデルごとに復元します。
+`ppx_deriving_yojson` が多くの型の JSON エンコーダー・デコーダーを生成します。
+`Utils.Compiler.S` は Source / Target の module を持つ型付きのコンパイラで、
+`Utils.Compiler.api` が CLI / Web に公開するテキストの境界です。
 
-world compiler {
-  export compile-code: func(input: string) -> result<string, string>;
-  export encode-ainput: func(ainput: string) -> result<string, string>;
-  export encode-rinput: func(rinput: string) -> result<string, string>;
-  export decode-routput: func(output: string) -> result<string, string>;
-  export decode-foutput: func(output: string) -> result<string, string>;
-}
-```
+## 描画
 
-`RenderState` は web 側で（言語によらない共通の描画機能を使って）表示するための構造体で、 json としてこんなものに翻訳される。
-- title, className: optional な field としてすべてのものに入れてよい。
-- text: `{ kind: "text", text: string }`
-  - テキストを入れる。
-- table: `{ kind: "table", columns: [block], rows: [{ className?, cells: [block] }] }`
-  - 表。 `columns` は各列のタイトル。ブロックにしてよい。 `rows.className` はその行に適用される。
-- container: `{ kind: "container", children: [block], orientation: "vertical" | "horizontal", display: "inline" | "block"}`
-  - ブロックの列。 orientation defaults to vertical, display defaults to block.
+`render` の戻り値は既存の `assets/renderer.js` が扱う JSON block の配列です。
+`Utils.Render` で text / table / container を構築できます。
+
+- text: `{kind: "text", text: string}`
+- table: `{kind: "table", columns: [block], rows: [{cells: [block]}]}`
+- container: `{kind: "container", children: [block], orientation: "vertical" | "horizontal", display: "inline" | "block"}`
+
+`title` / `className` は任意です。JSON の描画は OCaml の型に依存せず、
+保存済み snapshot の描画はアクティブな状態を変更しません。
 
 ## TODO
 プログラミング言語は基本的に、

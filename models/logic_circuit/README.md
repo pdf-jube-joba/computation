@@ -161,7 +161,7 @@
 
 <div data-model="logic_circuit">
 <template data-default-code>
-graph: one-shot {
+graph: main {
     in {I}
     out {O=A.OUT}
     B, BR-F {IN=I}
@@ -184,3 +184,32 @@ graph: one-shot {
 2. `usable` という関数が必要になるのは、ある論理回路でどんな名前が使えるのかがわからないから...これは不自然
     - ユーザー向けとしての回路・ピンの名前をつけつつ、内部では usize にした方が、使われている部分の出力があまり要らなくなる。
 
+## OCaml implementation
+
+`src/logic_circuit.ml` exposes `Logic_circuit.S` (also
+`Logic_circuit.Machine`) for the shared `Utils.Machine.S` contract.
+`Circuit` retains gates, synchronous graph composition, iterator state and graph
+views; `Parser`/`Parse` retain `graph:` and `iter:` definitions and signal text.
+`Example.utils_map ()` contains all six original example circuits.
+Snapshots use Yojson.Safe codecs and rendering retains the kind, input, output
+and vertex tables. There was no circuit compiler in the original crate.
+
+Circuit timing is one transition per gate, including DLY. Missing inputs are
+false; the first signal for a pin wins; graph edges override external signals.
+The original permissive external pin maps and ignored duplicate definitions
+remain unchanged.
+
+Nested graphs retain the source's input-name behavior: an outer graph passes
+the instance name into its child; when that differs from the child's kind and
+does not match a child vertex, the input is ignored. The bundled `ADDR` example
+therefore computes carry through its direct AND gate while its nested XOR sum
+stays false. This port preserves that behavior rather than supplying new routing.
+
+Iterator limitations are preserved: newly constructed iterators have no used
+cells, generated labels are `_n_`, and input routing tries decimal names. The
+text identifier syntax rejects decimal names, so a parsed iterator cannot be
+seeded by text input. No new infinite-circuit semantics are inferred from the
+design notes. Existing predecessor/index panics are reported as errors.
+
+Run `opam exec -- dune runtest models/logic_circuit/test` for the ported gate,
+graph, parser, example, snapshot, render and iterator tests.

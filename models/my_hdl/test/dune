@@ -1,0 +1,4 @@
+(test
+ (name test_my_hdl)
+ (modules test_my_hdl)
+ (libraries my_hdl utils yojson))

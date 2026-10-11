@@ -1,0 +1,5 @@
+(executable
+ (name browser)
+ (modes js wasm)
+ (libraries utils model_registry js_of_ocaml)
+ (preprocess (pps js_of_ocaml-ppx)))

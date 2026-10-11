@@ -18,8 +18,8 @@ export function ensureStyleSheet(options = {}) {
 export async function mountModel(element, options = {}) {
   ensureStyleSheet(options);
   const spec = normalizeMountSpec(options);
-  const module = await loadComponentModule(spec.model, spec.instanceId, options.bundleBaseUrl);
-  const kind = detectComponentKind(module);
+  const module = await loadModelModule(spec.model, spec.instanceId, options.bundleBaseUrl);
+  const kind = detectModuleKind(module);
   if (kind === "model") {
     await renderModelMount(element, spec.model, module, spec, options);
     return;
@@ -28,7 +28,7 @@ export async function mountModel(element, options = {}) {
     renderCompilerMount(element, spec.model, module, spec);
     return;
   }
-  throw new Error(`unknown component kind for ${spec.model}`);
+  throw new Error(`unknown module kind for ${spec.model}`);
 }
 
 function normalizeMountSpec(options) {
@@ -48,15 +48,15 @@ function normalizeMountSpec(options) {
   };
 }
 
-async function loadComponentModule(model, instanceId, baseUrl) {
-  return import(componentModuleUrl(model, instanceId, baseUrl));
+async function loadModelModule(model, instanceId, baseUrl) {
+  return import(modelModuleUrl(model, instanceId, baseUrl));
 }
 
 function assetUrl(relativePath, baseUrl) {
   return new URL(relativePath, resolveBaseUrl(baseUrl)).href;
 }
 
-function componentModuleUrl(model, instanceId, baseUrl) {
+function modelModuleUrl(model, instanceId, baseUrl) {
   const url = new URL(`./${model}.js`, resolveBaseUrl(baseUrl));
   url.searchParams.set("instance", instanceId);
   return url.href;
@@ -127,7 +127,7 @@ function createOutput(host, title, className = "") {
   return body;
 }
 
-function detectComponentKind(module) {
+function detectModuleKind(module) {
   const modelFns = ["make", "step", "snapshot", "restore", "render"];
   const compilerFns = [
     "compileCode",

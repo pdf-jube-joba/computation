@@ -12,13 +12,13 @@
       <p class="pg-kicker">Computation Playground</p>
       <h1>生成済み model を切り替えて試す</h1>
       <p class="pg-lead">
-        <code>/wasm_bundle/</code> の成果物を自動列挙して、その場で読み込みます。
+        ビルド済みの計算モデルとコンパイラを選んで実行できます。
       </p>
     </section>
 
     <section class="pg-toolbar">
       <label class="pg-control">
-        <span>Model</span>
+        <span>Model / Compiler</span>
         <select id="model-select"></select>
       </label>
       <button id="reload-button" type="button">Reload</button>
@@ -44,9 +44,9 @@
         <div class="pg-card">
           <h2>Artifacts</h2>
           <ul class="pg-links">
-            <li><a id="js-link" href="#" target="_blank" rel="noreferrer">JavaScript glue</a></li>
-            <li><a id="component-link" href="#" target="_blank" rel="noreferrer">Component wasm</a></li>
-            <li><a id="core-link" href="#" target="_blank" rel="noreferrer">Core wasm</a></li>
+            <li><a id="js-link" href="#" target="_blank" rel="noreferrer">Model module</a></li>
+            <li><a id="loader-link" href="#" target="_blank" rel="noreferrer">Runtime loader</a></li>
+            <li><a id="wasm-link" href="#" target="_blank" rel="noreferrer">Wasm assets</a></li>
           </ul>
         </div>
       </aside>

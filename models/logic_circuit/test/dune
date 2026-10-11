@@ -1,0 +1,4 @@
+(test
+ (name test_logic_circuit)
+ (modules test_logic_circuit)
+ (libraries logic_circuit utils yojson))

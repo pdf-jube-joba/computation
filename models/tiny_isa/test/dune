@@ -1,0 +1,4 @@
+(test
+ (name isa_tests)
+ (modules isa_tests)
+ (libraries tiny_isa utils yojson))

@@ -1,0 +1,7 @@
+(library
+ (name model_registry)
+ (public_name computation.registry)
+ (libraries utils example_counter lambda_calculus goto_lang recursive_function
+  recursive_function_goto_lang recursive_function_lambda_calculus
+  flow_ir structured_lang pcf lambda_continuations logic_circuit turing_machine
+  recursive_function_turing_machine tiny_isa async_await while_with_data))
