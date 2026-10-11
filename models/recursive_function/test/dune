@@ -1,0 +1,4 @@
+(test
+ (name recursive_tests)
+ (modules recursive_tests)
+ (libraries recursive_function))

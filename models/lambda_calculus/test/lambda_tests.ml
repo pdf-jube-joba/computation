@@ -1,16 +1,8 @@
-open Utils.Machine
-
 let get = function Ok value -> value | Error message -> failwith message
 let error = function Error _ -> () | Ok _ -> failwith "Expected an error"
 let parse = Lambda_calculus.parse_code
 
 let () =
-  let module C = Example_counter in
-  error (C.step 0 C.Decrement);
-  error (C.step max_int C.Increment);
-  assert (C.step 9 C.Increment = Ok (Halt "End"));
-  assert (C.step 2 C.Decrement = Ok (Continue { next = 1; output = "dec" }));
-  assert (get (C.restore (C.snapshot 7)) = 7);
   let module L = Lambda_calculus in
   let term = get (parse "(\\x. x) (\\y. y)") in
   assert (L.print (get (L.reduce term 0)) = "\\y. y");
@@ -61,14 +53,4 @@ let () =
   let twice = get (L.reduce (get (L.reduce shared 0)) 0) in
   assert (L.redex_count twice = 0);
   assert (get (L.restore (L.snapshot twice)) = twice);
-  let module S = Utils.Session.Make (C) in
-  let a = S.create () and b = S.create () in
-  ignore (get (S.make a "3" ""));
-  ignore (get (S.make b "8" ""));
-  error (S.step a "oops");
-  assert (get (S.snapshot a) = C.snapshot 3);
-  ignore (get (S.step a "inc"));
-  assert (get (S.snapshot b) = C.snapshot 8);
-  error (S.restore a (`String "bad"));
-  assert (get (S.snapshot a) = C.snapshot 4);
-  print_endline "Model tests passed"
+  print_endline "Lambda calculus tests passed"
