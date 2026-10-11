@@ -3,7 +3,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
-const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
+const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const options = {clean: false, release: false, packages: new Set(), models: new Set()};
 let outputDir = process.env.WORKSPACE_FS_OUTPUT_DIRECTORY || path.join(repoRoot, 'wasm_bundle');
 const args = process.argv.slice(2);
@@ -45,7 +45,7 @@ await mkdir(outputDir, {recursive: true});
 const built = path.join(repoRoot, '_build/default/web');
 for (const file of ['browser.bc.js', 'browser.bc.wasm.js']) await cp(path.join(built, file), path.join(outputDir, file));
 await cp(path.join(built, 'browser.bc.wasm.assets'), path.join(outputDir, 'browser.bc.wasm.assets'), {recursive: true});
-for (const file of ['runtime.mjs', 'model_adapter.mjs']) await cp(path.join(repoRoot, 'web', file), path.join(outputDir, file));
+for (const file of ['runtime.mjs', 'model_adapter.mjs']) await cp(path.join(repoRoot, 'web/runtime', file), path.join(outputDir, file));
 const published = [];
 for (const entry of entries) {
   for (const backend of ['wasm', 'js']) {

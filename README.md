@@ -14,7 +14,7 @@ npm --prefix _wfs/default_plugins/md_preview install
 cargo run --manifest-path _wfs/Cargo.toml -- .
 ```
 
-起動後に `task build` を実行し、[README のプレビュー](http://localhost:3001/md/md_preview.html?path=README.md)を開きます。
+起動後に `task build` を実行し、[README のプレビュー](http://localhost:3000/md/md_preview.html?path=README.md)を開きます。
 
 - [動く見本：カウンタ](./models/_example_counter/README.md)
 - [Model 一覧](./md/directory_view.html?link=Model)
@@ -26,6 +26,11 @@ cargo run --manifest-path _wfs/Cargo.toml -- .
 - [models/](./models/): 計算モデルとモデル間のコンパイラ。
 - [docs/](./docs/): 計算モデルについての文章。
 - [utils/](./utils/): モデルで共通に使うコード。
+- [web/](./web/): ブラウザ用コード。`ui/` は画面と描画、`runtime/` はランタイムの読み込みと API 変換、`browser.ml` は OCaml 側の入口。
+- `tools/`: モデルの JS / Wasm をビルドして配信用ファイルを生成するスクリプト。
+
+`web/ui/` は `/assets/`、生成物の `wasm_bundle/` は `/wasm_bundle/` として配信します。
+Playground の URL は [http://localhost:3000/assets/playground.html](http://localhost:3000/assets/playground.html) です。
 
 ## コードを触るとき
 

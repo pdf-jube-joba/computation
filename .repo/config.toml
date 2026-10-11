@@ -9,10 +9,20 @@ info_url_prefix = "/.info"
 [[plugin]]
 name = "build-wasm"
 runner = "command"
-command = ["node", "./plugins/mount_model/build.mjs", "--clean"]
+command = ["node", "./tools/build_models.mjs", "--clean"]
 allow = ["me"]
 mount = "/wasm_bundle/"
 source = "wasm_bundle/"
+
+# Serve UI sources directly. The command runner requires a command even for
+# a static mount; there is nothing to generate for this plugin.
+[[plugin]]
+name = "web-ui"
+runner = "command"
+command = ["true"]
+allow = ["me"]
+mount = "/assets/"
+source = "web/ui/"
 
 [[plugin]]
 name = "md-preview"
@@ -34,7 +44,7 @@ paths = [
   ".agents",
   "_wfs",
   "_build",
-  "plugins",
+  "tools",
   "dune",
   "dune-project",
   "ocamlformat",

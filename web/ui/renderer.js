@@ -1,4 +1,4 @@
-// assets/renderer.js
+// web/ui/renderer.js
 // Draft: common renderer prototype. Expects an array of JSON blocks.
 //
 // Supported block kinds: title, className are optional for all block types.
