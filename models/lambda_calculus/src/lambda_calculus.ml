@@ -109,20 +109,6 @@ let parse_code text =
     Ok term
   with Parse_error message | Utils.Lexer.Error message -> Error message
 
-let parse_ainput text =
-  if String.trim text = "" then Ok []
-  else
-    let rec loop = function
-      | [] -> Ok []
-      | text :: rest ->
-          let* term = parse_code text in
-          let* terms = loop rest in
-          Ok (term :: terms)
-    in
-    loop (String.split_on_char ',' text)
-
-let parse_rinput = natural
-
 let rec max_id = function
   | Var var -> var.id
   | Abs (var, body) -> max var.id (max_id body)
@@ -327,8 +313,6 @@ let render term =
         print (redexes term);
     ]
 
-let routput_json () = `Null
-let foutput_json term = `String (print term)
 let assoc_app = List.fold_left (fun left right -> App (left, right))
 
 let lambdas vars body =
@@ -386,3 +370,31 @@ let rec normalize ?(fuel = 100000) term =
   else
     let* next = reduce term 0 in
     normalize ~fuel:(fuel - 1) next
+
+module Ainput = struct
+  type t = ainput
+
+  let parse text =
+    if String.trim text = "" then Ok []
+    else
+      let rec loop = function
+        | [] -> Ok []
+        | text :: rest ->
+            let* term = parse_code text in
+            let* terms = loop rest in
+            Ok (term :: terms)
+      in
+      loop (String.split_on_char ',' text)
+
+  let print = fun terms -> String.concat ", " (List.map print terms)
+end
+
+module Rinput = Utils.Text.Natural_int
+module Routput = Utils.Text.Unit
+
+module Foutput = struct
+  type t = foutput
+
+  let parse = parse_code
+  let print = print
+end

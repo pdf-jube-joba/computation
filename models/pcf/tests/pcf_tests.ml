@@ -12,11 +12,11 @@ let error = function Error _ -> () | Ok _ -> failwith "expected error"
 let run (type c a s r f)
     (module M : Utils.Machine.S
       with type code = c
-       and type ainput = a
+       and type Ainput.t = a
        and type state = s
-       and type rinput = unit
-       and type routput = r
-       and type foutput = f) code input =
+       and type Rinput.t = unit
+       and type Routput.t = r
+       and type Foutput.t = f) code input =
   let rec loop fuel state outputs =
     if fuel = 0 then failwith "machine did not halt";
     (* Check resumability at every boundary, including closures and continuations. *)
@@ -27,12 +27,12 @@ let run (type c a s r f)
     in
     assert (match M.render state with `List _ -> true | _ -> false);
     match get (M.step state ()) with
-    | Utils.Machine.Halt n -> (List.rev outputs, M.foutput_json n)
+    | Utils.Machine.Halt n -> (List.rev outputs, `String (M.Foutput.print n))
     | Utils.Machine.Continue { next; output } ->
         let outputs =
-          match M.routput_json output with
-          | `String "" -> outputs
-          | out -> out :: outputs
+          match M.Routput.print output with
+          | "" -> outputs
+          | out -> `String out :: outputs
         in
         loop (fuel - 1) next outputs
   in
@@ -40,7 +40,7 @@ let run (type c a s r f)
 
 let differential text inputs expected =
   let source = get (Expr_machine.parse_code text) in
-  let inputs = get (Syntax.parse_ainput inputs) in
+  let inputs = get (Syntax.Ainput.parse inputs) in
   let expr = run (module Expr_machine) source inputs in
   assert (expr = expected);
   let cek = get (Compiler.Expr_to_cek.compile source) in
@@ -89,8 +89,8 @@ let () =
       let test
           (module M : Utils.Machine.S
             with type code = Syntax.expr
-             and type ainput = Utils.Number.t list
-             and type rinput = unit) =
+             and type Ainput.t = Utils.Number.t list
+             and type Rinput.t = unit) =
         let rec loop fuel state =
           if fuel = 0 then failwith "expected failure"
           else
@@ -143,17 +143,17 @@ let () =
   error (Syntax.parse_code "{ skip; 1 }");
   error (Syntax.parse_stmt_code "{ 1 }");
   error (Syntax.parse_stmt_code "{ skip; }");
-  assert (get (Syntax.parse_ainput "(,001,,2,)") = [ "1"; "2" ]);
-  assert (get (Syntax.parse_ainput "(+001, +2)") = [ "1"; "2" ]);
-  assert (get (Syntax.parse_effect "+001") = Some "1");
+  assert (get (Syntax.Ainput.parse "(,001,,2,)") = [ "1"; "2" ]);
+  assert (get (Syntax.Ainput.parse "(+001, +2)") = [ "1"; "2" ]);
+  assert (get (Syntax.Routput.parse "+001") = Some "1");
   assert (get (Compiler.expr_to_secd.encode_ainput "(+001)") = "(1)");
   assert (get (Compiler.expr_to_cek.decode_routput "+001") = "1");
   assert (get (Compiler.expr_to_secd.decode_foutput "+001") = "1");
-  error (Syntax.parse_ainput "(+ 1)");
-  error (Syntax.parse_effect "+");
-  error (Syntax.parse_effect "++1");
-  error (Syntax.parse_ainput "1,2");
-  error (Expr_machine.parse_rinput "1");
+  error (Syntax.Ainput.parse "(+ 1)");
+  error (Syntax.Routput.parse "+");
+  error (Syntax.Routput.parse "++1");
+  error (Syntax.Ainput.parse "1,2");
+  error (Expr_machine.Rinput.parse "1");
   let e = get (Syntax.parse_code "fun y => x") in
   let substituted = Syntax.substitute e "x" (Syntax.Var "y") in
   assert (Syntax.Names.elements (Syntax.free_vars substituted) = [ "y" ]);
@@ -191,5 +191,5 @@ let () =
   error (Secd_machine.parse_code {|[{"Acc":"bad!"}]|});
   error (Secd_machine.step (get (Secd_machine.make [ Secd_machine.Ret ] [])) ());
   error (Secd_machine.step (get (Secd_machine.make [ Secd_machine.Ap ] [])) ());
-  assert (Expr_machine.routput_json None = s "");
+  assert (Expr_machine.Routput.print None = "");
   print_endline "PCF semantic/compiler tests passed"

@@ -100,7 +100,7 @@ let text_api ~parse_code ~compile ~parse_ainput ~encode_ainput ~print_ainput
     decode_routput;
     decode_foutput =
       (fun text ->
-        Result.bind (I.parse_ainput text) (fun output ->
+        Result.bind (I.Foutput.parse text) (fun output ->
             Result.map print_foutput (decode_foutput output)));
   }
 

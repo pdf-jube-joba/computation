@@ -136,18 +136,14 @@ let () =
   in
   assert (I.snapshot (next_i s) = I.snapshot (next_i restored));
   assert (I.snapshot s = snapshot);
-  let input = ok (I.parse_ainput "\n0, 1,2,3,4,5,6,7,\n\n8\n9") in
+  let input = ok (I.Ainput.parse "\n0, 1,2,3,4,5,6,7,\n\n8\n9") in
   assert (input.memory = [ "8"; "9" ]);
-  assert (
-    ok
-      (I.parse_ainput
-         (match I.foutput_json input with `String s -> s | _ -> assert false))
-    = input);
+  assert (ok (I.Ainput.parse (I.Foutput.print input)) = input);
   assert (
     ok (I.parse_code (I.print [ "0"; "64"; "123456789012345678901234567890" ]))
     = [ "0"; "64"; "123456789012345678901234567890" ]);
-  error (I.parse_ainput "0,1");
-  error (I.parse_ainput "x,0,0,0,0,0,0,0");
+  error (I.Ainput.parse "0,1");
+  error (I.Ainput.parse "x,0,0,0,0,0,0,0");
   error (I.parse_code "64 x");
   let text =
     ".equ N #7\n\
@@ -180,14 +176,10 @@ let () =
     && output.regs.(4) = "0"
     && output.regs.(0) = "8");
   assert (output.data_memory = [ "9"; "1"; "9"; "5"; "0" ]);
-  let input = ok (A.parse_ainput "0, 0, 0, 0, 0, 0, 0, 0\n100") in
+  let input = ok (A.Ainput.parse "0, 0, 0, 0, 0, 0, 0, 0\n100") in
   let output = run_a 20 (ok (A.make code input)) in
   assert (List.nth output.data_memory 5 = "100");
-  assert (
-    ok
-      (A.parse_output
-         (match A.foutput_json output with `String s -> s | _ -> assert false))
-    = output);
+  assert (ok (A.Foutput.parse (A.Foutput.print output)) = output);
   let output =
     run_a 30
       (assembly
@@ -275,7 +267,7 @@ let () =
   in
   let code = ok (C.parse_code program) in
   assert (ok (C.parse_code (C.print code)) = code);
-  let s = ok (C.make code (ok (C.parse_ainput "(8, 9,)"))) in
+  let s = ok (C.make code (ok (C.Ainput.parse "(8, 9,)"))) in
   let s1 = next_c s in
   assert (
     s1.current_block = 1
@@ -364,12 +356,12 @@ let () =
     match ok (C.step s ()) with
     | Utils.Machine.Halt ns -> ns = [ "7"; "8"; "9" ]
     | _ -> false);
-  assert (C.foutput_json [ "1"; "2" ] = `String "(1, 2)");
-  assert (ok (C.parse_ainput "(,1,,2,)") = [ "1"; "2" ]);
-  List.iter (fun text -> error (C.parse_ainput text)) [ "1,2"; "(1;x)"; "(-1)" ];
-  error (I.parse_rinput "x");
-  error (A.parse_rinput "x");
-  error (C.parse_rinput "x");
+  assert (C.Foutput.print [ "1"; "2" ] = "(1, 2)");
+  assert (ok (C.Ainput.parse "(,1,,2,)") = [ "1"; "2" ]);
+  List.iter (fun text -> error (C.Ainput.parse text)) [ "1,2"; "(1;x)"; "(-1)" ];
+  error (I.Rinput.parse "x");
+  error (A.Rinput.parse "x");
+  error (C.Rinput.parse "x");
   assert (
     match I.render (machine [ Op.Halt ]) with
     | `List [ _; _; _ ] -> true
@@ -381,5 +373,5 @@ let () =
   assert (match C.render s1 with `List [ _; _; _; _ ] -> true | _ -> false);
   assert (ok (I.parse_code "+64") = [ "64" ]);
   assert ((run_a 5 (assembly "ldi %r1 #+7;\nhalt;")).regs.(1) = "7");
-  assert (ok (C.parse_ainput "(+1,+2)") = [ "1"; "2" ]);
+  assert (ok (C.Ainput.parse "(+1,+2)") = [ "1"; "2" ]);
   print_endline "tiny ISA, symbolic assembly, and CFG tests passed"

@@ -12,8 +12,7 @@ export function createAdapter(api, name) {
     step(input) {
       const result = unwrap(session.step(input));
       const field = result.kind === 'continue' ? 'routput' : 'foutput';
-      const output = result.output === null ? '' : result.output;
-      return JSON.stringify({kind: result.kind, [field]: output});
+      return JSON.stringify({kind: result.kind, [field]: result.output});
     },
     snapshot() { return JSON.stringify(unwrap(session.snapshot())); },
     restore(snapshot) { unwrap(session.restore(snapshot)); },

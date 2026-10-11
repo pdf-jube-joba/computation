@@ -2,8 +2,6 @@ open Common
 include Mini_prog_syntax
 
 let parse_code = Mini_prog_parser.parse_code
-let parse_ainput = Mini_prog_parser.parse_ainput
-let parse_rinput = Utils.Machine.empty_input
 
 let rec type_match v ty =
   match (v, ty) with
@@ -556,25 +554,24 @@ let render s =
            s.fn_k);
     ]
 
-let routput_json = string_json
-let foutput_json n = `String (N.to_string n)
+module Ainput = Mini_prog_parser.Ainput
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.String
+module Foutput = Utils.Text.Natural
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

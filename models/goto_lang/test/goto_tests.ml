@@ -6,7 +6,7 @@ let () =
   let module G = Goto_lang in
   let code = get (G.parse_code "// comment\ninc x; cpy y <- x; dec x;") in
   let state =
-    get (G.make code (get (G.parse_ainput "x=999999999999999999999999999999")))
+    get (G.make code (get (G.Ainput.parse "x=999999999999999999999999999999")))
   in
   let next =
     match get (G.step state ()) with

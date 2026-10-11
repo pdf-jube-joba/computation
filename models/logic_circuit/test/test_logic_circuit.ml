@@ -105,27 +105,27 @@ let () =
   bad (parse_code "");
   let duplicate = ok (parse_code (code ^ " graph: main {in {} out {}}")) in
   assert (duplicate = main);
-  let signal = ok (parse_rinput " A.IN=#true, B.OUT=#false ") in
-  assert (ok (parse_rinput "\tA.IN=\r#true\n, B.OUT=#false\012") = signal);
+  let signal = ok (Rinput.parse " A.IN=#true, B.OUT=#false ") in
+  assert (ok (Rinput.parse "\tA.IN=\r#true\n, B.OUT=#false\012") = signal);
   assert (print_signal signal = "A.IN=#true, B.OUT=#false");
-  assert (ok (parse_rinput "  ") = []);
+  assert (ok (Rinput.parse "  ") = []);
   let whitespace = [ "\t"; "\n"; "\012"; "\r"; " " ] in
   List.iter
     (fun ws ->
-      assert (ok (parse_rinput ws) = []);
-      assert (ok (parse_ainput ws) = ());
+      assert (ok (Rinput.parse ws) = []);
+      assert (ok (Ainput.parse ws) = ());
       assert (
-        ok (parse_rinput (ws ^ "A.IN=" ^ ws ^ "#true" ^ ws))
+        ok (Rinput.parse (ws ^ "A.IN=" ^ ws ^ "#true" ^ ws))
         = [ (pin "A" "IN", true) ]))
     whitespace;
-  bad (parse_rinput "A.\194\160IN=#true");
-  bad (parse_rinput "\227\128\128A.IN=#true");
-  bad (parse_rinput "\226\128\139A.IN=#true");
-  bad (parse_ainput "\239\187\191");
+  bad (Rinput.parse "A.\194\160IN=#true");
+  bad (Rinput.parse "\227\128\128A.IN=#true");
+  bad (Rinput.parse "\226\128\139A.IN=#true");
+  bad (Ainput.parse "\239\187\191");
   List.iter
-    (fun s -> bad (parse_rinput s))
+    (fun s -> bad (Rinput.parse s))
     [ "A.IN=true"; "A=#true"; "A.IN=#true,"; "0.IN=#true"; "A .IN=#true" ];
-  bad (parse_ainput "unexpected");
+  bad (Ainput.parse "unexpected");
   let saved = snapshot first in
   let decoded =
     Yojson.Safe.from_string (Yojson.Safe.to_string saved) |> restore |> ok
@@ -153,7 +153,7 @@ let () =
   (match ok (S.step main []) with
   | Utils.Machine.Continue { next; output } ->
       assert (output = get_otputs next);
-      assert (S.routput_json output = `String "main.O=#true")
+      assert (S.Routput.print output = "main.O=#true")
   | _ -> failwith "Circuits never halt");
   (match render first with
   | `List [ _; _; _; _ ] -> ()

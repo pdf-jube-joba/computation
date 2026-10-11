@@ -35,12 +35,6 @@ type routput = unit
 type foutput = value
 type state = { code : term; current : term } [@@deriving yojson]
 
-let parse_ainput =
-  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
-    N.of_string
-
-let parse_rinput = Utils.Machine.empty_input
-
 let make code inputs =
   Ok
     {
@@ -67,5 +61,7 @@ let render s =
       Utils.Render.text ~title:"current" (print s.current);
     ]
 
-let routput_json () = `String ""
-let foutput_json v = `String (print (value_to_lam v))
+module Ainput = Utils.Text.Natural_list
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Lambda.Value

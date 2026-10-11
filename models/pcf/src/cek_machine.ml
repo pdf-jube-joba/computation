@@ -114,8 +114,6 @@ type foutput = N.t
 type state = { code : expr; state : cek_state } [@@deriving yojson]
 
 let parse_code = Syntax.parse_code
-let parse_ainput = Syntax.parse_ainput
-let parse_rinput = Utils.Machine.empty_input
 
 let make code inputs =
   Ok { code; state = Eval (apply_inputs code inputs, [], [ Init ]) }
@@ -160,5 +158,7 @@ let render s =
         k;
     ]
 
-let routput_json = Syntax.routput_json
-let foutput_json = Syntax.foutput_json
+module Ainput = Syntax.Ainput
+module Rinput = Utils.Text.Unit
+module Routput = Syntax.Routput
+module Foutput = Syntax.Foutput

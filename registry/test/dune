@@ -1,0 +1,4 @@
+(test
+ (name text_test)
+ (modules text_test)
+ (libraries utils model_registry))

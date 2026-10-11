@@ -104,9 +104,6 @@ let parse_code =
       if procs = [] then L.error p "At least one procedure is required";
       { statics; procs })
 
-let parse_ainput text = Result.map sorted (parse_env text)
-let parse_rinput s = Ok s
-
 let rec stmt_to_text = function
   | Nop -> "Nop"
   | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
@@ -283,25 +280,30 @@ let render s =
         (string_of_int (List.length s.call_stack));
     ]
 
-let routput_json = string_json
-let foutput_json e = `String (print_env (sorted e))
+module Ainput = struct
+  type t = ainput
+
+  let parse text = Result.map sorted (parse_env text)
+  let print = fun env -> print_env (sorted env)
+end
+
+module Rinput = Utils.Text.String
+module Routput = Utils.Text.String
+module Foutput = Ainput
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

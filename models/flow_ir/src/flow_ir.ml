@@ -325,16 +325,8 @@ let parse_flow_value text =
         Key (Heap (handle, index)))
       else Num (get (N.of_string s)))
 
-let parse_ainput text =
-  Utils.Environment.parse
-    ~invalid_line:(fun line -> "Invalid static input line: " ^ line)
-    parse_flow_value text
-  |> Result.map sorted
-
 let print_env env =
   Utils.Environment.print ~trailing_newline:true value_print (sorted env)
-
-let parse_rinput s = Ok s
 
 let unique kind names =
   Utils.Identifier.check_unique
@@ -623,25 +615,35 @@ let render s =
            (sorted s.heap));
     ]
 
-let routput_json s = `String s
-let foutput_json e = `String (print_env e)
+module Ainput = struct
+  type t = ainput
+
+  let parse text =
+    Utils.Environment.parse
+      ~invalid_line:(fun line -> "Invalid static input line: " ^ line)
+      parse_flow_value text
+    |> Result.map sorted
+
+  let print = print_env
+end
+
+module Rinput = Utils.Text.String
+module Routput = Utils.Text.String
+module Foutput = Ainput
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

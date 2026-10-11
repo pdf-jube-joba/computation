@@ -64,7 +64,7 @@ type state = {
 
 let parse_vreg s =
   if not (String.starts_with ~prefix:"%v" s) then failwith ("Invalid vreg: " ^ s)
-  else value (Utils.Machine.natural (Text.strip_prefix "%v" s))
+  else value (Utils.Text.Natural_int.parse (Text.strip_prefix "%v" s))
 
 let parse_addr_expr s =
   let s = String.trim s in
@@ -287,11 +287,6 @@ let print (code : code) =
           ^ "  goto " ^ addr_to_text b.cont.jump ^ ";\n}\n")
         code.blocks)
 
-let parse_ainput =
-  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:',' number
-
-let parse_rinput = Utils.Machine.empty_input
-
 let print_memory memory =
   "(" ^ String.concat ", " (List.map N.to_string memory) ^ ")"
 
@@ -443,25 +438,24 @@ let render s =
         N.to_string (Array.to_list s.memory);
     ]
 
-let routput_json () = `String ""
-let foutput_json memory = `String (print_memory memory)
+module Ainput = Utils.Text.Natural_list
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Utils.Text.Natural_list
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

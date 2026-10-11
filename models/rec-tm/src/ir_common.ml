@@ -1,4 +1,3 @@
-open Utils.Machine
 module T = Turing_machine
 module L = Utils.Lexer
 
@@ -163,7 +162,5 @@ let environment_parse text =
 
 let environment_print = Utils.Environment.print T.sign_print
 let render_env env = Utils.Render.assoc_table ~title:"env" T.sign_print env
-let parse_ainput = T.parse_tape
-let parse_rinput = empty_input
-let routput_json () = `String ""
-let foutput_json t = `String (T.print_tape t)
+
+module Tape = T.Ainput

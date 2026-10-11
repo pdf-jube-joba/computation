@@ -15,7 +15,7 @@ let run ?(input = "") code ainput =
     | Continue { next; output } -> loop (fuel - 1) next (out ^ output)
   in
   loop 1000
-    (get (I.make (get (I.parse_code code)) (get (I.parse_ainput ainput))))
+    (get (I.make (get (I.parse_code code)) (get (I.Ainput.parse ainput))))
     ""
 
 let () =
@@ -48,7 +48,7 @@ let () =
       if get (I.parse_flow_value (I.value_print v)) <> v then
         failwith "Value roundtrip")
     [ "123"; ":next"; "k:@slot"; "k:s[3]"; "k:h[2][4]" ];
-  eq (I.print_env (get (I.parse_ainput "z=3\na=1\nz=5"))) "a = 1\nz = 5\n";
+  eq (I.print_env (get (I.Ainput.parse "z=3\na=1\nz=5"))) "a = 1\nz = 5\n";
   let out, text =
     run ~input:"Hi" {|@x 0
 :main{:entry{input @x; %x:=ld @x; print %x; halt;}}|}

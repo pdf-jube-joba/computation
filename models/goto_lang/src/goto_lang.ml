@@ -43,21 +43,6 @@ let parse_code =
       in
       loop [])
 
-let parse_ainput =
-  Lexer.parse (fun p ->
-      let rec loop acc =
-        if Lexer.eof p then List.rev acc
-        else
-          let name = Lexer.identifier p in
-          Lexer.expect_symbol p '=';
-          let value = Lexer.natural p in
-          ignore (Lexer.eat_symbol p ';');
-          loop ((name, value) :: acc)
-      in
-      loop [])
-
-let parse_rinput = empty_input
-
 let get env name =
   match List.assoc_opt name env with Some value -> value | None -> Number.zero
 
@@ -98,8 +83,6 @@ let print_command = function
 
 let print_code code = String.concat "\n" (List.map print_command code)
 let print_env = Utils.Environment.print Fun.id
-let routput_json () = `String ""
-let foutput_json env = `String (print_env env)
 
 let render state =
   Render.state
@@ -117,3 +100,26 @@ let render state =
         ];
       Render.assoc_table ~title:"env" Fun.id state.env;
     ]
+
+module Ainput = struct
+  type t = ainput
+
+  let parse =
+    Lexer.parse (fun p ->
+        let rec loop acc =
+          if Lexer.eof p then List.rev acc
+          else
+            let name = Lexer.identifier p in
+            Lexer.expect_symbol p '=';
+            let value = Lexer.natural p in
+            ignore (Lexer.eat_symbol p ';');
+            loop ((name, value) :: acc)
+        in
+        loop [])
+
+  let print = print_env
+end
+
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Ainput

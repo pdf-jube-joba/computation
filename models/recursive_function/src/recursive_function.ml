@@ -137,14 +137,6 @@ let parse_code text =
   let* () = validate f in
   Ok f
 
-let parse_ainput =
-  Lexer.parse (fun p ->
-      Lexer.expect_symbol p '(';
-      Lexer.separated_until ~allow_trailing:true p ~separator:',' ~closing:')'
-        Lexer.natural)
-
-let parse_rinput = empty_input
-
 let make function_ input =
   let* () = validate function_ in
   if List.length input <> arity function_ then
@@ -253,9 +245,6 @@ let render state =
       Render.text ~title:"process" (print_process state.process);
     ]
 
-let routput_json () = `String ""
-let foutput_json n = `String n
-
 let rec evaluate ?(fuel = 100000) process =
   if fuel = 0 then Error "Evaluation step limit reached"
   else
@@ -281,3 +270,19 @@ let interpreter function_ =
             | None -> Error "Invalid recursive-function process")
       in
       run state.process)
+
+module Ainput = struct
+  type t = ainput
+
+  let parse =
+    Lexer.parse (fun p ->
+        Lexer.expect_symbol p '(';
+        Lexer.separated_until ~allow_trailing:true p ~separator:',' ~closing:')'
+          Lexer.natural)
+
+  let print = Utils.Text.Natural_list.print
+end
+
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Utils.Text.Natural

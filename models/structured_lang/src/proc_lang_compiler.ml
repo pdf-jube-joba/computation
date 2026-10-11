@@ -198,6 +198,6 @@ let decode_foutput values =
         (sorted values))
 
 let api =
-  text_api ~parse_code:P.parse_code ~compile ~parse_ainput:P.parse_ainput
-    ~encode_ainput ~print_ainput:I.print_env ~parse_rinput:P.parse_rinput
+  text_api ~parse_code:P.parse_code ~compile ~parse_ainput:P.Ainput.parse
+    ~encode_ainput ~print_ainput:I.print_env ~parse_rinput:P.Rinput.parse
     ~encode_rinput ~decode_routput ~decode_foutput ~print_foutput:print_env

@@ -22,11 +22,6 @@ type state = {
 let parse_code = parse_numbers
 let print = print_numbers
 
-let parse_ainput text =
-  Result.map (fun (register, memory) -> { register; memory }) (parse_image text)
-
-let parse_rinput = Utils.Machine.empty_input
-
 let make code (input : ainput) =
   Utils.Lexer.protect (fun () ->
       validate_regs input.register;
@@ -99,25 +94,34 @@ let render s =
       memory;
     ]
 
-let routput_json () = `String ""
-let foutput_json (o : foutput) = `String (print_image o.register o.memory)
+module Ainput = struct
+  type t = ainput
+
+  let parse text =
+    Result.map
+      (fun (register, memory) -> { register; memory })
+      (parse_image text)
+
+  let print = fun (image : t) -> print_image image.register image.memory
+end
+
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Ainput
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

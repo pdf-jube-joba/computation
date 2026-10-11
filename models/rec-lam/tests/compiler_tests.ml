@@ -53,11 +53,11 @@ let check func input =
   assert (ok (L.restore (L.snapshot normal)) = normal)
 
 let api_check text input =
-  let func = ok (parse_code text) and args = ok (parse_ainput input) in
+  let func = ok (parse_code text) and args = ok (Ainput.parse input) in
   let expected = ok (evaluate (ok (make func args)).process) in
   let term = ok (L.parse_code (ok (C.api.compile_code text))) in
-  let args = ok (L.parse_ainput (ok (C.api.encode_ainput input))) in
-  let index = ok (L.parse_rinput (ok (C.api.encode_rinput ""))) in
+  let args = ok (L.Ainput.parse (ok (C.api.encode_ainput input))) in
+  let index = ok (L.Rinput.parse (ok (C.api.encode_rinput ""))) in
   assert (index = 0);
   let normal = normalize (ok (L.make term args)) in
   assert (ok (C.api.decode_foutput (L.print normal)) = expected)

@@ -39,10 +39,10 @@ let check func input =
     input
 
 let api_check text input =
-  let func = ok (parse_code text) and args = ok (parse_ainput input) in
+  let func = ok (parse_code text) and args = ok (Ainput.parse input) in
   let expected = ok (evaluate (ok (make func args)).process) in
   let code = ok (Goto_lang.parse_code (ok (C.api.compile_code text))) in
-  let env = ok (Goto_lang.parse_ainput (ok (C.api.encode_ainput input))) in
+  let env = ok (Goto_lang.Ainput.parse (ok (C.api.encode_ainput input))) in
   let result = run_code code env in
   assert (ok (C.api.decode_foutput (Goto_lang.print_env result)) = expected)
 

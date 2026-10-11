@@ -189,9 +189,6 @@ let print_code d =
            ^ "\n")
          d.code)
 
-let parse_ainput = parse_tape
-let parse_rinput = empty_input
-
 let next_code s =
   if List.mem s.current_state s.definition.accepted_state then None
   else get_now_entry s.definition (s.tape.head, s.current_state)
@@ -261,27 +258,32 @@ let render s =
       render_tape s.tape;
     ]
 
-let routput_json () = `String ""
-let foutput_json t = `String (print_tape t)
+module Ainput = struct
+  type t = ainput
+
+  let parse = parse_tape
+  let print = print_tape
+end
+
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Ainput
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end
 
 module Tape = struct

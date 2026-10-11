@@ -24,12 +24,13 @@ type foutput = value
 type state = No_ext.state [@@deriving yojson]
 
 let parse_code = parse_ctrl_code
-let parse_ainput = No_ext.parse_ainput
-let parse_rinput = No_ext.parse_rinput
 let make = No_ext.make
 let step _ () = Error unsupported
 let snapshot = No_ext.snapshot
 let restore = No_ext.restore
 let render = No_ext.render
-let routput_json = No_ext.routput_json
-let foutput_json = No_ext.foutput_json
+
+module Ainput = Utils.Text.Natural_list
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Lambda.Value

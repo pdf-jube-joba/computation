@@ -316,3 +316,15 @@ let parse_nat_code =
     | _ -> Var (word p)
   in
   L.parse read
+
+module Value = struct
+  type t = value
+
+  let parse text =
+    Result.bind (parse_ctrl_code text) (fun term ->
+        match is_value term with
+        | Some value -> Ok value
+        | None -> Error "Expected a value")
+
+  let print = fun value -> print (value_to_lam value)
+end

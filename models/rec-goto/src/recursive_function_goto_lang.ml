@@ -157,24 +157,24 @@ let api : Utils.Compiler.api =
         Ok (terminate (Target.print_code code)));
     encode_ainput =
       (fun text ->
-        let* input = Source.parse_ainput text in
+        let* input = Source.Ainput.parse text in
         let* env = encode_ainput input in
-        Ok (terminate (Target.print_env env)));
+        Ok (terminate (Target.Ainput.print env)));
     encode_rinput =
       (fun text ->
-        let* () = Source.parse_rinput text in
-        let* () = encode_rinput () in
-        Ok "");
+        let* () = Source.Rinput.parse text in
+        let* input = encode_rinput () in
+        Ok (Target.Rinput.print input));
     decode_routput =
       (fun text ->
-        let* () = Utils.Machine.empty_input text in
-        let* () = decode_routput () in
-        Ok "");
+        let* output = Target.Routput.parse text in
+        let* output = decode_routput output in
+        Ok (Source.Routput.print output));
     decode_foutput =
       (fun text ->
-        let* env = Target.parse_ainput text in
+        let* env = Target.Foutput.parse text in
         let* value = decode_foutput env in
-        Ok (Utils.Number.to_string value));
+        Ok (Source.Foutput.print value));
   }
 
 module RecToGotoCompiler = struct

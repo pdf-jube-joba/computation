@@ -7,14 +7,8 @@ type routput = string
 type foutput = string
 type state = int
 
-let parse_code text = if String.trim text = "" then Ok 0 else natural text
-let parse_ainput = empty_input
-
-let parse_rinput text =
-  match String.trim text with
-  | "inc" -> Ok Increment
-  | "dec" -> Ok Decrement
-  | _ -> Error "Expected inc or dec"
+let parse_code text =
+  if String.trim text = "" then Ok 0 else Utils.Text.Natural_int.parse text
 
 let make code () = Ok code
 
@@ -41,27 +35,38 @@ let render count =
         [ ("count", count) ];
     ]
 
-let routput_json text = `String text
-let foutput_json text = `String text
+module Ainput = Utils.Text.Unit
+
+module Rinput = struct
+  type t = rinput
+
+  let parse text =
+    match String.trim text with
+    | "inc" -> Ok Increment
+    | "dec" -> Ok Decrement
+    | _ -> Error "Expected inc or dec"
+
+  let print = function Increment -> "inc" | Decrement -> "dec"
+end
+
+module Routput = Utils.Text.String
+module Foutput = Utils.Text.String
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end
 
 module Compiler = struct

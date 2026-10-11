@@ -230,6 +230,4 @@ let parse_code =
       in
       loop [] [])
 
-let parse_ainput =
-  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
-    N.of_string
+module Ainput = Utils.Text.Natural_list

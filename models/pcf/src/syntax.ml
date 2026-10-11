@@ -207,20 +207,6 @@ and block_contents p =
 let parse_code = L.parse (expression false)
 let parse_stmt_code = L.parse (expression true)
 
-let parse_ainput =
-  Utils.Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
-    N.of_string_with_plus
-
-let print_ainput ns = "(" ^ String.concat ", " (List.map N.to_string ns) ^ ")"
-
-let parse_effect text =
-  if String.trim text = "" then Ok None
-  else Result.map Option.some (N.of_string_with_plus text)
-
-let print_effect = function None -> "" | Some n -> N.to_string n
-let routput_json output = `String (print_effect output)
-let foutput_json output = `String (N.to_string output)
-
 let rec free_vars = function
   | Nat _ | Bool _ | Unit | Print _ -> Names.empty
   | Var x -> Names.singleton x
@@ -302,3 +288,17 @@ let rec substitute e target replacement =
   | Block _ ->
       invalid_arg "substitution applies to the direct expression language"
   | _ -> e
+
+module Ainput = Utils.Text.Natural_list
+
+module Routput = struct
+  type t = print_effect
+
+  let parse text =
+    if String.trim text = "" then Ok None
+    else Result.map Option.some (N.of_string_with_plus text)
+
+  let print = function None -> "" | Some n -> N.to_string n
+end
+
+module Foutput = Utils.Text.Natural

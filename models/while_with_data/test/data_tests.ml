@@ -47,17 +47,13 @@ let () =
   assert (A.get env "z" = []);
   let env =
     ok
-      (A.parse_ainput
+      (A.Ainput.parse
          "foo_bar = ['猫', '\\n', '\\r', '\\t', '\\\\', '\\'']\n\
           x = []\n\
           foo_bar = ['🙂']")
   in
   assert (A.get env "foo_bar" = [ "🙂" ]);
-  assert (
-    ok
-      (A.parse_ainput
-         (match A.foutput_json env with `String s -> s | _ -> assert false))
-    = env);
+  assert (ok (A.Ainput.parse (A.Foutput.print env)) = env);
   let s =
     ok
       (A.make
@@ -111,16 +107,12 @@ let () =
   assert (List.assoc "x" env = T.ConsValue (T.AtomValue "a", T.AtomValue "z"));
   let env =
     ok
-      (T.parse_ainput
+      (T.Ainput.parse
          "x = cons atom '猫' cons atom '\\n' atom '🙂'\n\
           x = atom '\\''\n\
           foo_bar = atom 'é'")
   in
-  assert (
-    ok
-      (T.parse_ainput
-         (match T.foutput_json env with `String s -> s | _ -> assert false))
-    = env);
+  assert (ok (T.Ainput.parse (T.Foutput.print env)) = env);
   let s =
     ok
       (T.make
@@ -142,7 +134,7 @@ let () =
       "x := atom mtoa cons atom 'a' atom 'b'";
     ];
   List.iter
-    (fun text -> error (T.parse_ainput text))
+    (fun text -> error (T.Ainput.parse text))
     [ "x = y"; "x = atom mtoa atom 'a'"; "x = left cons atom 'a' atom 'b'" ];
   List.iter
     (fun text -> error (A.parse_code text))
@@ -163,10 +155,10 @@ let () =
       "while is_atom x { Nop";
       "x := cons atom 'a'";
     ];
-  error (A.parse_rinput "x");
-  error (T.parse_rinput "x");
-  assert (A.routput_json () = `String "");
-  assert (T.routput_json () = `String "");
+  error (A.Rinput.parse "x");
+  error (T.Rinput.parse "x");
+  assert (A.Routput.print () = "");
+  assert (T.Routput.print () = "");
   assert (match A.render s1 with `List [ _; _ ] -> true | _ -> false);
   assert (match T.render s with `List [ _; _ ] -> true | _ -> false);
   error (A.parse_code "x := Nop");

@@ -72,7 +72,7 @@ type state = {
 
 let parse_reg token =
   let t = Text.strip_prefix "r" (Text.strip_prefix "%" (String.trim token)) in
-  let n = value (Utils.Machine.natural t) in
+  let n = value (Utils.Text.Natural_int.parse t) in
   if n >= 8 then
     failwith (Printf.sprintf "Register out of range (expected 0..=7): %d" n);
   n
@@ -175,18 +175,6 @@ let item_to_text = function
   | DataValue v -> raw_value_to_text v
 
 let print code = String.concat "\n" (List.map item_to_text code)
-
-let parse_ainput text =
-  Result.map
-    (fun (regs, data_extension) -> { regs; data_extension })
-    (parse_image text)
-
-let parse_output text =
-  Result.map
-    (fun (regs, data_memory) -> ({ regs; data_memory } : asm_output))
-    (parse_image text)
-
-let parse_rinput = Utils.Machine.empty_input
 
 let lower_inst raw =
   let m = raw.mnemonic and cf = raw.cond_flag in
@@ -476,25 +464,44 @@ let render s =
         data_rows;
     ]
 
-let routput_json () = `String ""
-let foutput_json (o : foutput) = `String (print_image o.regs o.data_memory)
+module Ainput = struct
+  type t = ainput
+
+  let parse text =
+    Result.map
+      (fun (regs, data_extension) -> { regs; data_extension })
+      (parse_image text)
+
+  let print = fun (image : t) -> print_image image.regs image.data_extension
+end
+
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+
+module Foutput = struct
+  type t = foutput
+
+  let parse text =
+    Result.map
+      (fun (regs, data_memory) -> ({ regs; data_memory } : asm_output))
+      (parse_image text)
+
+  let print = fun (image : t) -> print_image image.regs image.data_memory
+end
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

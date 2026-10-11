@@ -7,12 +7,13 @@ let counter_compiler : Compiler.api =
     compile_code =
       (fun text -> Result.map string_of_int (Example_counter.parse_code text));
     encode_ainput =
-      (fun text -> Result.map (fun () -> "") (Machine.empty_input text));
+      (fun text ->
+        Result.map Example_counter.Ainput.print
+          (Example_counter.Ainput.parse text));
     encode_rinput =
       (fun text ->
-        Result.map
-          (function Example_counter.Increment -> "inc" | Decrement -> "dec")
-          (Example_counter.parse_rinput text));
+        Result.map Example_counter.Rinput.print
+          (Example_counter.Rinput.parse text));
     decode_routput = Compiler.identity;
     decode_foutput = Compiler.identity;
   }

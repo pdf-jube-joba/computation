@@ -18,20 +18,24 @@ module Expr_to_cek = struct
           Ok (Syntax.print code));
       encode_ainput =
         (fun text ->
-          let* a = Source.parse_ainput text in
-          Ok (Syntax.print_ainput a));
+          let* a = Source.Ainput.parse text in
+          let* a = encode_ainput a in
+          Ok (Target.Ainput.print a));
       encode_rinput =
         (fun text ->
-          let* () = Source.parse_rinput text in
-          Ok "");
+          let* () = Source.Rinput.parse text in
+          let* input = encode_rinput () in
+          Ok (Target.Rinput.print input));
       decode_routput =
         (fun text ->
-          let* o = Syntax.parse_effect text in
-          Ok (Syntax.print_effect o));
+          let* o = Target.Routput.parse text in
+          let* o = decode_routput o in
+          Ok (Source.Routput.print o));
       decode_foutput =
         (fun text ->
-          let* o = Utils.Number.of_string_with_plus text in
-          Ok (Utils.Number.to_string o));
+          let* o = Target.Foutput.parse text in
+          let* o = decode_foutput o in
+          Ok (Source.Foutput.print o));
     }
 end
 

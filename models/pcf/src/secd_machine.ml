@@ -142,8 +142,6 @@ let parse_code text =
   Utils.Json.protect (fun () -> code_from_json j)
 
 let print_code c = Yojson.Safe.pretty_to_string (code_json c)
-let parse_ainput = Syntax.parse_ainput
-let parse_rinput = Utils.Machine.empty_input
 
 let make code inputs =
   Ok
@@ -317,9 +315,6 @@ let render s =
            s.dump);
     ]
 
-let routput_json = Syntax.routput_json
-let foutput_json = Syntax.foutput_json
-
 let rec compile_expr (e : expr) =
   match e with
   | Nat n -> [ PushNat n ]
@@ -336,3 +331,8 @@ let rec compile_expr (e : expr) =
       compile_expr c @ [ If (compile_expr t, compile_expr e) ]
   | Block _ ->
       invalid_arg "SECD compiler accepts the direct expression language"
+
+module Ainput = Syntax.Ainput
+module Rinput = Utils.Text.Unit
+module Routput = Syntax.Routput
+module Foutput = Syntax.Foutput

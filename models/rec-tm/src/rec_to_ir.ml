@@ -409,7 +409,7 @@ let api : Utils.Compiler.api =
         Ok (I.print p));
     encode_ainput =
       (fun text ->
-        let* ns = R.parse_ainput text in
+        let* ns = R.Ainput.parse text in
         let* t = write ns in
         Ok (T.print_tape t));
     decode_foutput =

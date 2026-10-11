@@ -312,7 +312,7 @@ let test_mini () =
   in
   eq (run source []) "9";
   eq
-    (run "fn main(x:#num){return ld local x}" (get (M.parse_ainput "(7,)")))
+    (run "fn main(x:#num){return ld local x}" (get (M.Ainput.parse "(7,)")))
     "7";
   eq
     (run

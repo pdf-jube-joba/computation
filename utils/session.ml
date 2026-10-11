@@ -7,7 +7,7 @@ module Make (M : S) = struct
 
   let make session code ainput =
     let* code = M.parse_code code in
-    let* ainput = M.parse_ainput ainput in
+    let* ainput = M.Ainput.parse ainput in
     let* state = M.make code ainput in
     session.state <- Some state;
     Ok `Null
@@ -19,7 +19,7 @@ module Make (M : S) = struct
 
   let step session input =
     with_state session (fun state ->
-        let* input = M.parse_rinput input in
+        let* input = M.Rinput.parse input in
         let* result = M.step state input in
         match result with
         | Continue { next; output } ->
@@ -28,13 +28,16 @@ module Make (M : S) = struct
               (`Assoc
                  [
                    ("kind", `String "continue");
-                   ("output", M.routput_json output);
+                   ("output", `String (M.Routput.print output));
                  ])
         | Halt output ->
             session.state <- None;
             Ok
               (`Assoc
-                 [ ("kind", `String "halt"); ("output", M.foutput_json output) ]))
+                 [
+                   ("kind", `String "halt");
+                   ("output", `String (M.Foutput.print output));
+                 ]))
 
   let snapshot session = with_state session (fun state -> Ok (M.snapshot state))
 

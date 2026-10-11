@@ -19,6 +19,13 @@ let parse_env = Utils.Environment.parse N.of_string
 let print_env = Utils.Environment.print ~trailing_newline:true N.to_string
 let env_text = Utils.Environment.print N.to_string
 
+module Env = struct
+  type t = env
+
+  let parse = parse_env
+  let print = print_env
+end
+
 let names_until p endc =
   if L.peek p = L.Symbol endc then [] else L.separated p ~separator:',' ident
 
@@ -35,9 +42,6 @@ let validate_env statics env ~duplicate ~extra ~missing =
   List.iter
     (fun k -> if not (List.mem_assoc k env) then failwith (missing k))
     statics
-
-let string_json s = `String s
-let unit_json () = `String ""
 
 type atom = Var of Utils.Identifier.t | Imm of N.t [@@deriving yojson]
 type abinop = Add | Sub [@@deriving yojson]

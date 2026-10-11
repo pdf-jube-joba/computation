@@ -43,7 +43,7 @@ let () =
   | _ -> assert false);
   assert (L.redex_count (get (parse (L.print multi))) = L.redex_count multi);
   let applied =
-    get (L.make (get (parse "\\x. \\y. x")) (get (L.parse_ainput "y")))
+    get (L.make (get (parse "\\x. \\y. x")) (get (L.Ainput.parse "y")))
   in
   (match get (L.reduce applied 0) with
   | L.Abs (bound, L.Var free) -> assert (bound.id <> free.id)

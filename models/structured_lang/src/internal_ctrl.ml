@@ -88,9 +88,6 @@ let parse_code =
       let body = parse_stmt p in
       { statics; body })
 
-let parse_ainput = parse_env
-let parse_rinput = Utils.Machine.empty_input
-
 let rec stmt_to_text = function
   | Nop -> "Nop"
   | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
@@ -194,25 +191,24 @@ let render s =
               (List.rev s.stack)));
     ]
 
-let routput_json = string_json
-let foutput_json e = `String (print_env e)
+module Ainput = Common.Env
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.String
+module Foutput = Ainput
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

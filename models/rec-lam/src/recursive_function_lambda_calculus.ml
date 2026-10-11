@@ -217,24 +217,24 @@ let api : Utils.Compiler.api =
         Ok (Target.print term));
     encode_ainput =
       (fun text ->
-        let* input = Source.parse_ainput text in
+        let* input = Source.Ainput.parse text in
         let* terms = encode_ainput input in
-        Ok (String.concat ", " (List.map Target.print terms)));
+        Ok (Target.Ainput.print terms));
     encode_rinput =
       (fun text ->
-        let* () = Source.parse_rinput text in
+        let* () = Source.Rinput.parse text in
         let* index = encode_rinput () in
-        Ok (string_of_int index));
+        Ok (Target.Rinput.print index));
     decode_routput =
       (fun text ->
-        let* () = Utils.Machine.empty_input text in
-        let* () = decode_routput () in
-        Ok "");
+        let* output = Target.Routput.parse text in
+        let* output = decode_routput output in
+        Ok (Source.Routput.print output));
     decode_foutput =
       (fun text ->
-        let* term = Target.parse_code text in
+        let* term = Target.Foutput.parse text in
         let* number = decode_foutput term in
-        Ok (Utils.Number.to_string number));
+        Ok (Source.Foutput.print number));
   }
 
 module Rec2LamCompiler = struct

@@ -164,8 +164,6 @@ let rec lower_value = function
   | Left _ | Right _ -> fail "unexpected projection in value"
 
 let parse_value = parse (fun p -> lower_value (parse_texp p))
-let parse_ainput = env parse_value
-let parse_rinput = Utils.Machine.empty_input
 
 let rec eval_aexp env = function
   | AtomChar c -> c
@@ -226,25 +224,30 @@ let restore = state_of_yojson
 let render s =
   Utils.Render.statement_env (stmt_to_text s.stmt) value_to_text s.env
 
-let routput_json () = `String ""
-let foutput_json env = `String (env_text value_to_text env)
+module Ainput = struct
+  type t = ainput
+
+  let parse = env parse_value
+  let print = env_text value_to_text
+end
+
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Ainput
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end

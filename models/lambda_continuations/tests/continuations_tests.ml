@@ -26,10 +26,10 @@ let run text inputs =
     match get (M.step s ()) with
     | Utils.Machine.Halt v -> v
     | Utils.Machine.Continue { next; output } ->
-        assert (M.routput_json output = `String "");
+        assert (M.Routput.print output = "");
         loop (fuel - 1) next
   in
-  loop 2000 (get (M.make code (get (M.parse_ainput inputs))))
+  loop 2000 (get (M.make code (get (M.Ainput.parse inputs))))
 
 let () =
   (* Rust free/bound-variable and alpha-equivalence test cases. *)
@@ -103,8 +103,8 @@ let () =
   List.iter
     (fun text -> error (M.step (get (M.make (parsed text) [])) ()))
     [ "x"; "@(zero zero)"; "succ (fun x => x)" ];
-  assert (M.foutput_json (T.Num "2") = `String "S S 0");
-  assert (M.foutput_json (T.Fun ("x", T.Var "x")) = `String "fun x => x");
+  assert (M.Foutput.print (T.Num "2") = "S S 0");
+  assert (M.Foutput.print (T.Fun ("x", T.Var "x")) = "fun x => x");
   assert (T.print (parsed "let x = zero in succ x") = "let x = 0 in \n S x");
   List.iter
     (fun text ->

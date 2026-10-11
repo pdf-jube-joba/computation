@@ -68,8 +68,6 @@ type foutput = N.t
 type state = { code : code; expr : expr } [@@deriving yojson]
 
 let parse_code = Syntax.parse_code
-let parse_ainput = Syntax.parse_ainput
-let parse_rinput = Utils.Machine.empty_input
 let make code inputs = Ok { code; expr = apply_inputs code inputs }
 
 let step state () =
@@ -90,5 +88,7 @@ let render s =
       Utils.Render.text ~title:"current" (print s.expr);
     ]
 
-let routput_json = Syntax.routput_json
-let foutput_json = Syntax.foutput_json
+module Ainput = Syntax.Ainput
+module Rinput = Utils.Text.Unit
+module Routput = Syntax.Routput
+module Foutput = Syntax.Foutput

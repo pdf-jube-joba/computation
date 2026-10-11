@@ -220,8 +220,6 @@ let parse_code =
       if code = [] then L.error p "At least one function is required";
       code)
 
-let parse_ainput = Utils.Machine.natural
-let parse_rinput = Utils.Machine.natural
 let set entries name v = Utils.Assoc.set_sorted name v entries
 
 let parse_env text =
@@ -233,7 +231,7 @@ let parse_env text =
         ignore (value (Utils.Identifier.make name));
         let id =
           if String.lowercase_ascii v = "none" then None
-          else Some (value (Utils.Machine.natural v))
+          else Some (value (Utils.Text.Natural_int.parse v))
         in
         { env with task_ids = set env.task_ids name id })
       else (
@@ -434,25 +432,30 @@ let render s =
               s.tasks));
     ]
 
-let routput_json text = `String text
-let foutput_json env = `String (env_to_text env)
+module Ainput = Utils.Text.Natural_int
+module Rinput = Utils.Text.Natural_int
+module Routput = Utils.Text.String
+
+module Foutput = struct
+  type t = foutput
+
+  let parse = parse_env
+  let print = env_to_text
+end
 
 module Machine = struct
+  module Ainput = Ainput
+  module Rinput = Rinput
+  module Routput = Routput
+  module Foutput = Foutput
+
   type nonrec code = code
-  type nonrec ainput = ainput
-  type nonrec rinput = rinput
-  type nonrec routput = routput
-  type nonrec foutput = foutput
   type nonrec state = state
 
   let parse_code = parse_code
-  let parse_ainput = parse_ainput
-  let parse_rinput = parse_rinput
   let make = make
   let step = step
   let snapshot = snapshot
   let restore = restore
   let render = render
-  let routput_json = routput_json
-  let foutput_json = foutput_json
 end
