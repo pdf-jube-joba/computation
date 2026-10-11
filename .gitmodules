@@ -1,3 +1,5 @@
 [submodule "workspace_fs"]
 	path = _wfs
 	url = https://github.com/pdf-jube-joba/workspace_fs.git
+	branch = main
+	update = merge
