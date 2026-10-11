@@ -81,6 +81,6 @@ let decode_routput _ = Ok ""
 let decode_foutput = decode_foutput "internal_ctrl"
 
 let api =
-  text_api ~parse_code:C.parse_code ~compile ~parse_ainput:C.Ainput.parse
+  text_api ~parse_code:C.Code.parse ~compile ~parse_ainput:C.Ainput.parse
     ~encode_ainput ~print_ainput:I.Ainput.print ~parse_rinput:C.Rinput.parse
     ~encode_rinput ~decode_routput ~decode_foutput ~print_foutput:Env.print

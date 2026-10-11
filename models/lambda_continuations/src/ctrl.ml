@@ -23,7 +23,8 @@ type routput = unit
 type foutput = value
 type state = No_ext.state [@@deriving yojson]
 
-let parse_code = parse_ctrl_code
+module Code = Lambda.Ctrl_code
+
 let make = No_ext.make
 let step _ () = Error unsupported
 let snapshot = No_ext.snapshot

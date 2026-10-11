@@ -160,36 +160,52 @@ let definition init_state accepted_state code =
         code;
       { init_state; accepted_state; code })
 
-let parse_code text =
-  Utils.Lexer.protect (fun () ->
-      match String.split_on_char '\n' text with
-      | init :: accepted :: lines ->
-          let init = unwrap (State.parse init) in
-          let accepted =
-            List.map
-              (fun s -> unwrap (State.parse s))
-              (String.split_on_char ',' accepted)
-          in
-          let entries =
-            List.filter_map
-              (fun line ->
-                let line =
-                  String.trim (Utils.String_ext.strip_line_comment "#" line)
-                in
-                if line = "" then None
-                else
-                  match String.split_on_char ',' line with
-                  | a :: b :: c :: d :: e :: _ ->
-                      Some
-                        ( (unwrap (Sign.parse a), unwrap (State.parse b)),
-                          ( unwrap (Sign.parse c),
-                            unwrap (State.parse d),
-                            unwrap (Direction.parse e) ) )
-                  | _ -> failwith ("Invalid code entry: " ^ line))
-              lines
-          in
-          unwrap (definition init accepted entries)
-      | [] | [ _ ] -> failwith "Missing initial or accepted state line")
+module Code = struct
+  type t = code
+
+  let parse text =
+    Utils.Lexer.protect (fun () ->
+        match String.split_on_char '\n' text with
+        | init :: accepted :: lines ->
+            let init = unwrap (State.parse init) in
+            let accepted =
+              List.map
+                (fun s -> unwrap (State.parse s))
+                (String.split_on_char ',' accepted)
+            in
+            let entries =
+              List.filter_map
+                (fun line ->
+                  let line =
+                    String.trim (Utils.String_ext.strip_line_comment "#" line)
+                  in
+                  if line = "" then None
+                  else
+                    match String.split_on_char ',' line with
+                    | a :: b :: c :: d :: e :: _ ->
+                        Some
+                          ( (unwrap (Sign.parse a), unwrap (State.parse b)),
+                            ( unwrap (Sign.parse c),
+                              unwrap (State.parse d),
+                              unwrap (Direction.parse e) ) )
+                    | _ -> failwith ("Invalid code entry: " ^ line))
+                lines
+            in
+            unwrap (definition init accepted entries)
+        | [] | [ _ ] -> failwith "Missing initial or accepted state line")
+
+  let print d =
+    d.init_state ^ "\n"
+    ^ String.concat "," d.accepted_state
+    ^ "\n"
+    ^ String.concat ""
+        (List.map
+           (fun ((a, b), (c, d, e)) ->
+             String.concat ","
+               [ Sign.print a; b; Sign.print c; d; Direction.print e ]
+             ^ "\n")
+           d.code)
+end
 
 let definition_signs d =
   List.concat_map (fun ((a, _), (b, _, _)) -> [ a; b ]) d.code
@@ -206,18 +222,6 @@ let get_now_entry d key =
   loop 0 d.code
 
 let get_next_state d key = Option.map snd (get_now_entry d key)
-
-let print_code d =
-  d.init_state ^ "\n"
-  ^ String.concat "," d.accepted_state
-  ^ "\n"
-  ^ String.concat ""
-      (List.map
-         (fun ((a, b), (c, d, e)) ->
-           String.concat ","
-             [ Sign.print a; b; Sign.print c; d; Direction.print e ]
-           ^ "\n")
-         d.code)
 
 let next_code s =
   if List.mem s.current_state s.definition.accepted_state then None
@@ -294,15 +298,14 @@ module Routput = Utils.Text.Unit
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot
@@ -314,8 +317,8 @@ module Definition = struct
   type t = code
 
   let make = definition
-  let parse = parse_code
-  let print = print_code
+  let parse = Code.parse
+  let print = Code.print
   let init_state d = d.init_state
   let accepted_state d = d.accepted_state
   let code d = d.code

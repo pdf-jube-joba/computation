@@ -53,172 +53,177 @@ type state = {
 }
 [@@deriving yojson]
 
-let rec aexp_to_text = function
-  | Atom (Var n) -> n
-  | Atom (Imm n) -> N.to_string n
-  | Bin (a, op, b) ->
-      "(" ^ aexp_to_text a ^ " "
-      ^ (match op with Add -> "+" | Sub -> "-" | Mul -> "*")
-      ^ " " ^ aexp_to_text b ^ ")"
+module Code = struct
+  type t = code
 
-let rec bexp_to_text = function
-  | Not b -> "!" ^ bexp_to_text b
-  | Rel (a, op, b) ->
-      aexp_to_text a ^ " "
-      ^ (match op with Eq -> "==" | Ne -> "!=" | Lt -> "<")
-      ^ " " ^ aexp_to_text b
-  | And (a, b) -> "(" ^ bexp_to_text a ^ " && " ^ bexp_to_text b ^ ")"
-  | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
-  | Done n -> "done $" ^ n
+  let rec aexp_to_text = function
+    | Atom (Var n) -> n
+    | Atom (Imm n) -> N.to_string n
+    | Bin (a, op, b) ->
+        "(" ^ aexp_to_text a ^ " "
+        ^ (match op with Add -> "+" | Sub -> "-" | Mul -> "*")
+        ^ " " ^ aexp_to_text b ^ ")"
 
-let fmt_offset n = if n >= 0 then "+" ^ string_of_int n else string_of_int n
+  let rec bexp_to_text = function
+    | Not b -> "!" ^ bexp_to_text b
+    | Rel (a, op, b) ->
+        aexp_to_text a ^ " "
+        ^ (match op with Eq -> "==" | Ne -> "!=" | Lt -> "<")
+        ^ " " ^ aexp_to_text b
+    | And (a, b) -> "(" ^ bexp_to_text a ^ " && " ^ bexp_to_text b ^ ")"
+    | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
+    | Done n -> "done $" ^ n
 
-let stmt_to_text = function
-  | Assign (n, a) -> n ^ " <- " ^ aexp_to_text a
-  | IfGoto (b, n) -> "if " ^ bexp_to_text b ^ " goto " ^ fmt_offset n
-  | Goto n -> "goto " ^ fmt_offset n
-  | Call n -> "call " ^ n
-  | Run (n, id) -> "run " ^ n ^ " -> $" ^ id
-  | Yield -> "yield"
+  let fmt_offset n = if n >= 0 then "+" ^ string_of_int n else string_of_int n
 
-let print code =
-  String.concat "\n"
-    (List.map
-       (fun f ->
-         "fn " ^ f.name ^ " {\n"
-         ^ (if f.body = [] then ""
-            else "  " ^ String.concat "; " (List.map stmt_to_text f.body) ^ "\n")
-         ^ "}\n")
-       code)
+  let stmt_to_text = function
+    | Assign (n, a) -> n ^ " <- " ^ aexp_to_text a
+    | IfGoto (b, n) -> "if " ^ bexp_to_text b ^ " goto " ^ fmt_offset n
+    | Goto n -> "goto " ^ fmt_offset n
+    | Call n -> "call " ^ n
+    | Run (n, id) -> "run " ^ n ^ " -> $" ^ id
+    | Yield -> "yield"
 
-let rec parse_aexp_bp p min_bp =
-  let lhs =
-    match L.next p with
-    | L.Ident n -> Atom (Var n)
-    | L.Number n -> Atom (Imm (value (N.of_string n)))
-    | L.Symbol '(' ->
-        let a = parse_aexp_bp p 0 in
-        L.expect_symbol p ')';
-        a
-    | _ -> L.error p "Unexpected token in arithmetic expression"
-  in
-  let rec loop lhs =
-    let op =
-      match L.peek p with
-      | L.Symbol '+' -> Some (Add, 1, 2)
-      | L.Symbol '-' -> Some (Sub, 1, 2)
-      | L.Symbol '*' -> Some (Mul, 3, 4)
-      | _ -> None
-    in
-    match op with
-    | Some (op, lbp, rbp) when lbp >= min_bp ->
-        ignore (L.next p);
-        let rhs = parse_aexp_bp p rbp in
-        loop (Bin (lhs, op, rhs))
-    | _ -> lhs
-  in
-  loop lhs
+  let print code =
+    String.concat "\n"
+      (List.map
+         (fun f ->
+           "fn " ^ f.name ^ " {\n"
+           ^ (if f.body = [] then ""
+              else
+                "  " ^ String.concat "; " (List.map stmt_to_text f.body) ^ "\n")
+           ^ "}\n")
+         code)
 
-let parse_aexp p = parse_aexp_bp p 0
-
-let rec parse_bexp_bp p min_bp =
-  let relation lhs =
-    let op =
-      if L.eat p "==" then Eq
-      else if L.eat p "!=" then Ne
-      else if L.eat_symbol p '<' then Lt
-      else L.error p "Expected relational operator"
-    in
-    let rhs = parse_aexp p in
-    Rel (lhs, op, rhs)
-  in
-  let lhs =
-    if L.eat_symbol p '!' then Not (parse_bexp_bp p 5)
-    else if L.eat_keyword p "done" then (
-      L.expect_symbol p '$';
-      Done (L.identifier p))
-    else if L.eat_symbol p '(' then (
-      (* Preserve the original boolean grouping, and accept printed arithmetic LHS. *)
-      let saved = p.L.pos in
-      try
-        let b = parse_bexp_bp p 0 in
-        L.expect_symbol p ')';
-        b
-      with L.Error _ ->
-        p.L.pos <- saved;
-        let a = parse_aexp p in
-        L.expect_symbol p ')';
-        relation a)
-    else
+  let rec parse_aexp_bp p min_bp =
+    let lhs =
       match L.next p with
-      | L.Ident n -> relation (Atom (Var n))
-      | L.Number n -> relation (Atom (Imm (value (N.of_string n))))
-      | _ -> L.error p "Unexpected token in boolean expression"
-  in
-  let rec loop lhs =
-    if min_bp <= 2 && L.eat p "&&" then
-      let rhs = parse_bexp_bp p 3 in
-      loop (And (lhs, rhs))
-    else if min_bp <= 0 && L.eat p "||" then
-      let rhs = parse_bexp_bp p 1 in
-      loop (Or (lhs, rhs))
-    else lhs
-  in
-  loop lhs
-
-let statement_identifier = L.identifier
-
-let parse_offset p =
-  let sign =
-    if L.eat_symbol p '-' then -1
-    else (
-      ignore (L.eat_symbol p '+');
-      1)
-  in
-  sign * L.integer p
-
-let parse_stmt p =
-  if L.eat_keyword p "if" then (
-    let b = parse_bexp_bp p 0 in
-    L.expect_keyword p "goto";
-    IfGoto (b, parse_offset p))
-  else if L.eat_keyword p "goto" then Goto (parse_offset p)
-  else if L.eat_keyword p "call" then Call (statement_identifier p)
-  else if L.eat_keyword p "run" then (
-    let name = statement_identifier p in
-    L.expect p "->";
-    L.expect_symbol p '$';
-    let id = statement_identifier p in
-    Run (name, id))
-  else if L.eat_keyword p "yield" then Yield
-  else
-    let n = statement_identifier p in
-    L.expect p "<-";
-    let a = parse_aexp p in
-    Assign (n, a)
-
-let parse_code =
-  L.parse (fun p ->
-      let rec functions acc =
-        if L.eof p then List.rev acc
-        else (
-          L.expect_keyword p "fn";
-          let name = statement_identifier p in
-          L.expect_symbol p '{';
-          let rec body acc =
-            if L.eat_symbol p '}' then List.rev acc
-            else if L.eat_symbol p ';' then body acc
-            else
-              let s = parse_stmt p in
-              if L.peek p <> L.Symbol '}' then L.expect_symbol p ';';
-              body (s :: acc)
-          in
-          let body = body [] in
-          functions ({ name; body } :: acc))
+      | L.Ident n -> Atom (Var n)
+      | L.Number n -> Atom (Imm (value (N.of_string n)))
+      | L.Symbol '(' ->
+          let a = parse_aexp_bp p 0 in
+          L.expect_symbol p ')';
+          a
+      | _ -> L.error p "Unexpected token in arithmetic expression"
+    in
+    let rec loop lhs =
+      let op =
+        match L.peek p with
+        | L.Symbol '+' -> Some (Add, 1, 2)
+        | L.Symbol '-' -> Some (Sub, 1, 2)
+        | L.Symbol '*' -> Some (Mul, 3, 4)
+        | _ -> None
       in
-      let code = functions [] in
-      if code = [] then L.error p "At least one function is required";
-      code)
+      match op with
+      | Some (op, lbp, rbp) when lbp >= min_bp ->
+          ignore (L.next p);
+          let rhs = parse_aexp_bp p rbp in
+          loop (Bin (lhs, op, rhs))
+      | _ -> lhs
+    in
+    loop lhs
+
+  let parse_aexp p = parse_aexp_bp p 0
+
+  let rec parse_bexp_bp p min_bp =
+    let relation lhs =
+      let op =
+        if L.eat p "==" then Eq
+        else if L.eat p "!=" then Ne
+        else if L.eat_symbol p '<' then Lt
+        else L.error p "Expected relational operator"
+      in
+      let rhs = parse_aexp p in
+      Rel (lhs, op, rhs)
+    in
+    let lhs =
+      if L.eat_symbol p '!' then Not (parse_bexp_bp p 5)
+      else if L.eat_keyword p "done" then (
+        L.expect_symbol p '$';
+        Done (L.identifier p))
+      else if L.eat_symbol p '(' then (
+        (* Preserve the original boolean grouping, and accept printed arithmetic LHS. *)
+        let saved = p.L.pos in
+        try
+          let b = parse_bexp_bp p 0 in
+          L.expect_symbol p ')';
+          b
+        with L.Error _ ->
+          p.L.pos <- saved;
+          let a = parse_aexp p in
+          L.expect_symbol p ')';
+          relation a)
+      else
+        match L.next p with
+        | L.Ident n -> relation (Atom (Var n))
+        | L.Number n -> relation (Atom (Imm (value (N.of_string n))))
+        | _ -> L.error p "Unexpected token in boolean expression"
+    in
+    let rec loop lhs =
+      if min_bp <= 2 && L.eat p "&&" then
+        let rhs = parse_bexp_bp p 3 in
+        loop (And (lhs, rhs))
+      else if min_bp <= 0 && L.eat p "||" then
+        let rhs = parse_bexp_bp p 1 in
+        loop (Or (lhs, rhs))
+      else lhs
+    in
+    loop lhs
+
+  let statement_identifier = L.identifier
+
+  let parse_offset p =
+    let sign =
+      if L.eat_symbol p '-' then -1
+      else (
+        ignore (L.eat_symbol p '+');
+        1)
+    in
+    sign * L.integer p
+
+  let parse_stmt p =
+    if L.eat_keyword p "if" then (
+      let b = parse_bexp_bp p 0 in
+      L.expect_keyword p "goto";
+      IfGoto (b, parse_offset p))
+    else if L.eat_keyword p "goto" then Goto (parse_offset p)
+    else if L.eat_keyword p "call" then Call (statement_identifier p)
+    else if L.eat_keyword p "run" then (
+      let name = statement_identifier p in
+      L.expect p "->";
+      L.expect_symbol p '$';
+      let id = statement_identifier p in
+      Run (name, id))
+    else if L.eat_keyword p "yield" then Yield
+    else
+      let n = statement_identifier p in
+      L.expect p "<-";
+      let a = parse_aexp p in
+      Assign (n, a)
+
+  let parse =
+    L.parse (fun p ->
+        let rec functions acc =
+          if L.eof p then List.rev acc
+          else (
+            L.expect_keyword p "fn";
+            let name = statement_identifier p in
+            L.expect_symbol p '{';
+            let rec body acc =
+              if L.eat_symbol p '}' then List.rev acc
+              else if L.eat_symbol p ';' then body acc
+              else
+                let s = parse_stmt p in
+                if L.peek p <> L.Symbol '}' then L.expect_symbol p ';';
+                body (s :: acc)
+            in
+            let body = body [] in
+            functions ({ name; body } :: acc))
+        in
+        let code = functions [] in
+        if code = [] then L.error p "At least one function is required";
+        code)
+end
 
 let set entries name v = Utils.Assoc.set_sorted name v entries
 
@@ -395,7 +400,8 @@ let step s agent =
                       { s with queue = s.queue @ [ id ] }
                 in
                 continue s
-                  (Printf.sprintf "agent %d: %s" agent (stmt_to_text stmt))))
+                  (Printf.sprintf "agent %d: %s" agent (Code.stmt_to_text stmt))
+          ))
 
 let snapshot = state_to_yojson
 
@@ -446,15 +452,14 @@ module Rinput = Utils.Text.Natural_int
 module Routput = Utils.Text.String
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

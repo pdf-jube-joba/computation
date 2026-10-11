@@ -4,9 +4,8 @@ module Parser = Parser
 module Example = Example
 module Manipulation = Parser
 module Parse = Parser
+module Code = Parser.Code
 
-let parse_code = Parser.parse_main
-let print_code (_ : t) = "logic_circuit"
 let make code () = Ok code
 let snapshot = to_yojson
 
@@ -25,15 +24,14 @@ module Routput = Rinput
 module Foutput = Utils.Text.Unit
 
 module S = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type code = t
   type state = t
 
-  let parse_code = parse_code
   let make = make
   let step = machine_step
   let snapshot = snapshot

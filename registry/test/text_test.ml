@@ -10,6 +10,33 @@ let roundtrip context (module T : Utils.Machine.TEXT) text =
   let restored = get context (T.parse printed) in
   assert (T.print restored = printed)
 
+let code_example = function
+  | "example_counter" -> "3"
+  | "lambda_calculus" -> "(\\x. x) (\\y. y)"
+  | "goto_lang" -> "inc x; cpy y <- x; ifnz y : 0;"
+  | "recursive_function" -> "PRIM[z:PROJ[1,0] s:COMP[SUCC:PROJ[3,0]]]"
+  | "flow_ir" -> "@x 0 :main{:entry{%a:=#3;print %a;halt;}}"
+  | "expr_lang" -> "x := 0 ; while x < 3 [ x := x + 1 ]"
+  | "proc_lang" -> "static x;main()[local y x := 1;return]"
+  | "internal_ctrl" -> "static x;loop :again (x := 1;break :again x) -> x"
+  | "fn_ptr" -> "fn main(){return}"
+  | "mini_prog" -> "fn main(){return 1}"
+  | "pcf-expr" | "pcf-cek" -> "(fun x => inc x)(2)"
+  | "pcf-expr-stmt-cek" -> "{ let x := 1; print 2; inc x }"
+  | "pcf-secd" -> {|[{"PushNat":2},{"PushNat":3},{"BinOp":"Add"}]|}
+  | "lambda_continuations" -> "fun x => let y = succ zero in @(x y)"
+  | "logic_circuit" -> "graph: main {in {I} out {O=N.OUT} N, NOT_F {IN=I}}"
+  | "turing_machine" -> "start\ngoal\na,start,b,goal,R\n"
+  | "rec_tm_ir" -> "alphabet:(a,b) fn main(){label entry:{@:=const a return}}"
+  | "rec_tm_ir_jump" -> "alphabet:(a,b) @:=const a RT jump 0"
+  | "tiny_isa" -> "+64\n123456789012345678901234567890"
+  | "symbolic_asm" -> ".text\n@main:\nldi %r0 #3;\nhalt;"
+  | "cfg_vreg" -> "@main {\n%v0 := #1;\ngoto @main;\n}"
+  | "strarr" -> "x := ['猫', '\\n'] ; while is_empty x { x := ['🙂'] }"
+  | "strtree" -> "x := cons atom '猫' atom '🙂' ; y := left x"
+  | "coroutine" | "async_await" -> "fn main { x <- 1; if x < 3 goto -1 }"
+  | name -> failwith ("Missing code example for " ^ name)
+
 let examples = function
   | "example_counter" -> ("", "inc", "dec", "End")
   | "lambda_calculus" -> ("\\x. x, \\y. y", "0", "", "\\x. x")
@@ -42,6 +69,7 @@ let () =
       | _, Registry.Compiler _ -> ()
       | name, Registry.Model (module M) ->
           let ainput, rinput, routput, foutput = examples name in
+          roundtrip (name ^ " Code") (module M.Code) (code_example name);
           roundtrip (name ^ " Ainput") (module M.Ainput) ainput;
           roundtrip (name ^ " Rinput") (module M.Rinput) rinput;
           roundtrip (name ^ " Routput") (module M.Routput) routput;

@@ -7,8 +7,12 @@ type routput = string
 type foutput = string
 type state = int
 
-let parse_code text =
-  if String.trim text = "" then Ok 0 else Utils.Text.Natural_int.parse text
+module Code = struct
+  include Utils.Text.Natural_int
+
+  let parse text =
+    if String.trim text = "" then Ok 0 else Utils.Text.Natural_int.parse text
+end
 
 let make code () = Ok code
 
@@ -53,15 +57,14 @@ module Routput = Utils.Text.String
 module Foutput = Utils.Text.String
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

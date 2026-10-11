@@ -59,39 +59,132 @@ type rinput = unit
 type routput = string
 type foutput = string
 
-let rec place_to_text = function
-  | Var v -> v
-  | Deref v -> "(" ^ value_to_text v ^ ") #loc"
+module Code = struct
+  type t = code
 
-and value_to_text = function
-  | Number n -> Int64.to_string n
-  | NullPtr -> "#null_ptr"
-  | BinOp (a, op, b) ->
-      "(" ^ value_to_text a
-      ^ (if op = Add then " + " else " - ")
-      ^ value_to_text b ^ ")"
-  | Load p -> "ld " ^ place_to_text p
-  | Addr p -> place_to_text p ^ " #addr"
+  let rec place_to_text = function
+    | Var v -> v
+    | Deref v -> "(" ^ value_to_text v ^ ") #loc"
 
-let rec stmt_to_text = function
-  | Assign (p, v) -> "assign " ^ place_to_text p ^ " := " ^ value_to_text v
-  | Ifz (c, a, b) ->
-      "ifz " ^ value_to_text c ^ " then " ^ stmt_to_text a ^ " else "
-      ^ stmt_to_text b ^ " end"
-  | Call (n, args) ->
-      "call " ^ n ^ "(" ^ String.concat ", " (List.map value_to_text args) ^ ")"
-  | Return -> "return"
+  and value_to_text = function
+    | Number n -> Int64.to_string n
+    | NullPtr -> "#null_ptr"
+    | BinOp (a, op, b) ->
+        "(" ^ value_to_text a
+        ^ (if op = Add then " + " else " - ")
+        ^ value_to_text b ^ ")"
+    | Load p -> "ld " ^ place_to_text p
+    | Addr p -> place_to_text p ^ " #addr"
 
-let print c =
-  String.concat "\n\n"
-    (List.map
-       (fun f ->
-         "fn " ^ f.name ^ "("
-         ^ String.concat ", " f.params
-         ^ ") { "
-         ^ String.concat "; " (List.map stmt_to_text f.body)
-         ^ " }")
-       c.functions)
+  let rec stmt_to_text = function
+    | Assign (p, v) -> "assign " ^ place_to_text p ^ " := " ^ value_to_text v
+    | Ifz (c, a, b) ->
+        "ifz " ^ value_to_text c ^ " then " ^ stmt_to_text a ^ " else "
+        ^ stmt_to_text b ^ " end"
+    | Call (n, args) ->
+        "call " ^ n ^ "("
+        ^ String.concat ", " (List.map value_to_text args)
+        ^ ")"
+    | Return -> "return"
+
+  let print c =
+    String.concat "\n\n"
+      (List.map
+         (fun f ->
+           "fn " ^ f.name ^ "("
+           ^ String.concat ", " f.params
+           ^ ") { "
+           ^ String.concat "; " (List.map stmt_to_text f.body)
+           ^ " }")
+         c.functions)
+
+  let rec parse_place p =
+    match L.peek p with
+    | L.Ident _ -> Var (ident p)
+    | _ ->
+        L.expect_symbol p '(';
+        let v = parse_value p in
+        L.expect p ") #loc";
+        Deref v
+
+  and parse_value p =
+    let a = parse_atom p in
+    let rec loop a =
+      if L.eat_symbol p '+' then
+        let b = parse_atom p in
+        loop (BinOp (a, Add, b))
+      else if L.eat_symbol p '-' then
+        let b = parse_atom p in
+        loop (BinOp (a, Sub, b))
+      else a
+    in
+    loop a
+
+  and parse_atom p =
+    if L.eat p "#null_ptr" then NullPtr
+    else if L.eat_keyword p "ld" then Load (parse_place p)
+    else if L.eat_symbol p '(' then (
+      let v = parse_value p in
+      L.expect_symbol p ')';
+      v)
+    else
+      match L.peek p with
+      | L.Number _ -> Number (Int64.of_string (L.natural p))
+      | _ ->
+          let v = parse_place p in
+          L.expect p "#addr";
+          Addr v
+
+  let rec parse_stmt p =
+    if L.eat_keyword p "assign" then (
+      let place = parse_place p in
+      L.expect p ":=";
+      Assign (place, parse_value p))
+    else if L.eat_keyword p "ifz" then (
+      let cond = parse_value p in
+      L.expect_keyword p "then";
+      let a = parse_stmt p in
+      L.expect_keyword p "else";
+      let b = parse_stmt p in
+      L.expect_keyword p "end";
+      Ifz (cond, a, b))
+    else if L.eat_keyword p "call" then (
+      let n = ident p in
+      L.expect_symbol p '(';
+      let rec args acc =
+        let v = parse_value p in
+        if L.eat_symbol p ',' then args (v :: acc) else List.rev (v :: acc)
+      in
+      let args = if L.peek p = L.Symbol ')' then [] else args [] in
+      L.expect_symbol p ')';
+      Call (n, args))
+    else (
+      L.expect_keyword p "return";
+      Return)
+
+  let parse =
+    L.parse (fun p ->
+        let rec fs acc =
+          if L.eof p then { functions = List.rev acc }
+          else (
+            L.expect_keyword p "fn";
+            let name = ident p in
+            L.expect_symbol p '(';
+            let params = names_until p ')' in
+            L.expect p ") {";
+            let rec stmts acc =
+              if L.peek p = L.Symbol '}' then List.rev acc
+              else
+                let s = parse_stmt p in
+                if L.eat_symbol p ';' then stmts (s :: acc)
+                else List.rev (s :: acc)
+            in
+            let body = stmts [] in
+            L.expect_symbol p '}';
+            fs ({ name; params; body } :: acc))
+        in
+        fs [])
+end
 
 module Runtime_value = struct
   type t = value
@@ -121,93 +214,6 @@ module Runtime_value = struct
           | _ -> failwith "expected loc(frame,slot)"
         else Num (Int64.of_string text))
 end
-
-let rec parse_place p =
-  match L.peek p with
-  | L.Ident _ -> Var (ident p)
-  | _ ->
-      L.expect_symbol p '(';
-      let v = parse_value p in
-      L.expect p ") #loc";
-      Deref v
-
-and parse_value p =
-  let a = parse_atom p in
-  let rec loop a =
-    if L.eat_symbol p '+' then
-      let b = parse_atom p in
-      loop (BinOp (a, Add, b))
-    else if L.eat_symbol p '-' then
-      let b = parse_atom p in
-      loop (BinOp (a, Sub, b))
-    else a
-  in
-  loop a
-
-and parse_atom p =
-  if L.eat p "#null_ptr" then NullPtr
-  else if L.eat_keyword p "ld" then Load (parse_place p)
-  else if L.eat_symbol p '(' then (
-    let v = parse_value p in
-    L.expect_symbol p ')';
-    v)
-  else
-    match L.peek p with
-    | L.Number _ -> Number (Int64.of_string (L.natural p))
-    | _ ->
-        let v = parse_place p in
-        L.expect p "#addr";
-        Addr v
-
-let rec parse_stmt p =
-  if L.eat_keyword p "assign" then (
-    let place = parse_place p in
-    L.expect p ":=";
-    Assign (place, parse_value p))
-  else if L.eat_keyword p "ifz" then (
-    let cond = parse_value p in
-    L.expect_keyword p "then";
-    let a = parse_stmt p in
-    L.expect_keyword p "else";
-    let b = parse_stmt p in
-    L.expect_keyword p "end";
-    Ifz (cond, a, b))
-  else if L.eat_keyword p "call" then (
-    let n = ident p in
-    L.expect_symbol p '(';
-    let rec args acc =
-      let v = parse_value p in
-      if L.eat_symbol p ',' then args (v :: acc) else List.rev (v :: acc)
-    in
-    let args = if L.peek p = L.Symbol ')' then [] else args [] in
-    L.expect_symbol p ')';
-    Call (n, args))
-  else (
-    L.expect_keyword p "return";
-    Return)
-
-let parse_code =
-  L.parse (fun p ->
-      let rec fs acc =
-        if L.eof p then { functions = List.rev acc }
-        else (
-          L.expect_keyword p "fn";
-          let name = ident p in
-          L.expect_symbol p '(';
-          let params = names_until p ')' in
-          L.expect p ") {";
-          let rec stmts acc =
-            if L.peek p = L.Symbol '}' then List.rev acc
-            else
-              let s = parse_stmt p in
-              if L.eat_symbol p ';' then stmts (s :: acc)
-              else List.rev (s :: acc)
-          in
-          let body = stmts [] in
-          L.expect_symbol p '}';
-          fs ({ name; params; body } :: acc))
-      in
-      fs [])
 
 let validate code =
   unique
@@ -401,7 +407,7 @@ let render s =
           [ "function"; s.current_function ];
           [
             "current";
-            Option.fold ~none:"<none>" ~some:stmt_to_text s.current_stmt;
+            Option.fold ~none:"<none>" ~some:Code.stmt_to_text s.current_stmt;
           ];
           [ "next_frame_id"; string_of_int s.next_frame_id ];
         ];
@@ -427,7 +433,7 @@ let render s =
                   (sorted f.values)))
            (List.rev s.store));
       container ~title:"inner_k"
-        (List.map (fun st -> text (stmt_to_text st)) s.inner_k);
+        (List.map (fun st -> text (Code.stmt_to_text st)) s.inner_k);
       text_table ~title:"fn_k"
         ~columns:[ "depth"; "function"; "resume_len" ]
         (List.mapi
@@ -446,15 +452,14 @@ module Routput = Utils.Text.String
 module Foutput = Utils.Text.String
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

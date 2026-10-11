@@ -129,3 +129,17 @@ let parse_main_with_maps code maps =
       | None -> Error "not found main")
 
 let parse_main code = parse_main_with_maps code (init_maps ())
+
+module Code = struct
+  type nonrec t = t
+
+  let parse text =
+    match String.trim text with
+    | text when String.starts_with ~prefix:"[" text ->
+        Result.bind (Utils.Json.decode text) (fun json ->
+            Result.bind (of_yojson json) (fun circuit ->
+                Result.map (fun () -> circuit) (validate_identifiers circuit)))
+    | _ -> parse_main text
+
+  let print circuit = Yojson.Safe.pretty_to_string (to_yojson circuit)
+end

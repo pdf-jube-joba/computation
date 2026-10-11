@@ -32,13 +32,13 @@ let () =
   let (_ : (module Utils.Machine.S)) = (module A.Machine) in
   let (_ : (module Utils.Machine.S)) = (module T.Machine) in
   let text = "x := ['a', 'b'] ; while x == ['a', 'b'] { x := tail x }" in
-  let code = ok (A.parse_code text) in
-  assert (ok (A.parse_code (A.print code)) = code);
+  let code = ok (A.Code.parse text) in
+  assert (ok (A.Code.parse (A.Code.print code)) = code);
   let env = run_a 40 (ok (A.make code [])) in
   assert (A.get env "x" = [ "b" ]);
   let code =
     ok
-      (A.parse_code
+      (A.Code.parse
          "x := ['a'] ; y := head x ++ ['b'] ++ tail x ; if is_empty missing \
           then z := tail [] end")
   in
@@ -88,21 +88,21 @@ let () =
               A.While (A.IsEmpty (A.Var "x"), A.Assign ("x", A.Const [ "a" ]))
             ) ));
   let code =
-    ok (T.parse_code "x := atom 'a' ; ifeq is_atom x then y := cons x x end")
+    ok (T.Code.parse "x := atom 'a' ; ifeq is_atom x then y := cons x x end")
   in
-  assert (ok (T.parse_code (T.print code)) = code);
+  assert (ok (T.Code.parse (T.Code.print code)) = code);
   let code =
     ok
-      (T.parse_code
+      (T.Code.parse
          "x := cons atom 'a' atom 'b' ; y := left x ; z := atom mtoa right x ; \
           ifeq y == atom 'a' then k := right x end")
   in
-  assert (ok (T.parse_code (T.print code)) = code);
+  assert (ok (T.Code.parse (T.Code.print code)) = code);
   let env = run_t 60 (ok (T.make code [])) in
   assert (List.assoc "y" env = T.AtomValue "a");
   assert (List.assoc "z" env = T.AtomValue "b");
   assert (List.assoc "k" env = T.AtomValue "b");
-  let code = ok (T.parse_code "while is_atom x { x := cons x atom 'z' }") in
+  let code = ok (T.Code.parse "while is_atom x { x := cons x atom 'z' }") in
   let env = run_t 30 (ok (T.make code [ ("x", T.AtomValue "a") ])) in
   assert (List.assoc "x" env = T.ConsValue (T.AtomValue "a", T.AtomValue "z"));
   let env =
@@ -116,7 +116,7 @@ let () =
   let s =
     ok
       (T.make
-         (ok (T.parse_code "y := left x"))
+         (ok (T.Code.parse "y := left x"))
          [ ("x", T.ConsValue (T.AtomValue "a", T.AtomValue "b")) ])
   in
   let restored =
@@ -126,7 +126,7 @@ let () =
   in
   assert (T.snapshot (next_t s) = T.snapshot (next_t restored));
   List.iter
-    (fun text -> error (T.step (ok (T.make (ok (T.parse_code text)) [])) ()))
+    (fun text -> error (T.step (ok (T.make (ok (T.Code.parse text)) [])) ()))
     [
       "x := y";
       "x := left atom 'a'";
@@ -137,7 +137,7 @@ let () =
     (fun text -> error (T.Ainput.parse text))
     [ "x = y"; "x = atom mtoa atom 'a'"; "x = left cons atom 'a' atom 'b'" ];
   List.iter
-    (fun text -> error (A.parse_code text))
+    (fun text -> error (A.Code.parse text))
     [
       "";
       "x := ['ab']";
@@ -147,7 +147,7 @@ let () =
       "x := [] junk";
     ];
   List.iter
-    (fun text -> error (T.parse_code text))
+    (fun text -> error (T.Code.parse text))
     [
       "";
       "x := atom ''";
@@ -161,12 +161,12 @@ let () =
   assert (T.Routput.print () = "");
   assert (match A.render s1 with `List [ _; _ ] -> true | _ -> false);
   assert (match T.render s with `List [ _; _ ] -> true | _ -> false);
-  error (A.parse_code "x := Nop");
-  error (T.parse_code "x := then");
+  error (A.Code.parse "x := Nop");
+  error (T.Code.parse "x := then");
   let bad =
     ok
       (T.make
-         (ok (T.parse_code "ifeq left atom 'a' == right atom 'b' then Nop end"))
+         (ok (T.Code.parse "ifeq left atom 'a' == right atom 'b' then Nop end"))
          [])
   in
   assert (T.step bad () = Error "left expects a cons cell");

@@ -41,8 +41,8 @@ let () =
   let code =
     "start\ngoal\na,start,b,start,R\nb,start,b,start,R\nc,start,c,goal,C\n"
   in
-  let d = get (T.parse_code code) in
-  check "code roundtrip" (get (T.parse_code (T.print_code d)) = d);
+  let d = get (T.Code.parse code) in
+  check "code roundtrip" (get (T.Code.parse (T.Code.print d)) = d);
   let s = get (T.make d (get (tape "-|a|b,a,b,b,c"))) in
   let restored = get (T.restore (T.snapshot s)) in
   check "snapshot" (T.snapshot restored = T.snapshot s);
@@ -50,7 +50,7 @@ let () =
   check "missing transition halts"
     (T.tape_equal (run (get (T.make d (get (tape "|-|"))))) (get (tape "|-|")));
   List.iter
-    (fun s -> check "invalid code" (Result.is_error (T.parse_code s)))
+    (fun s -> check "invalid code" (Result.is_error (T.Code.parse s)))
     [
       "start\ngoal\na,start,a,start,C\na,start,a,goal,R";
       "start\ngoal\na,goal,a,start,C";

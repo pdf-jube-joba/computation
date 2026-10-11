@@ -12,7 +12,7 @@ module type S = sig
   module Source : Machine.S
   module Target : Machine.S
 
-  val compile : Source.code -> (Target.code, string) result
+  val compile : Source.Code.t -> (Target.Code.t, string) result
   val encode_ainput : Source.Ainput.t -> (Target.Ainput.t, string) result
   val encode_rinput : Source.Rinput.t -> (Target.Rinput.t, string) result
   val decode_routput : Target.Routput.t -> (Source.Routput.t, string) result

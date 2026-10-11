@@ -7,7 +7,7 @@ module M = No_ext
 
 let get = function Ok x -> x | Error e -> failwith e
 let error = function Error _ -> () | Ok _ -> failwith "expected an error"
-let parsed text = get (T.parse_code text)
+let parsed text = get (T.Code.parse text)
 
 let rec eval fuel e =
   if fuel = 0 then failwith "did not halt"
@@ -105,11 +105,12 @@ let () =
     [ "x"; "@(zero zero)"; "succ (fun x => x)" ];
   assert (M.Foutput.print (T.Num "2") = "S S 0");
   assert (M.Foutput.print (T.Fun ("x", T.Var "x")) = "fun x => x");
-  assert (T.print (parsed "let x = zero in succ x") = "let x = 0 in \n S x");
+  assert (
+    T.Code.pretty (parsed "let x = zero in succ x") = "let x = 0 in \n S x");
   List.iter
     (fun text ->
       let e = parsed text in
-      assert (get (T.parse_code (T.write_code e)) = e))
+      assert (get (T.Code.parse (T.Code.print e)) = e))
     [
       double;
       "@((fun x => x) (succ zero))";
@@ -130,26 +131,26 @@ let () =
     (fun name ->
       assert (parsed name = T.Var name);
       assert (get (Parse.lam_nat name) = T.Var name);
-      assert (get (T.parse_code (T.write_code (T.Var name))) = T.Var name))
+      assert (get (T.Code.parse (T.Code.print (T.Var name))) = T.Var name))
     [
       "succ_x"; "zero_x"; "fun_x"; "rec_x"; "S_x"; "control_x"; "x_001"; "x__y";
     ];
   assert (run "@((fun succ_x => succ_x) (succ zero))" "()" = T.Num "1");
-  error (T.parse_code "abort zero");
-  error (T.parse_code "grab k . k");
-  error (T.parse_code "succ");
-  error (T.parse_code "@(x)");
-  error (T.parse_code "zero trailing");
+  error (T.Code.parse "abort zero");
+  error (T.Code.parse "grab k . k");
+  error (T.Code.parse "succ");
+  error (T.Code.parse "@(x)");
+  error (T.Code.parse "zero trailing");
   (* Ctrl's variable/value operations are implemented; ALL stepping was todo!. *)
   let ctrl =
-    get (Ctrl.parse_code "control (fun k => abort @(k (succ zero)))")
+    get (Ctrl.Code.parse "control (fun k => abort @(k (succ zero)))")
   in
-  assert (get (Ctrl.parse_code (T.write_code ctrl)) = ctrl);
+  assert (get (Ctrl.Code.parse (T.Code.print ctrl)) = ctrl);
   assert (T.Names.is_empty (Ctrl.free_variables ctrl));
   assert (Ctrl.Names.elements (Ctrl.bound_variables ctrl) = [ "k" ]);
   assert (
     Ctrl.alpha_eq ctrl
-      (get (Ctrl.parse_code "control (fun j => abort @(j (succ zero)))")));
+      (get (Ctrl.Code.parse "control (fun j => abort @(j (succ zero)))")));
   assert (
     Ctrl.subst (Ctrl.Abort (Ctrl.Var "x")) "x" Ctrl.Zero = Ctrl.Abort Ctrl.Zero);
   assert (Ctrl.is_value Ctrl.Zero = Some (Ctrl.Num "0"));

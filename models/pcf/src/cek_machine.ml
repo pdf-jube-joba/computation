@@ -1,4 +1,5 @@
 open Syntax
+module Code = Syntax.Code
 
 let ( let* ) = Result.bind
 
@@ -44,7 +45,7 @@ let expr_to_value = function
   | Unit -> Ok VUnit
   | Fun _ | Rec _ ->
       Error "plain expr closures cannot be converted without an environment"
-  | e -> Error ("expected value expression, found " ^ print e)
+  | e -> Error ("expected value expression, found " ^ Code.print e)
 
 let eval_binop a o b =
   let* e = Expr_machine.eval_binop (value_to_expr a) o (value_to_expr b) in
@@ -58,7 +59,7 @@ let as_nat = function
   | VNat n -> Ok n
   | _ -> Error "final value is not a natural number"
 
-let value_text v = print (value_to_expr v)
+let value_text v = Code.print (value_to_expr v)
 
 let apply fun_value arg =
   match fun_value with
@@ -113,8 +114,6 @@ type routput = print_effect
 type foutput = N.t
 type state = { code : expr; state : cek_state } [@@deriving yojson]
 
-let parse_code = Syntax.parse_code
-
 let make code inputs =
   Ok { code; state = Eval (apply_inputs code inputs, [], [ Init ]) }
 
@@ -143,12 +142,12 @@ let render s =
   let open Utils.Render in
   let mode, focus, env, k =
     match s.state with
-    | Eval (e, env, k) -> ("eval", print e, env, k)
+    | Eval (e, env, k) -> ("eval", Code.print e, env, k)
     | Return (v, k) -> ("return", value_text v, env_from_kont k, k)
   in
   state
     [
-      text ~title:"code" (print s.code);
+      text ~title:"code" (Code.print s.code);
       text_table ~title:"state" ~columns:[ "field"; "value" ]
         [ [ "mode"; mode ]; [ "focus"; focus ] ];
       assoc_table ~title:"env" ~columns:[ "name"; "value" ] value_text

@@ -91,7 +91,7 @@ let text_api ~parse_code ~compile ~parse_ainput ~encode_ainput ~print_ainput
     compile_code =
       (fun text ->
         Result.bind (parse_code text) (fun code ->
-            Result.map I.print (compile code)));
+            Result.map I.Code.print (compile code)));
     encode_ainput =
       (fun text ->
         Result.bind (parse_ainput text) (fun input ->

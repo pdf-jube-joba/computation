@@ -31,15 +31,15 @@ let run_jump p t = run J.step (get (J.make p t))
 let run_tm p t = run T.step (get (T.make p t))
 
 let equivalent text input expected =
-  let p = get (I.parse_code text) in
+  let p = get (I.Code.parse text) in
   let t = tape input in
   let output = run_ir p t in
   check "IR result" (T.tape_equal output (tape expected));
   let jump = get (Compile_jump.compile p) in
-  check "jump roundtrip" (get (J.parse_code (J.print jump)) = jump);
+  check "jump roundtrip" (get (J.Code.parse (J.Code.print jump)) = jump);
   check "IR to jump equivalence" (T.tape_equal output (run_jump jump t));
   let tm = get (Compile_tm.compile jump) in
-  check "Turing roundtrip" (get (T.parse_code (T.print_code tm)) = tm);
+  check "Turing roundtrip" (get (T.Code.parse (T.Code.print tm)) = tm);
   check "jump to Turing equivalence" (T.tape_equal output (run_tm tm t))
 
 let helper make input expected =
@@ -52,10 +52,10 @@ let helper make input expected =
 let recursive f input expected =
   let t = get (C.write_usize input) in
   let p = get (C.compile f) in
-  check "compiled text roundtrip" (get (I.parse_code (I.print p)) = p);
+  check "compiled text roundtrip" (get (I.Code.parse (I.Code.print p)) = p);
   let output = run_ir p t in
   check
-    ("recursive result: " ^ R.print f)
+    ("recursive result: " ^ R.Code.print f)
     (C.read_right_one_usize output = Some [ expected ]);
   let jump = get (Compile_jump.compile p) in
   check "recursive IR-jump equivalence" (T.tape_equal output (run_jump jump t));
@@ -115,11 +115,11 @@ let () =
     "alphabet:(a) fn f {label entry:{call f}} fn main {label entry:{call f}}"
   in
   check "recursion rejected"
-    (Result.is_error (I.make (get (I.parse_code invalid)) (tape "|-|")));
+    (Result.is_error (I.make (get (I.Code.parse invalid)) (tape "|-|")));
   List.iter
     (fun code ->
       check "IR validation"
-        (Result.is_error (I.make (get (I.parse_code code)) (tape "|-|"))))
+        (Result.is_error (I.make (get (I.Code.parse code)) (tape "|-|"))))
     [
       "alphabet:() fn main {}";
       "alphabet:(a) fn main {label entry:{jump missing}}";
@@ -128,7 +128,7 @@ let () =
     ];
   let p =
     get
-      (I.parse_code
+      (I.Code.parse
          "alphabet:(a) fn f {label entry:{RT}} fn main {label entry:{call f \
           @:=const a}}")
   in
@@ -140,14 +140,14 @@ let () =
   in
   let restored = get (I.restore (I.snapshot s)) in
   check "IR snapshot stack" (T.tape_equal (run I.step s) (run I.step restored));
-  let p = get (J.parse_code "alphabet:(a,b) v:=@ RT jump if v==@ 1 @:=v") in
+  let p = get (J.Code.parse "alphabet:(a,b) v:=@ RT jump if v==@ 1 @:=v") in
   let s = get (J.make p (tape "|a|b")) in
   let restored = get (J.restore (J.snapshot s)) in
   check "jump snapshot" (T.tape_equal (run J.step s) (run J.step restored));
   check "out of range jump"
     (Result.is_error
-       (J.make (get (J.parse_code "alphabet:(a) jump 2")) (tape "|-|")));
-  let p = get (J.parse_code "alphabet:(a,b) @:=missing") in
+       (J.make (get (J.Code.parse "alphabet:(a) jump 2")) (tape "|-|")));
+  let p = get (J.Code.parse "alphabet:(a,b) @:=missing") in
   check "blank env initialization"
     (T.tape_equal
        (run_jump p (tape "|a|"))
@@ -226,7 +226,7 @@ let () =
     let t = get (C.write_usize args) in
     let out = run_ir p t in
     check
-      ("primitive/mu result " ^ R.print f ^ " tape=" ^ T.Tape.print out)
+      ("primitive/mu result " ^ R.Code.print f ^ " tape=" ^ T.Tape.print out)
       (C.read_right_one_usize out = Some [ expected ]);
     let jump = get (Compile_jump.compile p) in
     check "primitive/mu jump equivalence" (T.tape_equal out (run_jump jump t));
@@ -274,7 +274,7 @@ let () =
   let compiled = get (Rec_to_tm.api.compile_code "SUCC") in
   let output =
     run_tm
-      (get (T.parse_code compiled))
+      (get (T.Code.parse compiled))
       (tape (get (Rec_to_tm.api.encode_ainput "(2)")))
   in
   check "full chain text API"

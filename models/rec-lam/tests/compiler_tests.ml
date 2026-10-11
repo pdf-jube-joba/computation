@@ -45,22 +45,23 @@ let check func input =
   let normal = normalize (ok (L.make term arguments)) in
   let actual = ok (C.decode_foutput normal) in
   if not (Utils.Number.equal expected actual) then
-    failwith (print func ^ " evaluated to " ^ actual ^ ", expected " ^ expected);
+    failwith
+      (Code.print func ^ " evaluated to " ^ actual ^ ", expected " ^ expected);
   (* Exercise the text boundary, whose parser allocates IDs independently. *)
-  let reparsed = ok (L.parse_code (L.print term)) in
+  let reparsed = ok (L.Code.parse (L.Code.print term)) in
   let normal = normalize (ok (L.make reparsed arguments)) in
   assert (ok (C.decode_foutput normal) = expected);
   assert (ok (L.restore (L.snapshot normal)) = normal)
 
 let api_check text input =
-  let func = ok (parse_code text) and args = ok (Ainput.parse input) in
+  let func = ok (Code.parse text) and args = ok (Ainput.parse input) in
   let expected = ok (evaluate (ok (make func args)).process) in
-  let term = ok (L.parse_code (ok (C.api.compile_code text))) in
+  let term = ok (L.Code.parse (ok (C.api.compile_code text))) in
   let args = ok (L.Ainput.parse (ok (C.api.encode_ainput input))) in
   let index = ok (L.Rinput.parse (ok (C.api.encode_rinput ""))) in
   assert (index = 0);
   let normal = normalize (ok (L.make term args)) in
-  assert (ok (C.api.decode_foutput (L.print normal)) = expected)
+  assert (ok (C.api.decode_foutput (L.Code.print normal)) = expected)
 
 let () =
   for n = 0 to 5 do

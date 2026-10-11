@@ -11,103 +11,137 @@ type state = term
 
 (* IDs are allocated locally while parsing. Combining independently parsed terms
    freshens their IDs before applying them. No process-global variable counter. *)
-type token = Name of string | Lambda | Dot | Left | Right | End
+module Code = struct
+  type t = term
+  type token = Name of string | Lambda | Dot | Left | Right | End
 
-exception Parse_error of string
+  exception Parse_error of string
 
-let tokenize text =
-  let length = String.length text in
-  let has = Utils.String_ext.starts_at text in
-  let start = Utils.Identifier.is_start in
-  let continue = Utils.Identifier.is_continue in
-  let rec scan i acc =
-    if i = length then List.rev (End :: acc)
-    else
-      match text.[i] with
-      | c when Utils.String_ext.is_whitespace c -> scan (i + 1) acc
-      | '/' when has i "//" ->
-          scan (Utils.String_ext.skip_line text (i + 2)) acc
-      | '/' when has i "/*" -> scan (Utils.Lexer.skip_block_comment text i) acc
-      | '\\' -> scan (i + 1) (Lambda :: acc)
-      | '.' -> scan (i + 1) (Dot :: acc)
-      | '(' -> scan (i + 1) (Left :: acc)
-      | ')' -> scan (i + 1) (Right :: acc)
-      | c when start c ->
-          let j = Utils.String_ext.skip_while continue text (i + 1) in
-          scan j (Name (String.sub text i (j - i)) :: acc)
-      | _ ->
-          raise
-            (Parse_error (Printf.sprintf "Unexpected character at byte %d" i))
-  in
-  Array.of_list (scan 0 [])
+  let tokenize text =
+    let length = String.length text in
+    let has = Utils.String_ext.starts_at text in
+    let start = Utils.Identifier.is_start in
+    let continue = Utils.Identifier.is_continue in
+    let rec scan i acc =
+      if i = length then List.rev (End :: acc)
+      else
+        match text.[i] with
+        | c when Utils.String_ext.is_whitespace c -> scan (i + 1) acc
+        | '/' when has i "//" ->
+            scan (Utils.String_ext.skip_line text (i + 2)) acc
+        | '/' when has i "/*" ->
+            scan (Utils.Lexer.skip_block_comment text i) acc
+        | '\\' -> scan (i + 1) (Lambda :: acc)
+        | '.' -> scan (i + 1) (Dot :: acc)
+        | '(' -> scan (i + 1) (Left :: acc)
+        | ')' -> scan (i + 1) (Right :: acc)
+        | c when start c ->
+            let j = Utils.String_ext.skip_while continue text (i + 1) in
+            scan j (Name (String.sub text i (j - i)) :: acc)
+        | _ ->
+            raise
+              (Parse_error (Printf.sprintf "Unexpected character at byte %d" i))
+    in
+    Array.of_list (scan 0 [])
 
-let parse_code text =
-  try
-    let tokens = tokenize text in
-    let pos = ref 0 and next_id = ref 0 in
-    let free = Hashtbl.create 8 in
-    let fresh name =
-      let id = !next_id in
-      incr next_id;
-      { id; name }
-    in
-    let peek () = tokens.(!pos) in
-    let take () =
-      let token = peek () in
-      incr pos;
-      token
-    in
-    let fail message =
-      raise (Parse_error (Printf.sprintf "%s at token %d" message !pos))
-    in
-    let rec application env =
-      let first = atom env in
-      let rec rest left =
-        match peek () with
-        | Name _ | Left | Lambda -> rest (App (left, atom env))
-        | _ -> left
+  let parse text =
+    try
+      let tokens = tokenize text in
+      let pos = ref 0 and next_id = ref 0 in
+      let free = Hashtbl.create 8 in
+      let fresh name =
+        let id = !next_id in
+        incr next_id;
+        { id; name }
       in
-      rest first
-    and atom env =
-      match take () with
-      | Name name ->
-          let var =
-            match List.assoc_opt name env with
-            | Some var -> var
-            | None -> (
-                match Hashtbl.find_opt free name with
-                | Some var -> var
-                | None ->
-                    let var = fresh name in
-                    Hashtbl.add free name var;
-                    var)
+      let peek () = tokens.(!pos) in
+      let take () =
+        let token = peek () in
+        incr pos;
+        token
+      in
+      let fail message =
+        raise (Parse_error (Printf.sprintf "%s at token %d" message !pos))
+      in
+      let rec application env =
+        let first = atom env in
+        let rec rest left =
+          match peek () with
+          | Name _ | Left | Lambda -> rest (App (left, atom env))
+          | _ -> left
+        in
+        rest first
+      and atom env =
+        match take () with
+        | Name name ->
+            let var =
+              match List.assoc_opt name env with
+              | Some var -> var
+              | None -> (
+                  match Hashtbl.find_opt free name with
+                  | Some var -> var
+                  | None ->
+                      let var = fresh name in
+                      Hashtbl.add free name var;
+                      var)
+            in
+            Var var
+        | Left ->
+            let term = application env in
+            if take () <> Right then fail "Expected ')'";
+            term
+        | Lambda ->
+            let rec binders env acc =
+              match peek () with
+              | Name name ->
+                  ignore (take ());
+                  let var = fresh name in
+                  binders ((name, var) :: env) (var :: acc)
+              | Dot when acc <> [] ->
+                  ignore (take ());
+                  (env, List.rev acc)
+              | _ -> fail "Expected binders followed by '.'"
+            in
+            let env, vars = binders env [] in
+            let body = application env in
+            List.fold_right (fun var body -> Abs (var, body)) vars body
+        | _ -> fail "Expected a lambda term"
+      in
+      let term = application [] in
+      if peek () <> End then fail "Unexpected trailing tokens";
+      Ok term
+    with Parse_error message | Utils.Lexer.Error message -> Error message
+
+  (* Use distinct printable names for distinct IDs, so printing a shared term
+   never introduces apparent variable capture. *)
+  let print term =
+    let names = Hashtbl.create 16 and used = Hashtbl.create 16 in
+    let name var =
+      match Hashtbl.find_opt names var.id with
+      | Some name -> name
+      | None ->
+          let rec choose name =
+            if Hashtbl.mem used name then choose (name ^ "_") else name
           in
-          Var var
-      | Left ->
-          let term = application env in
-          if take () <> Right then fail "Expected ')'";
-          term
-      | Lambda ->
-          let rec binders env acc =
-            match peek () with
-            | Name name ->
-                ignore (take ());
-                let var = fresh name in
-                binders ((name, var) :: env) (var :: acc)
-            | Dot when acc <> [] ->
-                ignore (take ());
-                (env, List.rev acc)
-            | _ -> fail "Expected binders followed by '.'"
-          in
-          let env, vars = binders env [] in
-          let body = application env in
-          List.fold_right (fun var body -> Abs (var, body)) vars body
-      | _ -> fail "Expected a lambda term"
+          let name = choose var.name in
+          Hashtbl.add names var.id name;
+          Hashtbl.add used name ();
+          name
     in
-    let term = application [] in
-    if peek () <> End then fail "Unexpected trailing tokens";
-    Ok term
-  with Parse_error message | Utils.Lexer.Error message -> Error message
+    let rec visit = function
+      | Var var -> name var
+      | Abs (var, body) ->
+          let binder = name var in
+          "\\" ^ binder ^ ". " ^ visit body
+      | App (left, right) ->
+          let operand term =
+            match term with Abs _ -> "(" ^ visit term ^ ")" | _ -> visit term
+          in
+          let left = operand left in
+          "(" ^ left ^ " " ^ operand right ^ ")"
+    in
+    visit term
+end
 
 let rec max_id = function
   | Var var -> var.id
@@ -207,36 +241,6 @@ let step term index =
   if redex_count next = 0 then Ok (Halt next)
   else Ok (Continue { next; output = () })
 
-(* Use distinct printable names for distinct IDs, so printing a shared term
-   never introduces apparent variable capture. *)
-let print term =
-  let names = Hashtbl.create 16 and used = Hashtbl.create 16 in
-  let name var =
-    match Hashtbl.find_opt names var.id with
-    | Some name -> name
-    | None ->
-        let rec choose name =
-          if Hashtbl.mem used name then choose (name ^ "_") else name
-        in
-        let name = choose var.name in
-        Hashtbl.add names var.id name;
-        Hashtbl.add used name ();
-        name
-  in
-  let rec visit = function
-    | Var var -> name var
-    | Abs (var, body) ->
-        let binder = name var in
-        "\\" ^ binder ^ ". " ^ visit body
-    | App (left, right) ->
-        let operand term =
-          match term with Abs _ -> "(" ^ visit term ^ ")" | _ -> visit term
-        in
-        let left = operand left in
-        "(" ^ left ^ " " ^ operand right ^ ")"
-  in
-  visit term
-
 let snapshot term =
   let var_json var =
     `Assoc [ ("id", `Int var.id); ("name", `String var.name) ]
@@ -308,9 +312,9 @@ let render term =
   in
   Utils.Render.state
     [
-      Utils.Render.text ~title:"term" (print term);
+      Utils.Render.text ~title:"term" (Code.print term);
       Utils.Render.indexed_table ~title:"redexes" ~columns:[ "index"; "term" ]
-        print (redexes term);
+        Code.print (redexes term);
     ]
 
 let assoc_app = List.fold_left (fun left right -> App (left, right))
@@ -380,13 +384,13 @@ module Ainput = struct
       let rec loop = function
         | [] -> Ok []
         | text :: rest ->
-            let* term = parse_code text in
+            let* term = Code.parse text in
             let* terms = loop rest in
             Ok (term :: terms)
       in
       loop (String.split_on_char ',' text)
 
-  let print = fun terms -> String.concat ", " (List.map print terms)
+  let print = fun terms -> String.concat ", " (List.map Code.print terms)
 end
 
 module Rinput = Utils.Text.Natural_int
@@ -395,6 +399,6 @@ module Routput = Utils.Text.Unit
 module Foutput = struct
   type t = foutput
 
-  let parse = parse_code
-  let print = print
+  let parse = Code.parse
+  let print = Code.print
 end

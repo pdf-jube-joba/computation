@@ -49,120 +49,125 @@ let rec small_step stmt env =
   | If (c, b) -> ((if eval_bexp env c then b else Nop), env)
   | While (c, b) -> (If (c, Seq (b, While (c, b))), env)
 
-let rec parse_aexp p =
-  if L.eat_keyword p "if" then (
-    let c = parse_bexp p in
-    L.expect_keyword p "then";
-    let a = parse_aexp p in
-    L.expect_keyword p "else";
-    let b = parse_aexp p in
-    IfThenElse (c, a, b))
-  else
-    let a = parse_aatom p in
+module Code = struct
+  type t = code
+
+  let rec parse_aexp p =
+    if L.eat_keyword p "if" then (
+      let c = parse_bexp p in
+      L.expect_keyword p "then";
+      let a = parse_aexp p in
+      L.expect_keyword p "else";
+      let b = parse_aexp p in
+      IfThenElse (c, a, b))
+    else
+      let a = parse_aatom p in
+      let rec loop a =
+        if L.eat_symbol p '+' then
+          let b = parse_aatom p in
+          loop (BinOp (a, Add, b))
+        else if L.eat_symbol p '-' then
+          let b = parse_aatom p in
+          loop (BinOp (a, Sub, b))
+        else a
+      in
+      loop a
+
+  and parse_aatom p =
+    if L.eat_symbol p '(' then (
+      let a = parse_aexp p in
+      L.expect_symbol p ')';
+      a)
+    else match L.peek p with L.Number _ -> Num (number p) | _ -> Var (ident p)
+
+  and parse_bexp p =
+    let a = parse_bnot p in
     let rec loop a =
-      if L.eat_symbol p '+' then
-        let b = parse_aatom p in
-        loop (BinOp (a, Add, b))
-      else if L.eat_symbol p '-' then
-        let b = parse_aatom p in
-        loop (BinOp (a, Sub, b))
+      if L.eat p "||" then
+        let b = parse_bnot p in
+        loop (Or (a, b))
       else a
     in
     loop a
 
-and parse_aatom p =
-  if L.eat_symbol p '(' then (
-    let a = parse_aexp p in
-    L.expect_symbol p ')';
-    a)
-  else match L.peek p with L.Number _ -> Num (number p) | _ -> Var (ident p)
+  and parse_bnot p =
+    if L.eat_symbol p '!' then Not (parse_bnot p)
+    else if L.eat_symbol p '(' then (
+      let b = parse_bexp p in
+      L.expect_symbol p ')';
+      b)
+    else
+      let a = parse_aexp p in
+      let op =
+        match L.next p with
+        | L.Symbol '<' -> Lt
+        | L.Symbol '=' -> Eq
+        | L.Symbol '>' -> Gt
+        | _ -> L.error p "Expected relation operator"
+      in
+      let b = parse_aexp p in
+      Rel (a, op, b)
 
-and parse_bexp p =
-  let a = parse_bnot p in
-  let rec loop a =
-    if L.eat p "||" then
-      let b = parse_bnot p in
-      loop (Or (a, b))
-    else a
-  in
-  loop a
-
-and parse_bnot p =
-  if L.eat_symbol p '!' then Not (parse_bnot p)
-  else if L.eat_symbol p '(' then (
-    let b = parse_bexp p in
-    L.expect_symbol p ')';
-    b)
-  else
-    let a = parse_aexp p in
-    let op =
-      match L.next p with
-      | L.Symbol '<' -> Lt
-      | L.Symbol '=' -> Eq
-      | L.Symbol '>' -> Gt
-      | _ -> L.error p "Expected relation operator"
+  let rec parse_stmt p =
+    let a = parse_single p in
+    let rec loop a =
+      if L.eat_symbol p ';' then
+        let b = parse_single p in
+        loop (Seq (a, b))
+      else a
     in
-    let b = parse_aexp p in
-    Rel (a, op, b)
+    loop a
 
-let rec parse_stmt p =
-  let a = parse_single p in
-  let rec loop a =
-    if L.eat_symbol p ';' then
+  and parse_single p =
+    if L.eat_keyword p "Nop" then Nop
+    else if L.eat_keyword p "if" then
+      let c = parse_bexp p in
       let b = parse_single p in
-      loop (Seq (a, b))
-    else a
-  in
-  loop a
+      If (c, b)
+    else if L.eat_keyword p "while" then (
+      let c = parse_bexp p in
+      L.expect_symbol p '[';
+      let b = parse_stmt p in
+      L.expect_symbol p ']';
+      While (c, b))
+    else if L.eat_symbol p '(' then (
+      let b = parse_stmt p in
+      L.expect_symbol p ')';
+      b)
+    else
+      let v = ident p in
+      L.expect p ":=";
+      Assign (v, parse_aexp p)
 
-and parse_single p =
-  if L.eat_keyword p "Nop" then Nop
-  else if L.eat_keyword p "if" then
-    let c = parse_bexp p in
-    let b = parse_single p in
-    If (c, b)
-  else if L.eat_keyword p "while" then (
-    let c = parse_bexp p in
-    L.expect_symbol p '[';
-    let b = parse_stmt p in
-    L.expect_symbol p ']';
-    While (c, b))
-  else if L.eat_symbol p '(' then (
-    let b = parse_stmt p in
-    L.expect_symbol p ')';
-    b)
-  else
-    let v = ident p in
-    L.expect p ":=";
-    Assign (v, parse_aexp p)
+  let parse = L.parse parse_stmt
 
-let parse_code = L.parse parse_stmt
+  let rec aexp_to_text = function
+    | Var v -> v
+    | Num n -> N.to_string n
+    | BinOp (a, op, b) ->
+        "(" ^ aexp_to_text a
+        ^ (if op = Add then " + " else " - ")
+        ^ aexp_to_text b ^ ")"
+    | IfThenElse (c, a, b) ->
+        "if " ^ bexp_to_text c ^ " then " ^ aexp_to_text a ^ " else "
+        ^ aexp_to_text b
 
-let rec aexp_to_text = function
-  | Var v -> v
-  | Num n -> N.to_string n
-  | BinOp (a, op, b) ->
-      "(" ^ aexp_to_text a
-      ^ (if op = Add then " + " else " - ")
-      ^ aexp_to_text b ^ ")"
-  | IfThenElse (c, a, b) ->
-      "if " ^ bexp_to_text c ^ " then " ^ aexp_to_text a ^ " else "
-      ^ aexp_to_text b
+  and bexp_to_text = function
+    | Rel (a, op, b) ->
+        "(" ^ aexp_to_text a ^ " " ^ rel_text op ^ " " ^ aexp_to_text b ^ ")"
+    | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
+    | Not b -> "!" ^ bexp_to_text b
 
-and bexp_to_text = function
-  | Rel (a, op, b) ->
-      "(" ^ aexp_to_text a ^ " " ^ rel_text op ^ " " ^ aexp_to_text b ^ ")"
-  | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
-  | Not b -> "!" ^ bexp_to_text b
+  let rec stmt_to_text = function
+    | Nop -> "Nop"
+    | Assign (v, a) -> v ^ " := " ^ aexp_to_text a
+    | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
+    | If (c, b) -> "if " ^ bexp_to_text c ^ " " ^ stmt_to_text b
+    | While (c, b) -> "while " ^ bexp_to_text c ^ " [ " ^ stmt_to_text b ^ " ]"
 
-let rec stmt_to_text = function
-  | Nop -> "Nop"
-  | Assign (v, a) -> v ^ " := " ^ aexp_to_text a
-  | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-  | If (c, b) -> "if " ^ bexp_to_text c ^ " " ^ stmt_to_text b
-  | While (c, b) -> "while " ^ bexp_to_text c ^ " [ " ^ stmt_to_text b ^ " ]"
+  let print = stmt_to_text
+end
 
-let print = stmt_to_text
 let make code env = Ok { code; stmt = code; env }
 
 let step s () =
@@ -175,7 +180,7 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.statement_env (stmt_to_text s.stmt) N.to_string s.env
+  Utils.Render.statement_env (Code.stmt_to_text s.stmt) N.to_string s.env
 
 module Ainput = Common.Env
 module Rinput = Utils.Text.Unit
@@ -183,15 +188,14 @@ module Routput = Utils.Text.Unit
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

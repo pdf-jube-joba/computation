@@ -43,91 +43,95 @@ type foutput = env [@@deriving yojson]
 type rinput = string
 type routput = string
 
-let rec parse_stmt p =
-  let a = parse_single p in
-  if L.eat_symbol p ';' then
-    if L.peek p = L.Symbol ']' then a
-    else
+module Code = struct
+  type t = code
+
+  let rec parse_stmt p =
+    let a = parse_single p in
+    if L.eat_symbol p ';' then
+      if L.peek p = L.Symbol ']' then a
+      else
+        let b = parse_stmt p in
+        Seq (a, b)
+    else a
+
+  and parse_single p =
+    if L.eat_keyword p "Nop" then Nop
+    else if L.eat_keyword p "if" then (
+      let c = parse_bexp p in
+      L.expect_symbol p '[';
       let b = parse_stmt p in
-      Seq (a, b)
-  else a
+      L.expect_symbol p ']';
+      If (c, b))
+    else if L.eat_keyword p "while" then (
+      let c = parse_bexp p in
+      L.expect_symbol p '[';
+      let b = parse_stmt p in
+      L.expect_symbol p ']';
+      While (c, b))
+    else if L.eat_keyword p "call" then (
+      let n = ident p in
+      L.expect_symbol p '(';
+      let args = names_until p ')' in
+      L.expect p ") ->";
+      let rets = names_boundary p in
+      Call (n, args, rets))
+    else if L.eat_keyword p "return" then Return (names_boundary p)
+    else if L.eat_symbol p '[' then (
+      let s = parse_stmt p in
+      L.expect_symbol p ']';
+      s)
+    else
+      let v = ident p in
+      L.expect p ":=";
+      Assign (v, parse_aexp p)
 
-and parse_single p =
-  if L.eat_keyword p "Nop" then Nop
-  else if L.eat_keyword p "if" then (
-    let c = parse_bexp p in
-    L.expect_symbol p '[';
-    let b = parse_stmt p in
-    L.expect_symbol p ']';
-    If (c, b))
-  else if L.eat_keyword p "while" then (
-    let c = parse_bexp p in
-    L.expect_symbol p '[';
-    let b = parse_stmt p in
-    L.expect_symbol p ']';
-    While (c, b))
-  else if L.eat_keyword p "call" then (
-    let n = ident p in
-    L.expect_symbol p '(';
-    let args = names_until p ')' in
-    L.expect p ") ->";
-    let rets = names_boundary p in
-    Call (n, args, rets))
-  else if L.eat_keyword p "return" then Return (names_boundary p)
-  else if L.eat_symbol p '[' then (
-    let s = parse_stmt p in
-    L.expect_symbol p ']';
-    s)
-  else
-    let v = ident p in
-    L.expect p ":=";
-    Assign (v, parse_aexp p)
+  let parse =
+    L.parse (fun p ->
+        L.expect_keyword p "static";
+        let statics = names_until p ';' in
+        L.expect_symbol p ';';
+        let rec procs acc =
+          if L.eof p then List.rev acc
+          else
+            let name = ident p in
+            L.expect_symbol p '(';
+            let params = names_until p ')' in
+            L.expect p ") [ local";
+            let locals = names_boundary p in
+            let body = parse_stmt p in
+            L.expect_symbol p ']';
+            procs ({ name; params; locals; body } :: acc)
+        in
+        let procs = procs [] in
+        if procs = [] then L.error p "At least one procedure is required";
+        { statics; procs })
 
-let parse_code =
-  L.parse (fun p ->
-      L.expect_keyword p "static";
-      let statics = names_until p ';' in
-      L.expect_symbol p ';';
-      let rec procs acc =
-        if L.eof p then List.rev acc
-        else
-          let name = ident p in
-          L.expect_symbol p '(';
-          let params = names_until p ')' in
-          L.expect p ") [ local";
-          let locals = names_boundary p in
-          let body = parse_stmt p in
-          L.expect_symbol p ']';
-          procs ({ name; params; locals; body } :: acc)
-      in
-      let procs = procs [] in
-      if procs = [] then L.error p "At least one procedure is required";
-      { statics; procs })
+  let rec stmt_to_text = function
+    | Nop -> "Nop"
+    | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
+    | Assign (v, a) -> v ^ " := " ^ aexp_text a
+    | If (c, b) -> "if " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
+    | While (c, b) -> "while " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
+    | Call (n, args, rets) ->
+        "call " ^ n ^ "(" ^ String.concat ", " args ^ ") -> "
+        ^ String.concat ", " rets
+    | Return vs -> "return " ^ String.concat ", " vs
 
-let rec stmt_to_text = function
-  | Nop -> "Nop"
-  | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
-  | Assign (v, a) -> v ^ " := " ^ aexp_text a
-  | If (c, b) -> "if " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
-  | While (c, b) -> "while " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
-  | Call (n, args, rets) ->
-      "call " ^ n ^ "(" ^ String.concat ", " args ^ ") -> "
-      ^ String.concat ", " rets
-  | Return vs -> "return " ^ String.concat ", " vs
-
-let print c =
-  "static"
-  ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
-  ^ ";\n"
-  ^ String.concat ""
-      (List.map
-         (fun p ->
-           p.name ^ "("
-           ^ String.concat ", " p.params
-           ^ ")[\n  local"
-           ^ (if p.locals = [] then "" else " " ^ String.concat ", " p.locals)
-           ^ "\n  " ^ stmt_to_text p.body ^ "\n]\n")
-         c.procs)
+  let print c =
+    "static"
+    ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
+    ^ ";\n"
+    ^ String.concat ""
+        (List.map
+           (fun p ->
+             p.name ^ "("
+             ^ String.concat ", " p.params
+             ^ ")[\n  local"
+             ^ (if p.locals = [] then "" else " " ^ String.concat ", " p.locals)
+             ^ "\n  " ^ stmt_to_text p.body ^ "\n]\n")
+           c.procs)
+end
 
 let rec ends_with_return = function
   | Return _ -> true
@@ -263,7 +267,7 @@ let step s _ =
       match (s.stmt, s.call_stack) with
       | Return _, [] -> Utils.Machine.Halt s.global_env
       | _ ->
-          let output = stmt_to_text s.stmt in
+          let output = Code.stmt_to_text s.stmt in
           let stmt, next = step_stmt s s.stmt in
           Utils.Machine.Continue { next = { next with stmt }; output })
 
@@ -273,7 +277,7 @@ let restore = state_of_yojson
 let render s =
   Utils.Render.state
     [
-      Utils.Render.text ~title:"stmt" (stmt_to_text s.stmt);
+      Utils.Render.text ~title:"stmt" (Code.stmt_to_text s.stmt);
       Utils.Render.text ~title:"global env"
         (Env.print_inline (sorted s.global_env));
       Utils.Render.text ~title:"local env"
@@ -294,15 +298,14 @@ module Routput = Utils.Text.String
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

@@ -48,20 +48,21 @@ let test_expr () =
   let source =
     {|while x < 3 [ if !(x = 1) y := if x < 2 then x + 1 else x - 1 ; x := x + 1 ]|}
   in
-  let code = get (E.parse_code source) in
-  if get (E.parse_code (E.print code)) <> code then failwith "Expr roundtrip";
+  let code = get (E.Code.parse source) in
+  if get (E.Code.parse (E.Code.print code)) <> code then
+    failwith "Expr roundtrip";
   let out =
-    RE.run (get (E.parse_code "x := 0 ; while x < 3 [ x := x + 1 ]")) [] ()
+    RE.run (get (E.Code.parse "x := 0 ; while x < 3 [ x := x + 1 ]")) [] ()
   in
   eq (List.assoc "x" out) "3";
   let out =
     RE.run
-      (get (E.parse_code "x := 1 - 3 ; y := if x = 0 || x > 3 then 8 else 9"))
+      (get (E.Code.parse "x := 1 - 3 ; y := if x = 0 || x > 3 then 8 else 9"))
       [] ()
   in
   eq (List.assoc "x" out) "0";
   eq (List.assoc "y" out) "8";
-  let s = get (E.make (get (E.parse_code "x := 4 ; x := x + 1")) []) in
+  let s = get (E.make (get (E.Code.parse "x := 4 ; x := x + 1")) []) in
   let s =
     match get (E.step s ()) with
     | Continue { next; _ } -> next
@@ -76,10 +77,10 @@ let test_expr () =
     "x := 0 ; while x < 3 [ if x < 2 y := if x = 1 then 12 else 5 ; x := x + 1 \
      ]"
   in
-  let code = get (E.parse_code source) in
+  let code = get (E.Code.parse source) in
   let expected = RE.run code [] () in
   let compiled = get (S.Expr_lang_compiler.compile code) in
-  if get (I.parse_code (I.print compiled)) <> compiled then
+  if get (I.Code.parse (I.Code.print compiled)) <> compiled then
     failwith "Expr IR roundtrip";
   let actual =
     get (S.Expr_lang_compiler.decode_foutput (RI.run compiled [] ""))
@@ -94,13 +95,15 @@ let test_ctrl () =
     "static x, y; loop :outer ( if x < 3 { x := x + 1; continue :outer }; \
      break :outer x ) -> y"
   in
-  let code = get (C.parse_code source) in
-  if get (C.parse_code (C.print code)) <> code then failwith "Ctrl roundtrip";
+  let code = get (C.Code.parse source) in
+  if get (C.Code.parse (C.Code.print code)) <> code then
+    failwith "Ctrl roundtrip";
   let expected = RC.run code [ ("x", "0"); ("y", "0") ] () in
   eq (List.assoc "x" expected) "3";
   eq (List.assoc "y" expected) "3";
   let ir = get (S.Internal_ctrl_compiler.compile code) in
-  if get (I.parse_code (I.print ir)) <> ir then failwith "Ctrl IR roundtrip";
+  if get (I.Code.parse (I.Code.print ir)) <> ir then
+    failwith "Ctrl IR roundtrip";
   let actual =
     get
       (S.Internal_ctrl_compiler.decode_foutput
@@ -115,7 +118,7 @@ let test_ctrl () =
     "static x, y, z; loop :outer ( loop :inner ( x := 17; break :outer x ) -> \
      z ) -> y"
   in
-  let code = get (C.parse_code source) in
+  let code = get (C.Code.parse source) in
   let expected = RC.run code [ ("x", "0"); ("y", "0"); ("z", "4") ] () in
   eq (List.assoc "y" expected) "17";
   eq (List.assoc "z" expected) "4";
@@ -135,8 +138,8 @@ let test_ctrl () =
   error (C.make code [ ("unknown", "0") ]);
   error
     (S.Internal_ctrl_compiler.compile
-       (get (C.parse_code "static;break :bad x")));
-  let s = get (C.make (get (C.parse_code "static;continue :bad")) []) in
+       (get (C.Code.parse "static;break :bad x")));
+  let s = get (C.make (get (C.Code.parse "static;continue :bad")) []) in
   let s =
     match get (C.step s ()) with
     | Continue { next; _ } -> next
@@ -150,8 +153,9 @@ let test_proc () =
 inc(x)[local y y := x + 1;return y]
 main()[local a, b a := 5;call inc(a) -> b;out := b;return]|}
   in
-  let code = get (P.parse_code source) in
-  if get (P.parse_code (P.print code)) <> code then failwith "Proc roundtrip";
+  let code = get (P.Code.parse source) in
+  if get (P.Code.parse (P.Code.print code)) <> code then
+    failwith "Proc roundtrip";
   let expected = RP.run code [ ("out", "0") ] "" in
   eq (List.assoc "out" expected) "6";
   let actual =
@@ -168,11 +172,12 @@ main()[local a, b a := 5;call inc(a) -> b;out := b;return]|}
 f(x, y)[local z z := x + y;return z, y]
 main()[local a, b, c a := 3;b := 4;call f(a, b) -> a, c;out := a + c;return]|}
   in
-  let code = get (P.parse_code source) in
+  let code = get (P.Code.parse source) in
   let expected = RP.run code [ ("out", "0") ] "" in
   eq (List.assoc "out" expected) "11";
   let ir = get (S.Proc_lang_compiler.compile code) in
-  if get (I.parse_code (I.print ir)) <> ir then failwith "Proc IR roundtrip";
+  if get (I.Code.parse (I.Code.print ir)) <> ir then
+    failwith "Proc IR roundtrip";
   let actual =
     get
       (S.Proc_lang_compiler.decode_foutput
@@ -184,7 +189,7 @@ main()[local a, b, c a := 3;b := 4;call f(a, b) -> a, c;out := a + c;return]|}
 f(x)[local y y := x;if x > 0 [y := x - 1;call f(y) -> y];return y]
 main()[local a a := 5;call f(a) -> a;out := a;return]|}
   in
-  let code = get (P.parse_code source) in
+  let code = get (P.Code.parse source) in
   eq (List.assoc "out" (RP.run code [ ("out", "0") ] "")) "0";
   let actual =
     get
@@ -198,7 +203,7 @@ main()[local a a := 5;call f(a) -> a;out := a;return]|}
   let source =
     "static out;main()[local a a := 0;while a < 4 [a := a + 1];out := a]"
   in
-  let code = get (P.parse_code source) in
+  let code = get (P.Code.parse source) in
   eq (List.assoc "out" (RP.run code [ ("out", "0") ] "")) "4";
   eq
     (List.assoc "out"
@@ -212,9 +217,9 @@ main()[local a a := 5;call f(a) -> a;out := a;return]|}
   error (P.make code []);
   error
     (P.make
-       (get (P.parse_code "static x;main()[local x return]"))
+       (get (P.Code.parse "static x;main()[local x return]"))
        [ ("x", "0") ]);
-  error (P.make (get (P.parse_code "static;main(x)[local y return]")) [])
+  error (P.make (get (P.Code.parse "static;main(x)[local y return]")) [])
 
 let test_fnptr () =
   List.iter
@@ -227,14 +232,15 @@ let test_fnptr () =
     {|fn inc(ptr) {assign (ld ptr) #loc := (ld (ld ptr) #loc) + 1;return}
  fn main(x) {assign x := 4;call inc(x #addr);return}|}
   in
-  let code = get (F.parse_code source) in
-  if get (F.parse_code (F.print code)) <> code then failwith "FnPtr roundtrip";
+  let code = get (F.Code.parse source) in
+  if get (F.Code.parse (F.Code.print code)) <> code then
+    failwith "FnPtr roundtrip";
   let output = RF.run code () () in
   if not (contains output "loc(0, 0) = 5") then failwith output;
   let output =
     RF.run
       (get
-         (F.parse_code
+         (F.Code.parse
             "fn main(x){assign x := 0 - 1; ifz ld x then assign x := 9 else \
              assign x := 8 end; return}"))
       () ()
@@ -243,17 +249,17 @@ let test_fnptr () =
   let output =
     RF.run
       (get
-         (F.parse_code
+         (F.Code.parse
             "fn main(x){ifz ld x then assign x := 7 else assign x := 8 \
              end;return}"))
       () ()
   in
   if not (contains output "= 7") then failwith output;
-  error (F.make (get (F.parse_code "fn main(){ }")) ());
+  error (F.make (get (F.Code.parse "fn main(){ }")) ());
   let s =
     get
       (F.make
-         (get (F.parse_code "fn main(x){assign (ld x) #loc := 1;return}"))
+         (get (F.Code.parse "fn main(x){assign (ld x) #loc := 1;return}"))
          ())
   in
   error (F.step s ());
@@ -261,7 +267,7 @@ let test_fnptr () =
     {|fn save(p){assign (ld p) #loc := p #addr;return}
 fn main(x){call save(x #addr);assign x := ld (ld x) #loc;return}|}
   in
-  let code = get (F.parse_code source) in
+  let code = get (F.Code.parse source) in
   let rec go fuel s =
     if fuel = 0 then failwith "Expected dangling pointer error"
     else
@@ -273,7 +279,7 @@ fn main(x){call save(x #addr);assign x := ld (ld x) #loc;return}|}
   go 100 (get (F.make code ()))
 
 let test_mini () =
-  let run src input = RM.run (get (M.parse_code src)) input () in
+  let run src input = RM.run (get (M.Code.parse src)) input () in
   eq (run "fn main(x: #num){return ld local x}" [ "7" ]) "7";
   eq
     (run
@@ -359,7 +365,7 @@ let test_mini () =
   in
   List.iter
     (fun source ->
-      expect_runtime_error 100 (get (M.make (get (M.parse_code source)) [])))
+      expect_runtime_error 100 (get (M.make (get (M.Code.parse source)) [])))
     [
       source;
       "fn main(){return 0 1 -}";
@@ -375,10 +381,11 @@ let test_mini () =
       "fn main(){block(p:#ptr){halloc #num -> local p;hfree ld local p;return \
        ld (ld local p) #loc}}";
     ];
-  error (M.make (get (M.parse_code "fn main(x:#bool){return 0}")) [ "1" ]);
-  error (M.parse_code "fn main(){return 1 +}");
-  let code = get (M.parse_code source) in
-  if get (M.parse_code (M.print code)) <> code then failwith "Mini roundtrip"
+  error (M.make (get (M.Code.parse "fn main(x:#bool){return 0}")) [ "1" ]);
+  error (M.Code.parse "fn main(){return 1 +}");
+  let code = get (M.Code.parse source) in
+  if get (M.Code.parse (M.Code.print code)) <> code then
+    failwith "Mini roundtrip"
 
 let () =
   test_expr ();

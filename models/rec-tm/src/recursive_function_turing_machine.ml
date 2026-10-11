@@ -25,8 +25,8 @@ module Rec_to_tm = struct
       compile_code =
         (fun text ->
           let open Utils.Machine in
-          let* f = Recursive_function.parse_code text in
+          let* f = Recursive_function.Code.parse text in
           let* code = compile f in
-          Ok (Turing_machine.print_code code));
+          Ok (Turing_machine.Code.print code));
     }
 end

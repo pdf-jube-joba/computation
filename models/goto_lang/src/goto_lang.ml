@@ -18,30 +18,43 @@ type foutput = ainput
 type state = { commands : code; pc : Number.t; env : ainput }
 [@@deriving yojson]
 
-let parse_code =
-  Lexer.parse (fun p ->
-      let rec loop acc =
-        if Lexer.eof p then List.rev acc
-        else
-          let command =
-            match Lexer.identifier p with
-            | "clr" -> Clr (Lexer.identifier p)
-            | "inc" -> Inc (Lexer.identifier p)
-            | "dec" -> Dec (Lexer.identifier p)
-            | "cpy" ->
-                let dest = Lexer.identifier p in
-                Lexer.expect p "<-";
-                Cpy (dest, Lexer.identifier p)
-            | "ifnz" ->
-                let name = Lexer.identifier p in
-                Lexer.expect_symbol p ':';
-                Ifnz (name, Lexer.natural p)
-            | _ -> Lexer.error p "Expected goto command"
-          in
-          Lexer.expect_symbol p ';';
-          loop (command :: acc)
-      in
-      loop [])
+module Code = struct
+  type t = code
+
+  let parse =
+    Lexer.parse (fun p ->
+        let rec loop acc =
+          if Lexer.eof p then List.rev acc
+          else
+            let command =
+              match Lexer.identifier p with
+              | "clr" -> Clr (Lexer.identifier p)
+              | "inc" -> Inc (Lexer.identifier p)
+              | "dec" -> Dec (Lexer.identifier p)
+              | "cpy" ->
+                  let dest = Lexer.identifier p in
+                  Lexer.expect p "<-";
+                  Cpy (dest, Lexer.identifier p)
+              | "ifnz" ->
+                  let name = Lexer.identifier p in
+                  Lexer.expect_symbol p ':';
+                  Ifnz (name, Lexer.natural p)
+              | _ -> Lexer.error p "Expected goto command"
+            in
+            Lexer.expect_symbol p ';';
+            loop (command :: acc)
+        in
+        loop [])
+
+  let print_command = function
+    | Clr v -> "clr " ^ v ^ ";"
+    | Inc v -> "inc " ^ v ^ ";"
+    | Dec v -> "dec " ^ v ^ ";"
+    | Cpy (d, s) -> "cpy " ^ d ^ " <- " ^ s ^ ";"
+    | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ n ^ ";"
+
+  let print code = String.concat "\n" (List.map print_command code)
+end
 
 let get env name =
   match List.assoc_opt name env with Some value -> value | None -> Number.zero
@@ -74,15 +87,6 @@ let step state () =
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
-let print_command = function
-  | Clr v -> "clr " ^ v ^ ";"
-  | Inc v -> "inc " ^ v ^ ";"
-  | Dec v -> "dec " ^ v ^ ";"
-  | Cpy (d, s) -> "cpy " ^ d ^ " <- " ^ s ^ ";"
-  | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ n ^ ";"
-
-let print_code code = String.concat "\n" (List.map print_command code)
-
 let render state =
   Render.state
     [
@@ -93,7 +97,7 @@ let render state =
             match Number.to_int state.pc with
             | Ok pc -> (
                 match List.nth_opt state.commands pc with
-                | Some command -> print_command command
+                | Some command -> Code.print_command command
                 | None -> "halt")
             | Error _ -> "halt" );
         ];

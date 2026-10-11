@@ -170,7 +170,7 @@ let api : Utils.Compiler.api =
     Utils.Compiler.identity_api with
     compile_code =
       (fun text ->
-        let* p = I.parse_code text in
+        let* p = I.Code.parse text in
         let* p = compile p in
-        Ok (J.print p));
+        Ok (J.Code.print p));
   }

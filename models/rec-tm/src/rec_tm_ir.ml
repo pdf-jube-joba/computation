@@ -127,78 +127,6 @@ let validate p =
             f.blocks)
         p.functions)
 
-let parse_code =
-  parse (fun p ->
-      let alphabet = alphabet p in
-      let rec stmt () =
-        if L.eat_keyword p "LT" then Lt
-        else if L.eat_keyword p "RT" then Rt
-        else if L.eat_keyword p "break" then Break (condition p)
-        else if L.eat_keyword p "continue" then Continue (condition p)
-        else if L.eat_keyword p "return" then Return (condition p)
-        else if L.eat_keyword p "jump" then
-          let label = identifier p in
-          Jump (label, condition p)
-        else if L.eat_keyword p "call" then (
-          let name = identifier p in
-          if L.eat_symbol p '(' then L.expect_symbol p ')';
-          Call name)
-        else
-          let dst = lvalue p in
-          L.expect p ":=";
-          let src = rvalue p in
-          Assign (dst, src)
-      and stmts () =
-        if L.peek p = L.Symbol '}' then []
-        else
-          let s = stmt () in
-          s :: stmts ()
-      in
-      let block () =
-        L.expect_keyword p "label";
-        let label = identifier p in
-        L.expect p ":{";
-        let body = stmts () in
-        L.expect_symbol p '}';
-        { label; body }
-      in
-      let rec blocks () =
-        if L.peek p = L.Symbol '}' then []
-        else
-          let b = block () in
-          b :: blocks ()
-      in
-      let func () =
-        L.expect_keyword p "fn";
-        let name = identifier p in
-        if L.eat_symbol p '(' then L.expect_symbol p ')';
-        L.expect_symbol p '{';
-        let blocks = blocks () in
-        L.expect_symbol p '}';
-        { name; blocks }
-      in
-      let rec funcs acc =
-        if L.eof p then List.rev acc
-        else
-          let f = func () in
-          match List.find_opt (fun old -> old.name = f.name) acc with
-          | Some old when old <> f ->
-              failwith ("Function '" ^ f.name ^ "' is defined twice")
-          | Some _ -> funcs acc
-          | None -> funcs (f :: acc)
-      in
-      { alphabet; functions = funcs [] })
-
-let stmt_print = function
-  | Lt -> "LT"
-  | Rt -> "RT"
-  | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
-  | Break c -> "break" ^ condition_print c
-  | Continue c -> "continue" ^ condition_print c
-  | Return c -> "return" ^ condition_print c
-  | Jump (label, c) -> "jump " ^ label ^ condition_print c
-  | Call name -> "call " ^ name
-
 (* Calls are represented by names; print dependencies first so original Rust's parser also accepts compiled text. *)
 let dependency_order p =
   let seen = Hashtbl.create 32 and result = ref [] in
@@ -216,24 +144,100 @@ let dependency_order p =
   List.iter visit p.functions;
   List.rev !result
 
-let print p =
-  alphabet_print p.alphabet
-  ^ String.concat "\n"
-      (List.map
-         (fun f ->
-           "fn " ^ f.name ^ "() {\n"
-           ^ String.concat ""
-               (List.map
-                  (fun b ->
-                    "  label " ^ b.label ^ ": {\n"
-                    ^ String.concat ""
-                        (List.map
-                           (fun s -> "    " ^ stmt_print s ^ "\n")
-                           b.body)
-                    ^ "  }\n")
-                  f.blocks)
-           ^ "}\n")
-         (dependency_order p))
+module Code = struct
+  type t = code
+
+  let parse =
+    parse (fun p ->
+        let alphabet = alphabet p in
+        let rec stmt () =
+          if L.eat_keyword p "LT" then Lt
+          else if L.eat_keyword p "RT" then Rt
+          else if L.eat_keyword p "break" then Break (condition p)
+          else if L.eat_keyword p "continue" then Continue (condition p)
+          else if L.eat_keyword p "return" then Return (condition p)
+          else if L.eat_keyword p "jump" then
+            let label = identifier p in
+            Jump (label, condition p)
+          else if L.eat_keyword p "call" then (
+            let name = identifier p in
+            if L.eat_symbol p '(' then L.expect_symbol p ')';
+            Call name)
+          else
+            let dst = lvalue p in
+            L.expect p ":=";
+            let src = rvalue p in
+            Assign (dst, src)
+        and stmts () =
+          if L.peek p = L.Symbol '}' then []
+          else
+            let s = stmt () in
+            s :: stmts ()
+        in
+        let block () =
+          L.expect_keyword p "label";
+          let label = identifier p in
+          L.expect p ":{";
+          let body = stmts () in
+          L.expect_symbol p '}';
+          { label; body }
+        in
+        let rec blocks () =
+          if L.peek p = L.Symbol '}' then []
+          else
+            let b = block () in
+            b :: blocks ()
+        in
+        let func () =
+          L.expect_keyword p "fn";
+          let name = identifier p in
+          if L.eat_symbol p '(' then L.expect_symbol p ')';
+          L.expect_symbol p '{';
+          let blocks = blocks () in
+          L.expect_symbol p '}';
+          { name; blocks }
+        in
+        let rec funcs acc =
+          if L.eof p then List.rev acc
+          else
+            let f = func () in
+            match List.find_opt (fun old -> old.name = f.name) acc with
+            | Some old when old <> f ->
+                failwith ("Function '" ^ f.name ^ "' is defined twice")
+            | Some _ -> funcs acc
+            | None -> funcs (f :: acc)
+        in
+        { alphabet; functions = funcs [] })
+
+  let stmt_print = function
+    | Lt -> "LT"
+    | Rt -> "RT"
+    | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
+    | Break c -> "break" ^ condition_print c
+    | Continue c -> "continue" ^ condition_print c
+    | Return c -> "return" ^ condition_print c
+    | Jump (label, c) -> "jump " ^ label ^ condition_print c
+    | Call name -> "call " ^ name
+
+  let print p =
+    alphabet_print p.alphabet
+    ^ String.concat "\n"
+        (List.map
+           (fun f ->
+             "fn " ^ f.name ^ "() {\n"
+             ^ String.concat ""
+                 (List.map
+                    (fun b ->
+                      "  label " ^ b.label ^ ": {\n"
+                      ^ String.concat ""
+                          (List.map
+                             (fun s -> "    " ^ stmt_print s ^ "\n")
+                             b.body)
+                      ^ "  }\n")
+                    f.blocks)
+             ^ "}\n")
+           (dependency_order p))
+end
 
 let build_frame f =
   {
@@ -333,7 +337,7 @@ let render s =
       Utils.Render.text ~title:"function" s.frame.function_;
       Utils.Render.text ~title:"pc" (Printf.sprintf "%d:%d" b i);
       Utils.Render.text ~title:"next"
-        (Option.fold ~none:"halt" ~some:stmt_print (peek_stmt s));
+        (Option.fold ~none:"halt" ~some:Code.stmt_print (peek_stmt s));
       Utils.Render.container ~title:"stack" ~orientation:"horizontal"
         (List.map (fun f -> Utils.Render.text f.function_) (List.rev s.stack)
         @ [ Utils.Render.text ~class_name:"highlight" s.frame.function_ ]);
@@ -347,15 +351,14 @@ module Routput = Utils.Text.Unit
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

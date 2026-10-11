@@ -63,79 +63,94 @@ let rec validate = function
       if arity f > 0 then Ok ()
       else Error "Mu requires a function of positive arity"
 
-let parse_code text =
-  let* f =
-    Lexer.parse
-      (fun p ->
-        let bindings = ref [] in
-        let rec func () =
-          match Lexer.identifier p with
-          | "ZERO" -> Zero
-          | "SUCC" -> Succ
-          | "PROJ" ->
-              Lexer.expect_symbol p '[';
-              let n = Lexer.integer p in
-              Lexer.expect_symbol p ',';
-              let i = Lexer.integer p in
-              Lexer.expect_symbol p ']';
-              Proj (n, i)
-          | "COMP" ->
-              Lexer.expect_symbol p '[';
-              let outer = func () in
-              Lexer.expect_symbol p ':';
-              let rec args () =
-                if Lexer.eat_symbol p '(' then (
-                  let xs = items ')' in
-                  Lexer.expect_symbol p ')';
-                  ignore (Lexer.eat_symbol p ',');
-                  xs @ items ']')
-                else
-                  let f = func () in
-                  if Lexer.eat_symbol p ',' then f :: items ']' else [ f ]
-              and items closing =
-                while Lexer.eat_symbol p ',' do
-                  ()
-                done;
-                if Lexer.peek p = Lexer.Symbol closing then []
-                else
-                  let f = func () in
-                  if Lexer.eat_symbol p ',' then f :: items closing else [ f ]
-              in
-              let inner = args () in
-              Lexer.expect_symbol p ']';
-              Comp (outer, inner)
-          | "PRIM" ->
-              Lexer.expect_symbol p '[';
-              Lexer.expect p "z:";
-              let z = func () in
-              Lexer.expect p "s:";
-              let s = func () in
-              Lexer.expect_symbol p ']';
-              Prim (z, s)
-          | "MUOP" ->
-              Lexer.expect_symbol p '[';
-              let f = func () in
-              Lexer.expect_symbol p ']';
-              Mu f
-          | name -> (
-              match List.assoc_opt name !bindings with
-              | Some f -> f
-              | None -> Lexer.error p ("Unknown function: " ^ name))
-        in
-        while Lexer.eat_keyword p "let" do
-          let name = Lexer.identifier p in
-          if List.mem_assoc name !bindings then
-            Lexer.error p "Duplicate function name";
-          Lexer.expect_symbol p '=';
-          let f = func () in
-          Lexer.expect_symbol p '.';
-          bindings := (name, f) :: !bindings
-        done;
-        func ())
-      text
-  in
-  let* () = validate f in
-  Ok f
+module Code = struct
+  type t = code
+
+  let parse text =
+    let* f =
+      Lexer.parse
+        (fun p ->
+          let bindings = ref [] in
+          let rec func () =
+            match Lexer.identifier p with
+            | "ZERO" -> Zero
+            | "SUCC" -> Succ
+            | "PROJ" ->
+                Lexer.expect_symbol p '[';
+                let n = Lexer.integer p in
+                Lexer.expect_symbol p ',';
+                let i = Lexer.integer p in
+                Lexer.expect_symbol p ']';
+                Proj (n, i)
+            | "COMP" ->
+                Lexer.expect_symbol p '[';
+                let outer = func () in
+                Lexer.expect_symbol p ':';
+                let rec args () =
+                  if Lexer.eat_symbol p '(' then (
+                    let xs = items ')' in
+                    Lexer.expect_symbol p ')';
+                    ignore (Lexer.eat_symbol p ',');
+                    xs @ items ']')
+                  else
+                    let f = func () in
+                    if Lexer.eat_symbol p ',' then f :: items ']' else [ f ]
+                and items closing =
+                  while Lexer.eat_symbol p ',' do
+                    ()
+                  done;
+                  if Lexer.peek p = Lexer.Symbol closing then []
+                  else
+                    let f = func () in
+                    if Lexer.eat_symbol p ',' then f :: items closing else [ f ]
+                in
+                let inner = args () in
+                Lexer.expect_symbol p ']';
+                Comp (outer, inner)
+            | "PRIM" ->
+                Lexer.expect_symbol p '[';
+                Lexer.expect p "z:";
+                let z = func () in
+                Lexer.expect p "s:";
+                let s = func () in
+                Lexer.expect_symbol p ']';
+                Prim (z, s)
+            | "MUOP" ->
+                Lexer.expect_symbol p '[';
+                let f = func () in
+                Lexer.expect_symbol p ']';
+                Mu f
+            | name -> (
+                match List.assoc_opt name !bindings with
+                | Some f -> f
+                | None -> Lexer.error p ("Unknown function: " ^ name))
+          in
+          while Lexer.eat_keyword p "let" do
+            let name = Lexer.identifier p in
+            if List.mem_assoc name !bindings then
+              Lexer.error p "Duplicate function name";
+            Lexer.expect_symbol p '=';
+            let f = func () in
+            Lexer.expect_symbol p '.';
+            bindings := (name, f) :: !bindings
+          done;
+          func ())
+        text
+    in
+    let* () = validate f in
+    Ok f
+
+  let rec print = function
+    | Zero -> "ZERO"
+    | Succ -> "SUCC"
+    | Proj (n, i) -> Printf.sprintf "PROJ[%d,%d]" n i
+    | Comp (f, args) ->
+        "COMP[" ^ print f ^ ": "
+        ^ String.concat ", " (List.map print args)
+        ^ "]"
+    | Prim (z, s) -> "PRIM[z:" ^ print z ^ " s:" ^ print s ^ "]"
+    | Mu f -> "MUOP[" ^ print f ^ "]"
+end
 
 let make function_ input =
   let* () = validate function_ in
@@ -221,25 +236,18 @@ let restore json =
     Error "Invalid snapshot input arity"
   else Ok state
 
-let rec print = function
-  | Zero -> "ZERO"
-  | Succ -> "SUCC"
-  | Proj (n, i) -> Printf.sprintf "PROJ[%d,%d]" n i
-  | Comp (f, args) ->
-      "COMP[" ^ print f ^ ": " ^ String.concat ", " (List.map print args) ^ "]"
-  | Prim (z, s) -> "PRIM[z:" ^ print z ^ " s:" ^ print s ^ "]"
-  | Mu f -> "MUOP[" ^ print f ^ "]"
-
 let rec print_process = function
   | Result n -> n
   | Call (f, args) ->
-      print f ^ "(" ^ String.concat ", " (List.map print_process args) ^ ")"
+      Code.print f ^ "("
+      ^ String.concat ", " (List.map print_process args)
+      ^ ")"
   | Search (n, _, _, p) -> "Mu[" ^ n ^ "](" ^ print_process p ^ ")"
 
 let render state =
   Render.state
     [
-      Render.text ~title:"function" (print state.function_);
+      Render.text ~title:"function" (Code.print state.function_);
       Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ] Fun.id
         state.input;
       Render.text ~title:"process" (print_process state.process);

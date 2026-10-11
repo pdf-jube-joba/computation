@@ -142,201 +142,205 @@ end
 
 let ifs = function Go (xs, _) | Enter (xs, _) | Halt xs -> xs
 
-let rec value_to_text = function
-  | VReg r -> "%" ^ r
-  | Imm n -> "#" ^ N.to_string n
-  | CodeLabel l -> ":" ^ l
-  | Ref p -> "ref " ^ place_to_text p
+module Code = struct
+  type t = code
 
-and place_to_text = function
-  | Label l -> "@" ^ l
-  | Deref r -> "deref %" ^ r
-  | SAcc v -> "sacc " ^ value_to_text v
-  | HAcc (h, i) -> "hacc(" ^ value_to_text h ^ ")[" ^ value_to_text i ^ "]"
+  let rec value_to_text = function
+    | VReg r -> "%" ^ r
+    | Imm n -> "#" ^ N.to_string n
+    | CodeLabel l -> ":" ^ l
+    | Ref p -> "ref " ^ place_to_text p
 
-let cond_to_text c =
-  let a, op, b =
-    match c with
-    | Lt (a, b) -> (a, "<", b)
-    | Eq (a, b) -> (a, "=", b)
-    | Gt (a, b) -> (a, ">", b)
-  in
-  value_to_text a ^ " " ^ op ^ " " ^ value_to_text b
+  and place_to_text = function
+    | Label l -> "@" ^ l
+    | Deref r -> "deref %" ^ r
+    | SAcc v -> "sacc " ^ value_to_text v
+    | HAcc (h, i) -> "hacc(" ^ value_to_text h ^ ")[" ^ value_to_text i ^ "]"
 
-let stmt_to_text = function
-  | Nop -> "nop;"
-  | Load (r, p) -> "%" ^ r ^ " := ld " ^ place_to_text p ^ ";"
-  | Assign (r, v) -> "%" ^ r ^ " := " ^ value_to_text v ^ ";"
-  | BinOp (r, a, op, b) ->
-      "%" ^ r ^ " := " ^ value_to_text a
-      ^ (if op = Add then " + " else " - ")
-      ^ value_to_text b ^ ";"
-  | Store (p, v) -> place_to_text p ^ " := st " ^ value_to_text v ^ ";"
-  | Pop r -> "pop %" ^ r ^ ";"
-  | Push v -> "push " ^ value_to_text v ^ ";"
-  | LGet r -> "lget %" ^ r ^ ";"
-  | HAlloc (v, r) -> "halloc(" ^ value_to_text v ^ ") %" ^ r ^ ";"
-  | HFree v -> "hfree " ^ value_to_text v ^ ";"
-  | Print r -> "print %" ^ r ^ ";"
-  | Input p -> "input " ^ place_to_text p ^ ";"
+  let cond_to_text c =
+    let a, op, b =
+      match c with
+      | Lt (a, b) -> (a, "<", b)
+      | Eq (a, b) -> (a, "=", b)
+      | Gt (a, b) -> (a, ">", b)
+    in
+    value_to_text a ^ " " ^ op ^ " " ^ value_to_text b
 
-let print (p : code) =
-  let b = Buffer.create 512 in
-  let line s = Buffer.add_string b (s ^ "\n") in
-  List.iter
-    (fun (s : static_def) -> line ("@" ^ s.label ^ " " ^ N.to_string s.value))
-    p.statics;
-  List.iter
-    (fun (r : region) ->
-      line (":" ^ r.label ^ " {");
-      List.iter
-        (fun (bb : block) ->
-          line ("  :" ^ bb.label ^ " {");
-          List.iter (fun s -> line ("    " ^ stmt_to_text s)) bb.stmts;
-          List.iter
-            (fun j ->
-              line
-                ("    if " ^ cond_to_text j.cond ^ " then "
-               ^ value_to_text j.target ^ ";"))
-            (ifs bb.cont);
-          line
-            ("    "
-            ^
-            match bb.cont with
-            | Go (_, v) -> "goto " ^ value_to_text v ^ ";"
-            | Enter (_, v) -> "enter " ^ value_to_text v ^ ";"
-            | Halt _ -> "halt;");
-          line "  }")
-        r.blocks;
-      line "}")
-    p.regions;
-  Buffer.contents b
+  let stmt_to_text = function
+    | Nop -> "nop;"
+    | Load (r, p) -> "%" ^ r ^ " := ld " ^ place_to_text p ^ ";"
+    | Assign (r, v) -> "%" ^ r ^ " := " ^ value_to_text v ^ ";"
+    | BinOp (r, a, op, b) ->
+        "%" ^ r ^ " := " ^ value_to_text a
+        ^ (if op = Add then " + " else " - ")
+        ^ value_to_text b ^ ";"
+    | Store (p, v) -> place_to_text p ^ " := st " ^ value_to_text v ^ ";"
+    | Pop r -> "pop %" ^ r ^ ";"
+    | Push v -> "push " ^ value_to_text v ^ ";"
+    | LGet r -> "lget %" ^ r ^ ";"
+    | HAlloc (v, r) -> "halloc(" ^ value_to_text v ^ ") %" ^ r ^ ";"
+    | HFree v -> "hfree " ^ value_to_text v ^ ";"
+    | Print r -> "print %" ^ r ^ ";"
+    | Input p -> "input " ^ place_to_text p ^ ";"
 
-let name = L.identifier
+  let print (p : code) =
+    let b = Buffer.create 512 in
+    let line s = Buffer.add_string b (s ^ "\n") in
+    List.iter
+      (fun (s : static_def) -> line ("@" ^ s.label ^ " " ^ N.to_string s.value))
+      p.statics;
+    List.iter
+      (fun (r : region) ->
+        line (":" ^ r.label ^ " {");
+        List.iter
+          (fun (bb : block) ->
+            line ("  :" ^ bb.label ^ " {");
+            List.iter (fun s -> line ("    " ^ stmt_to_text s)) bb.stmts;
+            List.iter
+              (fun j ->
+                line
+                  ("    if " ^ cond_to_text j.cond ^ " then "
+                 ^ value_to_text j.target ^ ";"))
+              (ifs bb.cont);
+            line
+              ("    "
+              ^
+              match bb.cont with
+              | Go (_, v) -> "goto " ^ value_to_text v ^ ";"
+              | Enter (_, v) -> "enter " ^ value_to_text v ^ ";"
+              | Halt _ -> "halt;");
+            line "  }")
+          r.blocks;
+        line "}")
+      p.regions;
+    Buffer.contents b
 
-let vreg p =
-  L.expect_symbol p '%';
-  name p
+  let name = L.identifier
 
-let number p = get (N.of_string (L.natural p))
+  let vreg p =
+    L.expect_symbol p '%';
+    name p
 
-let rec parse_value p =
-  if L.eat_keyword p "ref" then Ref (parse_place p)
-  else if L.peek p = L.Symbol '%' then VReg (vreg p)
-  else if L.eat_symbol p ':' then CodeLabel (name p)
-  else (
-    ignore (L.eat_symbol p '#');
-    Imm (number p))
+  let number p = get (N.of_string (L.natural p))
 
-and parse_place p =
-  if L.eat_symbol p '@' then Label (name p)
-  else if L.eat_keyword p "deref" then Deref (vreg p)
-  else if L.eat_keyword p "sacc" then SAcc (parse_value p)
-  else if L.eat_keyword p "hacc" then (
-    L.expect_symbol p '(';
-    let h = parse_value p in
-    L.expect_symbol p ')';
-    L.expect_symbol p '[';
-    let i = parse_value p in
-    L.expect_symbol p ']';
-    HAcc (h, i))
-  else L.error p "Expected place expression"
+  let rec parse_value p =
+    if L.eat_keyword p "ref" then Ref (parse_place p)
+    else if L.peek p = L.Symbol '%' then VReg (vreg p)
+    else if L.eat_symbol p ':' then CodeLabel (name p)
+    else (
+      ignore (L.eat_symbol p '#');
+      Imm (number p))
 
-let parse_cond p =
-  let a = parse_value p in
-  let op = L.next p in
-  let b = parse_value p in
-  match op with
-  | L.Symbol '<' -> Lt (a, b)
-  | L.Symbol '=' -> Eq (a, b)
-  | L.Symbol '>' -> Gt (a, b)
-  | _ -> L.error p "Expected relation"
-
-let parse_stmt p =
-  let s =
-    if L.eat_keyword p "nop" then Nop
-    else if L.eat_keyword p "pop" then Pop (vreg p)
-    else if L.eat_keyword p "push" then Push (parse_value p)
-    else if L.eat_keyword p "lget" then LGet (vreg p)
-    else if L.eat_keyword p "hfree" then HFree (parse_value p)
-    else if L.eat_keyword p "print" then Print (vreg p)
-    else if L.eat_keyword p "input" then Input (parse_place p)
-    else if L.eat_keyword p "halloc" then (
+  and parse_place p =
+    if L.eat_symbol p '@' then Label (name p)
+    else if L.eat_keyword p "deref" then Deref (vreg p)
+    else if L.eat_keyword p "sacc" then SAcc (parse_value p)
+    else if L.eat_keyword p "hacc" then (
       L.expect_symbol p '(';
-      let v = parse_value p in
+      let h = parse_value p in
       L.expect_symbol p ')';
-      let r = vreg p in
-      HAlloc (v, r))
-    else if L.peek p = L.Symbol '%' then (
-      let r = vreg p in
-      L.expect p ":=";
-      if L.eat_keyword p "ld" then Load (r, parse_place p)
+      L.expect_symbol p '[';
+      let i = parse_value p in
+      L.expect_symbol p ']';
+      HAcc (h, i))
+    else L.error p "Expected place expression"
+
+  let parse_cond p =
+    let a = parse_value p in
+    let op = L.next p in
+    let b = parse_value p in
+    match op with
+    | L.Symbol '<' -> Lt (a, b)
+    | L.Symbol '=' -> Eq (a, b)
+    | L.Symbol '>' -> Gt (a, b)
+    | _ -> L.error p "Expected relation"
+
+  let parse_stmt p =
+    let s =
+      if L.eat_keyword p "nop" then Nop
+      else if L.eat_keyword p "pop" then Pop (vreg p)
+      else if L.eat_keyword p "push" then Push (parse_value p)
+      else if L.eat_keyword p "lget" then LGet (vreg p)
+      else if L.eat_keyword p "hfree" then HFree (parse_value p)
+      else if L.eat_keyword p "print" then Print (vreg p)
+      else if L.eat_keyword p "input" then Input (parse_place p)
+      else if L.eat_keyword p "halloc" then (
+        L.expect_symbol p '(';
+        let v = parse_value p in
+        L.expect_symbol p ')';
+        let r = vreg p in
+        HAlloc (v, r))
+      else if L.peek p = L.Symbol '%' then (
+        let r = vreg p in
+        L.expect p ":=";
+        if L.eat_keyword p "ld" then Load (r, parse_place p)
+        else
+          let a = parse_value p in
+          if L.eat_symbol p '+' then BinOp (r, a, Add, parse_value p)
+          else if L.eat_symbol p '-' then BinOp (r, a, Sub, parse_value p)
+          else Assign (r, a))
       else
-        let a = parse_value p in
-        if L.eat_symbol p '+' then BinOp (r, a, Add, parse_value p)
-        else if L.eat_symbol p '-' then BinOp (r, a, Sub, parse_value p)
-        else Assign (r, a))
-    else
-      let place = parse_place p in
-      L.expect p ":= st";
-      Store (place, parse_value p)
-  in
-  L.expect_symbol p ';';
-  s
+        let place = parse_place p in
+        L.expect p ":= st";
+        Store (place, parse_value p)
+    in
+    L.expect_symbol p ';';
+    s
 
-let parse_block p =
-  L.expect_symbol p ':';
-  let label = name p in
-  L.expect_symbol p '{';
-  let rec loop stmts jumps cont =
-    if L.eat_symbol p '}' then
-      {
-        label;
-        stmts = List.rev stmts;
-        cont =
-          (match cont with
-          | Some c -> c
-          | None -> L.error p "Missing terminator");
-      }
-    else if L.eat_keyword p "if" then (
-      let cond = parse_cond p in
-      L.expect_keyword p "then";
-      let target = parse_value p in
-      L.expect_symbol p ';';
-      loop stmts (jumps @ [ { cond; target } ]) cont)
-    else if cont <> None then L.error p "Line exists after terminator"
-    else if L.eat_keyword p "goto" then (
-      let v = parse_value p in
-      L.expect_symbol p ';';
-      loop stmts jumps (Some (Go (jumps, v))))
-    else if L.eat_keyword p "enter" then (
-      let v = parse_value p in
-      L.expect_symbol p ';';
-      loop stmts jumps (Some (Enter (jumps, v))))
-    else if L.eat_keyword p "halt" then (
-      L.expect_symbol p ';';
-      loop stmts jumps (Some (Halt jumps)))
-    else loop (parse_stmt p :: stmts) jumps cont
-  in
-  loop [] [] None
+  let parse_block p =
+    L.expect_symbol p ':';
+    let label = name p in
+    L.expect_symbol p '{';
+    let rec loop stmts jumps cont =
+      if L.eat_symbol p '}' then
+        {
+          label;
+          stmts = List.rev stmts;
+          cont =
+            (match cont with
+            | Some c -> c
+            | None -> L.error p "Missing terminator");
+        }
+      else if L.eat_keyword p "if" then (
+        let cond = parse_cond p in
+        L.expect_keyword p "then";
+        let target = parse_value p in
+        L.expect_symbol p ';';
+        loop stmts (jumps @ [ { cond; target } ]) cont)
+      else if cont <> None then L.error p "Line exists after terminator"
+      else if L.eat_keyword p "goto" then (
+        let v = parse_value p in
+        L.expect_symbol p ';';
+        loop stmts jumps (Some (Go (jumps, v))))
+      else if L.eat_keyword p "enter" then (
+        let v = parse_value p in
+        L.expect_symbol p ';';
+        loop stmts jumps (Some (Enter (jumps, v))))
+      else if L.eat_keyword p "halt" then (
+        L.expect_symbol p ';';
+        loop stmts jumps (Some (Halt jumps)))
+      else loop (parse_stmt p :: stmts) jumps cont
+    in
+    loop [] [] None
 
-let parse_code =
-  L.parse (fun p ->
-      let rec loop ss rs =
-        if L.eof p then { statics = List.rev ss; regions = List.rev rs }
-        else if L.eat_symbol p '@' then
-          let label = name p in
-          let value = number p in
-          loop ({ label; value } :: ss) rs
-        else (
-          L.expect_symbol p ':';
-          let label = name p in
-          L.expect_symbol p '{';
-          let blocks = L.many_until p ~closing:'}' parse_block in
-          if blocks = [] then L.error p "Region has no blocks";
-          loop ss ({ label; blocks } :: rs))
-      in
-      loop [] [])
+  let parse =
+    L.parse (fun p ->
+        let rec loop ss rs =
+          if L.eof p then { statics = List.rev ss; regions = List.rev rs }
+          else if L.eat_symbol p '@' then
+            let label = name p in
+            let value = number p in
+            loop ({ label; value } :: ss) rs
+          else (
+            L.expect_symbol p ':';
+            let label = name p in
+            L.expect_symbol p '{';
+            let blocks = L.many_until p ~closing:'}' parse_block in
+            if blocks = [] then L.error p "Region has no blocks";
+            loop ss ({ label; blocks } :: rs))
+        in
+        loop [] [])
+end
 
 let unique kind names =
   Utils.Identifier.check_unique
@@ -634,15 +638,14 @@ module Routput = Utils.Text.String
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

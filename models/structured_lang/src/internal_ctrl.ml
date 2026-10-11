@@ -34,76 +34,80 @@ type routput = string
 type state = { code : code; env : env; exec : exec; stack : frame list }
 [@@deriving yojson]
 
-let label p =
-  L.expect_symbol p ':';
-  ident p
+module Code = struct
+  type t = code
 
-let rec parse_stmt p =
-  let a = parse_single p in
-  let rec loop a =
-    if L.eat_symbol p ';' then
-      if L.eof p || L.peek p = L.Symbol '}' then a
-      else
-        let b = parse_single p in
-        loop (Seq (a, b))
-    else a
-  in
-  loop a
+  let label p =
+    L.expect_symbol p ':';
+    ident p
 
-and parse_block p =
-  L.expect_symbol p '{';
-  let s = parse_stmt p in
-  L.expect_symbol p '}';
-  s
+  let rec parse_stmt p =
+    let a = parse_single p in
+    let rec loop a =
+      if L.eat_symbol p ';' then
+        if L.eof p || L.peek p = L.Symbol '}' then a
+        else
+          let b = parse_single p in
+          loop (Seq (a, b))
+      else a
+    in
+    loop a
 
-and parse_single p =
-  if L.eat_keyword p "Nop" then Nop
-  else if L.eat_keyword p "if" then
-    let c = parse_bexp p in
-    let b = parse_block p in
-    If (c, b)
-  else if L.eat_keyword p "break" then
-    let l = label p in
-    let v = ident p in
-    Break (l, v)
-  else if L.eat_keyword p "continue" then Continue (label p)
-  else if L.eat_keyword p "loop" then (
-    let l = label p in
-    L.expect_symbol p '(';
-    let b = parse_stmt p in
-    L.expect p ") ->";
-    let v = ident p in
-    Loop (l, b, v))
-  else if L.peek p = L.Symbol '{' then parse_block p
-  else
-    let v = ident p in
-    L.expect p ":=";
-    Assign (v, parse_aexp p)
+  and parse_block p =
+    L.expect_symbol p '{';
+    let s = parse_stmt p in
+    L.expect_symbol p '}';
+    s
 
-let parse_code =
-  L.parse (fun p ->
-      L.expect_keyword p "static";
-      let statics = names_until p ';' in
-      L.expect_symbol p ';';
-      let body = parse_stmt p in
-      { statics; body })
+  and parse_single p =
+    if L.eat_keyword p "Nop" then Nop
+    else if L.eat_keyword p "if" then
+      let c = parse_bexp p in
+      let b = parse_block p in
+      If (c, b)
+    else if L.eat_keyword p "break" then
+      let l = label p in
+      let v = ident p in
+      Break (l, v)
+    else if L.eat_keyword p "continue" then Continue (label p)
+    else if L.eat_keyword p "loop" then (
+      let l = label p in
+      L.expect_symbol p '(';
+      let b = parse_stmt p in
+      L.expect p ") ->";
+      let v = ident p in
+      Loop (l, b, v))
+    else if L.peek p = L.Symbol '{' then parse_block p
+    else
+      let v = ident p in
+      L.expect p ":=";
+      Assign (v, parse_aexp p)
 
-let rec stmt_to_text = function
-  | Nop -> "Nop"
-  | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
-  | Assign (v, a) -> v ^ " := " ^ aexp_text a
-  | If (c, b) -> "if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
-  | Break (l, v) -> "break :" ^ l ^ " " ^ v
-  | Continue l -> "continue :" ^ l
-  | Loop (l, b, v) -> "loop :" ^ l ^ " (" ^ stmt_to_text b ^ ") -> " ^ v
+  let parse =
+    L.parse (fun p ->
+        L.expect_keyword p "static";
+        let statics = names_until p ';' in
+        L.expect_symbol p ';';
+        let body = parse_stmt p in
+        { statics; body })
 
-let print c =
-  "static"
-  ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
-  ^ "; " ^ stmt_to_text c.body ^ "\n"
+  let rec stmt_to_text = function
+    | Nop -> "Nop"
+    | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
+    | Assign (v, a) -> v ^ " := " ^ aexp_text a
+    | If (c, b) -> "if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
+    | Break (l, v) -> "break :" ^ l ^ " " ^ v
+    | Continue l -> "continue :" ^ l
+    | Loop (l, b, v) -> "loop :" ^ l ^ " (" ^ stmt_to_text b ^ ") -> " ^ v
+
+  let print c =
+    "static"
+    ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
+    ^ "; " ^ stmt_to_text c.body ^ "\n"
+end
 
 let exec_to_text = function
-  | Stmt s -> stmt_to_text s
+  | Stmt s -> Code.stmt_to_text s
   | Result Normal -> "()"
   | Result (Break_result (l, v)) -> "break " ^ l ^ " " ^ N.to_string v
   | Result (Continue_result l) -> "continue " ^ l
@@ -187,7 +191,7 @@ let render s =
            (List.map
               (function
                 | Loop_frame (l, _, v) -> "loop " ^ l ^ " -> " ^ v
-                | Seq_frame b -> "seq " ^ stmt_to_text b)
+                | Seq_frame b -> "seq " ^ Code.stmt_to_text b)
               (List.rev s.stack)));
     ]
 
@@ -197,15 +201,14 @@ module Routput = Utils.Text.String
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

@@ -49,7 +49,7 @@ let step s () =
   | None -> (
       match is_value s.current with
       | Some value -> Ok (Utils.Machine.Halt value)
-      | None -> Error ("stuck term: " ^ print s.current))
+      | None -> Error ("stuck term: " ^ Code.pretty s.current))
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
@@ -57,8 +57,8 @@ let restore = state_of_yojson
 let render s =
   Utils.Render.state
     [
-      Utils.Render.text ~title:"code" (print s.code);
-      Utils.Render.text ~title:"current" (print s.current);
+      Utils.Render.text ~title:"code" (Code.pretty s.code);
+      Utils.Render.text ~title:"current" (Code.pretty s.current);
     ]
 
 module Ainput = Utils.Text.Natural_list

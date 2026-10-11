@@ -163,158 +163,171 @@ let alpha_eq a b =
   in
   eq [] [] a b
 
-(* Preserve no_ext's display syntax; write_code emits the checked-in pest syntax. *)
-let rec print = function
-  | Var x -> x
-  | Lam (x, b) -> "fun " ^ x ^ " => " ^ print b
-  | App (a, b) -> "(" ^ print a ^ " " ^ print b ^ ")"
-  | Zero -> "0"
-  | Succ e -> "S " ^ print e
-  | Pred e -> "P " ^ print e
-  | IfZ (c, t, f) -> "if " ^ print c ^ " then " ^ print t ^ " else " ^ print f
-  | Let (x, e, b) -> "let " ^ x ^ " = " ^ print e ^ " in \n " ^ print b
-  | Rec (f, x, b) -> "rec " ^ f ^ " " ^ x ^ " = " ^ print b
-  | Abort e -> "abort " ^ print e
-  | Control e -> "control " ^ print e
+module Code = struct
+  type t = term
 
-let rec write_code = function
-  | Var x -> x
-  | Lam (x, b) -> "(fun " ^ x ^ " => " ^ write_code b ^ ")"
-  | App (a, b) -> "@(" ^ write_code a ^ " " ^ write_code b ^ ")"
-  | Zero -> "zero"
-  | Succ e -> "(succ " ^ write_code e ^ ")"
-  | Pred e -> "(pred " ^ write_code e ^ ")"
-  | IfZ (c, t, f) ->
-      "(ifz " ^ write_code c ^ " then " ^ write_code t ^ " else " ^ write_code f
-      ^ ")"
-  | Let (x, e, b) ->
-      "(let " ^ x ^ " = " ^ write_code e ^ " in " ^ write_code b ^ ")"
-  | Rec (f, x, b) -> "(rec " ^ f ^ " " ^ x ^ " = " ^ write_code b ^ ")"
-  | Abort e -> "(abort " ^ write_code e ^ ")"
-  | Control e -> "(control " ^ write_code e ^ ")"
+  let rec pretty = function
+    | Var x -> x
+    | Lam (x, b) -> "fun " ^ x ^ " => " ^ pretty b
+    | App (a, b) -> "(" ^ pretty a ^ " " ^ pretty b ^ ")"
+    | Zero -> "0"
+    | Succ e -> "S " ^ pretty e
+    | Pred e -> "P " ^ pretty e
+    | IfZ (c, t, f) ->
+        "if " ^ pretty c ^ " then " ^ pretty t ^ " else " ^ pretty f
+    | Let (x, e, b) -> "let " ^ x ^ " = " ^ pretty e ^ " in \n " ^ pretty b
+    | Rec (f, x, b) -> "rec " ^ f ^ " " ^ x ^ " = " ^ pretty b
+    | Abort e -> "abort " ^ pretty e
+    | Control e -> "control " ^ pretty e
 
-let word = L.identifier
+  let rec print = function
+    | Var x -> x
+    | Lam (x, b) -> "(fun " ^ x ^ " => " ^ print b ^ ")"
+    | App (a, b) -> "@(" ^ print a ^ " " ^ print b ^ ")"
+    | Zero -> "zero"
+    | Succ e -> "(succ " ^ print e ^ ")"
+    | Pred e -> "(pred " ^ print e ^ ")"
+    | IfZ (c, t, f) ->
+        "(ifz " ^ print c ^ " then " ^ print t ^ " else " ^ print f ^ ")"
+    | Let (x, e, b) -> "(let " ^ x ^ " = " ^ print e ^ " in " ^ print b ^ ")"
+    | Rec (f, x, b) -> "(rec " ^ f ^ " " ^ x ^ " = " ^ print b ^ ")"
+    | Abort e -> "(abort " ^ print e ^ ")"
+    | Control e -> "(control " ^ print e ^ ")"
 
-let variable p =
-  let name = word p in
-  if
-    List.mem name
-      [
-        "fun";
-        "zero";
-        "succ";
-        "pred";
-        "ifz";
-        "then";
-        "else";
-        "let";
-        "in";
-        "rec";
-        "abort";
-        "control";
-      ]
-  then L.error p "expected variable";
-  name
+  let word = L.identifier
 
-let rec read_term ~control p =
-  match L.peek p with
-  | L.Ident name when word { p with L.pos = p.L.pos } <> name ->
-      Var (variable p)
-  | L.Ident "fun" ->
-      ignore (L.next p);
-      let x = variable p in
-      L.expect p "=>";
-      Lam (x, read_term ~control p)
-  | L.Symbol '@' ->
-      ignore (L.next p);
-      L.expect_symbol p '(';
-      let a = read_term ~control p in
-      let b = read_term ~control p in
-      L.expect_symbol p ')';
-      App (a, b)
-  | L.Symbol '(' ->
-      ignore (L.next p);
-      let a = read_term ~control p in
-      let a =
-        if L.peek p = L.Symbol ')' then a
-        else
-          let b = read_term ~control p in
-          App (a, b)
-      in
-      L.expect_symbol p ')';
-      a
-  | L.Ident "zero" | L.Number "0" ->
-      ignore (L.next p);
-      Zero
-  | L.Ident "succ" | L.Ident "S" ->
-      ignore (L.next p);
-      Succ (read_term ~control p)
-  | L.Ident "pred" | L.Ident "P" ->
-      ignore (L.next p);
-      Pred (read_term ~control p)
-  | L.Ident "ifz" | L.Ident "if" ->
-      ignore (L.next p);
-      let c = read_term ~control p in
-      L.expect_keyword p "then";
-      let t = read_term ~control p in
-      L.expect_keyword p "else";
-      IfZ (c, t, read_term ~control p)
-  | L.Ident "let" ->
-      ignore (L.next p);
-      let x = variable p in
-      L.expect_symbol p '=';
-      let e = read_term ~control p in
-      L.expect_keyword p "in";
-      Let (x, e, read_term ~control p)
-  | L.Ident "rec" ->
-      ignore (L.next p);
-      let f = variable p in
-      let x = variable p in
-      L.expect_symbol p '=';
-      Rec (f, x, read_term ~control p)
-  | L.Ident "abort" when control ->
-      ignore (L.next p);
-      Abort (read_term ~control p)
-  | L.Ident "control" when control ->
-      ignore (L.next p);
-      Control (read_term ~control p)
-  | _ -> Var (variable p)
+  let variable p =
+    let name = word p in
+    if
+      List.mem name
+        [
+          "fun";
+          "zero";
+          "succ";
+          "pred";
+          "ifz";
+          "then";
+          "else";
+          "let";
+          "in";
+          "rec";
+          "abort";
+          "control";
+        ]
+    then L.error p "expected variable";
+    name
 
-let parse_code = L.parse (read_term ~control:false)
-let parse_ctrl_code = L.parse (read_term ~control:true)
-
-let parse_nat_code =
-  (* The unextended grammar treats names such as zero and succ as variables. *)
-  let rec read p =
+  let rec read_term ~control p =
     match L.peek p with
-    | L.Ident "fun" when word { p with L.pos = p.L.pos } = "fun" -> (
-        let saved = p.L.pos in
-        match
-          L.protect (fun () ->
-              ignore (L.next p);
-              let x = word p in
-              L.expect p "=>";
-              Lam (x, read p))
-        with
-        | Ok e -> e
-        | Error _ ->
-            p.L.pos <- saved;
-            Var (word p))
+    | L.Ident name when word { p with L.pos = p.L.pos } <> name ->
+        Var (variable p)
+    | L.Ident "fun" ->
+        ignore (L.next p);
+        let x = variable p in
+        L.expect p "=>";
+        Lam (x, read_term ~control p)
     | L.Symbol '@' ->
         ignore (L.next p);
         L.expect_symbol p '(';
-        let f = read p in
-        let a = read p in
+        let a = read_term ~control p in
+        let b = read_term ~control p in
         L.expect_symbol p ')';
-        App (f, a)
+        App (a, b)
     | L.Symbol '(' ->
         ignore (L.next p);
-        let e = read p in
+        let a = read_term ~control p in
+        let a =
+          if L.peek p = L.Symbol ')' then a
+          else
+            let b = read_term ~control p in
+            App (a, b)
+        in
         L.expect_symbol p ')';
-        e
-    | _ -> Var (word p)
-  in
-  L.parse read
+        a
+    | L.Ident "zero" | L.Number "0" ->
+        ignore (L.next p);
+        Zero
+    | L.Ident "succ" | L.Ident "S" ->
+        ignore (L.next p);
+        Succ (read_term ~control p)
+    | L.Ident "pred" | L.Ident "P" ->
+        ignore (L.next p);
+        Pred (read_term ~control p)
+    | L.Ident "ifz" | L.Ident "if" ->
+        ignore (L.next p);
+        let c = read_term ~control p in
+        L.expect_keyword p "then";
+        let t = read_term ~control p in
+        L.expect_keyword p "else";
+        IfZ (c, t, read_term ~control p)
+    | L.Ident "let" ->
+        ignore (L.next p);
+        let x = variable p in
+        L.expect_symbol p '=';
+        let e = read_term ~control p in
+        L.expect_keyword p "in";
+        Let (x, e, read_term ~control p)
+    | L.Ident "rec" ->
+        ignore (L.next p);
+        let f = variable p in
+        let x = variable p in
+        L.expect_symbol p '=';
+        Rec (f, x, read_term ~control p)
+    | L.Ident "abort" when control ->
+        ignore (L.next p);
+        Abort (read_term ~control p)
+    | L.Ident "control" when control ->
+        ignore (L.next p);
+        Control (read_term ~control p)
+    | _ -> Var (variable p)
+
+  let parse = L.parse (read_term ~control:false)
+end
+
+module Ctrl_code = struct
+  include Code
+
+  let parse = L.parse (read_term ~control:true)
+end
+
+module Nat_code = struct
+  type t = term
+
+  let print = Code.print
+
+  let parse =
+    (* The unextended grammar treats names such as zero and succ as variables. *)
+    let rec read p =
+      match L.peek p with
+      | L.Ident "fun" when Code.word { p with L.pos = p.L.pos } = "fun" -> (
+          let saved = p.L.pos in
+          match
+            L.protect (fun () ->
+                ignore (L.next p);
+                let x = Code.word p in
+                L.expect p "=>";
+                Lam (x, read p))
+          with
+          | Ok e -> e
+          | Error _ ->
+              p.L.pos <- saved;
+              Var (Code.word p))
+      | L.Symbol '@' ->
+          ignore (L.next p);
+          L.expect_symbol p '(';
+          let f = read p in
+          let a = read p in
+          L.expect_symbol p ')';
+          App (f, a)
+      | L.Symbol '(' ->
+          ignore (L.next p);
+          let e = read p in
+          L.expect_symbol p ')';
+          e
+      | _ -> Var (Code.word p)
+    in
+    L.parse read
+end
 
 module Value = struct
   type t = value
@@ -324,10 +337,10 @@ module Value = struct
     | Num n -> num_to_exp n
 
   let parse text =
-    Result.bind (parse_ctrl_code text) (fun term ->
+    Result.bind (Ctrl_code.parse text) (fun term ->
         match is_value term with
         | Some value -> Ok value
         | None -> Error "Expected a value")
 
-  let print value = print (to_term value)
+  let print value = Code.pretty (to_term value)
 end

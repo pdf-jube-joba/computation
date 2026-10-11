@@ -1,4 +1,5 @@
 open Syntax
+module Code = Syntax.Stmt_code
 
 let ( let* ) = Result.bind
 
@@ -102,8 +103,6 @@ type routput = print_effect
 type foutput = N.t
 type state = { code : expr; state : phase } [@@deriving yojson]
 
-let parse_code = Syntax.parse_stmt_code
-
 let make code inputs =
   Ok { code; state = EvalExpr (apply_inputs code inputs, [], [ Init ]) }
 
@@ -137,14 +136,14 @@ let render s =
   let open Utils.Render in
   let mode, focus, env, k =
     match s.state with
-    | EvalExpr (e, env, k) -> ("eval-expr", print e, env, k)
-    | EvalStmt (e, env, k) -> ("eval-stmt", print_stmt e, env, k)
+    | EvalExpr (e, env, k) -> ("eval-expr", Code.print e, env, k)
+    | EvalStmt (e, env, k) -> ("eval-stmt", Code.print_stmt e, env, k)
     | Return (v, k) -> ("return", Cek_machine.value_text v, env_from_kont k, k)
     | Done (env, k) -> ("done", "scope complete", env, k)
   in
   state
     [
-      text ~title:"code" (print s.code);
+      text ~title:"code" (Code.print s.code);
       text_table ~title:"state" ~columns:[ "field"; "value" ]
         [ [ "mode"; mode ]; [ "focus"; focus ] ];
       assoc_table ~title:"env" ~columns:[ "name"; "value" ]

@@ -39,7 +39,7 @@ let rec run_a fuel s =
 let image : I.ainput = { register = Array.make 8 N.zero; memory = [] }
 let asm_input : A.ainput = { regs = Array.make 8 N.zero; data_extension = [] }
 let machine ops = ok (I.make (List.map I.encode ops) image)
-let assembly source = ok (A.make (ok (A.parse_code source)) asm_input)
+let assembly source = ok (A.make (ok (A.Code.parse source)) asm_input)
 
 let () =
   let (_ : (module Utils.Machine.S)) = (module I.Machine) in
@@ -140,11 +140,13 @@ let () =
   assert (input.memory = [ "8"; "9" ]);
   assert (ok (I.Ainput.parse (I.Foutput.print input)) = input);
   assert (
-    ok (I.parse_code (I.print [ "0"; "64"; "123456789012345678901234567890" ]))
+    ok
+      (I.Code.parse
+         (I.Code.print [ "0"; "64"; "123456789012345678901234567890" ]))
     = [ "0"; "64"; "123456789012345678901234567890" ]);
   error (I.Ainput.parse "0,1");
   error (I.Ainput.parse "x,0,0,0,0,0,0,0");
-  error (I.parse_code "64 x");
+  error (I.Code.parse "64 x");
   let text =
     ".equ N #7\n\
      .text\n\
@@ -167,8 +169,8 @@ let () =
      @DATA_LEN\n\
      @main"
   in
-  let code = ok (A.parse_code text) in
-  assert (ok (A.parse_code (A.print code)) = code);
+  let code = ok (A.Code.parse text) in
+  assert (ok (A.Code.parse (A.Code.print code)) = code);
   let output = run_a 30 (ok (A.make code asm_input)) in
   assert (
     output.regs.(1) = "9"
@@ -229,7 +231,7 @@ let () =
   assert (A.snapshot (next_a s) = A.snapshot (next_a restored));
   assert (A.snapshot s = snap);
   List.iter
-    (fun text -> error (A.make (ok (A.parse_code text)) asm_input))
+    (fun text -> error (A.make (ok (A.Code.parse text)) asm_input))
     [
       "@THIS:\nhalt;";
       ".equ CODE_LEN #1";
@@ -244,11 +246,11 @@ let () =
       ".data\n@unknown";
     ];
   List.iter
-    (fun text -> error (A.parse_code text))
+    (fun text -> error (A.Code.parse text))
     [ ".bss"; "ldi %r8 #1;"; ".data\n1 2"; "@:" ];
   error (A.step (assembly "ldi %r1 missing;") ());
   let program = "@cell 3\n@main {\n %v0 := *@cell_invalid;\n goto @main;\n}" in
-  error (C.parse_code program);
+  error (C.Code.parse program);
   let program =
     "@cell 3\n\
      @main {\n\
@@ -265,8 +267,8 @@ let () =
     \ goto @main;\n\
      }"
   in
-  let code = ok (C.parse_code program) in
-  assert (ok (C.parse_code (C.print code)) = code);
+  let code = ok (C.Code.parse program) in
+  assert (ok (C.Code.parse (C.Code.print code)) = code);
   let s = ok (C.make code (ok (C.Ainput.parse "(8, 9,)"))) in
   let s1 = next_c s in
   assert (
@@ -299,7 +301,7 @@ let () =
     \ goto @main;\n\
      }"
   in
-  let s = next_c (ok (C.make (ok (C.parse_code program)) [])) in
+  let s = next_c (ok (C.make (ok (C.Code.parse program)) [])) in
   assert (s.current_block = 1);
   let program =
     "@main {\n\
@@ -311,13 +313,13 @@ let () =
     \ goto #0;\n\
      }"
   in
-  let s = next_c (ok (C.make (ok (C.parse_code program)) [])) in
+  let s = next_c (ok (C.make (ok (C.Code.parse program)) [])) in
   assert (s.current_block = 1 && s.vregs.(0) = "1");
   let s = next_c s in
   assert (s.memory = [| "0"; "0"; "0"; "0"; "0" |]);
   let code =
     ok
-      (C.parse_code
+      (C.Code.parse
          "@shared 4\n\
           @main {\n\
          \ %v0 := @shared;\n\
@@ -329,14 +331,14 @@ let () =
   in
   assert ((next_c (ok (C.make code []))).vregs.(0) = "0");
   List.iter
-    (fun text -> error (C.make (ok (C.parse_code text)) []))
+    (fun text -> error (C.make (ok (C.Code.parse text)) []))
     [
       "";
       "@main {\n goto @main;\n}\n@main {\n goto @main;\n}";
       "@x 0\n@x 1\n@main {\n goto @main;\n}";
     ];
   List.iter
-    (fun text -> error (C.parse_code text))
+    (fun text -> error (C.Code.parse text))
     [
       "@main {\n}";
       "@main {\n goto #0;\n goto #0;\n}";
@@ -347,7 +349,7 @@ let () =
   List.iter
     (fun target ->
       let s =
-        ok (C.make (ok (C.parse_code ("@main {\n goto " ^ target ^ ";\n}"))) [])
+        ok (C.make (ok (C.Code.parse ("@main {\n goto " ^ target ^ ";\n}"))) [])
       in
       error (C.step s ()))
     [ "#9"; "@missing" ];
@@ -371,7 +373,7 @@ let () =
     | `List [ _; _; _ ] -> true
     | _ -> false);
   assert (match C.render s1 with `List [ _; _; _; _ ] -> true | _ -> false);
-  assert (ok (I.parse_code "+64") = [ "64" ]);
+  assert (ok (I.Code.parse "+64") = [ "64" ]);
   assert ((run_a 5 (assembly "ldi %r1 #+7;\nhalt;")).regs.(1) = "7");
   assert (ok (C.Ainput.parse "(+1,+2)") = [ "1"; "2" ]);
   print_endline "tiny ISA, symbolic assembly, and CFG tests passed"

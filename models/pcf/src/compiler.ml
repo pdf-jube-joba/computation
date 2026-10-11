@@ -14,8 +14,8 @@ module Expr_to_cek = struct
     {
       compile_code =
         (fun text ->
-          let* code = Source.parse_code text in
-          Ok (Syntax.print code));
+          let* code = Source.Code.parse text in
+          Ok (Syntax.Code.print code));
       encode_ainput =
         (fun text ->
           let* a = Source.Ainput.parse text in
@@ -56,9 +56,9 @@ module Expr_to_secd = struct
       Expr_to_cek.api with
       compile_code =
         (fun text ->
-          let* code = Source.parse_code text in
+          let* code = Source.Code.parse text in
           let* code = compile code in
-          Ok (Target.print_code code));
+          Ok (Target.Code.print code));
     }
 end
 

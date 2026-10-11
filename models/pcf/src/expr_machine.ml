@@ -1,4 +1,5 @@
 open Syntax
+module Code = Syntax.Code
 
 let ( let* ) = Result.bind
 let bind env name value = (name, value) :: env
@@ -49,13 +50,14 @@ let rec small_step = function
   | App (Fun (x, b), a) -> Ok (substitute b x a, None)
   | App ((Rec (f, x, b) as r), a) -> Ok (substitute (substitute b f r) x a, None)
   | App (f, _) ->
-      Error ("application expects a function value, found " ^ print f)
+      Error ("application expects a function value, found " ^ Code.print f)
   | If (c, t, e) when not (is_value c) ->
       let* c, out = small_step c in
       Ok (If (c, t, e), out)
   | If (Bool true, t, _) -> Ok (t, None)
   | If (Bool false, _, e) -> Ok (e, None)
-  | If (c, _, _) -> Error ("if expects a boolean condition, found " ^ print c)
+  | If (c, _, _) ->
+      Error ("if expects a boolean condition, found " ^ Code.print c)
   | Var x -> Error ("unbound variable: " ^ x)
   | Block _ -> Error "blocks belong to the expression/statement machine"
   | _ -> Error "cannot step a value"
@@ -67,7 +69,6 @@ type routput = print_effect
 type foutput = N.t
 type state = { code : code; expr : expr } [@@deriving yojson]
 
-let parse_code = Syntax.parse_code
 let make code inputs = Ok { code; expr = apply_inputs code inputs }
 
 let step state () =
@@ -84,8 +85,8 @@ let restore = state_of_yojson
 let render s =
   Utils.Render.state
     [
-      Utils.Render.text ~title:"code" (print s.code);
-      Utils.Render.text ~title:"current" (print s.expr);
+      Utils.Render.text ~title:"code" (Code.print s.code);
+      Utils.Render.text ~title:"current" (Code.print s.expr);
     ]
 
 module Ainput = Syntax.Ainput

@@ -1,7 +1,6 @@
 open Common
 include Mini_prog_syntax
-
-let parse_code = Mini_prog_parser.parse_code
+module Code = Mini_prog_parser.Code
 
 let rec type_match v ty =
   match (v, ty) with
@@ -497,7 +496,8 @@ let render s =
   let open Utils.Render in
   let cell_rows cells =
     List.map
-      (fun (id, c) -> [ string_of_int id; type_text c.ty; value_text c.value ])
+      (fun (id, c) ->
+        [ string_of_int id; Code.type_text c.ty; value_text c.value ])
       (sorted cells)
   in
   state
@@ -521,7 +521,7 @@ let render s =
       text_table ~title:"statics"
         ~columns:[ "name"; "type"; "value" ]
         (List.map
-           (fun (n, c) -> [ n; type_text c.ty; value_text c.value ])
+           (fun (n, c) -> [ n; Code.type_text c.ty; value_text c.value ])
            (sorted s.store.statics));
       text_table ~title:"heap"
         ~columns:[ "heap"; "type"; "value" ]
@@ -560,15 +560,14 @@ module Routput = Utils.Text.String
 module Foutput = Utils.Text.Natural
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

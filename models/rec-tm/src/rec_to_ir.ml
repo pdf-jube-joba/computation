@@ -404,9 +404,9 @@ let api : Utils.Compiler.api =
     Utils.Compiler.identity_api with
     compile_code =
       (fun text ->
-        let* f = R.parse_code text in
+        let* f = R.Code.parse text in
         let* p = compile f in
-        Ok (I.print p));
+        Ok (I.Code.print p));
     encode_ainput =
       (fun text ->
         let* ns = R.Ainput.parse text in

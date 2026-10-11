@@ -26,98 +26,122 @@ type routput = unit
 type foutput = environment
 type state = { code : code; stmt : stmt; env : environment } [@@deriving yojson]
 
-let reserved =
-  [ "Nop"; "if"; "then"; "end"; "while"; "is_empty"; "head"; "tail" ]
+module Code = struct
+  type t = code
 
-let parse_name p =
-  let n = ident p in
-  if List.mem n reserved then fail "Expected identifier";
-  n
+  let reserved =
+    [ "Nop"; "if"; "then"; "end"; "while"; "is_empty"; "head"; "tail" ]
 
-let rec parse_aexp p =
-  let a = parse_prefix p in
-  let rec loop a =
-    if eat p (Op "++") then
-      let b = parse_prefix p in
-      loop (Concat (a, b))
-    else a
-  in
-  loop a
+  let parse_name p =
+    let n = ident p in
+    if List.mem n reserved then fail "Expected identifier";
+    n
 
-and parse_prefix p =
-  if eat p (Word "head") then Head (parse_prefix p)
-  else if eat p (Word "tail") then Tail (parse_prefix p)
-  else
-    match next p with
-    | Word n when not (List.mem n reserved) -> Var n
-    | Sym '(' ->
-        let a = parse_aexp p in
-        expect p (Sym ')');
-        a
-    | Sym '[' ->
-        let rec chars acc =
-          let c = character p in
-          if eat p (Sym ']') then List.rev (c :: acc)
-          else (
-            expect p (Sym ',');
-            chars (c :: acc))
-        in
-        Const (if eat p (Sym ']') then [] else chars [])
-    | _ -> fail "Invalid aexp"
+  let rec parse_aexp p =
+    let a = parse_prefix p in
+    let rec loop a =
+      if eat p (Op "++") then
+        let b = parse_prefix p in
+        loop (Concat (a, b))
+      else a
+    in
+    loop a
 
-let parse_bexp p =
-  if eat p (Word "is_empty") then IsEmpty (parse_aexp p)
-  else
-    let a = parse_aexp p in
-    expect p (Op "==");
-    let b = parse_aexp p in
-    Eq (a, b)
+  and parse_prefix p =
+    if eat p (Word "head") then Head (parse_prefix p)
+    else if eat p (Word "tail") then Tail (parse_prefix p)
+    else
+      match next p with
+      | Word n when not (List.mem n reserved) -> Var n
+      | Sym '(' ->
+          let a = parse_aexp p in
+          expect p (Sym ')');
+          a
+      | Sym '[' ->
+          let rec chars acc =
+            let c = character p in
+            if eat p (Sym ']') then List.rev (c :: acc)
+            else (
+              expect p (Sym ',');
+              chars (c :: acc))
+          in
+          Const (if eat p (Sym ']') then [] else chars [])
+      | _ -> fail "Invalid aexp"
 
-let rec parse_stmt p =
-  let s = parse_single p in
-  let rec loop s =
-    if eat p (Sym ';') then
-      let b = parse_single p in
-      loop (Seq (s, b))
-    else s
-  in
-  loop s
+  let parse_bexp p =
+    if eat p (Word "is_empty") then IsEmpty (parse_aexp p)
+    else
+      let a = parse_aexp p in
+      expect p (Op "==");
+      let b = parse_aexp p in
+      Eq (a, b)
 
-and parse_single p =
-  if eat p (Word "Nop") then Nop
-  else if eat p (Word "if") then (
-    let c = parse_bexp p in
-    expect p (Word "then");
-    let b = parse_stmt p in
-    expect p (Word "end");
-    If (c, b))
-  else if eat p (Word "while") then (
-    let c = parse_bexp p in
-    expect p (Sym '{');
-    let b = parse_stmt p in
-    expect p (Sym '}');
-    While (c, b))
-  else if eat p (Sym '(') then (
-    let b = parse_stmt p in
-    expect p (Sym ')');
-    b)
-  else
-    let n = parse_name p in
-    expect p (Op ":=");
-    let a = parse_aexp p in
-    Assign (n, a)
+  let rec parse_stmt p =
+    let s = parse_single p in
+    let rec loop s =
+      if eat p (Sym ';') then
+        let b = parse_single p in
+        loop (Seq (s, b))
+      else s
+    in
+    loop s
 
-let parse_code = parse parse_stmt
+  and parse_single p =
+    if eat p (Word "Nop") then Nop
+    else if eat p (Word "if") then (
+      let c = parse_bexp p in
+      expect p (Word "then");
+      let b = parse_stmt p in
+      expect p (Word "end");
+      If (c, b))
+    else if eat p (Word "while") then (
+      let c = parse_bexp p in
+      expect p (Sym '{');
+      let b = parse_stmt p in
+      expect p (Sym '}');
+      While (c, b))
+    else if eat p (Sym '(') then (
+      let b = parse_stmt p in
+      expect p (Sym ')');
+      b)
+    else
+      let n = parse_name p in
+      expect p (Op ":=");
+      let a = parse_aexp p in
+      Assign (n, a)
+
+  let parse = parse parse_stmt
+
+  let rec aexp_to_text = function
+    | Const cs ->
+        "[" ^ String.concat ", " (List.map Utils.Char_literal.to_text cs) ^ "]"
+    | Var n -> n
+    | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
+    | Head a -> "head " ^ aexp_to_text a
+    | Tail a -> "tail " ^ aexp_to_text a
+
+  let bexp_to_text = function
+    | IsEmpty a -> "is_empty " ^ aexp_to_text a
+    | Eq (a, b) -> aexp_to_text a ^ " == " ^ aexp_to_text b
+
+  let rec stmt_to_text = function
+    | Nop -> "Nop"
+    | Assign (n, a) -> n ^ " := " ^ aexp_to_text a
+    | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
+    | If (c, b) -> "if " ^ bexp_to_text c ^ " then " ^ stmt_to_text b ^ " end"
+    | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
+
+  let print = stmt_to_text
+end
 
 module Ainput = struct
   type t = ainput
 
-  let print_value cs =
-    "[" ^ String.concat ", " (List.map Utils.Char_literal.to_text cs) ^ "]"
+  let print_value cs = Code.aexp_to_text (Const cs)
 
   let parse_value =
     parse (fun p ->
-        match parse_aexp p with
+        match Code.parse_aexp p with
         | Const cs -> cs
         | _ -> fail "Expected constant character list")
 
@@ -125,25 +149,6 @@ module Ainput = struct
   let print = Utils.Environment.print ~trailing_newline:true print_value
 end
 
-let rec aexp_to_text = function
-  | Const cs -> Ainput.print_value cs
-  | Var n -> n
-  | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
-  | Head a -> "head " ^ aexp_to_text a
-  | Tail a -> "tail " ^ aexp_to_text a
-
-let bexp_to_text = function
-  | IsEmpty a -> "is_empty " ^ aexp_to_text a
-  | Eq (a, b) -> aexp_to_text a ^ " == " ^ aexp_to_text b
-
-let rec stmt_to_text = function
-  | Nop -> "Nop"
-  | Assign (n, a) -> n ^ " := " ^ aexp_to_text a
-  | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-  | If (c, b) -> "if " ^ bexp_to_text c ^ " then " ^ stmt_to_text b ^ " end"
-  | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
-
-let print = stmt_to_text
 let get env n = Option.value ~default:[] (List.assoc_opt n env)
 
 let rec eval_aexp env = function
@@ -180,22 +185,21 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.statement_env (stmt_to_text s.stmt) Ainput.print_value s.env
+  Utils.Render.statement_env (Code.stmt_to_text s.stmt) Ainput.print_value s.env
 
 module Rinput = Utils.Text.Unit
 module Routput = Utils.Text.Unit
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

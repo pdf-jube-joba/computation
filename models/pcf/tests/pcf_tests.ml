@@ -11,7 +11,7 @@ let error = function Error _ -> () | Ok _ -> failwith "expected error"
 
 let run (type c a s r f)
     (module M : Utils.Machine.S
-      with type code = c
+      with type Code.t = c
        and type Ainput.t = a
        and type state = s
        and type Rinput.t = unit
@@ -39,7 +39,7 @@ let run (type c a s r f)
   loop 2000 (get (M.make code input)) []
 
 let differential text inputs expected =
-  let source = get (Expr_machine.parse_code text) in
+  let source = get (Expr_machine.Code.parse text) in
   let inputs = get (Syntax.Ainput.parse inputs) in
   let expr = run (module Expr_machine) source inputs in
   assert (expr = expected);
@@ -49,15 +49,15 @@ let differential text inputs expected =
   assert (run (module Secd_machine) secd inputs = expr);
   let compiled = get (Compiler.expr_to_secd.compile_code text) in
   assert (
-    run (module Secd_machine) (get (Secd_machine.parse_code compiled)) inputs
+    run (module Secd_machine) (get (Secd_machine.Code.parse compiled)) inputs
     = expr);
-  assert (get (Secd_machine.parse_code (Secd_machine.print_code secd)) = secd);
-  assert (get (Syntax.parse_code (Syntax.print source)) = source)
+  assert (get (Secd_machine.Code.parse (Secd_machine.Code.print secd)) = secd);
+  assert (get (Syntax.Code.parse (Syntax.Code.print source)) = source)
 
 let stmt text expected =
-  let source = get (Expr_stmt_machine.parse_code text) in
+  let source = get (Expr_stmt_machine.Code.parse text) in
   assert (run (module Expr_stmt_machine) source [] = expected);
-  assert (get (Expr_stmt_machine.parse_code (Syntax.print source)) = source)
+  assert (get (Expr_stmt_machine.Code.parse (Syntax.Code.print source)) = source)
 
 let () =
   let s n = `String n in
@@ -85,10 +85,10 @@ let () =
   (* Unlike dec in the continuation language, PCF dec and subtraction reject underflow. *)
   List.iter
     (fun text ->
-      let e = get (Syntax.parse_code text) in
+      let e = get (Syntax.Code.parse text) in
       let test
           (module M : Utils.Machine.S
-            with type code = Syntax.expr
+            with type Code.t = Syntax.expr
              and type Ainput.t = Utils.Number.t list
              and type Rinput.t = unit) =
         let rec loop fuel state =
@@ -137,12 +137,12 @@ let () =
     "{ let x := 4; let f := rec f y => if #true then x + y else f(y) fi; let x \
      := 9; f(2) }"
     ([], s "6");
-  error (Syntax.parse_code "fun if => 1");
-  error (Syntax.parse_code "1 trailing");
-  error (Syntax.parse_stmt_code "print 1");
-  error (Syntax.parse_code "{ skip; 1 }");
-  error (Syntax.parse_stmt_code "{ 1 }");
-  error (Syntax.parse_stmt_code "{ skip; }");
+  error (Syntax.Code.parse "fun if => 1");
+  error (Syntax.Code.parse "1 trailing");
+  error (Syntax.Stmt_code.parse "print 1");
+  error (Syntax.Code.parse "{ skip; 1 }");
+  error (Syntax.Stmt_code.parse "{ 1 }");
+  error (Syntax.Stmt_code.parse "{ skip; }");
   assert (get (Syntax.Ainput.parse "(,001,,2,)") = [ "1"; "2" ]);
   assert (get (Syntax.Ainput.parse "(+001, +2)") = [ "1"; "2" ]);
   assert (get (Syntax.Routput.parse "+001") = Some "1");
@@ -154,7 +154,7 @@ let () =
   error (Syntax.Routput.parse "++1");
   error (Syntax.Ainput.parse "1,2");
   error (Expr_machine.Rinput.parse "1");
-  let e = get (Syntax.parse_code "fun y => x") in
+  let e = get (Syntax.Code.parse "fun y => x") in
   let substituted = Syntax.substitute e "x" (Syntax.Var "y") in
   assert (Syntax.Names.elements (Syntax.free_vars substituted) = [ "y" ]);
   assert (substituted = Syntax.Fun ("y_0", Syntax.Var "y"));
@@ -174,7 +174,7 @@ let () =
     = Syntax.Rec ("f_1", "y", Syntax.App (Syntax.Var "f_1", Syntax.Var "y")));
   assert (
     get
-      (Secd_machine.parse_code {|[{"PushNat":2},{"PushNat":3},{"BinOp":"Add"}]|})
+      (Secd_machine.Code.parse {|[{"PushNat":2},{"PushNat":3},{"BinOp":"Add"}]|})
     = [
         Secd_machine.PushNat "2";
         Secd_machine.PushNat "3";
@@ -184,11 +184,11 @@ let () =
     run
       (module Secd_machine)
       (get
-         (Secd_machine.parse_code
+         (Secd_machine.Code.parse
             {|[{"PushNat":2},{"PushNat":3},{"BinOp":"Add"}]|}))
       []
     = ([], s "5"));
-  error (Secd_machine.parse_code {|[{"Acc":"bad!"}]|});
+  error (Secd_machine.Code.parse {|[{"Acc":"bad!"}]|});
   error (Secd_machine.step (get (Secd_machine.make [ Secd_machine.Ret ] [])) ());
   error (Secd_machine.step (get (Secd_machine.make [ Secd_machine.Ap ] [])) ());
   assert (Expr_machine.Routput.print None = "");

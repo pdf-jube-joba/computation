@@ -26,11 +26,12 @@ let check func input =
   let source = ok (Recursive_function.make func input) in
   let expected = ok (evaluate source.process) in
   let code = ok (C.compile func) in
-  assert (ok (Goto_lang.parse_code (Goto_lang.print_code code)) = code);
+  assert (ok (Goto_lang.Code.parse (Goto_lang.Code.print code)) = code);
   let env = run_code code (ok (C.encode_ainput input)) in
   let actual = ok (C.decode_foutput env) in
   if not (Utils.Number.equal expected actual) then
-    failwith (print func ^ " evaluated to " ^ actual ^ ", expected " ^ expected);
+    failwith
+      (Code.print func ^ " evaluated to " ^ actual ^ ", expected " ^ expected);
   (* Inputs are immutable registers throughout compiled execution. *)
   List.iteri
     (fun i input ->
@@ -39,9 +40,9 @@ let check func input =
     input
 
 let api_check text input =
-  let func = ok (parse_code text) and args = ok (Ainput.parse input) in
+  let func = ok (Code.parse text) and args = ok (Ainput.parse input) in
   let expected = ok (evaluate (ok (make func args)).process) in
-  let code = ok (Goto_lang.parse_code (ok (C.api.compile_code text))) in
+  let code = ok (Goto_lang.Code.parse (ok (C.api.compile_code text))) in
   let env = ok (Goto_lang.Ainput.parse (ok (C.api.encode_ainput input))) in
   let result = run_code code env in
   assert (ok (C.api.decode_foutput (Goto_lang.Ainput.print result)) = expected)

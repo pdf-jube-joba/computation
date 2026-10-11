@@ -45,103 +45,112 @@ type state = {
 [@@deriving yojson]
 
 (* Public code retains Rust serde's externally tagged instruction syntax. *)
-let json_nat n =
-  match N.to_int n with Ok i -> `Int i | Error _ -> `Intlit (N.to_string n)
+module Code = struct
+  type t = code
 
-let rec instr_json = function
-  | PushNat n -> `Assoc [ ("PushNat", json_nat n) ]
-  | PushBool b -> `Assoc [ ("PushBool", `Bool b) ]
-  | PushUnit -> `String "PushUnit"
-  | Print n -> `Assoc [ ("Print", json_nat n) ]
-  | Acc x -> `Assoc [ ("Acc", `String x) ]
-  | MkCls (x, c) ->
-      `Assoc
-        [ ("MkCls", `Assoc [ ("param", `String x); ("code", code_json c) ]) ]
-  | MkRec (f, x, c) ->
-      `Assoc
-        [
-          ( "MkRec",
-            `Assoc
-              [
-                ("name", `String f); ("param", `String x); ("code", code_json c);
-              ] );
-        ]
-  | BinOp o ->
-      `Assoc
-        [
-          ( "BinOp",
-            `String (match o with Add -> "Add" | Sub -> "Sub" | And -> "And") );
-        ]
-  | UnOp o ->
-      `Assoc
-        [
-          ( "UnOp",
-            `String (match o with Inc -> "Inc" | Dec -> "Dec" | Not -> "Not") );
-        ]
-  | Ap -> `String "Ap"
-  | Ret -> `String "Ret"
-  | If (t, e) ->
-      `Assoc
-        [
-          ( "If",
-            `Assoc [ ("then_code", code_json t); ("else_code", code_json e) ] );
-        ]
+  let json_nat n =
+    match N.to_int n with Ok i -> `Int i | Error _ -> `Intlit (N.to_string n)
 
-and code_json c = `List (List.map instr_json c)
+  let rec instr_json = function
+    | PushNat n -> `Assoc [ ("PushNat", json_nat n) ]
+    | PushBool b -> `Assoc [ ("PushBool", `Bool b) ]
+    | PushUnit -> `String "PushUnit"
+    | Print n -> `Assoc [ ("Print", json_nat n) ]
+    | Acc x -> `Assoc [ ("Acc", `String x) ]
+    | MkCls (x, c) ->
+        `Assoc
+          [ ("MkCls", `Assoc [ ("param", `String x); ("code", code_json c) ]) ]
+    | MkRec (f, x, c) ->
+        `Assoc
+          [
+            ( "MkRec",
+              `Assoc
+                [
+                  ("name", `String f);
+                  ("param", `String x);
+                  ("code", code_json c);
+                ] );
+          ]
+    | BinOp o ->
+        `Assoc
+          [
+            ( "BinOp",
+              `String
+                (match o with Add -> "Add" | Sub -> "Sub" | And -> "And") );
+          ]
+    | UnOp o ->
+        `Assoc
+          [
+            ( "UnOp",
+              `String
+                (match o with Inc -> "Inc" | Dec -> "Dec" | Not -> "Not") );
+          ]
+    | Ap -> `String "Ap"
+    | Ret -> `String "Ret"
+    | If (t, e) ->
+        `Assoc
+          [
+            ( "If",
+              `Assoc [ ("then_code", code_json t); ("else_code", code_json e) ]
+            );
+          ]
 
-let get = function Ok x -> x | Error e -> failwith e
+  and code_json c = `List (List.map instr_json c)
 
-let natural_json = function
-  | `Int n when n >= 0 -> N.of_int n
-  | `Intlit s -> get (N.of_string s)
-  | _ -> failwith "expected natural number"
+  let get = function Ok x -> x | Error e -> failwith e
 
-let identifier_json j = get (Utils.Identifier.make (Utils.Json.string j))
+  let natural_json = function
+    | `Int n when n >= 0 -> N.of_int n
+    | `Intlit s -> get (N.of_string s)
+    | _ -> failwith "expected natural number"
 
-let rec instr_from_json = function
-  | `String "PushUnit" -> PushUnit
-  | `String "Ap" -> Ap
-  | `String "Ret" -> Ret
-  | `Assoc [ ("PushNat", j) ] -> PushNat (natural_json j)
-  | `Assoc [ ("PushBool", `Bool b) ] -> PushBool b
-  | `Assoc [ ("Print", j) ] -> Print (natural_json j)
-  | `Assoc [ ("Acc", j) ] -> Acc (identifier_json j)
-  | `Assoc [ ("MkCls", j) ] ->
-      MkCls
-        ( identifier_json (Utils.Json.field "param" j),
-          code_from_json (Utils.Json.field "code" j) )
-  | `Assoc [ ("MkRec", j) ] ->
-      MkRec
-        ( identifier_json (Utils.Json.field "name" j),
-          identifier_json (Utils.Json.field "param" j),
-          code_from_json (Utils.Json.field "code" j) )
-  | `Assoc [ ("BinOp", `String o) ] ->
-      BinOp
-        (match o with
-        | "Add" -> Add
-        | "Sub" -> Sub
-        | "And" -> And
-        | _ -> failwith "unknown binop")
-  | `Assoc [ ("UnOp", `String o) ] ->
-      UnOp
-        (match o with
-        | "Inc" -> Inc
-        | "Dec" -> Dec
-        | "Not" -> Not
-        | _ -> failwith "unknown unop")
-  | `Assoc [ ("If", j) ] ->
-      If
-        ( code_from_json (Utils.Json.field "then_code" j),
-          code_from_json (Utils.Json.field "else_code" j) )
-  | _ -> failwith "invalid SECD instruction"
+  let identifier_json j = get (Utils.Identifier.make (Utils.Json.string j))
 
-and code_from_json j = List.map instr_from_json (Utils.Json.list j)
+  let rec instr_from_json = function
+    | `String "PushUnit" -> PushUnit
+    | `String "Ap" -> Ap
+    | `String "Ret" -> Ret
+    | `Assoc [ ("PushNat", j) ] -> PushNat (natural_json j)
+    | `Assoc [ ("PushBool", `Bool b) ] -> PushBool b
+    | `Assoc [ ("Print", j) ] -> Print (natural_json j)
+    | `Assoc [ ("Acc", j) ] -> Acc (identifier_json j)
+    | `Assoc [ ("MkCls", j) ] ->
+        MkCls
+          ( identifier_json (Utils.Json.field "param" j),
+            code_from_json (Utils.Json.field "code" j) )
+    | `Assoc [ ("MkRec", j) ] ->
+        MkRec
+          ( identifier_json (Utils.Json.field "name" j),
+            identifier_json (Utils.Json.field "param" j),
+            code_from_json (Utils.Json.field "code" j) )
+    | `Assoc [ ("BinOp", `String o) ] ->
+        BinOp
+          (match o with
+          | "Add" -> Add
+          | "Sub" -> Sub
+          | "And" -> And
+          | _ -> failwith "unknown binop")
+    | `Assoc [ ("UnOp", `String o) ] ->
+        UnOp
+          (match o with
+          | "Inc" -> Inc
+          | "Dec" -> Dec
+          | "Not" -> Not
+          | _ -> failwith "unknown unop")
+    | `Assoc [ ("If", j) ] ->
+        If
+          ( code_from_json (Utils.Json.field "then_code" j),
+            code_from_json (Utils.Json.field "else_code" j) )
+    | _ -> failwith "invalid SECD instruction"
 
-let parse_code text =
-  let* j = Utils.Json.decode text in
-  Utils.Json.protect (fun () -> code_from_json j)
+  and code_from_json j = List.map instr_from_json (Utils.Json.list j)
 
-let print_code c = Yojson.Safe.pretty_to_string (code_json c)
+  let parse text =
+    let* j = Utils.Json.decode text in
+    Utils.Json.protect (fun () -> code_from_json j)
+
+  let print c = Yojson.Safe.pretty_to_string (code_json c)
+end
 
 let make code inputs =
   Ok
@@ -181,8 +190,8 @@ let value_text = function
   | VNat n -> N.to_string n
   | VBool b -> if b then "#true" else "#false"
   | VUnit -> "#unit"
-  | VFun (x, c, _) -> "closure " ^ x ^ " " ^ print_code c
-  | VRec (f, x, c, _) -> "recursive closure " ^ f ^ " " ^ x ^ " " ^ print_code c
+  | VFun (x, c, _) -> "closure " ^ x ^ " " ^ Code.print c
+  | VRec (f, x, c, _) -> "recursive closure " ^ f ^ " " ^ x ^ " " ^ Code.print c
 
 let lookup_env env x =
   match List.assoc_opt x env with
@@ -284,14 +293,14 @@ let render s =
   let open Utils.Render in
   state
     [
-      text ~title:"code" (print_code s.code);
+      text ~title:"code" (Code.print s.code);
       text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [
             "next";
             (match s.control with
             | [] -> "ret"
-            | i :: _ -> Yojson.Safe.to_string (instr_json i));
+            | i :: _ -> Yojson.Safe.to_string (Code.instr_json i));
           ];
           [ "dump_depth"; string_of_int (List.length s.dump) ];
         ];
@@ -300,7 +309,7 @@ let render s =
       assoc_table ~title:"env" ~columns:[ "name"; "value" ] value_text
         (List.rev s.env);
       indexed_table ~title:"control" ~columns:[ "pc"; "instr" ]
-        (fun i -> Yojson.Safe.to_string (instr_json i))
+        (fun i -> Yojson.Safe.to_string (Code.instr_json i))
         s.control;
       text_table ~title:"dump"
         ~columns:[ "depth"; "stack"; "env"; "control" ]

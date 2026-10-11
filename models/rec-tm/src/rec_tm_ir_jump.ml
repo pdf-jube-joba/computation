@@ -31,41 +31,46 @@ type foutput = T.tape
 type state = { program : code; pc : int; env : environment; tape : T.tape }
 [@@deriving yojson]
 
-let keywords = [ "alphabet"; "jump"; "if"; "const"; "LT"; "RT" ]
+module Code = struct
+  type t = code
 
-let parse_code =
-  parse (fun p ->
-      let alphabet = alphabet p in
-      let stmt () =
-        if L.eat_keyword p "LT" then Lt
-        else if L.eat_keyword p "RT" then Rt
-        else if L.eat_keyword p "jump" then
-          let c = condition ~keywords p in
-          let target = L.integer p in
-          Jump (target, c)
-        else
-          let dst = lvalue ~keywords p in
-          L.expect p ":=";
-          let src = rvalue ~keywords p in
-          Assign (dst, src)
-      in
-      let rec body () =
-        if L.eof p then []
-        else
-          let s = stmt () in
-          s :: body ()
-      in
-      { alphabet; body = body () })
+  let keywords = [ "alphabet"; "jump"; "if"; "const"; "LT"; "RT" ]
 
-let stmt_print = function
-  | Lt -> "LT"
-  | Rt -> "RT"
-  | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
-  | Jump (target, c) -> "jump" ^ condition_print c ^ " " ^ string_of_int target
+  let parse =
+    parse (fun p ->
+        let alphabet = alphabet p in
+        let stmt () =
+          if L.eat_keyword p "LT" then Lt
+          else if L.eat_keyword p "RT" then Rt
+          else if L.eat_keyword p "jump" then
+            let c = condition ~keywords p in
+            let target = L.integer p in
+            Jump (target, c)
+          else
+            let dst = lvalue ~keywords p in
+            L.expect p ":=";
+            let src = rvalue ~keywords p in
+            Assign (dst, src)
+        in
+        let rec body () =
+          if L.eof p then []
+          else
+            let s = stmt () in
+            s :: body ()
+        in
+        { alphabet; body = body () })
 
-let print p =
-  alphabet_print p.alphabet
-  ^ String.concat "" (List.map (fun s -> stmt_print s ^ "\n") p.body)
+  let stmt_print = function
+    | Lt -> "LT"
+    | Rt -> "RT"
+    | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
+    | Jump (target, c) ->
+        "jump" ^ condition_print c ^ " " ^ string_of_int target
+
+  let print p =
+    alphabet_print p.alphabet
+    ^ String.concat "" (List.map (fun s -> stmt_print s ^ "\n") p.body)
+end
 
 let collect_vars body =
   List.sort_uniq String.compare
@@ -135,7 +140,7 @@ let render s =
       Utils.Render.text ~title:"pc" (string_of_int s.pc);
       Utils.Render.text ~title:"next"
         (if s.pc >= List.length s.program.body then "halt"
-         else stmt_print (List.nth s.program.body s.pc));
+         else Code.stmt_print (List.nth s.program.body s.pc));
       render_env s.env;
       T.render_tape s.tape;
     ]
@@ -146,15 +151,14 @@ module Routput = Utils.Text.Unit
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

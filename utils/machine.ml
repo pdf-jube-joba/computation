@@ -5,16 +5,15 @@ type ('state, 'routput, 'foutput) step_result =
 module type TEXT = Text.S
 
 module type S = sig
-  type code
   type state
 
+  module Code : TEXT
   module Ainput : TEXT
   module Rinput : TEXT
   module Routput : TEXT
   module Foutput : TEXT
 
-  val parse_code : string -> (code, string) result
-  val make : code -> Ainput.t -> (state, string) result
+  val make : Code.t -> Ainput.t -> (state, string) result
 
   val step :
     state ->

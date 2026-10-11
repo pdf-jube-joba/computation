@@ -6,6 +6,9 @@ let bad = function Error _ -> () | Ok _ -> failwith "Expected error"
 let pin n p = (n, p)
 let advance c xs = ok (step c xs)
 
+let code_roundtrip circuit =
+  assert (ok (Code.parse (Code.print circuit)) = circuit)
+
 let value c =
   match get_otputs c with
   | [ (_, b) ] -> b
@@ -66,14 +69,22 @@ let () =
   let code =
     "/* comment */ graph: main {in {I} out {O=A.OUT} A, NOT_F {IN=I}}"
   in
-  let main = ok (parse_code code) in
+  let main = ok (Code.parse code) in
   assert (
-    ok (parse_code ("/* nested opener /* closes at first terminator */" ^ code))
+    ok (Code.parse ("/* nested opener /* closes at first terminator */" ^ code))
     = main);
-  bad (parse_code ("/* nested opener /* */ */" ^ code));
-  bad (parse_code "/* unclosed graph: main {in {} out {}}");
-  assert (ok (parse_code ("// /* ignored opener\n" ^ code)) = main);
-  assert (print_code main = "logic_circuit");
+  bad (Code.parse ("/* nested opener /* */ */" ^ code));
+  bad (Code.parse "/* unclosed graph: main {in {} out {}}");
+  assert (ok (Code.parse ("// /* ignored opener\n" ^ code)) = main);
+  code_roundtrip main;
+  List.iter
+    (fun kind ->
+      List.iter
+        (fun state -> code_roundtrip (new_gate kind state))
+        [ false; true ])
+    [ Cst; Not; And; Or; Br; Delay; End ];
+  bad (Code.parse "[");
+  bad (Code.parse "[\"Unknown\"]");
   assert (get_inpins main = [ pin "main" "I" ]);
   assert (Signal.print (get_otputs (advance main [])) = "main.O=#true");
   assert (not (value (advance main [ (pin "main" "I", true) ])));
@@ -84,26 +95,26 @@ let () =
          [ (pin "main" "UNKNOWN", true); (pin "UNKNOWN" "IN", true) ]));
   (* Maps targeting absent vertices are accepted, exactly as in Rust. *)
   let permissive =
-    ok (parse_code "graph: main { in {A, d} out {a=b.c} A, AND_T {} }")
+    ok (Code.parse "graph: main { in {A, d} out {a=b.c} A, AND_T {} }")
   in
   assert (get_otpins permissive = [ pin "A" "OUT" ]);
   let permissive_json = render permissive |> Yojson.Safe.to_string in
   assert (String.length permissive_json > 0);
-  bad (parse_code "graph: main {in {} out {} A, NOT_F {} A, NOT_T {}}");
-  bad (parse_code "graph: main {in {} out {} A, NOT_F {IN=absent.OUT}}");
-  bad (parse_code "graph: main {in {} out {} A, NOT_F {IN=X}}");
-  bad (parse_code "graph: main {in {} out {} A, NO_SUCH_GATE {}}");
+  bad (Code.parse "graph: main {in {} out {} A, NOT_F {} A, NOT_T {}}");
+  bad (Code.parse "graph: main {in {} out {} A, NOT_F {IN=absent.OUT}}");
+  bad (Code.parse "graph: main {in {} out {} A, NOT_F {IN=X}}");
+  bad (Code.parse "graph: main {in {} out {} A, NO_SUCH_GATE {}}");
   bad
-    (parse_code
+    (Code.parse
        "graph: main {in {} out {} A, BR_F {} B, DLY_F {IN=A.OUT0} C, DLY_F \
         {IN=A.OUT0}}");
   bad
-    (parse_code
+    (Code.parse
        "graph: main {in {} out {} A, DLY_F {} B, AND_F {IN0=A.OUT IN0=A.OUT}}");
-  bad (parse_code "graph: _bad { in {} out {} } trailing");
-  bad (parse_code "graph: 123 {in {} out {}}");
-  bad (parse_code "");
-  let duplicate = ok (parse_code (code ^ " graph: main {in {} out {}}")) in
+  bad (Code.parse "graph: _bad { in {} out {} } trailing");
+  bad (Code.parse "graph: 123 {in {} out {}}");
+  bad (Code.parse "");
+  let duplicate = ok (Code.parse (code ^ " graph: main {in {} out {}}")) in
   assert (duplicate = main);
   let signal = ok (Rinput.parse " A.IN=#true, B.OUT=#false ") in
   assert (ok (Rinput.parse "\tA.IN=\r#true\n, B.OUT=#false\012") = signal);
@@ -159,6 +170,7 @@ let () =
   | `List [ _; _; _; _ ] -> ()
   | _ -> failwith "Expected four render blocks");
   let library = ok (Example.utils_map ()) in
+  List.iter (fun (_, circuit) -> code_roundtrip circuit) library;
   assert (
     List.map fst (Manipulation.init_maps ())
     = [
@@ -216,7 +228,7 @@ let () =
       assert (ok (restore (snapshot c)) = c);
       assert (List.length (as_graph_group c).verts > 0))
     [ "RS_latch"; "DFF" ];
-  let iter = ok (parse_code "iter: main {DLY_F, next {OUT=IN} prev {}}") in
+  let iter = ok (Code.parse "iter: main {DLY_F, next {OUT=IN} prev {}}") in
   assert (get_inpins iter = [] && get_otputs iter = [] && advance iter [] = iter);
   (* Typed callers can seed the decimal index that Rust's text Identifier
      cannot express. Generated _n_ labels remain distinct and ignored. *)
@@ -232,6 +244,10 @@ let () =
   assert (
     (as_graph_group extended).edges = [ (pin "_0_" "OUT", pin "_1_" "IN") ]);
   assert (ok (restore (snapshot extended)) = extended);
+  code_roundtrip extended;
+  (match extended with
+  | Iter i -> bad (Code.parse (Code.print (Iter { i with kind = "bad-name" })))
+  | _ -> assert false);
   bad (step iter [ (pin "10" "IN", true) ]);
   let backwards =
     ok (new_iter "back" (new_gate Delay false) [] [ ("OUT", "IN") ])

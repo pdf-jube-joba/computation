@@ -19,8 +19,7 @@ type state = {
 }
 [@@deriving yojson]
 
-let parse_code = Numbers.parse
-let print = Numbers.print
+module Code = Numbers
 
 let make code (input : ainput) =
   Utils.Lexer.protect (fun () ->
@@ -110,15 +109,14 @@ module Routput = Utils.Text.Unit
 module Foutput = Ainput
 
 module Machine = struct
+  module Code = Code
   module Ainput = Ainput
   module Rinput = Rinput
   module Routput = Routput
   module Foutput = Foutput
 
-  type nonrec code = code
   type nonrec state = state
 
-  let parse_code = parse_code
   let make = make
   let step = step
   let snapshot = snapshot

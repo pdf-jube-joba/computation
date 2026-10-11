@@ -31,32 +31,178 @@ and stmt =
 
 type print_effect = N.t option [@@deriving yojson]
 
-let print_binop = function Add -> "+" | Sub -> "-" | And -> "&&"
-let print_unop = function Inc -> "inc" | Dec -> "dec" | Not -> "not"
+module Code = struct
+  type t = expr
 
-let rec print = function
-  | Nat n -> N.to_string n
-  | Bool true -> "#true"
-  | Bool false -> "#false"
-  | Unit -> "#unit"
-  | Print n -> "print " ^ N.to_string n
-  | Var x -> x
-  | BinOp (a, o, b) -> "(" ^ print a ^ " " ^ print_binop o ^ " " ^ print b ^ ")"
-  | UnOp (o, e) -> "(" ^ print_unop o ^ " " ^ print e ^ ")"
-  | Fun (x, b) -> "(fun " ^ x ^ " => " ^ print b ^ ")"
-  | Rec (f, x, b) -> "(rec " ^ f ^ " " ^ x ^ " => " ^ print b ^ ")"
-  | App (f, x) -> print f ^ "(" ^ print x ^ ")"
-  | If (c, t, e) ->
-      "(if " ^ print c ^ " then " ^ print t ^ " else " ^ print e ^ " fi)"
-  | Block (s, e) -> "{ " ^ print_stmt s ^ "; " ^ print e ^ " }"
+  let print_binop = function Add -> "+" | Sub -> "-" | And -> "&&"
+  let print_unop = function Inc -> "inc" | Dec -> "dec" | Not -> "not"
 
-and print_stmt = function
-  | Skip -> "skip"
-  | PrintStmt n -> "print " ^ N.to_string n
-  | Seq (a, b) -> print_stmt a ^ "; " ^ print_stmt b
-  | Let (x, e) -> "let " ^ x ^ " := " ^ print e
-  | IfStmt (c, s) -> "if " ^ print c ^ " then " ^ print_stmt s ^ " end"
-  | While (c, s) -> "while " ^ print c ^ " do " ^ print_stmt s ^ " end"
+  let rec print = function
+    | Nat n -> N.to_string n
+    | Bool true -> "#true"
+    | Bool false -> "#false"
+    | Unit -> "#unit"
+    | Print n -> "print " ^ N.to_string n
+    | Var x -> x
+    | BinOp (a, o, b) ->
+        "(" ^ print a ^ " " ^ print_binop o ^ " " ^ print b ^ ")"
+    | UnOp (o, e) -> "(" ^ print_unop o ^ " " ^ print e ^ ")"
+    | Fun (x, b) -> "(fun " ^ x ^ " => " ^ print b ^ ")"
+    | Rec (f, x, b) -> "(rec " ^ f ^ " " ^ x ^ " => " ^ print b ^ ")"
+    | App (f, x) -> print f ^ "(" ^ print x ^ ")"
+    | If (c, t, e) ->
+        "(if " ^ print c ^ " then " ^ print t ^ " else " ^ print e ^ " fi)"
+    | Block (s, e) -> "{ " ^ print_stmt s ^ "; " ^ print e ^ " }"
+
+  and print_stmt = function
+    | Skip -> "skip"
+    | PrintStmt n -> "print " ^ N.to_string n
+    | Seq (a, b) -> print_stmt a ^ "; " ^ print_stmt b
+    | Let (x, e) -> "let " ^ x ^ " := " ^ print e
+    | IfStmt (c, s) -> "if " ^ print c ^ " then " ^ print_stmt s ^ " end"
+    | While (c, s) -> "while " ^ print c ^ " do " ^ print_stmt s ^ " end"
+
+  let reserved statements x =
+    List.mem x
+      ([
+         "print"; "fun"; "rec"; "if"; "then"; "else"; "fi"; "inc"; "dec"; "not";
+       ]
+      @ if statements then [ "skip"; "let"; "while"; "do"; "end" ] else [])
+
+  let identifier statements p =
+    let x = L.identifier p in
+    if reserved statements x then
+      L.error p ("identifier expected, found keyword '" ^ x ^ "'");
+    x
+
+  let number p =
+    match N.of_string (L.natural p) with Ok n -> n | Error e -> L.error p e
+
+  let rec expression statements p =
+    if L.peek p = L.Ident "if" then if_expr statements p
+    else binary statements p
+
+  and if_expr statements p =
+    L.expect_keyword p "if";
+    let c = expression statements p in
+    L.expect_keyword p "then";
+    let t = expression statements p in
+    L.expect_keyword p "else";
+    let e = expression statements p in
+    L.expect_keyword p "fi";
+    If (c, t, e)
+
+  and binary statements p =
+    let rec loop a =
+      let op =
+        if L.eat_symbol p '+' then Some Add
+        else if L.eat_symbol p '-' then Some Sub
+        else if L.eat p "&&" then Some And
+        else None
+      in
+      match op with
+      | None -> a
+      | Some op ->
+          let b = application statements p in
+          loop (BinOp (a, op, b))
+    in
+    loop (application statements p)
+
+  and application statements p =
+    let rec loop f =
+      if L.eat_symbol p '(' then (
+        let x = expression statements p in
+        L.expect_symbol p ')';
+        loop (App (f, x)))
+      else f
+    in
+    loop (prefix statements p)
+
+  and prefix statements p =
+    if L.eat_keyword p "inc" then UnOp (Inc, prefix statements p)
+    else if L.eat_keyword p "dec" then UnOp (Dec, prefix statements p)
+    else if L.eat_keyword p "not" then UnOp (Not, prefix statements p)
+    else atom statements p
+
+  and atom statements p =
+    match L.peek p with
+    | L.Number _ -> Nat (number p)
+    | L.Symbol '#' -> (
+        ignore (L.next p);
+        match L.identifier p with
+        | "true" -> Bool true
+        | "false" -> Bool false
+        | "unit" -> Unit
+        | k -> L.error p ("unknown token: #" ^ k))
+    | L.Ident "print" when not statements ->
+        ignore (L.next p);
+        Print (number p)
+    | L.Ident "fun" ->
+        ignore (L.next p);
+        let x = identifier statements p in
+        L.expect p "=>";
+        Fun (x, expression statements p)
+    | L.Ident "rec" ->
+        ignore (L.next p);
+        let f = identifier statements p in
+        let x = identifier statements p in
+        L.expect p "=>";
+        Rec (f, x, expression statements p)
+    | L.Ident "if" -> if_expr statements p
+    | L.Symbol '(' ->
+        ignore (L.next p);
+        let e = expression statements p in
+        L.expect_symbol p ')';
+        e
+    | L.Symbol '{' when statements ->
+        ignore (L.next p);
+        let s, e = block_contents p in
+        L.expect_symbol p '}';
+        Block (s, e)
+    | _ -> Var (identifier statements p)
+
+  and simple_stmt p =
+    if L.eat_keyword p "skip" then Skip
+    else if L.eat_keyword p "print" then PrintStmt (number p)
+    else if L.eat_keyword p "let" then (
+      let x = identifier true p in
+      L.expect p ":=";
+      Let (x, expression true p))
+    else if L.eat_keyword p "if" then (
+      let c = expression true p in
+      L.expect_keyword p "then";
+      let s = statement p in
+      L.expect_keyword p "end";
+      IfStmt (c, s))
+    else if L.eat_keyword p "while" then (
+      let c = expression true p in
+      L.expect_keyword p "do";
+      let s = statement p in
+      L.expect_keyword p "end";
+      While (c, s))
+    else L.error p "statement expected"
+
+  and statement p =
+    let rec loop s =
+      if L.eat_symbol p ';' then
+        let t = simple_stmt p in
+        loop (Seq (s, t))
+      else s
+    in
+    loop (simple_stmt p)
+
+  and block_contents p =
+    let s = simple_stmt p in
+    L.expect_symbol p ';';
+    let saved = p.L.pos in
+    match L.protect (fun () -> block_contents p) with
+    | Ok (t, e) -> (Seq (s, t), e)
+    | Error _ ->
+        p.L.pos <- saved;
+        (s, expression true p)
+
+  let parse = L.parse (expression false)
+end
 
 let is_value = function
   | Nat _ | Bool _ | Unit | Fun _ | Rec _ -> true
@@ -68,144 +214,11 @@ let expect_nat = function
 
 let apply_inputs e inputs = List.fold_left (fun e n -> App (e, Nat n)) e inputs
 
-let reserved statements x =
-  List.mem x
-    ([ "print"; "fun"; "rec"; "if"; "then"; "else"; "fi"; "inc"; "dec"; "not" ]
-    @ if statements then [ "skip"; "let"; "while"; "do"; "end" ] else [])
+module Stmt_code = struct
+  include Code
 
-let identifier statements p =
-  let x = L.identifier p in
-  if reserved statements x then
-    L.error p ("identifier expected, found keyword '" ^ x ^ "'");
-  x
-
-let number p =
-  match N.of_string (L.natural p) with Ok n -> n | Error e -> L.error p e
-
-let rec expression statements p =
-  if L.peek p = L.Ident "if" then if_expr statements p else binary statements p
-
-and if_expr statements p =
-  L.expect_keyword p "if";
-  let c = expression statements p in
-  L.expect_keyword p "then";
-  let t = expression statements p in
-  L.expect_keyword p "else";
-  let e = expression statements p in
-  L.expect_keyword p "fi";
-  If (c, t, e)
-
-and binary statements p =
-  let rec loop a =
-    let op =
-      if L.eat_symbol p '+' then Some Add
-      else if L.eat_symbol p '-' then Some Sub
-      else if L.eat p "&&" then Some And
-      else None
-    in
-    match op with
-    | None -> a
-    | Some op ->
-        let b = application statements p in
-        loop (BinOp (a, op, b))
-  in
-  loop (application statements p)
-
-and application statements p =
-  let rec loop f =
-    if L.eat_symbol p '(' then (
-      let x = expression statements p in
-      L.expect_symbol p ')';
-      loop (App (f, x)))
-    else f
-  in
-  loop (prefix statements p)
-
-and prefix statements p =
-  if L.eat_keyword p "inc" then UnOp (Inc, prefix statements p)
-  else if L.eat_keyword p "dec" then UnOp (Dec, prefix statements p)
-  else if L.eat_keyword p "not" then UnOp (Not, prefix statements p)
-  else atom statements p
-
-and atom statements p =
-  match L.peek p with
-  | L.Number _ -> Nat (number p)
-  | L.Symbol '#' -> (
-      ignore (L.next p);
-      match L.identifier p with
-      | "true" -> Bool true
-      | "false" -> Bool false
-      | "unit" -> Unit
-      | k -> L.error p ("unknown token: #" ^ k))
-  | L.Ident "print" when not statements ->
-      ignore (L.next p);
-      Print (number p)
-  | L.Ident "fun" ->
-      ignore (L.next p);
-      let x = identifier statements p in
-      L.expect p "=>";
-      Fun (x, expression statements p)
-  | L.Ident "rec" ->
-      ignore (L.next p);
-      let f = identifier statements p in
-      let x = identifier statements p in
-      L.expect p "=>";
-      Rec (f, x, expression statements p)
-  | L.Ident "if" -> if_expr statements p
-  | L.Symbol '(' ->
-      ignore (L.next p);
-      let e = expression statements p in
-      L.expect_symbol p ')';
-      e
-  | L.Symbol '{' when statements ->
-      ignore (L.next p);
-      let s, e = block_contents p in
-      L.expect_symbol p '}';
-      Block (s, e)
-  | _ -> Var (identifier statements p)
-
-and simple_stmt p =
-  if L.eat_keyword p "skip" then Skip
-  else if L.eat_keyword p "print" then PrintStmt (number p)
-  else if L.eat_keyword p "let" then (
-    let x = identifier true p in
-    L.expect p ":=";
-    Let (x, expression true p))
-  else if L.eat_keyword p "if" then (
-    let c = expression true p in
-    L.expect_keyword p "then";
-    let s = statement p in
-    L.expect_keyword p "end";
-    IfStmt (c, s))
-  else if L.eat_keyword p "while" then (
-    let c = expression true p in
-    L.expect_keyword p "do";
-    let s = statement p in
-    L.expect_keyword p "end";
-    While (c, s))
-  else L.error p "statement expected"
-
-and statement p =
-  let rec loop s =
-    if L.eat_symbol p ';' then
-      let t = simple_stmt p in
-      loop (Seq (s, t))
-    else s
-  in
-  loop (simple_stmt p)
-
-and block_contents p =
-  let s = simple_stmt p in
-  L.expect_symbol p ';';
-  let saved = p.L.pos in
-  match L.protect (fun () -> block_contents p) with
-  | Ok (t, e) -> (Seq (s, t), e)
-  | Error _ ->
-      p.L.pos <- saved;
-      (s, expression true p)
-
-let parse_code = L.parse (expression false)
-let parse_stmt_code = L.parse (expression true)
+  let parse = L.parse (expression true)
+end
 
 let rec free_vars = function
   | Nat _ | Bool _ | Unit | Print _ -> Names.empty

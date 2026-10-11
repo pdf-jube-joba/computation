@@ -22,8 +22,8 @@ let () =
     "fn main { run child -> $t; if done $t goto +2; yield; x <- 1 }\n\
      fn child { y <- 1 }"
   in
-  let code = ok (C.parse_code text) in
-  assert (ok (C.parse_code (C.print code)) = code);
+  let code = ok (C.Code.parse text) in
+  assert (ok (C.Code.parse (C.Code.print code)) = code);
   let env, trace = run 60 (ok (C.make code 1)) [] in
   assert (C.get_var env "x" = N.one);
   assert (C.get_var env "y" = N.one);
@@ -45,7 +45,7 @@ let () =
       ]);
   let code =
     ok
-      (C.parse_code
+      (C.Code.parse
          "// comment\n\
           fn main { x <- 2 + 3 * 4; call inc; y <- 2 - 9; if !done $t || x == \
           15 goto +2; yield }\n\
@@ -71,7 +71,7 @@ let () =
   assert (C.get_var a.env "x" = "15");
   let code =
     ok
-      (C.parse_code
+      (C.Code.parse
          "fn main { x <- 2; if x == 2 && (x != 3 || !x < 9) goto +2; x <- 9; y \
           <- 5 * (4 + 2) - 99 }")
   in
@@ -79,16 +79,16 @@ let () =
   assert (C.get_var env "x" = "2");
   assert (C.get_var env "y" = "0");
   let code =
-    ok (C.parse_code "fn main { x <- 0; x <- x + 1; if x < 3 goto -1 }")
+    ok (C.Code.parse "fn main { x <- 0; x <- x + 1; if x < 3 goto -1 }")
   in
   let env, _ = run 40 (ok (C.make code 1)) [] in
   assert (C.get_var env "x" = "3");
   let code =
-    ok (C.parse_code "fn main { if 1 == 1 || done $missing goto +2; x <- 9 }")
+    ok (C.Code.parse "fn main { if 1 == 1 || done $missing goto +2; x <- 9 }")
   in
   let env, _ = run 20 (ok (C.make code 1)) [] in
   assert (env.vars = []);
-  let code = ok (C.parse_code "fn main { x <- 1 }") in
+  let code = ok (C.Code.parse "fn main { x <- 1 }") in
   let s = ok (C.make code 2) in
   let s, _ = next s 0 in
   assert (
@@ -101,11 +101,11 @@ let () =
   assert (C.Foutput.print env = "a = 3\nz = 2\n$t = none\n$u = 4\n");
   assert (ok (C.Foutput.parse (C.Foutput.print env)) = env);
   error (C.make code 0);
-  error (C.make (ok (C.parse_code "fn other {}")) 1);
-  error (C.make (ok (C.parse_code "fn main {}\nfn main {}")) 1);
+  error (C.make (ok (C.Code.parse "fn other {}")) 1);
+  error (C.make (ok (C.Code.parse "fn main {}\nfn main {}")) 1);
   List.iter
     (fun text ->
-      let s = ok (C.make (ok (C.parse_code text)) 1) in
+      let s = ok (C.make (ok (C.Code.parse text)) 1) in
       let s, _ = next s 0 in
       error (C.step s 0))
     [
@@ -114,12 +114,12 @@ let () =
       "fn main { goto -1 }";
       "fn main { if done $missing goto +1 }";
     ];
-  let s = ok (C.make (ok (C.parse_code "fn main { goto +5 }")) 1) in
+  let s = ok (C.make (ok (C.Code.parse "fn main { goto +5 }")) 1) in
   let s, _ = next s 0 in
   let s, _ = next s 0 in
   error (C.step s 0);
   List.iter
-    (fun text -> error (C.parse_code text))
+    (fun text -> error (C.Code.parse text))
     [
       "";
       "fn main {";
@@ -130,12 +130,12 @@ let () =
   assert (match C.render s2 with `List [ _; _; _; _; _ ] -> true | _ -> false);
   let code =
     ok
-      (C.parse_code
+      (C.Code.parse
          "fn main { foo_bar <- 7; call child_task; run child_task -> $task_id; \
           yield }\n\
           fn child_task { result <- 3 }")
   in
-  assert (ok (C.parse_code (C.print code)) = code);
+  assert (ok (C.Code.parse (C.Code.print code)) = code);
   let env, _ = run 40 (ok (C.make code 1)) [] in
   assert (C.get_var env "foo_bar" = "7" && C.get_var env "result" = "3");
   assert (List.assoc "task_id" env.task_ids = Some 1);

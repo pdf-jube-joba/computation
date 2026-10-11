@@ -6,7 +6,7 @@ module Make (M : S) = struct
   let create () = { state = None }
 
   let make session code ainput =
-    let* code = M.parse_code code in
+    let* code = M.Code.parse code in
     let* ainput = M.Ainput.parse ainput in
     let* state = M.make code ainput in
     session.state <- Some state;

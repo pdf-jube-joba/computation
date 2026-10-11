@@ -5,7 +5,8 @@ type entry = Model of (module Machine.S) | Compiler of Compiler.api
 let counter_compiler : Compiler.api =
   {
     compile_code =
-      (fun text -> Result.map string_of_int (Example_counter.parse_code text));
+      (fun text ->
+        Result.map Example_counter.Code.print (Example_counter.Code.parse text));
     encode_ainput =
       (fun text ->
         Result.map Example_counter.Ainput.print

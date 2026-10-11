@@ -15,7 +15,7 @@ let run ?(input = "") code ainput =
     | Continue { next; output } -> loop (fuel - 1) next (out ^ output)
   in
   loop 1000
-    (get (I.make (get (I.parse_code code)) (get (I.Ainput.parse ainput))))
+    (get (I.make (get (I.Code.parse code)) (get (I.Ainput.parse ainput))))
     ""
 
 let () =
@@ -32,16 +32,18 @@ let () =
 :r2 { :entry { lget %len; pop %tmp; push %len; hfree #1; halt; } }
 |}
   in
-  let parsed = get (I.parse_code code) in
-  if get (I.parse_code (I.print parsed)) <> parsed then failwith "Roundtrip";
+  let parsed = get (I.Code.parse code) in
+  if get (I.Code.parse (I.Code.print parsed)) <> parsed then
+    failwith "Roundtrip";
   let dense =
     get
-      (I.parse_code
+      (I.Code.parse
          {|@slot 0 // static
 /* region */ :main{:entry{%p:=ref @slot;if %cond=#0 then :next;goto %p;}
 :next{halloc(#3)%h;hacc(%h)[#1]:=st #7;%x:=ld hacc(%h)[#1];halt;}}|})
   in
-  if get (I.parse_code (I.print dense)) <> dense then failwith "Dense roundtrip";
+  if get (I.Code.parse (I.Code.print dense)) <> dense then
+    failwith "Dense roundtrip";
   List.iter
     (fun s ->
       let v = get (I.Ainput.parse_value s) in
@@ -92,19 +94,19 @@ let () =
     run ("@x 0\n:main{:entry{%n:=#" ^ huge ^ ";%n:=%n+#1;@x:=st %n;halt;}}") ""
   in
   eq (I.Ainput.print_value (List.assoc "x" out)) (Utils.Number.succ huge);
-  error (I.make (get (I.parse_code ":other{:entry{halt;}}")) []);
-  error (I.make (get (I.parse_code "@x 0 @x 1 :main{:entry{halt;}}")) []);
-  error (I.make (get (I.parse_code ":main{:entry{halt;}:entry{halt;}}")) []);
+  error (I.make (get (I.Code.parse ":other{:entry{halt;}}")) []);
+  error (I.make (get (I.Code.parse "@x 0 @x 1 :main{:entry{halt;}}")) []);
+  error (I.make (get (I.Code.parse ":main{:entry{halt;}:entry{halt;}}")) []);
   error
     (I.make
-       (get (I.parse_code "@x 0 :main{:entry{halt;}}"))
+       (get (I.Code.parse "@x 0 :main{:entry{halt;}}"))
        [ ("y", I.Num "1") ]);
-  error (I.parse_code ":main{:entry{nop;}}");
-  let s = get (I.make (get (I.parse_code ":main{:entry{pop %a;halt;}}")) []) in
+  error (I.Code.parse ":main{:entry{nop;}}");
+  let s = get (I.make (get (I.Code.parse ":main{:entry{pop %a;halt;}}")) []) in
   error (I.step s "");
   let s =
     get
-      (I.make (get (I.parse_code ":main{:entry{%a:=#255;print %a;halt;}}")) [])
+      (I.make (get (I.Code.parse ":main{:entry{%a:=#255;print %a;halt;}}")) [])
   in
   let s =
     match get (I.step s "") with
@@ -116,7 +118,7 @@ let () =
     get
       (I.make
          (get
-            (I.parse_code
+            (I.Code.parse
                ":main{:entry{if #1=#1 then :other;halt;}}:other{:entry{halt;}}"))
          [])
   in

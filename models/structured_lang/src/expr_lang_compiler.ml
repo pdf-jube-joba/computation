@@ -146,7 +146,7 @@ let decode_routput _ = Ok ()
 let decode_foutput = decode_foutput "expr"
 
 let api =
-  text_api ~parse_code:E.parse_code ~compile ~parse_ainput:E.Ainput.parse
+  text_api ~parse_code:E.Code.parse ~compile ~parse_ainput:E.Ainput.parse
     ~encode_ainput ~print_ainput:I.Ainput.print ~parse_rinput:E.Rinput.parse
     ~encode_rinput
     ~decode_routput:(fun _ -> Ok "")

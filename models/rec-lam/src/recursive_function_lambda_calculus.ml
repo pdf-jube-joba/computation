@@ -206,15 +206,15 @@ let decode_routput () = Ok ()
 let decode_foutput term =
   match lambda_term_to_number term with
   | Some number -> Ok number
-  | None -> Error ("failed to decode Church numeral: " ^ Target.print term)
+  | None -> Error ("failed to decode Church numeral: " ^ Target.Code.print term)
 
 let api : Utils.Compiler.api =
   {
     compile_code =
       (fun text ->
-        let* func = Source.parse_code text in
+        let* func = Source.Code.parse text in
         let* term = compile func in
-        Ok (Target.print term));
+        Ok (Target.Code.print term));
     encode_ainput =
       (fun text ->
         let* input = Source.Ainput.parse text in

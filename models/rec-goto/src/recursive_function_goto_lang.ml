@@ -152,9 +152,9 @@ let api : Utils.Compiler.api =
   {
     compile_code =
       (fun text ->
-        let* func = Source.parse_code text in
+        let* func = Source.Code.parse text in
         let* code = compile func in
-        Ok (terminate (Target.print_code code)));
+        Ok (terminate (Target.Code.print code)));
     encode_ainput =
       (fun text ->
         let* input = Source.Ainput.parse text in
