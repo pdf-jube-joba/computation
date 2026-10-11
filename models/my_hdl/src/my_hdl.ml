@@ -244,7 +244,6 @@ let field_state = "STATE"
 let field_next = "NEXT"
 let field_this = "THIS"
 let field_prev = "PREV"
-let simple_now_state (machine : simple_module_state) = machine.state
 
 let simple_get_otput (machine : simple_module_state) =
   eval_to_val machine.otput_func.mod_env
@@ -377,7 +376,6 @@ let iter_clock (machine : iter_module_state) input =
 module Parser = struct
   module L = Utils.Lexer
 
-  let name = L.identifier
   let block p closing item = L.many_until ~skip_separator:',' p ~closing item
 
   let rec value p =
@@ -387,7 +385,7 @@ module Parser = struct
     else if L.eat_symbol p '{' then
       let fields =
         block p '}' (fun p ->
-            let name = name p in
+            let name = L.identifier p in
             L.expect_symbol p ':';
             let value = value p in
             (name, value))
@@ -396,26 +394,10 @@ module Parser = struct
       | Some value -> value
       | None -> L.error p "field 名がかぶってそう"
     else if L.eat_symbol p '<' then (
-      let name = name p in
+      let name = L.identifier p in
       L.expect_symbol p '>';
       Value.Enume name)
     else L.error p "expected value"
 
   let parse_value = L.parse ~nested_comments:false value
 end
-
-module Interface = struct
-  let parse_value = Parser.parse_value
-end
-
-let parse_value = Parser.parse_value
-
-(* No Machine.S or compiler api is exposed: Rust had no complete source-code
-   parser, machine constructor, general module interpreter, or compiler. *)
-let unsupported_capabilities =
-  [
-    "Type/expression/module source parser";
-    "Simple module construction";
-    "General module state/output/clock dispatch";
-    "HDL-to-logic-circuit compiler";
-  ]

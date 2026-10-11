@@ -70,7 +70,7 @@ module Code = struct
       L.expect_symbol p ']';
       While (c, b))
     else if L.eat_keyword p "call" then (
-      let n = ident p in
+      let n = L.identifier p in
       L.expect_symbol p '(';
       let args = names_until p ')' in
       L.expect p ") ->";
@@ -82,7 +82,7 @@ module Code = struct
       L.expect_symbol p ']';
       s)
     else
-      let v = ident p in
+      let v = L.identifier p in
       L.expect p ":=";
       Assign (v, parse_aexp p)
 
@@ -94,7 +94,7 @@ module Code = struct
         let rec procs acc =
           if L.eof p then List.rev acc
           else
-            let name = ident p in
+            let name = L.identifier p in
             L.expect_symbol p '(';
             let params = names_until p ')' in
             L.expect p ") [ local";
@@ -143,13 +143,13 @@ let with_implicit_return s = if ends_with_return s then s else Seq (s, Return []
 let lookup_var s v =
   match List.assoc_opt v s.local_env with
   | Some n -> n
-  | None -> lookup v s.global_env ("Unknown variable: " ^ v)
+  | None -> Utils.Assoc.lookup v s.global_env ("Unknown variable: " ^ v)
 
 let assign_var s v n =
   if List.mem_assoc v s.local_env then
-    { s with local_env = set v n s.local_env }
+    { s with local_env = Utils.Assoc.set v n s.local_env }
   else if List.mem_assoc v s.global_env then
-    { s with global_env = set v n s.global_env }
+    { s with global_env = Utils.Assoc.set v n s.global_env }
   else failwith ("Unknown variable: " ^ v)
 
 let call_into s name args rets continuation =
@@ -165,10 +165,10 @@ let call_into s name args rets continuation =
   let values = List.map (lookup_var s) args in
   let local_env =
     List.fold_left
-      (fun e v -> set v N.zero e)
+      (fun e v -> Utils.Assoc.set v N.zero e)
       (List.combine p.params values)
       p.locals
-    |> sorted
+    |> Utils.Assoc.sorted
   in
   ( with_implicit_return p.body,
     {
@@ -209,9 +209,11 @@ let rec step_stmt s = function
               (List.combine frame.ret_vars values) ))
 
 let validate code =
-  unique (fun n -> "Duplicate static variable: " ^ n) code.statics;
-  unique
-    (fun n -> "Duplicate procedure name: " ^ n)
+  Utils.Identifier.check_unique
+    ~message:(fun n -> "Duplicate static variable: " ^ n)
+    code.statics;
+  Utils.Identifier.check_unique
+    ~message:(fun n -> "Duplicate procedure name: " ^ n)
     (List.map (fun p -> p.name) code.procs);
   List.iter
     (fun p ->
@@ -257,8 +259,9 @@ let make code global_env =
       {
         code;
         stmt = with_implicit_return main.body;
-        global_env = sorted global_env;
-        local_env = sorted (List.map (fun v -> (v, N.zero)) main.locals);
+        global_env = Utils.Assoc.sorted global_env;
+        local_env =
+          Utils.Assoc.sorted (List.map (fun v -> (v, N.zero)) main.locals);
         call_stack = [];
       })
 
@@ -279,9 +282,9 @@ let render s =
     [
       Utils.Render.text ~title:"stmt" (Code.stmt_to_text s.stmt);
       Utils.Render.text ~title:"global env"
-        (Env.print_inline (sorted s.global_env));
+        (Env.print_inline (Utils.Assoc.sorted s.global_env));
       Utils.Render.text ~title:"local env"
-        (Env.print_inline (sorted s.local_env));
+        (Env.print_inline (Utils.Assoc.sorted s.local_env));
       Utils.Render.text ~title:"call stack depth"
         (string_of_int (List.length s.call_stack));
     ]
@@ -289,8 +292,8 @@ let render s =
 module Ainput = struct
   type t = ainput
 
-  let parse text = Result.map sorted (Env.parse text)
-  let print = fun env -> Env.print (sorted env)
+  let parse text = Result.map Utils.Assoc.sorted (Env.parse text)
+  let print = fun env -> Env.print (Utils.Assoc.sorted env)
 end
 
 module Rinput = Utils.Text.String

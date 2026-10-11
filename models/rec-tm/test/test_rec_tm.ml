@@ -34,20 +34,20 @@ let equivalent text input expected =
   let p = get (I.Code.parse text) in
   let t = tape input in
   let output = run_ir p t in
-  check "IR result" (T.tape_equal output (tape expected));
+  check "IR result" (T.Tape.equal output (tape expected));
   let jump = get (Compile_jump.compile p) in
   check "jump roundtrip" (get (J.Code.parse (J.Code.print jump)) = jump);
-  check "IR to jump equivalence" (T.tape_equal output (run_jump jump t));
+  check "IR to jump equivalence" (T.Tape.equal output (run_jump jump t));
   let tm = get (Compile_tm.compile jump) in
   check "Turing roundtrip" (get (T.Code.parse (T.Code.print tm)) = tm);
-  check "jump to Turing equivalence" (T.tape_equal output (run_tm tm t))
+  check "jump to Turing equivalence" (T.Tape.equal output (run_tm tm t))
 
 let helper make input expected =
   let ctx = C.create () in
   let f = make ctx in
   let p = C.wrap_function ctx f in
   let input = tape input and expected = tape expected in
-  check ("helper " ^ f.I.name) (T.tape_equal (run_ir p input) expected)
+  check ("helper " ^ f.I.name) (T.Tape.equal (run_ir p input) expected)
 
 let recursive f input expected =
   let t = get (C.write_usize input) in
@@ -58,11 +58,20 @@ let recursive f input expected =
     ("recursive result: " ^ R.Code.print f)
     (C.read_right_one_usize output = Some [ expected ]);
   let jump = get (Compile_jump.compile p) in
-  check "recursive IR-jump equivalence" (T.tape_equal output (run_jump jump t));
+  check "recursive IR-jump equivalence" (T.Tape.equal output (run_jump jump t));
   let tm = get (Compile_tm.compile jump) in
-  check "recursive jump-Turing equivalence" (T.tape_equal output (run_tm tm t))
+  check "recursive jump-Turing equivalence" (T.Tape.equal output (run_tm tm t))
 
 let () =
+  assert (
+    get
+      (I.Code.parse
+         "/* alphabet */ alphabet:(a,b) // entry\n\
+          fn main {label entry:{@:=const -}}")
+    = get (I.Code.parse "alphabet:(a,b) fn main {label entry:{@:=const -}}"));
+  assert (
+    get (J.Code.parse "alphabet:(a,b) /* blank */ @:=const - // tail")
+    = get (J.Code.parse "alphabet:(a,b) @:=const -"));
   equivalent
     "alphabet:(a,b) fn f { label entry:{ x:=@ } } fn main {label entry:{x:=@ \
      RT call f LT @:=x}}"
@@ -139,17 +148,17 @@ let () =
     | _ -> failwith "call step"
   in
   let restored = get (I.restore (I.snapshot s)) in
-  check "IR snapshot stack" (T.tape_equal (run I.step s) (run I.step restored));
+  check "IR snapshot stack" (T.Tape.equal (run I.step s) (run I.step restored));
   let p = get (J.Code.parse "alphabet:(a,b) v:=@ RT jump if v==@ 1 @:=v") in
   let s = get (J.make p (tape "|a|b")) in
   let restored = get (J.restore (J.snapshot s)) in
-  check "jump snapshot" (T.tape_equal (run J.step s) (run J.step restored));
+  check "jump snapshot" (T.Tape.equal (run J.step s) (run J.step restored));
   check "out of range jump"
     (Result.is_error
        (J.make (get (J.Code.parse "alphabet:(a) jump 2")) (tape "|-|")));
   let p = get (J.Code.parse "alphabet:(a,b) @:=missing") in
   check "blank env initialization"
-    (T.tape_equal
+    (T.Tape.equal
        (run_jump p (tape "|a|"))
        (run_tm (get (Compile_tm.compile p)) (tape "|a|")));
   List.iter
@@ -206,7 +215,7 @@ let () =
         | [] -> []
       in
       check "pred tuple"
-        (T.tape_equal
+        (T.Tape.equal
            (run_ir p (get (C.write_usize ns)))
            (get (C.write_usize expected))))
     [ [ 1; 1 ]; [ 1; 0 ]; [ 1 ]; [ 0; 2 ]; [ 0 ] ];
@@ -229,9 +238,9 @@ let () =
       ("primitive/mu result " ^ R.Code.print f ^ " tape=" ^ T.Tape.print out)
       (C.read_right_one_usize out = Some [ expected ]);
     let jump = get (Compile_jump.compile p) in
-    check "primitive/mu jump equivalence" (T.tape_equal out (run_jump jump t));
+    check "primitive/mu jump equivalence" (T.Tape.equal out (run_jump jump t));
     let tm = get (Compile_tm.compile jump) in
-    check "primitive/mu Turing equivalence" (T.tape_equal out (run_tm tm t));
+    check "primitive/mu Turing equivalence" (T.Tape.equal out (run_tm tm t));
     check "reachable compiler state count" (List.length tm.T.code < 100000)
   in
   let identity = R.Prim (R.Zero, R.Comp (R.Succ, [ R.Proj (2, 0) ])) in
@@ -271,6 +280,18 @@ let () =
   check "mu divergence in Turing" (still_running T.step (get (T.make tm t)));
   let encoded = get (C.api.encode_ainput "(2,0)") in
   check "compiler encoded input" (encoded = "|x|-,l,l,-,x");
+  List.iter
+    (fun (api : Utils.Compiler.api) ->
+      check "canonical tape input" (get (api.encode_ainput " | a | ") = "|a|");
+      check "canonical tape output" (get (api.decode_foutput " | a | ") = "|a|");
+      check "invalid tape input" (Result.is_error (api.encode_ainput "invalid"));
+      check "invalid tape output"
+        (Result.is_error (api.decode_foutput "invalid"));
+      check "invalid unit input"
+        (Result.is_error (api.encode_rinput "unexpected"));
+      check "invalid unit output"
+        (Result.is_error (api.decode_routput "unexpected")))
+    [ Compile_jump.api; Compile_tm.api ];
   let compiled = get (Rec_to_tm.api.compile_code "SUCC") in
   let output =
     run_tm

@@ -56,10 +56,6 @@ module Code = struct
   let print code = String.concat "\n" (List.map print_command code)
 end
 
-let get env name =
-  match List.assoc_opt name env with Some value -> value | None -> Number.zero
-
-let set env name value = Utils.Assoc.set name value env
 let make commands env = Ok { commands; pc = Number.zero; env }
 
 let step state () =
@@ -68,18 +64,34 @@ let step state () =
   else
     let env, next_pc =
       match List.nth state.commands pc with
-      | Clr name -> (set state.env name Number.zero, Number.succ state.pc)
+      | Clr name -> (Assoc.set name Number.zero state.env, Number.succ state.pc)
       | Inc name ->
-          ( set state.env name (Number.succ (get state.env name)),
+          ( Assoc.set name
+              (Number.succ
+                 (Option.value ~default:Number.zero
+                    (List.assoc_opt name state.env)))
+              state.env,
             Number.succ state.pc )
       | Dec name ->
-          ( set state.env name (Number.pred (get state.env name)),
+          ( Assoc.set name
+              (Number.pred
+                 (Option.value ~default:Number.zero
+                    (List.assoc_opt name state.env)))
+              state.env,
             Number.succ state.pc )
       | Cpy (dest, source) ->
-          (set state.env dest (get state.env source), Number.succ state.pc)
+          ( Assoc.set dest
+              (Option.value ~default:Number.zero
+                 (List.assoc_opt source state.env))
+              state.env,
+            Number.succ state.pc )
       | Ifnz (name, target) ->
           ( state.env,
-            if Number.is_zero (get state.env name) then Number.succ state.pc
+            if
+              Number.is_zero
+                (Option.value ~default:Number.zero
+                   (List.assoc_opt name state.env))
+            then Number.succ state.pc
             else target )
     in
     Ok (Continue { next = { state with env; pc = next_pc }; output = () })

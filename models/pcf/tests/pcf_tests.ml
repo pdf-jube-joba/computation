@@ -47,7 +47,7 @@ let differential text inputs expected =
   assert (run (module Cek_machine) cek inputs = expr);
   let secd = get (Compiler.Expr_to_secd.compile source) in
   assert (run (module Secd_machine) secd inputs = expr);
-  let compiled = get (Compiler.expr_to_secd.compile_code text) in
+  let compiled = get (Compiler.Expr_to_secd.api.compile_code text) in
   assert (
     run (module Secd_machine) (get (Secd_machine.Code.parse compiled)) inputs
     = expr);
@@ -146,9 +146,9 @@ let () =
   assert (get (Syntax.Ainput.parse "(,001,,2,)") = [ "1"; "2" ]);
   assert (get (Syntax.Ainput.parse "(+001, +2)") = [ "1"; "2" ]);
   assert (get (Syntax.Routput.parse "+001") = Some "1");
-  assert (get (Compiler.expr_to_secd.encode_ainput "(+001)") = "(1)");
-  assert (get (Compiler.expr_to_cek.decode_routput "+001") = "1");
-  assert (get (Compiler.expr_to_secd.decode_foutput "+001") = "1");
+  assert (get (Compiler.Expr_to_secd.api.encode_ainput "(+001)") = "(1)");
+  assert (get (Compiler.Expr_to_cek.api.decode_routput "+001") = "1");
+  assert (get (Compiler.Expr_to_secd.api.decode_foutput "+001") = "1");
   error (Syntax.Ainput.parse "(+ 1)");
   error (Syntax.Routput.parse "+");
   error (Syntax.Routput.parse "++1");

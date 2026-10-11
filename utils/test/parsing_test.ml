@@ -29,9 +29,16 @@ let () =
   let p =
     Lexer.create ~character_literals:true "/* ' */ 'あ' // ' ignored\n'\\n'"
   in
-  assert (Lexer.string_literal p = "あ");
-  assert (Lexer.string_literal p = "\n");
+  assert (Lexer.character_literal p = "あ");
+  assert (Lexer.character_literal p = "\n");
   Lexer.expect_eof p;
+  assert (
+    Lexer.parse ~character_literals:true Lexer.character_literal "\"ab\""
+    |> Result.is_error);
+  assert (
+    Lexer.parse ~character_literals:true Lexer.string_literal "'a'"
+    |> Result.is_error);
+  assert (Lexer.parse Lexer.string_literal "\"ab\"" = Ok "ab");
   let tuple =
     Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
       Number.of_string_with_plus

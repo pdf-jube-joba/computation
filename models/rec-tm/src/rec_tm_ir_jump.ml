@@ -37,7 +37,7 @@ module Code = struct
   let keywords = [ "alphabet"; "jump"; "if"; "const"; "LT"; "RT" ]
 
   let parse =
-    parse (fun p ->
+    L.parse (fun p ->
         let alphabet = alphabet p in
         let stmt () =
           if L.eat_keyword p "LT" then Lt
@@ -108,8 +108,8 @@ let step s () =
       else
         let next =
           match List.nth s.program.body s.pc with
-          | Lt -> { s with pc = s.pc + 1; tape = T.move_to s.tape T.Left }
-          | Rt -> { s with pc = s.pc + 1; tape = T.move_to s.tape T.Right }
+          | Lt -> { s with pc = s.pc + 1; tape = T.Tape.move_to s.tape T.Left }
+          | Rt -> { s with pc = s.pc + 1; tape = T.Tape.move_to s.tape T.Right }
           | Assign (dst, src) ->
               let env, tape = assign s.env s.tape dst (eval s.env s.tape src) in
               { s with pc = s.pc + 1; env; tape }
@@ -141,8 +141,8 @@ let render s =
       Utils.Render.text ~title:"next"
         (if s.pc >= List.length s.program.body then "halt"
          else Code.stmt_print (List.nth s.program.body s.pc));
-      render_env s.env;
-      T.render_tape s.tape;
+      Utils.Render.assoc_table ~title:"env" T.Sign.print s.env;
+      T.Tape.render s.tape;
     ]
 
 module Ainput = Ir_common.Tape

@@ -21,28 +21,25 @@ let init_maps () =
   @ [ ("END", new_gate End false) ]
   @ gates [ Delay ]
 
-let get = List.assoc_opt
-
 let insert library (name, circuit) =
   if List.mem_assoc name library then library else library @ [ (name, circuit) ]
 
 let result_exn = function Ok x -> x | Error message -> raise (L.Error message)
-let identifier = L.identifier
 
 let block p item =
   L.expect_symbol p '{';
   L.many_until ~skip_separator:',' p ~closing:'}' item
 
 let named_pin p =
-  let n = identifier p in
+  let n = L.identifier p in
   L.expect_symbol p '.';
-  let pin = identifier p in
+  let pin = L.identifier p in
   (n, pin)
 
 let definitions p maps =
   let maps = ref maps in
   let lookup n =
-    match get n !maps with
+    match List.assoc_opt n !maps with
     | Some c -> c
     | None -> L.error p ("not found name " ^ n)
   in
@@ -50,14 +47,14 @@ let definitions p maps =
     let circuit_name, circuit =
       if L.eat_keyword p "graph" then (
         L.expect_symbol p ':';
-        let n = identifier p in
+        let n = L.identifier p in
         L.expect_symbol p '{';
         L.expect_keyword p "in";
-        let inpins = block p identifier in
+        let inpins = block p L.identifier in
         L.expect_keyword p "out";
         let otpin_maps =
           block p (fun p ->
-              let external_pin = identifier p in
+              let external_pin = L.identifier p in
               L.expect_symbol p '=';
               let target = named_pin p in
               (external_pin, target))
@@ -66,17 +63,17 @@ let definitions p maps =
           if L.eat_symbol p '}' then
             (List.rev verts, List.rev edges, List.rev inpin_maps)
           else
-            let vn = identifier p in
+            let vn = L.identifier p in
             L.expect_symbol p ',';
-            let used = identifier p in
+            let used = L.identifier p in
             let c = lookup used in
             let conns =
               block p (fun p ->
-                  let pin = identifier p in
+                  let pin = L.identifier p in
                   L.expect_symbol p '=';
-                  let first = identifier p in
+                  let first = L.identifier p in
                   if L.eat_symbol p '.' then
-                    let second = identifier p in
+                    let second = L.identifier p in
                     (pin, `Internal (first, second))
                   else (pin, `External first))
             in
@@ -97,14 +94,14 @@ let definitions p maps =
         (n, result_exn (new_mix n verts edges inpin_maps otpin_maps)))
       else if L.eat_keyword p "iter" then (
         L.expect_symbol p ':';
-        let n = identifier p in
+        let n = L.identifier p in
         L.expect_symbol p '{';
-        let init_name = identifier p in
+        let init_name = L.identifier p in
         L.expect_symbol p ',';
         let conn p =
-          let a = identifier p in
+          let a = L.identifier p in
           L.expect_symbol p '=';
-          let b = identifier p in
+          let b = L.identifier p in
           (a, b)
         in
         L.expect_keyword p "next";
@@ -124,11 +121,9 @@ let parse code maps =
 
 let parse_main_with_maps code maps =
   Result.bind (parse code maps) (fun maps ->
-      match get "main" maps with
+      match List.assoc_opt "main" maps with
       | Some c -> Ok c
       | None -> Error "not found main")
-
-let parse_main code = parse_main_with_maps code (init_maps ())
 
 module Code = struct
   type nonrec t = t
@@ -139,7 +134,7 @@ module Code = struct
         Result.bind (Utils.Json.decode text) (fun json ->
             Result.bind (of_yojson json) (fun circuit ->
                 Result.map (fun () -> circuit) (validate_identifiers circuit)))
-    | _ -> parse_main text
+    | _ -> parse_main_with_maps text (init_maps ())
 
   let print circuit = Yojson.Safe.pretty_to_string (to_yojson circuit)
 end

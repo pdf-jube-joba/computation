@@ -19,13 +19,18 @@ module type S = sig
   val decode_foutput : Target.Foutput.t -> (Source.Foutput.t, string) result
 end
 
-let identity text = Ok text
-
-let identity_api =
+let make_api (module C : S) =
+  let convert parse transform print text =
+    Result.bind (parse text) (fun value -> Result.map print (transform value))
+  in
   {
-    compile_code = identity;
-    encode_ainput = identity;
-    encode_rinput = identity;
-    decode_routput = identity;
-    decode_foutput = identity;
+    compile_code = convert C.Source.Code.parse C.compile C.Target.Code.print;
+    encode_ainput =
+      convert C.Source.Ainput.parse C.encode_ainput C.Target.Ainput.print;
+    encode_rinput =
+      convert C.Source.Rinput.parse C.encode_rinput C.Target.Rinput.print;
+    decode_routput =
+      convert C.Target.Routput.parse C.decode_routput C.Source.Routput.print;
+    decode_foutput =
+      convert C.Target.Foutput.parse C.decode_foutput C.Source.Foutput.print;
   }

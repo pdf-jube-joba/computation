@@ -40,9 +40,6 @@ let output s =
         (Array.sub s.memory s.code_len (Array.length s.memory - s.code_len));
   }
 
-let decode = decode
-let encode = encode
-
 let step s () =
   Utils.Lexer.protect (fun () ->
       if s.halted then Utils.Machine.Halt (output s)

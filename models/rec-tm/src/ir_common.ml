@@ -9,8 +9,6 @@ type rvalue = Var of Utils.Identifier.t | Head | Const of T.sign
 type condition = { left : rvalue; right : rvalue } [@@deriving yojson]
 type environment = (Utils.Identifier.t * T.sign) list [@@deriving yojson]
 
-let unwrap = T.unwrap
-
 let keywords =
   [
     "alphabet";
@@ -30,38 +28,12 @@ let keywords =
 let identifier ?(keywords = keywords) p =
   let s = L.identifier p in
   if List.mem s keywords then L.error p ("identifier cannot be a keyword: " ^ s);
-  unwrap (Utils.Identifier.make s)
-
-(* The IR has a restricted set of symbols and uses '-' for the blank sign. *)
-let create text =
-  let n = String.length text in
-  let alpha = Utils.Identifier.is_start in
-  let digit = function '0' .. '9' -> true | _ -> false in
-  let rec scan i acc =
-    if i = n then Array.of_list (List.rev ((L.Eof, n) :: acc))
-    else
-      match text.[i] with
-      | c when Utils.String_ext.is_whitespace c -> scan (i + 1) acc
-      | c when alpha c || digit c ->
-          let predicate =
-            if digit c then digit else Utils.Identifier.is_continue
-          in
-          let j = Utils.String_ext.skip_while predicate text (i + 1) in
-          let s = String.sub text i (j - i) in
-          scan j (((if digit c then L.Number s else L.Ident s), i) :: acc)
-      | '-' -> scan (i + 1) ((L.Symbol '-', i) :: acc)
-      | ('(' | ')' | '{' | '}' | ',' | '@' | ':' | '=') as c ->
-          scan (i + 1) ((L.Symbol c, i) :: acc)
-      | c -> failwith (Printf.sprintf "Unexpected character '%c'" c)
-  in
-  { L.tokens = scan 0 []; pos = 0 }
-
-let parse f text = L.parse_with create f text
+  s
 
 let sign p =
   match L.next p with
   | L.Symbol '-' -> None
-  | L.Ident s -> unwrap (T.Sign.parse s)
+  | L.Ident s -> T.unwrap (T.Sign.parse s)
   | _ -> L.error p "Expected sign"
 
 let alphabet p =
@@ -108,11 +80,8 @@ let vars_condition = function
 let env_create vars =
   List.map (fun s -> (s, None)) (List.sort_uniq String.compare vars)
 
-let env_get env key = Option.value ~default:None (List.assoc_opt key env)
-let env_set env key value = Utils.Assoc.set_sorted key value env
-
 let eval env tape : rvalue -> T.sign = function
-  | Var s -> env_get env s
+  | Var s -> Option.value ~default:None (List.assoc_opt s env)
   | Head -> tape.T.head
   | Const s -> s
 
@@ -122,8 +91,8 @@ let eval_cond env tape = function
 
 let assign env tape (dst : lvalue) value =
   match dst with
-  | Var s -> (env_set env s value, tape)
-  | Head -> (env, T.head_write tape value)
+  | Var s -> (Utils.Assoc.set_sorted s value env, tape)
+  | Head -> (env, T.Tape.head_write tape value)
 
 let normalized_alphabet a =
   if a = [] then failwith "alphabet must not be empty";
@@ -148,16 +117,16 @@ let validate_tape allowed t =
     (fun s ->
       if not (List.mem s allowed) then
         failwith ("Unknown sign on tape: " ^ T.Sign.print s))
-    (fst (T.tape_into_vec t))
+    (fst (T.Tape.into_vec t))
 
 module Env = struct
   type t = (Utils.Identifier.t * T.sign) list
 
   let parse_entry env key value =
     if String.contains value '=' then failwith "Invalid environment line";
-    ignore (unwrap (Utils.Identifier.make key));
+    ignore (T.unwrap (Utils.Identifier.make key));
     if List.mem key keywords then failwith "Reserved environment variable";
-    env_set env key (unwrap (T.Sign.parse value))
+    Utils.Assoc.set_sorted key (T.unwrap (T.Sign.parse value)) env
 
   let parse text =
     Utils.Environment.fold_lines
@@ -166,7 +135,5 @@ module Env = struct
 
   let print = Utils.Environment.print T.Sign.print
 end
-
-let render_env env = Utils.Render.assoc_table ~title:"env" T.Sign.print env
 
 module Tape = T.Ainput

@@ -2,35 +2,15 @@ open Utils
 
 type entry = Model of (module Machine.S) | Compiler of Compiler.api
 
-let counter_compiler : Compiler.api =
-  {
-    compile_code =
-      (fun text ->
-        Result.map Example_counter.Code.print (Example_counter.Code.parse text));
-    encode_ainput =
-      (fun text ->
-        Result.map Example_counter.Ainput.print
-          (Example_counter.Ainput.parse text));
-    encode_rinput =
-      (fun text ->
-        Result.map Example_counter.Rinput.print
-          (Example_counter.Rinput.parse text));
-    decode_routput = Compiler.identity;
-    decode_foutput = Compiler.identity;
-  }
-
 let entries =
   [
     ("example_counter", Model (module Example_counter));
     ("lambda_calculus", Model (module Lambda_calculus));
     ("goto_lang", Model (module Goto_lang));
     ("recursive_function", Model (module Recursive_function));
-    ("example_counter-example_counter", Compiler counter_compiler);
+    ("example_counter-example_counter", Compiler Example_counter.Compiler.api);
     ("recursive_function-goto_lang", Compiler Recursive_function_goto_lang.api);
-    ("recursive_function_goto_lang", Compiler Recursive_function_goto_lang.api);
     ( "recursive_function-lambda_calculus",
-      Compiler Recursive_function_lambda_calculus.api );
-    ( "recursive_function_lambda_calculus",
       Compiler Recursive_function_lambda_calculus.api );
     ("flow_ir", Model (module Flow_ir.Machine));
     ("expr_lang", Model (module Structured_lang.Expr_lang.Machine));
@@ -46,8 +26,8 @@ let entries =
     ("pcf-expr-stmt-cek", Model (module Pcf.Expr_stmt_machine));
     ("pcf-cek", Model (module Pcf.Cek_machine));
     ("pcf-secd", Model (module Pcf.Secd_machine));
-    ("pcf-expr-cek", Compiler Pcf.expr_to_cek);
-    ("pcf-expr-secd", Compiler Pcf.expr_to_secd);
+    ("pcf-expr-cek", Compiler Pcf.Compiler.Expr_to_cek.api);
+    ("pcf-expr-secd", Compiler Pcf.Compiler.Expr_to_secd.api);
     ("lambda_continuations", Model (module Lambda_continuations.No_ext));
     ("logic_circuit", Model (module Logic_circuit.Machine));
     ("turing_machine", Model (module Turing_machine.Machine));
@@ -67,7 +47,6 @@ let entries =
     ("symbolic_asm", Model (module Tiny_isa.Symbolic_asm.Machine));
     ("cfg_vreg", Model (module Tiny_isa.Cfg_vreg.Machine));
     ("coroutine", Model (module Async_await.Machine));
-    ("async_await", Model (module Async_await.Machine));
     ("strarr", Model (module While_with_data.Strarr.Machine));
     ("strtree", Model (module While_with_data.Strtree.Machine));
   ]
@@ -120,17 +99,10 @@ let library name =
   else if List.mem name [ "strarr"; "strtree" ] then "while_with_data"
   else if name = "coroutine" then "async_await"
   else if name = "example_counter-example_counter" then "example_counter"
-  else if
-    List.mem name
-      [ "recursive_function-goto_lang"; "recursive_function_goto_lang" ]
-  then "recursive_function_goto_lang"
-  else if
-    List.mem name
-      [
-        "recursive_function-lambda_calculus";
-        "recursive_function_lambda_calculus";
-      ]
-  then "recursive_function_lambda_calculus"
+  else if name = "recursive_function-goto_lang" then
+    "recursive_function_goto_lang"
+  else if name = "recursive_function-lambda_calculus" then
+    "recursive_function_lambda_calculus"
   else name
 
 let manifest () =

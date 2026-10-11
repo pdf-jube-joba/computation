@@ -26,32 +26,28 @@ let rec default_value = function
   | Sum [] -> failwith "sum type must have at least one variant"
   | Sum (t :: _) -> Sum_value (0, default_value t)
 
-let nth = Utils.List_ext.nth
-
 let rec project_cell ty value = function
   | [] -> (ty, value)
   | Field_proj i :: ps -> (
       match (ty, value) with
       | Product ts, Aggregate vs ->
           project_cell
-            (nth ts i "projection out of bounds")
-            (nth vs i "projection out of bounds")
+            (Utils.List_ext.nth ts i "projection out of bounds")
+            (Utils.List_ext.nth vs i "projection out of bounds")
             ps
       | _ -> failwith "invalid place projection")
   | Index_proj i :: ps -> (
       match (ty, value) with
       | Array (t, n), Aggregate vs ->
           if i >= n then failwith "projection out of bounds";
-          project_cell t (nth vs i "projection out of bounds") ps
+          project_cell t (Utils.List_ext.nth vs i "projection out of bounds") ps
       | _ -> failwith "invalid place projection")
   | Tag_proj i :: ps -> (
       match (ty, value) with
       | Sum ts, Sum_value (tag, v) ->
           if i <> tag then failwith "sum tag mismatch";
-          project_cell (nth ts i "sum tag out of bounds") v ps
+          project_cell (Utils.List_ext.nth ts i "sum tag out of bounds") v ps
       | _ -> failwith "invalid place projection")
-
-let replace = Utils.List_ext.replace
 
 let rec update_projection ty current ps value =
   match ps with
@@ -61,10 +57,10 @@ let rec update_projection ty current ps value =
   | Field_proj i :: ps -> (
       match (ty, current) with
       | Product ts, Aggregate vs ->
-          let t = nth ts i "field projection out of bounds"
-          and old = nth vs i "field projection out of bounds" in
+          let t = Utils.List_ext.nth ts i "field projection out of bounds"
+          and old = Utils.List_ext.nth vs i "field projection out of bounds" in
           Aggregate
-            (replace vs i
+            (Utils.List_ext.replace vs i
                (update_projection t old ps value)
                "field projection out of bounds")
       | _ -> failwith "invalid assignment target")
@@ -72,9 +68,9 @@ let rec update_projection ty current ps value =
       match (ty, current) with
       | Array (t, n), Aggregate vs ->
           if i >= n then failwith "array index out of bounds";
-          let old = nth vs i "array index out of bounds" in
+          let old = Utils.List_ext.nth vs i "array index out of bounds" in
           Aggregate
-            (replace vs i
+            (Utils.List_ext.replace vs i
                (update_projection t old ps value)
                "array index out of bounds")
       | _ -> failwith "invalid assignment target")
@@ -82,15 +78,17 @@ let rec update_projection ty current ps value =
       match (ty, current) with
       | Sum ts, Sum_value (tag, v) ->
           if i <> tag then failwith "sum tag mismatch";
-          let t = nth ts i "sum tag out of bounds" in
+          let t = Utils.List_ext.nth ts i "sum tag out of bounds" in
           Sum_value (tag, update_projection t v ps value)
       | _ -> failwith "invalid assignment target")
 
 let get_cell s = function
   | Heap id ->
-      lookup id s.store.heap ("unknown heap location: " ^ string_of_int id)
+      Utils.Assoc.lookup id s.store.heap
+        ("unknown heap location: " ^ string_of_int id)
   | Static_key name ->
-      lookup name s.store.statics ("unknown static location: " ^ name)
+      Utils.Assoc.lookup name s.store.statics
+        ("unknown static location: " ^ name)
   | Local_key id ->
       let rec functions = function
         | [] -> failwith ("unknown local location: " ^ string_of_int id)
@@ -110,9 +108,9 @@ let set_cell s key cell =
   ignore (get_cell s key);
   let store =
     match key with
-    | Heap id -> { s.store with heap = set id cell s.store.heap }
+    | Heap id -> { s.store with heap = Utils.Assoc.set id cell s.store.heap }
     | Static_key name ->
-        { s.store with statics = set name cell s.store.statics }
+        { s.store with statics = Utils.Assoc.set name cell s.store.statics }
     | Local_key id ->
         let rec funcs = function
           | [] -> assert false
@@ -121,7 +119,7 @@ let set_cell s key cell =
                 | [] -> None
                 | cells :: scopes ->
                     if List.mem_assoc id cells then
-                      Some (set id cell cells :: scopes)
+                      Some (Utils.Assoc.set id cell cells :: scopes)
                     else
                       Option.map
                         (fun scopes -> cells :: scopes)
@@ -245,7 +243,7 @@ let allocate_scope s bindings values =
         if not (type_match value ty) then failwith ("type mismatch for " ^ name);
         let id = !next in
         incr next;
-        (set name id env, set id { ty; value } cells))
+        (Utils.Assoc.set name id env, Utils.Assoc.set id { ty; value } cells))
       ([], [])
       (List.combine bindings values)
   in
@@ -294,8 +292,8 @@ let pop_scope s =
       { s with env; store = { s.store with locals = scopes :: fs } }
 
 let validate (code : code) =
-  unique
-    (fun n -> "duplicate function: " ^ n)
+  Utils.Identifier.check_unique
+    ~message:(fun n -> "duplicate function: " ^ n)
     (List.map (fun (f : fn_decl) -> f.name) code.functions)
 
 let make code input =
@@ -304,7 +302,7 @@ let make code input =
       let statics =
         List.fold_left
           (fun ss (d : static_decl) ->
-            set d.name { ty = d.ty; value = default_value d.ty } ss)
+            Utils.Assoc.set d.name { ty = d.ty; value = default_value d.ty } ss)
           [] code.statics
       in
       let s =
@@ -346,7 +344,8 @@ let step_eval s = function
           store =
             {
               s.store with
-              heap = set id { ty; value = default_value ty } s.store.heap;
+              heap =
+                Utils.Assoc.set id { ty; value = default_value ty } s.store.heap;
             };
         }
       in
@@ -498,7 +497,7 @@ let render s =
     List.map
       (fun (id, c) ->
         [ string_of_int id; Code.type_text c.ty; value_text c.value ])
-      (sorted cells)
+      (Utils.Assoc.sorted cells)
   in
   state
     [
@@ -516,13 +515,13 @@ let render s =
               (fun i scope ->
                 List.map
                   (fun (n, id) -> [ string_of_int i; n; string_of_int id ])
-                  (sorted scope))
+                  (Utils.Assoc.sorted scope))
               s.env));
       text_table ~title:"statics"
         ~columns:[ "name"; "type"; "value" ]
         (List.map
            (fun (n, c) -> [ n; Code.type_text c.ty; value_text c.value ])
-           (sorted s.store.statics));
+           (Utils.Assoc.sorted s.store.statics));
       text_table ~title:"heap"
         ~columns:[ "heap"; "type"; "value" ]
         (cell_rows s.store.heap);

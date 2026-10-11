@@ -84,7 +84,7 @@ let compile (p : J.code) =
           let env = List.combine vars values in
           List.iter
             (fun head ->
-              let tape = { T.blank_tape with head } in
+              let tape = { T.Tape.blank with head } in
               let next_pc, next_values, next_sign, dir =
                 match instructions.(pc) with
                 | J.Lt -> (pc + 1, values, head, T.Left)
@@ -117,7 +117,7 @@ let compile (p : J.code) =
           [ Printf.sprintf "q_%d_0" (Array.length instructions) ]
         else List.rev !accepted
       in
-      unwrap (T.definition init_state accepted (List.rev !code)))
+      T.unwrap (T.Code.make init_state accepted (List.rev !code)))
 
 module Source = J.Machine
 module Target = T.Machine
@@ -127,12 +127,15 @@ let encode_rinput () = Ok ()
 let decode_routput () = Ok ()
 let decode_foutput t = Ok t
 
-let api : Utils.Compiler.api =
-  {
-    Utils.Compiler.identity_api with
-    compile_code =
-      (fun text ->
-        let* p = J.Code.parse text in
-        let* p = compile p in
-        Ok (T.Code.print p));
-  }
+let api =
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
+
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

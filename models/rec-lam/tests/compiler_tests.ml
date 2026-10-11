@@ -2,7 +2,7 @@ open Utils.Machine
 open Recursive_function
 module L = Lambda_calculus
 module C = Recursive_function_lambda_calculus
-module Typed_contract : Utils.Compiler.S = C.Compiler
+module Typed_contract : Utils.Compiler.S = C
 
 let ok = function Ok value -> value | Error message -> failwith message
 let error = function Error _ -> () | Ok _ -> failwith "Expected an error"
@@ -38,8 +38,17 @@ let alpha_equal left right =
   in
   equal [] left right
 
+let run_source initial =
+  let rec loop fuel state =
+    if fuel = 0 then failwith "Recursive function step limit exceeded";
+    match ok (Recursive_function.step state ()) with
+    | Halt output -> output
+    | Continue { next; _ } -> loop (fuel - 1) next
+  in
+  loop 100000 initial
+
 let check func input =
-  let expected = ok (evaluate (ok (make func input)).process) in
+  let expected = run_source (ok (make func input)) in
   let term = ok (C.compile func) in
   let arguments = ok (C.encode_ainput input) in
   let normal = normalize (ok (L.make term arguments)) in
@@ -55,7 +64,7 @@ let check func input =
 
 let api_check text input =
   let func = ok (Code.parse text) and args = ok (Ainput.parse input) in
-  let expected = ok (evaluate (ok (make func args)).process) in
+  let expected = run_source (ok (make func args)) in
   let term = ok (L.Code.parse (ok (C.api.compile_code text))) in
   let args = ok (L.Ainput.parse (ok (C.api.encode_ainput input))) in
   let index = ok (L.Rinput.parse (ok (C.api.encode_rinput ""))) in

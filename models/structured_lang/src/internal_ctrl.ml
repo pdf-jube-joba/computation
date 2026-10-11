@@ -39,7 +39,7 @@ module Code = struct
 
   let label p =
     L.expect_symbol p ':';
-    ident p
+    L.identifier p
 
   let rec parse_stmt p =
     let a = parse_single p in
@@ -67,7 +67,7 @@ module Code = struct
       If (c, b)
     else if L.eat_keyword p "break" then
       let l = label p in
-      let v = ident p in
+      let v = L.identifier p in
       Break (l, v)
     else if L.eat_keyword p "continue" then Continue (label p)
     else if L.eat_keyword p "loop" then (
@@ -75,11 +75,11 @@ module Code = struct
       L.expect_symbol p '(';
       let b = parse_stmt p in
       L.expect p ") ->";
-      let v = ident p in
+      let v = L.identifier p in
       Loop (l, b, v))
     else if L.peek p = L.Symbol '{' then parse_block p
     else
-      let v = ident p in
+      let v = L.identifier p in
       L.expect p ":=";
       Assign (v, parse_aexp p)
 
@@ -131,7 +131,7 @@ let step s () =
         | Stmt (Assign (v, a)) ->
             {
               s with
-              env = set v (eval_aexp (env_get s.env) a) s.env;
+              env = Utils.Assoc.set v (eval_aexp (env_get s.env) a) s.env;
               exec = Result Normal;
             }
         | Stmt (If (c, b)) ->
@@ -171,7 +171,12 @@ let step s () =
                 | Continue_result got when got = l ->
                     { s with exec = Result Normal }
                 | Break_result (got, n) when got = l ->
-                    { s with stack; exec = Result Normal; env = set v n s.env }
+                    {
+                      s with
+                      stack;
+                      exec = Result Normal;
+                      env = Utils.Assoc.set v n s.env;
+                    }
                 | _ -> { s with stack; exec = Result control }))
       in
       match (s.exec, next.exec, next.stack) with

@@ -19,14 +19,16 @@ module Rec_to_tm = struct
     let* jump = Compile_jump.compile ir in
     Compile_tm.compile jump
 
-  let api : Utils.Compiler.api =
-    {
-      Rec_to_ir.api with
-      compile_code =
-        (fun text ->
-          let open Utils.Machine in
-          let* f = Recursive_function.Code.parse text in
-          let* code = compile f in
-          Ok (Turing_machine.Code.print code));
-    }
+  let api =
+    Utils.Compiler.make_api
+      (module struct
+        module Source = Source
+        module Target = Target
+
+        let compile = compile
+        let encode_ainput = encode_ainput
+        let encode_rinput = encode_rinput
+        let decode_routput = decode_routput
+        let decode_foutput = decode_foutput
+      end)
 end

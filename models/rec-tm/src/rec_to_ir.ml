@@ -1,5 +1,4 @@
 open Utils.Machine
-open Ir_common
 open Rec_tm_ir
 module I = Rec_tm_ir
 module N = Utils.Number
@@ -352,12 +351,12 @@ let write tuple =
         x
         :: List.concat_map
              (fun n ->
-               let n = unwrap (N.to_int n) in
+               let n = T.unwrap (N.to_int n) in
                b :: List.init n (fun _ -> l))
              tuple
         @ [ x ]
       in
-      unwrap (T.tape_from_vec signs 0))
+      T.unwrap (T.Tape.from_vec signs 0))
 
 let write_usize tuple = write (List.map N.of_int tuple)
 
@@ -380,7 +379,7 @@ let read_right_one tape =
     | _ :: ns -> Some (List.map N.of_int ns)
 
 let read_right_one_usize t =
-  Option.map (List.map (fun n -> unwrap (N.to_int n))) (read_right_one t)
+  Option.map (List.map (fun n -> T.unwrap (N.to_int n))) (read_right_one t)
 
 module Source = R
 module Target = I.Machine
@@ -399,60 +398,15 @@ let decode_foutput t =
            (List.length xs))
   | None -> Error "failed to decode tape as recursive_function output"
 
-let api : Utils.Compiler.api =
-  {
-    Utils.Compiler.identity_api with
-    compile_code =
-      (fun text ->
-        let* f = R.Code.parse text in
-        let* p = compile f in
-        Ok (I.Code.print p));
-    encode_ainput =
-      (fun text ->
-        let* ns = R.Ainput.parse text in
-        let* t = write ns in
-        Ok (T.Tape.print t));
-    decode_foutput =
-      (fun text ->
-        let* t = T.Tape.parse text in
-        let* n = decode_foutput t in
-        Ok (N.to_string n));
-  }
+let api =
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
 
-module Auxiliary = struct
-  module Basic = struct
-    let move_right_till_x_n_times = move_right_till_x_n_times
-    let move_left_till_x_n_times = move_left_till_x_n_times
-    let call_r = call_r
-    let call_l = call_l
-    let concat = concat
-    let shift_left_x = shift_left_x
-    let shift_left_x_n_times = shift_left_x_n_times
-  end
-
-  module Copy = struct
-    let copy_to_end = copy_to_end
-    let copy_n_times = copy_n_times
-    let copy = copy
-  end
-
-  module Rotate = struct
-    let swap_tuple = swap_tuple
-    let rotate = rotate
-  end
-end
-
-module Compile = struct
-  let compile = compile_function
-  let compile_to_program = compile
-  let zero_function = zero_function
-  let succ_function = succ_function
-  let projection = projection
-  let composition = composition
-  let primitive_recursion = primitive_recursion
-  let mu_recursion = mu_recursion
-  let aux_projection_init = aux_projection_init
-  let insert_sig = insert_sig
-  let pred_tuple = pred_tuple
-  let expand_arg = expand_arg
-end
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

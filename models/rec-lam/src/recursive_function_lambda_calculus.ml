@@ -208,45 +208,15 @@ let decode_foutput term =
   | Some number -> Ok number
   | None -> Error ("failed to decode Church numeral: " ^ Target.Code.print term)
 
-let api : Utils.Compiler.api =
-  {
-    compile_code =
-      (fun text ->
-        let* func = Source.Code.parse text in
-        let* term = compile func in
-        Ok (Target.Code.print term));
-    encode_ainput =
-      (fun text ->
-        let* input = Source.Ainput.parse text in
-        let* terms = encode_ainput input in
-        Ok (Target.Ainput.print terms));
-    encode_rinput =
-      (fun text ->
-        let* () = Source.Rinput.parse text in
-        let* index = encode_rinput () in
-        Ok (Target.Rinput.print index));
-    decode_routput =
-      (fun text ->
-        let* output = Target.Routput.parse text in
-        let* output = decode_routput output in
-        Ok (Source.Routput.print output));
-    decode_foutput =
-      (fun text ->
-        let* term = Target.Foutput.parse text in
-        let* number = decode_foutput term in
-        Ok (Source.Foutput.print number));
-  }
+let api =
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
 
-module Rec2LamCompiler = struct
-  module Source = Source
-  module Target = Target
-
-  let compile = compile
-  let encode_ainput = encode_ainput
-  let encode_rinput = encode_rinput
-  let decode_routput = decode_routput
-  let decode_foutput = decode_foutput
-  let api = api
-end
-
-module Compiler = Rec2LamCompiler
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

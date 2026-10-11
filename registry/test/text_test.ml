@@ -34,7 +34,7 @@ let code_example = function
   | "cfg_vreg" -> "@main {\n%v0 := #1;\ngoto @main;\n}"
   | "strarr" -> "x := ['猫', '\\n'] ; while is_empty x { x := ['🙂'] }"
   | "strtree" -> "x := cons atom '猫' atom '🙂' ; y := left x"
-  | "coroutine" | "async_await" -> "fn main { x <- 1; if x < 3 goto -1 }"
+  | "coroutine" -> "fn main { x <- 1; if x < 3 goto -1 }"
   | name -> failwith ("Missing code example for " ^ name)
 
 let examples = function
@@ -60,7 +60,7 @@ let examples = function
   | "cfg_vreg" -> ("(1, 2)", "", "", "(3, 4)")
   | "strarr" -> ("x=['猫', '\\n']", "", "", "x=['🙂']")
   | "strtree" -> ("x=cons atom '猫' atom '\\n'", "", "", "x=atom '🙂'")
-  | "coroutine" | "async_await" -> ("2", "1", "猫\n", "x=1\n$task=none\n$child=2")
+  | "coroutine" -> ("2", "1", "猫\n", "x=1\n$task=none\n$child=2")
   | name -> failwith ("Missing text examples for " ^ name)
 
 let () =

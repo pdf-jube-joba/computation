@@ -165,12 +165,15 @@ let encode_rinput () = Ok ()
 let decode_routput () = Ok ()
 let decode_foutput t = Ok t
 
-let api : Utils.Compiler.api =
-  {
-    Utils.Compiler.identity_api with
-    compile_code =
-      (fun text ->
-        let* p = I.Code.parse text in
-        let* p = compile p in
-        Ok (J.Code.print p));
-  }
+let api =
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
+
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

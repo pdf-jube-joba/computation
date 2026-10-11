@@ -31,20 +31,20 @@ let rec compile_stmt stmt cont loops c =
         yes cont;
       label
   | C.Break (l, v) ->
-      let _, exit = lookup l loops ("unknown loop label: " ^ l) in
+      let _, exit = Utils.Assoc.lookup l loops ("unknown loop label: " ^ l) in
       let label = fresh_region c "break" in
       let r = fresh_vreg c "break" in
       single c label [ I.Load (r, I.Label v); I.Push (I.VReg r) ] (enter exit);
       label
   | C.Continue l ->
-      let head, _ = lookup l loops ("unknown loop label: " ^ l) in
+      let head, _ = Utils.Assoc.lookup l loops ("unknown loop label: " ^ l) in
       let label = fresh_region c "continue" in
       single c label [ I.Nop ] (enter head);
       label
   | C.Loop (l, b, out) ->
       let head = fresh_region c "loop_head" in
       let exit = fresh_region c "loop_exit" in
-      let body = compile_stmt b head (set l (head, exit) loops) c in
+      let body = compile_stmt b head (Utils.Assoc.set l (head, exit) loops) c in
       single c head [ I.Nop ] (enter body);
       let r = fresh_vreg c "loop_break" in
       single c exit [ I.Pop r; I.Store (I.Label out, I.VReg r) ] (enter cont);
@@ -75,12 +75,20 @@ let compile (source : C.code) =
           :: c.regions;
       })
 
-let encode_ainput = encode_ainput
+let encode_ainput = Compiler_common.encode_ainput
 let encode_rinput () = Ok ""
 let decode_routput _ = Ok ""
 let decode_foutput = decode_foutput "internal_ctrl"
 
 let api =
-  text_api ~parse_code:C.Code.parse ~compile ~parse_ainput:C.Ainput.parse
-    ~encode_ainput ~print_ainput:I.Ainput.print ~parse_rinput:C.Rinput.parse
-    ~encode_rinput ~decode_routput ~decode_foutput ~print_foutput:Env.print
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
+
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

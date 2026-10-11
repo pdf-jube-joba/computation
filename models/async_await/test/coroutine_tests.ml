@@ -1,4 +1,4 @@
-module C = Async_await.Coroutine
+module C = Async_await
 module N = Utils.Number
 
 let ok = function Ok v -> v | Error e -> failwith e
@@ -25,8 +25,8 @@ let () =
   let code = ok (C.Code.parse text) in
   assert (ok (C.Code.parse (C.Code.print code)) = code);
   let env, trace = run 60 (ok (C.make code 1)) [] in
-  assert (C.get_var env "x" = N.one);
-  assert (C.get_var env "y" = N.one);
+  assert (List.assoc "x" env.vars = N.one);
+  assert (List.assoc "y" env.vars = N.one);
   assert (
     trace
     = [
@@ -55,7 +55,7 @@ let () =
   let s = ok (C.make code 1) in
   let s, _ = next s 0 in
   let s, _ = next s 0 in
-  assert (C.get_var s.env "x" = "14");
+  assert (List.assoc "x" s.env.vars = "14");
   let original = C.snapshot s in
   let s2, out = next s 0 in
   assert (out = "agent 0: call inc");
@@ -68,7 +68,7 @@ let () =
   in
   let a, oa = next s2 0 and b, ob = next restored 0 in
   assert (oa = ob && C.snapshot a = C.snapshot b);
-  assert (C.get_var a.env "x" = "15");
+  assert (List.assoc "x" a.env.vars = "15");
   let code =
     ok
       (C.Code.parse
@@ -76,13 +76,13 @@ let () =
           <- 5 * (4 + 2) - 99 }")
   in
   let env, _ = run 30 (ok (C.make code 1)) [] in
-  assert (C.get_var env "x" = "2");
-  assert (C.get_var env "y" = "0");
+  assert (List.assoc "x" env.vars = "2");
+  assert (List.assoc "y" env.vars = "0");
   let code =
     ok (C.Code.parse "fn main { x <- 0; x <- x + 1; if x < 3 goto -1 }")
   in
   let env, _ = run 40 (ok (C.make code 1)) [] in
-  assert (C.get_var env "x" = "3");
+  assert (List.assoc "x" env.vars = "3");
   let code =
     ok (C.Code.parse "fn main { if 1 == 1 || done $missing goto +2; x <- 9 }")
   in
@@ -137,7 +137,8 @@ let () =
   in
   assert (ok (C.Code.parse (C.Code.print code)) = code);
   let env, _ = run 40 (ok (C.make code 1)) [] in
-  assert (C.get_var env "foo_bar" = "7" && C.get_var env "result" = "3");
+  assert (
+    List.assoc "foo_bar" env.vars = "7" && List.assoc "result" env.vars = "3");
   assert (List.assoc "task_id" env.task_ids = Some 1);
-  assert (C.get_var (ok (C.Foutput.parse "foo_bar = +7")) "foo_bar" = "7");
+  assert (List.assoc "foo_bar" (ok (C.Foutput.parse "foo_bar = +7")).vars = "7");
   print_endline "coroutine tests passed"

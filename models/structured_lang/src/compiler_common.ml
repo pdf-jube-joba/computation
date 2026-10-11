@@ -66,7 +66,8 @@ let static_defs names =
     (fun label -> { I.label; value = N.zero })
     (List.sort_uniq String.compare names)
 
-let encode_ainput e = Ok (List.map (fun (k, n) -> (k, I.Num n)) (sorted e))
+let encode_ainput e =
+  Ok (List.map (fun (k, n) -> (k, I.Num n)) (Utils.Assoc.sorted e))
 
 let decode_foutput model values =
   L.protect (fun () ->
@@ -82,27 +83,7 @@ let decode_foutput model values =
           in
           ignore (get (Utils.Identifier.make k));
           (k, n))
-        (sorted values))
-
-let text_api ~parse_code ~compile ~parse_ainput ~encode_ainput ~print_ainput
-    ~parse_rinput ~encode_rinput ~decode_routput ~decode_foutput ~print_foutput
-    : Utils.Compiler.api =
-  {
-    compile_code =
-      (fun text ->
-        Result.bind (parse_code text) (fun code ->
-            Result.map I.Code.print (compile code)));
-    encode_ainput =
-      (fun text ->
-        Result.bind (parse_ainput text) (fun input ->
-            Result.map print_ainput (encode_ainput input)));
-    encode_rinput = (fun text -> Result.bind (parse_rinput text) encode_rinput);
-    decode_routput;
-    decode_foutput =
-      (fun text ->
-        Result.bind (I.Foutput.parse text) (fun output ->
-            Result.map print_foutput (decode_foutput output)));
-  }
+        (Utils.Assoc.sorted values))
 
 let atom_vars = function Var v -> [ v ] | Imm _ -> []
 

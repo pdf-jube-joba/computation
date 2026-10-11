@@ -84,12 +84,12 @@ module Code = struct
     let t = String.trim token in
     if t = "" then failwith "Empty value";
     if String.starts_with ~prefix:"#" t then
-      Imm (value (number (Text.strip_prefix "#" t)))
+      Imm (value (N.of_string_with_plus (Text.strip_prefix "#" t)))
     else if String.starts_with ~prefix:"@" t then
       let name = Text.strip_prefix "@" t in
       Label (value (Utils.Identifier.make name))
     else if String.for_all (function '0' .. '9' -> true | _ -> false) t then
-      Imm (value (number t))
+      Imm (value (N.of_string_with_plus t))
     else Const (value (Utils.Identifier.make t))
 
   let parse_operand t =
@@ -116,7 +116,7 @@ module Code = struct
     | [ ".equ"; name; n ] ->
         Equ
           ( value (Utils.Identifier.make name),
-            value (number (Text.strip_prefix "#" n)) )
+            value (N.of_string_with_plus (Text.strip_prefix "#" n)) )
     | _ -> failwith ("Unsupported directive syntax: " ^ line)
 
   let parse text =

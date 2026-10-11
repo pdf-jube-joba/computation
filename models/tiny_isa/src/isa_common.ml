@@ -32,14 +32,14 @@ let write array addr v =
   out.(addr) <- v;
   out
 
-let number = N.of_string_with_plus
-
 module Numbers = struct
   type t = N.t list
 
   let parse text =
     Utils.Lexer.protect (fun () ->
-        List.map (fun n -> value (number n)) (Utils.String_ext.lines text))
+        List.map
+          (fun n -> value (N.of_string_with_plus n))
+          (Utils.String_ext.lines text))
 
   let print ns = String.concat "\n" (List.map N.to_string ns)
 end
@@ -56,8 +56,9 @@ module Image = struct
             if List.length parts <> 8 then
               failwith
                 "Expected 8 registers on the first line (comma separated)";
-            ( Array.of_list (List.map (fun s -> value (number s)) parts),
-              List.map (fun s -> value (number s)) mem ))
+            ( Array.of_list
+                (List.map (fun s -> value (N.of_string_with_plus s)) parts),
+              List.map (fun s -> value (N.of_string_with_plus s)) mem ))
 
   let print (regs, mem) =
     String.concat ", " (List.map N.to_string (Array.to_list regs))

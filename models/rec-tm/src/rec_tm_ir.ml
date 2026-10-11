@@ -148,7 +148,7 @@ module Code = struct
   type t = code
 
   let parse =
-    parse (fun p ->
+    L.parse (fun p ->
         let alphabet = alphabet p in
         let rec stmt () =
           if L.eat_keyword p "LT" then Lt
@@ -289,8 +289,8 @@ let step s () =
         let continue next = Utils.Machine.Continue { next; output = () } in
         let pc pc = continue { next with frame = { next.frame with pc } } in
         match stmt with
-        | Lt -> continue { next with tape = T.move_to next.tape T.Left }
-        | Rt -> continue { next with tape = T.move_to next.tape T.Right }
+        | Lt -> continue { next with tape = T.Tape.move_to next.tape T.Left }
+        | Rt -> continue { next with tape = T.Tape.move_to next.tape T.Right }
         | Assign (dst, src) ->
             let env, tape =
               assign next.frame.env next.tape dst
@@ -341,8 +341,8 @@ let render s =
       Utils.Render.container ~title:"stack" ~orientation:"horizontal"
         (List.map (fun f -> Utils.Render.text f.function_) (List.rev s.stack)
         @ [ Utils.Render.text ~class_name:"highlight" s.frame.function_ ]);
-      render_env s.frame.env;
-      T.render_tape s.tape;
+      Utils.Render.assoc_table ~title:"env" T.Sign.print s.frame.env;
+      T.Tape.render s.tape;
     ]
 
 module Ainput = Ir_common.Tape

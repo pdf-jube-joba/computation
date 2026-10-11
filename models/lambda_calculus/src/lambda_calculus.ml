@@ -13,104 +13,64 @@ type state = term
    freshens their IDs before applying them. No process-global variable counter. *)
 module Code = struct
   type t = term
-  type token = Name of string | Lambda | Dot | Left | Right | End
 
-  exception Parse_error of string
+  module L = Utils.Lexer
 
-  let tokenize text =
-    let length = String.length text in
-    let has = Utils.String_ext.starts_at text in
-    let start = Utils.Identifier.is_start in
-    let continue = Utils.Identifier.is_continue in
-    let rec scan i acc =
-      if i = length then List.rev (End :: acc)
-      else
-        match text.[i] with
-        | c when Utils.String_ext.is_whitespace c -> scan (i + 1) acc
-        | '/' when has i "//" ->
-            scan (Utils.String_ext.skip_line text (i + 2)) acc
-        | '/' when has i "/*" ->
-            scan (Utils.Lexer.skip_block_comment text i) acc
-        | '\\' -> scan (i + 1) (Lambda :: acc)
-        | '.' -> scan (i + 1) (Dot :: acc)
-        | '(' -> scan (i + 1) (Left :: acc)
-        | ')' -> scan (i + 1) (Right :: acc)
-        | c when start c ->
-            let j = Utils.String_ext.skip_while continue text (i + 1) in
-            scan j (Name (String.sub text i (j - i)) :: acc)
-        | _ ->
-            raise
-              (Parse_error (Printf.sprintf "Unexpected character at byte %d" i))
-    in
-    Array.of_list (scan 0 [])
-
-  let parse text =
-    try
-      let tokens = tokenize text in
-      let pos = ref 0 and next_id = ref 0 in
-      let free = Hashtbl.create 8 in
-      let fresh name =
-        let id = !next_id in
-        incr next_id;
-        { id; name }
-      in
-      let peek () = tokens.(!pos) in
-      let take () =
-        let token = peek () in
-        incr pos;
-        token
-      in
-      let fail message =
-        raise (Parse_error (Printf.sprintf "%s at token %d" message !pos))
-      in
-      let rec application env =
-        let first = atom env in
-        let rec rest left =
-          match peek () with
-          | Name _ | Left | Lambda -> rest (App (left, atom env))
-          | _ -> left
+  let parse =
+    L.parse (fun p ->
+        let next_id = ref 0 in
+        let free = Hashtbl.create 8 in
+        let fresh name =
+          let id = !next_id in
+          incr next_id;
+          { id; name }
         in
-        rest first
-      and atom env =
-        match take () with
-        | Name name ->
-            let var =
-              match List.assoc_opt name env with
-              | Some var -> var
-              | None -> (
-                  match Hashtbl.find_opt free name with
-                  | Some var -> var
-                  | None ->
-                      let var = fresh name in
-                      Hashtbl.add free name var;
-                      var)
-            in
-            Var var
-        | Left ->
-            let term = application env in
-            if take () <> Right then fail "Expected ')'";
-            term
-        | Lambda ->
-            let rec binders env acc =
-              match peek () with
-              | Name name ->
-                  ignore (take ());
-                  let var = fresh name in
-                  binders ((name, var) :: env) (var :: acc)
-              | Dot when acc <> [] ->
-                  ignore (take ());
-                  (env, List.rev acc)
-              | _ -> fail "Expected binders followed by '.'"
-            in
-            let env, vars = binders env [] in
-            let body = application env in
-            List.fold_right (fun var body -> Abs (var, body)) vars body
-        | _ -> fail "Expected a lambda term"
-      in
-      let term = application [] in
-      if peek () <> End then fail "Unexpected trailing tokens";
-      Ok term
-    with Parse_error message | Utils.Lexer.Error message -> Error message
+        let rec application env =
+          let first = atom env in
+          let rec rest left =
+            match L.peek p with
+            | L.Ident _ | L.Symbol '(' | L.Symbol '\\' ->
+                rest (App (left, atom env))
+            | _ -> left
+          in
+          rest first
+        and atom env =
+          match L.next p with
+          | L.Ident name ->
+              let var =
+                match List.assoc_opt name env with
+                | Some var -> var
+                | None -> (
+                    match Hashtbl.find_opt free name with
+                    | Some var -> var
+                    | None ->
+                        let var = fresh name in
+                        Hashtbl.add free name var;
+                        var)
+              in
+              Var var
+          | L.Symbol '(' ->
+              let term = application env in
+              L.expect_symbol p ')';
+              term
+          | L.Symbol '\\' ->
+              let rec binders env acc =
+                match L.peek p with
+                | L.Ident name ->
+                    ignore (L.next p);
+                    let var = fresh name in
+                    binders ((name, var) :: env) (var :: acc)
+                | L.Symbol '.' when acc <> [] ->
+                    ignore (L.next p);
+                    (env, List.rev acc)
+                | _ -> L.error p "Expected binders followed by '.'"
+              in
+              let env, vars = binders env [] in
+              let body = application env in
+              List.fold_right (fun var body -> Abs (var, body)) vars body
+          | _ -> L.error p "Expected a lambda term"
+        in
+        application [])
 
   (* Use distinct printable names for distinct IDs, so printing a shared term
    never introduces apparent variable capture. *)
@@ -316,64 +276,6 @@ let render term =
       Utils.Render.indexed_table ~title:"redexes" ~columns:[ "index"; "term" ]
         Code.print (redexes term);
     ]
-
-let assoc_app = List.fold_left (fun left right -> App (left, right))
-
-let lambdas vars body =
-  List.fold_right (fun var body -> Abs (var, body)) vars body
-
-let free_variables term =
-  let rec visit bound acc = function
-    | Var var ->
-        if List.mem var.id bound || List.exists (fun v -> v.id = var.id) acc
-        then acc
-        else var :: acc
-    | Abs (var, body) -> visit (var.id :: bound) acc body
-    | App (left, right) -> visit bound (visit bound acc left) right
-  in
-  List.rev (visit [] [] term)
-
-let bounded_variables term =
-  let rec visit acc = function
-    | Var _ -> acc
-    | Abs (var, body) ->
-        visit
-          (if List.exists (fun v -> v.id = var.id) acc then acc else var :: acc)
-          body
-    | App (left, right) -> visit (visit acc left) right
-  in
-  List.rev (visit [] term)
-
-let alpha_eq left right =
-  let rec position id i = function
-    | [] -> None
-    | h :: t -> if h = id then Some i else position id (i + 1) t
-  in
-  let rec equal env1 env2 left right =
-    match (left, right) with
-    | Var v, Var w -> (
-        match (position v.id 0 env1, position w.id 0 env2) with
-        | Some i, Some j -> i = j
-        | None, None -> v.id = w.id
-        | _ -> false)
-    | Abs (v, left), Abs (w, right) ->
-        equal (v.id :: env1) (w.id :: env2) left right
-    | App (l, r), App (l', r') -> equal env1 env2 l l' && equal env1 env2 r r'
-    | _ -> false
-  in
-  equal [] [] left right
-
-let alpha_conversion term = freshen_bound term (ref (max_id term + 1))
-let unchecked_subst = substitute
-let var_change before after term = substitute term before (Var after)
-let is_normal_form term = redex_count term = 0
-
-let rec normalize ?(fuel = 100000) term =
-  if is_normal_form term then Ok term
-  else if fuel = 0 then Error "Normalization step limit reached"
-  else
-    let* next = reduce term 0 in
-    normalize ~fuel:(fuel - 1) next
 
 module Ainput = struct
   type t = ainput

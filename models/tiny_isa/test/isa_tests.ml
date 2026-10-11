@@ -38,14 +38,14 @@ let rec run_a fuel s =
 
 let image : I.ainput = { register = Array.make 8 N.zero; memory = [] }
 let asm_input : A.ainput = { regs = Array.make 8 N.zero; data_extension = [] }
-let machine ops = ok (I.make (List.map I.encode ops) image)
+let machine ops = ok (I.make (List.map Op.encode ops) image)
 let assembly source = ok (A.make (ok (A.Code.parse source)) asm_input)
 
 let () =
   let (_ : (module Utils.Machine.S)) = (module I.Machine) in
   let (_ : (module Utils.Machine.S)) = (module A.Machine) in
   let (_ : (module Utils.Machine.S)) = (module C.Machine) in
-  let roundtrip inst = assert (ok (I.decode (I.encode inst)) = inst) in
+  let roundtrip inst = assert (ok (Op.decode (Op.encode inst)) = inst) in
   List.iter roundtrip [ Op.Nop; Halt; Rst ];
   for d = 0 to 7 do
     for s = 0 to 7 do
@@ -65,13 +65,13 @@ let () =
           [ N.zero; N.one; "65536"; "340282366920938463463374607431768211456" ])
       [ false; true ]
   done;
-  assert (ok (I.decode "64") = Op.Halt);
-  assert (ok (I.decode "63") = Op.Rst);
+  assert (ok (Op.decode "64") = Op.Halt);
+  assert (ok (Op.decode "63") = Op.Rst);
   List.iter
-    (fun n -> error (I.decode (N.of_int n)))
+    (fun n -> error (Op.decode (N.of_int n)))
     [ 1; 65; 320; 513 + 64; (17 * 256) + 64; (8 * 256) + 128 + 1 ];
   assert (
-    ok (I.decode (N.add (N.mul "99999999999999999999999999" "65536") "64"))
+    ok (Op.decode (N.add (N.mul "99999999999999999999999999" "65536") "64"))
     = Op.Halt);
   let output =
     run_i 60
@@ -111,11 +111,11 @@ let () =
     run_i 4
       (ok
          (I.make
-            [ List.hd (List.map I.encode [ Op.St (1, 2) ]); N.zero ]
+            [ List.hd (List.map Op.encode [ Op.St (1, 2) ]); N.zero ]
             { register = regs; memory = [] }))
   in
   assert (output.register.(0) = "1");
-  let code = List.map I.encode [ Op.Ld (1, 2); St (1, 3); Halt ] in
+  let code = List.map Op.encode [ Op.Ld (1, 2); St (1, 3); Halt ] in
   let regs = Array.make 8 N.zero in
   regs.(2) <- "3";
   regs.(3) <- "6";

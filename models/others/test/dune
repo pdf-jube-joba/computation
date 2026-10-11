@@ -1,4 +1,0 @@
-(test
- (name test_others)
- (modules test_others)
- (libraries others))

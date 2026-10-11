@@ -18,7 +18,9 @@ let index_from_top c offset dst =
   [ I.LGet len; I.BinOp (dst, I.VReg len, I.Sub, I.Imm (N.of_int offset)) ]
 
 let place_for_var c scope v =
-  match lookup v scope.vars ("Unknown variable in compiler: " ^ v) with
+  match
+    Utils.Assoc.lookup v scope.vars ("Unknown variable in compiler: " ^ v)
+  with
   | Global -> ([], I.Label v)
   | Local i ->
       let idx = fresh_vreg c "idx_local" in
@@ -115,7 +117,8 @@ let rec compile_stmt stmt cont scope c =
           (List.rev args)
       in
       let target =
-        lookup name scope.entries ("Unknown procedure in compiler: " ^ name)
+        Utils.Assoc.lookup name scope.entries
+          ("Unknown procedure in compiler: " ^ name)
       in
       let call_region = fresh_region c "call" in
       single c call_region
@@ -148,13 +151,13 @@ let compile (source : P.code) =
           let vars = List.map (fun v -> (v, Global)) source.statics in
           let vars =
             List.fold_left
-              (fun vs (i, v) -> set v (Param i) vs)
+              (fun vs (i, v) -> Utils.Assoc.set v (Param i) vs)
               vars
               (List.mapi (fun i v -> (i, v)) p.params)
           in
           let vars =
             List.fold_left
-              (fun vs (i, v) -> set v (Local i) vs)
+              (fun vs (i, v) -> Utils.Assoc.set v (Local i) vs)
               vars
               (List.mapi (fun i v -> (i, v)) p.locals)
           in
@@ -174,7 +177,9 @@ let compile (source : P.code) =
             (List.map (fun _ -> I.Push (I.Imm N.zero)) p.locals)
             (enter body))
         source.procs;
-      let main = lookup "main" entries "Procedure 'main' is required" in
+      let main =
+        Utils.Assoc.lookup "main" entries "Procedure 'main' is required"
+      in
       single c "main" [ I.Push (I.CodeLabel halt); I.Nop ] (enter main);
       {
         I.statics =
@@ -182,7 +187,7 @@ let compile (source : P.code) =
         regions = c.regions;
       })
 
-let encode_ainput = encode_ainput
+let encode_ainput = Compiler_common.encode_ainput
 let encode_rinput s = Ok s
 let decode_routput s = Ok s
 
@@ -196,9 +201,17 @@ let decode_foutput values =
               failwith
                 ("expected numeric global for " ^ k ^ ", got "
                ^ I.Ainput.print_value v))
-        (sorted values))
+        (Utils.Assoc.sorted values))
 
 let api =
-  text_api ~parse_code:P.Code.parse ~compile ~parse_ainput:P.Ainput.parse
-    ~encode_ainput ~print_ainput:I.Ainput.print ~parse_rinput:P.Rinput.parse
-    ~encode_rinput ~decode_routput ~decode_foutput ~print_foutput:Env.print
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
+
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

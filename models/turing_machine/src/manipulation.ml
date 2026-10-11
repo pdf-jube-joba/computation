@@ -1,7 +1,5 @@
 open Core
 
-let unwrap = Core.unwrap
-
 module Builder = struct
   type 'sign user_code_entry = {
     key_sign : 'sign;
@@ -34,8 +32,7 @@ module Builder = struct
   let build ~sign b tape =
     let open Utils.Machine in
     let* d =
-      definition b.init_state b.accepted_state
-        (List.map (to_entry ~sign) b.code)
+      Code.make b.init_state b.accepted_state (List.map (to_entry ~sign) b.code)
     in
     make d tape
 end
@@ -66,7 +63,7 @@ module Graph_compose = struct
             then failwith "Edge index out of bounds")
           g.assign_edge_to_state;
         let name i state =
-          unwrap
+          Core.unwrap
             (State.parse (Printf.sprintf "v%d_%s_%s" i vertices.(i).name state))
         in
         let signs =

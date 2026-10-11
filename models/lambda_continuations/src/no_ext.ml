@@ -26,8 +26,6 @@ let rec reduce = function
   | Rec (f, x, b) as r -> Some (Lam (x, subst b f r))
   | Abort _ | Control _ -> None
 
-let small_step = reduce
-
 type code = term
 type ainput = N.t list
 type rinput = unit

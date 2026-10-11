@@ -18,18 +18,7 @@ type term =
   | Control of term
 [@@deriving yojson]
 
-type lam = term [@@deriving yojson]
 type value = Fun of Utils.Identifier.t * term | Num of N.t [@@deriving yojson]
-
-let n_v x = Var x
-let n_l x b = Lam (x, b)
-let n_a f a = App (f, a)
-let n_z () = Zero
-let n_s e = Succ e
-let n_p e = Pred e
-let n_i c t f = IfZ (c, t, f)
-let n_d x e b = Let (x, e, b)
-let n_r f x b = Rec (f, x, b)
 
 let rec num_to_exp n =
   if N.is_zero n then Zero else Succ (num_to_exp (N.pred n))
@@ -39,11 +28,9 @@ let rec exp_to_num = function
   | Succ n -> Option.map N.succ (exp_to_num n)
   | _ -> None
 
-let lam_to_value = function
+let is_value = function
   | Lam (x, b) -> Some (Fun (x, b))
   | e -> Option.map (fun n -> Num n) (exp_to_num e)
-
-let is_value = lam_to_value
 
 let rec free_variables = function
   | Var x -> Names.singleton x
@@ -71,7 +58,6 @@ let rec bound_variables = function
   | Rec (f, x, b) -> Names.add f (Names.add x (bound_variables b))
 
 let all_names e = Names.union (free_variables e) (bound_variables e)
-let fresh used = Utils.Identifier.fresh used
 
 let rec rename e from into =
   match e with
@@ -97,7 +83,7 @@ let rec subst e target replacement =
   in
   let binder x b =
     if Names.mem x (free_variables replacement) then
-      let y = fresh avoid in
+      let y = Utils.Identifier.fresh avoid in
       (y, rename b x y)
     else (x, b)
   in
@@ -128,40 +114,13 @@ let rec subst e target replacement =
       let used = Names.add f (Names.union avoid (all_names b)) in
       let x, b =
         if Names.mem x (free_variables replacement) then
-          let y = fresh used in
+          let y = Utils.Identifier.fresh used in
           (y, rename b x y)
         else (x, b)
       in
       Rec (f, x, subst b target replacement)
   | Abort e -> Abort (subst e target replacement)
   | Control e -> Control (subst e target replacement)
-
-(* Bound variables are compared by lexical depth, never by a printed dummy name. *)
-let alpha_eq a b =
-  let rec index x i = function
-    | [] -> None
-    | y :: ys -> if x = y then Some i else index x (i + 1) ys
-  in
-  let rec eq left right a b =
-    match (a, b) with
-    | Var x, Var y -> (
-        match (index x 0 left, index y 0 right) with
-        | None, None -> x = y
-        | i, j -> i = j)
-    | Lam (x, a), Lam (y, b) -> eq (x :: left) (y :: right) a b
-    | App (a, b), App (c, d) -> eq left right a c && eq left right b d
-    | Zero, Zero -> true
-    | Succ a, Succ b | Pred a, Pred b | Abort a, Abort b | Control a, Control b
-      ->
-        eq left right a b
-    | IfZ (a, b, c), IfZ (d, e, f) ->
-        eq left right a d && eq left right b e && eq left right c f
-    | Let (x, a, b), Let (y, c, d) ->
-        eq left right a c && eq (x :: left) (y :: right) b d
-    | Rec (f, x, b), Rec (g, y, c) -> eq (x :: f :: left) (y :: g :: right) b c
-    | _ -> false
-  in
-  eq [] [] a b
 
 module Code = struct
   type t = term
@@ -194,10 +153,8 @@ module Code = struct
     | Abort e -> "(abort " ^ print e ^ ")"
     | Control e -> "(control " ^ print e ^ ")"
 
-  let word = L.identifier
-
   let variable p =
-    let name = word p in
+    let name = L.identifier p in
     if
       List.mem name
         [
@@ -219,8 +176,6 @@ module Code = struct
 
   let rec read_term ~control p =
     match L.peek p with
-    | L.Ident name when word { p with L.pos = p.L.pos } <> name ->
-        Var (variable p)
     | L.Ident "fun" ->
         ignore (L.next p);
         let x = variable p in
@@ -299,19 +254,19 @@ module Nat_code = struct
     (* The unextended grammar treats names such as zero and succ as variables. *)
     let rec read p =
       match L.peek p with
-      | L.Ident "fun" when Code.word { p with L.pos = p.L.pos } = "fun" -> (
+      | L.Ident "fun" -> (
           let saved = p.L.pos in
           match
             L.protect (fun () ->
                 ignore (L.next p);
-                let x = Code.word p in
+                let x = L.identifier p in
                 L.expect p "=>";
                 Lam (x, read p))
           with
           | Ok e -> e
           | Error _ ->
               p.L.pos <- saved;
-              Var (Code.word p))
+              Var (L.identifier p))
       | L.Symbol '@' ->
           ignore (L.next p);
           L.expect_symbol p '(';
@@ -324,7 +279,7 @@ module Nat_code = struct
           let e = read p in
           L.expect_symbol p ')';
           e
-      | _ -> Var (Code.word p)
+      | _ -> Var (L.identifier p)
     in
     L.parse read
 end

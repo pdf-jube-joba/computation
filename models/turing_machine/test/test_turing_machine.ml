@@ -23,18 +23,21 @@ let () =
       (fun s -> get (T.Sign.parse s))
       [ "a"; "b"; "c"; "d"; "e"; "f"; "g" ]
   in
-  let t = get (T.tape_from_vec v 3) in
+  let t = get (T.Tape.from_vec v 3) in
   check "move left"
-    (T.tape_equal (T.move_to t T.Left) (get (T.tape_from_vec v 2)));
-  check "left-right" (T.tape_equal (T.move_to (T.move_to t T.Left) T.Right) t);
-  let t = get (T.tape_from_vec v 1) in
-  let t = List.fold_left (fun t _ -> T.move_to t T.Left) t [ (); (); () ] in
+    (T.Tape.equal (T.Tape.move_to t T.Left) (get (T.Tape.from_vec v 2)));
+  check "left-right"
+    (T.Tape.equal (T.Tape.move_to (T.Tape.move_to t T.Left) T.Right) t);
+  let t = get (T.Tape.from_vec v 1) in
+  let t =
+    List.fold_left (fun t _ -> T.Tape.move_to t T.Left) t [ (); (); () ]
+  in
   check "infinite blanks"
-    (T.tape_equal t (get (T.tape_from_vec (None :: None :: v) 0)));
+    (T.Tape.equal t (get (T.Tape.from_vec (None :: None :: v) 0)));
   check "ignore outer blanks"
-    (T.tape_equal (get (tape "-|-|-")) (get (tape "|-|")));
+    (T.Tape.equal (get (tape "-|-|-")) (get (tape "|-|")));
   check "from_vec end"
-    (T.tape_equal (get (T.tape_from_vec v 7)) (get (tape "a,b,c,d,e,f,g|-|")));
+    (T.Tape.equal (get (T.Tape.from_vec v 7)) (get (tape "a,b,c,d,e,f,g|-|")));
   List.iter
     (fun s -> check "invalid tape" (Result.is_error (tape s)))
     [ ""; "a|b"; "a||b"; "|0|"; "|a|b," ];
@@ -48,7 +51,7 @@ let () =
   check "snapshot" (T.snapshot restored = T.snapshot s);
   check "termination" (T.Tape.print (run restored) = "-,b,b,b,b,b|c|");
   check "missing transition halts"
-    (T.tape_equal (run (get (T.make d (get (tape "|-|"))))) (get (tape "|-|")));
+    (T.Tape.equal (run (get (T.make d (get (tape "|-|"))))) (get (tape "|-|")));
   List.iter
     (fun s -> check "invalid code" (Result.is_error (T.Code.parse s)))
     [
@@ -85,7 +88,7 @@ let () =
   in
   let builder = get (G.builder_composition graph) in
   let s = get (B.build ~sign:Fun.id builder (get (tape "|-|"))) in
-  check "graph composition" (T.tape_equal (run s) (get (tape "a|a|")));
+  check "graph composition" (T.Tape.equal (run s) (get (tape "a|a|")));
   check "graph validation"
     (Result.is_error (G.builder_composition { graph with acceptable = [] }));
   print_endline

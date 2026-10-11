@@ -2,7 +2,6 @@ open Syntax
 module Code = Syntax.Code
 
 let ( let* ) = Result.bind
-let bind env name value = (name, value) :: env
 
 let eval_binop lhs op rhs =
   match (op, lhs, rhs) with

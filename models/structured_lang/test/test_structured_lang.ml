@@ -113,7 +113,8 @@ let test_ctrl () =
                   [ ("x", "0"); ("y", "0") ]))
             ""))
   in
-  if actual <> S.Common.sorted expected then failwith "Ctrl compiler mismatch";
+  if actual <> Utils.Assoc.sorted expected then
+    failwith "Ctrl compiler mismatch";
   let source =
     "static x, y, z; loop :outer ( loop :inner ( x := 17; break :outer x ) -> \
      z ) -> y"
@@ -132,7 +133,7 @@ let test_ctrl () =
                   [ ("x", "0"); ("y", "0"); ("z", "4") ]))
             ""))
   in
-  if actual <> S.Common.sorted expected then
+  if actual <> Utils.Assoc.sorted expected then
     failwith "Ctrl nested compiler mismatch";
   error (C.make code []);
   error (C.make code [ ("unknown", "0") ]);

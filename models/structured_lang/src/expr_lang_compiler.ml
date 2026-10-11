@@ -140,14 +140,20 @@ let compile source =
           :: c.regions;
       })
 
-let encode_ainput = encode_ainput
+let encode_ainput = Compiler_common.encode_ainput
 let encode_rinput () = Ok ""
 let decode_routput _ = Ok ()
 let decode_foutput = decode_foutput "expr"
 
 let api =
-  text_api ~parse_code:E.Code.parse ~compile ~parse_ainput:E.Ainput.parse
-    ~encode_ainput ~print_ainput:I.Ainput.print ~parse_rinput:E.Rinput.parse
-    ~encode_rinput
-    ~decode_routput:(fun _ -> Ok "")
-    ~decode_foutput ~print_foutput:Env.print
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
+
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

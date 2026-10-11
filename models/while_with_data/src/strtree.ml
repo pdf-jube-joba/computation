@@ -1,4 +1,4 @@
-open Data_parser
+module L = Utils.Lexer
 
 type aexp = Mtoa of texp | AtomChar of string
 
@@ -49,15 +49,12 @@ module Code = struct
     | IsAtom a -> "is_atom " ^ texp_to_text a
     | Eq (a, b) -> "(" ^ texp_to_text a ^ " == " ^ texp_to_text b ^ ")"
 
-  let rec stmt_to_text = function
+  let rec print = function
     | Nop -> "Nop"
     | Assign (n, a) -> n ^ " := " ^ texp_to_text a
-    | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-    | IfEq (c, b) ->
-        "ifeq " ^ bexp_to_text c ^ " then " ^ stmt_to_text b ^ " end"
-    | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ stmt_to_text b ^ " }"
-
-  let print = stmt_to_text
+    | Seq (a, b) -> print a ^ " ; " ^ print b
+    | IfEq (c, b) -> "ifeq " ^ bexp_to_text c ^ " then " ^ print b ^ " end"
+    | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ print b ^ " }"
 
   let reserved =
     [
@@ -75,55 +72,55 @@ module Code = struct
     ]
 
   let parse_name p =
-    let n = ident p in
-    if List.mem n reserved then fail "Expected identifier";
+    let n = L.identifier p in
+    if List.mem n reserved then failwith "Expected identifier";
     n
 
   let rec parse_aexp p =
-    if eat p (Word "mtoa") then Mtoa (parse_texp p)
-    else if eat p (Sym '(') then (
+    if L.eat_keyword p "mtoa" then Mtoa (parse_texp p)
+    else if L.eat_symbol p '(' then (
       let a = parse_aexp p in
-      expect p (Sym ')');
+      L.expect_symbol p ')';
       a)
-    else AtomChar (character p)
+    else AtomChar (L.character_literal p)
 
   and parse_texp p =
-    if eat p (Word "atom") then Atom (parse_aexp p)
-    else if eat p (Word "cons") then
+    if L.eat_keyword p "atom" then Atom (parse_aexp p)
+    else if L.eat_keyword p "cons" then
       let a = parse_texp p in
       let b = parse_texp p in
       Cons (a, b)
-    else if eat p (Word "left") then Left (parse_texp p)
-    else if eat p (Word "right") then Right (parse_texp p)
-    else if eat p (Sym '(') then (
+    else if L.eat_keyword p "left" then Left (parse_texp p)
+    else if L.eat_keyword p "right" then Right (parse_texp p)
+    else if L.eat_symbol p '(' then (
       let a = parse_texp p in
-      expect p (Sym ')');
+      L.expect_symbol p ')';
       a)
     else Var (parse_name p)
 
   let parse_bexp p =
-    if eat p (Word "is_atom") then IsAtom (parse_texp p)
+    if L.eat_keyword p "is_atom" then IsAtom (parse_texp p)
     else
       (* Rust's printer parenthesizes equality. Accept that printed form too. *)
-      let saved = p.pos in
+      let saved = p.L.pos in
       let relation () =
         let a = parse_texp p in
-        expect p (Op "==");
+        L.expect p "==";
         let b = parse_texp p in
         Eq (a, b)
       in
       try relation ()
-      with Failure _ ->
-        p.pos <- saved;
-        expect p (Sym '(');
+      with Failure _ | L.Error _ ->
+        p.L.pos <- saved;
+        L.expect_symbol p '(';
         let c = relation () in
-        expect p (Sym ')');
+        L.expect_symbol p ')';
         c
 
   let rec parse_stmt p =
     let s = parse_single p in
     let rec loop s =
-      if eat p (Sym ';') then
+      if L.eat_symbol p ';' then
         let b = parse_single p in
         loop (Seq (s, b))
       else s
@@ -131,30 +128,30 @@ module Code = struct
     loop s
 
   and parse_single p =
-    if eat p (Word "Nop") then Nop
-    else if eat p (Word "ifeq") then (
+    if L.eat_keyword p "Nop" then Nop
+    else if L.eat_keyword p "ifeq" then (
       let c = parse_bexp p in
-      expect p (Word "then");
+      L.expect_keyword p "then";
       let b = parse_stmt p in
-      expect p (Word "end");
+      L.expect_keyword p "end";
       IfEq (c, b))
-    else if eat p (Word "while") then (
+    else if L.eat_keyword p "while" then (
       let c = parse_bexp p in
-      expect p (Sym '{');
+      L.expect_symbol p '{';
       let b = parse_stmt p in
-      expect p (Sym '}');
+      L.expect_symbol p '}';
       While (c, b))
-    else if eat p (Sym '(') then (
+    else if L.eat_symbol p '(' then (
       let b = parse_stmt p in
-      expect p (Sym ')');
+      L.expect_symbol p ')';
       b)
     else
       let n = parse_name p in
-      expect p (Op ":=");
+      L.expect p ":=";
       let a = parse_texp p in
       Assign (n, a)
 
-  let parse = parse parse_stmt
+  let parse = L.parse ~character_literals:true parse_stmt
 end
 
 module Ainput = struct
@@ -167,11 +164,13 @@ module Ainput = struct
   let rec lower_value = function
     | Atom (AtomChar c) -> AtomValue c
     | Cons (a, b) -> ConsValue (lower_value a, lower_value b)
-    | Var n -> fail ("unexpected variable in value: " ^ n)
-    | Atom (Mtoa _) -> fail "unexpected mtoa in value"
-    | Left _ | Right _ -> fail "unexpected projection in value"
+    | Var n -> failwith ("unexpected variable in value: " ^ n)
+    | Atom (Mtoa _) -> failwith "unexpected mtoa in value"
+    | Left _ | Right _ -> failwith "unexpected projection in value"
 
-  let parse_value = parse (fun p -> lower_value (Code.parse_texp p))
+  let parse_value =
+    L.parse ~character_literals:true (fun p -> lower_value (Code.parse_texp p))
+
   let parse = Utils.Environment.parse parse_value
   let print = Utils.Environment.print ~trailing_newline:true print_value
 end
@@ -181,13 +180,10 @@ let rec eval_aexp env = function
   | Mtoa t -> (
       match eval_texp env t with
       | AtomValue c -> c
-      | _ -> fail "mtoa expects an atom")
+      | _ -> failwith "mtoa expects an atom")
 
 and eval_texp env = function
-  | Var n -> (
-      match List.assoc_opt n env with
-      | Some v -> v
-      | None -> fail ("uninitialized variable: " ^ n))
+  | Var n -> Utils.Assoc.lookup n env ("uninitialized variable: " ^ n)
   | Atom a -> AtomValue (eval_aexp env a)
   | Cons (a, b) ->
       let a = eval_texp env a in
@@ -196,11 +192,11 @@ and eval_texp env = function
   | Left t -> (
       match eval_texp env t with
       | ConsValue (a, _) -> a
-      | _ -> fail "left expects a cons cell")
+      | _ -> failwith "left expects a cons cell")
   | Right t -> (
       match eval_texp env t with
       | ConsValue (_, b) -> b
-      | _ -> fail "right expects a cons cell")
+      | _ -> failwith "right expects a cons cell")
 
 let eval_bexp env = function
   | IsAtom t -> ( match eval_texp env t with AtomValue _ -> true | _ -> false)
@@ -212,7 +208,7 @@ let eval_bexp env = function
 let rec small_step stmt env =
   match stmt with
   | Nop -> (Nop, env)
-  | Assign (n, a) -> (Nop, set env n (eval_texp env a))
+  | Assign (n, a) -> (Nop, Utils.Assoc.set n (eval_texp env a) env)
   | Seq (Nop, b) -> (b, env)
   | Seq (a, b) ->
       let a, env = small_step a env in
@@ -233,7 +229,7 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.statement_env (Code.stmt_to_text s.stmt) Ainput.print_value s.env
+  Utils.Render.statement_env (Code.print s.stmt) Ainput.print_value s.env
 
 module Rinput = Utils.Text.Unit
 module Routput = Utils.Text.Unit

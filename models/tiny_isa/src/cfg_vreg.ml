@@ -76,10 +76,10 @@ module Code = struct
     else if String.starts_with ~prefix:"@" s then
       Label (value (Utils.Identifier.make (Text.strip_prefix "@" s)))
     else if String.starts_with ~prefix:"#" s then
-      Imm (value (number (Text.strip_prefix "#" s)))
+      Imm (value (N.of_string_with_plus (Text.strip_prefix "#" s)))
     else if
       s <> "" && String.for_all (function '0' .. '9' -> true | _ -> false) s
-    then Imm (value (number s))
+    then Imm (value (N.of_string_with_plus s))
     else failwith ("Invalid addr expr: " ^ s)
 
   let parse_place_expr s =
@@ -241,7 +241,7 @@ module Code = struct
                       label =
                         value
                           (Utils.Identifier.make (Text.strip_prefix "@" label));
-                      value = value (number n);
+                      value = value (N.of_string_with_plus n);
                     }
                   in
                   top (i + 1) (s :: statics) blocks

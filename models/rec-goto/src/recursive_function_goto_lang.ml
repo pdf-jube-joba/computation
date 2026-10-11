@@ -143,50 +143,20 @@ let encode_ainput input =
 
 let encode_rinput () = Ok ()
 let decode_routput () = Ok ()
-let decode_foutput output = Ok (Target.get output output_var)
 
-(* Rust's text codec terminates each instruction/environment entry with a newline. *)
-let terminate text = if text = "" then text else text ^ "\n"
+let decode_foutput output =
+  Ok
+    (Option.value ~default:Utils.Number.zero (List.assoc_opt output_var output))
 
-let api : Utils.Compiler.api =
-  {
-    compile_code =
-      (fun text ->
-        let* func = Source.Code.parse text in
-        let* code = compile func in
-        Ok (terminate (Target.Code.print code)));
-    encode_ainput =
-      (fun text ->
-        let* input = Source.Ainput.parse text in
-        let* env = encode_ainput input in
-        Ok (terminate (Target.Ainput.print env)));
-    encode_rinput =
-      (fun text ->
-        let* () = Source.Rinput.parse text in
-        let* input = encode_rinput () in
-        Ok (Target.Rinput.print input));
-    decode_routput =
-      (fun text ->
-        let* output = Target.Routput.parse text in
-        let* output = decode_routput output in
-        Ok (Source.Routput.print output));
-    decode_foutput =
-      (fun text ->
-        let* env = Target.Foutput.parse text in
-        let* value = decode_foutput env in
-        Ok (Source.Foutput.print value));
-  }
+let api =
+  Utils.Compiler.make_api
+    (module struct
+      module Source = Source
+      module Target = Target
 
-module RecToGotoCompiler = struct
-  module Source = Source
-  module Target = Target
-
-  let compile = compile
-  let encode_ainput = encode_ainput
-  let encode_rinput = encode_rinput
-  let decode_routput = decode_routput
-  let decode_foutput = decode_foutput
-  let api = api
-end
-
-module Compiler = RecToGotoCompiler
+      let compile = compile
+      let encode_ainput = encode_ainput
+      let encode_rinput = encode_rinput
+      let decode_routput = decode_routput
+      let decode_foutput = decode_foutput
+    end)

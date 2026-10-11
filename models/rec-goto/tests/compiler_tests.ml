@@ -1,7 +1,7 @@
 open Utils.Machine
 open Recursive_function
 module C = Recursive_function_goto_lang
-module Typed_contract : Utils.Compiler.S = C.Compiler
+module Typed_contract : Utils.Compiler.S = C
 
 let ok = function Ok value -> value | Error message -> failwith message
 let error = function Error _ -> () | Ok _ -> failwith "Expected an error"
@@ -22,9 +22,18 @@ let run_code code env =
   in
   run 100000 initial
 
+let run_source initial =
+  let rec loop fuel state =
+    if fuel = 0 then failwith "Recursive function step limit exceeded";
+    match ok (Recursive_function.step state ()) with
+    | Halt output -> output
+    | Continue { next; _ } -> loop (fuel - 1) next
+  in
+  loop 100000 initial
+
 let check func input =
   let source = ok (Recursive_function.make func input) in
-  let expected = ok (evaluate source.process) in
+  let expected = run_source source in
   let code = ok (C.compile func) in
   assert (ok (Goto_lang.Code.parse (Goto_lang.Code.print code)) = code);
   let env = run_code code (ok (C.encode_ainput input)) in
@@ -35,13 +44,12 @@ let check func input =
   (* Inputs are immutable registers throughout compiled execution. *)
   List.iteri
     (fun i input ->
-      assert (
-        Utils.Number.equal input (Goto_lang.get env ("x" ^ string_of_int i))))
+      assert (Utils.Number.equal input (List.assoc ("x" ^ string_of_int i) env)))
     input
 
 let api_check text input =
   let func = ok (Code.parse text) and args = ok (Ainput.parse input) in
-  let expected = ok (evaluate (ok (make func args)).process) in
+  let expected = run_source (ok (make func args)) in
   let code = ok (Goto_lang.Code.parse (ok (C.api.compile_code text))) in
   let env = ok (Goto_lang.Ainput.parse (ok (C.api.encode_ainput input))) in
   let result = run_code code env in
@@ -90,8 +98,8 @@ let () =
   api_check "COMP[PROJ[2,1]: (SUCC,COMP[SUCC: SUCC])]" "(5)";
   assert (
     ok (C.api.compile_code "SUCC")
-    = "clr __one;\ninc __one;\ncpy y <- x0;\ninc y;\n");
-  assert (ok (C.api.encode_ainput "(2,3)") = "x0 = 2\nx1 = 3\n");
+    = "clr __one;\ninc __one;\ncpy y <- x0;\ninc y;");
+  assert (ok (C.api.encode_ainput "(2,3)") = "x0 = 2\nx1 = 3");
   assert (ok (C.api.encode_ainput "()") = "");
   assert (ok (C.api.decode_foutput "other = 3") = "0");
   assert (ok (C.api.encode_rinput " ") = "");

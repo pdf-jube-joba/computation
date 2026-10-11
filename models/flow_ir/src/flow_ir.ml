@@ -2,8 +2,6 @@ module N = Utils.Number
 module L = Utils.Lexer
 
 let get = function Ok x -> x | Error e -> failwith e
-let set = Utils.Assoc.set
-let sorted = Utils.Assoc.sorted
 
 type binop = Add | Sub [@@deriving yojson]
 
@@ -134,10 +132,11 @@ module Ainput = struct
     Utils.Environment.parse
       ~invalid_line:(fun line -> "Invalid static input line: " ^ line)
       parse_value text
-    |> Result.map sorted
+    |> Result.map Utils.Assoc.sorted
 
   let print env =
-    Utils.Environment.print ~trailing_newline:true print_value (sorted env)
+    Utils.Environment.print ~trailing_newline:true print_value
+      (Utils.Assoc.sorted env)
 end
 
 let ifs = function Go (xs, _) | Enter (xs, _) | Halt xs -> xs
@@ -215,24 +214,20 @@ module Code = struct
       p.regions;
     Buffer.contents b
 
-  let name = L.identifier
-
   let vreg p =
     L.expect_symbol p '%';
-    name p
-
-  let number p = get (N.of_string (L.natural p))
+    L.identifier p
 
   let rec parse_value p =
     if L.eat_keyword p "ref" then Ref (parse_place p)
     else if L.peek p = L.Symbol '%' then VReg (vreg p)
-    else if L.eat_symbol p ':' then CodeLabel (name p)
+    else if L.eat_symbol p ':' then CodeLabel (L.identifier p)
     else (
       ignore (L.eat_symbol p '#');
-      Imm (number p))
+      Imm (L.natural p))
 
   and parse_place p =
-    if L.eat_symbol p '@' then Label (name p)
+    if L.eat_symbol p '@' then Label (L.identifier p)
     else if L.eat_keyword p "deref" then Deref (vreg p)
     else if L.eat_keyword p "sacc" then SAcc (parse_value p)
     else if L.eat_keyword p "hacc" then (
@@ -289,7 +284,7 @@ module Code = struct
 
   let parse_block p =
     L.expect_symbol p ':';
-    let label = name p in
+    let label = L.identifier p in
     L.expect_symbol p '{';
     let rec loop stmts jumps cont =
       if L.eat_symbol p '}' then
@@ -328,12 +323,12 @@ module Code = struct
         let rec loop ss rs =
           if L.eof p then { statics = List.rev ss; regions = List.rev rs }
           else if L.eat_symbol p '@' then
-            let label = name p in
-            let value = number p in
+            let label = L.identifier p in
+            let value = L.natural p in
             loop ({ label; value } :: ss) rs
           else (
             L.expect_symbol p ':';
-            let label = name p in
+            let label = L.identifier p in
             L.expect_symbol p '{';
             let blocks = L.many_until p ~closing:'}' parse_block in
             if blocks = [] then L.error p "Region has no blocks";
@@ -372,7 +367,7 @@ let make code input =
           (fun m (k, v) ->
             if not (List.mem_assoc k m) then
               failwith ("Unknown static input label: @" ^ k);
-            set k v m)
+            Utils.Assoc.set k v m)
           mem input
       in
       let rec idx i = function
@@ -419,32 +414,30 @@ and eval_place s = function
   | SAcc v -> Stack (index (eval_value s v))
   | HAcc (h, i) -> Heap (index (eval_value s h), index (eval_value s i))
 
-let nth = Utils.List_ext.nth
-
 let read_place s = function
   | Static l -> (
       match List.assoc_opt l s.static_mem with
       | Some v -> v
       | None -> failwith ("Unknown data label: @" ^ l))
-  | Stack i -> nth s.stack i (Printf.sprintf "Invalid stack key: s[%d]" i)
+  | Stack i ->
+      Utils.List_ext.nth s.stack i (Printf.sprintf "Invalid stack key: s[%d]" i)
   | Heap (h, i) ->
-      nth
+      Utils.List_ext.nth
         (Option.value (List.assoc_opt h s.heap) ~default:[])
         i
         (Printf.sprintf "Invalid heap key: h[%d][%d]" h i)
-
-let replace = Utils.List_ext.replace
 
 let write_place s key value =
   match key with
   | Static l ->
       ignore (read_place s key);
-      { s with static_mem = set l value s.static_mem }
+      { s with static_mem = Utils.Assoc.set l value s.static_mem }
   | Stack i ->
       {
         s with
         stack =
-          replace s.stack i value (Printf.sprintf "Invalid stack key: s[%d]" i);
+          Utils.List_ext.replace s.stack i value
+            (Printf.sprintf "Invalid stack key: s[%d]" i);
       }
   | Heap (h, i) ->
       let area =
@@ -455,8 +448,8 @@ let write_place s key value =
       {
         s with
         heap =
-          set h
-            (replace area i value
+          Utils.Assoc.set h
+            (Utils.List_ext.replace area i value
                (Printf.sprintf "Invalid heap key: h[%d][%d]" h i))
             s.heap;
       }
@@ -522,19 +515,23 @@ let jump_enter s v =
 
 let step s input =
   L.protect (fun () ->
-      let halt s = Utils.Machine.Halt (sorted s.static_mem) in
+      let halt s = Utils.Machine.Halt (Utils.Assoc.sorted s.static_mem) in
       let continue s o = Utils.Machine.Continue { next = s; output = o } in
       if s.halted then halt s
       else
         let r =
-          nth s.code.regions s.current_region "Current region out of range"
+          Utils.List_ext.nth s.code.regions s.current_region
+            "Current region out of range"
         in
-        let b = nth r.blocks s.current_block "Current block out of range" in
+        let b =
+          Utils.List_ext.nth r.blocks s.current_block
+            "Current block out of range"
+        in
         let sl = List.length b.stmts and il = List.length (ifs b.cont) in
         if s.current_line < sl then
           let st = List.nth b.stmts s.current_line in
           let s = { s with current_line = s.current_line + 1 } in
-          let put r v = { s with vregs = set r v s.vregs } in
+          let put r v = { s with vregs = Utils.Assoc.set r v s.vregs } in
           let s, o =
             match st with
             | Nop -> (s, "")
@@ -550,19 +547,24 @@ let step s input =
                 match List.rev s.stack with
                 | [] -> failwith "pop on empty stack"
                 | v :: vs ->
-                    ({ s with stack = List.rev vs; vregs = set r v s.vregs }, "")
-                )
+                    ( {
+                        s with
+                        stack = List.rev vs;
+                        vregs = Utils.Assoc.set r v s.vregs;
+                      },
+                      "" ))
             | LGet r -> (put r (Num (N.of_int (List.length s.stack))), "")
             | HAlloc (v, r) ->
                 let size = index (eval_value s v) in
                 ( {
                     s with
                     heap =
-                      set s.next_handle
+                      Utils.Assoc.set s.next_handle
                         (List.init size (fun _ -> Num N.zero))
                         s.heap;
                     next_handle = s.next_handle + 1;
-                    vregs = set r (Num (N.of_int s.next_handle)) s.vregs;
+                    vregs =
+                      Utils.Assoc.set r (Num (N.of_int s.next_handle)) s.vregs;
                   },
                   "" )
             | HFree v ->
@@ -609,7 +611,7 @@ let render s =
       R.text ~title:"halted" (string_of_bool s.halted);
       R.assoc_table ~title:"vregs" ~columns:[ "vreg"; "value" ]
         Ainput.print_value
-        (List.map (fun (k, v) -> ("%" ^ k, v)) (sorted s.vregs));
+        (List.map (fun (k, v) -> ("%" ^ k, v)) (Utils.Assoc.sorted s.vregs));
       R.text_table ~title:"static" ~columns:[ "label"; "value" ]
         (List.map
            (fun (d : static_def) ->
@@ -630,7 +632,7 @@ let render s =
                (fun i v ->
                  [ string_of_int h; string_of_int i; Ainput.print_value v ])
                vs)
-           (sorted s.heap));
+           (Utils.Assoc.sorted s.heap));
     ]
 
 module Rinput = Utils.Text.String

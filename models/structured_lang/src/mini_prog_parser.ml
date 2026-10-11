@@ -58,8 +58,8 @@ module Code = struct
 
   let rec parse_place p =
     let base =
-      if L.eat_keyword p "static" then Static (ident p)
-      else if L.eat_keyword p "local" then Local (ident p)
+      if L.eat_keyword p "static" then Static (L.identifier p)
+      else if L.eat_keyword p "local" then Local (L.identifier p)
       else (
         L.expect_symbol p '(';
         let v = parse_value p (fun p -> L.peek p = L.Symbol ')') in
@@ -100,8 +100,8 @@ module Code = struct
           | _ -> L.error p "operator needs two operands"
         in
         match L.peek p with
-        | L.Number _ -> push (Number (number p))
-        | L.String_lit c ->
+        | L.Number _ -> push (Number (L.natural p))
+        | L.Character_lit c ->
             ignore (L.next p);
             push (Char c)
         | _ when L.eat p "#true" -> push (Boolean true)
@@ -109,7 +109,7 @@ module Code = struct
         | _ when L.eat p "#unit" -> push Unit_value
         | _ when L.eat p "#null_ptr" -> push NullPtr
         | _ when L.eat p "#null_fn" -> push NullFn
-        | _ when L.eat_keyword p "fn" -> push (Function (ident p))
+        | _ when L.eat_keyword p "fn" -> push (Function (L.identifier p))
         | _ when L.eat_keyword p "ld" -> push (Load (parse_place p))
         | L.Ident ("static" | "local") | L.Symbol '(' ->
             let place = parse_place p in
@@ -175,11 +175,11 @@ module Code = struct
       HAlloc (ty, place))
     else if L.eat_keyword p "hfree" then HFree (parse_value p terminator)
     else if L.eat_keyword p "loop" then (
-      let l = ident p in
+      let l = L.identifier p in
       L.expect_symbol p ':';
       Loop (l, parse_stmt p))
-    else if L.eat_keyword p "break" then Break (ident p)
-    else if L.eat_keyword p "continue" then Continue (ident p)
+    else if L.eat_keyword p "break" then Break (L.identifier p)
+    else if L.eat_keyword p "continue" then Continue (L.identifier p)
     else if L.eat_keyword p "call" then (
       let f = parse_value p (fun p -> L.peek p = L.Symbol '(') in
       L.expect_symbol p '(';
@@ -197,7 +197,7 @@ module Code = struct
   and parse_block p =
     L.expect_symbol p '(';
     let rec bindings acc =
-      let n = ident p in
+      let n = L.identifier p in
       L.expect_symbol p ':';
       let ty = parse_type p in
       if L.eat_symbol p ',' then bindings ((n, ty) :: acc)
@@ -221,13 +221,13 @@ module Code = struct
         let rec loop ss fs =
           if L.eof p then { statics = List.rev ss; functions = List.rev fs }
           else if L.eat_keyword p "static" then (
-            let name = ident p in
+            let name = L.identifier p in
             L.expect_symbol p ':';
             let ty = parse_type p in
             loop ({ name; ty } :: ss) fs)
           else (
             L.expect_keyword p "fn";
-            let name = ident p in
+            let name = L.identifier p in
             let block = parse_block p in
             loop ss ({ name; block } :: fs))
         in

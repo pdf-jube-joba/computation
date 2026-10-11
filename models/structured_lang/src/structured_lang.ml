@@ -7,10 +7,6 @@ module Data_lang = Data_lang
 module Expr_lang_compiler = Expr_lang_compiler
 module Internal_ctrl_compiler = Internal_ctrl_compiler
 module Proc_lang_compiler = Proc_lang_compiler
-
-(* Keep the original Rust module spellings available to callers as well. *)
-module Fn_ptr_machine = Fn_ptr
-module Mini_prog_machine = Mini_prog
 module Common = Common
 module Mini_prog_parser = Mini_prog_parser
 module Mini_prog_syntax = Mini_prog_syntax

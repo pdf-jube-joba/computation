@@ -31,11 +31,24 @@ let next_t s =
 let () =
   let (_ : (module Utils.Machine.S)) = (module A.Machine) in
   let (_ : (module Utils.Machine.S)) = (module T.Machine) in
+  assert (
+    ok
+      (A.Code.parse
+         "/* outer /* inner */ */ x := ['/', '*']; // tail\ny := tail x")
+    = A.Seq
+        ( A.Assign ("x", A.Const [ "/"; "*" ]),
+          A.Assign ("y", A.Tail (A.Var "x")) ));
+  assert (
+    ok
+      (T.Code.parse "x := atom '/'; /* comment */ y := cons x atom '*' // tail")
+    = T.Seq
+        ( T.Assign ("x", T.Atom (T.AtomChar "/")),
+          T.Assign ("y", T.Cons (T.Var "x", T.Atom (T.AtomChar "*"))) ));
   let text = "x := ['a', 'b'] ; while x == ['a', 'b'] { x := tail x }" in
   let code = ok (A.Code.parse text) in
   assert (ok (A.Code.parse (A.Code.print code)) = code);
   let env = run_a 40 (ok (A.make code [])) in
-  assert (A.get env "x" = [ "b" ]);
+  assert (List.assoc "x" env = [ "b" ]);
   let code =
     ok
       (A.Code.parse
@@ -43,8 +56,8 @@ let () =
           then z := tail [] end")
   in
   let env = run_a 40 (ok (A.make code [])) in
-  assert (A.get env "y" = [ "a"; "b" ]);
-  assert (A.get env "z" = []);
+  assert (List.assoc "y" env = [ "a"; "b" ]);
+  assert (List.assoc "z" env = []);
   let env =
     ok
       (A.Ainput.parse
@@ -52,7 +65,7 @@ let () =
           x = []\n\
           foo_bar = ['🙂']")
   in
-  assert (A.get env "foo_bar" = [ "🙂" ]);
+  assert (List.assoc "foo_bar" env = [ "🙂" ]);
   assert (ok (A.Ainput.parse (A.Foutput.print env)) = env);
   let s =
     ok
@@ -141,6 +154,8 @@ let () =
     [
       "";
       "x := ['ab']";
+      "x := [\"a\"]";
+      "x := [] /* unclosed";
       "x := ['a',]";
       "x := [] ;";
       "if is_empty x then Nop";
@@ -152,6 +167,8 @@ let () =
       "";
       "x := atom ''";
       "x := atom 'ab'";
+      "x := atom \"a\"";
+      "x := atom 'a' /* unclosed";
       "while is_atom x { Nop";
       "x := cons atom 'a'";
     ];

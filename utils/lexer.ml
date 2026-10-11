@@ -2,6 +2,7 @@ type token =
   | Ident of string
   | Number of string
   | String_lit of string
+  | Character_lit of string
   | Symbol of char
   | Eof
 
@@ -44,7 +45,7 @@ let tokenize ?(nested_comments = true) ?(character_literals = false) text =
           scan (skip_block_comment ~nested_comments text i) acc
       | '\'' when character_literals ->
           let c, j = Char_literal.read text i in
-          scan j ((String_lit c, i) :: acc)
+          scan j ((Character_lit c, i) :: acc)
       | '"' ->
           let j = ref (i + 1) and escaped = ref false in
           while !j < n && (!escaped || text.[!j] <> '"') do
@@ -121,6 +122,11 @@ let integer p =
 
 let string_literal p =
   match next p with String_lit s -> s | _ -> error p "Expected string literal"
+
+let character_literal p =
+  match next p with
+  | Character_lit c -> c
+  | _ -> error p "Expected character literal"
 
 let eat p text =
   let saved = p.pos in

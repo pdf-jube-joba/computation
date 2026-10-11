@@ -100,7 +100,7 @@ module Code = struct
 
   let rec parse_place p =
     match L.peek p with
-    | L.Ident _ -> Var (ident p)
+    | L.Ident _ -> Var (L.identifier p)
     | _ ->
         L.expect_symbol p '(';
         let v = parse_value p in
@@ -149,7 +149,7 @@ module Code = struct
       L.expect_keyword p "end";
       Ifz (cond, a, b))
     else if L.eat_keyword p "call" then (
-      let n = ident p in
+      let n = L.identifier p in
       L.expect_symbol p '(';
       let rec args acc =
         let v = parse_value p in
@@ -168,7 +168,7 @@ module Code = struct
           if L.eof p then { functions = List.rev acc }
           else (
             L.expect_keyword p "fn";
-            let name = ident p in
+            let name = L.identifier p in
             L.expect_symbol p '(';
             let params = names_until p ')' in
             L.expect p ") {";
@@ -216,8 +216,8 @@ module Runtime_value = struct
 end
 
 let validate code =
-  unique
-    (fun s -> "duplicate function: " ^ s)
+  Utils.Identifier.check_unique
+    ~message:(fun s -> "duplicate function: " ^ s)
     (List.map (fun f -> f.name) code.functions)
 
 let function_lookup c name =
@@ -233,7 +233,7 @@ let bindings frame_id params values =
   List.fold_left
     (fun (env, store) (slot, (p, v)) ->
       let loc = { frame_id; slot } in
-      (set p loc env, (loc, v) :: store))
+      (Utils.Assoc.set p loc env, (loc, v) :: store))
     ([], [])
     (List.mapi (fun i pv -> (i, pv)) (List.combine params values))
 
@@ -254,7 +254,7 @@ let make code () =
         current_function = f.name;
         current_stmt;
         inner_k;
-        env = sorted env;
+        env = Utils.Assoc.sorted env;
         store = [ { frame_id = 0; values } ];
         fn_k = [];
         next_frame_id = 1;
@@ -273,7 +273,7 @@ let store_assign s loc value =
     | [] -> failwith ("unknown location: " ^ Runtime_value.location_text loc)
     | f :: fs ->
         if List.mem_assoc loc f.values then
-          { f with values = set loc value f.values } :: fs
+          { f with values = Utils.Assoc.set loc value f.values } :: fs
         else f :: loop fs
   in
   { s with store = loop s.store }
@@ -283,7 +283,7 @@ let expect_number = function
   | v -> failwith ("expected a number, found " ^ Runtime_value.print v)
 
 let rec eval_place s = function
-  | Var v -> lookup v s.env ("unknown variable: " ^ v)
+  | Var v -> Utils.Assoc.lookup v s.env ("unknown variable: " ^ v)
   | Deref v -> (
       match eval_value s v with
       | Location loc -> loc
@@ -308,7 +308,7 @@ let format_final_state s f =
            indent
            ^ Runtime_value.location_text l
            ^ " = " ^ Runtime_value.print v ^ "\n")
-         (sorted f.values))
+         (Utils.Assoc.sorted f.values))
   in
   "halted\ncurrent_function: " ^ s.current_function ^ "\nfinished_frame: "
   ^ string_of_int f.frame_id ^ "\n" ^ values "  " f ^ "remaining_store:\n"
@@ -360,7 +360,7 @@ let step s () =
               current_function = f.name;
               current_stmt;
               inner_k;
-              env = sorted env;
+              env = Utils.Assoc.sorted env;
               store = { frame_id = s.next_frame_id; values } :: s.store;
               fn_k =
                 {
@@ -421,7 +421,7 @@ let render s =
                Runtime_value.print
                  (try store_lookup s l with Failure _ -> Null_ptr);
              ])
-           (sorted s.env));
+           (Utils.Assoc.sorted s.env));
       container ~title:"store"
         (List.map
            (fun f ->
@@ -430,7 +430,7 @@ let render s =
                ~columns:[ "location"; "value" ] Runtime_value.print
                (List.map
                   (fun (l, v) -> (Runtime_value.location_text l, v))
-                  (sorted f.values)))
+                  (Utils.Assoc.sorted f.values)))
            (List.rev s.store));
       container ~title:"inner_k"
         (List.map (fun st -> text (Code.stmt_to_text st)) s.inner_k);

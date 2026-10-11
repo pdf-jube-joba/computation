@@ -253,32 +253,6 @@ let render state =
       Render.text ~title:"process" (print_process state.process);
     ]
 
-let rec evaluate ?(fuel = 100000) process =
-  if fuel = 0 then Error "Evaluation step limit reached"
-  else
-    match process with
-    | Result n -> Ok n
-    | _ -> (
-        match evaluate_one process with
-        | Some p -> evaluate ~fuel:(fuel - 1) p
-        | None -> Error "Invalid process")
-
-(* Direct evaluation, like the native interpreter in the former implementation.
-   The step API and [evaluate ~fuel] remain available for bounded execution. *)
-let interpreter function_ =
-  let* () = validate function_ in
-  Ok
-    (fun input ->
-      let* state = make function_ input in
-      let rec run = function
-        | Result n -> Ok n
-        | process -> (
-            match evaluate_one process with
-            | Some next -> run next
-            | None -> Error "Invalid recursive-function process")
-      in
-      run state.process)
-
 module Ainput = struct
   type t = ainput
 

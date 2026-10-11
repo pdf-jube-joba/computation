@@ -7,20 +7,21 @@ let eval e = ok (eval_to_val [] [] e)
 let env code = { code; mod_env = [] }
 
 let () =
-  assert (ok (parse_value "#true") = Value.Bit true);
+  assert (ok (Parser.parse_value "#true") = Value.Bit true);
   assert (
-    ok (parse_value "/* nested opener /* closes at first terminator */ #true")
+    ok
+      (Parser.parse_value
+         "/* nested opener /* closes at first terminator */ #true")
     = Value.Bit true);
   assert (
     ok
-      (parse_value "[/* quoted \" /* } ignored */ #true // /* ignored\n #false]")
+      (Parser.parse_value
+         "[/* quoted \" /* } ignored */ #true // /* ignored\n #false]")
     = Value.Array [ Value.Bit true; Value.Bit false ]);
-  bad (parse_value "/* nested opener /* */ */ #true");
-  bad (parse_value "/* unclosed #true");
+  bad (Parser.parse_value "/* nested opener /* */ */ #true");
+  bad (Parser.parse_value "/* unclosed #true");
   assert (
-    ok
-      (Interface.parse_value
-         "/* comment */ [#false, <Red>,, [#true #false], {}]")
+    ok (Parser.parse_value "/* comment */ [#false, <Red>,, [#true #false], {}]")
     = Value.Array
         [
           Value.Bit false;
@@ -28,12 +29,12 @@ let () =
           Value.Array [ Value.Bit true; Value.Bit false ];
           Value.Strct [];
         ]);
-  assert (ok (parse_value "<A_b_1>") = Value.Enume "A_b_1");
-  assert (ok (parse_value "<_>") = Value.Enume "_");
+  assert (ok (Parser.parse_value "<A_b_1>") = Value.Enume "A_b_1");
+  assert (ok (Parser.parse_value "<_>") = Value.Enume "_");
   assert (Value.new_strct [] = Some (Value.Strct []));
   assert (Value.new_strct [ ("field", Value.Bit true) ] = None);
   List.iter
-    (fun text -> bad (parse_value text))
+    (fun text -> bad (Parser.parse_value text))
     [
       "{a: #true}";
       "{a:#true a:#false}";
@@ -45,14 +46,14 @@ let () =
       "{a #true}";
       "";
     ];
-  let value = ok (parse_value "[#true <tag> {}]") in
+  let value = ok (Parser.parse_value "[#true <tag> {}]") in
   assert (
     ok
       (Value.of_yojson
          (Yojson.Safe.from_string
             (Yojson.Safe.to_string (Value.to_yojson value))))
     = value);
-  assert (ok (parse_value (Value.print value)) = value);
+  assert (ok (Parser.parse_value (Value.print value)) = value);
   assert (
     Value.get_field_of_value (Value.Strct [ ("a", value) ]) "a" = Some value);
   assert (Value.get_field_of_value value "a" = None);
@@ -171,15 +172,15 @@ let () =
       otput_func = env (Var "STATE");
     }
   in
-  assert (simple_now_state machine = Value.Bit false);
+  assert (machine.state = Value.Bit false);
   assert (ok (simple_get_otput machine) = Value.Bit false);
   let next = ok (simple_clock machine (Value.Bit true)) in
-  assert (simple_now_state next = Value.Bit true);
+  assert (next.state = Value.Bit true);
   assert (
     ok (simple_get_otput (ok (simple_clock next (Value.Bit false))))
     = Value.Bit true);
   bad (simple_clock machine (Value.Enume "x"));
-  assert (simple_now_state machine = Value.Bit false);
+  assert (machine.state = Value.Bit false);
   assert (
     ok (simple_module_state_of_yojson (simple_module_state_to_yojson next))
     = next);

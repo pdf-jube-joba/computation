@@ -2,15 +2,6 @@ module N = Utils.Number
 module L = Utils.Lexer
 
 let get = function Ok x -> x | Error e -> failwith e
-let set = Utils.Assoc.set
-let sorted = Utils.Assoc.sorted
-let lookup = Utils.Assoc.lookup
-
-let ident p =
-  let s = L.identifier p in
-  get (Utils.Identifier.make s)
-
-let number p = get (N.of_string (L.natural p))
 
 type env = (Utils.Identifier.t * N.t) list [@@deriving yojson]
 
@@ -25,15 +16,14 @@ module Env = struct
 end
 
 let names_until p endc =
-  if L.peek p = L.Symbol endc then [] else L.separated p ~separator:',' ident
+  if L.peek p = L.Symbol endc then []
+  else L.separated p ~separator:',' L.identifier
 
 let names_boundary p =
   match L.peek p with L.Ident _ -> names_until p '\000' | _ -> []
 
-let unique message xs = Utils.Identifier.check_unique ~message xs
-
 let validate_env statics env ~duplicate ~extra ~missing =
-  unique duplicate statics;
+  Utils.Identifier.check_unique ~message:duplicate statics;
   List.iter
     (fun (k, _) -> if not (List.mem k statics) then failwith (extra k))
     env;
@@ -48,7 +38,9 @@ type relop = Lt | Eq | Gt [@@deriving yojson]
 type bexp = atom * relop * atom [@@deriving yojson]
 
 let parse_atom p =
-  match L.peek p with L.Number _ -> Imm (number p) | _ -> Var (ident p)
+  match L.peek p with
+  | L.Number _ -> Imm (L.natural p)
+  | _ -> Var (L.identifier p)
 
 let parse_aexp p =
   let a = parse_atom p in

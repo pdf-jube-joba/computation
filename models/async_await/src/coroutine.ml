@@ -170,8 +170,6 @@ module Code = struct
     in
     loop lhs
 
-  let statement_identifier = L.identifier
-
   let parse_offset p =
     let sign =
       if L.eat_symbol p '-' then -1
@@ -187,16 +185,16 @@ module Code = struct
       L.expect_keyword p "goto";
       IfGoto (b, parse_offset p))
     else if L.eat_keyword p "goto" then Goto (parse_offset p)
-    else if L.eat_keyword p "call" then Call (statement_identifier p)
+    else if L.eat_keyword p "call" then Call (L.identifier p)
     else if L.eat_keyword p "run" then (
-      let name = statement_identifier p in
+      let name = L.identifier p in
       L.expect p "->";
       L.expect_symbol p '$';
-      let id = statement_identifier p in
+      let id = L.identifier p in
       Run (name, id))
     else if L.eat_keyword p "yield" then Yield
     else
-      let n = statement_identifier p in
+      let n = L.identifier p in
       L.expect p "<-";
       let a = parse_aexp p in
       Assign (n, a)
@@ -207,7 +205,7 @@ module Code = struct
           if L.eof p then List.rev acc
           else (
             L.expect_keyword p "fn";
-            let name = statement_identifier p in
+            let name = L.identifier p in
             L.expect_symbol p '{';
             let rec body acc =
               if L.eat_symbol p '}' then List.rev acc
@@ -224,8 +222,6 @@ module Code = struct
         if code = [] then L.error p "At least one function is required";
         code)
 end
-
-let set entries name v = Utils.Assoc.set_sorted name v entries
 
 module Foutput = struct
   type t = foutput
@@ -244,12 +240,15 @@ module Foutput = struct
           let name = Utils.String_ext.strip_prefix "$" name in
           ignore (value (Utils.Identifier.make name));
           let id = parse_task_id v in
-          { env with task_ids = set env.task_ids name id })
+          { env with task_ids = Utils.Assoc.set_sorted name id env.task_ids })
         else (
           ignore (value (Utils.Identifier.make name));
           {
             env with
-            vars = set env.vars name (value (N.of_string_with_plus v));
+            vars =
+              Utils.Assoc.set_sorted name
+                (value (N.of_string_with_plus v))
+                env.vars;
           }))
       { vars = []; task_ids = [] }
       text
@@ -260,9 +259,6 @@ module Foutput = struct
         (List.map (fun (n, v) -> ("$" ^ n, v)) env.task_ids)
 end
 
-let get_var env name =
-  Option.value ~default:N.zero (List.assoc_opt name env.vars)
-
 let get_task_id env name =
   match List.assoc_opt name env.task_ids with
   | Some (Some id) -> id
@@ -270,7 +266,7 @@ let get_task_id env name =
   | None -> failwith ("unknown task id $" ^ name)
 
 let rec eval_aexp env = function
-  | Atom (Var n) -> get_var env n
+  | Atom (Var n) -> Option.value ~default:N.zero (List.assoc_opt n env.vars)
   | Atom (Imm n) -> n
   | Bin (a, op, b) -> (
       let a = eval_aexp env a in
@@ -366,7 +362,14 @@ let step s agent =
                   | Assign (n, a) ->
                       let v = eval_aexp s.env a in
                       shift 1;
-                      { s with env = { s.env with vars = set s.env.vars n v } }
+                      {
+                        s with
+                        env =
+                          {
+                            s.env with
+                            vars = Utils.Assoc.set_sorted n v s.env.vars;
+                          };
+                      }
                   | IfGoto (b, offset) ->
                       shift (if eval_bexp s b then offset else 1);
                       s
@@ -387,7 +390,9 @@ let step s agent =
                         env =
                           {
                             s.env with
-                            task_ids = set s.env.task_ids id_var (Some new_id);
+                            task_ids =
+                              Utils.Assoc.set_sorted id_var (Some new_id)
+                                s.env.task_ids;
                           };
                         tasks =
                           Array.append tasks

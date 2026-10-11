@@ -41,7 +41,7 @@ and eval_bexp env = function
 let rec small_step stmt env =
   match stmt with
   | Nop -> (Nop, env)
-  | Assign (v, a) -> (Nop, set v (eval_aexp env a) env)
+  | Assign (v, a) -> (Nop, Utils.Assoc.set v (eval_aexp env a) env)
   | Seq (Nop, b) -> (b, env)
   | Seq (a, b) ->
       let a, env = small_step a env in
@@ -78,7 +78,10 @@ module Code = struct
       let a = parse_aexp p in
       L.expect_symbol p ')';
       a)
-    else match L.peek p with L.Number _ -> Num (number p) | _ -> Var (ident p)
+    else
+      match L.peek p with
+      | L.Number _ -> Num (L.natural p)
+      | _ -> Var (L.identifier p)
 
   and parse_bexp p =
     let a = parse_bnot p in
@@ -135,7 +138,7 @@ module Code = struct
       L.expect_symbol p ')';
       b)
     else
-      let v = ident p in
+      let v = L.identifier p in
       L.expect p ":=";
       Assign (v, parse_aexp p)
 
@@ -158,14 +161,12 @@ module Code = struct
     | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
     | Not b -> "!" ^ bexp_to_text b
 
-  let rec stmt_to_text = function
+  let rec print = function
     | Nop -> "Nop"
     | Assign (v, a) -> v ^ " := " ^ aexp_to_text a
-    | Seq (a, b) -> stmt_to_text a ^ " ; " ^ stmt_to_text b
-    | If (c, b) -> "if " ^ bexp_to_text c ^ " " ^ stmt_to_text b
-    | While (c, b) -> "while " ^ bexp_to_text c ^ " [ " ^ stmt_to_text b ^ " ]"
-
-  let print = stmt_to_text
+    | Seq (a, b) -> print a ^ " ; " ^ print b
+    | If (c, b) -> "if " ^ bexp_to_text c ^ " " ^ print b
+    | While (c, b) -> "while " ^ bexp_to_text c ^ " [ " ^ print b ^ " ]"
 end
 
 let make code env = Ok { code; stmt = code; env }
@@ -178,9 +179,7 @@ let step s () =
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
-
-let render s =
-  Utils.Render.statement_env (Code.stmt_to_text s.stmt) N.to_string s.env
+let render s = Utils.Render.statement_env (Code.print s.stmt) N.to_string s.env
 
 module Ainput = Common.Env
 module Rinput = Utils.Text.Unit
