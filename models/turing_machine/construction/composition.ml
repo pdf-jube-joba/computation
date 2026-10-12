@@ -1,4 +1,4 @@
-open Main
+open Turing_machine.Main
 open Builder
 
 type 'sign graph = {
@@ -24,7 +24,7 @@ let builder_composition g =
           then failwith "Edge index out of bounds")
         g.assign_edge_to_state;
       let name i state =
-        Main.unwrap
+        Turing_machine.Main.unwrap
           (State.parse (Printf.sprintf "v%d_%s_%s" i vertices.(i).name state))
       in
       let signs =

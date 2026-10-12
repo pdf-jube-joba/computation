@@ -59,8 +59,8 @@ let () =
       "start\ngoal\na,goal,a,start,C";
       "start\ngoal\na,start,a,goal,X";
     ];
-  let module B = Turing_machine.Builder in
-  let module G = Turing_machine.Composition in
+  let module B = Turing_machine_construction.Builder in
+  let module G = Turing_machine_construction.Composition in
   let first =
     {
       B.name = "first";
