@@ -3,19 +3,36 @@ open Rec_tm_shared.Syntax
 module I = Rec_tm_ir.Main
 module J = Rec_tm_ir_jump.Main
 module L = Utils.Parser
+module Var_id = Utils.Id.Make ()
+module Label_id = Utils.Id.Make ()
+module Var_names = Utils.Naming.Make (Var_id)
+module Label_names = Utils.Naming.Make (Label_id)
 
 let flatten_program p =
   let* () = I.validate p in
   L.protect (fun () ->
-      let counter = ref 0 in
-      let reserved = Hashtbl.create 32 in
+      let variables = ref Var_names.empty and labels = ref Label_names.empty in
+      let variable_supply = ref Var_id.Supply.empty in
+      let label_supply = ref Label_id.Supply.empty in
+      let variable hint =
+        let id = Var_id.Supply.take variable_supply in
+        let name, next = Var_names.assign ~hint id !variables in
+        variables := next;
+        name
+      in
+      let label hint =
+        let id = Label_id.Supply.take label_supply in
+        let name, next = Label_names.assign ~hint id !labels in
+        labels := next;
+        name
+      in
       List.iter
         (fun (f : I.func) ->
           List.iter
-            (fun name -> Hashtbl.replace reserved name ())
+            (fun name -> variables := Var_names.reserve name !variables)
             (I.collect_vars f.blocks);
           List.iter
-            (fun (b : I.block) -> Hashtbl.replace reserved b.label ())
+            (fun (b : I.block) -> labels := Label_names.reserve b.label !labels)
             f.blocks)
         p.functions;
       let lower_blocks (blocks : I.block list) =
@@ -43,24 +60,22 @@ let flatten_program p =
           | I.Call name :: tail ->
               let callee = I.find_function p name in
               let vars = I.collect_vars callee.blocks in
-              let rec fresh () =
-                let suffix = !counter in
-                incr counter;
-                let rename s = Printf.sprintf "__flat%d_%s" suffix s in
-                let cont = Printf.sprintf "__cont_%s_%d" block.label suffix in
-                let names =
-                  cont
-                  :: Printf.sprintf "__init%d" suffix
-                  :: List.map rename vars
-                  @ List.map (fun (b : I.block) -> rename b.label) callee.blocks
-                in
-                if List.exists (Hashtbl.mem reserved) names then fresh ()
-                else (
-                  List.iter (fun name -> Hashtbl.replace reserved name ()) names;
-                  (suffix, cont, rename))
+              let variables =
+                List.map (fun name -> (name, variable name)) vars
               in
-              let suffix, cont, rename = fresh () in
-              let var s = if List.mem s vars then rename s else s in
+              let labels =
+                List.map
+                  (fun (b : I.block) -> (b.label, label b.label))
+                  callee.blocks
+              in
+              let cont = label "call_ret" in
+              let init_label = label "call_init" in
+              let rename name = List.assoc name labels in
+              let var name =
+                match List.assoc_opt name variables with
+                | Some name -> name
+                | None -> name
+              in
               let lv : lvalue -> lvalue = function
                 | Var s -> Var (var s)
                 | Head -> Head
@@ -93,13 +108,10 @@ let flatten_program p =
               in
               let init =
                 List.map
-                  (fun name -> I.Assign (Var (rename name), Const None))
+                  (fun name -> I.Assign (Var (var name), Const None))
                   vars
               in
-              let renamed =
-                { I.label = Printf.sprintf "__init%d" suffix; body = init }
-                :: renamed
-              in
+              let renamed = { I.label = init_label; body = init } :: renamed in
               [ { block with body = List.rev prefix } ]
               @ expand_blocks renamed
               @ expand_block { I.label = cont; body = tail }

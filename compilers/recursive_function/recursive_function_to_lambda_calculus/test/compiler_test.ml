@@ -147,10 +147,10 @@ let () =
   error (C.api.compile_code "PROJ[1,2]");
   error (C.api.encode_ainput "(-1)");
   error (C.api.encode_ainput "(99999999999999999999999999999999999999999999)");
-  let same : L.var = { id = 0; name = "s" } in
+  let same : L.var = { id = ok (L.Var_id.of_int 0); name = "s" } in
   error (C.decode_foutput (L.Abs (same, L.Abs (same, L.Var same))));
   (* The first argument of Y is allowed to be an open term. *)
-  let f : L.var = { id = 0; name = "f_test" } in
+  let f : L.var = { id = ok (L.Var_id.of_int 0); name = "f_test" } in
   let term = ok (L.make (C.y_combinator ()) [ L.Var f ]) in
   let term = ok (L.reduce term 0) in
   assert (L.redex_count term > 0);

@@ -38,7 +38,8 @@ let equivalent text input expected =
   check "jump roundtrip" (get (J.Code.parse (J.Code.print jump)) = jump);
   check "IR to jump equivalence" (T.Tape.equal output (run_jump jump t));
   let tm = get (Rec_tm_ir_jump_to_turing_machine.Main.compile jump) in
-  check "Turing roundtrip" (get (T.Code.parse (T.Code.print tm)) = tm);
+  check "Turing roundtrip up to state IDs"
+    (T.Code.print (get (T.Code.parse (T.Code.print tm))) = T.Code.print tm);
   check "jump to Turing equivalence" (T.Tape.equal output (run_tm tm t))
 
 let helper make input expected =
@@ -62,6 +63,15 @@ let recursive f input expected =
   check "recursive jump-Turing equivalence" (T.Tape.equal output (run_tm tm t))
 
 let () =
+  let ctx = C.create () in
+  let first = C.register ctx (C.fn "same" [ C.block "entry" [ I.Rt ] ]) in
+  let second = C.register ctx (C.fn "same" [ C.block "entry" [ I.Lt ] ]) in
+  check "distinct function bodies get distinct identities"
+    (first.name <> second.name);
+  let shared =
+    C.register ctx (C.fn "different_hint" [ C.block "entry" [ I.Rt ] ])
+  in
+  check "identical function bodies share identity" (shared = first);
   assert (
     get
       (I.Code.parse

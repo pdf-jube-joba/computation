@@ -1,7 +1,7 @@
 open Circuit
 module Code = Parser.Code
 
-let make code () = Ok code
+let make code () = Result.map (fun () -> code) (validate_identifiers code)
 let snapshot = to_yojson
 
 let restore json =

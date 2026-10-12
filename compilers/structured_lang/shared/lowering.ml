@@ -1,35 +1,58 @@
 open Structured_lang_shared.Arithmetic
 module I = Flow_ir.Main
+module Region_id = Utils.Id.Make ()
+module Block_id = Utils.Id.Make ()
+module Vreg_id = Utils.Id.Make ()
+module Region_names = Utils.Naming.Make (Region_id)
+module Block_names = Utils.Naming.Make (Block_id)
+module Vreg_names = Utils.Naming.Make (Vreg_id)
 
 type ctx = {
   mutable regions : I.region list;
-  mutable region_id : int;
-  mutable block_id : int;
-  mutable vreg_id : int;
+  region_supply : Region_id.Supply.t ref;
+  block_supply : Block_id.Supply.t ref;
+  vreg_supply : Vreg_id.Supply.t ref;
+  mutable region_names : Region_names.t;
+  mutable block_names : Block_names.t;
+  mutable vreg_names : Vreg_names.t;
 }
 
-let create () = { regions = []; region_id = 0; block_id = 0; vreg_id = 0 }
+let create () =
+  {
+    regions = [];
+    region_supply = ref Region_id.Supply.empty;
+    block_supply = ref Block_id.Supply.empty;
+    vreg_supply = ref Vreg_id.Supply.empty;
+    region_names = Region_names.reserve "main" Region_names.empty;
+    block_names = Block_names.empty;
+    vreg_names = Vreg_names.empty;
+  }
 
-let fresh_region c prefix =
-  let i = c.region_id in
-  c.region_id <- i + 1;
-  prefix ^ "_" ^ string_of_int i
+let fresh_region c hint =
+  let id = Region_id.Supply.take c.region_supply in
+  let name, next = Region_names.assign ~hint id c.region_names in
+  c.region_names <- next;
+  name
 
-let fresh_block c prefix =
-  let i = c.block_id in
-  c.block_id <- i + 1;
-  prefix ^ "_" ^ string_of_int i
+let fresh_block c hint =
+  let id = Block_id.Supply.take c.block_supply in
+  let name, next = Block_names.assign ~hint id c.block_names in
+  c.block_names <- next;
+  name
 
-let fresh_vreg c prefix =
-  let i = c.vreg_id in
-  c.vreg_id <- i + 1;
-  prefix ^ "_" ^ string_of_int i
+let fresh_vreg c hint =
+  let id = Vreg_id.Supply.take c.vreg_supply in
+  let name, next = Vreg_names.assign ~hint id c.vreg_names in
+  c.vreg_names <- next;
+  name
 
 let go label = I.Go ([], I.CodeLabel label)
 let enter label = I.Enter ([], I.CodeLabel label)
 let block label stmts cont : I.block = { label; stmts; cont }
 let region c label blocks = c.regions <- c.regions @ [ { I.label; blocks } ]
-let single c label stmts cont = region c label [ block "entry" stmts cont ]
+
+let single c label stmts cont =
+  region c label [ block (fresh_block c "entry") stmts cont ]
 
 let cond rel a b =
   match rel with Lt -> I.Lt (a, b) | Eq -> I.Eq (a, b) | Gt -> I.Gt (a, b)
@@ -51,14 +74,17 @@ let emit_aexp c dst = function
 (* Conditional continuations always jump to a local block; that block can enter
    another region. The Rust compilers emitted region labels directly here. *)
 let branch_region c label stmts condition yes no =
+  let entry = fresh_block c "entry" in
+  let true_block = fresh_block c "true" in
+  let false_block = fresh_block c "false" in
   region c label
     [
-      block "entry" stmts
+      block entry stmts
         (I.Go
-           ( [ { I.cond = condition; target = I.CodeLabel "true" } ],
-             I.CodeLabel "false" ));
-      block "true" [] (enter yes);
-      block "false" [] (enter no);
+           ( [ { I.cond = condition; target = I.CodeLabel true_block } ],
+             I.CodeLabel false_block ));
+      block true_block [] (enter yes);
+      block false_block [] (enter no);
     ]
 
 let static_defs names =

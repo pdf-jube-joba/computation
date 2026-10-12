@@ -1,6 +1,9 @@
 open Utils.Machine
+module Variable = Utils.Symbol.Make ()
+module Var_id = Variable.Id
+module Names = Variable.Names
 
-type var = { id : int; name : Utils.Identifier.t }
+type var = Variable.t = { id : Var_id.t; name : Utils.Identifier.t }
 type term = Var of var | Abs of var * term | App of term * term
 type code = term
 type ainput = term list
@@ -8,6 +11,8 @@ type rinput = int
 type routput = unit
 type foutput = term
 type state = term
+
+let fresh_var = Variable.fresh
 
 (* IDs are allocated locally while parsing. Combining independently parsed terms
    freshens their IDs before applying them. No process-global variable counter. *)
@@ -17,13 +22,8 @@ module Code = struct
   module L = Utils.Parser
 
   let read p =
-    let next_id = ref 0 in
-    let free = Hashtbl.create 8 in
-    let fresh name =
-      let id = !next_id in
-      incr next_id;
-      { id; name }
-    in
+    let reader = Variable.Reader.create () in
+    let fresh name = Variable.Reader.bind reader name in
     let rec application env p =
       let first = atom env p in
       let rec rest left =
@@ -37,17 +37,7 @@ module Code = struct
       match L.peek p with
       | L.Ident name ->
           ignore (L.bump p);
-          let var =
-            match List.assoc_opt name env with
-            | Some var -> var
-            | None -> (
-                match Hashtbl.find_opt free name with
-                | Some var -> var
-                | None ->
-                    let var = fresh name in
-                    Hashtbl.add free name var;
-                    var)
-          in
+          let var = Variable.Reader.use reader env name in
           Var var
       | L.Symbol '(' -> L.group p ~opening:'(' (application env)
       | L.Symbol '\\' ->
@@ -72,22 +62,23 @@ module Code = struct
 
   let parse = L.parse read
 
-  (* Use distinct printable names for distinct IDs, so printing a shared term
-   never introduces apparent variable capture. *)
+  (* Allocate free names first, so alpha-renaming only changes binder hints
+     when a binder and a free variable have the same preferred name. *)
   let print term =
-    let names = Hashtbl.create 16 and used = Hashtbl.create 16 in
+    let names = ref Names.empty in
     let name var =
-      match Hashtbl.find_opt names var.id with
-      | Some name -> name
-      | None ->
-          let rec choose name =
-            if Hashtbl.mem used name then choose (name ^ "_") else name
-          in
-          let name = choose var.name in
-          Hashtbl.add names var.id name;
-          Hashtbl.add used name ();
-          name
+      let name, next = Names.assign ~hint:var.name var.id !names in
+      names := next;
+      name
     in
+    let rec free bound = function
+      | Var var -> if not (Var_id.Set.mem var.id bound) then ignore (name var)
+      | Abs (var, body) -> free (Var_id.Set.add var.id bound) body
+      | App (left, right) ->
+          free bound left;
+          free bound right
+    in
+    free Var_id.Set.empty term;
     let rec visit = function
       | Var var -> name var
       | Abs (var, body) ->
@@ -114,8 +105,7 @@ let freshen term next =
     match Hashtbl.find_opt table var.id with
     | Some fresh -> fresh
     | None ->
-        let fresh = { var with id = !next } in
-        incr next;
+        let fresh = { var with id = Var_id.Supply.take next } in
         Hashtbl.add table var.id fresh;
         fresh
   in
@@ -131,7 +121,7 @@ let freshen term next =
   visit term
 
 let make code args =
-  let next = ref (max_id code + 1) in
+  let next = ref (Var_id.Supply.after (max_id code)) in
   Ok (List.fold_left (fun left arg -> App (left, freshen arg next)) code args)
 
 (* Alpha-renaming changes bound variables only; free-variable identity survives
@@ -142,8 +132,7 @@ let freshen_bound term next =
         Var
           (match List.assoc_opt var.id env with Some var -> var | None -> var)
     | Abs (var, body) ->
-        let fresh = { var with id = !next } in
-        incr next;
+        let fresh = { var with id = Var_id.Supply.take next } in
         Abs (fresh, visit ((var.id, fresh) :: env) body)
     | App (left, right) ->
         let left = visit env left in
@@ -174,7 +163,7 @@ let reduce term index =
   if index < 0 then Error "Redex index must be nonnegative"
   else
     let remaining = ref index and reduced = ref false in
-    let next = ref (max_id term + 1) in
+    let next = ref (Var_id.Supply.after (max_id term)) in
     let rec visit term =
       if !reduced then term
       else
@@ -203,7 +192,7 @@ let step term index =
 
 let snapshot term =
   let var_json var =
-    `Assoc [ ("id", `Int var.id); ("name", `String var.name) ]
+    `Assoc [ ("id", Var_id.to_yojson var.id); ("name", `String var.name) ]
   in
   let rec visit = function
     | Var var -> `List [ `String "var"; var_json var ]
@@ -219,6 +208,7 @@ let restore json =
         match (List.assoc_opt "id" fields, List.assoc_opt "name" fields) with
         | Some (`Int id), Some (`String name)
           when id >= 0 && id < max_int && Utils.Identifier.valid name -> (
+            let* id = Var_id.of_int id in
             match Hashtbl.find_opt vars id with
             | Some var when var.name <> name ->
                 Error "Conflicting variable names"
@@ -233,8 +223,10 @@ let restore json =
   let rec visit env = function
     | `List [ `String "var"; json ] ->
         let* var = variable json in
-        if Hashtbl.mem binders var.id && not (List.mem var.id env) then
-          Error "Bound variable occurs outside its scope"
+        if
+          Hashtbl.mem binders (Var_id.to_int var.id)
+          && not (List.mem var.id env)
+        then Error "Bound variable occurs outside its scope"
         else Ok (Var var)
     | `List [ `String "abs"; json; body ] ->
         let* var = variable json in

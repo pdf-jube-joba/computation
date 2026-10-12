@@ -157,6 +157,9 @@ let () =
   error (Pcf_shared.Syntax.Routput.parse "++1");
   error (Pcf_shared.Syntax.Ainput.parse "1,2");
   error (Pcf_expr.Main.Rinput.parse "1");
+  let shadow = get (Pcf_shared.Syntax.Code.parse "(rec f f => f)(7)") in
+  assert (
+    fst (get (Pcf_expr.Main.small_step shadow)) = Pcf_shared.Syntax.Nat "7");
   let e = get (Pcf_shared.Syntax.Code.parse "fun y => x") in
   let substituted =
     Pcf_shared.Syntax.substitute e "x" (Pcf_shared.Syntax.Var "y")
@@ -165,16 +168,14 @@ let () =
     Pcf_shared.Syntax.Names.elements (Pcf_shared.Syntax.free_vars substituted)
     = [ "y" ]);
   assert (substituted = Pcf_shared.Syntax.Fun ("y_0", Pcf_shared.Syntax.Var "y"));
-  (* A generated binder must not become the substitution target, even when
-     the target did not originally occur. Rust also missed this collision. *)
+  (* An absent substitution target must leave a closed expression unchanged. *)
   let absent = Pcf_shared.Syntax.Fun ("y", Pcf_shared.Syntax.Var "y") in
   let substituted =
     Pcf_shared.Syntax.substitute absent "y_0" (Pcf_shared.Syntax.Var "y")
   in
   assert (
     Pcf_shared.Syntax.Names.is_empty (Pcf_shared.Syntax.free_vars substituted));
-  assert (
-    substituted = Pcf_shared.Syntax.Fun ("y_1", Pcf_shared.Syntax.Var "y_1"));
+  assert (substituted = absent);
   let absent =
     Pcf_shared.Syntax.Rec
       ( "f",
@@ -187,13 +188,7 @@ let () =
   in
   assert (
     Pcf_shared.Syntax.Names.is_empty (Pcf_shared.Syntax.free_vars substituted));
-  assert (
-    substituted
-    = Pcf_shared.Syntax.Rec
-        ( "f_1",
-          "y",
-          Pcf_shared.Syntax.App
-            (Pcf_shared.Syntax.Var "f_1", Pcf_shared.Syntax.Var "y") ));
+  assert (substituted = absent);
   assert (
     get
       (Pcf_secd.Main.Code.parse

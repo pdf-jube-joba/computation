@@ -13,15 +13,42 @@ let alphabet = [ b; l; x ]
 
 (* A compilation owns its function table; calls get distinct runtime frames,
    and the lowering pass gives each call site fresh variable names. *)
-type builder = { mutable functions : func list }
+module Function_id = Utils.Id.Make ()
+module Function_names = Utils.Naming.Make (Function_id)
 
-let create () = { functions = [] }
+module Functions =
+  Utils.Intern.Make
+    (struct
+      type t = I.block list
 
-let register ctx f =
-  match List.find_opt (fun old -> old.name = f.name) ctx.functions with
-  | Some old when old = f -> old
-  | Some _ -> failwith ("Function '" ^ f.name ^ "' is defined twice")
+      let compare = Stdlib.compare
+    end)
+    (Function_id)
+
+type builder = {
+  mutable functions : func list;
+  identities : Functions.t ref;
+  mutable names : Function_names.t;
+  mutable definitions : func Function_id.Map.t;
+}
+
+let create () =
+  {
+    functions = [];
+    identities = ref Functions.empty;
+    names = Function_names.reserve "main" Function_names.empty;
+    definitions = Function_id.Map.empty;
+  }
+
+let register ctx (f : func) =
+  let id = Functions.take f.blocks ctx.identities in
+  match Function_id.Map.find_opt id ctx.definitions with
+  | Some old -> old
   | None ->
+      let name, names = Function_names.assign ~hint:f.name id ctx.names in
+      ctx.names <- names;
+      let f = { f with name } in
+      ctx.definitions <- Function_id.Map.add id f ctx.definitions;
       ctx.functions <- ctx.functions @ [ f ];
       f
 
@@ -69,7 +96,7 @@ let concat ctx =
 
 let shift_left_x _ctx s =
   fn
-    ("shift_left_put_" ^ T.Sign.print s)
+    ("shift_left_put_" ^ match s with None -> "blank" | Some name -> name)
     [
       block "initially" [ store "put" Head; put s; Lt ];
       block "loop" (swap @ [ Return (var_is "put" x); Lt; Continue None ]);

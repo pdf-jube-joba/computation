@@ -1,5 +1,6 @@
 module T = Turing_machine.Main
 module L = Utils.Parser
+module Var_id = Utils.Id.Make ()
 
 type lvalue = Var of Utils.Identifier.t | Head [@@deriving yojson]
 
@@ -7,7 +8,13 @@ type rvalue = Var of Utils.Identifier.t | Head | Const of T.sign
 [@@deriving yojson]
 
 type condition = { left : rvalue; right : rvalue } [@@deriving yojson]
-type environment = (Utils.Identifier.t * T.sign) list [@@deriving yojson]
+type named_environment = (Utils.Identifier.t * T.sign) list [@@deriving yojson]
+
+type environment = {
+  names : (Utils.Identifier.t * Var_id.t) list;
+  values : (Var_id.t * T.sign) list;
+}
+[@@deriving yojson]
 
 let keywords =
   [
@@ -78,11 +85,43 @@ let vars_condition = function
   | None -> []
   | Some c -> vars_rvalue c.left @ vars_rvalue c.right
 
+let env_of_named entries =
+  let supply = ref Var_id.Supply.empty in
+  let names =
+    List.map (fun (name, _) -> (name, Var_id.Supply.take supply)) entries
+  in
+  let values =
+    List.map2 (fun (_, id) (_, value) -> (id, value)) names entries
+  in
+  { names; values }
+
 let env_create vars =
-  List.map (fun s -> (s, None)) (List.sort_uniq String.compare vars)
+  env_of_named
+    (List.map (fun name -> (name, None)) (List.sort_uniq String.compare vars))
+
+let env_named env =
+  List.map
+    (fun (name, id) ->
+      (name, Option.value ~default:None (List.assoc_opt id env.values)))
+    env.names
+
+let variable env name =
+  Utils.Assoc.lookup name env.names ("Unknown variable: " ^ name)
+
+let validate_environment vars env =
+  let expected = env_create vars in
+  if env.names <> expected.names then
+    failwith "Inconsistent variable IDs in environment";
+  let ids = List.map fst env.values in
+  let used = Var_id.Set.of_list ids in
+  if
+    List.length ids <> Var_id.Set.cardinal used
+    || not (Var_id.Set.equal used (Var_id.Set.of_list (List.map snd env.names)))
+  then failwith "Inconsistent environment values"
 
 let eval env tape : rvalue -> T.sign = function
-  | Var s -> Option.value ~default:None (List.assoc_opt s env)
+  | Var s ->
+      Option.value ~default:None (List.assoc_opt (variable env s) env.values)
   | Head -> tape.T.head
   | Const s -> s
 
@@ -92,7 +131,12 @@ let eval_cond env tape = function
 
 let assign env tape (dst : lvalue) value =
   match dst with
-  | Var s -> (Utils.Assoc.set_sorted s value env, tape)
+  | Var s ->
+      ( {
+          env with
+          values = Utils.Assoc.set_sorted (variable env s) value env.values;
+        },
+        tape )
   | Head -> (env, T.Tape.head_write tape value)
 
 let normalized_alphabet a =

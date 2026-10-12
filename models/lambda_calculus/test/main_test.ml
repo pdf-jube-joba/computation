@@ -56,13 +56,18 @@ let () =
   (* Free y must remain free after reduction beneath a y binder. *)
   let capture = get (parse "(\\x. \\y. x) y") in
   let reduced = get (L.reduce capture 0) in
+  assert (L.Code.print reduced = "\\y_0. y");
   (match reduced with
   | L.Abs (bound, L.Var free) -> assert (bound.id <> free.id)
   | _ -> assert false);
   let printed = get (parse (L.Code.print reduced)) in
   (match printed with
-  | L.Abs (bound, L.Var free) -> assert (bound.id <> free.id)
+  | L.Abs (bound, L.Var free) ->
+      assert (bound.id <> free.id);
+      assert (free.name = "y")
   | _ -> assert false);
+  let occupied = get (parse "(\\x. \\y. x) (y y_0)") in
+  assert (L.Code.print (get (L.reduce occupied 0)) = "\\y_1. (y y_0)");
   let shadow = get (L.reduce (get (parse "(\\x. \\x. x) y")) 0) in
   (match shadow with
   | L.Abs (bound, L.Var var) -> assert (bound.id = var.id)

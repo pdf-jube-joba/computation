@@ -1,4 +1,6 @@
 open Structured_lang_shared.Arithmetic
+module Local_id = Utils.Id.Make ()
+module Heap_id = Utils.Id.Make ()
 
 type ty =
   | Num
@@ -62,9 +64,9 @@ type code = { statics : static_decl list; functions : fn_decl list }
 [@@deriving yojson]
 
 type location_key =
-  | Heap of int
+  | Heap of Heap_id.t
   | Static_key of Utils.Identifier.t
-  | Local_key of int
+  | Local_key of Local_id.t
 [@@deriving yojson]
 
 type projection = Field_proj of int | Tag_proj of int | Index_proj of int
@@ -87,9 +89,9 @@ type value =
 type cell = { ty : ty; value : value } [@@deriving yojson]
 
 type store = {
-  heap : (int * cell) list;
+  heap : (Heap_id.t * cell) list;
   statics : (Utils.Identifier.t * cell) list;
-  locals : (int * cell) list list list;
+  locals : (Local_id.t * cell) list list list;
 }
 [@@deriving yojson]
 
@@ -110,7 +112,7 @@ type inner_frame =
 
 type fn_frame = {
   function_name : Utils.Identifier.t;
-  env : (Utils.Identifier.t * int) list list;
+  env : (Utils.Identifier.t * Local_id.t) list list;
   ret_locs : location list;
   inner_k : inner_frame list;
 }
@@ -120,12 +122,12 @@ type state = {
   code : code;
   current_function : Utils.Identifier.t;
   exec : exec;
-  env : (Utils.Identifier.t * int) list list;
+  env : (Utils.Identifier.t * Local_id.t) list list;
   store : store;
   inner_k : inner_frame list;
   fn_k : fn_frame list;
-  next_local_id : int;
-  next_heap_id : int;
+  next_local_id : Local_id.Supply.t;
+  next_heap_id : Heap_id.Supply.t;
 }
 [@@deriving yojson]
 
@@ -224,9 +226,9 @@ end
 
 let location_text loc =
   (match loc.key with
-    | Heap n -> "heap#" ^ string_of_int n
+    | Heap n -> "heap#" ^ string_of_int (Heap_id.to_int n)
     | Static_key n -> "static " ^ n
-    | Local_key n -> "local#" ^ string_of_int n)
+    | Local_key n -> "local#" ^ string_of_int (Local_id.to_int n))
   ^ String.concat ""
       (List.map
          (function

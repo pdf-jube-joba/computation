@@ -1,6 +1,9 @@
 open Utils.Machine
 module Source = Recursive_function.Main
 module Target = Goto_lang.Main
+module Label_id = Utils.Id.Make ()
+module Temp_id = Utils.Id.Make ()
+module Temp_names = Utils.Naming.Make (Temp_id)
 
 let output_var = "y"
 let always_one_var = "__one"
@@ -8,14 +11,15 @@ let input_vars n = List.init n (fun i -> "x" ^ string_of_int i)
 
 (* Labels refer to command positions, including the position just past the end.
    Resolve them only after every nested function has emitted its instructions. *)
-type unresolved = Command of Target.command | Branch of string * int
+type unresolved = Command of Target.command | Branch of string * Label_id.t
 
 type builder = {
   mutable commands : unresolved list;
   mutable position : int;
-  labels : (int, int) Hashtbl.t;
-  mutable next_label : int;
-  mutable next_temp : int;
+  labels : (Label_id.t, int) Hashtbl.t;
+  mutable next_label : Label_id.Supply.t;
+  mutable next_temp : Temp_id.Supply.t;
+  mutable temp_names : Temp_names.t;
 }
 
 let builder () =
@@ -23,21 +27,24 @@ let builder () =
     commands = [];
     position = 0;
     labels = Hashtbl.create 16;
-    next_label = 0;
-    next_temp = 0;
+    next_label = Label_id.Supply.empty;
+    next_temp = Temp_id.Supply.empty;
+    temp_names = Temp_names.empty;
   }
 
 let label b =
-  let result = b.next_label in
-  b.next_label <- result + 1;
+  let result, next = Label_id.Supply.fresh b.next_label in
+  b.next_label <- next;
   result
 
 let mark b label = Hashtbl.replace b.labels label b.position
 
 let temp b =
-  let result = "__tmp" ^ string_of_int b.next_temp in
-  b.next_temp <- b.next_temp + 1;
-  result
+  let id, next = Temp_id.Supply.fresh b.next_temp in
+  b.next_temp <- next;
+  let name, names = Temp_names.assign ~hint:"__tmp" id b.temp_names in
+  b.temp_names <- names;
+  name
 
 let emit b command =
   b.commands <- command :: b.commands;
@@ -123,7 +130,10 @@ let finalize b =
               match Hashtbl.find_opt b.labels label with
               | Some target ->
                   Ok (Target.Ifnz (var, Utils.Number.of_int target))
-              | None -> Error ("undefined label: " ^ string_of_int label))
+              | None ->
+                  Error
+                    ("undefined label: " ^ string_of_int (Label_id.to_int label))
+              )
         in
         let* rest = resolve rest in
         Ok (command :: rest)

@@ -1,4 +1,8 @@
 module L = Utils.Parser
+module Task_id = Utils.Id.Make ()
+
+let task_text id = string_of_int (Task_id.to_int id)
+
 module N = Utils.Number
 
 let value = function Ok v -> v | Error e -> failwith e
@@ -32,7 +36,7 @@ type code = fn_decl list [@@deriving yojson]
 
 type global_env = {
   vars : (Utils.Identifier.t * N.t) list;
-  task_ids : (Utils.Identifier.t * int option) list;
+  task_ids : (Utils.Identifier.t * Task_id.t option) list;
 }
 [@@deriving yojson]
 
@@ -47,8 +51,8 @@ type foutput = global_env
 type state = {
   code : code;
   env : global_env;
-  workers : int option array;
-  queue : int list;
+  workers : Task_id.t option array;
+  queue : Task_id.t list;
   tasks : frame list array;
 }
 [@@deriving yojson]
@@ -186,9 +190,10 @@ module Foutput = struct
 
   let parse_task_id text =
     if String.lowercase_ascii text = "none" then None
-    else Some (value (Utils.Text.Natural_int.parse text))
+    else
+      Some (value (Task_id.of_int (value (Utils.Text.Natural_int.parse text))))
 
-  let print_task_id = function None -> "none" | Some n -> string_of_int n
+  let print_task_id = function None -> "none" | Some n -> task_text n
 
   let parse text =
     Utils.Environment.fold_lines
@@ -242,8 +247,8 @@ let rec eval_bexp s = function
   | And (a, b) -> eval_bexp s a && eval_bexp s b
   | Or (a, b) -> eval_bexp s a || eval_bexp s b
   | Done n ->
-      let id = get_task_id s.env n in
-      id >= 0 && id < Array.length s.tasks && s.tasks.(id) = []
+      let id = Task_id.to_int (get_task_id s.env n) in
+      id < Array.length s.tasks && s.tasks.(id) = []
 
 let validate code =
   let names = List.map (fun f -> f.name) code in
@@ -260,7 +265,7 @@ let make code agents =
         code;
         env = { vars = []; task_ids = [] };
         workers = Array.make agents None;
-        queue = [ 0 ];
+        queue = [ value (Task_id.of_int 0) ];
         tasks = [| [ { function_name = "main"; pc = 0 } ] |];
       })
 
@@ -283,18 +288,21 @@ let step s agent =
           | id :: queue ->
               workers.(agent) <- Some id;
               continue { s with queue }
-                (Printf.sprintf "agent %d: dequeue task %d" agent id))
+                (Printf.sprintf "agent %d: dequeue task %d" agent
+                   (Task_id.to_int id)))
       | Some id -> (
-          if id < 0 || id >= Array.length tasks then
-            failwith (Printf.sprintf "unknown task %d" id);
-          match tasks.(id) with
+          if Task_id.to_int id >= Array.length tasks then
+            failwith (Printf.sprintf "unknown task %d" (Task_id.to_int id));
+          match tasks.(Task_id.to_int id) with
           | [] ->
               workers.(agent) <- None;
-              continue s (Printf.sprintf "agent %d: release task %d" agent id)
+              continue s
+                (Printf.sprintf "agent %d: release task %d" agent
+                   (Task_id.to_int id))
           | frame :: rest ->
               let fn = find_function s.code frame.function_name in
               if frame.pc = List.length fn.body then (
-                tasks.(id) <- rest;
+                tasks.(Task_id.to_int id) <- rest;
                 continue s
                   (Printf.sprintf "agent %d: return from %s" agent
                      frame.function_name))
@@ -313,7 +321,7 @@ let step s agent =
                     failwith
                       (Printf.sprintf "pc became negative in %s: %d + %d"
                          frame.function_name frame.pc offset);
-                  tasks.(id) <- { frame with pc } :: rest
+                  tasks.(Task_id.to_int id) <- { frame with pc } :: rest
                 in
                 let s =
                   match stmt with
@@ -337,11 +345,15 @@ let step s agent =
                   | Call n ->
                       ignore (find_function s.code n);
                       shift 1;
-                      tasks.(id) <- { function_name = n; pc = 0 } :: tasks.(id);
+                      tasks.(Task_id.to_int id) <-
+                        { function_name = n; pc = 0 }
+                        :: tasks.(Task_id.to_int id);
                       s
                   | Run (n, id_var) ->
                       ignore (find_function s.code n);
-                      let new_id = Array.length tasks in
+                      let new_id =
+                        value (Task_id.of_int (Array.length tasks))
+                      in
                       shift 1;
                       {
                         s with
@@ -372,6 +384,12 @@ let restore json =
   Result.bind (state_of_yojson json) (fun s ->
       L.protect (fun () ->
           validate s.code;
+          let check id =
+            if Task_id.to_int id >= Array.length s.tasks then
+              failwith "Unknown task ID in snapshot"
+          in
+          List.iter check s.queue;
+          Array.iter (Option.iter check) s.workers;
           s))
 
 let render s =
@@ -388,14 +406,13 @@ let render s =
         [
           assoc_table ~title:"vars" N.to_string s.env.vars;
           assoc_table ~title:"task_ids" ~columns:[ "id"; "task" ]
-            (function None -> "none" | Some n -> string_of_int n)
+            (function None -> "none" | Some n -> task_text n)
             (List.map (fun (n, id) -> ("$" ^ n, id)) s.env.task_ids);
         ];
       indexed_table ~title:"workers" ~columns:[ "agent"; "task" ]
-        (function None -> "idle" | Some n -> string_of_int n)
+        (function None -> "idle" | Some n -> task_text n)
         (Array.to_list s.workers);
-      indexed_table ~title:"queue" ~columns:[ "slot"; "task" ] string_of_int
-        s.queue;
+      indexed_table ~title:"queue" ~columns:[ "slot"; "task" ] task_text s.queue;
       container ~title:"tasks"
         (Array.to_list
            (Array.mapi

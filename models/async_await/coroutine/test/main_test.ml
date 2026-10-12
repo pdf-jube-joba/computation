@@ -167,6 +167,6 @@ let () =
   let env, _ = run 40 (ok (C.make code 1)) [] in
   assert (
     List.assoc "foo_bar" env.vars = "7" && List.assoc "result" env.vars = "3");
-  assert (List.assoc "task_id" env.task_ids = Some 1);
+  assert (List.assoc "task_id" env.task_ids = Some (ok (C.Task_id.of_int 1)));
   assert (List.assoc "foo_bar" (ok (C.Foutput.parse "foo_bar = +7")).vars = "7");
   print_endline "coroutine tests passed"

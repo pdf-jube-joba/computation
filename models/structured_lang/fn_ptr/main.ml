@@ -1,4 +1,5 @@
 open Structured_lang_shared.Arithmetic
+module Frame_id = Utils.Id.Make ()
 
 type binop = Add | Sub [@@deriving yojson]
 
@@ -27,12 +28,12 @@ type fn_decl = {
 [@@deriving yojson]
 
 type code = { functions : fn_decl list } [@@deriving yojson]
-type location = { frame_id : int; slot : int } [@@deriving yojson]
+type location = { frame_id : Frame_id.t; slot : int } [@@deriving yojson]
 
 type value = Num of int64 | Location of location | Null_ptr
 [@@deriving yojson]
 
-type frame_store = { frame_id : int; values : (location * value) list }
+type frame_store = { frame_id : Frame_id.t; values : (location * value) list }
 [@@deriving yojson]
 
 type call_frame = {
@@ -50,7 +51,7 @@ type state = {
   store : frame_store list;
   inner_k : stmt list;
   fn_k : call_frame list;
-  next_frame_id : int;
+  next_frame_id : Frame_id.Supply.t;
 }
 [@@deriving yojson]
 
@@ -176,7 +177,7 @@ module Runtime_value = struct
   type t = value
 
   let location_text (l : location) =
-    Printf.sprintf "loc(%d, %d)" l.frame_id l.slot
+    Printf.sprintf "loc(%d, %d)" (Frame_id.to_int l.frame_id) l.slot
 
   let print = function
     | Num n -> Int64.to_string n
@@ -195,7 +196,7 @@ module Runtime_value = struct
           L.expect_keyword p "loc";
           let location =
             L.group p ~opening:'(' (fun p ->
-                let frame_id = L.integer p in
+                let frame_id = get (Frame_id.of_int (L.integer p)) in
                 L.expect_symbol p ',';
                 let slot = L.integer p in
                 Location { frame_id; slot })
@@ -236,8 +237,11 @@ let make code () =
         | None -> failwith "function 'main' is missing"
       in
       let current_stmt, inner_k = split_body f.body in
+      let frame_id, next_frame_id =
+        Frame_id.Supply.fresh Frame_id.Supply.empty
+      in
       let env, values =
-        bindings 0 f.params (List.map (fun _ -> Num 0L) f.params)
+        bindings frame_id f.params (List.map (fun _ -> Num 0L) f.params)
       in
       {
         code;
@@ -245,9 +249,9 @@ let make code () =
         current_stmt;
         inner_k;
         env = Utils.Assoc.sorted env;
-        store = [ { frame_id = 0; values } ];
+        store = [ { frame_id; values } ];
         fn_k = [];
-        next_frame_id = 1;
+        next_frame_id;
       })
 
 let store_lookup s loc =
@@ -301,14 +305,17 @@ let format_final_state s f =
          (Utils.Assoc.sorted f.values))
   in
   "halted\ncurrent_function: " ^ s.current_function ^ "\nfinished_frame: "
-  ^ string_of_int f.frame_id ^ "\n" ^ values "  " f ^ "remaining_store:\n"
+  ^ string_of_int (Frame_id.to_int f.frame_id)
+  ^ "\n" ^ values "  " f ^ "remaining_store:\n"
   ^
   if s.store = [] then "  <empty>\n"
   else
     String.concat ""
       (List.map
          (fun f ->
-           "  frame " ^ string_of_int f.frame_id ^ ":\n" ^ values "    " f)
+           "  frame "
+           ^ string_of_int (Frame_id.to_int f.frame_id)
+           ^ ":\n" ^ values "    " f)
          (List.rev s.store))
 
 let step s () =
@@ -343,7 +350,8 @@ let step s () =
                  "argument count mismatch for %s: expected %d, got %d" name
                  (List.length f.params) (List.length values));
           let current_stmt, inner_k = split_body f.body in
-          let env, values = bindings s.next_frame_id f.params values in
+          let frame_id, next_frame_id = Frame_id.Supply.fresh s.next_frame_id in
+          let env, values = bindings frame_id f.params values in
           continue
             {
               s with
@@ -351,7 +359,7 @@ let step s () =
               current_stmt;
               inner_k;
               env = Utils.Assoc.sorted env;
-              store = { frame_id = s.next_frame_id; values } :: s.store;
+              store = { frame_id; values } :: s.store;
               fn_k =
                 {
                   env = s.env;
@@ -359,7 +367,7 @@ let step s () =
                   function_name = s.current_function;
                 }
                 :: s.fn_k;
-              next_frame_id = s.next_frame_id + 1;
+              next_frame_id;
             }
       | Some Return -> (
           match s.store with
@@ -385,6 +393,25 @@ let restore json =
   Result.bind (state_of_yojson json) (fun s ->
       L.protect (fun () ->
           validate s.code;
+          let ids = ref Frame_id.Set.empty in
+          let location (l : location) =
+            ids := Frame_id.Set.add l.frame_id !ids
+          in
+          List.iter
+            (fun frame ->
+              ids := Frame_id.Set.add frame.frame_id !ids;
+              List.iter
+                (fun (l, v) ->
+                  location l;
+                  match v with Location l -> location l | _ -> ())
+                frame.values)
+            s.store;
+          List.iter (fun (_, l) -> location l) s.env;
+          List.iter
+            (fun (frame : call_frame) ->
+              List.iter (fun (_, l) -> location l) frame.env)
+            s.fn_k;
+          get (Frame_id.Supply.validate_used !ids s.next_frame_id);
           s))
 
 let render s =
@@ -399,7 +426,10 @@ let render s =
             "current";
             Option.fold ~none:"<none>" ~some:Code.stmt_to_text s.current_stmt;
           ];
-          [ "next_frame_id"; string_of_int s.next_frame_id ];
+          [
+            "next_frame_id";
+            string_of_int (Frame_id.Supply.to_int s.next_frame_id);
+          ];
         ];
       text_table ~title:"env"
         ~columns:[ "var"; "location"; "value" ]
@@ -416,7 +446,7 @@ let render s =
         (List.map
            (fun f ->
              assoc_table
-               ~title:("frame " ^ string_of_int f.frame_id)
+               ~title:("frame " ^ string_of_int (Frame_id.to_int f.frame_id))
                ~columns:[ "location"; "value" ] Runtime_value.print
                (List.map
                   (fun (l, v) -> (Runtime_value.location_text l, v))

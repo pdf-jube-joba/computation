@@ -31,7 +31,7 @@ and stmt =
 
 type print_effect = N.t option [@@deriving yojson]
 
-module Code = struct
+module Source_code = struct
   type t = expr
 
   let print_binop = function Add -> "+" | Sub -> "-" | And -> "&&"
@@ -193,7 +193,7 @@ let expect_nat = function
 let apply_inputs e inputs = List.fold_left (fun e n -> App (e, Nat n)) e inputs
 
 module Stmt_code = struct
-  include Code
+  include Source_code
 
   let parse = L.parse (expression true)
 end
@@ -210,75 +210,56 @@ let rec free_vars = function
   | Block _ ->
       invalid_arg "substitution applies to the direct expression language"
 
-let rec all_names = function
-  | Fun (x, e) -> Names.add x (all_names e)
-  | Rec (f, x, e) -> Names.add f (Names.add x (all_names e))
-  | BinOp (a, _, b) | App (a, b) -> Names.union (all_names a) (all_names b)
-  | UnOp (_, e) -> all_names e
-  | If (c, t, e) ->
-      Names.union (all_names c) (Names.union (all_names t) (all_names e))
-  | e -> free_vars e
+module Substitution =
+  Utils.Binding.Make
+    (struct
+      type t = expr
 
-let fresh used replacement base =
-  Utils.Identifier.fresh ~prefix:(base ^ "_") (Names.union used replacement)
+      let variable name = Var name
 
-let rec rename e from into =
-  match e with
-  | Var x -> if x = from then Var into else e
-  | Fun (x, _) when x = from -> e
-  | Rec (f, x, _) when f = from || x = from -> e
-  | Fun (x, b) -> Fun (x, rename b from into)
-  | Rec (f, x, b) -> Rec (f, x, rename b from into)
-  | BinOp (a, o, b) -> BinOp (rename a from into, o, rename b from into)
-  | UnOp (o, b) -> UnOp (o, rename b from into)
-  | App (a, b) -> App (rename a from into, rename b from into)
-  | If (c, t, b) ->
-      If (rename c from into, rename t from into, rename b from into)
-  | _ -> e
+      let view e =
+        let open Utils.Binding in
+        match e with
+        | Var name -> Variable name
+        | Fun (x, body) ->
+            node ~binders:[ x ]
+              [ ([ 0 ], body) ]
+              (fun names children -> Fun (List.hd names, List.hd children))
+        | Rec (f, x, body) ->
+            node ~binders:[ f; x ]
+              [ ([ 0; 1 ], body) ]
+              (fun names children ->
+                Rec (List.nth names 0, List.nth names 1, List.hd children))
+        | BinOp (a, op, b) ->
+            node
+              [ ([], a); ([], b) ]
+              (fun _ children ->
+                BinOp (List.nth children 0, op, List.nth children 1))
+        | UnOp (op, body) ->
+            node [ ([], body) ] (fun _ children -> UnOp (op, List.hd children))
+        | App (a, b) ->
+            node
+              [ ([], a); ([], b) ]
+              (fun _ children -> App (List.nth children 0, List.nth children 1))
+        | If (c, a, b) ->
+            node
+              [ ([], c); ([], a); ([], b) ]
+              (fun _ children ->
+                If
+                  (List.nth children 0, List.nth children 1, List.nth children 2))
+        | Block _ ->
+            invalid_arg "substitution applies to the direct expression language"
+        | _ -> node [] (fun _ _ -> e)
+    end)
+    ()
 
-let rec substitute e target replacement =
-  match e with
-  | Var x -> if x = target then replacement else e
-  | Fun (x, _) when x = target -> e
-  | Rec (f, x, _) when f = target || x = target -> e
-  | Fun (x, b) ->
-      let fv = free_vars replacement in
-      let x, b =
-        if Names.mem x fv then
-          let y = fresh (Names.add target (all_names e)) fv x in
-          (y, rename b x y)
-        else (x, b)
-      in
-      Fun (x, substitute b target replacement)
-  | Rec (f, x, b) ->
-      let fv = free_vars replacement
-      and used = Names.add target (all_names e) in
-      let f, b =
-        if Names.mem f fv then
-          let y = fresh used fv f in
-          (y, rename b f y)
-        else (f, b)
-      in
-      let x, b =
-        if Names.mem x fv then
-          let y = fresh used fv x in
-          (y, rename b x y)
-        else (x, b)
-      in
-      Rec (f, x, substitute b target replacement)
-  | BinOp (a, o, b) ->
-      BinOp (substitute a target replacement, o, substitute b target replacement)
-  | UnOp (o, b) -> UnOp (o, substitute b target replacement)
-  | App (a, b) ->
-      App (substitute a target replacement, substitute b target replacement)
-  | If (c, t, b) ->
-      If
-        ( substitute c target replacement,
-          substitute t target replacement,
-          substitute b target replacement )
-  | Block _ ->
-      invalid_arg "substitution applies to the direct expression language"
-  | _ -> e
+let substitute = Substitution.substitute
+
+module Code = struct
+  include Source_code
+
+  let parse text = Result.map Substitution.normalize (Source_code.parse text)
+end
 
 module Ainput = Utils.Text.Natural_list
 

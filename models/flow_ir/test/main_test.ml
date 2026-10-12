@@ -50,7 +50,9 @@ let () =
       if get (I.Ainput.parse_value (I.Ainput.print_value v)) <> v then
         failwith "Value roundtrip")
     [ "123"; ":next"; "k:@slot"; "k:s[3]"; "k:h[2][4]" ];
-  assert (I.Ainput.parse_value "k:h[002][04]" = Ok (I.Key (I.Heap (2, 4))));
+  assert (
+    I.Ainput.parse_value "k:h[002][04]"
+    = Ok (I.Key (I.Heap (get (I.Heap_id.of_int 2), 4))));
   List.iter
     (fun source -> error (I.Ainput.parse_value source))
     [
@@ -116,6 +118,25 @@ let () =
   error (I.Code.parse ":main{:entry{nop;}}");
   let s = get (I.make (get (I.Code.parse ":main{:entry{pop %a;halt;}}")) []) in
   error (I.step s "");
+  let allocated =
+    get (I.make (get (I.Code.parse ":main{:entry{halloc(#1)%h;halt;}}")) [])
+  in
+  let allocated =
+    match get (I.step allocated "") with
+    | Continue { next; _ } -> next
+    | _ -> assert false
+  in
+  let rewound =
+    {
+      allocated with
+      next_handle = I.Heap_id.Supply.after (get (I.Heap_id.of_int 0));
+    }
+  in
+  error (I.restore (I.snapshot rewound));
+  let inconsistent =
+    { allocated with resolution = { allocated.resolution with registers = [] } }
+  in
+  error (I.restore (I.snapshot inconsistent));
   let s =
     get
       (I.make (get (I.Code.parse ":main{:entry{%a:=#255;print %a;halt;}}")) [])

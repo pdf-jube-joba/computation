@@ -85,13 +85,15 @@ let rec update_projection ty current ps value =
 let get_cell s = function
   | Heap id ->
       Utils.Assoc.lookup id s.store.heap
-        ("unknown heap location: " ^ string_of_int id)
+        ("unknown heap location: " ^ string_of_int (Heap_id.to_int id))
   | Static_key name ->
       Utils.Assoc.lookup name s.store.statics
         ("unknown static location: " ^ name)
   | Local_key id ->
       let rec functions = function
-        | [] -> failwith ("unknown local location: " ^ string_of_int id)
+        | [] ->
+            failwith
+              ("unknown local location: " ^ string_of_int (Local_id.to_int id))
         | scopes :: fs ->
             let rec find = function
               | [] -> functions fs
@@ -241,8 +243,7 @@ let allocate_scope s bindings values =
     List.fold_left
       (fun (env, cells) ((name, ty), value) ->
         if not (type_match value ty) then failwith ("type mismatch for " ^ name);
-        let id = !next in
-        incr next;
+        let id = Local_id.Supply.take next in
         (Utils.Assoc.set name id env, Utils.Assoc.set id { ty; value } cells))
       ([], [])
       (List.combine bindings values)
@@ -314,8 +315,8 @@ let make code input =
           store = { statics; heap = []; locals = [] };
           inner_k = [];
           fn_k = [];
-          next_local_id = 0;
-          next_heap_id = 0;
+          next_local_id = Local_id.Supply.empty;
+          next_heap_id = Heap_id.Supply.empty;
         }
       in
       enter_function s "main" (List.map (fun n -> Number_value n) input))
@@ -336,11 +337,11 @@ let step_eval s = function
           { s with exec = (if tag = found then Eval stmt else Ctrl Next) }
       | _ -> failwith "case expects a tagged sum")
   | HAlloc (ty, p) ->
-      let id = s.next_heap_id in
+      let id, next_heap_id = Heap_id.Supply.fresh s.next_heap_id in
       let s =
         {
           s with
-          next_heap_id = id + 1;
+          next_heap_id;
           store =
             {
               s.store with
@@ -489,14 +490,50 @@ let restore json =
   Result.bind (state_of_yojson json) (fun s ->
       L.protect (fun () ->
           validate s.code;
+          let locals = ref Local_id.Set.empty
+          and heaps = ref Heap_id.Set.empty in
+          let key = function
+            | Local_key id -> locals := Local_id.Set.add id !locals
+            | Heap id -> heaps := Heap_id.Set.add id !heaps
+            | Static_key _ -> ()
+          in
+          let rec value = function
+            | Ptr_value (Some loc) -> key loc.key
+            | Aggregate values -> List.iter value values
+            | Sum_value (_, v) -> value v
+            | _ -> ()
+          in
+          let env entries =
+            List.iter (List.iter (fun (_, id) -> key (Local_key id))) entries
+          in
+          env s.env;
+          List.iter
+            (fun (frame : fn_frame) ->
+              env frame.env;
+              List.iter (fun loc -> key loc.key) frame.ret_locs)
+            s.fn_k;
+          List.iter
+            (fun (id, c) ->
+              key (Heap id);
+              value c.value)
+            s.store.heap;
+          List.iter (fun (_, c) -> value c.value) s.store.statics;
+          List.iter
+            (List.iter
+               (List.iter (fun (id, c) ->
+                    key (Local_key id);
+                    value c.value)))
+            s.store.locals;
+          get (Local_id.Supply.validate_used !locals s.next_local_id);
+          get (Heap_id.Supply.validate_used !heaps s.next_heap_id);
           s))
 
 let render s =
   let open Utils.Render in
-  let cell_rows cells =
+  let cell_rows to_int cells =
     List.map
       (fun (id, c) ->
-        [ string_of_int id; Code.type_text c.ty; value_text c.value ])
+        [ string_of_int (to_int id); Code.type_text c.ty; value_text c.value ])
       (Utils.Assoc.sorted cells)
   in
   state
@@ -505,8 +542,13 @@ let render s =
         [
           [ "function"; s.current_function ];
           [ "exec"; exec_text s.exec ];
-          [ "next_local_id"; string_of_int s.next_local_id ];
-          [ "next_heap_id"; string_of_int s.next_heap_id ];
+          [
+            "next_local_id";
+            string_of_int (Local_id.Supply.to_int s.next_local_id);
+          ];
+          [
+            "next_heap_id"; string_of_int (Heap_id.Supply.to_int s.next_heap_id);
+          ];
         ];
       text_table ~title:"env"
         ~columns:[ "scope"; "name"; "local" ]
@@ -514,7 +556,8 @@ let render s =
            (List.mapi
               (fun i scope ->
                 List.map
-                  (fun (n, id) -> [ string_of_int i; n; string_of_int id ])
+                  (fun (n, id) ->
+                    [ string_of_int i; n; string_of_int (Local_id.to_int id) ])
                   (Utils.Assoc.sorted scope))
               s.env));
       text_table ~title:"statics"
@@ -524,7 +567,7 @@ let render s =
            (Utils.Assoc.sorted s.store.statics));
       text_table ~title:"heap"
         ~columns:[ "heap"; "type"; "value" ]
-        (cell_rows s.store.heap);
+        (cell_rows Heap_id.to_int s.store.heap);
       container ~title:"locals"
         (List.mapi
            (fun i scopes ->
@@ -535,7 +578,7 @@ let render s =
                     text_table
                       ~title:("scope " ^ string_of_int j)
                       ~columns:[ "local"; "type"; "value" ]
-                      (cell_rows cells))
+                      (cell_rows Local_id.to_int cells))
                   scopes))
            s.store.locals);
       indexed_table ~title:"inner_k" ~columns:[ "depth"; "frame" ] inner_text

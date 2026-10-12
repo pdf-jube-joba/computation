@@ -12,6 +12,10 @@
   (modules identifiers_test)
   (libraries utils))
  (test
+  (name id_naming_test)
+  (modules id_naming_test)
+  (libraries utils))
+ (test
   (name core_test)
   (modules core_test)
   (libraries utils))

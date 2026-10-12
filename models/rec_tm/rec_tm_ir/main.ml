@@ -315,7 +315,10 @@ let restore json =
         (fun f ->
           let b, i = f.pc in
           if b < 0 || i < 0 then failwith "Invalid frame pc";
-          ignore (find_function s.program f.function_))
+          let definition = find_function s.program f.function_ in
+          if f.blocks <> definition.blocks then
+            failwith "Frame differs from function definition";
+          validate_environment (collect_vars f.blocks) f.env)
         (s.frame :: s.stack);
       s)
 
@@ -330,7 +333,7 @@ let render s =
       Utils.Render.container ~title:"stack" ~orientation:"horizontal"
         (List.map (fun f -> Utils.Render.text f.function_) (List.rev s.stack)
         @ [ Utils.Render.text ~class_name:"highlight" s.frame.function_ ]);
-      Utils.Render.assoc_table ~title:"env" T.Sign.print s.frame.env;
+      Utils.Render.assoc_table ~title:"env" T.Sign.print (env_named s.frame.env);
       T.Tape.render s.tape;
     ]
 

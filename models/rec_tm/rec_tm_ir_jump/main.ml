@@ -129,6 +129,7 @@ let restore json =
       if s.pc < 0 || s.pc > List.length s.program.body then
         failwith "Invalid pc";
       validate_tape (normalized_alphabet s.program.alphabet) s.tape;
+      validate_environment (collect_vars s.program.body) s.env;
       s)
 
 let render s =
@@ -138,7 +139,7 @@ let render s =
       Utils.Render.text ~title:"next"
         (if s.pc >= List.length s.program.body then "halt"
          else Code.stmt_print (List.nth s.program.body s.pc));
-      Utils.Render.assoc_table ~title:"env" T.Sign.print s.env;
+      Utils.Render.assoc_table ~title:"env" T.Sign.print (env_named s.env);
       T.Tape.render s.tape;
     ]
 

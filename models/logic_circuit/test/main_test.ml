@@ -4,7 +4,9 @@ module Machine_contract : Utils.Machine.S = Logic_circuit.Main
 
 let ok = function Ok x -> x | Error e -> failwith e
 let bad = function Error _ -> () | Ok _ -> failwith "Expected error"
-let pin n p = (n, p)
+let pin n p = (Internal n, p)
+let ext n p = (External n, p)
+let wire n p = (n, p)
 let advance c xs = ok (step c xs)
 
 let code_roundtrip circuit =
@@ -19,10 +21,10 @@ let rec clocks n c xs = if n = 0 then c else clocks (n - 1) (advance c xs) xs
 
 let () =
   let g = new_gate And false in
-  assert (get_inpins g = [ pin "AND" "IN0"; pin "AND" "IN1" ]);
-  assert (get_otpins g = [ pin "AND" "OUT" ]);
-  assert (value (advance g [ (pin "AND" "IN0", true); (pin "AND" "IN1", true) ]));
-  assert (not (value (advance g [ (pin "AND" "IN0", true) ])));
+  assert (get_inpins g = [ ext "AND" "IN0"; ext "AND" "IN1" ]);
+  assert (get_otpins g = [ ext "AND" "OUT" ]);
+  assert (value (advance g [ (ext "AND" "IN0", true); (ext "AND" "IN1", true) ]));
+  assert (not (value (advance g [ (ext "AND" "IN0", true) ])));
   List.iter
     (fun a ->
       List.iter
@@ -43,7 +45,7 @@ let () =
   assert (value (advance (new_gate Not false) []));
   assert (
     get_otputs (advance (new_gate Br false) [ (pin "x" "IN", true) ])
-    = [ (pin "BR" "OUT0", true); (pin "BR" "OUT1", true) ]);
+    = [ (ext "BR" "OUT0", true); (ext "BR" "OUT1", true) ]);
   assert (value (advance (new_gate Delay false) [ (pin "x" "IN", true) ]));
   let end_gate = advance (new_gate End false) [ (pin "x" "IN", true) ] in
   assert (get_otputs end_gate = [] && state_as_gate end_gate = Some true);
@@ -56,11 +58,16 @@ let () =
     ok
       (new_mix "MIX"
          [ ("A", new_gate And false); ("B", new_gate Or false) ]
-         [ (pin "A" "OUT", pin "B" "IN0") ]
+         [ (wire "A" "OUT", wire "B" "IN0") ]
          [] [])
   in
   assert (get_inpins mix = [ pin "A" "IN0"; pin "A" "IN1"; pin "B" "IN1" ]);
   assert (get_otpins mix = [ pin "B" "OUT" ]);
+  let collision =
+    ok (new_mix "same" [ ("same", new_gate Delay false) ] [] [] [])
+  in
+  assert (value (advance collision [ (pin "same" "IN", true) ]));
+  assert (not (value (advance collision [ (ext "same" "IN", true) ])));
   let first =
     advance mix
       [ (pin "A" "IN0", true); (pin "A" "IN1", true); (pin "B" "IN0", true) ]
@@ -86,21 +93,16 @@ let () =
     [ Cst; Not; And; Or; Br; Delay; End ];
   bad (Code.parse "[");
   bad (Code.parse "[\"Unknown\"]");
-  assert (get_inpins main = [ pin "main" "I" ]);
-  assert (Signal.print (get_otputs (advance main [])) = "main.O=#true");
-  assert (not (value (advance main [ (pin "main" "I", true) ])));
+  assert (get_inpins main = [ ext "main" "I" ]);
+  assert (Signal.print (get_otputs (advance main [])) = "@main.O=#true");
+  assert (not (value (advance main [ (ext "main" "I", true) ])));
   assert (not (value (advance main [ (pin "A" "IN", true) ])));
   assert (
     value
       (advance main
-         [ (pin "main" "UNKNOWN", true); (pin "UNKNOWN" "IN", true) ]));
-  (* Maps targeting absent vertices are accepted, exactly as in Rust. *)
-  let permissive =
-    ok (Code.parse "graph: main { in {A, d} out {a=b.c} A, AND_T {} }")
-  in
-  assert (get_otpins permissive = [ pin "A" "OUT" ]);
-  let permissive_json = render permissive |> Yojson.Safe.to_string in
-  assert (String.length permissive_json > 0);
+         [ (ext "main" "UNKNOWN", true); (pin "UNKNOWN" "IN", true) ]));
+  (* Dangling interface references cannot resolve to a vertex ID. *)
+  bad (Code.parse "graph: main { in {A, d} out {a=b.c} A, AND_T {} }");
   bad (Code.parse "graph: main {in {} out {} A, NOT_F {} A, NOT_T {}}");
   bad (Code.parse "graph: main {in {} out {} A, NOT_F {IN=absent.OUT}}");
   bad (Code.parse "graph: main {in {} out {} A, NOT_F {IN=X}}");
@@ -143,8 +145,7 @@ let () =
     Yojson.Safe.from_string (Yojson.Safe.to_string saved) |> restore |> ok
   in
   assert (decoded = first && advance decoded [] = advance first []);
-  (* Rust's public Mix struct and snapshot decoder accept duplicate vertex
-     names even though new_mix rejects them. Its name map steps only the first. *)
+  (* A restored topology must have unambiguous vertex identities. *)
   let duplicate_state =
     Mix
       {
@@ -155,17 +156,13 @@ let () =
         otpin_maps = [];
       }
   in
-  let duplicate_state = ok (restore (snapshot duplicate_state)) in
-  assert (
-    get_otputs (advance duplicate_state [])
-    = [ (pin "A" "OUT", true); (pin "A" "OUT", true) ]);
+  bad (restore (snapshot duplicate_state));
   bad (restore (`String "invalid"));
-  let invalid_identifiers = ok (new_mix "123" [] [] [] []) in
-  bad (restore (snapshot invalid_identifiers));
+  bad (new_mix "123" [] [] [] []);
   (match ok (Logic_circuit.Main.step main []) with
   | Utils.Machine.Continue { next; output } ->
       assert (output = get_otputs next);
-      assert (Logic_circuit.Main.Routput.print output = "main.O=#true")
+      assert (Logic_circuit.Main.Routput.print output = "@main.O=#true")
   | _ -> failwith "Circuits never halt");
   (match render first with
   | `List [ _; _; _; _ ] -> ()
@@ -196,17 +193,17 @@ let () =
    with Invalid_argument _ -> ());
   assert (List.length library = 19);
   let one_shot = List.assoc "one_shot" library in
-  let pulse = advance one_shot [ (pin "one_shot" "I", true) ] in
+  let pulse = advance one_shot [ (ext "one_shot" "I", true) ] in
   assert (not (value pulse));
-  assert (value (advance pulse [ (pin "one_shot" "I", true) ]));
-  assert (not (value (clocks 6 one_shot [ (pin "one_shot" "I", true) ])));
+  assert (value (advance pulse [ (ext "one_shot" "I", true) ]));
+  assert (not (value (clocks 6 one_shot [ (ext "one_shot" "I", true) ])));
   let xor = List.assoc "XOR" library in
   List.iter
     (fun a ->
       List.iter
         (fun b ->
           assert (
-            value (clocks 6 xor [ (pin "XOR" "IN0", a); (pin "XOR" "IN1", b) ])
+            value (clocks 6 xor [ (ext "XOR" "IN0", a); (ext "XOR" "IN1", b) ])
             = (a <> b)))
         [ false; true ])
     [ false; true ];
@@ -219,8 +216,8 @@ let () =
         (fun b ->
           assert (
             get_otputs
-              (clocks 12 adder [ (pin "ADDR" "I0", a); (pin "ADDR" "I1", b) ])
-            = [ (pin "ADDR" "S", false); (pin "ADDR" "C", a && b) ]))
+              (clocks 12 adder [ (ext "ADDR" "I0", a); (ext "ADDR" "I1", b) ])
+            = [ (ext "ADDR" "S", a <> b); (ext "ADDR" "C", a && b) ]))
         [ false; true ])
     [ false; true ];
   List.iter
@@ -230,29 +227,42 @@ let () =
       assert (List.length (as_graph_group c).verts > 0))
     [ "RS_latch"; "DFF" ];
   let iter = ok (Code.parse "iter: main {DLY_F, next {OUT=IN} prev {}}") in
-  assert (get_inpins iter = [] && get_otputs iter = [] && advance iter [] = iter);
-  (* Typed callers can seed the decimal index that Rust's text Identifier
-     cannot express. Generated _n_ labels remain distinct and ignored. *)
-  let iter = advance iter [ (pin "0" "IN", true) ] in
+  assert (
+    get_inpins iter = [ ext "main" "IN" ]
+    && get_otputs iter = []
+    && advance iter [] = iter);
+  (* Instance IDs have the same representation in input and output. *)
+  let iter = advance iter [ (instance 0 "IN", true) ] in
+  assert (Signal.print [ (instance 0 "OUT", true) ] = "$0.OUT=#true");
+  (match iter with
+  | Iter i -> assert (state_as_gate (List.hd i.used) = Some true)
+  | _ -> assert false);
+  assert (ok (Rinput.parse "$000.IN=#true") = [ (instance 0 "IN", true) ]);
+  let seeded =
+    advance
+      (ok (Code.parse "iter: main {DLY_F, next {OUT=IN} prev {}}"))
+      (ok (Rinput.parse "@main.IN=#true"))
+  in
+  assert (seeded = iter);
   (match iter with
   | Iter i -> assert (List.length i.used = 1)
   | _ -> assert false);
-  assert (get_inpins iter = [ pin "_0_" "IN" ]);
+  assert (get_inpins iter = [ instance 0 "IN" ]);
   let extended = advance iter [] in
   (match extended with
   | Iter i -> assert (List.length i.used = 2)
   | _ -> assert false);
   assert (
-    (as_graph_group extended).edges = [ (pin "_0_" "OUT", pin "_1_" "IN") ]);
+    (as_graph_group extended).edges = [ (instance 0 "OUT", instance 1 "IN") ]);
   assert (ok (restore (snapshot extended)) = extended);
   code_roundtrip extended;
   (match extended with
   | Iter i -> bad (Code.parse (Code.print (Iter { i with kind = "bad-name" })))
   | _ -> assert false);
-  bad (step iter [ (pin "10" "IN", true) ]);
+  bad (step iter [ (instance 10 "IN", true) ]);
   let backwards =
     ok (new_iter "back" (new_gate Delay false) [] [ ("OUT", "IN") ])
   in
-  let backwards = advance backwards [ (pin "0" "IN", true) ] in
+  let backwards = advance backwards [ (instance 0 "IN", true) ] in
   bad (step backwards []);
   print_endline "logic_circuit tests passed"

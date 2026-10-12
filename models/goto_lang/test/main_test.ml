@@ -13,7 +13,9 @@ let () =
     | Machine.Continue { next; _ } -> next
     | _ -> assert false
   in
-  assert (List.assoc "x" next.env = "1000000000000000000000000000000");
+  assert (
+    List.assoc "x" (Goto_lang.Main.named_env next)
+    = "1000000000000000000000000000000");
   let snapshot = G.snapshot next in
   assert (get (G.restore snapshot) = next);
   let next2 =
@@ -21,5 +23,7 @@ let () =
     | Machine.Continue { next; _ } -> next
     | _ -> assert false
   in
-  assert (List.assoc "y" next2.env = "1000000000000000000000000000000");
+  assert (
+    List.assoc "y" (Goto_lang.Main.named_env next2)
+    = "1000000000000000000000000000000");
   print_endline "GOTO tests passed"

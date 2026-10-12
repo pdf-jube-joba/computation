@@ -5,6 +5,14 @@ module T = Turing_machine.Main
 module L = Utils.Parser
 module Names = Utils.Identifier.Set
 
+module State_key = struct
+  type t = int * T.sign list
+
+  let compare = Stdlib.compare
+end
+
+module States = Utils.Intern.Make (State_key) (T.State_id)
+
 (* Retain only values which a later instruction can read. Function expansion
    creates fresh variables for each call site, so enumerating every valuation
    would create exponentially many unreachable states. The generated machine
@@ -54,26 +62,20 @@ let compile (p : J.code) =
           (fun name value -> if Names.mem name live.(pc) then value else None)
           vars values
       in
-      let env_indices = Hashtbl.create 32
-      and state_names = Hashtbl.create 64
-      and work = Queue.create () in
-      let env_index values =
-        match Hashtbl.find_opt env_indices values with
-        | Some i -> i
-        | None ->
-            let i = Hashtbl.length env_indices in
-            Hashtbl.add env_indices values i;
-            i
-      in
+      let states = ref States.empty in
+      let names = ref T.Names.empty and state_names = ref [] in
+      let work = Queue.create () in
       let state_for pc values =
         let values = canonical pc values in
-        match Hashtbl.find_opt state_names (pc, values) with
-        | Some q -> q
+        match States.find (pc, values) !states with
+        | Some id -> id
         | None ->
-            let q = Printf.sprintf "q_%d_%d" pc (env_index values) in
-            Hashtbl.add state_names (pc, values) q;
-            Queue.add (pc, values, q) work;
-            q
+            let id = States.take (pc, values) states in
+            let name, next = T.Names.assign ~hint:"q" id !names in
+            names := next;
+            state_names := (id, name) :: !state_names;
+            Queue.add (pc, values, id) work;
+            id
       in
       let init_state = state_for 0 (List.map (fun _ -> None) vars) in
       let code = ref [] and accepted = ref [] in
@@ -81,7 +83,7 @@ let compile (p : J.code) =
         let pc, values, state = Queue.take work in
         if pc = Array.length instructions then accepted := state :: !accepted
         else
-          let env = List.combine vars values in
+          let env = env_of_named (List.combine vars values) in
           List.iter
             (fun head ->
               let tape = { T.Tape.blank with head } in
@@ -114,10 +116,16 @@ let compile (p : J.code) =
      line, and this unreachable state carries no transitions. *)
       let accepted =
         if !accepted = [] then
-          [ Printf.sprintf "q_%d_0" (Array.length instructions) ]
+          [
+            state_for
+              (Array.length instructions)
+              (List.map (fun _ -> None) vars);
+          ]
         else List.rev !accepted
       in
-      T.unwrap (T.Code.make init_state accepted (List.rev !code)))
+      T.unwrap
+        (T.Code.of_ids ~state_names:(List.rev !state_names) init_state accepted
+           (List.rev !code)))
 
 module Source = J
 module Target = T

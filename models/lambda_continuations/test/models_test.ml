@@ -104,6 +104,7 @@ let () =
   let term = parsed "@((fun x => x) (fun y => fun z => y))" in
   assert (M.is_value term = None);
   assert (alpha_eq (Option.get (M.reduce term)) (parsed "fun y => fun z => y"));
+  assert (run "rec f f = f" "(1)" = T.Num "1");
   let double = "rec f x = ifz x then zero else succ succ @(f (pred x))" in
   assert (run double "(2)" = T.Num "4");
   assert (run "fun x => pred x" "(0)" = T.Num "0");

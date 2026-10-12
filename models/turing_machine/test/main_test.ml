@@ -49,6 +49,21 @@ let () =
   let s = get (T.make d (get (tape "-|a|b,a,b,b,c"))) in
   let restored = get (T.restore (T.snapshot s)) in
   check "snapshot" (T.snapshot restored = T.snapshot s);
+  let legacy =
+    T.Named_snapshot.to_yojson
+      {
+        definition =
+          {
+            init_state = "start";
+            accepted_state = [ "goal" ];
+            code = [ ((Some "a", "start"), (Some "b", "goal", T.Constant)) ];
+          };
+        current_state = "start";
+        tape = get (tape "|a|");
+      }
+  in
+  check "named snapshots are resolved to IDs"
+    (T.Tape.equal (run (get (T.restore legacy))) (get (tape "|b|")));
   check "termination" (T.Tape.print (run restored) = "-,b,b,b,b,b|c|");
   check "missing transition halts"
     (T.Tape.equal (run (get (T.make d (get (tape "|-|"))))) (get (tape "|-|")));
@@ -89,6 +104,34 @@ let () =
   let builder = get (G.builder_composition graph) in
   let s = get (B.build ~sign:Fun.id builder (get (tape "|-|"))) in
   check "graph composition" (T.Tape.equal (run s) (get (tape "a|a|")));
+  List.iter
+    (fun init_state ->
+      let builder = get (G.builder_composition { graph with init_state }) in
+      check "external initial state name survives"
+        (builder.init_state = init_state);
+      let s = get (B.build ~sign:Fun.id builder (get (tape "|-|"))) in
+      check "composition state-name collision"
+        (T.Tape.equal (run s) (get (tape "a|a|")));
+      check "composed code roundtrip"
+        (get (T.Code.parse (T.Code.print s.definition)) = s.definition);
+      let restored = get (T.restore (T.snapshot s)) in
+      check "composed snapshot" (restored = s))
+    [ "v0_first_s"; "s" ];
+  let repeated = { graph with assign_vertex_to_builder = [ first; first ] } in
+  let builder = get (G.builder_composition repeated) in
+  check "copies of the same builder have independent states"
+    (T.Tape.equal
+       (run (get (B.build ~sign:Fun.id builder (get (tape "|-|")))))
+       (get (tape "a,a|-|")));
+  (match T.snapshot s with
+  | `Assoc fields ->
+      let invalid =
+        `Assoc
+          (("current_state", `Int 999)
+          :: List.remove_assoc "current_state" fields)
+      in
+      check "unknown restored state ID" (Result.is_error (T.restore invalid))
+  | _ -> assert false);
   check "graph validation"
     (Result.is_error (G.builder_composition { graph with acceptable = [] }));
   print_endline

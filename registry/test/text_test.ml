@@ -51,7 +51,7 @@ let examples = function
   | "pcf-expr" | "pcf-expr-stmt-cek" | "pcf-cek" | "pcf-secd" ->
       ("(1, 2)", "", "+002", "5")
   | "lambda_continuations" -> ("(1, 2)", "", "", "fun x => S x")
-  | "logic_circuit" -> ("", "main.I=#true", "main.O=#false", "")
+  | "logic_circuit" -> ("", "@main.I=#true", "@main.O=#false", "")
   | "turing_machine" | "rec_tm_ir" | "rec_tm_ir_jump" ->
       ("a,b|-|c", "", "", "a|b|c,d")
   | "tiny_isa" | "symbolic_asm" ->

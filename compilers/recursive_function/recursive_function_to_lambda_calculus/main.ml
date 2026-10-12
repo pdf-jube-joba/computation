@@ -16,10 +16,7 @@ let if_lambda condition yes no = apps condition [ yes; no ]
 
 (* One allocator per construction. Every binder is distinct, even when names
    coincide in nested compiled functions. Imported terms keep their free IDs. *)
-let fresh next name =
-  let id = !next in
-  incr next;
-  { Target.id; name }
+let fresh = Target.fresh_var
 
 let vars next prefix count =
   List.init count (fun i -> fresh next (prefix ^ string_of_int i))
@@ -27,9 +24,9 @@ let vars next prefix count =
 let context terms =
   ref
     (List.fold_left
-       (fun highest term -> max highest (Target.max_id term))
-       (-1) terms
-    + 1)
+       (fun supply term ->
+         Target.Var_id.Supply.reserve (Target.max_id term) supply)
+       Target.Var_id.Supply.empty terms)
 
 let church next number =
   let s = fresh next "s" in
@@ -43,7 +40,7 @@ let church next number =
 let number_to_lambda_term number =
   let* number = Utils.Number.of_string (Utils.Number.to_string number) in
   let* number = Utils.Number.to_int number in
-  Ok (church (ref 0) number)
+  Ok (church (ref Target.Var_id.Supply.empty) number)
 
 let lambda_term_to_number = function
   | Target.Abs (s, Target.Abs (z, body)) when s.id <> z.id ->
@@ -139,15 +136,16 @@ let build_mu next n predicate =
   let zero = church next 0 in
   abs_vs (List.tl variables) (apps search (zero :: rest))
 
-let y_combinator () = build_y (ref 0)
-let true_lambda () = build_true (ref 0)
-let false_lambda () = build_false (ref 0)
-let succ () = build_succ (ref 0)
-let pred () = build_pred (ref 0)
-let is_zero () = build_is_zero (ref 0)
+let y_combinator () = build_y (ref Target.Var_id.Supply.empty)
+let true_lambda () = build_true (ref Target.Var_id.Supply.empty)
+let false_lambda () = build_false (ref Target.Var_id.Supply.empty)
+let succ () = build_succ (ref Target.Var_id.Supply.empty)
+let pred () = build_pred (ref Target.Var_id.Supply.empty)
+let is_zero () = build_is_zero (ref Target.Var_id.Supply.empty)
 
 let projection n i =
-  if i < 0 || i >= n then None else Some (build_projection (ref 0) n i)
+  if i < 0 || i >= n then None
+  else Some (build_projection (ref Target.Var_id.Supply.empty) n i)
 
 let composition n inner outer =
   let next = context (outer :: inner) in
@@ -188,7 +186,7 @@ let rec compile_with next = function
 
 let compile func =
   let* () = Source.validate func in
-  Ok (compile_with (ref 0) func)
+  Ok (compile_with (ref Target.Var_id.Supply.empty) func)
 
 let encode_ainput input =
   let rec encode = function

@@ -195,20 +195,21 @@ and vertex tables. There was no circuit compiler in the original crate.
 
 Circuit timing is one transition per gate, including DLY. Missing inputs are
 false; the first signal for a pin wins; graph edges override external signals.
-The original permissive external pin maps and ignored duplicate definitions
-remain unchanged.
+Signal references distinguish external ports (`@main.I=#true`), local vertices
+(`A.IN=#true`), and iterator instance IDs (`$0.IN=#true`). This distinction
+allows a circuit and a vertex to have the same name. Iterator IDs are shared by
+input and output, and an empty iterator can be seeded through its external
+input or `$0`.
 
-Nested graphs retain the source's input-name behavior: an outer graph passes
-the instance name into its child; when that differs from the child's kind and
-does not match a child vertex, the input is ignored. The bundled `ADDR` example
-therefore computes carry through its direct AND gate while its nested XOR sum
-stays false. This port preserves that behavior rather than supplying new routing.
+Local vertex names resolve to typed integer IDs while stepping. Display names
+for instances use `Utils.Naming`; changing a display name does not change
+routing. External maps must point to existing vertices and ports, and snapshots
+with duplicate vertex names are rejected. Duplicate library definitions still
+keep the first definition.
 
-Iterator limitations are preserved: newly constructed iterators have no used
-cells, generated labels are `_n_`, and input routing tries decimal names. The
-text identifier syntax rejects decimal names, so a parsed iterator cannot be
-seeded by text input. No new infinite-circuit semantics are inferred from the
-design notes. Existing predecessor/index panics are reported as errors.
+A parent delivers a pin through its child's interface, so child input routing
+does not depend on whether the instance name matches the child's kind. The
+bundled `ADDR` example computes both XOR sum and AND carry.
 
 Run `opam exec -- dune runtest models/logic_circuit/test` for the ported gate,
 graph, parser, example, snapshot, render and iterator tests.
