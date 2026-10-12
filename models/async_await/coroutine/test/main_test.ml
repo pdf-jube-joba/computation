@@ -88,6 +88,30 @@ let () =
   in
   let env, _ = run 20 (ok (C.make code 1)) [] in
   assert (env.vars = []);
+  (* Arithmetic LHS grouping and boolean grouping share the same matched groups.
+     Bare arithmetic on the left also follows the arithmetic precedence table. *)
+  let code =
+    ok
+      (C.Code.parse
+         "fn main { x <- 10 - 3 - 2; if (x + 1) == 6 && !(x != 5 || x < 0) \
+          goto +2; x <- 99; if 2 + 3 * 4 == 14 goto +2; x <- 98; y <- 1 }")
+  in
+  assert (ok (C.Code.parse (C.Code.print code)) = code);
+  let env, _ = run 40 (ok (C.make code 1)) [] in
+  assert (List.assoc "x" env.vars = "5" && List.assoc "y" env.vars = "1");
+  let boolean =
+    ok
+      (C.Code.parse
+         "fn main { if done $a || done $b && !done $c || done $d goto +1 }")
+  in
+  assert (
+    match boolean with
+    | [ { body = [ C.IfGoto (condition, 1) ]; _ } ] ->
+        condition
+        = C.Or
+            ( C.Or (C.Done "a", C.And (C.Done "b", C.Not (C.Done "c"))),
+              C.Done "d" )
+    | _ -> false);
   let code = ok (C.Code.parse "fn main { x <- 1 }") in
   let s = ok (C.make code 2) in
   let s, _ = next s 0 in
@@ -126,6 +150,10 @@ let () =
       "fn main { run child -> t }";
       "fn main { x <- -1 }";
       "fn main { x <- 1 + }";
+      "fn main { if (x +) == 1 goto +1 }";
+      "fn main { if !(done $t ||) goto +1 }";
+      "fn main { if x == 1 && goto +1 }";
+      "fn main { x <- 1 y <- 2 }";
     ];
   assert (match C.render s2 with `List [ _; _; _; _; _ ] -> true | _ -> false);
   let code =

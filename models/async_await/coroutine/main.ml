@@ -95,80 +95,43 @@ module Code = struct
            ^ "}\n")
          code)
 
-  let rec parse_aexp_bp p min_bp =
-    let lhs =
-      match L.bump p with
-      | L.Ident n -> Atom (Var n)
-      | L.Number n -> Atom (Imm (value (N.of_string n)))
-      | L.Symbol '(' ->
-          let a = parse_aexp_bp p 0 in
-          L.expect_symbol p ')';
-          a
-      | _ -> L.error p "Unexpected token in arithmetic expression"
-    in
-    let rec loop lhs =
-      let op =
+  let parse_aexp =
+    L.expression
+      ~infix:
+        [
+          ("+", 1, 2, fun a b -> Bin (a, Add, b));
+          ("-", 1, 2, fun a b -> Bin (a, Sub, b));
+          ("*", 3, 4, fun a b -> Bin (a, Mul, b));
+        ]
+      ~atom:(fun read p ->
         match L.peek p with
-        | L.Symbol '+' -> Some (Add, 1, 2)
-        | L.Symbol '-' -> Some (Sub, 1, 2)
-        | L.Symbol '*' -> Some (Mul, 3, 4)
-        | _ -> None
-      in
-      match op with
-      | Some (op, lbp, rbp) when lbp >= min_bp ->
-          ignore (L.bump p);
-          let rhs = parse_aexp_bp p rbp in
-          loop (Bin (lhs, op, rhs))
-      | _ -> lhs
-    in
-    loop lhs
+        | L.Ident _ -> Atom (Var (L.identifier p))
+        | L.Number _ -> Atom (Imm (L.natural p))
+        | L.Symbol '(' -> L.group p ~opening:'(' read
+        | _ -> L.error p "Unexpected token in arithmetic expression")
 
-  let parse_aexp p = parse_aexp_bp p 0
-
-  let rec parse_bexp_bp p min_bp =
-    let relation lhs =
-      let op =
-        if L.bump_if p "==" then Eq
-        else if L.bump_if p "!=" then Ne
-        else if L.bump_if_symbol p '<' then Lt
-        else L.error p "Expected relational operator"
-      in
-      let rhs = parse_aexp p in
-      Rel (lhs, op, rhs)
+  let parse_bexp =
+    let relation p =
+      L.binary p
+        ~operators:[ ("==", Eq); ("!=", Ne); ("<", Lt) ]
+        ~operand:parse_aexp
+        ~make:(fun a op b -> Rel (a, op, b))
     in
-    let lhs =
-      if L.bump_if_symbol p '!' then Not (parse_bexp_bp p 5)
-      else if L.bump_if_keyword p "done" then (
-        L.expect_symbol p '$';
-        Done (L.identifier p))
-      else if L.bump_if_symbol p '(' then (
-        (* Preserve the original boolean grouping, and accept printed arithmetic LHS. *)
-        let saved = L.checkpoint p in
-        try
-          let b = parse_bexp_bp p 0 in
-          L.expect_symbol p ')';
-          b
-        with L.Error _ ->
-          L.restore p saved;
-          let a = parse_aexp p in
-          L.expect_symbol p ')';
-          relation a)
-      else
-        match L.bump p with
-        | L.Ident n -> relation (Atom (Var n))
-        | L.Number n -> relation (Atom (Imm (value (N.of_string n))))
-        | _ -> L.error p "Unexpected token in boolean expression"
-    in
-    let rec loop lhs =
-      if min_bp <= 2 && L.bump_if p "&&" then
-        let rhs = parse_bexp_bp p 3 in
-        loop (And (lhs, rhs))
-      else if min_bp <= 0 && L.bump_if p "||" then
-        let rhs = parse_bexp_bp p 1 in
-        loop (Or (lhs, rhs))
-      else lhs
-    in
-    loop lhs
+    L.expression
+      ~prefix:[ ("!", 5, fun b -> Not b) ]
+      ~infix:
+        [
+          ("&&", 2, 3, fun a b -> And (a, b)); ("||", 0, 1, fun a b -> Or (a, b));
+        ]
+      ~atom:(fun read p ->
+        if L.bump_if_keyword p "done" then (
+          L.expect_symbol p '$';
+          Done (L.identifier p))
+        else if L.peek p = L.Symbol '(' then
+          (* A group can contain a boolean expression or the arithmetic LHS of
+             a relation. A failed group read leaves the parent cursor intact. *)
+          try L.group p ~opening:'(' read with L.Error _ -> relation p
+        else relation p)
 
   let parse_offset p =
     let sign =
@@ -181,7 +144,7 @@ module Code = struct
 
   let parse_stmt p =
     if L.bump_if_keyword p "if" then (
-      let b = parse_bexp_bp p 0 in
+      let b = parse_bexp p in
       L.expect_keyword p "goto";
       IfGoto (b, parse_offset p))
     else if L.bump_if_keyword p "goto" then Goto (parse_offset p)
@@ -201,24 +164,19 @@ module Code = struct
 
   let parse =
     L.parse (fun p ->
-        let rec functions acc =
-          if L.eof p then List.rev acc
-          else (
-            L.expect_keyword p "fn";
-            let name = L.identifier p in
-            L.expect_symbol p '{';
-            let rec body acc =
-              if L.bump_if_symbol p '}' then List.rev acc
-              else if L.bump_if_symbol p ';' then body acc
-              else
-                let s = parse_stmt p in
-                if L.peek p <> L.Symbol '}' then L.expect_symbol p ';';
-                body (s :: acc)
-            in
-            let body = body [] in
-            functions ({ name; body } :: acc))
+        let code =
+          L.many p (fun p ->
+              L.expect_keyword p "fn";
+              let name = L.identifier p in
+              let body =
+                L.group p ~opening:'{' (fun p ->
+                    L.many ~skip_separator:';' p (fun p ->
+                        let s = parse_stmt p in
+                        if not (L.eof p) then L.expect_symbol p ';';
+                        s))
+              in
+              { name; body })
         in
-        let code = functions [] in
         if code = [] then L.error p "At least one function is required";
         code)
 end

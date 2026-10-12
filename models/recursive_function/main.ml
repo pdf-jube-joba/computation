@@ -71,57 +71,43 @@ module Code = struct
       Parser.parse
         (fun p ->
           let bindings = ref [] in
-          let rec func () =
+          let rec func p =
             match Parser.identifier p with
             | "ZERO" -> Zero
             | "SUCC" -> Succ
             | "PROJ" ->
-                Parser.expect_symbol p '[';
-                let n = Parser.integer p in
-                Parser.expect_symbol p ',';
-                let i = Parser.integer p in
-                Parser.expect_symbol p ']';
-                Proj (n, i)
+                Parser.group p ~opening:'[' (fun p ->
+                    let n = Parser.integer p in
+                    Parser.expect_symbol p ',';
+                    let i = Parser.integer p in
+                    Proj (n, i))
             | "COMP" ->
-                Parser.expect_symbol p '[';
-                let outer = func () in
-                Parser.expect_symbol p ':';
-                let rec args () =
-                  if Parser.bump_if_symbol p '(' then (
-                    let xs = items ')' in
-                    Parser.expect_symbol p ')';
-                    ignore (Parser.bump_if_symbol p ',');
-                    xs @ items ']')
-                  else
-                    let f = func () in
-                    if Parser.bump_if_symbol p ',' then f :: items ']'
-                    else [ f ]
-                and items closing =
-                  while Parser.bump_if_symbol p ',' do
-                    ()
-                  done;
-                  if Parser.peek p = Parser.Symbol closing then []
-                  else
-                    let f = func () in
-                    if Parser.bump_if_symbol p ',' then f :: items closing
-                    else [ f ]
-                in
-                let inner = args () in
-                Parser.expect_symbol p ']';
-                Comp (outer, inner)
+                Parser.group p ~opening:'[' (fun p ->
+                    let outer = func p in
+                    Parser.expect_symbol p ':';
+                    let items p =
+                      Parser.separated_list ~skip_empty:true p ~separator:','
+                        func
+                    in
+                    let inner =
+                      if Parser.peek p = Parser.Symbol '(' then (
+                        let xs = Parser.group p ~opening:'(' items in
+                        ignore (Parser.bump_if_symbol p ',');
+                        xs @ items p)
+                      else
+                        let f = func p in
+                        if Parser.bump_if_symbol p ',' then f :: items p
+                        else [ f ]
+                    in
+                    Comp (outer, inner))
             | "PRIM" ->
-                Parser.expect_symbol p '[';
-                Parser.expect p "z:";
-                let z = func () in
-                Parser.expect p "s:";
-                let s = func () in
-                Parser.expect_symbol p ']';
-                Prim (z, s)
-            | "MUOP" ->
-                Parser.expect_symbol p '[';
-                let f = func () in
-                Parser.expect_symbol p ']';
-                Mu f
+                Parser.group p ~opening:'[' (fun p ->
+                    Parser.expect p "z:";
+                    let z = func p in
+                    Parser.expect p "s:";
+                    let s = func p in
+                    Prim (z, s))
+            | "MUOP" -> Parser.group p ~opening:'[' (fun p -> Mu (func p))
             | name -> (
                 match List.assoc_opt name !bindings with
                 | Some f -> f
@@ -132,11 +118,11 @@ module Code = struct
             if List.mem_assoc name !bindings then
               Parser.error p "Duplicate function name";
             Parser.expect_symbol p '=';
-            let f = func () in
+            let f = func p in
             Parser.expect_symbol p '.';
             bindings := (name, f) :: !bindings
           done;
-          func ())
+          func p)
         text
     in
     let* () = validate f in

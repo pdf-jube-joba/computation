@@ -61,65 +61,40 @@ module Code = struct
       let b = parse_aexp p in
       IfThenElse (c, a, b))
     else
-      let a = parse_aatom p in
-      let rec loop a =
-        if L.bump_if_symbol p '+' then
-          let b = parse_aatom p in
-          loop (BinOp (a, Add, b))
-        else if L.bump_if_symbol p '-' then
-          let b = parse_aatom p in
-          loop (BinOp (a, Sub, b))
-        else a
-      in
-      loop a
+      L.expression
+        ~infix:
+          [
+            ("+", 1, 2, fun a b -> BinOp (a, Add, b));
+            ("-", 1, 2, fun a b -> BinOp (a, Sub, b));
+          ]
+        ~atom:(fun _ p -> parse_aatom p)
+        p
 
   and parse_aatom p =
-    if L.bump_if_symbol p '(' then (
-      let a = parse_aexp p in
-      L.expect_symbol p ')';
-      a)
+    if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_aexp
     else
       match L.peek p with
       | L.Number _ -> Num (L.natural p)
       | _ -> Var (L.identifier p)
 
   and parse_bexp p =
-    let a = parse_bnot p in
-    let rec loop a =
-      if L.bump_if p "||" then
-        let b = parse_bnot p in
-        loop (Or (a, b))
-      else a
+    let relation p =
+      L.binary p
+        ~operators:[ ("<", Lt); ("=", Eq); (">", Gt) ]
+        ~operand:parse_aexp
+        ~make:(fun a op b -> Rel (a, op, b))
     in
-    loop a
-
-  and parse_bnot p =
-    if L.bump_if_symbol p '!' then Not (parse_bnot p)
-    else if L.bump_if_symbol p '(' then (
-      let b = parse_bexp p in
-      L.expect_symbol p ')';
-      b)
-    else
-      let a = parse_aexp p in
-      let op =
-        match L.bump p with
-        | L.Symbol '<' -> Lt
-        | L.Symbol '=' -> Eq
-        | L.Symbol '>' -> Gt
-        | _ -> L.error p "Expected relation operator"
-      in
-      let b = parse_aexp p in
-      Rel (a, op, b)
+    L.expression
+      ~prefix:[ ("!", 2, fun b -> Not b) ]
+      ~infix:[ ("||", 0, 1, fun a b -> Or (a, b)) ]
+      ~atom:(fun read p ->
+        if L.peek p = L.Symbol '(' then
+          try L.group p ~opening:'(' read with L.Error _ -> relation p
+        else relation p)
+      p
 
   let rec parse_stmt p =
-    let a = parse_single p in
-    let rec loop a =
-      if L.bump_if_symbol p ';' then
-        let b = parse_single p in
-        loop (Seq (a, b))
-      else a
-    in
-    loop a
+    L.chain_left p ~separator:';' ~combine:(fun a b -> Seq (a, b)) parse_single
 
   and parse_single p =
     if L.bump_if_keyword p "Nop" then Nop
@@ -127,16 +102,11 @@ module Code = struct
       let c = parse_bexp p in
       let b = parse_single p in
       If (c, b)
-    else if L.bump_if_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      L.expect_symbol p '[';
-      let b = parse_stmt p in
-      L.expect_symbol p ']';
-      While (c, b))
-    else if L.bump_if_symbol p '(' then (
-      let b = parse_stmt p in
-      L.expect_symbol p ')';
-      b)
+      let b = L.group p ~opening:'[' parse_stmt in
+      While (c, b)
+    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_stmt
     else
       let v = L.identifier p in
       L.expect p ":=";

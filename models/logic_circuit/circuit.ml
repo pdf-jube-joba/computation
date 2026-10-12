@@ -422,32 +422,34 @@ module Signal = struct
   let parse_bool text = Utils.Bool.to_bool (value (Utils.Bool.parse text))
   let print_bool value = Utils.Bool.print (Utils.Bool.of_bool value)
 
-  let parse_pin text =
-    let text = String.trim text in
-    match String.rindex_opt text '.' with
-    | None -> failwith "Expected NAME.PIN"
-    | Some dot ->
-        let name = String.sub text 0 dot in
-        let pin = String.sub text (dot + 1) (String.length text - dot - 1) in
-        (value (Utils.Identifier.make name), value (Utils.Identifier.make pin))
+  module P = Utils.Parser
 
-  let parse_item text =
-    match String.rindex_opt text '=' with
-    | None -> failwith "Expected NAME.PIN=BOOL"
-    | Some at ->
-        let pin = parse_pin (String.sub text 0 at) in
-        let value = String.sub text (at + 1) (String.length text - at - 1) in
-        (pin, parse_bool value)
+  let read_pin p =
+    let start = P.offset p in
+    let name = P.identifier p in
+    let dot = P.offset p in
+    if dot <> start + String.length name then P.error p "Expected NAME.PIN";
+    P.expect_symbol p '.';
+    if P.offset p <> dot + 1 then P.error p "Expected NAME.PIN";
+    let pin = P.identifier p in
+    (name, pin)
+
+  let read_item p =
+    let pin = read_pin p in
+    P.expect_symbol p '=';
+    let start = P.offset p in
+    P.expect_symbol p '#';
+    if P.offset p <> start + 1 then P.error p "Expected #true or #false";
+    let boolean = P.identifier p in
+    (pin, parse_bool ("#" ^ boolean))
+
+  let parse_pin text = value (P.parse read_pin text)
+  let parse_item text = value (P.parse read_item text)
 
   let print_item ((name, pin), value) =
     name ^ "." ^ pin ^ "=" ^ print_bool value
 
-  let parse text =
-    if String.trim text = "" then Ok []
-    else
-      Utils.Parser.protect (fun () ->
-          List.map parse_item (String.split_on_char ',' text))
-
+  let parse = P.parse (fun p -> P.separated_list p ~separator:',' read_item)
   let print signal = String.concat ", " (List.map print_item signal)
 end
 

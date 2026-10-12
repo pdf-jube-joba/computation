@@ -153,7 +153,7 @@ module Code = struct
   let parse =
     L.parse (fun p ->
         let alphabet = alphabet p in
-        let rec stmt () =
+        let stmt p =
           if L.bump_if_keyword p "LT" then Lt
           else if L.bump_if_keyword p "RT" then Rt
           else if L.bump_if_keyword p "break" then Break (condition p)
@@ -164,46 +164,32 @@ module Code = struct
             Jump (label, condition p)
           else if L.bump_if_keyword p "call" then (
             let name = identifier p in
-            if L.bump_if_symbol p '(' then L.expect_symbol p ')';
+            ignore (L.bump_group_if p ~opening:'(' L.expect_eof);
             Call name)
           else
             let dst = lvalue p in
             L.expect p ":=";
             let src = rvalue p in
             Assign (dst, src)
-        and stmts () =
-          if L.peek p = L.Symbol '}' then []
-          else
-            let s = stmt () in
-            s :: stmts ()
         in
-        let block () =
+        let block p =
           L.expect_keyword p "label";
           let label = identifier p in
-          L.expect p ":{";
-          let body = stmts () in
-          L.expect_symbol p '}';
+          L.expect_symbol p ':';
+          let body = L.group p ~opening:'{' (fun p -> L.many p stmt) in
           { label; body }
         in
-        let rec blocks () =
-          if L.peek p = L.Symbol '}' then []
-          else
-            let b = block () in
-            b :: blocks ()
-        in
-        let func () =
+        let func p =
           L.expect_keyword p "fn";
           let name = identifier p in
-          if L.bump_if_symbol p '(' then L.expect_symbol p ')';
-          L.expect_symbol p '{';
-          let blocks = blocks () in
-          L.expect_symbol p '}';
+          ignore (L.bump_group_if p ~opening:'(' L.expect_eof);
+          let blocks = L.group p ~opening:'{' (fun p -> L.many p block) in
           { name; blocks }
         in
         let rec funcs acc =
           if L.eof p then List.rev acc
           else
-            let f = func () in
+            let f = func p in
             match List.find_opt (fun old -> old.name = f.name) acc with
             | Some old when old <> f ->
                 failwith ("Function '" ^ f.name ^ "' is defined twice")

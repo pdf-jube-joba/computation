@@ -47,6 +47,12 @@ let () =
   assert (tuple "()" = Ok []);
   assert (Result.is_error (tuple "(1;x)"));
   assert (Result.is_error (tuple "1,2"));
+  let numbers = Text.Natural_list.parse in
+  assert (numbers "(,001,,+2,)" = Ok [ "1"; "2" ]);
+  assert (numbers "(,,,)" = Ok []);
+  List.iter
+    (fun source -> assert (Result.is_error (numbers source)))
+    [ "(+ 1)"; "(1 2)"; "(1;x)"; "(1]"; "((1))"; "(\"1\")" ];
   let separated text =
     Parser.parse
       (fun p ->

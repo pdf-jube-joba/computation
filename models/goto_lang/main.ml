@@ -23,9 +23,7 @@ module Code = struct
 
   let parse =
     Parser.parse (fun p ->
-        let rec loop acc =
-          if Parser.eof p then List.rev acc
-          else
+        Parser.many p (fun p ->
             let command =
               match Parser.identifier p with
               | "clr" -> Clr (Parser.identifier p)
@@ -42,9 +40,7 @@ module Code = struct
               | _ -> Parser.error p "Expected goto command"
             in
             Parser.expect_symbol p ';';
-            loop (command :: acc)
-        in
-        loop [])
+            command))
 
   let print_command = function
     | Clr v -> "clr " ^ v ^ ";"
@@ -121,16 +117,12 @@ module Ainput = struct
 
   let parse =
     Parser.parse (fun p ->
-        let rec loop acc =
-          if Parser.eof p then List.rev acc
-          else
+        Parser.many p (fun p ->
             let name = Parser.identifier p in
             Parser.expect_symbol p '=';
             let value = Parser.natural p in
             ignore (Parser.bump_if_symbol p ';');
-            loop ((name, value) :: acc)
-        in
-        loop [])
+            (name, value)))
 
   let print = Utils.Environment.print Fun.id
 end

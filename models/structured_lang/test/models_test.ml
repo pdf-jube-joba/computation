@@ -61,6 +61,12 @@ let test_expr () =
   in
   eq (List.assoc "x" out) "0";
   eq (List.assoc "y" out) "8";
+  let code = get (E.Code.parse "x := 10 - 3 - 2 ; if (x + 1) = 6 y := 8") in
+  if get (E.Code.parse (E.Code.print code)) <> code then
+    failwith "Grouped arithmetic relation roundtrip";
+  let out = RE.run code [] () in
+  eq (List.assoc "x" out) "5";
+  eq (List.assoc "y" out) "8";
   let s = get (E.make (get (E.Code.parse "x := 4 ; x := x + 1")) []) in
   let s =
     match get (E.step s ()) with
@@ -233,6 +239,15 @@ let test_fnptr () =
       if get (F.Runtime_value.parse (F.Runtime_value.print value)) <> value then
         failwith "FnPtr value roundtrip")
     [ "-7"; "#null_ptr"; "loc(3, 2)" ];
+  List.iter
+    (fun source -> error (F.Runtime_value.parse source))
+    [
+      "loc(1,2]";
+      "loc(1,2,3)";
+      "loc(1,-2)";
+      "loc((1),2)";
+      "loc(1,123456789012345678901234567890)";
+    ];
   let source =
     {|fn inc(ptr) {assign (ld ptr) #loc := (ld (ld ptr) #loc) + 1;return}
  fn main(x) {assign x := 4;call inc(x #addr);return}|}

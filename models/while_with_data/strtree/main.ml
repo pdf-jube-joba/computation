@@ -78,10 +78,7 @@ module Code = struct
 
   let rec parse_aexp p =
     if L.bump_if_keyword p "mtoa" then Mtoa (parse_texp p)
-    else if L.bump_if_symbol p '(' then (
-      let a = parse_aexp p in
-      L.expect_symbol p ')';
-      a)
+    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_aexp
     else AtomChar (L.character_literal p)
 
   and parse_texp p =
@@ -92,40 +89,25 @@ module Code = struct
       Cons (a, b)
     else if L.bump_if_keyword p "left" then Left (parse_texp p)
     else if L.bump_if_keyword p "right" then Right (parse_texp p)
-    else if L.bump_if_symbol p '(' then (
-      let a = parse_texp p in
-      L.expect_symbol p ')';
-      a)
+    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_texp
     else Var (parse_name p)
 
   let parse_bexp p =
     if L.bump_if_keyword p "is_atom" then IsAtom (parse_texp p)
     else
       (* Rust's printer parenthesizes equality. Accept that printed form too. *)
-      let saved = L.checkpoint p in
-      let relation () =
-        let a = parse_texp p in
-        L.expect p "==";
-        let b = parse_texp p in
-        Eq (a, b)
+      let relation p =
+        L.binary p
+          ~operators:[ ("==", ()) ]
+          ~operand:parse_texp
+          ~make:(fun a () b -> Eq (a, b))
       in
-      try relation ()
-      with Failure _ | L.Error _ ->
-        L.restore p saved;
-        L.expect_symbol p '(';
-        let c = relation () in
-        L.expect_symbol p ')';
-        c
+      match L.attempt p relation with
+      | Ok c -> c
+      | Error _ -> L.group p ~opening:'(' relation
 
   let rec parse_stmt p =
-    let s = parse_single p in
-    let rec loop s =
-      if L.bump_if_symbol p ';' then
-        let b = parse_single p in
-        loop (Seq (s, b))
-      else s
-    in
-    loop s
+    L.chain_left p ~separator:';' ~combine:(fun a b -> Seq (a, b)) parse_single
 
   and parse_single p =
     if L.bump_if_keyword p "Nop" then Nop
@@ -135,16 +117,11 @@ module Code = struct
       let b = parse_stmt p in
       L.expect_keyword p "end";
       IfEq (c, b))
-    else if L.bump_if_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      L.expect_symbol p '{';
-      let b = parse_stmt p in
-      L.expect_symbol p '}';
-      While (c, b))
-    else if L.bump_if_symbol p '(' then (
-      let b = parse_stmt p in
-      L.expect_symbol p ')';
-      b)
+      let b = L.group p ~opening:'{' parse_stmt in
+      While (c, b)
+    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_stmt
     else
       let n = parse_name p in
       L.expect p ":=";

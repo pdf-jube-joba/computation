@@ -75,8 +75,7 @@ module Code = struct
       L.error p ("identifier expected, found keyword '" ^ x ^ "'");
     x
 
-  let number p =
-    match N.of_string (L.natural p) with Ok n -> n | Error e -> L.error p e
+  let number = L.natural
 
   let rec expression statements p =
     if L.peek p = L.Ident "if" then if_expr statements p
@@ -93,20 +92,15 @@ module Code = struct
     If (c, t, e)
 
   and binary statements p =
-    let rec loop a =
-      let op =
-        if L.bump_if_symbol p '+' then Some Add
-        else if L.bump_if_symbol p '-' then Some Sub
-        else if L.bump_if p "&&" then Some And
-        else None
-      in
-      match op with
-      | None -> a
-      | Some op ->
-          let b = application statements p in
-          loop (BinOp (a, op, b))
-    in
-    loop (application statements p)
+    L.expression
+      ~infix:
+        [
+          ("+", 1, 2, fun a b -> BinOp (a, Add, b));
+          ("-", 1, 2, fun a b -> BinOp (a, Sub, b));
+          ("&&", 1, 2, fun a b -> BinOp (a, And, b));
+        ]
+      ~atom:(fun _ p -> application statements p)
+      p
 
   and application statements p =
     let rec loop f =
@@ -176,23 +170,14 @@ module Code = struct
     else L.error p "statement expected"
 
   and statement p =
-    let rec loop s =
-      if L.bump_if_symbol p ';' then
-        let t = simple_stmt p in
-        loop (Seq (s, t))
-      else s
-    in
-    loop (simple_stmt p)
+    L.chain_left p ~separator:';' ~combine:(fun a b -> Seq (a, b)) simple_stmt
 
   and block_contents p =
     let s = simple_stmt p in
     L.expect_symbol p ';';
-    let saved = L.checkpoint p in
-    match L.protect (fun () -> block_contents p) with
+    match L.attempt p block_contents with
     | Ok (t, e) -> (Seq (s, t), e)
-    | Error _ ->
-        L.restore p saved;
-        (s, expression true p)
+    | Error _ -> (s, expression true p)
 
   let parse = L.parse (expression false)
 end

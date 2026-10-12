@@ -16,61 +16,61 @@ module Code = struct
 
   module L = Utils.Parser
 
-  let parse =
-    L.parse (fun p ->
-        let next_id = ref 0 in
-        let free = Hashtbl.create 8 in
-        let fresh name =
-          let id = !next_id in
-          incr next_id;
-          { id; name }
-        in
-        let rec application env =
-          let first = atom env in
-          let rec rest left =
-            match L.peek p with
-            | L.Ident _ | L.Symbol '(' | L.Symbol '\\' ->
-                rest (App (left, atom env))
-            | _ -> left
-          in
-          rest first
-        and atom env =
-          match L.bump p with
-          | L.Ident name ->
-              let var =
-                match List.assoc_opt name env with
+  let read p =
+    let next_id = ref 0 in
+    let free = Hashtbl.create 8 in
+    let fresh name =
+      let id = !next_id in
+      incr next_id;
+      { id; name }
+    in
+    let rec application env p =
+      let first = atom env p in
+      let rec rest left =
+        match L.peek p with
+        | L.Ident _ | L.Symbol '(' | L.Symbol '\\' ->
+            rest (App (left, atom env p))
+        | _ -> left
+      in
+      rest first
+    and atom env p =
+      match L.peek p with
+      | L.Ident name ->
+          ignore (L.bump p);
+          let var =
+            match List.assoc_opt name env with
+            | Some var -> var
+            | None -> (
+                match Hashtbl.find_opt free name with
                 | Some var -> var
-                | None -> (
-                    match Hashtbl.find_opt free name with
-                    | Some var -> var
-                    | None ->
-                        let var = fresh name in
-                        Hashtbl.add free name var;
-                        var)
-              in
-              Var var
-          | L.Symbol '(' ->
-              let term = application env in
-              L.expect_symbol p ')';
-              term
-          | L.Symbol '\\' ->
-              let rec binders env acc =
-                match L.peek p with
-                | L.Ident name ->
-                    ignore (L.bump p);
+                | None ->
                     let var = fresh name in
-                    binders ((name, var) :: env) (var :: acc)
-                | L.Symbol '.' when acc <> [] ->
-                    ignore (L.bump p);
-                    (env, List.rev acc)
-                | _ -> L.error p "Expected binders followed by '.'"
-              in
-              let env, vars = binders env [] in
-              let body = application env in
-              List.fold_right (fun var body -> Abs (var, body)) vars body
-          | _ -> L.error p "Expected a lambda term"
-        in
-        application [])
+                    Hashtbl.add free name var;
+                    var)
+          in
+          Var var
+      | L.Symbol '(' -> L.group p ~opening:'(' (application env)
+      | L.Symbol '\\' ->
+          ignore (L.bump p);
+          let rec binders env acc =
+            match L.peek p with
+            | L.Ident name ->
+                ignore (L.bump p);
+                let var = fresh name in
+                binders ((name, var) :: env) (var :: acc)
+            | L.Symbol '.' when acc <> [] ->
+                ignore (L.bump p);
+                (env, List.rev acc)
+            | _ -> L.error p "Expected binders followed by '.'"
+          in
+          let env, vars = binders env [] in
+          let body = application env p in
+          List.fold_right (fun var body -> Abs (var, body)) vars body
+      | _ -> L.error p "Expected a lambda term"
+    in
+    application [] p
+
+  let parse = L.parse read
 
   (* Use distinct printable names for distinct IDs, so printing a shared term
    never introduces apparent variable capture. *)
@@ -280,17 +280,9 @@ let render term =
 module Ainput = struct
   type t = ainput
 
-  let parse text =
-    if String.trim text = "" then Ok []
-    else
-      let rec loop = function
-        | [] -> Ok []
-        | text :: rest ->
-            let* term = Code.parse text in
-            let* terms = loop rest in
-            Ok (term :: terms)
-      in
-      loop (String.split_on_char ',' text)
+  let parse =
+    Utils.Parser.parse (fun p ->
+        Utils.Parser.separated_list p ~separator:',' Code.read)
 
   let print = fun terms -> String.concat ", " (List.map Code.print terms)
 end

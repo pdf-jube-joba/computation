@@ -345,7 +345,15 @@ let () =
       "@main {\n goto #0;\n %v0 := #1;\n}";
       "@main {\n goto #0;";
       "@main {\n %v0 := #1 * #2;\n goto #0;\n}";
+      "@main {\n [#1) := #2;\n goto #0;\n}";
+      "@main {\n %v0 := *[#1];\n goto #0;\n]";
+      "@main {\n if #1 < #2 < #3 then @main;\n goto #0;\n}";
     ];
+  let dense =
+    ok
+      (C.Code.parse "@main{[#1]:=#+2;%v0:=*[#1];if %v0=#2 then @main;goto #0;}")
+  in
+  assert (ok (C.Code.parse (C.Code.print dense)) = dense);
   List.iter
     (fun target ->
       let s =

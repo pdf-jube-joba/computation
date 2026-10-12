@@ -26,4 +26,8 @@
  (test
   (name parser_test)
   (modules parser_test)
+  (libraries utils))
+ (test
+  (name expression_test)
+  (modules expression_test)
   (libraries utils)))

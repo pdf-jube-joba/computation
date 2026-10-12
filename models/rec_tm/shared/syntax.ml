@@ -37,8 +37,9 @@ let sign p =
   | _ -> L.error p "Expected sign"
 
 let alphabet p =
-  L.expect p "alphabet:(";
-  L.separated_until ~allow_trailing:true p ~separator:',' ~closing:')' sign
+  L.expect p "alphabet:";
+  L.group p ~opening:'(' (fun p ->
+      L.separated_list ~allow_trailing:true p ~separator:',' sign)
 
 let lvalue ?keywords p : lvalue =
   if L.bump_if_symbol p '@' then Head else Var (identifier ?keywords p)
@@ -51,10 +52,10 @@ let rvalue ?keywords p : rvalue =
 let condition ?keywords p =
   if not (L.bump_if_keyword p "if") then None
   else
-    let left = rvalue ?keywords p in
-    L.expect p "==";
-    let right = rvalue ?keywords p in
-    Some { left; right }
+    L.binary p
+      ~operators:[ ("==", ()) ]
+      ~operand:(rvalue ?keywords)
+      ~make:(fun left () right -> Some { left; right })
 
 let lvalue_print : lvalue -> string = function Var s -> s | Head -> "@"
 

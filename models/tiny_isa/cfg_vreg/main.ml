@@ -70,184 +70,140 @@ module Code = struct
       failwith ("Invalid vreg: " ^ s)
     else value (Utils.Text.Natural_int.parse (Text.strip_prefix "%v" s))
 
-  let parse_addr_expr s =
-    let s = String.trim s in
-    if String.starts_with ~prefix:"%v" s then VReg (parse_vreg s)
-    else if String.starts_with ~prefix:"@" s then
-      Label (value (Utils.Identifier.make (Text.strip_prefix "@" s)))
-    else if String.starts_with ~prefix:"#" s then
-      Imm (value (N.of_string_with_plus (Text.strip_prefix "#" s)))
-    else if
-      s <> "" && String.for_all (function '0' .. '9' -> true | _ -> false) s
-    then Imm (value (N.of_string_with_plus s))
-    else failwith ("Invalid addr expr: " ^ s)
+  module P = Utils.Parser
 
-  let parse_place_expr s =
-    let s = String.trim s in
-    if not (String.starts_with ~prefix:"[" s && String.ends_with ~suffix:"]" s)
-    then failwith ("Invalid place expr: " ^ s);
-    parse_addr_expr
-      (String.trim (Text.strip_suffix "]" (Text.strip_prefix "[" s)))
+  let read_vreg p =
+    P.expect_symbol p '%';
+    parse_vreg ("%" ^ P.identifier p)
 
-  let parse_value_expr s =
-    let s = String.trim s in
-    if String.starts_with ~prefix:"*" s then
-      Deref (parse_place_expr (Text.strip_prefix "*" s))
+  let read_addr p =
+    if P.peek p = P.Symbol '%' then VReg (read_vreg p)
+    else if P.bump_if_symbol p '@' then Label (P.identifier p)
+    else if P.bump_if_symbol p '#' then Imm (P.natural_with_plus p)
+    else Imm (P.natural p)
+
+  let read_place p = P.group p ~opening:'[' read_addr
+
+  let read_value p =
+    if P.bump_if_symbol p '*' then Deref (read_place p)
     else
-      match parse_addr_expr s with
+      match read_addr p with
       | VReg n -> VRegValue n
       | Label n -> LabelValue n
       | Imm n -> ImmValue n
 
-  let parse_stmt line =
-    if not (String.ends_with ~suffix:";" line) then None
-    else
-      match Text.split_once ":=" (String.trim (Text.strip_suffix ";" line)) with
-      | None -> None
-      | Some (lhs, rhs) ->
-          let lhs = String.trim lhs and rhs = String.trim rhs in
-          if String.starts_with ~prefix:"%v" lhs then
-            let dst = parse_vreg lhs in
-            match Text.words rhs with
-            | [ src ] -> Some (Assign (dst, parse_value_expr src))
-            | [ lhs; op; rhs ] ->
-                let lhs = parse_value_expr lhs and rhs = parse_value_expr rhs in
-                let op =
-                  match op with
-                  | "+" -> Add
-                  | "-" -> Sub
-                  | _ -> failwith ("Unsupported op: " ^ op)
-                in
-                Some (BinOp (dst, lhs, op, rhs))
-            | _ -> failwith ("Invalid assignment stmt: " ^ line)
-          else if String.starts_with ~prefix:"[" lhs then
-            Some (Store (parse_place_expr lhs, parse_value_expr rhs))
-          else None
-
-  let parse_cond s =
-    let make sep ctor =
-      Option.map
-        (fun (a, b) ->
-          ctor
-            (parse_value_expr (String.trim a), parse_value_expr (String.trim b)))
-        (Text.split_once sep s)
+  let read_stmt p =
+    let stmt =
+      if P.peek p = P.Symbol '%' then (
+        let dst = read_vreg p in
+        P.expect p ":=";
+        let lhs = read_value p in
+        if P.bump_if_symbol p '+' then BinOp (dst, lhs, Add, read_value p)
+        else if P.bump_if_symbol p '-' then BinOp (dst, lhs, Sub, read_value p)
+        else Assign (dst, lhs))
+      else
+        let dst = read_place p in
+        P.expect p ":=";
+        Store (dst, read_value p)
     in
-    match make " < " (fun (a, b) -> Lt (a, b)) with
-    | Some c -> c
-    | None -> (
-        match make " = " (fun (a, b) -> Eq (a, b)) with
-        | Some c -> c
-        | None -> (
-            match make " > " (fun (a, b) -> Gt (a, b)) with
-            | Some c -> c
-            | None -> failwith ("Invalid condition: " ^ s)))
+    P.expect_symbol p ';';
+    stmt
 
-  let parse_jump_if line =
-    if
-      not
-        (String.starts_with ~prefix:"if " line
-        && String.ends_with ~suffix:";" line)
-    then None
-    else
-      match
-        Text.split_once " then "
-          (Text.strip_prefix "if " (Text.strip_suffix ";" line))
-      with
-      | Some (c, t) ->
-          Some
-            {
-              cond = parse_cond (String.trim c);
-              target = parse_addr_expr (String.trim t);
-            }
-      | None -> failwith ("Invalid if syntax: " ^ line)
+  let read_cond p =
+    P.binary p
+      ~operators:
+        [
+          ("<", fun a b -> Lt (a, b));
+          ("=", fun a b -> Eq (a, b));
+          (">", fun a b -> Gt (a, b));
+        ]
+      ~operand:read_value
+      ~make:(fun a op b -> op a b)
 
-  let parse_goto line =
-    if
-      String.starts_with ~prefix:"goto " line
-      && String.ends_with ~suffix:";" line
-    then
-      Some
-        (parse_addr_expr
-           (Text.strip_prefix "goto " (Text.strip_suffix ";" line)))
+  let read_jump_if p =
+    P.expect_keyword p "if";
+    let cond = read_cond p in
+    P.expect_keyword p "then";
+    let target = read_addr p in
+    P.expect_symbol p ';';
+    { cond; target }
+
+  let read_goto p =
+    P.expect_keyword p "goto";
+    let target = read_addr p in
+    P.expect_symbol p ';';
+    target
+
+  let parse_addr_expr text = value (P.parse read_addr text)
+  let parse_place_expr text = value (P.parse read_place text)
+  let parse_value_expr text = value (P.parse read_value text)
+  let parse_cond text = value (P.parse read_cond text)
+
+  let parse_stmt text =
+    if String.ends_with ~suffix:";" text && Text.split_once ":=" text <> None
+    then Some (value (P.parse read_stmt text))
     else None
 
-  let parse text =
-    Utils.Parser.protect (fun () ->
-        let lines =
-          Array.of_list
-            (List.filter (( <> ) "")
-               (List.map
-                  (fun l -> String.trim (Text.strip_line_comment "//" l))
-                  (String.split_on_char '\n' text)))
-        in
-        let rec top i statics blocks =
-          if i = Array.length lines then
-            ({ statics = List.rev statics; blocks = List.rev blocks } : code)
-          else
-            let line = lines.(i) in
-            if
-              String.starts_with ~prefix:"@" line
-              && String.ends_with ~suffix:"{" line
-            then
-              let label =
-                String.trim (Text.strip_suffix "{" (Text.strip_prefix "@" line))
-              in
-              let label = value (Utils.Identifier.make label) in
-              let rec block j stmts ifs jump =
-                if j = Array.length lines then
-                  failwith ("Unclosed block: @" ^ label);
-                let line = lines.(j) in
-                if line = "}" then
+  let parse_jump_if text =
+    if
+      String.starts_with ~prefix:"if " text && String.ends_with ~suffix:";" text
+    then Some (value (P.parse read_jump_if text))
+    else None
+
+  let parse_goto text =
+    if
+      String.starts_with ~prefix:"goto " text
+      && String.ends_with ~suffix:";" text
+    then Some (value (P.parse read_goto text))
+    else None
+
+  let parse =
+    P.parse (fun p ->
+        let block p label =
+          P.group p ~opening:'{' (fun p ->
+              let rec body stmts ifs jump =
+                if P.eof p then
                   let jump =
                     match jump with
-                    | Some t -> t
+                    | Some target -> target
                     | None ->
-                        failwith ("Block @" ^ label ^ " missing final goto")
+                        P.error p ("Block @" ^ label ^ " missing final goto")
                   in
-                  ( {
-                      label;
-                      stmts = List.rev stmts;
-                      cont = { ifs = List.rev ifs; jump };
-                    },
-                    j + 1 )
-                else
-                  match parse_jump_if line with
-                  | Some jump_if -> block (j + 1) stmts (jump_if :: ifs) jump
-                  | None -> (
-                      match parse_goto line with
-                      | Some target ->
-                          if jump <> None then
-                            failwith ("Multiple final goto in block @" ^ label);
-                          block (j + 1) stmts ifs (Some target)
-                      | None -> (
-                          if jump <> None then
-                            failwith ("Statement after goto in block @" ^ label);
-                          match parse_stmt line with
-                          | Some stmt -> block (j + 1) (stmt :: stmts) ifs jump
-                          | None ->
-                              failwith
-                                ("Invalid line in block @" ^ label ^ ": " ^ line)
-                          ))
+                  {
+                    label;
+                    stmts = List.rev stmts;
+                    cont = { ifs = List.rev ifs; jump };
+                  }
+                else if P.peek p = P.Ident "if" then
+                  let jump_if = read_jump_if p in
+                  body stmts (jump_if :: ifs) jump
+                else if P.peek p = P.Ident "goto" then (
+                  if jump <> None then
+                    P.error p ("Multiple final goto in block @" ^ label);
+                  let target = read_goto p in
+                  body stmts ifs (Some target))
+                else (
+                  if jump <> None then
+                    P.error p ("Statement after goto in block @" ^ label);
+                  let stmt = read_stmt p in
+                  body (stmt :: stmts) ifs jump)
               in
-              let b, j = block (i + 1) [] [] None in
-              top j statics (b :: blocks)
-            else
-              match Text.words line with
-              | [ label; n ]
-                when String.starts_with ~prefix:"@" label
-                     && not (String.ends_with ~suffix:":" label) ->
-                  let s : static_def =
-                    {
-                      label =
-                        value
-                          (Utils.Identifier.make (Text.strip_prefix "@" label));
-                      value = value (N.of_string_with_plus n);
-                    }
-                  in
-                  top (i + 1) (s :: statics) blocks
-              | _ -> failwith ("Unexpected top-level line: " ^ line)
+              body [] [] None)
         in
-        top 0 [] [])
+        let rec top statics blocks =
+          if P.eof p then
+            ({ statics = List.rev statics; blocks = List.rev blocks } : code)
+          else (
+            P.expect_symbol p '@';
+            let label = P.identifier p in
+            if P.peek p = P.Symbol '{' then
+              let b = block p label in
+              top statics (b :: blocks)
+            else
+              let value = P.natural_with_plus p in
+              top (({ label; value } : static_def) :: statics) blocks)
+        in
+        top [] [])
 
   let addr_to_text = function
     | VReg i -> "%v" ^ string_of_int i

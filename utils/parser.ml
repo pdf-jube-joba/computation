@@ -32,7 +32,8 @@ exception Error = Lexer.Error
 let error_at offset message =
   raise (Error (Printf.sprintf "%s at byte %d" message offset))
 
-let error p message = error_at (snd p.tokens.(p.pos)) message
+let offset p = snd p.tokens.(p.pos)
+let error p message = error_at (offset p) message
 
 let delimiter = function
   | '(' -> (Parentheses, ')')
@@ -131,6 +132,12 @@ let natural p =
       Number.normalize s
   | _ -> error p "Expected natural number"
 
+let natural_with_plus p =
+  let offset = snd p.tokens.(p.pos) in
+  if bump_if_symbol p '+' && snd p.tokens.(p.pos) <> offset + 1 then
+    error p "Expected digits immediately after '+'";
+  natural p
+
 let integer p =
   match peek p with
   | Number s -> (
@@ -208,6 +215,66 @@ let item_with_progress p item =
   if p.pos <= before then error p "Parser item consumed no tokens";
   value
 
+let attempt p f =
+  let saved = checkpoint p in
+  match protect (fun () -> f p) with
+  | Ok _ as result -> result
+  | Error _ as result ->
+      restore p saved;
+      result
+
+let chain_left ?(allow_trailing = false) p ~separator ~combine item =
+  let rec loop lhs =
+    if bump_if_symbol p separator then
+      if allow_trailing && eof p then lhs
+      else
+        let rhs = item_with_progress p item in
+        loop (combine lhs rhs)
+    else lhs
+  in
+  loop (item_with_progress p item)
+
+let binary p ~operators ~operand ~make =
+  let lhs = item_with_progress p operand in
+  let rec operator = function
+    | (text, op) :: rest ->
+        let before = p.pos in
+        if bump_if p text then (
+          if p.pos = before then error p "Empty binary operator";
+          op)
+        else operator rest
+    | [] -> error p "Expected binary operator"
+  in
+  let op = operator operators in
+  let rhs = item_with_progress p operand in
+  make lhs op rhs
+
+let expression ?(prefix = []) ~infix ~atom p =
+  let rec read min_bp p =
+    let rec head = function
+      | (text, rbp, apply) :: rest ->
+          let before = p.pos in
+          if bump_if p text then (
+            if p.pos = before then error p "Empty prefix operator";
+            apply (read rbp p))
+          else head rest
+      | [] -> item_with_progress p (atom (read 0))
+    in
+    let rec tail lhs operators =
+      match operators with
+      | (text, lbp, rbp, apply) :: rest ->
+          let before = p.pos in
+          if lbp >= min_bp && bump_if p text then (
+            if p.pos = before then error p "Empty infix operator";
+            let rhs = read rbp p in
+            tail (apply lhs rhs) infix)
+          else tail lhs rest
+      | [] -> lhs
+    in
+    tail (head prefix) infix
+  in
+  read 0 p
+
 let many ?skip_separator p item =
   let rec loop acc =
     match skip_separator with
@@ -236,15 +303,20 @@ let rec separated p ~separator item =
   if bump_if_symbol p separator then first :: separated p ~separator item
   else [ first ]
 
-let separated_list ?(allow_trailing = false) p ~separator item =
+let separated_list ?(allow_trailing = false) ?(skip_empty = false) p ~separator
+    item =
+  let rec skip () = if skip_empty && bump_if_symbol p separator then skip () in
   let rec loop acc =
-    let value = item_with_progress p item in
-    let acc = value :: acc in
-    if bump_if_symbol p separator then
-      if allow_trailing && eof p then List.rev acc else loop acc
-    else (
-      expect_eof p;
-      List.rev acc)
+    skip ();
+    if skip_empty && eof p then List.rev acc
+    else
+      let value = item_with_progress p item in
+      let acc = value :: acc in
+      if bump_if_symbol p separator then
+        if allow_trailing && eof p then List.rev acc else loop acc
+      else (
+        expect_eof p;
+        List.rev acc)
   in
   if eof p then [] else loop []
 

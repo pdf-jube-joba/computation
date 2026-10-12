@@ -37,48 +37,30 @@ module Code = struct
     if List.mem n reserved then failwith "Expected identifier";
     n
 
-  let rec parse_aexp p =
-    let a = parse_prefix p in
-    let rec loop a =
-      if L.bump_if p "++" then
-        let b = parse_prefix p in
-        loop (Concat (a, b))
-      else a
-    in
-    loop a
-
-  and parse_prefix p =
-    if L.bump_if_keyword p "head" then Head (parse_prefix p)
-    else if L.bump_if_keyword p "tail" then Tail (parse_prefix p)
-    else
-      match L.bump p with
-      | L.Ident n when not (List.mem n reserved) -> Var n
-      | L.Symbol '(' ->
-          let a = parse_aexp p in
-          L.expect_symbol p ')';
-          a
-      | L.Symbol '[' ->
-          Const
-            (L.separated_until p ~separator:',' ~closing:']' L.character_literal)
-      | _ -> failwith "Invalid aexp"
+  let parse_aexp =
+    L.expression
+      ~prefix:[ ("head", 2, fun a -> Head a); ("tail", 2, fun a -> Tail a) ]
+      ~infix:[ ("++", 1, 2, fun a b -> Concat (a, b)) ]
+      ~atom:(fun read p ->
+        match L.peek p with
+        | L.Ident n when not (List.mem n reserved) -> Var (L.identifier p)
+        | L.Symbol '(' -> L.group p ~opening:'(' read
+        | L.Symbol '[' ->
+            Const
+              (L.group p ~opening:'[' (fun p ->
+                   L.separated_list p ~separator:',' L.character_literal))
+        | _ -> L.error p "Invalid aexp")
 
   let parse_bexp p =
     if L.bump_if_keyword p "is_empty" then IsEmpty (parse_aexp p)
     else
-      let a = parse_aexp p in
-      L.expect p "==";
-      let b = parse_aexp p in
-      Eq (a, b)
+      L.binary p
+        ~operators:[ ("==", ()) ]
+        ~operand:parse_aexp
+        ~make:(fun a () b -> Eq (a, b))
 
   let rec parse_stmt p =
-    let s = parse_single p in
-    let rec loop s =
-      if L.bump_if_symbol p ';' then
-        let b = parse_single p in
-        loop (Seq (s, b))
-      else s
-    in
-    loop s
+    L.chain_left p ~separator:';' ~combine:(fun a b -> Seq (a, b)) parse_single
 
   and parse_single p =
     if L.bump_if_keyword p "Nop" then Nop
@@ -88,16 +70,11 @@ module Code = struct
       let b = parse_stmt p in
       L.expect_keyword p "end";
       If (c, b))
-    else if L.bump_if_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      L.expect_symbol p '{';
-      let b = parse_stmt p in
-      L.expect_symbol p '}';
-      While (c, b))
-    else if L.bump_if_symbol p '(' then (
-      let b = parse_stmt p in
-      L.expect_symbol p ')';
-      b)
+      let b = L.group p ~opening:'{' parse_stmt in
+      While (c, b)
+    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_stmt
     else
       let n = parse_name p in
       L.expect p ":=";

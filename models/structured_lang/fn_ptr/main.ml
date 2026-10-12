@@ -102,31 +102,24 @@ module Code = struct
     match L.peek p with
     | L.Ident _ -> Var (L.identifier p)
     | _ ->
-        L.expect_symbol p '(';
-        let v = parse_value p in
-        L.expect p ") #loc";
+        let v = L.group p ~opening:'(' parse_value in
+        L.expect p "#loc";
         Deref v
 
   and parse_value p =
-    let a = parse_atom p in
-    let rec loop a =
-      if L.bump_if_symbol p '+' then
-        let b = parse_atom p in
-        loop (BinOp (a, Add, b))
-      else if L.bump_if_symbol p '-' then
-        let b = parse_atom p in
-        loop (BinOp (a, Sub, b))
-      else a
-    in
-    loop a
+    L.expression
+      ~infix:
+        [
+          ("+", 1, 2, fun a b -> BinOp (a, Add, b));
+          ("-", 1, 2, fun a b -> BinOp (a, Sub, b));
+        ]
+      ~atom:(fun _ p -> parse_atom p)
+      p
 
   and parse_atom p =
     if L.bump_if p "#null_ptr" then NullPtr
     else if L.bump_if_keyword p "ld" then Load (parse_place p)
-    else if L.bump_if_symbol p '(' then (
-      let v = parse_value p in
-      L.expect_symbol p ')';
-      v)
+    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_value
     else
       match L.peek p with
       | L.Number _ -> Number (Int64.of_string (L.natural p))
@@ -148,42 +141,35 @@ module Code = struct
       let b = parse_stmt p in
       L.expect_keyword p "end";
       Ifz (cond, a, b))
-    else if L.bump_if_keyword p "call" then (
+    else if L.bump_if_keyword p "call" then
       let n = L.identifier p in
-      L.expect_symbol p '(';
-      let rec args acc =
-        let v = parse_value p in
-        if L.bump_if_symbol p ',' then args (v :: acc) else List.rev (v :: acc)
+      let args =
+        L.group p ~opening:'(' (fun p ->
+            L.separated_list p ~separator:',' parse_value)
       in
-      let args = if L.peek p = L.Symbol ')' then [] else args [] in
-      L.expect_symbol p ')';
-      Call (n, args))
+      Call (n, args)
     else (
       L.expect_keyword p "return";
       Return)
 
   let parse =
     L.parse (fun p ->
-        let rec fs acc =
-          if L.eof p then { functions = List.rev acc }
-          else (
-            L.expect_keyword p "fn";
-            let name = L.identifier p in
-            L.expect_symbol p '(';
-            let params = names_until p ')' in
-            L.expect p ") {";
-            let rec stmts acc =
-              if L.peek p = L.Symbol '}' then List.rev acc
-              else
-                let s = parse_stmt p in
-                if L.bump_if_symbol p ';' then stmts (s :: acc)
-                else List.rev (s :: acc)
-            in
-            let body = stmts [] in
-            L.expect_symbol p '}';
-            fs ({ name; params; body } :: acc))
+        let functions =
+          L.many p (fun p ->
+              L.expect_keyword p "fn";
+              let name = L.identifier p in
+              let params =
+                L.group p ~opening:'(' (fun p ->
+                    L.separated_list p ~separator:',' L.identifier)
+              in
+              let body =
+                L.group p ~opening:'{' (fun p ->
+                    L.separated_list ~allow_trailing:true p ~separator:';'
+                      parse_stmt)
+              in
+              { name; params; body })
         in
-        fs [])
+        { functions })
 end
 
 module Runtime_value = struct
@@ -204,14 +190,18 @@ module Runtime_value = struct
         else if
           String.starts_with ~prefix:"loc(" text
           && String.ends_with ~suffix:")" text
-        then
-          let body = String.sub text 4 (String.length text - 5) in
-          match String.split_on_char ',' body with
-          | [ frame; slot ] ->
-              let frame_id = get (N.to_int (get (N.of_string frame))) in
-              let slot = get (N.to_int (get (N.of_string slot))) in
-              Location { frame_id; slot }
-          | _ -> failwith "expected loc(frame,slot)"
+        then (
+          let p = L.create text in
+          L.expect_keyword p "loc";
+          let location =
+            L.group p ~opening:'(' (fun p ->
+                let frame_id = L.integer p in
+                L.expect_symbol p ',';
+                let slot = L.integer p in
+                Location { frame_id; slot })
+          in
+          L.expect_eof p;
+          location)
         else Num (Int64.of_string text))
 end
 

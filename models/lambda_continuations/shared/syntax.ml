@@ -183,22 +183,17 @@ module Code = struct
         Lam (x, read_term ~control p)
     | L.Symbol '@' ->
         ignore (L.bump p);
-        L.expect_symbol p '(';
-        let a = read_term ~control p in
-        let b = read_term ~control p in
-        L.expect_symbol p ')';
-        App (a, b)
-    | L.Symbol '(' ->
-        ignore (L.bump p);
-        let a = read_term ~control p in
-        let a =
-          if L.peek p = L.Symbol ')' then a
-          else
+        L.group p ~opening:'(' (fun p ->
+            let a = read_term ~control p in
             let b = read_term ~control p in
-            App (a, b)
-        in
-        L.expect_symbol p ')';
-        a
+            App (a, b))
+    | L.Symbol '(' ->
+        L.group p ~opening:'(' (fun p ->
+            let a = read_term ~control p in
+            if L.eof p then a
+            else
+              let b = read_term ~control p in
+              App (a, b))
     | L.Ident "zero" | L.Number "0" ->
         ignore (L.bump p);
         Zero
@@ -255,30 +250,22 @@ module Nat_code = struct
     let rec read p =
       match L.peek p with
       | L.Ident "fun" -> (
-          let saved = L.checkpoint p in
           match
-            L.protect (fun () ->
+            L.attempt p (fun p ->
                 ignore (L.bump p);
                 let x = L.identifier p in
                 L.expect p "=>";
                 Lam (x, read p))
           with
           | Ok e -> e
-          | Error _ ->
-              L.restore p saved;
-              Var (L.identifier p))
+          | Error _ -> Var (L.identifier p))
       | L.Symbol '@' ->
           ignore (L.bump p);
-          L.expect_symbol p '(';
-          let f = read p in
-          let a = read p in
-          L.expect_symbol p ')';
-          App (f, a)
-      | L.Symbol '(' ->
-          ignore (L.bump p);
-          let e = read p in
-          L.expect_symbol p ')';
-          e
+          L.group p ~opening:'(' (fun p ->
+              let f = read p in
+              let a = read p in
+              App (f, a))
+      | L.Symbol '(' -> L.group p ~opening:'(' read
       | _ -> Var (L.identifier p)
     in
     L.parse read

@@ -49,16 +49,10 @@ let parse_aexp p =
   else Atom a
 
 let parse_bexp p =
-  let a = parse_atom p in
-  let op =
-    match L.bump p with
-    | L.Symbol '<' -> Lt
-    | L.Symbol '=' -> Eq
-    | L.Symbol '>' -> Gt
-    | _ -> L.error p "Expected relation operator"
-  in
-  let b = parse_atom p in
-  (a, op, b)
+  L.binary p
+    ~operators:[ ("<", Lt); ("=", Eq); (">", Gt) ]
+    ~operand:parse_atom
+    ~make:(fun a op b -> (a, op, b))
 
 let atom_text = function Var v -> v | Imm n -> N.to_string n
 

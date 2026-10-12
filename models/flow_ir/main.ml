@@ -227,25 +227,22 @@ module Code = struct
     if L.bump_if_symbol p '@' then Label (L.identifier p)
     else if L.bump_if_keyword p "deref" then Deref (vreg p)
     else if L.bump_if_keyword p "sacc" then SAcc (parse_value p)
-    else if L.bump_if_keyword p "hacc" then (
-      L.expect_symbol p '(';
-      let h = parse_value p in
-      L.expect_symbol p ')';
-      L.expect_symbol p '[';
-      let i = parse_value p in
-      L.expect_symbol p ']';
-      HAcc (h, i))
+    else if L.bump_if_keyword p "hacc" then
+      let h = L.group p ~opening:'(' parse_value in
+      let i = L.group p ~opening:'[' parse_value in
+      HAcc (h, i)
     else L.error p "Expected place expression"
 
   let parse_cond p =
-    let a = parse_value p in
-    let op = L.bump p in
-    let b = parse_value p in
-    match op with
-    | L.Symbol '<' -> Lt (a, b)
-    | L.Symbol '=' -> Eq (a, b)
-    | L.Symbol '>' -> Gt (a, b)
-    | _ -> L.error p "Expected relation"
+    L.binary p
+      ~operators:
+        [
+          ("<", fun a b -> Lt (a, b));
+          ("=", fun a b -> Eq (a, b));
+          (">", fun a b -> Gt (a, b));
+        ]
+      ~operand:parse_value
+      ~make:(fun a op b -> op a b)
 
   let parse_stmt p =
     let s =
@@ -256,12 +253,10 @@ module Code = struct
       else if L.bump_if_keyword p "hfree" then HFree (parse_value p)
       else if L.bump_if_keyword p "print" then Print (vreg p)
       else if L.bump_if_keyword p "input" then Input (parse_place p)
-      else if L.bump_if_keyword p "halloc" then (
-        L.expect_symbol p '(';
-        let v = parse_value p in
-        L.expect_symbol p ')';
+      else if L.bump_if_keyword p "halloc" then
+        let v = L.group p ~opening:'(' parse_value in
         let r = vreg p in
-        HAlloc (v, r))
+        HAlloc (v, r)
       else if L.peek p = L.Symbol '%' then (
         let r = vreg p in
         L.expect p ":=";
@@ -282,38 +277,38 @@ module Code = struct
   let parse_block p =
     L.expect_symbol p ':';
     let label = L.identifier p in
-    L.expect_symbol p '{';
-    let rec loop stmts jumps cont =
-      if L.bump_if_symbol p '}' then
-        {
-          label;
-          stmts = List.rev stmts;
-          cont =
-            (match cont with
-            | Some c -> c
-            | None -> L.error p "Missing terminator");
-        }
-      else if L.bump_if_keyword p "if" then (
-        let cond = parse_cond p in
-        L.expect_keyword p "then";
-        let target = parse_value p in
-        L.expect_symbol p ';';
-        loop stmts (jumps @ [ { cond; target } ]) cont)
-      else if cont <> None then L.error p "Line exists after terminator"
-      else if L.bump_if_keyword p "goto" then (
-        let v = parse_value p in
-        L.expect_symbol p ';';
-        loop stmts jumps (Some (Go (jumps, v))))
-      else if L.bump_if_keyword p "enter" then (
-        let v = parse_value p in
-        L.expect_symbol p ';';
-        loop stmts jumps (Some (Enter (jumps, v))))
-      else if L.bump_if_keyword p "halt" then (
-        L.expect_symbol p ';';
-        loop stmts jumps (Some (Halt jumps)))
-      else loop (parse_stmt p :: stmts) jumps cont
-    in
-    loop [] [] None
+    L.group p ~opening:'{' (fun p ->
+        let rec loop stmts jumps cont =
+          if L.eof p then
+            {
+              label;
+              stmts = List.rev stmts;
+              cont =
+                (match cont with
+                | Some c -> c
+                | None -> L.error p "Missing terminator");
+            }
+          else if L.bump_if_keyword p "if" then (
+            let cond = parse_cond p in
+            L.expect_keyword p "then";
+            let target = parse_value p in
+            L.expect_symbol p ';';
+            loop stmts (jumps @ [ { cond; target } ]) cont)
+          else if cont <> None then L.error p "Line exists after terminator"
+          else if L.bump_if_keyword p "goto" then (
+            let v = parse_value p in
+            L.expect_symbol p ';';
+            loop stmts jumps (Some (Go (jumps, v))))
+          else if L.bump_if_keyword p "enter" then (
+            let v = parse_value p in
+            L.expect_symbol p ';';
+            loop stmts jumps (Some (Enter (jumps, v))))
+          else if L.bump_if_keyword p "halt" then (
+            L.expect_symbol p ';';
+            loop stmts jumps (Some (Halt jumps)))
+          else loop (parse_stmt p :: stmts) jumps cont
+        in
+        loop [] [] None)
 
   let parse =
     L.parse (fun p ->
@@ -326,8 +321,9 @@ module Code = struct
           else (
             L.expect_symbol p ':';
             let label = L.identifier p in
-            L.expect_symbol p '{';
-            let blocks = L.many_until p ~closing:'}' parse_block in
+            let blocks =
+              L.group p ~opening:'{' (fun p -> L.many p parse_block)
+            in
             if blocks = [] then L.error p "Region has no blocks";
             loop ss ({ label; blocks } :: rs))
         in

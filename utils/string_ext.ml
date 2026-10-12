@@ -1,4 +1,6 @@
-let is_whitespace = function ' ' | '\t' | '\r' | '\n' -> true | _ -> false
+let is_whitespace = function
+  | ' ' | '\t' | '\r' | '\n' | '\012' -> true
+  | _ -> false
 
 let starts_at text i prefix =
   i + String.length prefix <= String.length text

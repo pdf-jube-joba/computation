@@ -43,7 +43,10 @@ module Natural_list = struct
   type t = Number.t list
 
   let parse =
-    Parse.delimited_list ~opening:'(' ~closing:')' ~separator:',' Natural.parse
+    Parser.parse (fun p ->
+        Parser.group p ~opening:'(' (fun p ->
+            Parser.separated_list ~skip_empty:true p ~separator:','
+              Parser.natural_with_plus))
 
   let print values =
     "(" ^ Stdlib.String.concat ", " (List.map Natural.print values) ^ ")"

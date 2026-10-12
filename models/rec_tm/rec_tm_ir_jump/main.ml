@@ -42,7 +42,7 @@ module Code = struct
   let parse =
     L.parse (fun p ->
         let alphabet = alphabet p in
-        let stmt () =
+        let stmt p =
           if L.bump_if_keyword p "LT" then Lt
           else if L.bump_if_keyword p "RT" then Rt
           else if L.bump_if_keyword p "jump" then
@@ -55,13 +55,7 @@ module Code = struct
             let src = rvalue ~keywords p in
             Assign (dst, src)
         in
-        let rec body () =
-          if L.eof p then []
-          else
-            let s = stmt () in
-            s :: body ()
-        in
-        { alphabet; body = body () })
+        { alphabet; body = L.many p stmt })
 
   let stmt_print = function
     | Lt -> "LT"

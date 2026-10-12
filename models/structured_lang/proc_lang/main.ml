@@ -47,40 +47,37 @@ module Code = struct
   type t = code
 
   let rec parse_stmt p =
-    let a = parse_single p in
-    if L.bump_if_symbol p ';' then
-      if L.peek p = L.Symbol ']' then a
-      else
-        let b = parse_stmt p in
-        Seq (a, b)
-    else a
+    let statements =
+      L.separated_list ~allow_trailing:true p ~separator:';' parse_single
+    in
+    let rec sequence = function
+      | [ s ] -> s
+      | s :: rest -> Seq (s, sequence rest)
+      | [] -> L.error p "Expected statement"
+    in
+    sequence statements
 
   and parse_single p =
     if L.bump_if_keyword p "Nop" then Nop
-    else if L.bump_if_keyword p "if" then (
+    else if L.bump_if_keyword p "if" then
       let c = parse_bexp p in
-      L.expect_symbol p '[';
-      let b = parse_stmt p in
-      L.expect_symbol p ']';
-      If (c, b))
-    else if L.bump_if_keyword p "while" then (
+      let b = L.group p ~opening:'[' parse_stmt in
+      If (c, b)
+    else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      L.expect_symbol p '[';
-      let b = parse_stmt p in
-      L.expect_symbol p ']';
-      While (c, b))
+      let b = L.group p ~opening:'[' parse_stmt in
+      While (c, b)
     else if L.bump_if_keyword p "call" then (
       let n = L.identifier p in
-      L.expect_symbol p '(';
-      let args = names_until p ')' in
-      L.expect p ") ->";
+      let args =
+        L.group p ~opening:'(' (fun p ->
+            L.separated_list p ~separator:',' L.identifier)
+      in
+      L.expect p "->";
       let rets = names_boundary p in
       Call (n, args, rets))
     else if L.bump_if_keyword p "return" then Return (names_boundary p)
-    else if L.bump_if_symbol p '[' then (
-      let s = parse_stmt p in
-      L.expect_symbol p ']';
-      s)
+    else if L.peek p = L.Symbol '[' then L.group p ~opening:'[' parse_stmt
     else
       let v = L.identifier p in
       L.expect p ":=";
@@ -91,19 +88,22 @@ module Code = struct
         L.expect_keyword p "static";
         let statics = names_until p ';' in
         L.expect_symbol p ';';
-        let rec procs acc =
-          if L.eof p then List.rev acc
-          else
-            let name = L.identifier p in
-            L.expect_symbol p '(';
-            let params = names_until p ')' in
-            L.expect p ") [ local";
-            let locals = names_boundary p in
-            let body = parse_stmt p in
-            L.expect_symbol p ']';
-            procs ({ name; params; locals; body } :: acc)
+        let procs =
+          L.many p (fun p ->
+              let name = L.identifier p in
+              let params =
+                L.group p ~opening:'(' (fun p ->
+                    L.separated_list p ~separator:',' L.identifier)
+              in
+              let locals, body =
+                L.group p ~opening:'[' (fun p ->
+                    L.expect_keyword p "local";
+                    let locals = names_boundary p in
+                    let body = parse_stmt p in
+                    (locals, body))
+              in
+              { name; params; locals; body })
         in
-        let procs = procs [] in
         if procs = [] then L.error p "At least one procedure is required";
         { statics; procs })
 

@@ -18,12 +18,12 @@ module Code = struct
     | _ -> L.error p "Expected type atom"
 
   let rec parse_type p =
-    if L.bump_if_symbol p '[' then (
-      let t = parse_type p in
-      L.expect_symbol p ';';
-      let len = L.integer p in
-      L.expect_symbol p ']';
-      Array (t, len))
+    if L.peek p = L.Symbol '[' then
+      L.group p ~opening:'[' (fun p ->
+          let t = parse_type p in
+          L.expect_symbol p ';';
+          let len = L.integer p in
+          Array (t, len))
     else
       let t = type_atom p in
       let rec loop kind acc =
@@ -45,8 +45,7 @@ module Code = struct
       in
       loop None [ t ]
 
-  let terminator p =
-    match L.peek p with L.Symbol ';' | L.Symbol '}' -> true | _ -> false
+  let terminator p = L.eof p || L.peek p = L.Symbol ';'
 
   let stmt_start p =
     match L.peek p with
@@ -60,11 +59,10 @@ module Code = struct
     let base =
       if L.bump_if_keyword p "static" then Static (L.identifier p)
       else if L.bump_if_keyword p "local" then Local (L.identifier p)
-      else (
-        L.expect_symbol p '(';
-        let v = parse_value p (fun p -> L.peek p = L.Symbol ')') in
-        L.expect p ") #loc";
-        Deref v)
+      else
+        let v = L.group p ~opening:'(' (fun p -> parse_value p L.eof) in
+        L.expect p "#loc";
+        Deref v
     in
     let rec project pbase =
       if L.bump_if_symbol p '.' then
@@ -73,10 +71,9 @@ module Code = struct
       else if L.bump_if_symbol p '?' then
         let i = L.integer p in
         project (Tag_place (pbase, i))
-      else if L.bump_if_symbol p '[' then (
-        let i = parse_value p (fun p -> L.peek p = L.Symbol ']') in
-        L.expect_symbol p ']';
-        project (Index (pbase, i)))
+      else if L.peek p = L.Symbol '[' then
+        let i = L.group p ~opening:'[' (fun p -> parse_value p L.eof) in
+        project (Index (pbase, i))
       else pbase
     in
     project base
@@ -123,9 +120,7 @@ module Code = struct
         | _ when L.bump_if p "&&" -> binary And
         | _ when L.bump_if p "||" -> binary Or
         | _ when L.bump_if_keyword p "pair" ->
-            L.expect_symbol p '(';
-            let count = L.integer p in
-            L.expect_symbol p ')';
+            let count = L.group p ~opening:'(' L.integer in
             let rec take n xs acc =
               if n = 0 then (acc, xs)
               else
@@ -136,22 +131,17 @@ module Code = struct
             let items, ss = take count stack [] in
             loop (Pair items :: ss)
         | _ when L.bump_if_keyword p "tag" ->
-            L.expect_symbol p '(';
-            let tag = L.integer p in
-            L.expect_symbol p ')';
+            let tag = L.group p ~opening:'(' L.integer in
             unary (fun v -> Tag (tag, v))
         | _ -> L.error p "Unexpected token in value expression"
     in
     loop []
 
   let value_list p stop =
-    if stop p then []
+    if L.eof p || stop p then []
     else
-      let rec loop acc =
-        let v = parse_value p (fun p -> L.peek p = L.Symbol ',' || stop p) in
-        if L.bump_if_symbol p ',' then loop (v :: acc) else List.rev (v :: acc)
-      in
-      loop []
+      L.separated p ~separator:',' (fun p ->
+          parse_value p (fun p -> L.peek p = L.Symbol ',' || stop p))
 
   let rec parse_stmt p =
     if L.bump_if_keyword p "assign" then (
@@ -182,38 +172,27 @@ module Code = struct
     else if L.bump_if_keyword p "continue" then Continue (L.identifier p)
     else if L.bump_if_keyword p "call" then (
       let f = parse_value p (fun p -> L.peek p = L.Symbol '(') in
-      L.expect_symbol p '(';
-      let args = value_list p (fun p -> L.peek p = L.Symbol ')') in
-      L.expect p ") ->";
-      let rec places acc =
-        let v = parse_place p in
-        if L.bump_if_symbol p ',' then places (v :: acc) else List.rev (v :: acc)
-      in
-      Call (f, args, places []))
+      let args = L.group p ~opening:'(' (fun p -> value_list p L.eof) in
+      L.expect p "->";
+      let places = L.separated p ~separator:',' parse_place in
+      Call (f, args, places))
     else if L.bump_if_keyword p "return" then Return (value_list p terminator)
     else if L.bump_if_keyword p "block" then Block (parse_block p)
     else L.error p "Unexpected token in statement"
 
   and parse_block p =
-    L.expect_symbol p '(';
-    let rec bindings acc =
-      let n = L.identifier p in
-      L.expect_symbol p ':';
-      let ty = parse_type p in
-      if L.bump_if_symbol p ',' then bindings ((n, ty) :: acc)
-      else List.rev ((n, ty) :: acc)
+    let bindings =
+      L.group p ~opening:'(' (fun p ->
+          L.separated_list p ~separator:',' (fun p ->
+              let n = L.identifier p in
+              L.expect_symbol p ':';
+              let ty = parse_type p in
+              (n, ty)))
     in
-    let bindings = if L.peek p = L.Symbol ')' then [] else bindings [] in
-    L.expect p ") {";
-    let rec stmts acc =
-      if L.bump_if_symbol p '}' then List.rev acc
-      else
-        let s = parse_stmt p in
-        if (not (L.bump_if_symbol p ';')) && L.peek p <> L.Symbol '}' then
-          L.error p "expected ';' or '}' after statement";
-        stmts (s :: acc)
+    let stmts =
+      L.group p ~opening:'{' (fun p ->
+          L.separated_list ~allow_trailing:true p ~separator:';' parse_stmt)
     in
-    let stmts = stmts [] in
     { bindings; stmts }
 
   let parse =

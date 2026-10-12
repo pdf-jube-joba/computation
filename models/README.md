@@ -44,7 +44,9 @@ snapshot は `Yojson.Safe.t` に保存し、モデルごとに復元します。
 閉じ忘れ・対応の不一致は初期化時に検出します。
 
 モデルは共通の token tree を読み、その言語の AST を組み立てます。
-演算子の優先順位・キーワードの意味・型検査は各モデル側で定義します。
+演算子の一覧・優先順位・AST の構築方法は各モデル側で指定し、
+優先順位に従った読み取りは共通の `Parser.expression` が行います。
+キーワードの意味・型検査は各モデル側で定義します。
 
 ```ocaml
 module P = Utils.Parser
@@ -66,6 +68,7 @@ let parse_numbers =
 token 列の消費、`expect` は必須の token 列の消費です。
 `bump_if` は不一致なら位置を戻します。既存の文法では括弧を個別の
 `expect_symbol` で読むこともできます。後戻りには `checkpoint` / `restore` を使います。
+失敗時の復元まで含めた試行には `attempt` を使います。
 `parse` は読み残しを検査して `(値, string) result` にまとめます。
 
 `natural` は桁数を制限しない `Utils.Number.t` に正規化し、`integer` は
@@ -75,6 +78,39 @@ OCaml の非負 `int` に収まるか検査します。`string_literal` は JSON
 `many` は括弧内などのスコープ末尾まで読み、`separated_list` は区切り必須の
 リストを読みます。区切りの省略・重複は `many ~skip_separator`、
 末尾の区切りは `separated_list ~allow_trailing:true` で明示的に許可できます。
+自然数リストの入力形式は `separated_list ~skip_empty:true` で空の項目を無視し、
+`natural_with_plus` で数字に直接付いた `+` を許可します。
+
+`expression` は前置・中置演算子の表を受け取り、優先順位と結合順序を扱います。
+中置演算子の項目は `(token 列, 左の優先度, 右の優先度, AST 構築関数)` です。
+数が大きいほど強く結合し、右を左より 1 大きくすると左結合、同じにすると右結合です。
+最小の優先度は 0 です。前置演算子は `(token 列, 右の優先度, AST 構築関数)` です。
+`atom` には再帰的な読み取り関数が渡され、`group` と組み合わせて括弧付きの式を読めます。
+coroutine、`expr_lang`、PCF、`fn_ptr`、文字列配列モデルがこの共通処理を使います。
+PCF の `+`・`-`・`&&` のように、モデル固有の同じ優先順位もそのまま指定できます。
+
+比較などの二項演算を一つだけ読む文法は `binary` を使います。
+`chain_left` は文などを区切り記号で読み、左から AST を組み立てます。
+procedure 言語の文は `separated_list` で読み、モデル側で右結合の AST に組み立てます。
+
+ほかに残している専用の解析は、通常の中置式とは異なる以下の文法です。
+
+| 場所 | 専用の処理 |
+| --- | --- |
+| `structured_lang/mini_prog` | 後置記法でスタックから値を組み立てる処理、型の積・和を混在させない規則 |
+| `recursive_function` | `COMP` の括弧付き引数列と続く引数を結合する規則 |
+| `lambda_calculus`・`lambda_continuations` | λの束縛・適用、モデルごとのキーワード |
+| `flow_ir`・`logic_circuit` | 命令の順序、終端命令、ピン接続などの構造 |
+| `tiny_isa/symbolic_asm` | 改行単位の命令・ディレクティブ、セクションの切り替え |
+| `tiny_isa/cfg_vreg` | ブロック内の命令順序と終端命令の検査。括弧・数値・比較・オペランドの読み取りは共通 parser |
+| `turing_machine` | テープの区切り、行・CSV 形式の遷移表 |
+| `Utils.Text`・入力 codec | 単独の数値・素の文字列・行形式の環境など、既存の入力形式の解釈。自然数リストは共通 parser |
+
+CFG、`fn_ptr` の `loc(...)` 入力、自然数リストも `group` で括弧を読みます。
+λ計算の入力リストと論理回路の信号リストも `separated_list` を使います。
+symbolic assembly や CSV 形式の行単位 parser は、`String_ext`・`Number`・`Text` の
+共通関数を使いながら専用の読み取りを行います。`Parse.delimited_list` は
+任意のテキストを要素 parser に渡す互換用の helper で、モデルの括弧解析には使っていません。
 
 ## TODO
 プログラミング言語は基本的に、

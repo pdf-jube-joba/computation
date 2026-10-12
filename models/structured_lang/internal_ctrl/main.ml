@@ -42,16 +42,9 @@ module Code = struct
     L.identifier p
 
   let rec parse_stmt p =
-    let a = parse_single p in
-    let rec loop a =
-      if L.bump_if_symbol p ';' then
-        if L.eof p || L.peek p = L.Symbol '}' then a
-        else
-          let b = parse_single p in
-          loop (Seq (a, b))
-      else a
-    in
-    loop a
+    L.chain_left ~allow_trailing:true p ~separator:';'
+      ~combine:(fun a b -> Seq (a, b))
+      parse_single
 
   and parse_block p = L.group p ~opening:'{' parse_stmt
 
