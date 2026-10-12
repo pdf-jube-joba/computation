@@ -1,4 +1,4 @@
-module L = Utils.Lexer
+module L = Utils.Parser
 module N = Utils.Number
 
 let value = function Ok v -> v | Error e -> failwith e
@@ -97,7 +97,7 @@ module Code = struct
 
   let rec parse_aexp_bp p min_bp =
     let lhs =
-      match L.next p with
+      match L.bump p with
       | L.Ident n -> Atom (Var n)
       | L.Number n -> Atom (Imm (value (N.of_string n)))
       | L.Symbol '(' ->
@@ -116,7 +116,7 @@ module Code = struct
       in
       match op with
       | Some (op, lbp, rbp) when lbp >= min_bp ->
-          ignore (L.next p);
+          ignore (L.bump p);
           let rhs = parse_aexp_bp p rbp in
           loop (Bin (lhs, op, rhs))
       | _ -> lhs
@@ -128,42 +128,42 @@ module Code = struct
   let rec parse_bexp_bp p min_bp =
     let relation lhs =
       let op =
-        if L.eat p "==" then Eq
-        else if L.eat p "!=" then Ne
-        else if L.eat_symbol p '<' then Lt
+        if L.bump_if p "==" then Eq
+        else if L.bump_if p "!=" then Ne
+        else if L.bump_if_symbol p '<' then Lt
         else L.error p "Expected relational operator"
       in
       let rhs = parse_aexp p in
       Rel (lhs, op, rhs)
     in
     let lhs =
-      if L.eat_symbol p '!' then Not (parse_bexp_bp p 5)
-      else if L.eat_keyword p "done" then (
+      if L.bump_if_symbol p '!' then Not (parse_bexp_bp p 5)
+      else if L.bump_if_keyword p "done" then (
         L.expect_symbol p '$';
         Done (L.identifier p))
-      else if L.eat_symbol p '(' then (
+      else if L.bump_if_symbol p '(' then (
         (* Preserve the original boolean grouping, and accept printed arithmetic LHS. *)
-        let saved = p.L.pos in
+        let saved = L.checkpoint p in
         try
           let b = parse_bexp_bp p 0 in
           L.expect_symbol p ')';
           b
         with L.Error _ ->
-          p.L.pos <- saved;
+          L.restore p saved;
           let a = parse_aexp p in
           L.expect_symbol p ')';
           relation a)
       else
-        match L.next p with
+        match L.bump p with
         | L.Ident n -> relation (Atom (Var n))
         | L.Number n -> relation (Atom (Imm (value (N.of_string n))))
         | _ -> L.error p "Unexpected token in boolean expression"
     in
     let rec loop lhs =
-      if min_bp <= 2 && L.eat p "&&" then
+      if min_bp <= 2 && L.bump_if p "&&" then
         let rhs = parse_bexp_bp p 3 in
         loop (And (lhs, rhs))
-      else if min_bp <= 0 && L.eat p "||" then
+      else if min_bp <= 0 && L.bump_if p "||" then
         let rhs = parse_bexp_bp p 1 in
         loop (Or (lhs, rhs))
       else lhs
@@ -172,27 +172,27 @@ module Code = struct
 
   let parse_offset p =
     let sign =
-      if L.eat_symbol p '-' then -1
+      if L.bump_if_symbol p '-' then -1
       else (
-        ignore (L.eat_symbol p '+');
+        ignore (L.bump_if_symbol p '+');
         1)
     in
     sign * L.integer p
 
   let parse_stmt p =
-    if L.eat_keyword p "if" then (
+    if L.bump_if_keyword p "if" then (
       let b = parse_bexp_bp p 0 in
       L.expect_keyword p "goto";
       IfGoto (b, parse_offset p))
-    else if L.eat_keyword p "goto" then Goto (parse_offset p)
-    else if L.eat_keyword p "call" then Call (L.identifier p)
-    else if L.eat_keyword p "run" then (
+    else if L.bump_if_keyword p "goto" then Goto (parse_offset p)
+    else if L.bump_if_keyword p "call" then Call (L.identifier p)
+    else if L.bump_if_keyword p "run" then (
       let name = L.identifier p in
       L.expect p "->";
       L.expect_symbol p '$';
       let id = L.identifier p in
       Run (name, id))
-    else if L.eat_keyword p "yield" then Yield
+    else if L.bump_if_keyword p "yield" then Yield
     else
       let n = L.identifier p in
       L.expect p "<-";
@@ -208,8 +208,8 @@ module Code = struct
             let name = L.identifier p in
             L.expect_symbol p '{';
             let rec body acc =
-              if L.eat_symbol p '}' then List.rev acc
-              else if L.eat_symbol p ';' then body acc
+              if L.bump_if_symbol p '}' then List.rev acc
+              else if L.bump_if_symbol p ';' then body acc
               else
                 let s = parse_stmt p in
                 if L.peek p <> L.Symbol '}' then L.expect_symbol p ';';

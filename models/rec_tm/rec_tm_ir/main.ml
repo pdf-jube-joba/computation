@@ -1,7 +1,7 @@
 open Utils.Machine
 open Rec_tm_shared.Syntax
 module T = Turing_machine.Main
-module L = Utils.Lexer
+module L = Utils.Parser
 
 type lvalue = Rec_tm_shared.Syntax.lvalue = Var of Utils.Identifier.t | Head
 [@@deriving yojson]
@@ -154,17 +154,17 @@ module Code = struct
     L.parse (fun p ->
         let alphabet = alphabet p in
         let rec stmt () =
-          if L.eat_keyword p "LT" then Lt
-          else if L.eat_keyword p "RT" then Rt
-          else if L.eat_keyword p "break" then Break (condition p)
-          else if L.eat_keyword p "continue" then Continue (condition p)
-          else if L.eat_keyword p "return" then Return (condition p)
-          else if L.eat_keyword p "jump" then
+          if L.bump_if_keyword p "LT" then Lt
+          else if L.bump_if_keyword p "RT" then Rt
+          else if L.bump_if_keyword p "break" then Break (condition p)
+          else if L.bump_if_keyword p "continue" then Continue (condition p)
+          else if L.bump_if_keyword p "return" then Return (condition p)
+          else if L.bump_if_keyword p "jump" then
             let label = identifier p in
             Jump (label, condition p)
-          else if L.eat_keyword p "call" then (
+          else if L.bump_if_keyword p "call" then (
             let name = identifier p in
-            if L.eat_symbol p '(' then L.expect_symbol p ')';
+            if L.bump_if_symbol p '(' then L.expect_symbol p ')';
             Call name)
           else
             let dst = lvalue p in
@@ -194,7 +194,7 @@ module Code = struct
         let func () =
           L.expect_keyword p "fn";
           let name = identifier p in
-          if L.eat_symbol p '(' then L.expect_symbol p ')';
+          if L.bump_if_symbol p '(' then L.expect_symbol p ')';
           L.expect_symbol p '{';
           let blocks = blocks () in
           L.expect_symbol p '}';

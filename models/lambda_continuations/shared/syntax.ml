@@ -1,5 +1,5 @@
 module N = Utils.Number
-module L = Utils.Lexer
+module L = Utils.Parser
 module Names = Utils.Identifier.Set
 
 (* Abort/Control extend the same structure, so the implemented variable
@@ -177,19 +177,19 @@ module Code = struct
   let rec read_term ~control p =
     match L.peek p with
     | L.Ident "fun" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         let x = variable p in
         L.expect p "=>";
         Lam (x, read_term ~control p)
     | L.Symbol '@' ->
-        ignore (L.next p);
+        ignore (L.bump p);
         L.expect_symbol p '(';
         let a = read_term ~control p in
         let b = read_term ~control p in
         L.expect_symbol p ')';
         App (a, b)
     | L.Symbol '(' ->
-        ignore (L.next p);
+        ignore (L.bump p);
         let a = read_term ~control p in
         let a =
           if L.peek p = L.Symbol ')' then a
@@ -200,39 +200,39 @@ module Code = struct
         L.expect_symbol p ')';
         a
     | L.Ident "zero" | L.Number "0" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         Zero
     | L.Ident "succ" | L.Ident "S" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         Succ (read_term ~control p)
     | L.Ident "pred" | L.Ident "P" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         Pred (read_term ~control p)
     | L.Ident "ifz" | L.Ident "if" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         let c = read_term ~control p in
         L.expect_keyword p "then";
         let t = read_term ~control p in
         L.expect_keyword p "else";
         IfZ (c, t, read_term ~control p)
     | L.Ident "let" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         let x = variable p in
         L.expect_symbol p '=';
         let e = read_term ~control p in
         L.expect_keyword p "in";
         Let (x, e, read_term ~control p)
     | L.Ident "rec" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         let f = variable p in
         let x = variable p in
         L.expect_symbol p '=';
         Rec (f, x, read_term ~control p)
     | L.Ident "abort" when control ->
-        ignore (L.next p);
+        ignore (L.bump p);
         Abort (read_term ~control p)
     | L.Ident "control" when control ->
-        ignore (L.next p);
+        ignore (L.bump p);
         Control (read_term ~control p)
     | _ -> Var (variable p)
 
@@ -255,27 +255,27 @@ module Nat_code = struct
     let rec read p =
       match L.peek p with
       | L.Ident "fun" -> (
-          let saved = p.L.pos in
+          let saved = L.checkpoint p in
           match
             L.protect (fun () ->
-                ignore (L.next p);
+                ignore (L.bump p);
                 let x = L.identifier p in
                 L.expect p "=>";
                 Lam (x, read p))
           with
           | Ok e -> e
           | Error _ ->
-              p.L.pos <- saved;
+              L.restore p saved;
               Var (L.identifier p))
       | L.Symbol '@' ->
-          ignore (L.next p);
+          ignore (L.bump p);
           L.expect_symbol p '(';
           let f = read p in
           let a = read p in
           L.expect_symbol p ')';
           App (f, a)
       | L.Symbol '(' ->
-          ignore (L.next p);
+          ignore (L.bump p);
           let e = read p in
           L.expect_symbol p ')';
           e

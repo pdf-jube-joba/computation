@@ -1,5 +1,5 @@
 let delimited_list ~opening ~closing ~separator parse_item text =
-  Lexer.protect (fun () ->
+  Parser.protect (fun () ->
       let text = String.trim text in
       let n = String.length text in
       if n < 2 || text.[0] <> opening || text.[n - 1] <> closing then

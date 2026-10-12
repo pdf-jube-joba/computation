@@ -2,7 +2,7 @@ open Utils.Machine
 open Rec_tm_shared.Syntax
 module J = Rec_tm_ir_jump.Main
 module T = Turing_machine.Main
-module L = Utils.Lexer
+module L = Utils.Parser
 module Names = Utils.Identifier.Set
 
 (* Retain only values which a later instruction can read. Function expansion

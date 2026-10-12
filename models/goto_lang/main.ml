@@ -22,26 +22,26 @@ module Code = struct
   type t = code
 
   let parse =
-    Lexer.parse (fun p ->
+    Parser.parse (fun p ->
         let rec loop acc =
-          if Lexer.eof p then List.rev acc
+          if Parser.eof p then List.rev acc
           else
             let command =
-              match Lexer.identifier p with
-              | "clr" -> Clr (Lexer.identifier p)
-              | "inc" -> Inc (Lexer.identifier p)
-              | "dec" -> Dec (Lexer.identifier p)
+              match Parser.identifier p with
+              | "clr" -> Clr (Parser.identifier p)
+              | "inc" -> Inc (Parser.identifier p)
+              | "dec" -> Dec (Parser.identifier p)
               | "cpy" ->
-                  let dest = Lexer.identifier p in
-                  Lexer.expect p "<-";
-                  Cpy (dest, Lexer.identifier p)
+                  let dest = Parser.identifier p in
+                  Parser.expect p "<-";
+                  Cpy (dest, Parser.identifier p)
               | "ifnz" ->
-                  let name = Lexer.identifier p in
-                  Lexer.expect_symbol p ':';
-                  Ifnz (name, Lexer.natural p)
-              | _ -> Lexer.error p "Expected goto command"
+                  let name = Parser.identifier p in
+                  Parser.expect_symbol p ':';
+                  Ifnz (name, Parser.natural p)
+              | _ -> Parser.error p "Expected goto command"
             in
-            Lexer.expect_symbol p ';';
+            Parser.expect_symbol p ';';
             loop (command :: acc)
         in
         loop [])
@@ -120,14 +120,14 @@ module Ainput = struct
   type t = ainput
 
   let parse =
-    Lexer.parse (fun p ->
+    Parser.parse (fun p ->
         let rec loop acc =
-          if Lexer.eof p then List.rev acc
+          if Parser.eof p then List.rev acc
           else
-            let name = Lexer.identifier p in
-            Lexer.expect_symbol p '=';
-            let value = Lexer.natural p in
-            ignore (Lexer.eat_symbol p ';');
+            let name = Parser.identifier p in
+            Parser.expect_symbol p '=';
+            let value = Parser.natural p in
+            ignore (Parser.bump_if_symbol p ';');
             loop ((name, value) :: acc)
         in
         loop [])

@@ -53,7 +53,7 @@ module Code = struct
   type t = code
 
   let rec parse_aexp p =
-    if L.eat_keyword p "if" then (
+    if L.bump_if_keyword p "if" then (
       let c = parse_bexp p in
       L.expect_keyword p "then";
       let a = parse_aexp p in
@@ -63,10 +63,10 @@ module Code = struct
     else
       let a = parse_aatom p in
       let rec loop a =
-        if L.eat_symbol p '+' then
+        if L.bump_if_symbol p '+' then
           let b = parse_aatom p in
           loop (BinOp (a, Add, b))
-        else if L.eat_symbol p '-' then
+        else if L.bump_if_symbol p '-' then
           let b = parse_aatom p in
           loop (BinOp (a, Sub, b))
         else a
@@ -74,7 +74,7 @@ module Code = struct
       loop a
 
   and parse_aatom p =
-    if L.eat_symbol p '(' then (
+    if L.bump_if_symbol p '(' then (
       let a = parse_aexp p in
       L.expect_symbol p ')';
       a)
@@ -86,7 +86,7 @@ module Code = struct
   and parse_bexp p =
     let a = parse_bnot p in
     let rec loop a =
-      if L.eat p "||" then
+      if L.bump_if p "||" then
         let b = parse_bnot p in
         loop (Or (a, b))
       else a
@@ -94,15 +94,15 @@ module Code = struct
     loop a
 
   and parse_bnot p =
-    if L.eat_symbol p '!' then Not (parse_bnot p)
-    else if L.eat_symbol p '(' then (
+    if L.bump_if_symbol p '!' then Not (parse_bnot p)
+    else if L.bump_if_symbol p '(' then (
       let b = parse_bexp p in
       L.expect_symbol p ')';
       b)
     else
       let a = parse_aexp p in
       let op =
-        match L.next p with
+        match L.bump p with
         | L.Symbol '<' -> Lt
         | L.Symbol '=' -> Eq
         | L.Symbol '>' -> Gt
@@ -114,7 +114,7 @@ module Code = struct
   let rec parse_stmt p =
     let a = parse_single p in
     let rec loop a =
-      if L.eat_symbol p ';' then
+      if L.bump_if_symbol p ';' then
         let b = parse_single p in
         loop (Seq (a, b))
       else a
@@ -122,18 +122,18 @@ module Code = struct
     loop a
 
   and parse_single p =
-    if L.eat_keyword p "Nop" then Nop
-    else if L.eat_keyword p "if" then
+    if L.bump_if_keyword p "Nop" then Nop
+    else if L.bump_if_keyword p "if" then
       let c = parse_bexp p in
       let b = parse_single p in
       If (c, b)
-    else if L.eat_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then (
       let c = parse_bexp p in
       L.expect_symbol p '[';
       let b = parse_stmt p in
       L.expect_symbol p ']';
       While (c, b))
-    else if L.eat_symbol p '(' then (
+    else if L.bump_if_symbol p '(' then (
       let b = parse_stmt p in
       L.expect_symbol p ')';
       b)

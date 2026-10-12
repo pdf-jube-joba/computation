@@ -1,5 +1,5 @@
 open Circuit
-module L = Utils.Lexer
+module L = Utils.Parser
 
 type library = (Utils.Identifier.t * t) list
 
@@ -27,8 +27,7 @@ let insert library (name, circuit) =
 let result_exn = function Ok x -> x | Error message -> raise (L.Error message)
 
 let block p item =
-  L.expect_symbol p '{';
-  L.many_until ~skip_separator:',' p ~closing:'}' item
+  L.group p ~opening:'{' (fun p -> L.many ~skip_separator:',' p item)
 
 let named_pin p =
   let n = L.identifier p in
@@ -45,7 +44,7 @@ let definitions p maps =
   in
   while not (L.eof p) do
     let circuit_name, circuit =
-      if L.eat_keyword p "graph" then (
+      if L.bump_if_keyword p "graph" then (
         L.expect_symbol p ':';
         let n = L.identifier p in
         L.expect_symbol p '{';
@@ -60,7 +59,7 @@ let definitions p maps =
               (external_pin, target))
         in
         let rec vertices verts edges inpin_maps =
-          if L.eat_symbol p '}' then
+          if L.bump_if_symbol p '}' then
             (List.rev verts, List.rev edges, List.rev inpin_maps)
           else
             let vn = L.identifier p in
@@ -72,7 +71,7 @@ let definitions p maps =
                   let pin = L.identifier p in
                   L.expect_symbol p '=';
                   let first = L.identifier p in
-                  if L.eat_symbol p '.' then
+                  if L.bump_if_symbol p '.' then
                     let second = L.identifier p in
                     (pin, `Internal (first, second))
                   else (pin, `External first))
@@ -92,7 +91,7 @@ let definitions p maps =
         in
         let verts, edges, inpin_maps = vertices [] [] [] in
         (n, result_exn (new_mix n verts edges inpin_maps otpin_maps)))
-      else if L.eat_keyword p "iter" then (
+      else if L.bump_if_keyword p "iter" then (
         L.expect_symbol p ':';
         let n = L.identifier p in
         L.expect_symbol p '{';

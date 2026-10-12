@@ -172,7 +172,7 @@ module Code = struct
     else None
 
   let parse text =
-    Utils.Lexer.protect (fun () ->
+    Utils.Parser.protect (fun () ->
         let lines =
           Array.of_list
             (List.filter (( <> ) "")
@@ -298,7 +298,7 @@ module Code = struct
 end
 
 let compile_program (code : code) =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       let block_index =
         List.mapi (fun i (b : block) -> (b.label, i)) code.blocks
       in
@@ -325,7 +325,7 @@ let compile_program (code : code) =
       })
 
 let make (code : code) ainput =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       let compiled = value (compile_program code) in
       {
         code;
@@ -372,7 +372,7 @@ let eval_cond s = function
       N.compare a b > 0
 
 let step s () =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       if s.halted then Utils.Machine.Halt (Array.to_list s.memory)
       else (
         if

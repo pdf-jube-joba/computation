@@ -110,10 +110,10 @@ module Code = struct
   and parse_value p =
     let a = parse_atom p in
     let rec loop a =
-      if L.eat_symbol p '+' then
+      if L.bump_if_symbol p '+' then
         let b = parse_atom p in
         loop (BinOp (a, Add, b))
-      else if L.eat_symbol p '-' then
+      else if L.bump_if_symbol p '-' then
         let b = parse_atom p in
         loop (BinOp (a, Sub, b))
       else a
@@ -121,9 +121,9 @@ module Code = struct
     loop a
 
   and parse_atom p =
-    if L.eat p "#null_ptr" then NullPtr
-    else if L.eat_keyword p "ld" then Load (parse_place p)
-    else if L.eat_symbol p '(' then (
+    if L.bump_if p "#null_ptr" then NullPtr
+    else if L.bump_if_keyword p "ld" then Load (parse_place p)
+    else if L.bump_if_symbol p '(' then (
       let v = parse_value p in
       L.expect_symbol p ')';
       v)
@@ -136,11 +136,11 @@ module Code = struct
           Addr v
 
   let rec parse_stmt p =
-    if L.eat_keyword p "assign" then (
+    if L.bump_if_keyword p "assign" then (
       let place = parse_place p in
       L.expect p ":=";
       Assign (place, parse_value p))
-    else if L.eat_keyword p "ifz" then (
+    else if L.bump_if_keyword p "ifz" then (
       let cond = parse_value p in
       L.expect_keyword p "then";
       let a = parse_stmt p in
@@ -148,12 +148,12 @@ module Code = struct
       let b = parse_stmt p in
       L.expect_keyword p "end";
       Ifz (cond, a, b))
-    else if L.eat_keyword p "call" then (
+    else if L.bump_if_keyword p "call" then (
       let n = L.identifier p in
       L.expect_symbol p '(';
       let rec args acc =
         let v = parse_value p in
-        if L.eat_symbol p ',' then args (v :: acc) else List.rev (v :: acc)
+        if L.bump_if_symbol p ',' then args (v :: acc) else List.rev (v :: acc)
       in
       let args = if L.peek p = L.Symbol ')' then [] else args [] in
       L.expect_symbol p ')';
@@ -176,7 +176,7 @@ module Code = struct
               if L.peek p = L.Symbol '}' then List.rev acc
               else
                 let s = parse_stmt p in
-                if L.eat_symbol p ';' then stmts (s :: acc)
+                if L.bump_if_symbol p ';' then stmts (s :: acc)
                 else List.rev (s :: acc)
             in
             let body = stmts [] in

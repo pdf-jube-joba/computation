@@ -1,4 +1,4 @@
-module L = Utils.Lexer
+module L = Utils.Parser
 
 type aexp =
   | Const of string list
@@ -40,7 +40,7 @@ module Code = struct
   let rec parse_aexp p =
     let a = parse_prefix p in
     let rec loop a =
-      if L.eat p "++" then
+      if L.bump_if p "++" then
         let b = parse_prefix p in
         loop (Concat (a, b))
       else a
@@ -48,10 +48,10 @@ module Code = struct
     loop a
 
   and parse_prefix p =
-    if L.eat_keyword p "head" then Head (parse_prefix p)
-    else if L.eat_keyword p "tail" then Tail (parse_prefix p)
+    if L.bump_if_keyword p "head" then Head (parse_prefix p)
+    else if L.bump_if_keyword p "tail" then Tail (parse_prefix p)
     else
-      match L.next p with
+      match L.bump p with
       | L.Ident n when not (List.mem n reserved) -> Var n
       | L.Symbol '(' ->
           let a = parse_aexp p in
@@ -63,7 +63,7 @@ module Code = struct
       | _ -> failwith "Invalid aexp"
 
   let parse_bexp p =
-    if L.eat_keyword p "is_empty" then IsEmpty (parse_aexp p)
+    if L.bump_if_keyword p "is_empty" then IsEmpty (parse_aexp p)
     else
       let a = parse_aexp p in
       L.expect p "==";
@@ -73,7 +73,7 @@ module Code = struct
   let rec parse_stmt p =
     let s = parse_single p in
     let rec loop s =
-      if L.eat_symbol p ';' then
+      if L.bump_if_symbol p ';' then
         let b = parse_single p in
         loop (Seq (s, b))
       else s
@@ -81,20 +81,20 @@ module Code = struct
     loop s
 
   and parse_single p =
-    if L.eat_keyword p "Nop" then Nop
-    else if L.eat_keyword p "if" then (
+    if L.bump_if_keyword p "Nop" then Nop
+    else if L.bump_if_keyword p "if" then (
       let c = parse_bexp p in
       L.expect_keyword p "then";
       let b = parse_stmt p in
       L.expect_keyword p "end";
       If (c, b))
-    else if L.eat_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then (
       let c = parse_bexp p in
       L.expect_symbol p '{';
       let b = parse_stmt p in
       L.expect_symbol p '}';
       While (c, b))
-    else if L.eat_symbol p '(' then (
+    else if L.bump_if_symbol p '(' then (
       let b = parse_stmt p in
       L.expect_symbol p ')';
       b)

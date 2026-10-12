@@ -1,5 +1,5 @@
 module N = Utils.Number
-module L = Utils.Lexer
+module L = Utils.Parser
 module Names = Utils.Identifier.Set
 
 type binop = Add | Sub | And [@@deriving yojson]
@@ -95,9 +95,9 @@ module Code = struct
   and binary statements p =
     let rec loop a =
       let op =
-        if L.eat_symbol p '+' then Some Add
-        else if L.eat_symbol p '-' then Some Sub
-        else if L.eat p "&&" then Some And
+        if L.bump_if_symbol p '+' then Some Add
+        else if L.bump_if_symbol p '-' then Some Sub
+        else if L.bump_if p "&&" then Some And
         else None
       in
       match op with
@@ -110,71 +110,64 @@ module Code = struct
 
   and application statements p =
     let rec loop f =
-      if L.eat_symbol p '(' then (
-        let x = expression statements p in
-        L.expect_symbol p ')';
-        loop (App (f, x)))
+      if L.peek p = L.Symbol '(' then
+        let x = L.group p ~opening:'(' (expression statements) in
+        loop (App (f, x))
       else f
     in
     loop (prefix statements p)
 
   and prefix statements p =
-    if L.eat_keyword p "inc" then UnOp (Inc, prefix statements p)
-    else if L.eat_keyword p "dec" then UnOp (Dec, prefix statements p)
-    else if L.eat_keyword p "not" then UnOp (Not, prefix statements p)
+    if L.bump_if_keyword p "inc" then UnOp (Inc, prefix statements p)
+    else if L.bump_if_keyword p "dec" then UnOp (Dec, prefix statements p)
+    else if L.bump_if_keyword p "not" then UnOp (Not, prefix statements p)
     else atom statements p
 
   and atom statements p =
     match L.peek p with
     | L.Number _ -> Nat (number p)
     | L.Symbol '#' -> (
-        ignore (L.next p);
+        ignore (L.bump p);
         match L.identifier p with
         | "true" -> Bool true
         | "false" -> Bool false
         | "unit" -> Unit
         | k -> L.error p ("unknown token: #" ^ k))
     | L.Ident "print" when not statements ->
-        ignore (L.next p);
+        ignore (L.bump p);
         Print (number p)
     | L.Ident "fun" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         let x = identifier statements p in
         L.expect p "=>";
         Fun (x, expression statements p)
     | L.Ident "rec" ->
-        ignore (L.next p);
+        ignore (L.bump p);
         let f = identifier statements p in
         let x = identifier statements p in
         L.expect p "=>";
         Rec (f, x, expression statements p)
     | L.Ident "if" -> if_expr statements p
-    | L.Symbol '(' ->
-        ignore (L.next p);
-        let e = expression statements p in
-        L.expect_symbol p ')';
-        e
+    | L.Symbol '(' -> L.group p ~opening:'(' (expression statements)
     | L.Symbol '{' when statements ->
-        ignore (L.next p);
-        let s, e = block_contents p in
-        L.expect_symbol p '}';
+        let s, e = L.group p ~opening:'{' block_contents in
         Block (s, e)
     | _ -> Var (identifier statements p)
 
   and simple_stmt p =
-    if L.eat_keyword p "skip" then Skip
-    else if L.eat_keyword p "print" then PrintStmt (number p)
-    else if L.eat_keyword p "let" then (
+    if L.bump_if_keyword p "skip" then Skip
+    else if L.bump_if_keyword p "print" then PrintStmt (number p)
+    else if L.bump_if_keyword p "let" then (
       let x = identifier true p in
       L.expect p ":=";
       Let (x, expression true p))
-    else if L.eat_keyword p "if" then (
+    else if L.bump_if_keyword p "if" then (
       let c = expression true p in
       L.expect_keyword p "then";
       let s = statement p in
       L.expect_keyword p "end";
       IfStmt (c, s))
-    else if L.eat_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then (
       let c = expression true p in
       L.expect_keyword p "do";
       let s = statement p in
@@ -184,7 +177,7 @@ module Code = struct
 
   and statement p =
     let rec loop s =
-      if L.eat_symbol p ';' then
+      if L.bump_if_symbol p ';' then
         let t = simple_stmt p in
         loop (Seq (s, t))
       else s
@@ -194,11 +187,11 @@ module Code = struct
   and block_contents p =
     let s = simple_stmt p in
     L.expect_symbol p ';';
-    let saved = p.L.pos in
+    let saved = L.checkpoint p in
     match L.protect (fun () -> block_contents p) with
     | Ok (t, e) -> (Seq (s, t), e)
     | Error _ ->
-        p.L.pos <- saved;
+        L.restore p saved;
         (s, expression true p)
 
   let parse = L.parse (expression false)

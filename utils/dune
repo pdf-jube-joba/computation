@@ -22,4 +22,8 @@
  (test
   (name parsing_test)
   (modules parsing_test)
+  (libraries utils))
+ (test
+  (name parser_test)
+  (modules parser_test)
   (libraries utils)))

@@ -1,6 +1,6 @@
 open Utils
 
-let bad f = assert (Result.is_error (Lexer.protect f))
+let bad f = assert (Result.is_error (Parser.protect f))
 
 let () =
   List.iter
@@ -27,18 +27,18 @@ let () =
     (fun text -> bad (fun () -> Char_literal.read text 0))
     [ "'"; "'ab'"; "'あ"; "'\\" ];
   let p =
-    Lexer.create ~character_literals:true "/* ' */ 'あ' // ' ignored\n'\\n'"
+    Parser.create ~character_literals:true "/* ' */ 'あ' // ' ignored\n'\\n'"
   in
-  assert (Lexer.character_literal p = "あ");
-  assert (Lexer.character_literal p = "\n");
-  Lexer.expect_eof p;
+  assert (Parser.character_literal p = "あ");
+  assert (Parser.character_literal p = "\n");
+  Parser.expect_eof p;
   assert (
-    Lexer.parse ~character_literals:true Lexer.character_literal "\"ab\""
+    Parser.parse ~character_literals:true Parser.character_literal "\"ab\""
     |> Result.is_error);
   assert (
-    Lexer.parse ~character_literals:true Lexer.string_literal "'a'"
+    Parser.parse ~character_literals:true Parser.string_literal "'a'"
     |> Result.is_error);
-  assert (Lexer.parse Lexer.string_literal "\"ab\"" = Ok "ab");
+  assert (Parser.parse Parser.string_literal "\"ab\"" = Ok "ab");
   let tuple =
     Parse.delimited_list ~opening:'(' ~closing:')' ~separator:','
       Number.of_string_with_plus
@@ -48,10 +48,10 @@ let () =
   assert (Result.is_error (tuple "(1;x)"));
   assert (Result.is_error (tuple "1,2"));
   let separated text =
-    Lexer.parse
+    Parser.parse
       (fun p ->
-        Lexer.expect_symbol p '[';
-        Lexer.separated_until p ~separator:',' ~closing:']' Lexer.natural)
+        Parser.expect_symbol p '[';
+        Parser.separated_until p ~separator:',' ~closing:']' Parser.natural)
       text
   in
   assert (separated "[1,2]" = Ok [ "1"; "2" ]);

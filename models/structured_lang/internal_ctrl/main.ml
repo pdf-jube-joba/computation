@@ -44,7 +44,7 @@ module Code = struct
   let rec parse_stmt p =
     let a = parse_single p in
     let rec loop a =
-      if L.eat_symbol p ';' then
+      if L.bump_if_symbol p ';' then
         if L.eof p || L.peek p = L.Symbol '}' then a
         else
           let b = parse_single p in
@@ -53,28 +53,23 @@ module Code = struct
     in
     loop a
 
-  and parse_block p =
-    L.expect_symbol p '{';
-    let s = parse_stmt p in
-    L.expect_symbol p '}';
-    s
+  and parse_block p = L.group p ~opening:'{' parse_stmt
 
   and parse_single p =
-    if L.eat_keyword p "Nop" then Nop
-    else if L.eat_keyword p "if" then
+    if L.bump_if_keyword p "Nop" then Nop
+    else if L.bump_if_keyword p "if" then
       let c = parse_bexp p in
       let b = parse_block p in
       If (c, b)
-    else if L.eat_keyword p "break" then
+    else if L.bump_if_keyword p "break" then
       let l = label p in
       let v = L.identifier p in
       Break (l, v)
-    else if L.eat_keyword p "continue" then Continue (label p)
-    else if L.eat_keyword p "loop" then (
+    else if L.bump_if_keyword p "continue" then Continue (label p)
+    else if L.bump_if_keyword p "loop" then (
       let l = label p in
-      L.expect_symbol p '(';
-      let b = parse_stmt p in
-      L.expect p ") ->";
+      let b = L.group p ~opening:'(' parse_stmt in
+      L.expect p "->";
       let v = L.identifier p in
       Loop (l, b, v))
     else if L.peek p = L.Symbol '{' then parse_block p

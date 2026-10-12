@@ -48,7 +48,7 @@ module Code = struct
 
   let rec parse_stmt p =
     let a = parse_single p in
-    if L.eat_symbol p ';' then
+    if L.bump_if_symbol p ';' then
       if L.peek p = L.Symbol ']' then a
       else
         let b = parse_stmt p in
@@ -56,28 +56,28 @@ module Code = struct
     else a
 
   and parse_single p =
-    if L.eat_keyword p "Nop" then Nop
-    else if L.eat_keyword p "if" then (
+    if L.bump_if_keyword p "Nop" then Nop
+    else if L.bump_if_keyword p "if" then (
       let c = parse_bexp p in
       L.expect_symbol p '[';
       let b = parse_stmt p in
       L.expect_symbol p ']';
       If (c, b))
-    else if L.eat_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then (
       let c = parse_bexp p in
       L.expect_symbol p '[';
       let b = parse_stmt p in
       L.expect_symbol p ']';
       While (c, b))
-    else if L.eat_keyword p "call" then (
+    else if L.bump_if_keyword p "call" then (
       let n = L.identifier p in
       L.expect_symbol p '(';
       let args = names_until p ')' in
       L.expect p ") ->";
       let rets = names_boundary p in
       Call (n, args, rets))
-    else if L.eat_keyword p "return" then Return (names_boundary p)
-    else if L.eat_symbol p '[' then (
+    else if L.bump_if_keyword p "return" then Return (names_boundary p)
+    else if L.bump_if_symbol p '[' then (
       let s = parse_stmt p in
       L.expect_symbol p ']';
       s)

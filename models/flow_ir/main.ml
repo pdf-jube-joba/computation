@@ -1,5 +1,5 @@
 module N = Utils.Number
-module L = Utils.Lexer
+module L = Utils.Parser
 
 let get = function Ok x -> x | Error e -> failwith e
 
@@ -110,20 +110,17 @@ module Ainput = struct
         else if prefix "k:@" then
           let label = Utils.String_ext.strip_prefix "k:@" s in
           Key (Static (get (Utils.Identifier.make label)))
-        else if prefix "k:s[" then
-          let body = Utils.String_ext.strip_prefix "k:s[" s in
-          if not (String.ends_with ~suffix:"]" body) then
-            failwith ("Invalid stack key: " ^ s)
-          else
-            let idx = Utils.String_ext.strip_suffix "]" body in
-            Key (Stack (get (N.to_int (get (N.of_string idx)))))
+        else if prefix "k:s[" then (
+          let p = L.create s in
+          L.expect p "k:s";
+          let index = L.group p ~opening:'[' L.integer in
+          L.expect_eof p;
+          Key (Stack index))
         else if prefix "k:h[" then (
-          let body = Utils.String_ext.strip_prefix "k:h[" s in
-          let p = L.create body in
-          let handle = L.integer p in
-          L.expect p "][";
-          let index = L.integer p in
-          L.expect_symbol p ']';
+          let p = L.create s in
+          L.expect p "k:h";
+          let handle = L.group p ~opening:'[' L.integer in
+          let index = L.group p ~opening:'[' L.integer in
           L.expect_eof p;
           Key (Heap (handle, index)))
         else Num (get (N.of_string s)))
@@ -219,18 +216,18 @@ module Code = struct
     L.identifier p
 
   let rec parse_value p =
-    if L.eat_keyword p "ref" then Ref (parse_place p)
+    if L.bump_if_keyword p "ref" then Ref (parse_place p)
     else if L.peek p = L.Symbol '%' then VReg (vreg p)
-    else if L.eat_symbol p ':' then CodeLabel (L.identifier p)
+    else if L.bump_if_symbol p ':' then CodeLabel (L.identifier p)
     else (
-      ignore (L.eat_symbol p '#');
+      ignore (L.bump_if_symbol p '#');
       Imm (L.natural p))
 
   and parse_place p =
-    if L.eat_symbol p '@' then Label (L.identifier p)
-    else if L.eat_keyword p "deref" then Deref (vreg p)
-    else if L.eat_keyword p "sacc" then SAcc (parse_value p)
-    else if L.eat_keyword p "hacc" then (
+    if L.bump_if_symbol p '@' then Label (L.identifier p)
+    else if L.bump_if_keyword p "deref" then Deref (vreg p)
+    else if L.bump_if_keyword p "sacc" then SAcc (parse_value p)
+    else if L.bump_if_keyword p "hacc" then (
       L.expect_symbol p '(';
       let h = parse_value p in
       L.expect_symbol p ')';
@@ -242,7 +239,7 @@ module Code = struct
 
   let parse_cond p =
     let a = parse_value p in
-    let op = L.next p in
+    let op = L.bump p in
     let b = parse_value p in
     match op with
     | L.Symbol '<' -> Lt (a, b)
@@ -252,14 +249,14 @@ module Code = struct
 
   let parse_stmt p =
     let s =
-      if L.eat_keyword p "nop" then Nop
-      else if L.eat_keyword p "pop" then Pop (vreg p)
-      else if L.eat_keyword p "push" then Push (parse_value p)
-      else if L.eat_keyword p "lget" then LGet (vreg p)
-      else if L.eat_keyword p "hfree" then HFree (parse_value p)
-      else if L.eat_keyword p "print" then Print (vreg p)
-      else if L.eat_keyword p "input" then Input (parse_place p)
-      else if L.eat_keyword p "halloc" then (
+      if L.bump_if_keyword p "nop" then Nop
+      else if L.bump_if_keyword p "pop" then Pop (vreg p)
+      else if L.bump_if_keyword p "push" then Push (parse_value p)
+      else if L.bump_if_keyword p "lget" then LGet (vreg p)
+      else if L.bump_if_keyword p "hfree" then HFree (parse_value p)
+      else if L.bump_if_keyword p "print" then Print (vreg p)
+      else if L.bump_if_keyword p "input" then Input (parse_place p)
+      else if L.bump_if_keyword p "halloc" then (
         L.expect_symbol p '(';
         let v = parse_value p in
         L.expect_symbol p ')';
@@ -268,11 +265,11 @@ module Code = struct
       else if L.peek p = L.Symbol '%' then (
         let r = vreg p in
         L.expect p ":=";
-        if L.eat_keyword p "ld" then Load (r, parse_place p)
+        if L.bump_if_keyword p "ld" then Load (r, parse_place p)
         else
           let a = parse_value p in
-          if L.eat_symbol p '+' then BinOp (r, a, Add, parse_value p)
-          else if L.eat_symbol p '-' then BinOp (r, a, Sub, parse_value p)
+          if L.bump_if_symbol p '+' then BinOp (r, a, Add, parse_value p)
+          else if L.bump_if_symbol p '-' then BinOp (r, a, Sub, parse_value p)
           else Assign (r, a))
       else
         let place = parse_place p in
@@ -287,7 +284,7 @@ module Code = struct
     let label = L.identifier p in
     L.expect_symbol p '{';
     let rec loop stmts jumps cont =
-      if L.eat_symbol p '}' then
+      if L.bump_if_symbol p '}' then
         {
           label;
           stmts = List.rev stmts;
@@ -296,22 +293,22 @@ module Code = struct
             | Some c -> c
             | None -> L.error p "Missing terminator");
         }
-      else if L.eat_keyword p "if" then (
+      else if L.bump_if_keyword p "if" then (
         let cond = parse_cond p in
         L.expect_keyword p "then";
         let target = parse_value p in
         L.expect_symbol p ';';
         loop stmts (jumps @ [ { cond; target } ]) cont)
       else if cont <> None then L.error p "Line exists after terminator"
-      else if L.eat_keyword p "goto" then (
+      else if L.bump_if_keyword p "goto" then (
         let v = parse_value p in
         L.expect_symbol p ';';
         loop stmts jumps (Some (Go (jumps, v))))
-      else if L.eat_keyword p "enter" then (
+      else if L.bump_if_keyword p "enter" then (
         let v = parse_value p in
         L.expect_symbol p ';';
         loop stmts jumps (Some (Enter (jumps, v))))
-      else if L.eat_keyword p "halt" then (
+      else if L.bump_if_keyword p "halt" then (
         L.expect_symbol p ';';
         loop stmts jumps (Some (Halt jumps)))
       else loop (parse_stmt p :: stmts) jumps cont
@@ -322,7 +319,7 @@ module Code = struct
     L.parse (fun p ->
         let rec loop ss rs =
           if L.eof p then { statics = List.rev ss; regions = List.rev rs }
-          else if L.eat_symbol p '@' then
+          else if L.bump_if_symbol p '@' then
             let label = L.identifier p in
             let value = L.natural p in
             loop ({ label; value } :: ss) rs

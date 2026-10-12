@@ -1,4 +1,4 @@
-module L = Utils.Lexer
+module L = Utils.Parser
 
 type aexp = Mtoa of texp | AtomChar of string
 
@@ -77,32 +77,32 @@ module Code = struct
     n
 
   let rec parse_aexp p =
-    if L.eat_keyword p "mtoa" then Mtoa (parse_texp p)
-    else if L.eat_symbol p '(' then (
+    if L.bump_if_keyword p "mtoa" then Mtoa (parse_texp p)
+    else if L.bump_if_symbol p '(' then (
       let a = parse_aexp p in
       L.expect_symbol p ')';
       a)
     else AtomChar (L.character_literal p)
 
   and parse_texp p =
-    if L.eat_keyword p "atom" then Atom (parse_aexp p)
-    else if L.eat_keyword p "cons" then
+    if L.bump_if_keyword p "atom" then Atom (parse_aexp p)
+    else if L.bump_if_keyword p "cons" then
       let a = parse_texp p in
       let b = parse_texp p in
       Cons (a, b)
-    else if L.eat_keyword p "left" then Left (parse_texp p)
-    else if L.eat_keyword p "right" then Right (parse_texp p)
-    else if L.eat_symbol p '(' then (
+    else if L.bump_if_keyword p "left" then Left (parse_texp p)
+    else if L.bump_if_keyword p "right" then Right (parse_texp p)
+    else if L.bump_if_symbol p '(' then (
       let a = parse_texp p in
       L.expect_symbol p ')';
       a)
     else Var (parse_name p)
 
   let parse_bexp p =
-    if L.eat_keyword p "is_atom" then IsAtom (parse_texp p)
+    if L.bump_if_keyword p "is_atom" then IsAtom (parse_texp p)
     else
       (* Rust's printer parenthesizes equality. Accept that printed form too. *)
-      let saved = p.L.pos in
+      let saved = L.checkpoint p in
       let relation () =
         let a = parse_texp p in
         L.expect p "==";
@@ -111,7 +111,7 @@ module Code = struct
       in
       try relation ()
       with Failure _ | L.Error _ ->
-        p.L.pos <- saved;
+        L.restore p saved;
         L.expect_symbol p '(';
         let c = relation () in
         L.expect_symbol p ')';
@@ -120,7 +120,7 @@ module Code = struct
   let rec parse_stmt p =
     let s = parse_single p in
     let rec loop s =
-      if L.eat_symbol p ';' then
+      if L.bump_if_symbol p ';' then
         let b = parse_single p in
         loop (Seq (s, b))
       else s
@@ -128,20 +128,20 @@ module Code = struct
     loop s
 
   and parse_single p =
-    if L.eat_keyword p "Nop" then Nop
-    else if L.eat_keyword p "ifeq" then (
+    if L.bump_if_keyword p "Nop" then Nop
+    else if L.bump_if_keyword p "ifeq" then (
       let c = parse_bexp p in
       L.expect_keyword p "then";
       let b = parse_stmt p in
       L.expect_keyword p "end";
       IfEq (c, b))
-    else if L.eat_keyword p "while" then (
+    else if L.bump_if_keyword p "while" then (
       let c = parse_bexp p in
       L.expect_symbol p '{';
       let b = parse_stmt p in
       L.expect_symbol p '}';
       While (c, b))
-    else if L.eat_symbol p '(' then (
+    else if L.bump_if_symbol p '(' then (
       let b = parse_stmt p in
       L.expect_symbol p ')';
       b)
@@ -219,7 +219,7 @@ let rec small_step stmt env =
 let make code env = Ok { code; stmt = code; env }
 
 let step s () =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       if s.stmt = Nop then Utils.Machine.Halt s.env
       else
         let stmt, env = small_step s.stmt s.env in

@@ -4,7 +4,7 @@ module I = Rec_tm_ir.Main
 module N = Utils.Number
 module R = Recursive_function.Main
 module T = Turing_machine.Main
-module L = Utils.Lexer
+module L = Utils.Parser
 
 let b = None
 let l = Some "l"

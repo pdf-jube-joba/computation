@@ -14,7 +14,7 @@ type state = term
 module Code = struct
   type t = term
 
-  module L = Utils.Lexer
+  module L = Utils.Parser
 
   let parse =
     L.parse (fun p ->
@@ -35,7 +35,7 @@ module Code = struct
           in
           rest first
         and atom env =
-          match L.next p with
+          match L.bump p with
           | L.Ident name ->
               let var =
                 match List.assoc_opt name env with
@@ -57,11 +57,11 @@ module Code = struct
               let rec binders env acc =
                 match L.peek p with
                 | L.Ident name ->
-                    ignore (L.next p);
+                    ignore (L.bump p);
                     let var = fresh name in
                     binders ((name, var) :: env) (var :: acc)
                 | L.Symbol '.' when acc <> [] ->
-                    ignore (L.next p);
+                    ignore (L.bump p);
                     (env, List.rev acc)
                 | _ -> L.error p "Expected binders followed by '.'"
               in

@@ -120,7 +120,7 @@ module Code = struct
     | _ -> failwith ("Unsupported directive syntax: " ^ line)
 
   let parse text =
-    Utils.Lexer.protect (fun () ->
+    Utils.Parser.protect (fun () ->
         let section = ref Text in
         List.filter_map
           (fun line ->
@@ -356,7 +356,7 @@ let build_debug_info symbols =
   }
 
 let preprocess code =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       let symbols = pass1_collect_symbols code in
       let section = ref Text
       and insts = ref []
@@ -383,7 +383,7 @@ let preprocess code =
         build_debug_info symbols ))
 
 let make code (input : ainput) =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       validate_regs input.regs;
       let insts, static_data, symbols, debug_info = value (preprocess code) in
       let pc = value (N.to_int input.regs.(0)) in
@@ -405,7 +405,7 @@ let output s : asm_output =
   { regs = Array.copy s.regs; data_memory = Array.to_list s.data_memory }
 
 let step s () =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       if s.halted then Utils.Machine.Halt (output s)
       else if s.pc >= Array.length s.insts then (
         let regs = Array.copy s.regs in
@@ -427,7 +427,7 @@ let snapshot = state_to_yojson
 
 let restore json =
   Result.bind (state_of_yojson json) (fun s ->
-      Utils.Lexer.protect (fun () ->
+      Utils.Parser.protect (fun () ->
           validate_regs s.regs;
           if
             s.pc < 0 || s.static_data_len < 0

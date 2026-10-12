@@ -68,70 +68,72 @@ module Code = struct
 
   let parse text =
     let* f =
-      Lexer.parse
+      Parser.parse
         (fun p ->
           let bindings = ref [] in
           let rec func () =
-            match Lexer.identifier p with
+            match Parser.identifier p with
             | "ZERO" -> Zero
             | "SUCC" -> Succ
             | "PROJ" ->
-                Lexer.expect_symbol p '[';
-                let n = Lexer.integer p in
-                Lexer.expect_symbol p ',';
-                let i = Lexer.integer p in
-                Lexer.expect_symbol p ']';
+                Parser.expect_symbol p '[';
+                let n = Parser.integer p in
+                Parser.expect_symbol p ',';
+                let i = Parser.integer p in
+                Parser.expect_symbol p ']';
                 Proj (n, i)
             | "COMP" ->
-                Lexer.expect_symbol p '[';
+                Parser.expect_symbol p '[';
                 let outer = func () in
-                Lexer.expect_symbol p ':';
+                Parser.expect_symbol p ':';
                 let rec args () =
-                  if Lexer.eat_symbol p '(' then (
+                  if Parser.bump_if_symbol p '(' then (
                     let xs = items ')' in
-                    Lexer.expect_symbol p ')';
-                    ignore (Lexer.eat_symbol p ',');
+                    Parser.expect_symbol p ')';
+                    ignore (Parser.bump_if_symbol p ',');
                     xs @ items ']')
                   else
                     let f = func () in
-                    if Lexer.eat_symbol p ',' then f :: items ']' else [ f ]
+                    if Parser.bump_if_symbol p ',' then f :: items ']'
+                    else [ f ]
                 and items closing =
-                  while Lexer.eat_symbol p ',' do
+                  while Parser.bump_if_symbol p ',' do
                     ()
                   done;
-                  if Lexer.peek p = Lexer.Symbol closing then []
+                  if Parser.peek p = Parser.Symbol closing then []
                   else
                     let f = func () in
-                    if Lexer.eat_symbol p ',' then f :: items closing else [ f ]
+                    if Parser.bump_if_symbol p ',' then f :: items closing
+                    else [ f ]
                 in
                 let inner = args () in
-                Lexer.expect_symbol p ']';
+                Parser.expect_symbol p ']';
                 Comp (outer, inner)
             | "PRIM" ->
-                Lexer.expect_symbol p '[';
-                Lexer.expect p "z:";
+                Parser.expect_symbol p '[';
+                Parser.expect p "z:";
                 let z = func () in
-                Lexer.expect p "s:";
+                Parser.expect p "s:";
                 let s = func () in
-                Lexer.expect_symbol p ']';
+                Parser.expect_symbol p ']';
                 Prim (z, s)
             | "MUOP" ->
-                Lexer.expect_symbol p '[';
+                Parser.expect_symbol p '[';
                 let f = func () in
-                Lexer.expect_symbol p ']';
+                Parser.expect_symbol p ']';
                 Mu f
             | name -> (
                 match List.assoc_opt name !bindings with
                 | Some f -> f
-                | None -> Lexer.error p ("Unknown function: " ^ name))
+                | None -> Parser.error p ("Unknown function: " ^ name))
           in
-          while Lexer.eat_keyword p "let" do
-            let name = Lexer.identifier p in
+          while Parser.bump_if_keyword p "let" do
+            let name = Parser.identifier p in
             if List.mem_assoc name !bindings then
-              Lexer.error p "Duplicate function name";
-            Lexer.expect_symbol p '=';
+              Parser.error p "Duplicate function name";
+            Parser.expect_symbol p '=';
             let f = func () in
-            Lexer.expect_symbol p '.';
+            Parser.expect_symbol p '.';
             bindings := (name, f) :: !bindings
           done;
           func ())
@@ -257,10 +259,10 @@ module Ainput = struct
   type t = ainput
 
   let parse =
-    Lexer.parse (fun p ->
-        Lexer.expect_symbol p '(';
-        Lexer.separated_until ~allow_trailing:true p ~separator:',' ~closing:')'
-          Lexer.natural)
+    Parser.parse (fun p ->
+        Parser.group p ~opening:'(' (fun p ->
+            Parser.separated_list ~allow_trailing:true p ~separator:','
+              Parser.natural))
 
   let print = Utils.Text.Natural_list.print
 end

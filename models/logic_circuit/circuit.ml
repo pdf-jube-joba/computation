@@ -445,7 +445,7 @@ module Signal = struct
   let parse text =
     if String.trim text = "" then Ok []
     else
-      Utils.Lexer.protect (fun () ->
+      Utils.Parser.protect (fun () ->
           List.map parse_item (String.split_on_char ',' text))
 
   let print signal = String.concat ", " (List.map print_item signal)

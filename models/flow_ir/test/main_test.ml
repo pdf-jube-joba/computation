@@ -50,6 +50,18 @@ let () =
       if get (I.Ainput.parse_value (I.Ainput.print_value v)) <> v then
         failwith "Value roundtrip")
     [ "123"; ":next"; "k:@slot"; "k:s[3]"; "k:h[2][4]" ];
+  assert (I.Ainput.parse_value "k:h[002][04]" = Ok (I.Key (I.Heap (2, 4))));
+  List.iter
+    (fun source -> error (I.Ainput.parse_value source))
+    [
+      "k:s[3}";
+      "k:s[3][4]";
+      "k:h[2][4}";
+      "k:h[2][4";
+      "k:h[2 3][4]";
+      "k:h[2][4] trailing";
+      "k:h[123456789012345678901234567890][4]";
+    ];
   eq (I.Ainput.print (get (I.Ainput.parse "z=3\na=1\nz=5"))) "a = 1\nz = 5\n";
   let out, text =
     run ~input:"Hi" {|@x 0

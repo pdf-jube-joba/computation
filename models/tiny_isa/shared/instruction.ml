@@ -36,7 +36,7 @@ module Numbers = struct
   type t = N.t list
 
   let parse text =
-    Utils.Lexer.protect (fun () ->
+    Utils.Parser.protect (fun () ->
         List.map
           (fun n -> value (N.of_string_with_plus n))
           (Utils.String_ext.lines text))
@@ -48,7 +48,7 @@ module Image = struct
   type t = N.t array * N.t list
 
   let parse text =
-    Utils.Lexer.protect (fun () ->
+    Utils.Parser.protect (fun () ->
         match Utils.String_ext.lines text with
         | [] -> failwith "Expected first line with 8 registers"
         | reg_line :: mem ->
@@ -69,7 +69,7 @@ let validate_regs regs =
   if Array.length regs <> 8 then failwith "Expected 8 registers"
 
 let decode word =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       let imm, op = value (N.divmod word (N.of_int 65536)) in
       let op = value (N.to_int op) in
       let top = op lsr 8

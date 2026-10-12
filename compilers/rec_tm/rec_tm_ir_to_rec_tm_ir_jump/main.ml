@@ -2,7 +2,7 @@ open Utils.Machine
 open Rec_tm_shared.Syntax
 module I = Rec_tm_ir.Main
 module J = Rec_tm_ir_jump.Main
-module L = Utils.Lexer
+module L = Utils.Parser
 
 let flatten_program p =
   let* () = I.validate p in

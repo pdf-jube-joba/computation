@@ -1,5 +1,5 @@
 module N = Utils.Number
-module L = Utils.Lexer
+module L = Utils.Parser
 
 let get = function Ok x -> x | Error e -> failwith e
 
@@ -44,14 +44,14 @@ let parse_atom p =
 
 let parse_aexp p =
   let a = parse_atom p in
-  if L.eat_symbol p '+' then Bin (a, Add, parse_atom p)
-  else if L.eat_symbol p '-' then Bin (a, Sub, parse_atom p)
+  if L.bump_if_symbol p '+' then Bin (a, Add, parse_atom p)
+  else if L.bump_if_symbol p '-' then Bin (a, Sub, parse_atom p)
   else Atom a
 
 let parse_bexp p =
   let a = parse_atom p in
   let op =
-    match L.next p with
+    match L.bump p with
     | L.Symbol '<' -> Lt
     | L.Symbol '=' -> Eq
     | L.Symbol '>' -> Gt

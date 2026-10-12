@@ -1,5 +1,5 @@
 module T = Turing_machine.Main
-module L = Utils.Lexer
+module L = Utils.Parser
 
 type lvalue = Var of Utils.Identifier.t | Head [@@deriving yojson]
 
@@ -31,7 +31,7 @@ let identifier ?(keywords = keywords) p =
   s
 
 let sign p =
-  match L.next p with
+  match L.bump p with
   | L.Symbol '-' -> None
   | L.Ident s -> T.unwrap (T.Sign.parse s)
   | _ -> L.error p "Expected sign"
@@ -41,15 +41,15 @@ let alphabet p =
   L.separated_until ~allow_trailing:true p ~separator:',' ~closing:')' sign
 
 let lvalue ?keywords p : lvalue =
-  if L.eat_symbol p '@' then Head else Var (identifier ?keywords p)
+  if L.bump_if_symbol p '@' then Head else Var (identifier ?keywords p)
 
 let rvalue ?keywords p : rvalue =
-  if L.eat_symbol p '@' then Head
-  else if L.eat_keyword p "const" then Const (sign p)
+  if L.bump_if_symbol p '@' then Head
+  else if L.bump_if_keyword p "const" then Const (sign p)
   else Var (identifier ?keywords p)
 
 let condition ?keywords p =
-  if not (L.eat_keyword p "if") then None
+  if not (L.bump_if_keyword p "if") then None
   else
     let left = rvalue ?keywords p in
     L.expect p "==";

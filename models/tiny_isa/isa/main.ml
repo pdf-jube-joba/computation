@@ -22,7 +22,7 @@ type state = {
 module Code = Numbers
 
 let make code (input : ainput) =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       validate_regs input.register;
       {
         regs = Array.copy input.register;
@@ -41,7 +41,7 @@ let output s =
   }
 
 let step s () =
-  Utils.Lexer.protect (fun () ->
+  Utils.Parser.protect (fun () ->
       if s.halted then Utils.Machine.Halt (output s)
       else
         let pc = value (N.to_int s.regs.(0)) in
@@ -57,7 +57,7 @@ let snapshot = state_to_yojson
 
 let restore json =
   Result.bind (state_of_yojson json) (fun s ->
-      Utils.Lexer.protect (fun () ->
+      Utils.Parser.protect (fun () ->
           validate_regs s.regs;
           if s.code_len < 0 || s.code_len > Array.length s.memory then
             failwith "Invalid code length";

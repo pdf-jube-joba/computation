@@ -116,7 +116,7 @@ module Tape = struct
   let print_side signs = String.concat "," (List.map Sign.print signs)
 
   let parse text =
-    Utils.Lexer.protect (fun () ->
+    Utils.Parser.protect (fun () ->
         match String.split_on_char '|' text with
         | [ l; h; r ] ->
             {
@@ -145,7 +145,7 @@ module Code = struct
   type t = code
 
   let make init_state accepted_state code =
-    Utils.Lexer.protect (fun () ->
+    Utils.Parser.protect (fun () ->
         ignore (unwrap (State.parse init_state));
         List.iter (fun s -> ignore (unwrap (State.parse s))) accepted_state;
         let seen = Hashtbl.create 16 in
@@ -165,7 +165,7 @@ module Code = struct
         { init_state; accepted_state; code })
 
   let parse text =
-    Utils.Lexer.protect (fun () ->
+    Utils.Parser.protect (fun () ->
         match String.split_on_char '\n' text with
         | init :: accepted :: lines ->
             let init = unwrap (State.parse init) in

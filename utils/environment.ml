@@ -1,6 +1,6 @@
 let fold_lines ?(invalid_line = fun line -> "Invalid env line: " ^ line) f init
     text =
-  Lexer.protect (fun () ->
+  Parser.protect (fun () ->
       List.fold_left
         (fun env line ->
           let line = String.trim line in

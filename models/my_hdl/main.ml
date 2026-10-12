@@ -374,17 +374,18 @@ let iter_clock (machine : iter_module_state) input =
       { machine with state_machines })
 
 module Parser = struct
-  module L = Utils.Lexer
+  module L = Utils.Parser
 
-  let block p closing item = L.many_until ~skip_separator:',' p ~closing item
+  let block p opening item =
+    L.group p ~opening (fun p -> L.many ~skip_separator:',' p item)
 
   let rec value p =
-    if L.eat p "#true" then Value.Bit true
-    else if L.eat p "#false" then Value.Bit false
-    else if L.eat_symbol p '[' then Value.Array (block p ']' value)
-    else if L.eat_symbol p '{' then
+    if L.bump_if p "#true" then Value.Bit true
+    else if L.bump_if p "#false" then Value.Bit false
+    else if L.peek p = L.Symbol '[' then Value.Array (block p '[' value)
+    else if L.peek p = L.Symbol '{' then
       let fields =
-        block p '}' (fun p ->
+        block p '{' (fun p ->
             let name = L.identifier p in
             L.expect_symbol p ':';
             let value = value p in
@@ -393,7 +394,7 @@ module Parser = struct
       match Value.new_strct fields with
       | Some value -> value
       | None -> L.error p "field 名がかぶってそう"
-    else if L.eat_symbol p '<' then (
+    else if L.bump_if_symbol p '<' then (
       let name = L.identifier p in
       L.expect_symbol p '>';
       Value.Enume name)

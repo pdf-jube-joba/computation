@@ -1,7 +1,7 @@
 open Utils.Machine
 open Rec_tm_shared.Syntax
 module T = Turing_machine.Main
-module L = Utils.Lexer
+module L = Utils.Parser
 
 type lvalue = Rec_tm_shared.Syntax.lvalue = Var of Utils.Identifier.t | Head
 [@@deriving yojson]
@@ -43,9 +43,9 @@ module Code = struct
     L.parse (fun p ->
         let alphabet = alphabet p in
         let stmt () =
-          if L.eat_keyword p "LT" then Lt
-          else if L.eat_keyword p "RT" then Rt
-          else if L.eat_keyword p "jump" then
+          if L.bump_if_keyword p "LT" then Lt
+          else if L.bump_if_keyword p "RT" then Rt
+          else if L.bump_if_keyword p "jump" then
             let c = condition ~keywords p in
             let target = L.integer p in
             Jump (target, c)
