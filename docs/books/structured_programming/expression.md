@@ -8,7 +8,7 @@
 \NT{aexp} &\defeq \\
   &| \sp \NT{var} \sp | \sp \NT{number} \\
   &| \sp \NT{aexp} \sp \NT{binop} \sp \NT{aexp} \\
-  &| \sp \T{\textbackslash{}call} \sp \NT{string} \sp \T{\LP} \sp \syntaxmacro{comma-separated}{aexp} \sp \T{\RP} \\
+  &| \sp \T{call} \sp \NT{string} \sp \T{\LP} \sp \syntaxmacro{comma-separated}{aexp} \sp \T{\RP} \\
 \end{aligned}
 \]
 
@@ -16,17 +16,17 @@
 引数をどの順に計算していくのかが、何を行うかに影響する。
 例：
 ```
-\static x = 0;
-\fn modify_x() {
-  \if x == 0 {
+static x = 0;
+fn modify_x() {
+  if x == 0 {
     x += 1;
-    \return 2
-  } \else {
-    \return 3
+    return 2
+  } else {
+    return 3
   }
 }
 
-\fn main() {
+fn main() {
   modify_x() + x
 }
 ```
@@ -40,8 +40,8 @@
 複雑な判定式を書きたいし、真偽値のよくある演算子も入れる。
 
 ## if 文と if 式
-`\if` は分岐と結びついているので、だいたい文と結びつくように思える。
+`if` は分岐と結びついているので、だいたい文と結びつくように思える。
 それを式にするといい。
 また、式にするためには、条件が満たされなかったときに何を用いるかがないといけない。
-こんな感じ：`\if n == 0 \then 1 \else 2` もしこれが `x = (\if n == 0 \then 1)` と書かれていたら、
+こんな感じ：`if n == 0 then 1 else 2` もしこれが `x = (if n == 0 then 1)` と書かれていたら、
 `n == 0` の条件が満たされなかったときに `x` がどうなるかがわからない。

@@ -20,11 +20,11 @@
 > 読み取れてないだけかもしれないが。
 
 ゲートのラベルの定義
-: ラベルと呼ばれる、グラフの頂点に貼り付ける用の集合を次のように（複数に分けて）定義する。
+: ラベルと呼ばれる、グラフの頂点に貼り付ける用の集合を次のように（複数に分けて）定義する。 
   - 論理ゲートのラベルと呼ばれる集合 \(G\) を \(\{\text{AND}, \text{OR}, \text{NOT}\}\) とする。
   - 分岐を行うためのラベルとして \(B = \{\text{BR}\}\) を用意する。
   - 定数を出力するラベル \(C\) を \(\{\text{C0}, \text{C1}\}\) とする。
-  - 入力を捨てるためのラベルとして \(E = \{\text{END}\}\) と定める。
+  - 入力を捨てるためのラベルとして \(E = \{\text{END}\}\) と定める。 
   - 入力ラベル \(I\) を \(\{\text{IN}(n) \mid n \in \mathbb{N}\}\) とする。
   - 出力ラベル \(O\) を \(\{\text{OUT}(n) \mid n \in \mathbb{N}\}\) とする。
   - ラベルの全体\(\text{Label}\) は \(G \cup B \cup C \cup E \cup I \cup O\) とする。
@@ -161,12 +161,12 @@
 
 <div data-model="logic_circuit">
 <template data-default-code>
-\graph: main {
-    \in {I}
-    \out {O=A.OUT}
-    B, BR-F {IN=I}
-    N, NOT-T {IN=B.OUT0}
-    A, AND-F {IN0=B.OUT1, IN1=N.OUT}
+graph: main {
+    in {I}
+    out {O=A.OUT}
+    B, BR_F {IN=I}
+    N, NOT_T {IN=B.OUT0}
+    A, AND_F {IN0=B.OUT1, IN1=N.OUT}
 }
 </template>
 <template data-default-ainput>
@@ -176,7 +176,7 @@
 
 ## 直したいところについて
 現在の問題点
-1. `RInput` と `ROutput` で Signal を扱うのはおかしくて、
+1. `RInput` と `ROutput` で Signal を扱うのはおかしくて、 
   他からのコンパイルの結果として何か（任意有限な自然数のような）ちゃんとした入力を扱うことができていない状態になっている。
     - `AInput` と `FOutput` に対応するものとしての、 Const Gate と End Gate を考えて、これをコードに組み込むとか。
     - input と output をつなぐ仕組み自体は必要になるので、ある意味では `RInput` と `ROutput` 自体は自然？ compose としてはいい考えかも。
@@ -186,30 +186,30 @@
 
 ## OCaml implementation
 
-`src/logic_circuit.ml` exposes `Logic_circuit.S` (also
-`Logic_circuit.Machine`) for the shared `Utils.Machine.S` contract.
+`main.ml` defines `Logic_circuit.Main` with the shared `Utils.Machine.S` contract.
 `Circuit` retains gates, synchronous graph composition, iterator state and graph
-views; `Parser`/`Parse` retain `\graph:` and `\iter:` definitions and signal text.
+views; `Parser`/`Parse` retain `graph:` and `iter:` definitions and signal text.
 `Example.utils_map ()` contains all six original example circuits.
 Snapshots use Yojson.Safe codecs and rendering retains the kind, input, output
 and vertex tables. There was no circuit compiler in the original crate.
 
 Circuit timing is one transition per gate, including DLY. Missing inputs are
 false; the first signal for a pin wins; graph edges override external signals.
-The original permissive external pin maps and ignored duplicate definitions
-remain unchanged.
+Signal references distinguish external ports (`@main.I=#true`), local vertices
+(`A.IN=#true`), and iterator instance IDs (`$0.IN=#true`). This distinction
+allows a circuit and a vertex to have the same name. Iterator IDs are shared by
+input and output, and an empty iterator can be seeded through its external
+input or `$0`.
 
-Nested graphs retain the source's input-name behavior: an outer graph passes
-the instance name into its child; when that differs from the child's kind and
-does not match a child vertex, the input is ignored. The bundled `ADDR` example
-therefore computes carry through its direct AND gate while its nested XOR sum
-stays false. This port preserves that behavior rather than supplying new routing.
+Local vertex names resolve to typed integer IDs while stepping. Display names
+for instances use `Utils.Naming`; changing a display name does not change
+routing. External maps must point to existing vertices and ports, and snapshots
+with duplicate vertex names are rejected. Duplicate library definitions still
+keep the first definition.
 
-Iterator limitations are preserved: newly constructed iterators have no used
-cells, generated labels are `_n_`, and input routing tries decimal names. The
-text identifier syntax rejects decimal names, so a parsed iterator cannot be
-seeded by text input. No new infinite-circuit semantics are inferred from the
-design notes. Existing predecessor/index panics are reported as errors.
+A parent delivers a pin through its child's interface, so child input routing
+does not depend on whether the instance name matches the child's kind. The
+bundled `ADDR` example computes both XOR sum and AND carry.
 
 Run `opam exec -- dune runtest models/logic_circuit/test` for the ported gate,
 graph, parser, example, snapshot, render and iterator tests.

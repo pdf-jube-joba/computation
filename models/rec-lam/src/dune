@@ -1,5 +1,0 @@
-(library
- (name recursive_function_lambda_calculus)
- (public_name computation.recursive_function_lambda_calculus)
- (libraries utils yojson recursive_function lambda_calculus)
- (preprocess (pps ppx_deriving_yojson)))

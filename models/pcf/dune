@@ -1,0 +1,60 @@
+(subdir
+ shared
+ (library
+  (name pcf_shared)
+  (public_name computation.pcf_shared)
+  (libraries utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ expr
+ (library
+  (name pcf_expr)
+  (public_name computation.pcf_expr)
+  (libraries pcf_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ cek
+ (library
+  (name pcf_cek)
+  (public_name computation.pcf_cek)
+  (libraries pcf_expr pcf_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ secd
+ (library
+  (name pcf_secd)
+  (public_name computation.pcf_secd)
+  (libraries pcf_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ expr_stmt
+ (library
+  (name pcf_expr_stmt)
+  (public_name computation.pcf_expr_stmt)
+  (libraries pcf_cek pcf_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ test
+ (test
+  (name models_test)
+  (modules models_test)
+  (libraries
+   pcf_cek
+   pcf_expr
+   pcf_expr_stmt
+   pcf_expr_to_pcf_cek
+   pcf_expr_to_pcf_secd
+   pcf_secd
+   pcf_shared
+   utils
+   yojson)))

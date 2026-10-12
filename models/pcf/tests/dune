@@ -1,4 +1,0 @@
-(test
- (name pcf_tests)
- (modules pcf_tests)
- (libraries pcf utils yojson))

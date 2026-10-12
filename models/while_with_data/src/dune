@@ -1,5 +1,0 @@
-(library
- (name while_with_data)
- (public_name computation.while_with_data)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

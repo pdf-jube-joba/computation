@@ -1,6 +1,0 @@
-(library
- (name obj_lang)
- (public_name computation.obj_lang)
- (modules obj_lang)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

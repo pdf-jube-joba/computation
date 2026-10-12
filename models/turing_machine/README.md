@@ -56,7 +56,7 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 
 > [!NOTE]
 > テープの数学的な定義はちょっとめんどくさい。テープ（というかヘッド？）の状態は置いといて、定義は2つぐらいある。
->
+> 
 > テープ
 >: 整数の集合 \(\mathbb{Z}\) から \(\Sigma\) への写像であって、有限個を除いて \(\mathbb{B}\) に移る写像
 >: 自然数 \(i\) と、 \(\{1 \ldots i\}\) から \(\Sigma\) への写像であって、
@@ -65,7 +65,7 @@ Turing machine \(M\) に対して、 \(\Sigma_M\) や \(M.\Sigma\) など添え�
 >    テープは単に \(\Sigma^* \times \Sigma^*\) や \(\Sigma^* \Sigma \times \Sigma^*\) と書ける。
 >    ただし、"有限個並べる"の定義はプリミティブな操作とみなされるか、
 >     自然数 \(l\) と \(\{1 \ldots l\} \to \Sigma\) の組として定義されるだろう。
->
+> 
 > なんにせよ、ここで重要なのは \(\text{R}(T)\) ・ \(\text{L}(T)\) ・ \(\text{Head}(T)\) ・ \(\text{Write}(T, s)\) といった操作を行えることである。
 > また、テープの定義には \(\Sigma\) が表れるのだが、テープと書いている本が多い。
 > ここでは、 \(\Sigma\) 上の、と書くことでテープの定義に言及できるようにした。
@@ -218,9 +218,9 @@ Turing machine \(M = (\Sigma, Q, q_{\text{init}}, Q_{\text{fin}}, \delta)\) に�
 <template data-default-code>
 start
 goal
-a,start,b,start,\R
-b,start,b,start,\R
-c,start,c,goal,\C
+a,start,b,start,R
+b,start,b,start,R
+c,start,c,goal,C
 </template>
 <template data-default-ainput>
 -|a|b,a,b,b,c

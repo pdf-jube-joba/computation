@@ -1,0 +1,258 @@
+open Utils
+open Machine
+
+type func =
+  | Zero
+  | Succ
+  | Proj of int * int
+  | Comp of func * func list
+  | Prim of func * func
+  | Mu of func
+[@@deriving yojson]
+
+type process =
+  | Call of func * process list
+  | Search of Number.t * Number.t list * func * process
+  | Result of Number.t
+[@@deriving yojson]
+
+type code = func [@@deriving yojson]
+type ainput = Number.t list [@@deriving yojson]
+type rinput = unit
+type routput = unit
+type foutput = Number.t
+
+type state = { function_ : func; input : ainput; process : process }
+[@@deriving yojson]
+
+let rec arity = function
+  | Zero -> 0
+  | Succ -> 1
+  | Proj (n, _) -> n
+  | Comp (_, head :: _) -> arity head
+  | Comp (_, []) -> 0
+  | Prim (z, _) -> arity z + 1
+  | Mu f -> arity f - 1
+
+let rec validate = function
+  | Zero | Succ -> Ok ()
+  | Proj (n, i) ->
+      if n > i && i >= 0 then Ok () else Error "Projection out of range"
+  | Comp (f, args) ->
+      let* () = validate f in
+      let rec all = function
+        | [] -> Ok ()
+        | h :: t ->
+            let* () = validate h in
+            all t
+      in
+      let* () = all args in
+      if
+        args = []
+        || List.length args <> arity f
+        || not (List.for_all (fun a -> arity a = arity (List.hd args)) args)
+      then Error "Composition arity mismatch"
+      else Ok ()
+  | Prim (z, s) ->
+      let* () = validate z in
+      let* () = validate s in
+      if arity s = arity z + 2 then Ok ()
+      else Error "Primitive recursion arity mismatch"
+  | Mu f ->
+      let* () = validate f in
+      if arity f > 0 then Ok ()
+      else Error "Mu requires a function of positive arity"
+
+module Code = struct
+  type t = code
+
+  let parse text =
+    let* f =
+      Parser.parse
+        (fun p ->
+          let bindings = ref [] in
+          let rec func p =
+            match Parser.identifier p with
+            | "ZERO" -> Zero
+            | "SUCC" -> Succ
+            | "PROJ" ->
+                Parser.group p ~opening:'[' (fun p ->
+                    let n = Parser.integer p in
+                    Parser.expect_symbol p ',';
+                    let i = Parser.integer p in
+                    Proj (n, i))
+            | "COMP" ->
+                Parser.group p ~opening:'[' (fun p ->
+                    let outer = func p in
+                    Parser.expect_symbol p ':';
+                    let items p =
+                      Parser.separated_list ~skip_empty:true p ~separator:','
+                        func
+                    in
+                    let inner =
+                      if Parser.peek p = Parser.Symbol '(' then (
+                        let xs = Parser.group p ~opening:'(' items in
+                        ignore (Parser.bump_if_symbol p ',');
+                        xs @ items p)
+                      else
+                        let f = func p in
+                        if Parser.bump_if_symbol p ',' then f :: items p
+                        else [ f ]
+                    in
+                    Comp (outer, inner))
+            | "PRIM" ->
+                Parser.group p ~opening:'[' (fun p ->
+                    Parser.expect p "z:";
+                    let z = func p in
+                    Parser.expect p "s:";
+                    let s = func p in
+                    Prim (z, s))
+            | "MUOP" -> Parser.group p ~opening:'[' (fun p -> Mu (func p))
+            | name -> (
+                match List.assoc_opt name !bindings with
+                | Some f -> f
+                | None -> Parser.error p ("Unknown function: " ^ name))
+          in
+          while Parser.bump_if_keyword p "let" do
+            let name = Parser.identifier p in
+            if List.mem_assoc name !bindings then
+              Parser.error p "Duplicate function name";
+            Parser.expect_symbol p '=';
+            let f = func p in
+            Parser.expect_symbol p '.';
+            bindings := (name, f) :: !bindings
+          done;
+          func p)
+        text
+    in
+    let* () = validate f in
+    Ok f
+
+  let rec print = function
+    | Zero -> "ZERO"
+    | Succ -> "SUCC"
+    | Proj (n, i) -> Printf.sprintf "PROJ[%d,%d]" n i
+    | Comp (f, args) ->
+        "COMP[" ^ print f ^ ": "
+        ^ String.concat ", " (List.map print args)
+        ^ "]"
+    | Prim (z, s) -> "PRIM[z:" ^ print z ^ " s:" ^ print s ^ "]"
+    | Mu f -> "MUOP[" ^ print f ^ "]"
+end
+
+let make function_ input =
+  let* () = validate function_ in
+  if List.length input <> arity function_ then
+    Error "Function argument count mismatch"
+  else
+    Ok
+      {
+        function_;
+        input;
+        process = Call (function_, List.map (fun n -> Result n) input);
+      }
+
+let rec evaluate_one = function
+  | Result _ -> None
+  | Call (f, args) -> (
+      let rec first prefix = function
+        | [] -> None
+        | head :: tail -> (
+            match evaluate_one head with
+            | Some next -> Some (List.rev_append prefix (next :: tail))
+            | None -> first (head :: prefix) tail)
+      in
+      match first [] args with
+      | Some args -> Some (Call (f, args))
+      | None ->
+          let numbers =
+            List.map (function Result n -> n | _ -> assert false) args
+          in
+          let results xs = List.map (fun n -> Result n) xs in
+          Some
+            (match (f, numbers) with
+            | Zero, [] -> Result Number.zero
+            | Succ, [ n ] -> Result (Number.succ n)
+            | Proj (_, i), _ -> Result (List.nth numbers i)
+            | Comp (outer, inners), _ ->
+                Call (outer, List.map (fun inner -> Call (inner, args)) inners)
+            | Prim (z, s), n :: tail ->
+                if Number.is_zero n then Call (z, results tail)
+                else
+                  let predecessor = Number.pred n in
+                  Call
+                    ( s,
+                      Call (f, results (predecessor :: tail))
+                      :: results (predecessor :: tail) )
+            | Mu f, _ ->
+                Search
+                  ( Number.zero,
+                    numbers,
+                    f,
+                    Call (f, results (Number.zero :: numbers)) )
+            | _ -> failwith "Invalid recursive-function process"))
+  | Search (index, args, f, process) -> (
+      match evaluate_one process with
+      | Some next -> Some (Search (index, args, f, next))
+      | None -> (
+          match process with
+          | Result n when Number.is_zero n -> Some (Result index)
+          | Result _ ->
+              let index = Number.succ index in
+              Some
+                (Search
+                   ( index,
+                     args,
+                     f,
+                     Call (f, List.map (fun n -> Result n) (index :: args)) ))
+          | _ -> assert false))
+
+let step state () =
+  match evaluate_one state.process with
+  | Some process -> Ok (Continue { next = { state with process }; output = () })
+  | None -> (
+      match state.process with
+      | Result output -> Ok (Halt output)
+      | _ -> Error "Invalid recursive-function process")
+
+let snapshot = state_to_yojson
+
+let restore json =
+  let* state = state_of_yojson json in
+  let* () = validate state.function_ in
+  if List.length state.input <> arity state.function_ then
+    Error "Invalid snapshot input arity"
+  else Ok state
+
+let rec print_process = function
+  | Result n -> n
+  | Call (f, args) ->
+      Code.print f ^ "("
+      ^ String.concat ", " (List.map print_process args)
+      ^ ")"
+  | Search (n, _, _, p) -> "Mu[" ^ n ^ "](" ^ print_process p ^ ")"
+
+let render state =
+  Render.state
+    [
+      Render.text ~title:"function" (Code.print state.function_);
+      Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ] Fun.id
+        state.input;
+      Render.text ~title:"process" (print_process state.process);
+    ]
+
+module Ainput = struct
+  type t = ainput
+
+  let parse =
+    Parser.parse (fun p ->
+        Parser.group p ~opening:'(' (fun p ->
+            Parser.separated_list ~allow_trailing:true p ~separator:','
+              Parser.natural))
+
+  let print = Utils.Text.Natural_list.print
+end
+
+module Rinput = Utils.Text.Unit
+module Routput = Utils.Text.Unit
+module Foutput = Utils.Text.Natural

@@ -1,5 +1,0 @@
-(library
- (name recursive_function_turing_machine)
- (public_name computation.recursive_function_turing_machine)
- (libraries utils yojson turing_machine recursive_function)
- (preprocess (pps ppx_deriving_yojson)))

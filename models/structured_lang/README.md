@@ -1,5 +1,5 @@
 [[構造化言語]]
-- 式を使う： [expr](./src/expr_lang.md)
-- データ構造： [data](./src/data_lang.md)
-- 手続き化： [procedure](./src/proc_lang.md)
-- 制御構造：[control](./src/internal_ctrl.md)
+- 式を使う： [expr](expr_lang/spec.md)
+- データ構造： [data](data_lang/spec.md)
+- 手続き化： [procedure](proc_lang/spec.md)
+- 制御構造：[control](internal_ctrl/spec.md)

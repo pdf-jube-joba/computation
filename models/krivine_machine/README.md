@@ -19,6 +19,6 @@ wiki がすごいわかりやすい。
 ## OCaml implementation status
 
 The original Rust entry point only printed `Hello, world!`; it did not implement
-the Krivine interpreter or a parser. `src/krivine_machine.ml` records
+the Krivine interpreter or a parser. `main.ml` records
 `implemented = false`, `unsupported_reason`, and the location of these unchanged
 design notes. There is no `Utils.Machine.S` or compiler API to register.

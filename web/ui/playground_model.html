@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model Playground</title>
+  <link rel="stylesheet" href="./playground.css">
+</head>
+<body data-kind="model">
+  <main class="pg-shell">
+    <section class="pg-hero">
+      <p class="pg-kicker">Model Playground</p>
+      <h1>生成済み model を切り替えて試す</h1>
+      <p class="pg-lead">
+        ビルド済みの計算モデルを選んで実行できます。
+        <a href="./playground_compiler.html">Compiler Playground</a>
+      </p>
+    </section>
+
+    <section class="pg-toolbar">
+      <label class="pg-control">
+        <span>Model</span>
+        <select id="model-select"></select>
+      </label>
+      <button id="reload-button" type="button">Reload</button>
+      <div id="status-text" class="pg-status" aria-live="polite"></div>
+    </section>
+
+    <section class="pg-layout">
+      <aside class="pg-sidebar">
+        <div class="pg-card">
+          <h2>Current Bundle</h2>
+          <dl class="pg-meta">
+            <div>
+              <dt>Selected</dt>
+              <dd id="selected-model">-</dd>
+            </div>
+            <div>
+              <dt>Count</dt>
+              <dd id="model-count">-</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="pg-card">
+          <h2>Artifacts</h2>
+          <ul class="pg-links">
+            <li><a id="js-link" href="#" target="_blank" rel="noreferrer">Model module</a></li>
+            <li><a id="loader-link" href="#" target="_blank" rel="noreferrer">Runtime loader</a></li>
+            <li><a id="wasm-link" href="#" target="_blank" rel="noreferrer">Wasm assets</a></li>
+          </ul>
+        </div>
+      </aside>
+
+      <section class="pg-stage">
+        <div id="playground-root" class="pg-model-host"></div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./playground.js"></script>
+</body>
+</html>

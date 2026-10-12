@@ -1,4 +1,0 @@
-(test
- (name compiler_tests)
- (modules compiler_tests)
- (libraries utils yojson recursive_function lambda_calculus recursive_function_lambda_calculus))

@@ -1,5 +1,0 @@
-(library
- (name flow_ir)
- (public_name computation.flow_ir)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

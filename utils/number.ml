@@ -23,6 +23,17 @@ let of_string text =
 let of_int n =
   if n < 0 then invalid_arg "Negative natural number" else string_of_int n
 
+let of_string_with_plus text =
+  let text = String.trim text in
+  if String.length text > 0 && text.[0] = '+' then
+    let digits = String.sub text 1 (String.length text - 1) in
+    if
+      digits <> ""
+      && String.for_all (function '0' .. '9' -> true | _ -> false) digits
+    then of_string digits
+    else Error "Expected a natural number"
+  else of_string text
+
 let to_string n = n
 
 let to_int n =
@@ -103,6 +114,25 @@ let divmod a b =
         a
     in
     Ok (normalize quotient, !remainder)
+
+let of_bytes text =
+  let n = ref zero in
+  for i = String.length text - 1 downto 0 do
+    n := add (mul !n "256") (of_int (Char.code text.[i]))
+  done;
+  !n
+
+let to_bytes n =
+  let get = function Ok value -> value | Error error -> failwith error in
+  let b = Buffer.create 8 in
+  let rec loop n =
+    if not (is_zero n) then (
+      let q, r = get (divmod n "256") in
+      Buffer.add_char b (Char.chr (get (to_int r)));
+      loop q)
+  in
+  loop n;
+  Buffer.contents b
 
 let of_yojson = function
   | `String text -> of_string text

@@ -76,6 +76,6 @@ return してきた値を次のようにして継続で処理する。
 ## OCaml implementation status
 
 The original Rust entry point only printed `Hello, world!`; it did not implement
-Lisp evaluation or a parser. `src/pure_lisp.ml` records `implemented = false`,
+Lisp evaluation or a parser. `main.ml` records `implemented = false`,
 `unsupported_reason`, and the location of these unchanged design notes. There
 is no `Utils.Machine.S` or compiler API to register.

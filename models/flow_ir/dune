@@ -1,0 +1,13 @@
+(library
+ (name flow_ir)
+ (public_name computation.flow_ir)
+ (libraries utils yojson)
+ (preprocess
+  (pps ppx_deriving_yojson)))
+
+(subdir
+ test
+ (test
+  (name main_test)
+  (modules main_test)
+  (libraries flow_ir utils yojson)))

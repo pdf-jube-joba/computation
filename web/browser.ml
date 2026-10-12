@@ -53,12 +53,7 @@ let export_compiler (compiler : Compiler.api) =
   end
 
 let () =
-  let export_name =
-    match Sys.backend_type with
-    | Sys.Other "js_of_ocaml" -> "computationOcamlJs"
-    | _ -> "computationOcamlWasm"
-  in
-  Js.export export_name
+  Js.export "computationOcamlWasm"
     object%js
       method model name =
         export_model (get (Registry.model (Js.to_string name)))

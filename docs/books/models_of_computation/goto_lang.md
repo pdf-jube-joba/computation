@@ -1,13 +1,13 @@
 プログラミング言語として goto-lang 言語というものを見てみる。
 
-この言語は、変数を
+この言語は、変数を 
 - 初期化（０を入れる）する
 - 1 だけ加算する
 - 1 だけ減算する
 - 別の変数から値をコピーする
 
 ような単純な文に加え、
-`\ifnz` と呼ばれる、指定された変数の内容が \(0\) **でない** なら指定された行に飛ぶ機能がある。
+`ifnz` と呼ばれる、指定された変数の内容が \(0\) **でない** なら指定された行に飛ぶ機能がある。
 ちなみに、「\(0\) なら」の言語を作っても同じぐらいの計算能力になるが、書きやすかったので、こっちにした。
 Turing machine よりはこっちの方が理解しやすそう。
 
@@ -15,12 +15,12 @@ Turing machine よりはこっちの方が理解しやすそう。
 \(x * y\) を計算するプログラム：
 <div data-model="goto_lang">
 <template data-default-code>
-\cpy y2 <- y;
-\inc z;
-\dec y2;
-\ifnz y2 : 1;
-\dec x;
-\ifnz x : 0;
+cpy y2 <- y;
+inc z;
+dec y2;
+ifnz y2 : 1;
+dec x;
+ifnz x : 0;
 </template>
 <template data-default-ainput>
 x = 3

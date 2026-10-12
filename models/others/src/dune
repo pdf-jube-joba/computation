@@ -1,6 +1,0 @@
-(library
- (name others)
- (public_name computation.others)
- (modules others)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

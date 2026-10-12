@@ -56,12 +56,12 @@ enum Shape {
 
 使う側は「もしこの variant だった場合は...」という形でプログラムを述べる必要がある。
 ```
-\fn sq(s: Shape) {
+fn sq(s: Shape) {
   s.r += 1; // s が Circle であることが確定してないので、書いてはいけない。
-  \if Shape::Point == s {
+  if Shape::Point == s {
     // s が Point だった場合
   }
-  \if Shape::Circle == s {
+  if Shape::Circle == s {
     // s が Circle だった場合
   }
 }
@@ -88,7 +88,7 @@ enum Shape {
 アクセスできる範囲外へ配列外へのアクセスといって大体やってはいけない。
 
 ```
-\fn main() {
+fn main() {
   a = [10, 2, 5, 3];
   x = a[0]; // x == 10
   y = a[3]; // y == 3
@@ -100,12 +100,12 @@ enum Shape {
 
 直積型との違いとして、実行時に何番目を使うかを計算していいことが多い。
 ```
-\fn a1() {
+fn a1() {
   a = [10, 2, 5, 3];
   x = a[f(3)]; // f(3) の呼び出し結果でアクセスする。
 }
 
-\fn a2() {
+fn a2() {
   a = (10, 2, 5, 3);
   x = a.f(3); // こういうのはたいてい無理。
 }

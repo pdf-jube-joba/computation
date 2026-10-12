@@ -1,4 +1,0 @@
-(test
- (name continuations_tests)
- (modules continuations_tests)
- (libraries lambda_continuations utils yojson))

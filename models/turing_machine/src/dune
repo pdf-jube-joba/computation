@@ -1,5 +1,0 @@
-(library
- (name turing_machine)
- (public_name computation.turing_machine)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

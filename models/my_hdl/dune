@@ -1,0 +1,13 @@
+(library
+ (name my_hdl)
+ (public_name computation.my_hdl)
+ (libraries utils yojson)
+ (preprocess
+  (pps ppx_deriving_yojson)))
+
+(subdir
+ test
+ (test
+  (name main_test)
+  (modules main_test)
+  (libraries my_hdl utils yojson)))

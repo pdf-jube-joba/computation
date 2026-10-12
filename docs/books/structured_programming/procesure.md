@@ -36,22 +36,22 @@
 
 それはさておき、これと同じようなことができるようになったのが、手続きである。
 ```
-\fn block1 {
+fn block1 {
   %v1 = 0;
-  \call callee
+  call callee
   // %v1 == 0 のまま
 }
 
-\fn block2 {
+fn block2 {
   %v1 = 2;
-  \call callee
+  call callee
   // %v1 == 2 のまま
 }
 
-\fn callee {
+fn callee {
   do_something
   %v1 = 3;
-  \return;
+  return;
 }
 ```
 
@@ -69,32 +69,32 @@
 .data
 @frame_addr 0;
 
-.macro \push $x
+.macro push $x
   [ @frame_addr ] := $x
   @frame_addr += 1
 .endmacro
 
-.macro \pop $x
+.macro pop $x
   @frame_addr -= 1
   $x := [ @frame_addr ]
 .endmacro
 
 .text
 @block1:
-  \push %v1
-  \push @block1
+  push %v1
+  push @block1
   jump @callee
-  \pop %v1
+  pop %v1
 
 @block2:
-  \push %v1
-  \push @block1
+  push %v1
+  push @block1
   jump @callee
-  \pop %v1
+  pop %v1
 
 @callee:
   do_something
-  \pop %v1
+  pop %v1
   jump %v1
 ```
 
@@ -108,18 +108,18 @@
 
 例えばこんな感じ：
 ```
-\fn foo(n) {
+fn foo(n) {
   m := 0
   u := n
   @loop:
-    jump @end \if u == 0
+    jump @end if u == 0
     u := u - 1
     m := m + n
   @end:
-    \return m
+    return m
 }
 
-\fn main() {
+fn main() {
   v1 := foo(3)
   v2 := foo(v1)
 }
@@ -130,56 +130,56 @@
 .data
 @frame_addr 0;
 
-.macro \push $x
+.macro push $x
   [ @frame_addr ] := $x
   @frame_addr += 1
 .endmacro
 
-.macro \pop $x
+.macro pop $x
   @frame_addr -= 1
   $x := [ @frame_addr ]
 .endmacro
 
 .text
 @foo:
-  \pop %n // 引数が \push されているので、 \pop して取り出す。
+  pop %n // 引数が push されているので、 pop して取り出す。
   %m = 0;
   %u = %n;
 @foo_loop:
-  jump @end \if %u == 0
+  jump @end if %u == 0
   %u := %u - 1
   %m := %m + n
 @foo_end:
-  \pop %return // 戻るアドレスを取り出す。
-  \push %m // 返り値を \push する。
+  pop %return // 戻るアドレスを取り出す。
+  push %m // 返り値を push する。
   jump %return
 
 @main:
-  // \call f(3);
-  \push @main  // 戻るアドレスを入れる
-  \push 3      // 呼び出す引数を入れる
+  // call f(3);
+  push @main  // 戻るアドレスを入れる
+  push 3      // 呼び出す引数を入れる
   jump @foo   // 呼び出す
-  \pop %v1     // 返り値を取り出す
-  // \call f(%v1)
-  \push @main  // 戻るアドレスを入れる
-  \push %v1      // 呼び出す引数を入れる
+  pop %v1     // 返り値を取り出す
+  // call f(%v1)
+  push @main  // 戻るアドレスを入れる
+  push %v1      // 呼び出す引数を入れる
   jump @foo   // 呼び出す
-  \pop %v2     // 返り値を取り出す
+  pop %v2     // 返り値を取り出す
 ```
 
 ### 再帰性の問題
 じゃあ、自分自身を呼び出すのはどうか？
 ```
-\fn fact(n) {
+fn fact(n) {
   @entry:
-    jump @case0 \if n == 1
+    jump @case0 if n == 1
     jump @other
   @case0:
-    \return 0;
+    return 0;
   @other
     v := fact(n - 1) // 自分自身を呼び出している？
     w := v * n
-    \return w
+    return w
 }
 ```
 
@@ -189,12 +189,12 @@
 ### 値渡しと参照渡し
 呼び出し先が受け取ったものを書き換えるとどうなる？
 ```
-\fn f(n) {
+fn f(n) {
   n := 0
-  \return
+  return
 }
 
-\fn main() {
+fn main() {
   k := 1
   f(1)
   // k == 0 ? k == 1 どっち？
