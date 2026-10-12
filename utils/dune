@@ -1,3 +1,5 @@
+(include_subdirs unqualified)
+
 (library
  (name utils)
  (public_name computation.utils)
@@ -7,6 +9,7 @@
 
 (subdir
  test
+ (include_subdirs no)
  (test
   (name identifiers_test)
   (modules identifiers_test)
