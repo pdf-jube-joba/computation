@@ -1,7 +1,9 @@
-import {mountModel} from "./script.js";
+import {loadBundleManifest, mountModel} from "./script.js";
 
 const bundleBaseUrl = "/wasm_bundle/";
 const assetBaseUrl = "/assets/";
+const kind = document.body.dataset.kind;
+const selectionParam = kind === "compiler" ? "compiler" : "model";
 
 const modelSelect = document.querySelector("#model-select");
 const reloadButton = document.querySelector("#reload-button");
@@ -27,15 +29,15 @@ function currentParams() {
 }
 
 function selectedModelFromLocation() {
-  return (currentParams().get("model") || "").trim();
+  return (currentParams().get(selectionParam) || "").trim();
 }
 
 function updateLocation(model) {
   const url = new URL(window.location.href);
   if (model) {
-    url.searchParams.set("model", model);
+    url.searchParams.set(selectionParam, model);
   } else {
-    url.searchParams.delete("model");
+    url.searchParams.delete(selectionParam);
   }
   window.history.replaceState(window.history.state, "", url);
 }
@@ -47,7 +49,7 @@ function artifactUrl(fileName) {
 function setArtifactLinks(model) {
   const entry = bundleManifest.entries.find(entry => entry.name === model);
   const entries = [
-    [jsLink, `${model}.js`],
+    [jsLink, entry.module],
     [loaderLink, bundleManifest.loaders[entry?.backend || "wasm"]],
     [wasmLink, "browser.bc.wasm.assets/"],
   ];
@@ -57,13 +59,8 @@ function setArtifactLinks(model) {
 }
 
 async function fetchAvailableModels() {
-  const response = await fetch(artifactUrl("models.json"), {method: "GET"});
-  if (!response.ok) {
-    throw new Error(`GET ${bundleBaseUrl} failed: ${response.status} ${response.statusText}`);
-  }
-
-  bundleManifest = await response.json();
-  const names = bundleManifest.entries.map(entry => entry.name);
+  bundleManifest = await loadBundleManifest(bundleBaseUrl);
+  const names = bundleManifest.entries.filter(entry => entry.kind === kind).map(entry => entry.name);
 
   return Array.from(new Set(names)).sort((left, right) => left.localeCompare(right));
 }
@@ -113,7 +110,7 @@ async function loadSelectedModel(model) {
 async function selectModel(model) {
   const normalized = availableModels.includes(model) ? model : availableModels[0];
   if (!normalized) {
-    setStatus("no generated models were found under /wasm_bundle/", true);
+    setStatus(`no generated ${kind}s were found under ${bundleBaseUrl}`, true);
     return;
   }
 
@@ -123,14 +120,14 @@ async function selectModel(model) {
 }
 
 async function bootstrap() {
-  setStatus("Loading model list...");
+  setStatus(`Loading ${kind} list...`);
   try {
     availableModels = await fetchAvailableModels();
     modelCountText.textContent = String(availableModels.length);
     if (availableModels.length === 0) {
       fillSelect([], "");
       selectedModelText.textContent = "-";
-      setStatus("no generated models were found under /wasm_bundle/", true);
+      setStatus(`no generated ${kind}s were found under ${bundleBaseUrl}`, true);
       return;
     }
 
@@ -138,11 +135,11 @@ async function bootstrap() {
     const initial = availableModels.includes(requested) ? requested : availableModels[0];
     fillSelect(availableModels, initial);
     if (requested && requested !== initial) {
-      setStatus(`model ${requested} was not found; loaded ${initial} instead`, true);
+      setStatus(`${kind} ${requested} was not found; loaded ${initial} instead`, true);
     }
     await selectModel(initial);
   } catch (error) {
-    setStatus(`failed to load model list: ${error}`, true);
+    setStatus(`failed to load ${kind} list: ${error}`, true);
   }
 }
 

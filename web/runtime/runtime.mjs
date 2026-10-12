@@ -1,17 +1,16 @@
-// One OCaml runtime per backend, many independent model sessions.
+// One shared OCaml Wasm runtime, many independent model sessions.
 import {createAdapter, createCompilerAdapter} from './model_adapter.mjs';
 
-const runtimes = new Map();
-function loadRuntime(backend) {
-  if (!runtimes.has(backend)) {
-    const promise = new Promise((resolve, reject) => {
-      const exportName = backend === 'js' ? 'computationOcamlJs' : 'computationOcamlWasm';
+let runtime;
+function loadRuntime() {
+  if (!runtime) {
+    runtime = new Promise((resolve, reject) => {
+      const exportName = 'computationOcamlWasm';
       if (globalThis[exportName]) { resolve(globalThis[exportName]); return; }
       const script = document.createElement('script');
-      const loader = backend === 'js' ? 'browser.bc.js' : 'browser.bc.wasm.js';
-      script.src = new URL(loader, import.meta.url).href;
+      script.src = new URL('browser.bc.wasm.js', import.meta.url).href;
       let timer;
-      const timeout = setTimeout(() => finish(new Error(`OCaml ${backend} initialization timed out`)), 30000);
+      const timeout = setTimeout(() => finish(new Error('OCaml Wasm initialization timed out')), 30000);
       function finish(error, api) {
         clearTimeout(timeout); clearInterval(timer);
         if (error) { script.remove(); reject(error); } else resolve(api);
@@ -22,17 +21,16 @@ function loadRuntime(backend) {
       }, 20);
       document.head.appendChild(script);
     });
-    runtimes.set(backend, promise);
     // Allow retry when loading the script failed.
-    promise.catch(() => runtimes.delete(backend));
+    runtime.catch(() => { runtime = undefined; });
   }
-  return runtimes.get(backend);
+  return runtime;
 }
 
-export async function createModel(name, backend = 'wasm') {
-  return createAdapter(await loadRuntime(backend), name);
+export async function createModel(name) {
+  return createAdapter(await loadRuntime(), name);
 }
 
-export async function createCompiler(name, backend = 'wasm') {
-  return createCompilerAdapter(await loadRuntime(backend), name);
+export async function createCompiler(name) {
+  return createCompilerAdapter(await loadRuntime(), name);
 }

@@ -1,5 +1,21 @@
 const OUTPUT_PLACEHOLDER = "\u00a0";
 let nextInstanceId = 0;
+const bundleManifests = new Map();
+
+export function loadBundleManifest(baseUrl) {
+  const url = new URL('./manifest.json', resolveBaseUrl(baseUrl)).href;
+  if (!bundleManifests.has(url)) {
+    const promise = fetch(url).then(response => {
+      if (!response.ok) {
+        throw new Error(`GET ${url} failed: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    });
+    bundleManifests.set(url, promise);
+    promise.catch(() => bundleManifests.delete(url));
+  }
+  return bundleManifests.get(url);
+}
 
 export function ensureStyleSheet(options = {}) {
   const already = document.querySelector('link[data-wm-style="true"]');
@@ -49,15 +65,18 @@ function normalizeMountSpec(options) {
 }
 
 async function loadModelModule(model, instanceId, baseUrl) {
-  return import(modelModuleUrl(model, instanceId, baseUrl));
+  const manifest = await loadBundleManifest(baseUrl);
+  const entry = manifest.entries.find(entry => entry.name === model);
+  if (!entry) throw new Error(`Unknown model/compiler: ${model}`);
+  return import(modelModuleUrl(entry.module, instanceId, baseUrl));
 }
 
 function assetUrl(relativePath, baseUrl) {
   return new URL(relativePath, resolveBaseUrl(baseUrl)).href;
 }
 
-function modelModuleUrl(model, instanceId, baseUrl) {
-  const url = new URL(`./${model}.js`, resolveBaseUrl(baseUrl));
+function modelModuleUrl(module, instanceId, baseUrl) {
+  const url = new URL(module, resolveBaseUrl(baseUrl));
   url.searchParams.set("instance", instanceId);
   return url.href;
 }

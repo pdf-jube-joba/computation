@@ -1,4 +1,4 @@
-import {cp, mkdir, writeFile, rm} from 'node:fs/promises';
+import {cp, mkdir, readFile, writeFile, rm} from 'node:fs/promises';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -27,7 +27,7 @@ function run(args, capture = false) {
   return result.stdout;
 }
 const profile = options.release ? ['--profile', 'release'] : [];
-run(['build', ...profile, 'web/browser.bc.js', 'web/browser.bc.wasm.js', 'cli/main.exe']);
+run(['build', ...profile, 'web/browser.bc.wasm.js', 'cli/main.exe']);
 let entries = JSON.parse(run(['exec', ...profile, 'cli/main.exe', '--', 'list', '--json'], true));
 if (options.models.size || options.packages.size) {
   const selected = entries.filter(entry => options.models.has(entry.name)
@@ -42,25 +42,47 @@ if (options.clean) {
   await rm(outputDir, {recursive: true, force: true});
 }
 await mkdir(outputDir, {recursive: true});
+// Remove previously published modules, including the old flat JS/Wasm pairs.
+// Limit removal to paths this script generates, even for a malformed manifest.
+for (const manifestName of ['models.json', 'manifest.json']) {
+  let previous;
+  try {
+    previous = JSON.parse(await readFile(path.join(outputDir, manifestName), 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') continue;
+    throw error;
+  }
+  for (const entry of previous.entries) {
+    const file = manifestName === 'models.json' ? `${entry.name}.js` : entry.module;
+    if (/^(?:(?:models|compiles)\/)?[\w-]+\.js$/.test(file)) {
+      await rm(path.join(outputDir, file), {force: true});
+    }
+  }
+}
+for (const file of ['models.json', 'browser.bc.js', 'browser.bc.wasm.assets']) {
+  await rm(path.join(outputDir, file), {recursive: true, force: true});
+}
+for (const directory of ['models', 'compiles']) {
+  await mkdir(path.join(outputDir, directory), {recursive: true});
+}
 const built = path.join(repoRoot, '_build/default/web');
-for (const file of ['browser.bc.js', 'browser.bc.wasm.js']) await cp(path.join(built, file), path.join(outputDir, file));
+await cp(path.join(built, 'browser.bc.wasm.js'), path.join(outputDir, 'browser.bc.wasm.js'));
 await cp(path.join(built, 'browser.bc.wasm.assets'), path.join(outputDir, 'browser.bc.wasm.assets'), {recursive: true});
 for (const file of ['runtime.mjs', 'model_adapter.mjs']) await cp(path.join(repoRoot, 'web/runtime', file), path.join(outputDir, file));
 const published = [];
 for (const entry of entries) {
-  for (const backend of ['wasm', 'js']) {
-    const name = entry.name + (backend === 'js' ? '_js' : '');
-    const factory = entry.kind === 'model' ? 'createModel' : 'createCompiler';
-    const exports = entry.kind === 'model' ? 'make, step, snapshot, restore, render'
-      : 'compileCode, encodeAinput, encodeRinput, decodeRoutput, decodeFoutput';
-    await writeFile(path.join(outputDir, `${name}.js`), `import {${factory}} from './runtime.mjs';
-const instance = await ${factory}(${JSON.stringify(entry.name)}, '${backend}');
+  const directory = entry.kind === 'model' ? 'models' : 'compiles';
+  const module = `${directory}/${entry.name}.js`;
+  const factory = entry.kind === 'model' ? 'createModel' : 'createCompiler';
+  const exports = entry.kind === 'model' ? 'make, step, snapshot, restore, render'
+    : 'compileCode, encodeAinput, encodeRinput, decodeRoutput, decodeFoutput';
+  await writeFile(path.join(outputDir, module), `import {${factory}} from '../runtime.mjs';
+const instance = await ${factory}(${JSON.stringify(entry.name)});
 export const {${exports}} = instance;
 `);
-    published.push({...entry, name, backend});
-  }
+  published.push({...entry, module, backend: 'wasm'});
 }
-await writeFile(path.join(outputDir, 'models.json'), JSON.stringify({entries: published, loaders: {
-  wasm: 'browser.bc.wasm.js', js: 'browser.bc.js',
+await writeFile(path.join(outputDir, 'manifest.json'), JSON.stringify({entries: published, loaders: {
+  wasm: 'browser.bc.wasm.js',
 }}, null, 2) + '\n');
-console.log(`Built ${entries.length} models/compilers (JS + Wasm): ${outputDir}`);
+console.log(`Built ${entries.length} models/compilers (Wasm): ${outputDir}`);

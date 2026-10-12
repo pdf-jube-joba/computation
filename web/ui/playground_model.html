@@ -3,22 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Computation Playground</title>
+  <title>Model Playground</title>
   <link rel="stylesheet" href="./playground.css">
 </head>
-<body>
+<body data-kind="model">
   <main class="pg-shell">
     <section class="pg-hero">
-      <p class="pg-kicker">Computation Playground</p>
+      <p class="pg-kicker">Model Playground</p>
       <h1>生成済み model を切り替えて試す</h1>
       <p class="pg-lead">
-        ビルド済みの計算モデルとコンパイラを選んで実行できます。
+        ビルド済みの計算モデルを選んで実行できます。
+        <a href="./playground_compiler.html">Compiler Playground</a>
       </p>
     </section>
 
     <section class="pg-toolbar">
       <label class="pg-control">
-        <span>Model / Compiler</span>
+        <span>Model</span>
         <select id="model-select"></select>
       </label>
       <button id="reload-button" type="button">Reload</button>

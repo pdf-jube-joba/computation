@@ -197,7 +197,7 @@ code {
 }
 
 .pg-model-host.is-loading::before {
-  content: "Loading selected model...";
+  content: "Loading...";
   display: block;
   margin-bottom: 16px;
   padding: 14px 16px;
