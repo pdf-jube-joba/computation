@@ -1,5 +1,0 @@
-(library
- (name tiny_isa)
- (public_name computation.tiny_isa)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

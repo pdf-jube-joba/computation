@@ -1,6 +1,6 @@
-# 計算モデルとコンパイラ
+# 計算モデル
 
-各ディレクトリの `src/dune` が一つのライブラリを定義し、`src/*.ml` がその module です。
+実装済みモデルの `main.ml` が Machine を定義します。モデル群の `dune` でライブラリとテストを設定します。
 Web と CLI の公開名は `registry/registry.ml` に登録します。
 
 ## モデルの契約
@@ -14,7 +14,7 @@ type ('state, 'routput, 'foutput) step_result =
 ```
 
 `make` は初期状態を生成し、`step` は一段階の遷移を返します。
-`parse_code` / `parse_ainput` / `parse_rinput` は外部のテキストをモデルの型に変換します。
+`Code` / `Ainput` / `Rinput` の `parse` は外部のテキストをモデルの型に変換します。
 `Utils.Session.Make` functor が共通のセッション管理を実装します。
 エラーでは元の状態を保持し、停止ではセッションを終了します。
 

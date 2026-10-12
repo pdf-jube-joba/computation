@@ -1,4 +1,0 @@
-(test
- (name lambda_tests)
- (modules lambda_tests)
- (libraries lambda_calculus))

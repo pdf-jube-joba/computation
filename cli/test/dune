@@ -1,5 +1,0 @@
-(test
- (name cli_tests)
- (libraries unix yojson str)
- (deps ../src/main.exe)
- (action (run %{test} %{dep:../src/main.exe})))

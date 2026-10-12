@@ -1,4 +1,0 @@
-(test
- (name counter_tests)
- (modules counter_tests)
- (libraries utils example_counter))

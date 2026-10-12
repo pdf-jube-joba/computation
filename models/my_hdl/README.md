@@ -194,7 +194,7 @@ compile-comb: CombEnvCompile Exp \(\function\) LogicCircuits := compile-comb \(E
 
 ## OCaml implementation status
 
-`src/my_hdl.ml` ports the implemented Rust APIs: `Value_type`, `Value`,
+`main.ml` ports the implemented Rust APIs: `Value_type`, `Value`,
 `typable_value`, the full `comb_exp_val` evaluator (`eval_to_val`),
 `Parser.parse_value` / `Interface.parse_value`, and direct simple-module state
 observation, output evaluation and clock transitions. All original declaration

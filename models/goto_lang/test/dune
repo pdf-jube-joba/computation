@@ -1,4 +1,0 @@
-(test
- (name goto_tests)
- (modules goto_tests)
- (libraries utils goto_lang))

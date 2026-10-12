@@ -1,0 +1,13 @@
+(library
+ (name logic_circuit)
+ (public_name computation.logic_circuit)
+ (libraries utils yojson)
+ (preprocess
+  (pps ppx_deriving_yojson)))
+
+(subdir
+ test
+ (test
+  (name main_test)
+  (modules main_test)
+  (libraries logic_circuit utils yojson)))

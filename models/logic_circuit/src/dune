@@ -1,6 +1,0 @@
-(library
- (name logic_circuit)
- (public_name computation.logic_circuit)
- (modules circuit parser example logic_circuit)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

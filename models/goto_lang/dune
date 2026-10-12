@@ -1,0 +1,13 @@
+(library
+ (name goto_lang)
+ (public_name computation.goto_lang)
+ (libraries utils yojson)
+ (preprocess
+  (pps ppx_deriving_yojson)))
+
+(subdir
+ test
+ (test
+  (name main_test)
+  (modules main_test)
+  (libraries goto_lang utils yojson)))

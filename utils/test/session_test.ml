@@ -2,7 +2,7 @@ let get = function Ok value -> value | Error message -> failwith message
 let error = function Error _ -> () | Ok _ -> failwith "Expected an error"
 
 let () =
-  let module C = Example_counter in
+  let module C = Example_counter.Main in
   let module S = Utils.Session.Make (C) in
   let a = S.create () and b = S.create () in
   ignore (get (S.make a "3" ""));

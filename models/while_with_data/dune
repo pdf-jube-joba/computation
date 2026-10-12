@@ -1,0 +1,24 @@
+(subdir
+ strarr
+ (library
+  (name strarr)
+  (public_name computation.strarr)
+  (libraries utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ strtree
+ (library
+  (name strtree)
+  (public_name computation.strtree)
+  (libraries utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ test
+ (test
+  (name models_test)
+  (modules models_test)
+  (libraries strarr strtree utils yojson)))

@@ -1,0 +1,42 @@
+(subdir
+ shared
+ (library
+  (name tiny_isa_shared)
+  (public_name computation.tiny_isa_shared)
+  (libraries utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ isa
+ (library
+  (name tiny_isa)
+  (public_name computation.tiny_isa)
+  (libraries tiny_isa_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ symbolic_asm
+ (library
+  (name symbolic_asm)
+  (public_name computation.symbolic_asm)
+  (libraries tiny_isa_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ cfg_vreg
+ (library
+  (name cfg_vreg)
+  (public_name computation.cfg_vreg)
+  (libraries tiny_isa_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ test
+ (test
+  (name models_test)
+  (modules models_test)
+  (libraries cfg_vreg symbolic_asm tiny_isa tiny_isa_shared utils yojson)))

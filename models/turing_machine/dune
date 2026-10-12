@@ -1,0 +1,13 @@
+(library
+ (name turing_machine)
+ (public_name computation.turing_machine)
+ (libraries utils yojson)
+ (preprocess
+  (pps ppx_deriving_yojson)))
+
+(subdir
+ test
+ (test
+  (name main_test)
+  (modules main_test)
+  (libraries turing_machine utils yojson)))

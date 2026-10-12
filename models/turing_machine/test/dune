@@ -1,4 +1,0 @@
-(test
- (name test_turing_machine)
- (modules test_turing_machine)
- (libraries turing_machine utils yojson))

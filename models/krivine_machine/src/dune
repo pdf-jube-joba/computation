@@ -1,6 +1,0 @@
-(library
- (name krivine_machine)
- (public_name computation.krivine_machine)
- (modules krivine_machine)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

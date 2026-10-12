@@ -186,8 +186,7 @@ graph: main {
 
 ## OCaml implementation
 
-`src/logic_circuit.ml` exposes `Logic_circuit.S` (also
-`Logic_circuit.Machine`) for the shared `Utils.Machine.S` contract.
+`main.ml` defines `Logic_circuit.Main` with the shared `Utils.Machine.S` contract.
 `Circuit` retains gates, synchronous graph composition, iterator state and graph
 views; `Parser`/`Parse` retain `graph:` and `iter:` definitions and signal text.
 `Example.utils_map ()` contains all six original example circuits.

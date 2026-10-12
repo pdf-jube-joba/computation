@@ -1,5 +1,0 @@
-(library
- (name async_await)
- (public_name computation.async_await)
- (libraries utils yojson)
- (preprocess (pps ppx_deriving_yojson)))

@@ -2,4 +2,24 @@
  (name utils)
  (public_name computation.utils)
  (libraries yojson)
- (preprocess (pps ppx_deriving_yojson)))
+ (preprocess
+  (pps ppx_deriving_yojson)))
+
+(subdir
+ test
+ (test
+  (name identifiers_test)
+  (modules identifiers_test)
+  (libraries utils))
+ (test
+  (name core_test)
+  (modules core_test)
+  (libraries utils))
+ (test
+  (name session_test)
+  (modules session_test)
+  (libraries utils example_counter))
+ (test
+  (name parsing_test)
+  (modules parsing_test)
+  (libraries utils)))

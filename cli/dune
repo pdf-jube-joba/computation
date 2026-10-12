@@ -1,0 +1,20 @@
+(library
+ (name computation_cli)
+ (modules host)
+ (libraries utils model_registry))
+
+(executables
+ (names main pipe_machine repl_machine)
+ (public_names computation pipe-machine repl-machine)
+ (package computation)
+ (modules main pipe_machine repl_machine)
+ (libraries computation_cli model_registry utils))
+
+(subdir
+ test
+ (test
+  (name cli_test)
+  (libraries unix yojson str)
+  (deps ../main.exe)
+  (action
+   (run %{test} %{dep:../main.exe}))))

@@ -1,0 +1,81 @@
+(subdir
+ shared
+ (library
+  (name structured_lang_shared)
+  (public_name computation.structured_lang_shared)
+  (libraries utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ expr_lang
+ (library
+  (name expr_lang)
+  (public_name computation.expr_lang)
+  (libraries structured_lang_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ internal_ctrl
+ (library
+  (name internal_ctrl)
+  (public_name computation.internal_ctrl)
+  (libraries structured_lang_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ proc_lang
+ (library
+  (name proc_lang)
+  (public_name computation.proc_lang)
+  (libraries structured_lang_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ fn_ptr
+ (library
+  (name fn_ptr)
+  (public_name computation.fn_ptr)
+  (libraries structured_lang_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ mini_prog
+ (library
+  (name mini_prog)
+  (public_name computation.mini_prog)
+  (libraries structured_lang_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ data_lang
+ (library
+  (name data_lang)
+  (public_name computation.data_lang)
+  (libraries utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ test
+ (test
+  (name models_test)
+  (modules models_test)
+  (libraries
+   expr_lang
+   expr_lang_to_flow_ir
+   flow_ir
+   fn_ptr
+   internal_ctrl
+   internal_ctrl_to_flow_ir
+   mini_prog
+   proc_lang
+   proc_lang_to_flow_ir
+   structured_lang_shared
+   utils
+   yojson)))

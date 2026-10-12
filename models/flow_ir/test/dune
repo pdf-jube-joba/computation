@@ -1,4 +1,0 @@
-(test
- (name test_flow_ir)
- (modules test_flow_ir)
- (libraries flow_ir utils yojson))

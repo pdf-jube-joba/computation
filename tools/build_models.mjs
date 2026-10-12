@@ -27,8 +27,8 @@ function run(args, capture = false) {
   return result.stdout;
 }
 const profile = options.release ? ['--profile', 'release'] : [];
-run(['build', ...profile, 'web/browser.bc.js', 'web/browser.bc.wasm.js', 'cli/src/main.exe']);
-let entries = JSON.parse(run(['exec', ...profile, 'cli/src/main.exe', '--', 'list', '--json'], true));
+run(['build', ...profile, 'web/browser.bc.js', 'web/browser.bc.wasm.js', 'cli/main.exe']);
+let entries = JSON.parse(run(['exec', ...profile, 'cli/main.exe', '--', 'list', '--json'], true));
 if (options.models.size || options.packages.size) {
   const selected = entries.filter(entry => options.models.has(entry.name)
     || options.packages.has(entry.library || entry.name));

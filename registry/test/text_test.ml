@@ -75,14 +75,14 @@ let () =
           roundtrip (name ^ " Routput") (module M.Routput) routput;
           roundtrip (name ^ " Foutput") (module M.Foutput) foutput)
     Registry.entries;
-  roundtrip "empty effect" (module Pcf.Syntax.Routput) "";
+  roundtrip "empty effect" (module Pcf_shared.Syntax.Routput) "";
   roundtrip "numeric continuation value"
-    (module Lambda_continuations.No_ext.Foutput)
+    (module Lambda_continuations_no_ext.Main.Foutput)
     "S S 0";
   roundtrip "control continuation value"
-    (module Lambda_continuations.Ctrl.Foutput)
+    (module Lambda_continuations_ctrl.Main.Foutput)
     "fun x => abort x";
-  assert (Result.is_error (Lambda_continuations.No_ext.Foutput.parse "S x"));
+  assert (Result.is_error (Lambda_continuations_no_ext.Main.Foutput.parse "S x"));
   assert (Result.is_error (Utils.Text.Natural.parse "-1"));
   assert (Result.is_error (Utils.Text.Natural_int.parse "-1"));
   assert (Result.is_error (Utils.Text.Unit.parse "unexpected"));
