@@ -1,0 +1,17 @@
+(subdir
+ pcf_expr_to_pcf_cek
+ (library
+  (name pcf_expr_to_pcf_cek)
+  (public_name computation.pcf_expr_to_pcf_cek)
+  (libraries pcf_cek pcf_expr utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ pcf_expr_to_pcf_secd
+ (library
+  (name pcf_expr_to_pcf_secd)
+  (public_name computation.pcf_expr_to_pcf_secd)
+  (libraries pcf_expr pcf_secd utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))

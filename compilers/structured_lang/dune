@@ -1,0 +1,50 @@
+(subdir
+ shared
+ (library
+  (name structured_lang_compiler_shared)
+  (public_name computation.structured_lang_compiler_shared)
+  (libraries flow_ir structured_lang_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ expr_lang_to_flow_ir
+ (library
+  (name expr_lang_to_flow_ir)
+  (public_name computation.expr_lang_to_flow_ir)
+  (libraries
+   expr_lang
+   structured_lang_compiler_shared
+   structured_lang_shared
+   utils
+   yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ internal_ctrl_to_flow_ir
+ (library
+  (name internal_ctrl_to_flow_ir)
+  (public_name computation.internal_ctrl_to_flow_ir)
+  (libraries
+   internal_ctrl
+   structured_lang_compiler_shared
+   structured_lang_shared
+   utils
+   yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ proc_lang_to_flow_ir
+ (library
+  (name proc_lang_to_flow_ir)
+  (public_name computation.proc_lang_to_flow_ir)
+  (libraries
+   proc_lang
+   structured_lang_compiler_shared
+   structured_lang_shared
+   utils
+   yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))

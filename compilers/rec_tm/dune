@@ -1,0 +1,42 @@
+(subdir
+ recursive_function_to_rec_tm_ir
+ (library
+  (name recursive_function_to_rec_tm_ir)
+  (public_name computation.recursive_function_to_rec_tm_ir)
+  (libraries rec_tm_ir recursive_function turing_machine utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ rec_tm_ir_to_rec_tm_ir_jump
+ (library
+  (name rec_tm_ir_to_rec_tm_ir_jump)
+  (public_name computation.rec_tm_ir_to_rec_tm_ir_jump)
+  (libraries rec_tm_ir rec_tm_ir_jump rec_tm_shared utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ rec_tm_ir_jump_to_turing_machine
+ (library
+  (name rec_tm_ir_jump_to_turing_machine)
+  (public_name computation.rec_tm_ir_jump_to_turing_machine)
+  (libraries rec_tm_ir_jump rec_tm_shared turing_machine utils yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))
+
+(subdir
+ recursive_function_to_turing_machine
+ (library
+  (name recursive_function_to_turing_machine)
+  (public_name computation.recursive_function_to_turing_machine)
+  (libraries
+   rec_tm_ir_jump_to_turing_machine
+   rec_tm_ir_to_rec_tm_ir_jump
+   recursive_function
+   recursive_function_to_rec_tm_ir
+   turing_machine
+   utils
+   yojson)
+  (preprocess
+   (pps ppx_deriving_yojson))))

@@ -1,5 +1,5 @@
 ## 全体の構成
-- recursive function \(\to\) [IR1](../../models/rec_tm/rec_tm_ir/spec.md) \(\to\) [IR2](../../models/rec_tm/rec_tm_ir_jump/spec.md) \(\to\) Turing machine
+- recursive function \(\to\) [IR1](../../../models/rec_tm/rec_tm_ir/spec.md) \(\to\) [IR2](../../../models/rec_tm/rec_tm_ir_jump/spec.md) \(\to\) Turing machine
 - IR1 は再帰呼び出し無しの手続きあり言語
 - IR2 は行数 jump 言語
 - ともに、変数以外にテープへの操作として left/right/read/write がある。
