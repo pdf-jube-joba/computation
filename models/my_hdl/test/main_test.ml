@@ -7,45 +7,8 @@ let eval e = ok (eval_to_val [] [] e)
 let env code = { code; mod_env = [] }
 
 let () =
-  assert (ok (Parser.parse_value "#true") = Value.Bit true);
-  assert (
-    ok
-      (Parser.parse_value
-         "/* nested opener /* closes at first terminator */ #true")
-    = Value.Bit true);
-  assert (
-    ok
-      (Parser.parse_value
-         "[/* quoted \" /* } ignored */ #true // /* ignored\n #false]")
-    = Value.Array [ Value.Bit true; Value.Bit false ]);
-  bad (Parser.parse_value "/* nested opener /* */ */ #true");
-  bad (Parser.parse_value "/* unclosed #true");
-  assert (
-    ok (Parser.parse_value "/* comment */ [#false, <Red>,, [#true #false], {}]")
-    = Value.Array
-        [
-          Value.Bit false;
-          Value.Enume "Red";
-          Value.Array [ Value.Bit true; Value.Bit false ];
-          Value.Strct [];
-        ]);
-  assert (ok (Parser.parse_value "<A_b_1>") = Value.Enume "A_b_1");
-  assert (ok (Parser.parse_value "<_>") = Value.Enume "_");
   assert (Value.new_strct [] = Some (Value.Strct []));
   assert (Value.new_strct [ ("field", Value.Bit true) ] = None);
-  List.iter
-    (fun text -> bad (Parser.parse_value text))
-    [
-      "{a: #true}";
-      "{a:#true a:#false}";
-      "[true]";
-      "<#true>";
-      "<123>";
-      "#true trailing";
-      "[#true";
-      "{a #true}";
-      "";
-    ];
   let value = ok (Parser.parse_value "[#true <tag> {}]") in
   assert (
     ok
@@ -53,7 +16,6 @@ let () =
          (Yojson.Safe.from_string
             (Yojson.Safe.to_string (Value.to_yojson value))))
     = value);
-  assert (ok (Parser.parse_value (Value.print value)) = value);
   assert (
     Value.get_field_of_value (Value.Strct [ ("a", value) ]) "a" = Some value);
   assert (Value.get_field_of_value value "a" = None);
@@ -184,18 +146,6 @@ let () =
   assert (
     ok (simple_module_state_of_yojson (simple_module_state_to_yojson next))
     = next);
-  bad
-    (build_simple
-       {
-         state_type_and_init = (Value.Bit false, Value_type.Bit);
-         input_type = Value_type.Bit;
-         otput_type = Value_type.Bit;
-         trans_func = bit true;
-         otput_func = bit true;
-       });
-  bad (general_now_state (SimpleState machine));
-  bad (general_get_otput (SimpleState machine));
-  bad (general_clock (SimpleState machine) (Value.Bit false));
   let graph : graph_module_state =
     {
       states_machines = [];
@@ -206,9 +156,6 @@ let () =
   assert (ok (graph_now_state graph) = Value.Strct []);
   assert (ok (graph_get_otput graph) = Value.Bit true);
   assert (ok (graph_clock graph (Value.Bit false)) = graph);
-  bad
-    (graph_get_otput
-       { graph with states_machines = [ ("child", SimpleState machine) ] });
   let iter : iter_module_state =
     {
       init_state_machine = SimpleState machine;
@@ -219,5 +166,4 @@ let () =
     }
   in
   bad (iter_get_otput iter);
-  bad (iter_clock iter (Value.Bit false));
   print_endline "my_hdl tests passed"

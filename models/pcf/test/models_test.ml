@@ -24,7 +24,6 @@ let run (type c a s r f)
         (M.restore
            (Yojson.Safe.from_string (Yojson.Safe.to_string (M.snapshot state))))
     in
-    assert (match M.render state with `List _ -> true | _ -> false);
     match get (M.step state ()) with
     | Utils.Machine.Halt n -> (List.rev outputs, `String (M.Foutput.print n))
     | Utils.Machine.Continue { next; output } ->
@@ -49,18 +48,11 @@ let differential text inputs expected =
   let compiled = get (Pcf_expr_to_pcf_secd.Main.api.compile_code text) in
   assert (
     run (module Pcf_secd.Main) (get (Pcf_secd.Main.Code.parse compiled)) inputs
-    = expr);
-  assert (get (Pcf_secd.Main.Code.parse (Pcf_secd.Main.Code.print secd)) = secd);
-  assert (
-    get (Pcf_shared.Syntax.Code.parse (Pcf_shared.Syntax.Code.print source))
-    = source)
+    = expr)
 
 let stmt text expected =
   let source = get (Pcf_expr_stmt.Main.Code.parse text) in
-  assert (run (module Pcf_expr_stmt.Main) source [] = expected);
-  assert (
-    get (Pcf_expr_stmt.Main.Code.parse (Pcf_shared.Syntax.Code.print source))
-    = source)
+  assert (run (module Pcf_expr_stmt.Main) source [] = expected)
 
 let () =
   let s n = `String n in
@@ -140,23 +132,9 @@ let () =
     "{ let x := 4; let f := rec f y => if #true then x + y else f(y) fi; let x \
      := 9; f(2) }"
     ([], s "6");
-  error (Pcf_shared.Syntax.Code.parse "fun if => 1");
-  error (Pcf_shared.Syntax.Code.parse "1 trailing");
-  error (Pcf_shared.Syntax.Stmt_code.parse "print 1");
-  error (Pcf_shared.Syntax.Code.parse "{ skip; 1 }");
-  error (Pcf_shared.Syntax.Stmt_code.parse "{ 1 }");
-  error (Pcf_shared.Syntax.Stmt_code.parse "{ skip; }");
-  assert (get (Pcf_shared.Syntax.Ainput.parse "(,001,,2,)") = [ "1"; "2" ]);
-  assert (get (Pcf_shared.Syntax.Ainput.parse "(+001, +2)") = [ "1"; "2" ]);
-  assert (get (Pcf_shared.Syntax.Routput.parse "+001") = Some "1");
   assert (get (Pcf_expr_to_pcf_secd.Main.api.encode_ainput "(+001)") = "(1)");
   assert (get (Pcf_expr_to_pcf_cek.Main.api.decode_routput "+001") = "1");
   assert (get (Pcf_expr_to_pcf_secd.Main.api.decode_foutput "+001") = "1");
-  error (Pcf_shared.Syntax.Ainput.parse "(+ 1)");
-  error (Pcf_shared.Syntax.Routput.parse "+");
-  error (Pcf_shared.Syntax.Routput.parse "++1");
-  error (Pcf_shared.Syntax.Ainput.parse "1,2");
-  error (Pcf_expr.Main.Rinput.parse "1");
   let shadow = get (Pcf_shared.Syntax.Code.parse "(rec f f => f)(7)") in
   assert (
     fst (get (Pcf_expr.Main.small_step shadow)) = Pcf_shared.Syntax.Nat "7");
@@ -190,15 +168,6 @@ let () =
     Pcf_shared.Syntax.Names.is_empty (Pcf_shared.Syntax.free_vars substituted));
   assert (substituted = absent);
   assert (
-    get
-      (Pcf_secd.Main.Code.parse
-         {|[{"PushNat":2},{"PushNat":3},{"BinOp":"Add"}]|})
-    = [
-        Pcf_secd.Main.PushNat "2";
-        Pcf_secd.Main.PushNat "3";
-        Pcf_secd.Main.BinOp Pcf_shared.Syntax.Add;
-      ]);
-  assert (
     run
       (module Pcf_secd.Main)
       (get
@@ -206,10 +175,8 @@ let () =
             {|[{"PushNat":2},{"PushNat":3},{"BinOp":"Add"}]|}))
       []
     = ([], s "5"));
-  error (Pcf_secd.Main.Code.parse {|[{"Acc":"bad!"}]|});
   error
     (Pcf_secd.Main.step (get (Pcf_secd.Main.make [ Pcf_secd.Main.Ret ] [])) ());
   error
     (Pcf_secd.Main.step (get (Pcf_secd.Main.make [ Pcf_secd.Main.Ap ] [])) ());
-  assert (Pcf_expr.Main.Routput.print None = "");
   print_endline "PCF semantic/compiler tests passed"

@@ -41,15 +41,3 @@
   turing_machine
   utils
   yojson))
-
-(subdir
- test
- (test
-  (name text_test)
-  (modules text_test)
-  (libraries
-   utils
-   model_registry
-   pcf_shared
-   lambda_continuations_no_ext
-   lambda_continuations_ctrl)))

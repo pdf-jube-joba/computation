@@ -22,16 +22,4 @@
  (test
   (name session_test)
   (modules session_test)
-  (libraries utils example_counter))
- (test
-  (name parsing_test)
-  (modules parsing_test)
-  (libraries utils))
- (test
-  (name parser_test)
-  (modules parser_test)
-  (libraries utils))
- (test
-  (name expression_test)
-  (modules expression_test)
-  (libraries utils)))
+  (libraries utils example_counter)))

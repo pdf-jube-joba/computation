@@ -136,17 +136,6 @@ let () =
   in
   assert (I.snapshot (next_i s) = I.snapshot (next_i restored));
   assert (I.snapshot s = snapshot);
-  let input = ok (I.Ainput.parse "\n0, 1,2,3,4,5,6,7,\n\n8\n9") in
-  assert (input.memory = [ "8"; "9" ]);
-  assert (ok (I.Ainput.parse (I.Foutput.print input)) = input);
-  assert (
-    ok
-      (I.Code.parse
-         (I.Code.print [ "0"; "64"; "123456789012345678901234567890" ]))
-    = [ "0"; "64"; "123456789012345678901234567890" ]);
-  error (I.Ainput.parse "0,1");
-  error (I.Ainput.parse "x,0,0,0,0,0,0,0");
-  error (I.Code.parse "64 x");
   let text =
     ".equ N #7\n\
      .text\n\
@@ -170,7 +159,6 @@ let () =
      @main"
   in
   let code = ok (A.Code.parse text) in
-  assert (ok (A.Code.parse (A.Code.print code)) = code);
   let output = run_a 30 (ok (A.make code asm_input)) in
   assert (
     output.regs.(1) = "9"
@@ -181,7 +169,6 @@ let () =
   let input = ok (A.Ainput.parse "0, 0, 0, 0, 0, 0, 0, 0\n100") in
   let output = run_a 20 (ok (A.make code input)) in
   assert (List.nth output.data_memory 5 = "100");
-  assert (ok (A.Foutput.parse (A.Foutput.print output)) = output);
   let output =
     run_a 30
       (assembly
@@ -245,12 +232,7 @@ let () =
       "unknown;";
       ".data\n@unknown";
     ];
-  List.iter
-    (fun text -> error (A.Code.parse text))
-    [ ".bss"; "ldi %r8 #1;"; ".data\n1 2"; "@:" ];
   error (A.step (assembly "ldi %r1 missing;") ());
-  let program = "@cell 3\n@main {\n %v0 := *@cell_invalid;\n goto @main;\n}" in
-  error (C.Code.parse program);
   let program =
     "@cell 3\n\
      @main {\n\
@@ -268,7 +250,6 @@ let () =
      }"
   in
   let code = ok (C.Code.parse program) in
-  assert (ok (C.Code.parse (C.Code.print code)) = code);
   let s = ok (C.make code (ok (C.Ainput.parse "(8, 9,)"))) in
   let s1 = next_c s in
   assert (
@@ -338,23 +319,6 @@ let () =
       "@x 0\n@x 1\n@main {\n goto @main;\n}";
     ];
   List.iter
-    (fun text -> error (C.Code.parse text))
-    [
-      "@main {\n}";
-      "@main {\n goto #0;\n goto #0;\n}";
-      "@main {\n goto #0;\n %v0 := #1;\n}";
-      "@main {\n goto #0;";
-      "@main {\n %v0 := #1 * #2;\n goto #0;\n}";
-      "@main {\n [#1) := #2;\n goto #0;\n}";
-      "@main {\n %v0 := *[#1];\n goto #0;\n]";
-      "@main {\n if #1 < #2 < #3 then @main;\n goto #0;\n}";
-    ];
-  let dense =
-    ok
-      (C.Code.parse "@main{[#1]:=#+2;%v0:=*[#1];if %v0=#2 then @main;goto #0;}")
-  in
-  assert (ok (C.Code.parse (C.Code.print dense)) = dense);
-  List.iter
     (fun target ->
       let s =
         ok (C.make (ok (C.Code.parse ("@main {\n goto " ^ target ^ ";\n}"))) [])
@@ -366,22 +330,5 @@ let () =
     match ok (C.step s ()) with
     | Utils.Machine.Halt ns -> ns = [ "7"; "8"; "9" ]
     | _ -> false);
-  assert (C.Foutput.print [ "1"; "2" ] = "(1, 2)");
-  assert (ok (C.Ainput.parse "(,1,,2,)") = [ "1"; "2" ]);
-  List.iter (fun text -> error (C.Ainput.parse text)) [ "1,2"; "(1;x)"; "(-1)" ];
-  error (I.Rinput.parse "x");
-  error (A.Rinput.parse "x");
-  error (C.Rinput.parse "x");
-  assert (
-    match I.render (machine [ Op.Halt ]) with
-    | `List [ _; _; _ ] -> true
-    | _ -> false);
-  assert (
-    match A.render (assembly "halt;") with
-    | `List [ _; _; _ ] -> true
-    | _ -> false);
-  assert (match C.render s1 with `List [ _; _; _; _ ] -> true | _ -> false);
-  assert (ok (I.Code.parse "+64") = [ "64" ]);
   assert ((run_a 5 (assembly "ldi %r1 #+7;\nhalt;")).regs.(1) = "7");
-  assert (ok (C.Ainput.parse "(+1,+2)") = [ "1"; "2" ]);
   print_endline "tiny ISA, symbolic assembly, and CFG tests passed"

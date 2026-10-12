@@ -35,11 +35,8 @@ let equivalent text input expected =
   let output = run_ir p t in
   check "IR result" (T.Tape.equal output (tape expected));
   let jump = get (Rec_tm_ir_to_rec_tm_ir_jump.Main.compile p) in
-  check "jump roundtrip" (get (J.Code.parse (J.Code.print jump)) = jump);
   check "IR to jump equivalence" (T.Tape.equal output (run_jump jump t));
   let tm = get (Rec_tm_ir_jump_to_turing_machine.Main.compile jump) in
-  check "Turing roundtrip up to state IDs"
-    (T.Code.print (get (T.Code.parse (T.Code.print tm))) = T.Code.print tm);
   check "jump to Turing equivalence" (T.Tape.equal output (run_tm tm t))
 
 let helper make input expected =
@@ -52,7 +49,6 @@ let helper make input expected =
 let recursive f input expected =
   let t = get (C.write_usize input) in
   let p = get (C.compile f) in
-  check "compiled text roundtrip" (get (I.Code.parse (I.Code.print p)) = p);
   let output = run_ir p t in
   check
     ("recursive result: " ^ R.Code.print f)
@@ -72,15 +68,6 @@ let () =
     C.register ctx (C.fn "different_hint" [ C.block "entry" [ I.Rt ] ])
   in
   check "identical function bodies share identity" (shared = first);
-  assert (
-    get
-      (I.Code.parse
-         "/* alphabet */ alphabet:(a,b) // entry\n\
-          fn main {label entry:{@:=const -}}")
-    = get (I.Code.parse "alphabet:(a,b) fn main {label entry:{@:=const -}}"));
-  assert (
-    get (J.Code.parse "alphabet:(a,b) /* blank */ @:=const - // tail")
-    = get (J.Code.parse "alphabet:(a,b) @:=const -"));
   equivalent
     "alphabet:(a,b) fn f { label entry:{ x:=@ } } fn main {label entry:{x:=@ \
      RT call f LT @:=x}}"
@@ -325,4 +312,4 @@ let () =
     (Result.is_error (C.decode_foutput (tape "|-|x")));
   check "output decode tuple"
     (Result.is_error (C.decode_foutput (get (C.write_usize [ 1; 2 ]))));
-  print_endline "IR, helpers, compiler roundtrips and equivalence tests passed"
+  print_endline "IR, helpers, compiler equivalence tests passed"

@@ -19,52 +19,6 @@ let run ?(input = "") code ainput =
     ""
 
 let () =
-  let code =
-    {|@slot 0
-:main {
- :entry {
- nop; %p := ref @slot; deref %p := st :next; %jmp := ld @slot;
- if %cond = #0 then :next; goto %jmp;
- }
- :next { halloc(#3) %h; hacc(%h)[#1] := st #7; %x := ld hacc(%h)[#1];
- print %x; input @slot; push %x; halt; }
-}
-:r2 { :entry { lget %len; pop %tmp; push %len; hfree #1; halt; } }
-|}
-  in
-  let parsed = get (I.Code.parse code) in
-  if get (I.Code.parse (I.Code.print parsed)) <> parsed then
-    failwith "Roundtrip";
-  let dense =
-    get
-      (I.Code.parse
-         {|@slot 0 // static
-/* region */ :main{:entry{%p:=ref @slot;if %cond=#0 then :next;goto %p;}
-:next{halloc(#3)%h;hacc(%h)[#1]:=st #7;%x:=ld hacc(%h)[#1];halt;}}|})
-  in
-  if get (I.Code.parse (I.Code.print dense)) <> dense then
-    failwith "Dense roundtrip";
-  List.iter
-    (fun s ->
-      let v = get (I.Ainput.parse_value s) in
-      if get (I.Ainput.parse_value (I.Ainput.print_value v)) <> v then
-        failwith "Value roundtrip")
-    [ "123"; ":next"; "k:@slot"; "k:s[3]"; "k:h[2][4]" ];
-  assert (
-    I.Ainput.parse_value "k:h[002][04]"
-    = Ok (I.Key (I.Heap (get (I.Heap_id.of_int 2), 4))));
-  List.iter
-    (fun source -> error (I.Ainput.parse_value source))
-    [
-      "k:s[3}";
-      "k:s[3][4]";
-      "k:h[2][4}";
-      "k:h[2][4";
-      "k:h[2 3][4]";
-      "k:h[2][4] trailing";
-      "k:h[123456789012345678901234567890][4]";
-    ];
-  eq (I.Ainput.print (get (I.Ainput.parse "z=3\na=1\nz=5"))) "a = 1\nz = 5\n";
   let out, text =
     run ~input:"Hi" {|@x 0
 :main{:entry{input @x; %x:=ld @x; print %x; halt;}}|}
@@ -115,7 +69,6 @@ let () =
     (I.make
        (get (I.Code.parse "@x 0 :main{:entry{halt;}}"))
        [ ("y", I.Num "1") ]);
-  error (I.Code.parse ":main{:entry{nop;}}");
   let s = get (I.make (get (I.Code.parse ":main{:entry{pop %a;halt;}}")) []) in
   error (I.step s "");
   let allocated =

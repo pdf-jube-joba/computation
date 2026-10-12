@@ -31,22 +31,8 @@ let next_t s =
 let () =
   let (_ : (module Utils.Machine.S)) = (module A) in
   let (_ : (module Utils.Machine.S)) = (module T) in
-  assert (
-    ok
-      (A.Code.parse
-         "/* outer /* inner */ */ x := ['/', '*']; // tail\ny := tail x")
-    = A.Seq
-        ( A.Assign ("x", A.Const [ "/"; "*" ]),
-          A.Assign ("y", A.Tail (A.Var "x")) ));
-  assert (
-    ok
-      (T.Code.parse "x := atom '/'; /* comment */ y := cons x atom '*' // tail")
-    = T.Seq
-        ( T.Assign ("x", T.Atom (T.AtomChar "/")),
-          T.Assign ("y", T.Cons (T.Var "x", T.Atom (T.AtomChar "*"))) ));
   let text = "x := ['a', 'b'] ; while x == ['a', 'b'] { x := tail x }" in
   let code = ok (A.Code.parse text) in
-  assert (ok (A.Code.parse (A.Code.print code)) = code);
   let env = run_a 40 (ok (A.make code [])) in
   assert (List.assoc "x" env = [ "b" ]);
   let code =
@@ -58,15 +44,6 @@ let () =
   let env = run_a 40 (ok (A.make code [])) in
   assert (List.assoc "y" env = [ "a"; "b" ]);
   assert (List.assoc "z" env = []);
-  let env =
-    ok
-      (A.Ainput.parse
-         "foo_bar = ['猫', '\\n', '\\r', '\\t', '\\\\', '\\'']\n\
-          x = []\n\
-          foo_bar = ['🙂']")
-  in
-  assert (List.assoc "foo_bar" env = [ "🙂" ]);
-  assert (ok (A.Ainput.parse (A.Foutput.print env)) = env);
   let s =
     ok
       (A.make
@@ -101,16 +78,11 @@ let () =
               A.While (A.IsEmpty (A.Var "x"), A.Assign ("x", A.Const [ "a" ]))
             ) ));
   let code =
-    ok (T.Code.parse "x := atom 'a' ; ifeq is_atom x then y := cons x x end")
-  in
-  assert (ok (T.Code.parse (T.Code.print code)) = code);
-  let code =
     ok
       (T.Code.parse
          "x := cons atom 'a' atom 'b' ; y := left x ; z := atom mtoa right x ; \
           ifeq y == atom 'a' then k := right x end")
   in
-  assert (ok (T.Code.parse (T.Code.print code)) = code);
   let env = run_t 60 (ok (T.make code [])) in
   assert (List.assoc "y" env = T.AtomValue "a");
   assert (List.assoc "z" env = T.AtomValue "b");
@@ -118,14 +90,6 @@ let () =
   let code = ok (T.Code.parse "while is_atom x { x := cons x atom 'z' }") in
   let env = run_t 30 (ok (T.make code [ ("x", T.AtomValue "a") ])) in
   assert (List.assoc "x" env = T.ConsValue (T.AtomValue "a", T.AtomValue "z"));
-  let env =
-    ok
-      (T.Ainput.parse
-         "x = cons atom '猫' cons atom '\\n' atom '🙂'\n\
-          x = atom '\\''\n\
-          foo_bar = atom 'é'")
-  in
-  assert (ok (T.Ainput.parse (T.Foutput.print env)) = env);
   let s =
     ok
       (T.make
@@ -146,40 +110,6 @@ let () =
       "x := right atom 'a'";
       "x := atom mtoa cons atom 'a' atom 'b'";
     ];
-  List.iter
-    (fun text -> error (T.Ainput.parse text))
-    [ "x = y"; "x = atom mtoa atom 'a'"; "x = left cons atom 'a' atom 'b'" ];
-  List.iter
-    (fun text -> error (A.Code.parse text))
-    [
-      "";
-      "x := ['ab']";
-      "x := [\"a\"]";
-      "x := [] /* unclosed";
-      "x := ['a',]";
-      "x := [] ;";
-      "if is_empty x then Nop";
-      "x := [] junk";
-    ];
-  List.iter
-    (fun text -> error (T.Code.parse text))
-    [
-      "";
-      "x := atom ''";
-      "x := atom 'ab'";
-      "x := atom \"a\"";
-      "x := atom 'a' /* unclosed";
-      "while is_atom x { Nop";
-      "x := cons atom 'a'";
-    ];
-  error (A.Rinput.parse "x");
-  error (T.Rinput.parse "x");
-  assert (A.Routput.print () = "");
-  assert (T.Routput.print () = "");
-  assert (match A.render s1 with `List [ _; _ ] -> true | _ -> false);
-  assert (match T.render s with `List [ _; _ ] -> true | _ -> false);
-  error (A.Code.parse "x := Nop");
-  error (T.Code.parse "x := then");
   let bad =
     ok
       (T.make

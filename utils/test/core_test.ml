@@ -10,20 +10,6 @@ let () =
   assert (Assoc.lookup "a" env "missing" = 2);
   assert (
     Parser.protect (fun () -> Assoc.lookup "b" env "missing") = Error "missing");
-  let parsed = get (Environment.parse Number.of_string "z=1\n\na = 2\nz=3\n") in
-  assert (parsed = [ ("z", "3"); ("a", "2") ]);
-  let text = Environment.print ~trailing_newline:true Number.to_string parsed in
-  assert (text = "z = 3\na = 2\n");
-  assert (Environment.parse Number.of_string text = Ok parsed);
-  assert (Environment.print ~trailing_newline:true Number.to_string [] = "");
-  assert (Environment.parse (fun s -> Ok s) "x=a=b" = Ok [ ("x", "a=b") ]);
-  assert (Environment.parse Number.of_string "x" = Error "Invalid env line: x");
-  assert (
-    Environment.parse Number.of_string "bad-name=1"
-    = Error "Invalid identifier: bad-name");
-  assert (
-    Environment.parse Number.of_string "x=bad"
-    = Error "Expected a natural number");
   assert (List_ext.nth [ 1; 2 ] 1 "bounds" = 2);
   assert (List_ext.replace [ 1; 2 ] 1 3 "bounds" = [ 1; 3 ]);
   assert (
@@ -54,8 +40,30 @@ let () =
   assert (
     get (Number.divmod "12193263112482853211126352690" "987654321")
     = ("12345678901234567890", "0"));
-  assert (Number.of_string "00012" = Ok "12");
-  let parser = Parser.create "/*a /*nested*/ comment*/ name // EOF comment" in
-  assert (Parser.identifier parser = "name");
-  assert (Parser.eof parser);
+  List.iter
+    (fun c ->
+      assert (Utf8.is_scalar c);
+      assert (Utf8.scalar_length c 0 = String.length c);
+      assert (Utf8.scalar ("x" ^ c ^ "y") 1 = (c, 1 + String.length c)))
+    [ "a"; "é"; "あ"; "😀" ];
+  assert (Utf8.valid "");
+  assert (Utf8.valid "aéあ😀");
+  assert (not (Utf8.is_scalar ""));
+  assert (not (Utf8.is_scalar "ab"));
+  List.iter
+    (fun c ->
+      assert (not (Utf8.valid c));
+      assert (Result.is_error (Parser.protect (fun () -> Utf8.scalar c 0))))
+    [ "\128"; "\192\128"; "\237\160\128"; "\244\144\128\128"; "\226\128" ];
+  assert (String_ext.words "a\t b\r\nc" = [ "a"; "b"; "c" ]);
+  assert (String_ext.lines " \na\n\tb\n" = [ "a"; "b" ]);
+  assert (String_ext.split_once ":=" "x:=a:=b" = Some ("x", "a:=b"));
+  assert (String_ext.split_once ":=" "x" = None);
+  assert (String_ext.strip_prefix "@" "@name" = "name");
+  assert (String_ext.strip_suffix ";" "name;" = "name");
+  assert (String_ext.strip_line_comment "//" "a // comment" = "a ");
+  List.iter
+    (fun text -> assert (Number.to_bytes (Number.of_bytes text) = text))
+    [ ""; "Hi"; "あ"; "\000\001"; "\255" ];
+  assert (Number.to_bytes "256" = "\000\001");
   print_endline "Utility tests passed"

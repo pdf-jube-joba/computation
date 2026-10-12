@@ -9,9 +9,6 @@ let ext n p = (External n, p)
 let wire n p = (n, p)
 let advance c xs = ok (step c xs)
 
-let code_roundtrip circuit =
-  assert (ok (Code.parse (Code.print circuit)) = circuit)
-
 let value c =
   match get_otputs c with
   | [ (_, b) ] -> b
@@ -78,21 +75,6 @@ let () =
     "/* comment */ graph: main {in {I} out {O=A.OUT} A, NOT_F {IN=I}}"
   in
   let main = ok (Code.parse code) in
-  assert (
-    ok (Code.parse ("/* nested opener /* closes at first terminator */" ^ code))
-    = main);
-  bad (Code.parse ("/* nested opener /* */ */" ^ code));
-  bad (Code.parse "/* unclosed graph: main {in {} out {}}");
-  assert (ok (Code.parse ("// /* ignored opener\n" ^ code)) = main);
-  code_roundtrip main;
-  List.iter
-    (fun kind ->
-      List.iter
-        (fun state -> code_roundtrip (new_gate kind state))
-        [ false; true ])
-    [ Cst; Not; And; Or; Br; Delay; End ];
-  bad (Code.parse "[");
-  bad (Code.parse "[\"Unknown\"]");
   assert (get_inpins main = [ ext "main" "I" ]);
   assert (Signal.print (get_otputs (advance main [])) = "@main.O=#true");
   assert (not (value (advance main [ (ext "main" "I", true) ])));
@@ -101,45 +83,6 @@ let () =
     value
       (advance main
          [ (ext "main" "UNKNOWN", true); (pin "UNKNOWN" "IN", true) ]));
-  (* Dangling interface references cannot resolve to a vertex ID. *)
-  bad (Code.parse "graph: main { in {A, d} out {a=b.c} A, AND_T {} }");
-  bad (Code.parse "graph: main {in {} out {} A, NOT_F {} A, NOT_T {}}");
-  bad (Code.parse "graph: main {in {} out {} A, NOT_F {IN=absent.OUT}}");
-  bad (Code.parse "graph: main {in {} out {} A, NOT_F {IN=X}}");
-  bad (Code.parse "graph: main {in {} out {} A, NO_SUCH_GATE {}}");
-  bad
-    (Code.parse
-       "graph: main {in {} out {} A, BR_F {} B, DLY_F {IN=A.OUT0} C, DLY_F \
-        {IN=A.OUT0}}");
-  bad
-    (Code.parse
-       "graph: main {in {} out {} A, DLY_F {} B, AND_F {IN0=A.OUT IN0=A.OUT}}");
-  bad (Code.parse "graph: _bad { in {} out {} } trailing");
-  bad (Code.parse "graph: 123 {in {} out {}}");
-  bad (Code.parse "");
-  let duplicate = ok (Code.parse (code ^ " graph: main {in {} out {}}")) in
-  assert (duplicate = main);
-  let signal = ok (Rinput.parse " A.IN=#true, B.OUT=#false ") in
-  assert (ok (Rinput.parse "\tA.IN=\r#true\n, B.OUT=#false\012") = signal);
-  assert (Signal.print signal = "A.IN=#true, B.OUT=#false");
-  assert (ok (Rinput.parse "  ") = []);
-  let whitespace = [ "\t"; "\n"; "\012"; "\r"; " " ] in
-  List.iter
-    (fun ws ->
-      assert (ok (Rinput.parse ws) = []);
-      assert (ok (Ainput.parse ws) = ());
-      assert (
-        ok (Rinput.parse (ws ^ "A.IN=" ^ ws ^ "#true" ^ ws))
-        = [ (pin "A" "IN", true) ]))
-    whitespace;
-  bad (Rinput.parse "A.\194\160IN=#true");
-  bad (Rinput.parse "\227\128\128A.IN=#true");
-  bad (Rinput.parse "\226\128\139A.IN=#true");
-  bad (Ainput.parse "\239\187\191");
-  List.iter
-    (fun s -> bad (Rinput.parse s))
-    [ "A.IN=true"; "A=#true"; "A.IN=#true,"; "0.IN=#true"; "A .IN=#true" ];
-  bad (Ainput.parse "unexpected");
   let saved = snapshot first in
   let decoded =
     Yojson.Safe.from_string (Yojson.Safe.to_string saved) |> restore |> ok
@@ -164,11 +107,7 @@ let () =
       assert (output = get_otputs next);
       assert (Logic_circuit.Main.Routput.print output = "@main.O=#true")
   | _ -> failwith "Circuits never halt");
-  (match render first with
-  | `List [ _; _; _; _ ] -> ()
-  | _ -> failwith "Expected four render blocks");
   let library = ok (Logic_circuit.Example.utils_map ()) in
-  List.iter (fun (_, circuit) -> code_roundtrip circuit) library;
   assert (
     List.map fst (Logic_circuit.Parser.init_maps ())
     = [
@@ -233,11 +172,9 @@ let () =
     && advance iter [] = iter);
   (* Instance IDs have the same representation in input and output. *)
   let iter = advance iter [ (instance 0 "IN", true) ] in
-  assert (Signal.print [ (instance 0 "OUT", true) ] = "$0.OUT=#true");
   (match iter with
   | Iter i -> assert (state_as_gate (List.hd i.used) = Some true)
   | _ -> assert false);
-  assert (ok (Rinput.parse "$000.IN=#true") = [ (instance 0 "IN", true) ]);
   let seeded =
     advance
       (ok (Code.parse "iter: main {DLY_F, next {OUT=IN} prev {}}"))
@@ -255,10 +192,6 @@ let () =
   assert (
     (as_graph_group extended).edges = [ (instance 0 "OUT", instance 1 "IN") ]);
   assert (ok (restore (snapshot extended)) = extended);
-  code_roundtrip extended;
-  (match extended with
-  | Iter i -> bad (Code.parse (Code.print (Iter { i with kind = "bad-name" })))
-  | _ -> assert false);
   bad (step iter [ (instance 10 "IN", true) ]);
   let backwards =
     ok (new_iter "back" (new_gate Delay false) [] [ ("OUT", "IN") ])

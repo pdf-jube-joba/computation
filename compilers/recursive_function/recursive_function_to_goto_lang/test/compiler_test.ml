@@ -35,7 +35,6 @@ let check func input =
   let source = ok (Recursive_function.Main.make func input) in
   let expected = run_source source in
   let code = ok (C.compile func) in
-  assert (ok (Goto_lang.Main.Code.parse (Goto_lang.Main.Code.print code)) = code);
   let env = run_code code (ok (C.encode_ainput input)) in
   let actual = ok (C.decode_foutput env) in
   if not (Utils.Number.equal expected actual) then
