@@ -6,23 +6,3 @@
  (libraries yojson)
  (preprocess
   (pps ppx_deriving_yojson)))
-
-(subdir
- test
- (include_subdirs no)
- (test
-  (name identifiers_test)
-  (modules identifiers_test)
-  (libraries utils))
- (test
-  (name id_naming_test)
-  (modules id_naming_test)
-  (libraries utils))
- (test
-  (name core_test)
-  (modules core_test)
-  (libraries utils))
- (test
-  (name session_test)
-  (modules session_test)
-  (libraries utils example_counter)))

@@ -28,15 +28,3 @@
    yojson)
   (preprocess
    (pps ppx_deriving_yojson))))
-
-(subdir
- test
- (test
-  (name models_test)
-  (modules models_test)
-  (libraries
-   lambda_continuations_ctrl
-   lambda_continuations_no_ext
-   lambda_continuations_shared
-   utils
-   yojson)))

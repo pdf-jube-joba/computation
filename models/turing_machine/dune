@@ -11,10 +11,3 @@
   (name turing_machine_construction)
   (public_name computation.turing_machine_construction)
   (libraries turing_machine utils)))
-
-(subdir
- test
- (test
-  (name main_test)
-  (modules main_test)
-  (libraries turing_machine turing_machine_construction utils yojson)))

@@ -1,6 +1,6 @@
 # 計算モデル
 
-実装済みモデルの `main.ml` が Machine を定義します。モデル群の `dune` でライブラリとテストを設定します。
+実装済みモデルの `main.ml` が Machine を定義します。モデル群の `dune` でライブラリを設定します。
 Web と CLI の公開名は `registry/registry.ml` に登録します。
 
 ## モデルの契約

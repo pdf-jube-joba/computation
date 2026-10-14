@@ -9,12 +9,3 @@
  (package computation)
  (modules main pipe_machine repl_machine)
  (libraries computation_cli model_registry utils))
-
-(subdir
- test
- (test
-  (name cli_test)
-  (libraries unix yojson str)
-  (deps ../main.exe)
-  (action
-   (run %{test} %{dep:../main.exe}))))

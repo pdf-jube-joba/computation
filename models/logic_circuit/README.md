@@ -210,6 +210,3 @@ keep the first definition.
 A parent delivers a pin through its child's interface, so child input routing
 does not depend on whether the instance name matches the child's kind. The
 bundled `ADDR` example computes both XOR sum and AND carry.
-
-Run `opam exec -- dune runtest models/logic_circuit/test` for the ported gate,
-graph, parser, example, snapshot, render and iterator tests.

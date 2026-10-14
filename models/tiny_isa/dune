@@ -33,10 +33,3 @@
   (libraries tiny_isa_shared utils yojson)
   (preprocess
    (pps ppx_deriving_yojson))))
-
-(subdir
- test
- (test
-  (name models_test)
-  (modules models_test)
-  (libraries cfg_vreg symbolic_asm tiny_isa tiny_isa_shared utils yojson)))

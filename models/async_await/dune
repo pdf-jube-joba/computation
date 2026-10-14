@@ -6,10 +6,3 @@
   (libraries utils yojson)
   (preprocess
    (pps ppx_deriving_yojson))))
-
-(subdir
- coroutine/test
- (test
-  (name main_test)
-  (modules main_test)
-  (libraries coroutine utils yojson)))

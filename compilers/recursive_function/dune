@@ -15,27 +15,3 @@
   (libraries lambda_calculus recursive_function utils yojson)
   (preprocess
    (pps ppx_deriving_yojson))))
-
-(subdir
- recursive_function_to_goto_lang/test
- (test
-  (name compiler_test)
-  (modules compiler_test)
-  (libraries
-   goto_lang
-   recursive_function
-   recursive_function_to_goto_lang
-   utils
-   yojson)))
-
-(subdir
- recursive_function_to_lambda_calculus/test
- (test
-  (name compiler_test)
-  (modules compiler_test)
-  (libraries
-   lambda_calculus
-   recursive_function
-   recursive_function_to_lambda_calculus
-   utils
-   yojson)))

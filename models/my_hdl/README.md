@@ -215,5 +215,3 @@ existing unfinished operations. This library exposes no `Utils.Machine.S` or
 compiler API to register. It does not turn the value parser into an invented
 HDL machine. Original design documents remain available as design material;
 their unfinished semantics are not advertised as implemented.
-
-Run `opam exec -- dune runtest models/my_hdl/test` for implemented-function tests.

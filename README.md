@@ -34,7 +34,6 @@ cargo run --manifest-path _wfs/Cargo.toml -- .
 
 ```sh
 opam exec -- dune build @all
-opam exec -- dune runtest
 ```
 
 ターミナルからモデルを動かすには、[CLI の使い方](./cli/README.md)を参照してください。

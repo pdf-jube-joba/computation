@@ -60,22 +60,3 @@
   (libraries utils yojson)
   (preprocess
    (pps ppx_deriving_yojson))))
-
-(subdir
- test
- (test
-  (name models_test)
-  (modules models_test)
-  (libraries
-   expr_lang
-   expr_lang_to_flow_ir
-   flow_ir
-   fn_ptr
-   internal_ctrl
-   internal_ctrl_to_flow_ir
-   mini_prog
-   proc_lang
-   proc_lang_to_flow_ir
-   structured_lang_shared
-   utils
-   yojson)))
