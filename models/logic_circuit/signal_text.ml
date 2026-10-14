@@ -4,10 +4,9 @@ type t = signal
 
 let value = Utils_base.Error.get
 
-let parse_bool text =
-  Utils_base.Bool.to_bool (value (Utils_base.Bool.parse text))
+let parse_bool text = value (Utils_codec.Text.Bool.parse text)
 
-let print_bool value = Utils_base.Bool.print (Utils_base.Bool.of_bool value)
+let print_bool = Utils_codec.Text.Bool.print
 
 module P = Utils_parsing.Parser
 

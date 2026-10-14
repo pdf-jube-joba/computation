@@ -1,7 +1,6 @@
 module Assoc = Utils_base.Assoc
 (** Convenience facade. Lower layers do not depend on this module. *)
 
-module Bool = Utils_base.Bool
 module Error = Utils_base.Error
 module List_ext = Utils_base.List_ext
 module Number = Utils_base.Number

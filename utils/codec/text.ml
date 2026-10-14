@@ -21,6 +21,18 @@ module String = struct
   let print text = text
 end
 
+module Bool = struct
+  type t = bool
+
+  let parse text =
+    match Stdlib.String.trim text with
+    | "#true" -> Ok true
+    | "#false" -> Ok false
+    | text -> Error ("Invalid boolean text: " ^ text)
+
+  let print = function true -> "#true" | false -> "#false"
+end
+
 module Natural = struct
   type t = Utils_base.Number.t
 
