@@ -13,6 +13,11 @@ Web と CLI の公開名は `registry/registry.ml` に登録します。
 ## モデルの契約
 
 `Utils_runtime.Machine.S` はコード、入力、出力、状態の型を抽象化した module signature です。
+モデルの `.mli` では `include Utils_runtime.Machine.S with ...` を使い、
+共通の関数宣言を再利用します。既存の状態型は `with type state := state`、
+codec の型は `with type Code.t = code` などで結びます。
+固有の機能を公開する codec module は別途宣言し、`with module Code := Code`
+などで結びます。モデル固有の型や関数もそのまま公開できます。
 
 ```ocaml
 type ('state, 'routput, 'foutput) step_result =

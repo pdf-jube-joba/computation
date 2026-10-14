@@ -13,13 +13,12 @@ module Routput = Utils_codec.Text.Unit
 module Foutput = Tape
 
 val unwrap : ('a, string) result -> 'a
-val make : code -> tape -> (state, string) result
 
-val step :
-  state ->
-  unit ->
-  ((state, unit, tape) Utils_runtime.Machine.step_result, string) result
-
-val snapshot : state -> Yojson.Safe.t
-val restore : Yojson.Safe.t -> (state, string) result
-val render : state -> Yojson.Safe.t
+include
+  Utils_runtime.Machine.S
+    with type state := state
+     and module Code := Code
+     and module Ainput := Ainput
+     and module Rinput := Rinput
+     and module Routput := Routput
+     and module Foutput := Foutput
