@@ -1,8 +1,5 @@
 open Pcf_shared.Syntax
 module Code = Pcf_shared.Code
-
-let ( let* ) = Result.bind
-
 open Pcf_shared.Closure_value
 
 type frame =
@@ -100,8 +97,8 @@ let render s =
       text ~title:"code" (Code.print s.code);
       text_table ~title:"state" ~columns:[ "field"; "value" ]
         [ [ "mode"; mode ]; [ "focus"; focus ] ];
-      assoc_table ~title:"env" ~columns:[ "name"; "value" ] value_text
-        (List.rev env);
+      keyed_table ~key_text:Utils_names.Identifier.to_string ~title:"env"
+        ~columns:[ "name"; "value" ] value_text (List.rev env);
       indexed_table ~title:"kont" ~columns:[ "depth"; "frame" ]
         (fun f -> Yojson.Safe.to_string (frame_to_yojson f))
         k;

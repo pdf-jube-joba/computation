@@ -1,4 +1,3 @@
-open Structured_lang_shared.Arithmetic
 open Structured_lang_compiler_shared.Lowering
 module E = Expr_lang.Main
 module Source = E
@@ -6,7 +5,9 @@ module Target = I
 
 let entry_first blocks entry =
   match List.find_opt (fun (b : I.block) -> b.label = entry) blocks with
-  | None -> failwith ("entry block not found: :" ^ entry)
+  | None ->
+      failwith
+        ("entry block not found: :" ^ Utils_names.Identifier.to_string entry)
   | Some b ->
       let first = List.hd blocks in
       List.mapi
@@ -107,7 +108,7 @@ let rec compile_stmt stmt cont c =
       head
 
 let compile source =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let c = create () in
       let halt = fresh_region c "halt" in
       let hb = fresh_block c "halt_entry" in
@@ -117,8 +118,13 @@ let compile source =
         ~prefix:
           [
             {
-              I.label = "main";
-              blocks = [ block "entry" [ I.Nop ] (enter entry) ];
+              I.label = Utils_names.Identifier.make_exn "main";
+              blocks =
+                [
+                  block
+                    (Utils_names.Identifier.make_exn "entry")
+                    [ I.Nop ] (enter entry);
+                ];
             };
           ]
         c

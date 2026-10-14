@@ -3,7 +3,7 @@ open Instruction
 let value = Utils_base.Error.get
 
 let decode word =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let imm, op = value (N.divmod word (N.of_int 65536)) in
       let op = value (N.to_int op) in
       let top = op lsr 8

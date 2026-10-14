@@ -4,7 +4,7 @@ module L = Utils_parsing.Parser
 type t = code
 
 let rec aexp_to_text = function
-  | Atom (Var n) -> n
+  | Atom (Var n) -> Utils_names.Identifier.to_string n
   | Atom (Imm n) -> N.to_string n
   | Bin (a, op, b) ->
       "(" ^ aexp_to_text a ^ " "
@@ -19,23 +19,30 @@ let rec bexp_to_text = function
       ^ " " ^ aexp_to_text b
   | And (a, b) -> "(" ^ bexp_to_text a ^ " && " ^ bexp_to_text b ^ ")"
   | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
-  | Done n -> "done $" ^ n
+  | Done n -> "done $" ^ Utils_names.Identifier.to_string n
 
 let fmt_offset n = if n >= 0 then "+" ^ string_of_int n else string_of_int n
 
 let stmt_to_text = function
-  | Assign (n, a) -> n ^ " <- " ^ aexp_to_text a
+  | Assign (n, a) ->
+      Utils_names.Identifier.to_string n ^ " <- " ^ aexp_to_text a
   | IfGoto (b, n) -> "if " ^ bexp_to_text b ^ " goto " ^ fmt_offset n
   | Goto n -> "goto " ^ fmt_offset n
-  | Call n -> "call " ^ n
-  | Run (n, id) -> "run " ^ n ^ " -> $" ^ id
+  | Call n -> "call " ^ Utils_names.Identifier.to_string n
+  | Run (n, id) ->
+      "run "
+      ^ Utils_names.Identifier.to_string n
+      ^ " -> $"
+      ^ Utils_names.Identifier.to_string id
   | Yield -> "yield"
 
 let print code =
   String.concat "\n"
     (List.map
        (fun f ->
-         "fn " ^ f.name ^ " {\n"
+         "fn "
+         ^ Utils_names.Identifier.to_string f.name
+         ^ " {\n"
          ^ (if f.body = [] then ""
             else "  " ^ String.concat "; " (List.map stmt_to_text f.body) ^ "\n")
          ^ "}\n")

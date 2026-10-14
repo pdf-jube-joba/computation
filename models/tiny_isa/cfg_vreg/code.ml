@@ -12,7 +12,7 @@ module P = Utils_parsing.Parser
 
 let read_vreg p =
   P.expect_symbol p '%';
-  parse_vreg ("%" ^ P.identifier p)
+  parse_vreg ("%" ^ Utils_names.Identifier.to_string (P.identifier p))
 
 let read_addr p =
   if P.peek p = P.Symbol '%' then VReg (read_vreg p)
@@ -95,14 +95,18 @@ let parse_goto text =
 
 let parse =
   P.parse (fun p ->
-      let block p label =
+      let block p (label : Utils_names.Identifier.t) =
         P.group p ~opening:'{' (fun p ->
             let rec body stmts ifs jump =
               if P.eof p then
                 let jump =
                   match jump with
                   | Some target -> target
-                  | None -> P.error p ("Block @" ^ label ^ " missing final goto")
+                  | None ->
+                      P.error p
+                        ("Block @"
+                        ^ Utils_names.Identifier.to_string label
+                        ^ " missing final goto")
                 in
                 {
                   label;
@@ -114,12 +118,16 @@ let parse =
                 body stmts (jump_if :: ifs) jump
               else if P.peek p = P.Ident "goto" then (
                 if jump <> None then
-                  P.error p ("Multiple final goto in block @" ^ label);
+                  P.error p
+                    ("Multiple final goto in block @"
+                    ^ Utils_names.Identifier.to_string label);
                 let target = read_goto p in
                 body stmts ifs (Some target))
               else (
                 if jump <> None then
-                  P.error p ("Statement after goto in block @" ^ label);
+                  P.error p
+                    ("Statement after goto in block @"
+                    ^ Utils_names.Identifier.to_string label);
                 let stmt = read_stmt p in
                 body (stmt :: stmts) ifs jump)
             in
@@ -143,14 +151,14 @@ let parse =
 let addr_to_text = function
   | VReg i -> "%v" ^ string_of_int i
   | Imm n -> "#" ^ N.to_string n
-  | Label n -> "@" ^ n
+  | Label n -> "@" ^ Utils_names.Identifier.to_string n
 
 let place_to_text p = "[" ^ addr_to_text p ^ "]"
 
 let value_to_text = function
   | VRegValue i -> "%v" ^ string_of_int i
   | ImmValue n -> "#" ^ N.to_string n
-  | LabelValue n -> "@" ^ n
+  | LabelValue n -> "@" ^ Utils_names.Identifier.to_string n
   | Deref p -> "*" ^ place_to_text p
 
 let cond_to_text = function
@@ -170,11 +178,15 @@ let print (code : code) =
   String.concat ""
     (List.map
        (fun (s : static_def) ->
-         "@" ^ s.label ^ " " ^ N.to_string s.value ^ "\n")
+         "@"
+         ^ Utils_names.Identifier.to_string s.label
+         ^ " " ^ N.to_string s.value ^ "\n")
        code.statics
     @ List.map
         (fun (b : block) ->
-          "@" ^ b.label ^ " {\n"
+          "@"
+          ^ Utils_names.Identifier.to_string b.label
+          ^ " {\n"
           ^ String.concat ""
               (List.map (fun s -> "  " ^ stmt_to_text s ^ "\n") b.stmts)
           ^ String.concat ""

@@ -6,7 +6,8 @@ let value = Utils_base.Error.get
 let find_function code name =
   match List.find_opt (fun f -> f.name = name) code with
   | Some f -> f
-  | None -> failwith ("unknown function: " ^ name)
+  | None ->
+      failwith ("unknown function: " ^ Utils_names.Identifier.to_string name)
 
 let execute s ~tasks ~workers ~agent ~id ~shift stmt =
   match stmt with

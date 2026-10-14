@@ -17,7 +17,10 @@ let render s =
            in
            [
              string_of_int addr;
-             (if labels = [] then "-" else String.concat ", " labels);
+             (if labels = [] then "-"
+              else
+                String.concat ", "
+                  (List.map Utils_names.Identifier.to_string labels));
              N.to_string v;
            ])
          s.data_memory)

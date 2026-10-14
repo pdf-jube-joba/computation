@@ -8,7 +8,7 @@ module Code = struct
 
   let type_atom p =
     L.expect_symbol p '#';
-    match L.identifier p with
+    match Utils_names.Identifier.to_string (L.identifier p) with
     | "num" -> Num
     | "u8" -> U8
     | "bool" -> Bool

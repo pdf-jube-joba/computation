@@ -1,4 +1,3 @@
-open Structured_lang_shared.Arithmetic
 open Structured_lang_compiler_shared.Lowering
 module C = Internal_ctrl.Main
 module Source = C
@@ -32,7 +31,8 @@ let rec compile_stmt stmt cont loops c =
       label
   | C.Break (l, v) ->
       let _, exit =
-        Utils_base.Assoc.lookup l loops ("unknown loop label: " ^ l)
+        Utils_base.Assoc.lookup l loops
+          ("unknown loop label: " ^ Utils_names.Identifier.to_string l)
       in
       let label = fresh_region c "break" in
       let r = fresh_vreg c "break" in
@@ -40,7 +40,8 @@ let rec compile_stmt stmt cont loops c =
       label
   | C.Continue l ->
       let head, _ =
-        Utils_base.Assoc.lookup l loops ("unknown loop label: " ^ l)
+        Utils_base.Assoc.lookup l loops
+          ("unknown loop label: " ^ Utils_names.Identifier.to_string l)
       in
       let label = fresh_region c "continue" in
       single c label [ I.Nop ] (enter head);
@@ -57,7 +58,7 @@ let rec compile_stmt stmt cont loops c =
       head
 
 let compile (source : C.code) =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let c = create () in
       let halt = fresh_region c "halt" in
       let hb = fresh_block c "halt_entry" in
@@ -67,8 +68,13 @@ let compile (source : C.code) =
         ~prefix:
           [
             {
-              I.label = "main";
-              blocks = [ block "entry" [ I.Nop ] (enter entry) ];
+              I.label = Utils_names.Identifier.make_exn "main";
+              blocks =
+                [
+                  block
+                    (Utils_names.Identifier.make_exn "entry")
+                    [ I.Nop ] (enter entry);
+                ];
             };
           ]
         c

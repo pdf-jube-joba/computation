@@ -4,7 +4,6 @@ open Rec_tm_shared.Environment
 open Rec_tm_shared.Eval
 module J = Rec_tm_ir_jump.Main
 module T = Turing_machine.Main
-module L = Utils_parsing.Parser
 module Names = Utils_names.Identifier.Set
 
 module State_key = struct
@@ -54,7 +53,7 @@ let live_variables body =
 
 let compile (p : J.code) =
   let* () = J.validate p in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let alphabet = normalized_alphabet p.alphabet in
       let vars = J.collect_vars p.body in
       let live = live_variables p.body in
@@ -73,7 +72,11 @@ let compile (p : J.code) =
         | Some id -> id
         | None ->
             let id = States.take (pc, values) states in
-            let name, next = T.Names.assign ~hint:"q" id !names in
+            let name, next =
+              T.Names.assign
+                ~hint:(Utils_names.Identifier.make_exn "q")
+                id !names
+            in
             names := next;
             state_names := (id, name) :: !state_names;
             Queue.add (pc, values, id) work;

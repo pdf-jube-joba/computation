@@ -13,7 +13,9 @@ let of_yojson = function
   | `String name -> make name
   | _ -> Error "Expected identifier string"
 
+let make_exn name = Utils_base.Error.get (make name)
 let to_string name = name
+let equal = String.equal
 let compare = String.compare
 
 module Map = Map.Make (String)
@@ -29,6 +31,7 @@ let check_unique ~message names =
   loop Set.empty names
 
 let fresh ?(prefix = "_") used =
+  if not (valid (prefix ^ "0")) then invalid_arg "Invalid identifier prefix";
   let rec loop i =
     let name = prefix ^ string_of_int i in
     if Set.mem name used then loop (i + 1) else name

@@ -1,5 +1,6 @@
 (library
  (name utils_runtime)
  (public_name computation.utils_runtime)
- (libraries utils_base utils_codec yojson)
- (preprocess (pps ppx_deriving_yojson)))
+ (libraries yojson utils_codec)
+ (preprocess
+  (pps ppx_deriving_yojson)))

@@ -1,6 +1,6 @@
 (library
  (name example_counter_to_example_counter)
  (public_name computation.example_counter_to_example_counter)
- (libraries example_counter yojson utils_runtime)
+ (libraries yojson example_counter utils_runtime)
  (preprocess
   (pps ppx_deriving_yojson)))

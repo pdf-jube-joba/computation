@@ -4,7 +4,6 @@ module I = Rec_tm_ir.Main
 module N = Utils_base.Number
 module R = Recursive_function.Main
 module T = Turing_machine.Main
-module L = Utils_parsing.Parser
 open Rec_tm_compiler_shared.Tape_encoding
 module Function_id = Utils_names.Id.Make ()
 module Function_names = Utils_names.Naming.Make (Function_id)
@@ -29,7 +28,10 @@ let create () =
   {
     functions = [];
     identities = ref Functions.empty;
-    names = Function_names.reserve "main" Function_names.empty;
+    names =
+      Function_names.reserve
+        (Utils_names.Identifier.make_exn "main")
+        Function_names.empty;
     definitions = Function_id.Map.empty;
   }
 
@@ -45,20 +47,26 @@ let register ctx (f : func) =
       ctx.functions <- ctx.functions @ [ f ];
       f
 
-let block label body = { label; body }
-let fn name blocks = { name; blocks }
+let block label body = { label = Utils_names.Identifier.make_exn label; body }
+let fn name blocks = { name = Utils_names.Identifier.make_exn name; blocks }
 
 let call ctx f =
   let f = register ctx f in
   Call f.name
 
 let put s = Assign (Head, Const s)
-let store name value = Assign (Var name, value)
-let put_var name = Assign (Head, Var name)
+let store name value = Assign (Var (Utils_names.Identifier.make_exn name), value)
+let put_var name = Assign (Head, Var (Utils_names.Identifier.make_exn name))
 let eq a b = Some { left = a; right = b }
 let head_is s = eq Head (Const s)
-let var_is name s = eq (Var name) (Const s)
-let swap = [ store "tmp" Head; put_var "put"; store "put" (Var "tmp") ]
+let var_is name s = eq (Var (Utils_names.Identifier.make_exn name)) (Const s)
+
+let swap =
+  [
+    store "tmp" Head;
+    put_var "put";
+    store "put" (Var (Utils_names.Identifier.make_exn "tmp"));
+  ]
 
 let move_right_till_x_n_times n =
   fn
@@ -89,7 +97,11 @@ let concat ctx =
 
 let shift_left_x _ctx s =
   fn
-    ("shift_left_put_" ^ match s with None -> "blank" | Some name -> name)
+    ("shift_left_put_"
+    ^
+    match s with
+    | None -> "blank"
+    | Some name -> Utils_names.Identifier.to_string name)
     [
       block "initially" [ store "put" Head; put s; Lt ];
       block "loop" (swap @ [ Return (var_is "put" x); Lt; Continue None ]);
@@ -151,7 +163,11 @@ let swap_tuple ctx =
       block "left_of_left"
         ([ Rt; Return (head_is x) ]
         @ swap
-        @ [ call_r ctx 3; Lt; Jump ("loop_1", None) ]);
+        @ [
+            call_r ctx 3;
+            Lt;
+            Jump (Utils_names.Identifier.make_exn "loop_1", None);
+          ]);
     ]
 
 let rotate ctx n =
@@ -198,7 +214,8 @@ let projection ctx n i =
       block "initial_B" [ call_r ctx 1; put b; store "put" (Const x) ];
       block "shift_to_left_until_B"
         ([ Lt ] @ swap @ [ Break (var_is "put" b); Continue None ]);
-      block "finally_B" [ Lt; Jump ("check_left", None) ];
+      block "finally_B"
+        [ Lt; Jump (Utils_names.Identifier.make_exn "check_left", None) ];
     ]
 
 let composition ctx inner outer =
@@ -210,7 +227,8 @@ let composition ctx inner outer =
     @ List.mapi
         (fun i f ->
           block
-            (Printf.sprintf "call_%d_%s" i f.name)
+            (Printf.sprintf "call_%d_%s" i
+               (Utils_names.Identifier.to_string f.name))
             ([ call_r ctx (n - 1); call ctx f; call_l ctx (n - 1) ]
             @ if i < n - 1 then [ rot ] else []))
         inner
@@ -223,8 +241,12 @@ let composition ctx inner outer =
     @ [ block "outer" [ call ctx outer ] ]
   in
   fn
-    ("comp_" ^ outer.name ^ "_"
-    ^ String.concat "_" (List.map (fun f -> f.name) inner))
+    ("comp_"
+    ^ Utils_names.Identifier.to_string outer.name
+    ^ "_"
+    ^ String.concat "_"
+        (List.map Utils_names.Identifier.to_string
+           (List.map (fun f -> f.name) inner)))
     blocks
 
 (* Shift the argument tuple two cells to insert the x,l,x marker without
@@ -238,8 +260,8 @@ let insert_sig ctx =
           Break (head_is x);
           store "tmp3" Head;
           put_var "tmp1";
-          store "tmp1" (Var "tmp2");
-          store "tmp2" (Var "tmp3");
+          store "tmp1" (Var (Utils_names.Identifier.make_exn "tmp2"));
+          store "tmp2" (Var (Utils_names.Identifier.make_exn "tmp3"));
           Rt;
           Continue None;
         ];
@@ -271,11 +293,18 @@ let expand_arg ctx =
         [
           Rt;
           Rt;
-          Jump ("pred_if_non_zero", head_is l);
-          Jump ("pred_if_zero", None);
+          Jump (Utils_names.Identifier.make_exn "pred_if_non_zero", head_is l);
+          Jump (Utils_names.Identifier.make_exn "pred_if_zero", None);
         ];
       block "pred_if_non_zero"
-        [ Lt; Lt; pred; cp; call_r ctx 1; Jump ("check_non_zero", None) ];
+        [
+          Lt;
+          Lt;
+          pred;
+          cp;
+          call_r ctx 1;
+          Jump (Utils_names.Identifier.make_exn "check_non_zero", None);
+        ];
       block "pred_if_zero" [ Lt; Lt; pred ];
     ]
 
@@ -286,7 +315,10 @@ let primitive_recursion ctx zero succ =
   and glue = call ctx (concat ctx)
   and shift = call ctx (shift_left_x ctx b) in
   fn
-    ("prim_" ^ zero.name ^ "_" ^ succ.name)
+    ("prim_"
+    ^ Utils_names.Identifier.to_string zero.name
+    ^ "_"
+    ^ Utils_names.Identifier.to_string succ.name)
     [
       block "call_zero" [ call ctx (expand_arg ctx); call ctx zero ];
       block "loop"
@@ -317,7 +349,8 @@ let mu_recursion ctx f =
   and sw = call ctx (swap_tuple ctx)
   and del = call ctx (delete ctx) in
   let fcall = call ctx f in
-  fn ("mu_" ^ f.name)
+  fn
+    ("mu_" ^ Utils_names.Identifier.to_string f.name)
     [
       block "initially" [ call_r ctx 1; Rt; put b; Rt; put x; call_l ctx 1 ];
       block "generate_and_call"
@@ -330,12 +363,18 @@ let mu_recursion ctx f =
           fcall;
           Rt;
           Rt;
-          Jump ("is_zero", head_is x);
+          Jump (Utils_names.Identifier.make_exn "is_zero", head_is x);
           call_r ctx 1;
         ];
       block "is_non_zero" [ put b; Lt; Break (head_is x); Continue None ];
       block "next_num"
-        [ put l; Rt; put x; call_l ctx 1; Jump ("generate_and_call", None) ];
+        [
+          put l;
+          Rt;
+          put x;
+          call_l ctx 1;
+          Jump (Utils_names.Identifier.make_exn "generate_and_call", None);
+        ];
       block "is_zero"
         [ put b; call_l ctx 3; sw; call_r ctx 1; del; call_l ctx 1 ];
     ]
@@ -361,7 +400,7 @@ let rec compile_function ctx = function
 
 let compile f =
   let* () = R.validate f in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let ctx = create () in
       wrap_function ctx (compile_function ctx f))
 

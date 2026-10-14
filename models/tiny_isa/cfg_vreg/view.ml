@@ -14,7 +14,9 @@ let render s =
           [ "block"; string_of_int s.current_block ];
           [
             "label";
-            (match current_block with Some b -> b.label | None -> "<invalid>");
+            (match current_block with
+            | Some b -> Utils_names.Identifier.to_string b.label
+            | None -> "<invalid>");
           ];
           [ "halted"; string_of_bool s.halted ];
         ];

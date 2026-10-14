@@ -2,7 +2,6 @@ open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
 module I = Rec_tm_ir.Main
 module J = Rec_tm_ir_jump.Main
-module L = Utils_parsing.Parser
 module Var_id = Utils_names.Id.Make ()
 module Label_id = Utils_names.Id.Make ()
 module Var_names = Utils_names.Naming.Make (Var_id)
@@ -10,7 +9,7 @@ module Label_names = Utils_names.Naming.Make (Label_id)
 
 let flatten_program p =
   let* () = I.validate p in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let variables = ref Var_names.empty and labels = ref Label_names.empty in
       let variable_supply = ref Var_id.Supply.empty in
       let label_supply = ref Label_id.Supply.empty in
@@ -68,8 +67,10 @@ let flatten_program p =
                   (fun (b : I.block) -> (b.label, label b.label))
                   callee.blocks
               in
-              let cont = label "call_ret" in
-              let init_label = label "call_init" in
+              let cont = label (Utils_names.Identifier.make_exn "call_ret") in
+              let init_label =
+                label (Utils_names.Identifier.make_exn "call_init")
+              in
               let rename name = List.assoc name labels in
               let var name =
                 match List.assoc_opt name variables with
@@ -119,7 +120,7 @@ let flatten_program p =
         in
         loop [] block.body
       in
-      let main = I.find_function p "main" in
+      let main = I.find_function p (Utils_names.Identifier.make_exn "main") in
       {
         I.alphabet = p.alphabet;
         functions =
@@ -128,8 +129,10 @@ let flatten_program p =
 
 let compile p =
   let* flat = flatten_program p in
-  L.protect (fun () ->
-      let main = I.find_function flat "main" in
+  Utils_base.Error.protect (fun () ->
+      let main =
+        I.find_function flat (Utils_names.Identifier.make_exn "main")
+      in
       let blocks = Array.of_list main.blocks in
       let labels = Hashtbl.create 16 and offset = ref 0 in
       let stmts =
@@ -137,7 +140,10 @@ let compile p =
           (List.mapi
              (fun idx (b : I.block) ->
                if Hashtbl.mem labels b.label then
-                 failwith ("label '" ^ b.label ^ "' is duplicated");
+                 failwith
+                   ("label '"
+                   ^ Utils_names.Identifier.to_string b.label
+                   ^ "' is duplicated");
                Hashtbl.add labels b.label !offset;
                offset := !offset + List.length b.body;
                List.map
@@ -160,7 +166,11 @@ let compile p =
                 let target =
                   match Hashtbl.find_opt labels label with
                   | Some t -> t
-                  | None -> failwith ("jump target '" ^ label ^ "' not found")
+                  | None ->
+                      failwith
+                        ("jump target '"
+                        ^ Utils_names.Identifier.to_string label
+                        ^ "' not found")
                 in
                 J.Jump (target, c)
             | I.Return c -> J.Jump (!offset, c)

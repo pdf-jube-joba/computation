@@ -22,7 +22,7 @@ type state = {
 module Code = Tiny_isa_shared.Numbers_text
 
 let make code (input : ainput) =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       Tiny_isa_shared.Registers.validate input.register;
       {
         regs = Array.copy input.register;
@@ -41,7 +41,7 @@ let output s =
   }
 
 let step s () =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       if s.halted then Utils_runtime.Machine.Halt (output s)
       else
         let pc = Utils_base.Error.get (N.to_int s.regs.(0)) in
@@ -62,7 +62,7 @@ let snapshot = state_to_yojson
 
 let restore json =
   Result.bind (state_of_yojson json) (fun s ->
-      Utils_parsing.Parser.protect (fun () ->
+      Utils_base.Error.protect (fun () ->
           Tiny_isa_shared.Registers.validate s.regs;
           if s.code_len < 0 || s.code_len > Array.length s.memory then
             failwith "Invalid code length";

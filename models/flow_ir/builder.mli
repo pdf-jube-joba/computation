@@ -1,9 +1,9 @@
 type ctx
 
 val create : unit -> ctx
-val fresh_region : ctx -> Utils_names.Identifier.t -> Utils_names.Identifier.t
-val fresh_block : ctx -> Utils_names.Identifier.t -> Utils_names.Identifier.t
-val fresh_vreg : ctx -> Utils_names.Identifier.t -> Utils_names.Identifier.t
+val fresh_region : ctx -> string -> Utils_names.Identifier.t
+val fresh_block : ctx -> string -> Utils_names.Identifier.t
+val fresh_vreg : ctx -> string -> Utils_names.Identifier.t
 val go : Utils_names.Identifier.t -> Syntax.cont
 val enter : Utils_names.Identifier.t -> Syntax.cont
 

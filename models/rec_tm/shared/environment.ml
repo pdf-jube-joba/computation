@@ -19,7 +19,9 @@ let env_of_named entries =
 
 let env_create vars =
   env_of_named
-    (List.map (fun name -> (name, None)) (List.sort_uniq String.compare vars))
+    (List.map
+       (fun name -> (name, None))
+       (List.sort_uniq Utils_names.Identifier.compare vars))
 
 let env_named env =
   List.map
@@ -28,7 +30,8 @@ let env_named env =
     env.names
 
 let variable env name =
-  Utils_base.Assoc.lookup name env.names ("Unknown variable: " ^ name)
+  Utils_base.Assoc.lookup name env.names
+    ("Unknown variable: " ^ Utils_names.Identifier.to_string name)
 
 let validate_environment vars env =
   let expected = env_create vars in

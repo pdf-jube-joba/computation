@@ -10,7 +10,7 @@ type 'sign graph = {
 }
 
 let builder_composition g =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let vertices = Array.of_list g.assign_vertex_to_builder in
       if Array.length vertices <> List.length g.acceptable then
         failwith "Length of vertices and acceptable states differ";
@@ -38,7 +38,7 @@ let builder_composition g =
         match Hashtbl.find_opt external_states hint with
         | Some id -> id
         | None ->
-            let id = allocate hint in
+            let id = allocate (Utils_names.Identifier.to_string hint) in
             Hashtbl.add external_states hint id;
             id
       in
@@ -54,11 +54,13 @@ let builder_composition g =
         match Hashtbl.find_opt copies.(i) hint with
         | Some id -> id
         | None ->
-            let id = allocate hint in
+            let id = allocate (Utils_names.Identifier.to_string hint) in
             Hashtbl.add copies.(i) hint id;
             id
       in
-      let name id = Option.get (Names.find id !names) in
+      let name id =
+        Utils_names.Identifier.to_string (Option.get (Names.find id !names))
+      in
       let signs =
         List.sort_uniq compare
           (List.concat_map

@@ -80,14 +80,24 @@ let text_table ?title ?(columns = []) ?highlight rows =
   table ?title ~columns:(List.map text columns) ?highlight
     (List.map (List.map text) rows)
 
-let assoc_table ?title ?(columns = [ "var"; "value" ]) value_text entries =
+let keyed_table ?title ?(columns = [ "var"; "value" ]) ~key_text value_text
+    entries =
   text_table ?title ~columns
-    (List.map (fun (name, value) -> [ name; value_text value ]) entries)
+    (List.map
+       (fun (name, value) -> [ key_text name; value_text value ])
+       entries)
+
+let assoc_table ?title ?columns value_text entries =
+  keyed_table ?title ?columns ~key_text:Fun.id value_text entries
 
 let indexed_table ?title ?(columns = [ "index"; "value" ])
     ?(index_text = string_of_int) ?highlight value_text entries =
   text_table ?title ~columns ?highlight
     (List.mapi (fun i value -> [ index_text i; value_text value ]) entries)
 
-let statement_env stmt value_text env =
-  state [ text ~title:"stmt" stmt; assoc_table ~title:"env" value_text env ]
+let statement_env ~name_text stmt value_text env =
+  state
+    [
+      text ~title:"stmt" stmt;
+      keyed_table ~key_text:name_text ~title:"env" value_text env;
+    ]

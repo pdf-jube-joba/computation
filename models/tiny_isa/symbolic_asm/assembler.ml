@@ -95,14 +95,22 @@ let pass1_collect_symbols code =
       }
   in
   let available name =
-    if List.mem name [ "THIS"; "CODE_LEN"; "DATA_LEN" ] then
-      failwith ("Reserved symbol name cannot be redefined: @" ^ name);
+    if
+      List.mem
+        (Utils_names.Identifier.to_string name)
+        [ "THIS"; "CODE_LEN"; "DATA_LEN" ]
+    then
+      failwith
+        ("Reserved symbol name cannot be redefined: @"
+        ^ Utils_names.Identifier.to_string name);
     let s = !symbols in
     if
       List.mem_assoc name s.consts
       || List.mem_assoc name s.text_labels
       || List.mem_assoc name s.data_labels
-    then failwith ("Duplicate symbol definition: " ^ name)
+    then
+      failwith
+        ("Duplicate symbol definition: " ^ Utils_names.Identifier.to_string name)
   in
   List.iter
     (function
@@ -140,13 +148,15 @@ let resolve_raw_value symbols section this_pos = function
   | Const n -> (
       match List.assoc_opt n symbols.consts with
       | Some n -> n
-      | None -> failwith ("Unknown const reference: " ^ n))
+      | None ->
+          failwith
+            ("Unknown const reference: " ^ Utils_names.Identifier.to_string n))
   | Label n -> (
-      match n with
+      match Utils_names.Identifier.to_string n with
       | "THIS" -> N.of_int this_pos
       | "CODE_LEN" -> N.of_int symbols.code_len
       | "DATA_LEN" -> N.of_int symbols.data_len
-      | n -> (
+      | _ -> (
           match List.assoc_opt n symbols.text_labels with
           | Some n -> N.of_int n
           | None -> (
@@ -156,14 +166,15 @@ let resolve_raw_value symbols section this_pos = function
                   failwith
                     ("Unknown label reference in "
                     ^ (if section = Text then ".text" else ".data")
-                    ^ ": @" ^ n))))
+                    ^ ": @"
+                    ^ Utils_names.Identifier.to_string n))))
 
 let build_debug_info symbols =
   let by_addr labels =
     List.fold_left
       (fun out (name, addr) ->
         let names = Option.value ~default:[] (List.assoc_opt addr out) in
-        (addr, List.sort String.compare (name :: names))
+        (addr, List.sort Utils_names.Identifier.compare (name :: names))
         :: List.remove_assoc addr out)
       [] labels
     |> List.sort (fun (a, _) (b, _) -> Int.compare a b)
@@ -174,7 +185,7 @@ let build_debug_info symbols =
   }
 
 let preprocess code =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let symbols = pass1_collect_symbols code in
       let section = ref Text
       and insts = ref []

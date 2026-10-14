@@ -8,8 +8,11 @@ let reserved statements x =
 
 let identifier statements p =
   let x = L.identifier p in
-  if reserved statements x then
-    L.error p ("identifier expected, found keyword '" ^ x ^ "'");
+  if reserved statements (Utils_names.Identifier.to_string x) then
+    L.error p
+      ("identifier expected, found keyword '"
+      ^ Utils_names.Identifier.to_string x
+      ^ "'");
   x
 
 let number = L.natural
@@ -58,7 +61,7 @@ and atom statements p =
   | L.Number _ -> Nat (number p)
   | L.Symbol '#' -> (
       ignore (L.bump p);
-      match L.identifier p with
+      match Utils_names.Identifier.to_string (L.identifier p) with
       | "true" -> Bool true
       | "false" -> Bool false
       | "unit" -> Unit

@@ -4,7 +4,7 @@ open Syntax
 type t = code
 
 let rec place_to_text = function
-  | Var v -> v
+  | Var v -> Utils_names.Identifier.to_string v
   | Deref v -> "(" ^ value_to_text v ^ ") #loc"
 
 and value_to_text = function
@@ -23,15 +23,22 @@ let rec stmt_to_text = function
       "ifz " ^ value_to_text c ^ " then " ^ stmt_to_text a ^ " else "
       ^ stmt_to_text b ^ " end"
   | Call (n, args) ->
-      "call " ^ n ^ "(" ^ String.concat ", " (List.map value_to_text args) ^ ")"
+      "call "
+      ^ Utils_names.Identifier.to_string n
+      ^ "("
+      ^ String.concat ", " (List.map value_to_text args)
+      ^ ")"
   | Return -> "return"
 
 let print c =
   String.concat "\n\n"
     (List.map
        (fun f ->
-         "fn " ^ f.name ^ "("
-         ^ String.concat ", " f.params
+         "fn "
+         ^ Utils_names.Identifier.to_string f.name
+         ^ "("
+         ^ String.concat ", "
+             (List.map Utils_names.Identifier.to_string f.params)
          ^ ") { "
          ^ String.concat "; " (List.map stmt_to_text f.body)
          ^ " }")

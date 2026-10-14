@@ -3,7 +3,7 @@ module Code = Code
 open Assembler
 
 let make code (input : ainput) =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       Tiny_isa_shared.Registers.validate input.regs;
       let insts, static_data, symbols, debug_info =
         Utils_base.Error.get (preprocess code)
@@ -27,7 +27,7 @@ let output s : asm_output =
   { regs = Array.copy s.regs; data_memory = Array.to_list s.data_memory }
 
 let step s () =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       if s.halted then Utils_runtime.Machine.Halt (output s)
       else if s.pc >= Array.length s.insts then (
         let regs = Array.copy s.regs in
@@ -49,7 +49,7 @@ let snapshot = state_to_yojson
 
 let restore json =
   Result.bind (state_of_yojson json) (fun s ->
-      Utils_parsing.Parser.protect (fun () ->
+      Utils_base.Error.protect (fun () ->
           Tiny_isa_shared.Registers.validate s.regs;
           if
             s.pc < 0 || s.static_data_len < 0

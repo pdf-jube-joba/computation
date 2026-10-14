@@ -5,7 +5,8 @@ open Typed_store
 let function_lookup code name =
   match List.find_opt (fun (f : fn_decl) -> f.name = name) code.functions with
   | Some f -> f
-  | None -> failwith ("unknown function: " ^ name)
+  | None ->
+      failwith ("unknown function: " ^ Utils_names.Identifier.to_string name)
 
 let eval_binop op a b =
   match (op, a, b) with
@@ -39,11 +40,11 @@ let eval_unop Not = function
 let rec eval_place s = function
   | Static n ->
       if not (List.mem_assoc n s.store.statics) then
-        failwith ("unknown static: " ^ n);
+        failwith ("unknown static: " ^ Utils_names.Identifier.to_string n);
       { key = Static_key n; projections = [] }
   | Local n ->
       let rec find = function
-        | [] -> failwith ("unknown local: " ^ n)
+        | [] -> failwith ("unknown local: " ^ Utils_names.Identifier.to_string n)
         | scope :: scopes -> (
             match List.assoc_opt n scope with
             | Some id -> { key = Local_key id; projections = [] }

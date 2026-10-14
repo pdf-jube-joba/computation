@@ -3,7 +3,13 @@
  (library
   (name recursive_function_to_goto_lang)
   (public_name computation.recursive_function_to_goto_lang)
-  (libraries goto_lang recursive_function yojson utils_base utils_names utils_runtime)
+  (libraries
+   yojson
+   goto_lang
+   recursive_function
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -12,6 +18,12 @@
  (library
   (name recursive_function_to_lambda_calculus)
   (public_name computation.recursive_function_to_lambda_calculus)
-  (libraries lambda_calculus recursive_function yojson utils_base utils_runtime)
+  (libraries
+   yojson
+   lambda_calculus
+   recursive_function
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))

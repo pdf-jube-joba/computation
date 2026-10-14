@@ -3,7 +3,7 @@
  (library
   (name structured_lang_compiler_shared)
   (public_name computation.structured_lang_compiler_shared)
-  (libraries flow_ir structured_lang_shared yojson utils_base utils_names)
+  (libraries yojson flow_ir structured_lang_shared utils_base utils_names)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -12,7 +12,13 @@
  (library
   (name expr_lang_to_flow_ir)
   (public_name computation.expr_lang_to_flow_ir)
-  (libraries expr_lang structured_lang_compiler_shared structured_lang_shared yojson utils_runtime)
+  (libraries
+   yojson
+   expr_lang
+   structured_lang_compiler_shared
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -21,7 +27,13 @@
  (library
   (name internal_ctrl_to_flow_ir)
   (public_name computation.internal_ctrl_to_flow_ir)
-  (libraries internal_ctrl structured_lang_compiler_shared structured_lang_shared yojson utils_base utils_runtime)
+  (libraries
+   yojson
+   internal_ctrl
+   structured_lang_compiler_shared
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -30,6 +42,13 @@
  (library
   (name proc_lang_to_flow_ir)
   (public_name computation.proc_lang_to_flow_ir)
-  (libraries proc_lang structured_lang_compiler_shared structured_lang_shared yojson utils_base utils_runtime)
+  (libraries
+   yojson
+   proc_lang
+   structured_lang_compiler_shared
+   structured_lang_shared
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))

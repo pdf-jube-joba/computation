@@ -9,13 +9,14 @@ module L = Utils_base.Error
 let get = Utils_base.Error.get
 
 let make code input =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate code;
       let resolution = build_resolution code in
       let rec main_index i = function
         | [] -> assert false
         | (r : region) :: rest ->
-            if r.label = "main" then i else main_index (i + 1) rest
+            if r.label = Utils_names.Identifier.make_exn "main" then i
+            else main_index (i + 1) rest
       in
       let main = main_index 0 code.regions in
       let mem =
@@ -33,7 +34,9 @@ let make code input =
       in
       let rec idx i = function
         | [] -> assert false
-        | (r : region) :: rs -> if r.label = "main" then i else idx (i + 1) rs
+        | (r : region) :: rs ->
+            if r.label = Utils_names.Identifier.make_exn "main" then i
+            else idx (i + 1) rs
       in
       {
         code;
@@ -68,7 +71,9 @@ and eval_place s = function
   | Label l ->
       let id = id_of_name s.resolution.data l in
       if List.mem_assoc id s.static_mem then Static id
-      else failwith ("Place is not data label: @" ^ l)
+      else
+        failwith
+          ("Place is not data label: @" ^ Utils_names.Identifier.to_string l)
   | Deref r -> (
       match reg s r with
       | Key k -> k
@@ -156,7 +161,7 @@ let jump_enter s v =
   }
 
 let step s input =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let halt s =
         Utils_runtime.Machine.Halt
           (Utils_base.Assoc.sorted

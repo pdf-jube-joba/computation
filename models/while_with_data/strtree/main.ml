@@ -39,7 +39,7 @@ module Code = struct
     | AtomChar c -> Utils_parsing.Char_literal.to_text c
 
   and texp_to_text = function
-    | Var n -> n
+    | Var n -> Utils_names.Identifier.to_string n
     | Atom a -> "atom " ^ aexp_to_text a
     | Cons (a, b) -> "cons " ^ texp_to_text a ^ " " ^ texp_to_text b
     | Left a -> "left " ^ texp_to_text a
@@ -51,7 +51,8 @@ module Code = struct
 
   let rec print = function
     | Nop -> "Nop"
-    | Assign (n, a) -> n ^ " := " ^ texp_to_text a
+    | Assign (n, a) ->
+        Utils_names.Identifier.to_string n ^ " := " ^ texp_to_text a
     | Seq (a, b) -> print a ^ " ; " ^ print b
     | IfEq (c, b) -> "ifeq " ^ bexp_to_text c ^ " then " ^ print b ^ " end"
     | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ print b ^ " }"
@@ -73,7 +74,8 @@ module Code = struct
 
   let parse_name p =
     let n = L.identifier p in
-    if List.mem n reserved then failwith "Expected identifier";
+    if List.mem (Utils_names.Identifier.to_string n) reserved then
+      failwith "Expected identifier";
     n
 
   let rec parse_aexp p =
@@ -141,7 +143,9 @@ module Ainput = struct
   let rec lower_value = function
     | Atom (AtomChar c) -> AtomValue c
     | Cons (a, b) -> ConsValue (lower_value a, lower_value b)
-    | Var n -> failwith ("unexpected variable in value: " ^ n)
+    | Var n ->
+        failwith
+          ("unexpected variable in value: " ^ Utils_names.Identifier.to_string n)
     | Atom (Mtoa _) -> failwith "unexpected mtoa in value"
     | Left _ | Right _ -> failwith "unexpected projection in value"
 
@@ -162,7 +166,9 @@ let rec eval_aexp env = function
       | _ -> failwith "mtoa expects an atom")
 
 and eval_texp env = function
-  | Var n -> Utils_base.Assoc.lookup n env ("uninitialized variable: " ^ n)
+  | Var n ->
+      Utils_base.Assoc.lookup n env
+        ("uninitialized variable: " ^ Utils_names.Identifier.to_string n)
   | Atom a -> AtomValue (eval_aexp env a)
   | Cons (a, b) ->
       let a = eval_texp env a in
@@ -198,7 +204,7 @@ let rec small_step stmt env =
 let make code env = Ok { code; stmt = code; env }
 
 let step s () =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       if s.stmt = Nop then Utils_runtime.Machine.Halt s.env
       else
         let stmt, env = small_step s.stmt s.env in
@@ -209,8 +215,8 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils_runtime.Render.statement_env (Code.print s.stmt) Ainput.print_value
-    s.env
+  Utils_runtime.Render.statement_env ~name_text:Utils_names.Identifier.to_string
+    (Code.print s.stmt) Ainput.print_value s.env
 
 module Rinput = Utils_codec.Text.Unit
 module Routput = Utils_codec.Text.Unit

@@ -37,7 +37,7 @@ let step s agent =
                 tasks.(Task_id.to_int id) <- rest;
                 continue s
                   (Printf.sprintf "agent %d: return from %s" agent
-                     frame.function_name))
+                     (Utils_names.Identifier.to_string frame.function_name)))
               else
                 let stmt =
                   match List.nth_opt fn.body frame.pc with
@@ -45,14 +45,15 @@ let step s agent =
                   | None ->
                       failwith
                         (Printf.sprintf "pc %d out of bounds in %s" frame.pc
-                           frame.function_name)
+                           (Utils_names.Identifier.to_string frame.function_name))
                 in
                 let shift offset =
                   let pc = frame.pc + offset in
                   if pc < 0 then
                     failwith
                       (Printf.sprintf "pc became negative in %s: %d + %d"
-                         frame.function_name frame.pc offset);
+                         (Utils_names.Identifier.to_string frame.function_name)
+                         frame.pc offset);
                   tasks.(Task_id.to_int id) <- { frame with pc } :: rest
                 in
                 let s =

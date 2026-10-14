@@ -8,7 +8,7 @@ let value = Utils_base.Error.get
 open Validation
 
 let make code agents =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate code;
       if agents <= 0 then failwith "agent count must be positive";
       {
@@ -16,7 +16,12 @@ let make code agents =
         env = { vars = []; task_ids = [] };
         workers = Array.make agents None;
         queue = [ value (Task_id.of_int 0) ];
-        tasks = [| [ { function_name = "main"; pc = 0 } ] |];
+        tasks =
+          [|
+            [
+              { function_name = Utils_names.Identifier.make_exn "main"; pc = 0 };
+            ];
+          |];
       })
 
 let step = Scheduler.step

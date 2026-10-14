@@ -37,7 +37,10 @@ module Code = struct
       match L.peek p with
       | L.Ident name ->
           ignore (L.bump p);
-          let var = Variable.Reader.use reader env name in
+          let var =
+            Variable.Reader.use reader env
+              (Utils_names.Identifier.make_exn name)
+          in
           Var var
       | L.Symbol '(' -> L.group p ~opening:'(' (application env)
       | L.Symbol '\\' ->
@@ -46,8 +49,10 @@ module Code = struct
             match L.peek p with
             | L.Ident name ->
                 ignore (L.bump p);
-                let var = fresh name in
-                binders ((name, var) :: env) (var :: acc)
+                let var = fresh (Utils_names.Identifier.make_exn name) in
+                binders
+                  ((Utils_names.Identifier.make_exn name, var) :: env)
+                  (var :: acc)
             | L.Symbol '.' when acc <> [] ->
                 ignore (L.bump p);
                 (env, List.rev acc)
@@ -80,10 +85,10 @@ module Code = struct
     in
     free Var_id.Set.empty term;
     let rec visit = function
-      | Var var -> name var
+      | Var var -> Utils_names.Identifier.to_string (name var)
       | Abs (var, body) ->
           let binder = name var in
-          "\\" ^ binder ^ ". " ^ visit body
+          "\\" ^ Utils_names.Identifier.to_string binder ^ ". " ^ visit body
       | App (left, right) ->
           let operand term =
             match term with Abs _ -> "(" ^ visit term ^ ")" | _ -> visit term
@@ -192,7 +197,11 @@ let step term index =
 
 let snapshot term =
   let var_json var =
-    `Assoc [ ("id", Var_id.to_yojson var.id); ("name", `String var.name) ]
+    `Assoc
+      [
+        ("id", Var_id.to_yojson var.id);
+        ("name", `String (Utils_names.Identifier.to_string var.name));
+      ]
   in
   let rec visit = function
     | Var var -> `List [ `String "var"; var_json var ]
@@ -209,6 +218,7 @@ let restore json =
         | Some (`Int id), Some (`String name)
           when id >= 0 && id < max_int && Utils_names.Identifier.valid name -> (
             let* id = Var_id.of_int id in
+            let* name = Utils_names.Identifier.make name in
             match Hashtbl.find_opt vars id with
             | Some var when var.name <> name ->
                 Error "Conflicting variable names"

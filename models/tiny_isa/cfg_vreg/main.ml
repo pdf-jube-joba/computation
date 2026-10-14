@@ -2,7 +2,7 @@ include Types
 module Code = Code
 
 let make (code : code) ainput =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let compiled = Utils_base.Error.get (Program.link code) in
       {
         code;
@@ -24,7 +24,9 @@ let eval_addr s = function
       | None -> (
           match List.assoc_opt n s.compiled.block_index with
           | Some i -> N.of_int i
-          | None -> failwith ("Unknown label: @" ^ n)))
+          | None ->
+              failwith ("Unknown label: @" ^ Utils_names.Identifier.to_string n)
+          ))
 
 let eval_place s p = Utils_base.Error.get (N.to_int (eval_addr s p))
 
@@ -49,7 +51,7 @@ let eval_cond s = function
       N.compare a b > 0
 
 let step s () =
-  Utils_parsing.Parser.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       if s.halted then Utils_runtime.Machine.Halt (Array.to_list s.memory)
       else (
         if

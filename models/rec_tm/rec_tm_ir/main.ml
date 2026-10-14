@@ -69,25 +69,30 @@ let stmt_vars = function
   | _ -> []
 
 let collect_vars blocks =
-  List.sort_uniq String.compare
+  List.sort_uniq Utils_names.Identifier.compare
     (List.concat_map (fun b -> List.concat_map stmt_vars b.body) blocks)
 
 let find_function p name =
   match List.find_opt (fun f -> f.name = name) p.functions with
   | Some f -> f
-  | None -> failwith ("Undefined function '" ^ name ^ "'")
+  | None ->
+      failwith
+        ("Undefined function '" ^ Utils_names.Identifier.to_string name ^ "'")
 
 let validate_no_recursion p =
-  L.protect (fun () ->
-      ignore (find_function p "main");
+  Utils_base.Error.protect (fun () ->
+      ignore (find_function p (Utils_names.Identifier.make_exn "main"));
       let visited = Hashtbl.create 32 in
-      let rec visit path name =
+      let rec visit (path : Utils_names.Identifier.t list)
+          (name : Utils_names.Identifier.t) =
         match Hashtbl.find_opt visited name with
         | Some 2 -> ()
         | Some 1 ->
             failwith
               ("Recursive call is not allowed: "
-              ^ String.concat " -> " (path @ [ name ]))
+              ^ String.concat " -> "
+                  (List.map Utils_names.Identifier.to_string (path @ [ name ]))
+              )
         | _ ->
             Hashtbl.replace visited name 1;
             let f = find_function p name in
@@ -104,19 +109,25 @@ let validate_no_recursion p =
 
 let validate p =
   let* () = validate_no_recursion p in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let allowed = normalized_alphabet p.alphabet in
       let names = Hashtbl.create 16 in
       List.iter
         (fun f ->
           if Hashtbl.mem names f.name then
-            failwith ("Function '" ^ f.name ^ "' is defined twice");
+            failwith
+              ("Function '"
+              ^ Utils_names.Identifier.to_string f.name
+              ^ "' is defined twice");
           Hashtbl.add names f.name ();
           let labels = Hashtbl.create 16 in
           List.iter
             (fun b ->
               if Hashtbl.mem labels b.label then
-                failwith ("label '" ^ b.label ^ "' is duplicated");
+                failwith
+                  ("label '"
+                  ^ Utils_names.Identifier.to_string b.label
+                  ^ "' is duplicated");
               Hashtbl.add labels b.label ())
             f.blocks;
           List.iter
@@ -128,7 +139,10 @@ let validate p =
                   | Jump (label, c) ->
                       validate_cond allowed c;
                       if not (Hashtbl.mem labels label) then
-                        failwith ("jump target '" ^ label ^ "' not found")
+                        failwith
+                          ("jump target '"
+                          ^ Utils_names.Identifier.to_string label
+                          ^ "' not found")
                   | _ -> ())
                 b.body)
             f.blocks)
@@ -196,7 +210,10 @@ module Code = struct
             let f = func p in
             match List.find_opt (fun old -> old.name = f.name) acc with
             | Some old when old <> f ->
-                failwith ("Function '" ^ f.name ^ "' is defined twice")
+                failwith
+                  ("Function '"
+                  ^ Utils_names.Identifier.to_string f.name
+                  ^ "' is defined twice")
             | Some _ -> funcs acc
             | None -> funcs (f :: acc)
         in
@@ -209,19 +226,24 @@ module Code = struct
     | Break c -> "break" ^ condition_print c
     | Continue c -> "continue" ^ condition_print c
     | Return c -> "return" ^ condition_print c
-    | Jump (label, c) -> "jump " ^ label ^ condition_print c
-    | Call name -> "call " ^ name
+    | Jump (label, c) ->
+        "jump " ^ Utils_names.Identifier.to_string label ^ condition_print c
+    | Call name -> "call " ^ Utils_names.Identifier.to_string name
 
   let print p =
     alphabet_print p.alphabet
     ^ String.concat "\n"
         (List.map
            (fun f ->
-             "fn " ^ f.name ^ "() {\n"
+             "fn "
+             ^ Utils_names.Identifier.to_string f.name
+             ^ "() {\n"
              ^ String.concat ""
                  (List.map
                     (fun b ->
-                      "  label " ^ b.label ^ ": {\n"
+                      "  label "
+                      ^ Utils_names.Identifier.to_string b.label
+                      ^ ": {\n"
                       ^ String.concat ""
                           (List.map
                              (fun s -> "    " ^ stmt_print s ^ "\n")
@@ -242,11 +264,13 @@ let build_frame f =
 
 let make program tape =
   let* () = validate program in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate_tape (normalized_alphabet program.alphabet) tape;
       {
         program;
-        frame = build_frame (find_function program "main");
+        frame =
+          build_frame
+            (find_function program (Utils_names.Identifier.make_exn "main"));
         stack = [];
         tape;
       })
@@ -265,7 +289,7 @@ let peek_stmt s =
   else Some (List.nth (List.nth s.frame.blocks b).body i)
 
 let step s () =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let return s =
         match s.stack with
         | [] -> Halt s.tape
@@ -296,7 +320,11 @@ let step s () =
         | Continue c when cond c -> pc (b, 0)
         | Jump (label, c) when cond c ->
             let rec find idx = function
-              | [] -> failwith ("jump target '" ^ label ^ "' not found")
+              | [] ->
+                  failwith
+                    ("jump target '"
+                    ^ Utils_names.Identifier.to_string label
+                    ^ "' not found")
               | b :: xs -> if b.label = label then idx else find (idx + 1) xs
             in
             pc (find 0 next.frame.blocks, 0)
@@ -315,7 +343,7 @@ let snapshot = state_to_yojson
 let restore json =
   let* s = state_of_yojson json in
   let* () = validate s.program in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate_tape (normalized_alphabet s.program.alphabet) s.tape;
       List.iter
         (fun f ->
@@ -332,19 +360,24 @@ let render s =
   let b, i = normalized_pc s.frame in
   Utils_runtime.Render.state
     [
-      Utils_runtime.Render.text ~title:"function" s.frame.function_;
+      Utils_runtime.Render.text ~title:"function"
+        (Utils_names.Identifier.to_string s.frame.function_);
       Utils_runtime.Render.text ~title:"pc" (Printf.sprintf "%d:%d" b i);
       Utils_runtime.Render.text ~title:"next"
         (Option.fold ~none:"halt" ~some:Code.stmt_print (peek_stmt s));
       Utils_runtime.Render.container ~title:"stack"
         ~orientation:Utils_runtime.Render.Horizontal
         (List.map
-           (fun f -> Utils_runtime.Render.text f.function_)
+           (fun f ->
+             Utils_runtime.Render.text
+               (Utils_names.Identifier.to_string f.function_))
            (List.rev s.stack)
         @ [
-            Utils_runtime.Render.text ~class_name:"highlight" s.frame.function_;
+            Utils_runtime.Render.text ~class_name:"highlight"
+              (Utils_names.Identifier.to_string s.frame.function_);
           ]);
-      Utils_runtime.Render.assoc_table ~title:"env" T.Sign.print
+      Utils_runtime.Render.keyed_table
+        ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
         (env_named s.frame.env);
       Turing_machine.View.render_tape s.tape;
     ]

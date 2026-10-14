@@ -2,48 +2,7 @@ open Pcf_shared.Syntax
 
 let ( let* ) = Result.bind
 
-type instr =
-  | PushNat of N.t
-  | PushBool of bool
-  | PushUnit
-  | Print of N.t
-  | Acc of Utils_names.Identifier.t
-  | MkCls of Utils_names.Identifier.t * instr list
-  | MkRec of Utils_names.Identifier.t * Utils_names.Identifier.t * instr list
-  | BinOp of binop
-  | UnOp of unop
-  | Ap
-  | Ret
-  | If of instr list * instr list
-[@@deriving yojson]
-
-type value =
-  | VNat of N.t
-  | VBool of bool
-  | VUnit
-  | VFun of Utils_names.Identifier.t * instr list * env
-  | VRec of
-      Utils_names.Identifier.t * Utils_names.Identifier.t * instr list * env
-
-and env = (Utils_names.Identifier.t * value) list [@@deriving yojson]
-
-type dump_frame = { stack : value list; env : env; control : instr list }
-[@@deriving yojson]
-
-type code = instr list [@@deriving yojson]
-type ainput = N.t list
-type rinput = unit
-type routput = print_effect
-type foutput = N.t
-
-type state = {
-  code : code;
-  stack : value list;
-  env : env;
-  control : instr list;
-  dump : dump_frame list;
-}
-[@@deriving yojson]
+include Types
 
 (* Public code retains Rust serde's externally tagged instruction syntax. *)
 module Code = struct
@@ -52,23 +11,31 @@ module Code = struct
   let json_nat n =
     match N.to_int n with Ok i -> `Int i | Error _ -> `Intlit (N.to_string n)
 
-  let rec instr_json = function
+  let rec instr_json (i : instr) : Yojson.Safe.t =
+    match i with
     | PushNat n -> `Assoc [ ("PushNat", json_nat n) ]
     | PushBool b -> `Assoc [ ("PushBool", `Bool b) ]
     | PushUnit -> `String "PushUnit"
     | Print n -> `Assoc [ ("Print", json_nat n) ]
-    | Acc x -> `Assoc [ ("Acc", `String x) ]
+    | Acc x -> `Assoc [ ("Acc", `String (Utils_names.Identifier.to_string x)) ]
     | MkCls (x, c) ->
         `Assoc
-          [ ("MkCls", `Assoc [ ("param", `String x); ("code", code_json c) ]) ]
+          [
+            ( "MkCls",
+              `Assoc
+                [
+                  ("param", `String (Utils_names.Identifier.to_string x));
+                  ("code", code_json c);
+                ] );
+          ]
     | MkRec (f, x, c) ->
         `Assoc
           [
             ( "MkRec",
               `Assoc
                 [
-                  ("name", `String f);
-                  ("param", `String x);
+                  ("name", `String (Utils_names.Identifier.to_string f));
+                  ("param", `String (Utils_names.Identifier.to_string x));
                   ("code", code_json c);
                 ] );
           ]
@@ -96,9 +63,9 @@ module Code = struct
             );
           ]
 
-  and code_json c = `List (List.map instr_json c)
+  and code_json (c : code) : Yojson.Safe.t = `List (List.map instr_json c)
 
-  let get = function Ok x -> x | Error e -> failwith e
+  let get = Utils_base.Error.get
 
   let natural_json = function
     | `Int n when n >= 0 -> N.of_int n
@@ -184,13 +151,19 @@ let value_text = function
   | VNat n -> N.to_string n
   | VBool b -> if b then "#true" else "#false"
   | VUnit -> "#unit"
-  | VFun (x, c, _) -> "closure " ^ x ^ " " ^ Code.print c
-  | VRec (f, x, c, _) -> "recursive closure " ^ f ^ " " ^ x ^ " " ^ Code.print c
+  | VFun (x, c, _) ->
+      "closure " ^ Utils_names.Identifier.to_string x ^ " " ^ Code.print c
+  | VRec (f, x, c, _) ->
+      "recursive closure "
+      ^ Utils_names.Identifier.to_string f
+      ^ " "
+      ^ Utils_names.Identifier.to_string x
+      ^ " " ^ Code.print c
 
-let lookup_env env x =
+let lookup_env (env : env) x =
   match List.assoc_opt x env with
   | Some v -> Ok v
-  | None -> Error ("unbound variable: " ^ x)
+  | None -> Error ("unbound variable: " ^ Utils_names.Identifier.to_string x)
 
 let step_once s =
   match s.control with
@@ -300,8 +273,8 @@ let render s =
         ];
       indexed_table ~title:"stack" ~columns:[ "depth"; "value" ] value_text
         s.stack;
-      assoc_table ~title:"env" ~columns:[ "name"; "value" ] value_text
-        (List.rev s.env);
+      keyed_table ~key_text:Utils_names.Identifier.to_string ~title:"env"
+        ~columns:[ "name"; "value" ] value_text (List.rev s.env);
       indexed_table ~title:"control" ~columns:[ "pc"; "instr" ]
         (fun i -> Yojson.Safe.to_string (Code.instr_json i))
         s.control;

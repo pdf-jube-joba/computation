@@ -32,9 +32,12 @@ module Value = struct
     | Strct fields ->
         "{"
         ^ String.concat ", "
-            (List.map (fun (name, value) -> name ^ ": " ^ print value) fields)
+            (List.map
+               (fun (name, value) ->
+                 Utils_names.Identifier.to_string name ^ ": " ^ print value)
+               fields)
         ^ "}"
-    | Enume name -> "<" ^ name ^ ">"
+    | Enume name -> "<" ^ Utils_names.Identifier.to_string name ^ ">"
 end
 
 type value_type = Value_type.t [@@deriving yojson]
@@ -52,7 +55,9 @@ let rec typable_value_exn value expected =
       then failwith "mismatch length of array";
       List.iter (fun value -> typable_value_exn value element_type) values
   | Value.Strct fields, Value_type.Strct field_types ->
-      let keys fields = List.map fst fields |> List.sort_uniq String.compare in
+      let keys fields =
+        List.map fst fields |> List.sort_uniq Utils_names.Identifier.compare
+      in
       if keys fields <> keys field_types then failwith "mismatch field name";
       List.iter
         (fun key ->
@@ -61,8 +66,11 @@ let rec typable_value_exn value expected =
   | Value.Enume name, Value_type.Enume names ->
       if not (List.mem name names) then
         failwith
-          ("enum " ^ name ^ " is not contained in [" ^ String.concat ", " names
-         ^ "]")
+          ("enum "
+          ^ Utils_names.Identifier.to_string name
+          ^ " is not contained in ["
+          ^ String.concat ", " (List.map Utils_names.Identifier.to_string names)
+          ^ "]")
   | _ -> failwith "type mismatch"
 
 let typable_value value expected =
@@ -102,7 +110,8 @@ let rec eval_exn mod_env var_env expression =
   | Var name -> (
       match List.assoc_opt name var_env with
       | Some value -> value
-      | None -> failwith ("not found var " ^ name))
+      | None ->
+          failwith ("not found var " ^ Utils_names.Identifier.to_string name))
   | And (a, b) -> (
       let va = eval a in
       let vb = eval b in
@@ -145,7 +154,9 @@ let rec eval_exn mod_env var_env expression =
       | Value.Strct fields -> (
           match List.assoc_opt field fields with
           | Some value -> value
-          | None -> failwith ("not found field " ^ field))
+          | None ->
+              failwith
+                ("not found field " ^ Utils_names.Identifier.to_string field))
       | _ -> failwith "expression is not struct")
   | StrctConst fields ->
       Value.Strct
@@ -174,11 +185,17 @@ let rec eval_exn mod_env var_env expression =
       let comb_module =
         match List.find_opt (fun m -> m.name = name) mod_env with
         | Some m -> m
-        | None -> failwith ("module name " ^ name ^ " is not found")
+        | None ->
+            failwith
+              ("module name "
+              ^ Utils_names.Identifier.to_string name
+              ^ " is not found")
       in
       let value = eval expression in
       (* The implemented evaluator does not check declared module types. *)
-      eval_exn mod_env [ ("IN", value) ] comb_module.comb_func
+      eval_exn mod_env
+        [ (Utils_names.Identifier.make_exn "IN", value) ]
+        comb_module.comb_func
 
 let eval_to_val mod_env var_env expression =
   Utils_base.Error.protect (fun () -> eval_exn mod_env var_env expression)
@@ -240,12 +257,12 @@ and iter_module_state = {
 }
 [@@deriving yojson]
 
-let field_in = "IN"
-let field_out = "OUT"
-let field_state = "STATE"
-let field_next = "NEXT"
-let field_this = "THIS"
-let field_prev = "PREV"
+let field_in = Utils_names.Identifier.make_exn "IN"
+let field_out = Utils_names.Identifier.make_exn "OUT"
+let field_state = Utils_names.Identifier.make_exn "STATE"
+let field_next = Utils_names.Identifier.make_exn "NEXT"
+let field_this = Utils_names.Identifier.make_exn "THIS"
+let field_prev = Utils_names.Identifier.make_exn "PREV"
 
 let simple_get_otput (machine : simple_module_state) =
   eval_to_val machine.otput_func.mod_env
@@ -313,7 +330,11 @@ let graph_clock (machine : graph_module_state) input =
             let next_input =
               match Value.get_field_of_value value name with
               | Some v -> v
-              | None -> failwith ("field " ^ name ^ " not found")
+              | None ->
+                  failwith
+                    ("field "
+                    ^ Utils_names.Identifier.to_string name
+                    ^ " not found")
             in
             (name, result_exn (general_clock state next_input)))
           machine.states_machines

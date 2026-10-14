@@ -38,13 +38,13 @@ let branch_region c label stmts condition yes no =
 let static_defs names =
   List.map
     (fun label -> { I.label; value = N.zero })
-    (List.sort_uniq String.compare names)
+    (List.sort_uniq Utils_names.Identifier.compare names)
 
 let encode_ainput e =
   Ok (List.map (fun (k, n) -> (k, I.Num n)) (Utils_base.Assoc.sorted e))
 
-let decode_foutput model values =
-  L.protect (fun () ->
+let decode_foutput model (values : I.foutput) =
+  Utils_base.Error.protect (fun () ->
       List.map
         (fun (k, v) ->
           let n =
@@ -52,9 +52,9 @@ let decode_foutput model values =
             | I.Num n -> n
             | _ ->
                 failwith
-                  (model ^ " decode expects numeric static value for " ^ k
-                 ^ ", got " ^ I.Ainput.print_value v)
+                  (model ^ " decode expects numeric static value for "
+                  ^ Utils_names.Identifier.to_string k
+                  ^ ", got " ^ I.Ainput.print_value v)
           in
-          ignore (get (Utils_names.Identifier.make k));
           (k, n))
         (Utils_base.Assoc.sorted values))

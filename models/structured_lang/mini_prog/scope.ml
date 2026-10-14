@@ -2,14 +2,15 @@ open Runtime_types
 open Typed_store
 open Eval
 
-let allocate_scope s bindings values =
+let allocate_scope s (bindings : (Utils_names.Identifier.t * ty) list) values =
   if List.length bindings <> List.length values then
     failwith "binding count mismatch";
   let next = ref s.next_local_id in
   let env, cells =
     List.fold_left
       (fun (env, cells) ((name, ty), value) ->
-        if not (type_match value ty) then failwith ("type mismatch for " ^ name);
+        if not (type_match value ty) then
+          failwith ("type mismatch for " ^ Utils_names.Identifier.to_string name);
         let id = Local_id.Supply.take next in
         ( Utils_base.Assoc.set name id env,
           Utils_base.Assoc.set id { ty; value } cells ))
@@ -22,13 +23,15 @@ let enter_function s name args =
   let f = function_lookup s.code name in
   if List.length f.block.bindings <> List.length args then
     failwith
-      (Printf.sprintf "argument count mismatch for %s: expected %d, got %d" name
+      (Printf.sprintf "argument count mismatch for %s: expected %d, got %d"
+         (Utils_names.Identifier.to_string name)
          (List.length f.block.bindings)
          (List.length args));
   List.iter2
     (fun (var, ty) value ->
       if not (type_match value ty) then
-        failwith ("argument type mismatch for " ^ var))
+        failwith
+          ("argument type mismatch for " ^ Utils_names.Identifier.to_string var))
     f.block.bindings args;
   let env, cells, next_local_id = allocate_scope s f.block.bindings args in
   {

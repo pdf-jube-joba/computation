@@ -8,17 +8,20 @@ let by_const name =
   | Ok name -> name
   | Error message -> invalid_arg message
 
-let init_maps () =
+let init_maps () : library =
   let gates kinds =
     List.concat_map
       (fun k ->
         List.map
-          (fun b -> ((gate_name k ^ if b then "_T" else "_F"), new_gate k b))
+          (fun b ->
+            ( Utils_names.Identifier.make_exn
+                (gate_name k ^ if b then "_T" else "_F"),
+              new_gate k b ))
           [ true; false ])
       kinds
   in
   gates [ Not; And; Or; Cst; Br ]
-  @ [ ("END", new_gate End false) ]
+  @ [ (Utils_names.Identifier.make_exn "END", new_gate End false) ]
   @ gates [ Delay ]
 
 let insert library (name, circuit) =
@@ -35,12 +38,12 @@ let named_pin p =
   let pin = L.identifier p in
   (n, pin)
 
-let definitions p maps =
+let definitions p (maps : library) =
   let maps = ref maps in
   let lookup p n =
     match List.assoc_opt n !maps with
     | Some c -> c
-    | None -> L.error p ("not found name " ^ n)
+    | None -> L.error p ("not found name " ^ Utils_names.Identifier.to_string n)
   in
   while not (L.eof p) do
     let circuit_name, circuit =
@@ -85,7 +88,10 @@ let definitions p maps =
                             ((source, (vn, pin)) :: edges, maps)
                         | `External external_pin ->
                             if not (List.mem external_pin inpins) then
-                              L.error p ("not found inpin " ^ external_pin);
+                              L.error p
+                                ("not found inpin "
+                                ^ Utils_names.Identifier.to_string external_pin
+                                );
                             (edges, (external_pin, (vn, pin)) :: maps))
                       (edges, inpin_maps) conns
                   in
@@ -126,7 +132,7 @@ let parse code maps =
 
 let parse_main_with_maps code maps =
   Result.bind (parse code maps) (fun maps ->
-      match List.assoc_opt "main" maps with
+      match List.assoc_opt (Utils_names.Identifier.make_exn "main") maps with
       | Some c -> Ok c
       | None -> Error "not found main")
 
@@ -138,7 +144,7 @@ module Code = struct
     | text when String.starts_with ~prefix:"[" text ->
         Result.bind (Utils_codec.Json.decode text) (fun json ->
             Result.bind (of_yojson json) (fun circuit ->
-                Result.map (fun () -> circuit) (validate_identifiers circuit)))
+                Result.map (fun () -> circuit) (validate circuit)))
     | _ -> parse_main_with_maps text (init_maps ())
 
   let print circuit = Yojson.Safe.pretty_to_string (to_yojson circuit)

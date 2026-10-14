@@ -3,7 +3,7 @@
  (library
   (name pcf_shared)
   (public_name computation.pcf_shared)
-  (libraries yojson utils_base utils_names utils_parsing utils_codec)
+  (libraries yojson utils_base utils_codec utils_names utils_parsing)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -12,7 +12,13 @@
  (library
   (name pcf_expr)
   (public_name computation.pcf_expr)
-  (libraries pcf_shared yojson utils_codec utils_runtime)
+  (libraries
+   yojson
+   pcf_shared
+   utils_base
+   utils_codec
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -21,7 +27,13 @@
  (library
   (name pcf_cek)
   (public_name computation.pcf_cek)
-  (libraries pcf_shared yojson utils_codec utils_runtime)
+  (libraries
+   yojson
+   pcf_shared
+   utils_base
+   utils_codec
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -30,7 +42,13 @@
  (library
   (name pcf_secd)
   (public_name computation.pcf_secd)
-  (libraries pcf_shared yojson utils_names utils_codec utils_runtime)
+  (libraries
+   yojson
+   pcf_shared
+   utils_base
+   utils_codec
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -39,6 +57,12 @@
  (library
   (name pcf_expr_stmt)
   (public_name computation.pcf_expr_stmt)
-  (libraries pcf_shared yojson utils_names utils_codec utils_runtime)
+  (libraries
+   yojson
+   pcf_shared
+   utils_base
+   utils_codec
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))

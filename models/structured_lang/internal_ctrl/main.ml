@@ -82,34 +82,53 @@ module Code = struct
   let rec stmt_to_text = function
     | Nop -> "Nop"
     | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
-    | Assign (v, a) -> v ^ " := " ^ aexp_text a
+    | Assign (v, a) -> Utils_names.Identifier.to_string v ^ " := " ^ aexp_text a
     | If (c, b) -> "if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
-    | Break (l, v) -> "break :" ^ l ^ " " ^ v
-    | Continue l -> "continue :" ^ l
-    | Loop (l, b, v) -> "loop :" ^ l ^ " (" ^ stmt_to_text b ^ ") -> " ^ v
+    | Break (l, v) ->
+        "break :"
+        ^ Utils_names.Identifier.to_string l
+        ^ " "
+        ^ Utils_names.Identifier.to_string v
+    | Continue l -> "continue :" ^ Utils_names.Identifier.to_string l
+    | Loop (l, b, v) ->
+        "loop :"
+        ^ Utils_names.Identifier.to_string l
+        ^ " (" ^ stmt_to_text b ^ ") -> "
+        ^ Utils_names.Identifier.to_string v
 
   let print c =
     "static"
-    ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
+    ^ (if c.statics = [] then ""
+       else
+         " "
+         ^ String.concat ", "
+             (List.map Utils_names.Identifier.to_string c.statics))
     ^ "; " ^ stmt_to_text c.body ^ "\n"
 end
 
 let exec_to_text = function
   | Stmt s -> Code.stmt_to_text s
   | Result Normal -> "()"
-  | Result (Break_result (l, v)) -> "break " ^ l ^ " " ^ N.to_string v
-  | Result (Continue_result l) -> "continue " ^ l
+  | Result (Break_result (l, v)) ->
+      "break " ^ Utils_names.Identifier.to_string l ^ " " ^ N.to_string v
+  | Result (Continue_result l) ->
+      "continue " ^ Utils_names.Identifier.to_string l
 
 let make code env =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate_env code.statics env
-        ~duplicate:(fun s -> "duplicate static variable: " ^ s)
-        ~extra:(fun s -> "ainput contains undeclared static variable: " ^ s)
-        ~missing:(fun s -> "ainput missing static variable: " ^ s);
+        ~duplicate:(fun s ->
+          "duplicate static variable: " ^ Utils_names.Identifier.to_string s)
+        ~extra:(fun s ->
+          "ainput contains undeclared static variable: "
+          ^ Utils_names.Identifier.to_string s)
+        ~missing:(fun s ->
+          "ainput missing static variable: "
+          ^ Utils_names.Identifier.to_string s);
       { code; env; exec = Stmt code.body; stack = [] })
 
 let step s () =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let output = exec_to_text s.exec in
       let next =
         match s.exec with
@@ -142,8 +161,14 @@ let step s () =
             | [] -> (
                 match control with
                 | Normal -> s
-                | Break_result (l, _) -> failwith ("break outside loop: " ^ l)
-                | Continue_result l -> failwith ("continue outside loop: " ^ l))
+                | Break_result (l, _) ->
+                    failwith
+                      ("break outside loop: "
+                      ^ Utils_names.Identifier.to_string l)
+                | Continue_result l ->
+                    failwith
+                      ("continue outside loop: "
+                      ^ Utils_names.Identifier.to_string l))
             | Seq_frame b :: stack ->
                 {
                   s with
@@ -183,7 +208,11 @@ let render s =
         (String.concat "\n"
            (List.map
               (function
-                | Loop_frame (l, _, v) -> "loop " ^ l ^ " -> " ^ v
+                | Loop_frame (l, _, v) ->
+                    "loop "
+                    ^ Utils_names.Identifier.to_string l
+                    ^ " -> "
+                    ^ Utils_names.Identifier.to_string v
                 | Seq_frame b -> "seq " ^ Code.stmt_to_text b)
               (List.rev s.stack)));
     ]

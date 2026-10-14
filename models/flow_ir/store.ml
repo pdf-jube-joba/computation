@@ -6,7 +6,10 @@ let read_place s = function
       match List.assoc_opt l s.static_mem with
       | Some v -> v
       | None ->
-          failwith ("Unknown data label: @" ^ name_of_id s.resolution.data l))
+          failwith
+            ("Unknown data label: @"
+            ^ Utils_names.Identifier.to_string (name_of_id s.resolution.data l)
+            ))
   | Stack i ->
       Utils_base.List_ext.nth s.stack i
         (Printf.sprintf "Invalid stack key: s[%d]" i)

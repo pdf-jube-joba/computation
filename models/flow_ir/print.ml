@@ -1,14 +1,14 @@
 open Syntax
 
 let rec value_to_text = function
-  | VReg r -> "%" ^ r
+  | VReg r -> "%" ^ Utils_names.Identifier.to_string r
   | Imm n -> "#" ^ N.to_string n
-  | CodeLabel l -> ":" ^ l
+  | CodeLabel l -> ":" ^ Utils_names.Identifier.to_string l
   | Ref p -> "ref " ^ place_to_text p
 
 and place_to_text = function
-  | Label l -> "@" ^ l
-  | Deref r -> "deref %" ^ r
+  | Label l -> "@" ^ Utils_names.Identifier.to_string l
+  | Deref r -> "deref %" ^ Utils_names.Identifier.to_string r
   | SAcc v -> "sacc " ^ value_to_text v
   | HAcc (h, i) -> "hacc(" ^ value_to_text h ^ ")[" ^ value_to_text i ^ "]"
 
@@ -23,33 +23,46 @@ let cond_to_text c =
 
 let stmt_to_text = function
   | Nop -> "nop;"
-  | Load (r, p) -> "%" ^ r ^ " := ld " ^ place_to_text p ^ ";"
-  | Assign (r, v) -> "%" ^ r ^ " := " ^ value_to_text v ^ ";"
+  | Load (r, p) ->
+      "%"
+      ^ Utils_names.Identifier.to_string r
+      ^ " := ld " ^ place_to_text p ^ ";"
+  | Assign (r, v) ->
+      "%" ^ Utils_names.Identifier.to_string r ^ " := " ^ value_to_text v ^ ";"
   | BinOp (r, a, op, b) ->
-      "%" ^ r ^ " := " ^ value_to_text a
+      "%"
+      ^ Utils_names.Identifier.to_string r
+      ^ " := " ^ value_to_text a
       ^ (if op = Add then " + " else " - ")
       ^ value_to_text b ^ ";"
   | Store (p, v) -> place_to_text p ^ " := st " ^ value_to_text v ^ ";"
-  | Pop r -> "pop %" ^ r ^ ";"
+  | Pop r -> "pop %" ^ Utils_names.Identifier.to_string r ^ ";"
   | Push v -> "push " ^ value_to_text v ^ ";"
-  | LGet r -> "lget %" ^ r ^ ";"
-  | HAlloc (v, r) -> "halloc(" ^ value_to_text v ^ ") %" ^ r ^ ";"
+  | LGet r -> "lget %" ^ Utils_names.Identifier.to_string r ^ ";"
+  | HAlloc (v, r) ->
+      "halloc(" ^ value_to_text v ^ ") %"
+      ^ Utils_names.Identifier.to_string r
+      ^ ";"
   | HFree v -> "hfree " ^ value_to_text v ^ ";"
-  | Print r -> "print %" ^ r ^ ";"
+  | Print r -> "print %" ^ Utils_names.Identifier.to_string r ^ ";"
   | Input p -> "input " ^ place_to_text p ^ ";"
 
 let print (p : code) =
   let b = Buffer.create 512 in
   let line s = Buffer.add_string b (s ^ "\n") in
   List.iter
-    (fun (s : static_def) -> line ("@" ^ s.label ^ " " ^ N.to_string s.value))
+    (fun (s : static_def) ->
+      line
+        ("@"
+        ^ Utils_names.Identifier.to_string s.label
+        ^ " " ^ N.to_string s.value))
     p.statics;
   List.iter
     (fun (r : region) ->
-      line (":" ^ r.label ^ " {");
+      line (":" ^ Utils_names.Identifier.to_string r.label ^ " {");
       List.iter
         (fun (bb : block) ->
-          line ("  :" ^ bb.label ^ " {");
+          line ("  :" ^ Utils_names.Identifier.to_string bb.label ^ " {");
           List.iter (fun s -> line ("    " ^ stmt_to_text s)) bb.stmts;
           List.iter
             (fun j ->

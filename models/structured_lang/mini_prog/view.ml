@@ -14,7 +14,7 @@ let render s =
     [
       text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
-          [ "function"; s.current_function ];
+          [ "function"; Utils_names.Identifier.to_string s.current_function ];
           [ "exec"; exec_text s.exec ];
           [
             "next_local_id";
@@ -31,13 +31,22 @@ let render s =
               (fun i scope ->
                 List.map
                   (fun (n, id) ->
-                    [ string_of_int i; n; string_of_int (Local_id.to_int id) ])
+                    [
+                      string_of_int i;
+                      Utils_names.Identifier.to_string n;
+                      string_of_int (Local_id.to_int id);
+                    ])
                   (Utils_base.Assoc.sorted scope))
               s.env));
       text_table ~title:"statics"
         ~columns:[ "name"; "type"; "value" ]
         (List.map
-           (fun (n, c) -> [ n; Code.type_text c.ty; value_text c.value ])
+           (fun (n, c) ->
+             [
+               Utils_names.Identifier.to_string n;
+               Code.type_text c.ty;
+               value_text c.value;
+             ])
            (Utils_base.Assoc.sorted s.store.statics));
       text_table ~title:"heap"
         ~columns:[ "heap"; "type"; "value" ]
@@ -63,7 +72,7 @@ let render s =
            (fun i f ->
              [
                string_of_int i;
-               f.function_name;
+               Utils_names.Identifier.to_string f.function_name;
                string_of_int (List.length f.ret_locs);
                string_of_int (List.length f.inner_k);
              ])

@@ -10,7 +10,8 @@ module Registers = Utils_names.Intern.Make (Utils_names.Identifier) (Vreg_id)
 
 let unique kind names =
   Utils_names.Identifier.check_unique
-    ~message:(fun name -> "Duplicate " ^ kind ^ ": " ^ name)
+    ~message:(fun name ->
+      "Duplicate " ^ kind ^ ": " ^ Utils_names.Identifier.to_string name)
     names
 
 let validate (code : code) =
@@ -19,23 +20,31 @@ let validate (code : code) =
   unique "region label" (List.map (fun (r : region) -> r.label) code.regions);
   List.iter
     (fun (r : region) ->
-      if r.blocks = [] then failwith ("Region :" ^ r.label ^ " has no blocks");
+      if r.blocks = [] then
+        failwith
+          ("Region :"
+          ^ Utils_names.Identifier.to_string r.label
+          ^ " has no blocks");
       unique
-        ("block label in region :" ^ r.label)
+        ("block label in region :" ^ Utils_names.Identifier.to_string r.label)
         (List.map (fun (b : block) -> b.label) r.blocks))
     code.regions;
-  if not (List.exists (fun (r : region) -> r.label = "main") code.regions) then
-    failwith "Missing entry region: :main"
+  if
+    not
+      (List.exists
+         (fun (r : region) -> r.label = Utils_names.Identifier.make_exn "main")
+         code.regions)
+  then failwith "Missing entry region: :main"
 
 let name_of_id entries id =
   match List.find_opt (fun (_, value) -> value = id) entries with
   | Some (name, _) -> name
   | None -> failwith "Unknown resolved ID"
 
-let id_of_name entries name =
+let id_of_name (entries : (Utils_names.Identifier.t * 'a) list) name =
   match List.assoc_opt name entries with
   | Some id -> id
-  | None -> failwith ("Unknown name: " ^ name)
+  | None -> failwith ("Unknown name: " ^ Utils_names.Identifier.to_string name)
 
 let build_resolution (code : code) =
   let registers = ref [] and registry = ref Registers.empty in

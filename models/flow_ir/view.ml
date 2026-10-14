@@ -10,21 +10,29 @@ let render s =
     [
       R.text ~title:"current_region"
         (":"
-        ^ Option.fold ~none:"<invalid>" ~some:(fun (r : region) -> r.label) r);
+        ^ Option.fold ~none:"<invalid>"
+            ~some:(fun (r : region) -> Utils_names.Identifier.to_string r.label)
+            r);
       R.text ~title:"current_block"
         (":"
-        ^ Option.fold ~none:"<invalid>" ~some:(fun (b : block) -> b.label) b);
+        ^ Option.fold ~none:"<invalid>"
+            ~some:(fun (b : block) -> Utils_names.Identifier.to_string b.label)
+            b);
       R.text ~title:"current_line" (string_of_int s.current_line);
       R.text ~title:"halted" (string_of_bool s.halted);
       R.assoc_table ~title:"vregs" ~columns:[ "vreg"; "value" ] (runtime_text s)
         (List.map
-           (fun (k, v) -> ("%" ^ name_of_id s.resolution.registers k, v))
+           (fun (k, v) ->
+             ( "%"
+               ^ Utils_names.Identifier.to_string
+                   (name_of_id s.resolution.registers k),
+               v ))
            (Utils_base.Assoc.sorted s.vregs));
       R.text_table ~title:"static" ~columns:[ "label"; "value" ]
         (List.map
            (fun (d : static_def) ->
              [
-               "@" ^ d.label;
+               "@" ^ Utils_names.Identifier.to_string d.label;
                runtime_text s
                  (Option.value
                     (List.assoc_opt

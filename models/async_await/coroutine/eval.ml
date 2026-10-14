@@ -3,8 +3,13 @@ open Runtime_types
 let get_task_id env name =
   match List.assoc_opt name env.task_ids with
   | Some (Some id) -> id
-  | Some None -> failwith ("task id $" ^ name ^ " is not initialized")
-  | None -> failwith ("unknown task id $" ^ name)
+  | Some None ->
+      failwith
+        ("task id $"
+        ^ Utils_names.Identifier.to_string name
+        ^ " is not initialized")
+  | None ->
+      failwith ("unknown task id $" ^ Utils_names.Identifier.to_string name)
 
 let rec eval_aexp env = function
   | Atom (Var n) -> Option.value ~default:N.zero (List.assoc_opt n env.vars)

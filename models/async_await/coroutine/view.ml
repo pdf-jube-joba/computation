@@ -12,10 +12,13 @@ let render s =
         ];
       container ~title:"env" ~orientation:Utils_runtime.Render.Horizontal
         [
-          assoc_table ~title:"vars" N.to_string s.env.vars;
+          keyed_table ~key_text:Utils_names.Identifier.to_string ~title:"vars"
+            N.to_string s.env.vars;
           assoc_table ~title:"task_ids" ~columns:[ "id"; "task" ]
             (function None -> "none" | Some n -> task_text n)
-            (List.map (fun (n, id) -> ("$" ^ n, id)) s.env.task_ids);
+            (List.map
+               (fun (n, id) -> ("$" ^ Utils_names.Identifier.to_string n, id))
+               s.env.task_ids);
         ];
       indexed_table ~title:"workers" ~columns:[ "agent"; "task" ]
         (function None -> "idle" | Some n -> task_text n)
@@ -30,7 +33,11 @@ let render s =
                   ~columns:[ "depth"; "function"; "pc" ]
                   (List.mapi
                      (fun i f ->
-                       [ string_of_int i; f.function_name; string_of_int f.pc ])
+                       [
+                         string_of_int i;
+                         Utils_names.Identifier.to_string f.function_name;
+                         string_of_int f.pc;
+                       ])
                      (List.rev stack)))
               s.tasks));
     ]

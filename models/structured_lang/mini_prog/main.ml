@@ -7,7 +7,7 @@ open Validation
 open Control
 
 let make code input =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate code;
       let statics =
         List.fold_left
@@ -20,7 +20,7 @@ let make code input =
       let s =
         {
           code;
-          current_function = "main";
+          current_function = Utils_names.Identifier.make_exn "main";
           exec = Ctrl Next;
           env = [];
           store = { statics; heap = []; locals = [] };
@@ -30,10 +30,12 @@ let make code input =
           next_heap_id = Heap_id.Supply.empty;
         }
       in
-      enter_function s "main" (List.map (fun n -> Number_value n) input))
+      enter_function s
+        (Utils_names.Identifier.make_exn "main")
+        (List.map (fun n -> Number_value n) input))
 
 let step s () =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let continue next =
         Utils_runtime.Machine.Continue { next; output = "" }
       in

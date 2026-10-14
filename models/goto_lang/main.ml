@@ -32,7 +32,7 @@ module Code = struct
     Parser.parse (fun p ->
         Parser.many p (fun p ->
             let command =
-              match Parser.identifier p with
+              match Identifier.to_string (Parser.identifier p) with
               | "clr" -> Clr (Parser.identifier p)
               | "inc" -> Inc (Parser.identifier p)
               | "dec" -> Dec (Parser.identifier p)
@@ -50,11 +50,19 @@ module Code = struct
             command))
 
   let print_command = function
-    | Clr v -> "clr " ^ v ^ ";"
-    | Inc v -> "inc " ^ v ^ ";"
-    | Dec v -> "dec " ^ v ^ ";"
-    | Cpy (d, s) -> "cpy " ^ d ^ " <- " ^ s ^ ";"
-    | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ Number.to_string n ^ ";"
+    | Clr v -> "clr " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Inc v -> "inc " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Dec v -> "dec " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Cpy (d, s) ->
+        "cpy "
+        ^ Utils_names.Identifier.to_string d
+        ^ " <- "
+        ^ Utils_names.Identifier.to_string s
+        ^ ";"
+    | Ifnz (v, n) ->
+        "ifnz "
+        ^ Utils_names.Identifier.to_string v
+        ^ " : " ^ Number.to_string n ^ ";"
 
   let print code = String.concat "\n" (List.map print_command code)
 end
@@ -81,7 +89,8 @@ let make commands input =
   Ok { commands; pc = Number.zero; env; variable_names = !names }
 
 let variable_id state name =
-  Assoc.lookup name state.variable_names ("Unknown variable: " ^ name)
+  Assoc.lookup name state.variable_names
+    ("Unknown variable: " ^ Utils_names.Identifier.to_string name)
 
 let named_env state =
   List.map
@@ -156,7 +165,8 @@ let render state =
                 | None -> "halt")
             | Error _ -> "halt" );
         ];
-      Render.assoc_table ~title:"env" Number.to_string (named_env state);
+      Render.keyed_table ~key_text:Utils_names.Identifier.to_string ~title:"env"
+        Number.to_string (named_env state);
     ]
 
 module Ainput = struct

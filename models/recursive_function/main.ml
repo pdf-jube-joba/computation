@@ -72,7 +72,7 @@ module Code = struct
         (fun p ->
           let bindings = ref [] in
           let rec func p =
-            match Parser.identifier p with
+            match Identifier.to_string (Parser.identifier p) with
             | "ZERO" -> Zero
             | "SUCC" -> Succ
             | "PROJ" ->
@@ -114,7 +114,7 @@ module Code = struct
                 | None -> Parser.error p ("Unknown function: " ^ name))
           in
           while Parser.bump_if_keyword p "let" do
-            let name = Parser.identifier p in
+            let name = Identifier.to_string (Parser.identifier p) in
             if List.mem_assoc name !bindings then
               Parser.error p "Duplicate function name";
             Parser.expect_symbol p '=';

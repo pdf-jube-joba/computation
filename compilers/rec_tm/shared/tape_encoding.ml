@@ -1,14 +1,13 @@
 module N = Utils_base.Number
 module T = Turing_machine.Main
-module L = Utils_base.Error
 
 let b = None
-let l = Some "l"
-let x = Some "x"
+let l = Some (Utils_names.Identifier.make_exn "l")
+let x = Some (Utils_names.Identifier.make_exn "x")
 let alphabet = [ b; l; x ]
 
 let write tuple =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let signs =
         x
         :: List.concat_map

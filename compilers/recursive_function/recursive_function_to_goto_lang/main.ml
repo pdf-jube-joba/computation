@@ -5,13 +5,17 @@ module Label_id = Utils_names.Id.Make ()
 module Temp_id = Utils_names.Id.Make ()
 module Temp_names = Utils_names.Naming.Make (Temp_id)
 
-let output_var = "y"
-let always_one_var = "__one"
-let input_vars n = List.init n (fun i -> "x" ^ string_of_int i)
+let output_var = Utils_names.Identifier.make_exn "y"
+let always_one_var = Utils_names.Identifier.make_exn "__one"
+
+let input_vars n =
+  List.init n (fun i -> Utils_names.Identifier.make_exn ("x" ^ string_of_int i))
 
 (* Labels refer to command positions, including the position just past the end.
    Resolve them only after every nested function has emitted its instructions. *)
-type unresolved = Command of Target.command | Branch of string * Label_id.t
+type unresolved =
+  | Command of Target.command
+  | Branch of Utils_names.Identifier.t * Label_id.t
 
 type builder = {
   mutable commands : unresolved list;
@@ -42,7 +46,11 @@ let mark b label = Hashtbl.replace b.labels label b.position
 let temp b =
   let id, next = Temp_id.Supply.fresh b.next_temp in
   b.next_temp <- next;
-  let name, names = Temp_names.assign ~hint:"__tmp" id b.temp_names in
+  let name, names =
+    Temp_names.assign
+      ~hint:(Utils_names.Identifier.make_exn "__tmp")
+      id b.temp_names
+  in
   b.temp_names <- names;
   name
 
@@ -149,7 +157,11 @@ let compile func =
   finalize b
 
 let encode_ainput input =
-  Ok (List.mapi (fun i value -> ("x" ^ string_of_int i, value)) input)
+  Ok
+    (List.mapi
+       (fun i value ->
+         (Utils_names.Identifier.make_exn ("x" ^ string_of_int i), value))
+       input)
 
 let encode_rinput () = Ok ()
 let decode_routput () = Ok ()

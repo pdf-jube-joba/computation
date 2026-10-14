@@ -111,37 +111,56 @@ module Code = struct
   type t = term
 
   let rec pretty = function
-    | Var x -> x
-    | Lam (x, b) -> "fun " ^ x ^ " => " ^ pretty b
+    | Var x -> Utils_names.Identifier.to_string x
+    | Lam (x, b) ->
+        "fun " ^ Utils_names.Identifier.to_string x ^ " => " ^ pretty b
     | App (a, b) -> "(" ^ pretty a ^ " " ^ pretty b ^ ")"
     | Zero -> "0"
     | Succ e -> "S " ^ pretty e
     | Pred e -> "P " ^ pretty e
     | IfZ (c, t, f) ->
         "if " ^ pretty c ^ " then " ^ pretty t ^ " else " ^ pretty f
-    | Let (x, e, b) -> "let " ^ x ^ " = " ^ pretty e ^ " in \n " ^ pretty b
-    | Rec (f, x, b) -> "rec " ^ f ^ " " ^ x ^ " = " ^ pretty b
+    | Let (x, e, b) ->
+        "let "
+        ^ Utils_names.Identifier.to_string x
+        ^ " = " ^ pretty e ^ " in \n " ^ pretty b
+    | Rec (f, x, b) ->
+        "rec "
+        ^ Utils_names.Identifier.to_string f
+        ^ " "
+        ^ Utils_names.Identifier.to_string x
+        ^ " = " ^ pretty b
     | Abort e -> "abort " ^ pretty e
     | Control e -> "control " ^ pretty e
 
   let rec print = function
-    | Var x -> x
-    | Lam (x, b) -> "(fun " ^ x ^ " => " ^ print b ^ ")"
+    | Var x -> Utils_names.Identifier.to_string x
+    | Lam (x, b) ->
+        "(fun " ^ Utils_names.Identifier.to_string x ^ " => " ^ print b ^ ")"
     | App (a, b) -> "@(" ^ print a ^ " " ^ print b ^ ")"
     | Zero -> "zero"
     | Succ e -> "(succ " ^ print e ^ ")"
     | Pred e -> "(pred " ^ print e ^ ")"
     | IfZ (c, t, f) ->
         "(ifz " ^ print c ^ " then " ^ print t ^ " else " ^ print f ^ ")"
-    | Let (x, e, b) -> "(let " ^ x ^ " = " ^ print e ^ " in " ^ print b ^ ")"
-    | Rec (f, x, b) -> "(rec " ^ f ^ " " ^ x ^ " = " ^ print b ^ ")"
+    | Let (x, e, b) ->
+        "(let "
+        ^ Utils_names.Identifier.to_string x
+        ^ " = " ^ print e ^ " in " ^ print b ^ ")"
+    | Rec (f, x, b) ->
+        "(rec "
+        ^ Utils_names.Identifier.to_string f
+        ^ " "
+        ^ Utils_names.Identifier.to_string x
+        ^ " = " ^ print b ^ ")"
     | Abort e -> "(abort " ^ print e ^ ")"
     | Control e -> "(control " ^ print e ^ ")"
 
   let variable p =
     let name = L.identifier p in
     if
-      List.mem name
+      List.mem
+        (Utils_names.Identifier.to_string name)
         [
           "fun";
           "zero";

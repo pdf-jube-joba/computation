@@ -3,7 +3,7 @@ open Circuit
 let as_graph_group = function
   | Gate _ as c ->
       {
-        verts = [ (External (kind c), c) ];
+        verts = [ (External (Utils_names.Identifier.make_exn (kind c)), c) ];
         edges = [];
         inpins_map = List.map (fun p -> (p, p)) (get_inpins c);
         otpins_map = List.map (fun p -> (p, p)) (get_otpins c);
@@ -58,13 +58,20 @@ let render circuit =
     graph.verts;
   let display = function
     | Instance id ->
-        let name, next = Vertex_names.assign ~hint:"instance" id !names in
+        let name, next =
+          Vertex_names.assign
+            ~hint:(Utils_names.Identifier.make_exn "instance")
+            id !names
+        in
         names := next;
-        name
+        Utils_names.Identifier.to_string name
     | owner -> owner_text owner
   in
   let inputs =
-    List.map (fun ((owner, p), _) -> [ display owner; p ]) graph.inpins_map
+    List.map
+      (fun ((owner, p), _) ->
+        [ display owner; Utils_names.Identifier.to_string p ])
+      graph.inpins_map
   in
   let outputs =
     List.map
@@ -79,14 +86,19 @@ let render circuit =
               | Some (_, b) -> Signal_text.print_bool b
               | None -> "?")
         in
-        [ display owner; p; value ])
+        [ display owner; Utils_names.Identifier.to_string p; value ])
       graph.otpins_map
   in
   let verts =
     List.concat_map
       (fun (owner, c) ->
         List.map
-          (fun ((_, p), v) -> [ display owner; p; Signal_text.print_bool v ])
+          (fun ((_, p), v) ->
+            [
+              display owner;
+              Utils_names.Identifier.to_string p;
+              Signal_text.print_bool v;
+            ])
           (get_otputs c))
       graph.verts
   in

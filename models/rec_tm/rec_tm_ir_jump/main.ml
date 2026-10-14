@@ -74,7 +74,7 @@ module Code = struct
 end
 
 let collect_vars body =
-  List.sort_uniq String.compare
+  List.sort_uniq Utils_names.Identifier.compare
     (List.concat_map
        (function
          | Assign (dst, src) -> vars_lvalue dst @ vars_rvalue src
@@ -83,7 +83,7 @@ let collect_vars body =
        body)
 
 let validate p =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let allowed = normalized_alphabet p.alphabet in
       List.iteri
         (fun i -> function
@@ -99,12 +99,12 @@ let validate p =
 
 let make program tape =
   let* () = validate program in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate_tape (normalized_alphabet program.alphabet) tape;
       { program; pc = 0; env = env_create (collect_vars program.body); tape })
 
 let step s () =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       if s.pc >= List.length s.program.body then Halt s.tape
       else
         let next =
@@ -129,7 +129,7 @@ let snapshot = state_to_yojson
 let restore json =
   let* s = state_of_yojson json in
   let* () = validate s.program in
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       if s.pc < 0 || s.pc > List.length s.program.body then
         failwith "Invalid pc";
       validate_tape (normalized_alphabet s.program.alphabet) s.tape;
@@ -143,7 +143,8 @@ let render s =
       Utils_runtime.Render.text ~title:"next"
         (if s.pc >= List.length s.program.body then "halt"
          else Code.stmt_print (List.nth s.program.body s.pc));
-      Utils_runtime.Render.assoc_table ~title:"env" T.Sign.print
+      Utils_runtime.Render.keyed_table
+        ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
         (env_named s.env);
       Turing_machine.View.render_tape s.tape;
     ]

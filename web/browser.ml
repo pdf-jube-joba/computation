@@ -3,7 +3,7 @@ open Js_of_ocaml
 module Json = Utils_codec.Json
 module Registry = Model_registry.Registry
 
-let get = function Ok value -> value | Error message -> failwith message
+let get = Utils_base.Error.get
 
 let response = function
   | Ok value -> Js.string (Json.encode (`Assoc [ ("ok", value) ]))

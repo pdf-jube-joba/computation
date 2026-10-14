@@ -3,7 +3,13 @@
  (library
   (name rec_tm_shared)
   (public_name computation.rec_tm_shared)
-  (libraries turing_machine yojson utils_base utils_names utils_parsing utils_codec)
+  (libraries
+   yojson
+   turing_machine
+   utils_base
+   utils_codec
+   utils_names
+   utils_parsing)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -12,7 +18,15 @@
  (library
   (name rec_tm_ir)
   (public_name computation.rec_tm_ir)
-  (libraries rec_tm_shared turing_machine yojson utils_names utils_parsing utils_codec utils_runtime)
+  (libraries
+   yojson
+   rec_tm_shared
+   turing_machine
+   utils_base
+   utils_codec
+   utils_names
+   utils_parsing
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -21,6 +35,14 @@
  (library
   (name rec_tm_ir_jump)
   (public_name computation.rec_tm_ir_jump)
-  (libraries rec_tm_shared turing_machine yojson utils_names utils_parsing utils_codec utils_runtime)
+  (libraries
+   yojson
+   rec_tm_shared
+   turing_machine
+   utils_base
+   utils_codec
+   utils_names
+   utils_parsing
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))

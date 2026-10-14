@@ -92,7 +92,7 @@ let get_cell s = function
         ("unknown heap location: " ^ string_of_int (Heap_id.to_int id))
   | Static_key name ->
       Utils_base.Assoc.lookup name s.store.statics
-        ("unknown static location: " ^ name)
+        ("unknown static location: " ^ Utils_names.Identifier.to_string name)
   | Local_key id ->
       let rec functions = function
         | [] ->

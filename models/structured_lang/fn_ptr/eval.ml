@@ -6,7 +6,9 @@ let expect_number = function
   | v -> failwith ("expected a number, found " ^ Runtime_value.print v)
 
 let rec eval_place s = function
-  | Var v -> Utils_base.Assoc.lookup v s.env ("unknown variable: " ^ v)
+  | Var v ->
+      Utils_base.Assoc.lookup v s.env
+        ("unknown variable: " ^ Utils_names.Identifier.to_string v)
   | Deref v -> (
       match eval_value s v with
       | Location loc -> loc

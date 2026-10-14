@@ -1,12 +1,12 @@
 open Circuit
 module Code = Parser.Code
 
-let make code () = Result.map (fun () -> code) (validate_identifiers code)
+let make code () = Result.map (fun () -> code) (validate code)
 let snapshot = to_yojson
 
 let restore json =
   Result.bind (of_yojson json) (fun circuit ->
-      Result.map (fun () -> circuit) (validate_identifiers circuit))
+      Result.map (fun () -> circuit) (validate circuit))
 
 let step state input =
   Result.map

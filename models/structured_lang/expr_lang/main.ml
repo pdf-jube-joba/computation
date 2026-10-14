@@ -115,7 +115,7 @@ module Code = struct
   let parse = L.parse parse_stmt
 
   let rec aexp_to_text = function
-    | Var v -> v
+    | Var v -> Utils_names.Identifier.to_string v
     | Num n -> N.to_string n
     | BinOp (a, op, b) ->
         "(" ^ aexp_to_text a
@@ -133,7 +133,8 @@ module Code = struct
 
   let rec print = function
     | Nop -> "Nop"
-    | Assign (v, a) -> v ^ " := " ^ aexp_to_text a
+    | Assign (v, a) ->
+        Utils_names.Identifier.to_string v ^ " := " ^ aexp_to_text a
     | Seq (a, b) -> print a ^ " ; " ^ print b
     | If (c, b) -> "if " ^ bexp_to_text c ^ " " ^ print b
     | While (c, b) -> "while " ^ bexp_to_text c ^ " [ " ^ print b ^ " ]"
@@ -153,7 +154,8 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils_runtime.Render.statement_env (Code.print s.stmt) N.to_string s.env
+  Utils_runtime.Render.statement_env ~name_text:Utils_names.Identifier.to_string
+    (Code.print s.stmt) N.to_string s.env
 
 module Ainput = Structured_lang_shared.Arithmetic.Env
 module Rinput = Utils_codec.Text.Unit

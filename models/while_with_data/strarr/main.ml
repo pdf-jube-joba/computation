@@ -37,7 +37,8 @@ module Code = struct
 
   let parse_name p =
     let n = L.identifier p in
-    if List.mem n reserved then failwith "Expected identifier";
+    if List.mem (Utils_names.Identifier.to_string n) reserved then
+      failwith "Expected identifier";
     n
 
   let parse_aexp =
@@ -91,7 +92,7 @@ module Code = struct
         "["
         ^ String.concat ", " (List.map Utils_parsing.Char_literal.to_text cs)
         ^ "]"
-    | Var n -> n
+    | Var n -> Utils_names.Identifier.to_string n
     | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
     | Head a -> "head " ^ aexp_to_text a
     | Tail a -> "tail " ^ aexp_to_text a
@@ -102,7 +103,8 @@ module Code = struct
 
   let rec print = function
     | Nop -> "Nop"
-    | Assign (n, a) -> n ^ " := " ^ aexp_to_text a
+    | Assign (n, a) ->
+        Utils_names.Identifier.to_string n ^ " := " ^ aexp_to_text a
     | Seq (a, b) -> print a ^ " ; " ^ print b
     | If (c, b) -> "if " ^ bexp_to_text c ^ " then " ^ print b ^ " end"
     | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ print b ^ " }"
@@ -161,8 +163,8 @@ let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils_runtime.Render.statement_env (Code.print s.stmt) Ainput.print_value
-    s.env
+  Utils_runtime.Render.statement_env ~name_text:Utils_names.Identifier.to_string
+    (Code.print s.stmt) Ainput.print_value s.env
 
 module Rinput = Utils_codec.Text.Unit
 module Routput = Utils_codec.Text.Unit

@@ -54,8 +54,8 @@ let instance n pin = (Instance (id n), pin)
 let internal (name, pin) = (Internal name, pin)
 
 let owner_text = function
-  | External name -> "@" ^ name
-  | Internal name -> name
+  | External name -> "@" ^ Utils_names.Identifier.to_string name
+  | Internal name -> Utils_names.Identifier.to_string name
   | Instance id -> "$" ^ string_of_int (Vertex_id.to_int id)
 
 let gate_name = function
@@ -69,8 +69,8 @@ let gate_name = function
 
 let kind = function
   | Gate g -> gate_name g.gate_kind
-  | Mix m -> m.kind
-  | Iter i -> i.kind
+  | Mix m -> Utils_names.Identifier.to_string m.kind
+  | Iter i -> Utils_names.Identifier.to_string i.kind
 
 let state_as_gate = function Gate g -> Some g.state | _ -> None
 let new_gate gate_kind state = Gate { gate_kind; state }
@@ -80,10 +80,13 @@ let map_internal kind maps ((name, pin) as endpoint) =
   | Some (exported, _) -> (External kind, exported)
   | None -> (Internal name, pin)
 
-let rec get_inpins = function
+let rec get_inpins circuit : named_pin list =
+  match circuit with
   | Gate g ->
       List.map
-        (fun p -> (External (gate_name g.gate_kind), p))
+        (fun p ->
+          ( External (Utils_names.Identifier.make_exn (gate_name g.gate_kind)),
+            Utils_names.Identifier.make_exn p ))
         (match g.gate_kind with
         | Cst -> []
         | And | Or -> [ "IN0"; "IN1" ]
@@ -94,10 +97,13 @@ let rec get_inpins = function
         List.map (fun (_, p) -> (External i.kind, p)) (get_inpins i.init)
       else usable_iter_inpins i
 
-and get_otpins = function
+and get_otpins circuit : named_pin list =
+  match circuit with
   | Gate g ->
       List.map
-        (fun p -> (External (gate_name g.gate_kind), p))
+        (fun p ->
+          ( External (Utils_names.Identifier.make_exn (gate_name g.gate_kind)),
+            Utils_names.Identifier.make_exn p ))
         (match g.gate_kind with
         | End -> []
         | Br -> [ "OUT0"; "OUT1" ]
@@ -179,7 +185,8 @@ let rec get_otputs = function
 
 let check_mix (m : mix) =
   Utils_names.Identifier.check_unique
-    ~message:(fun name -> "duplicate vertex name: " ^ name)
+    ~message:(fun name ->
+      "duplicate vertex name: " ^ Utils_names.Identifier.to_string name)
     (List.map fst m.verts);
   let inputs =
     List.concat_map
@@ -213,58 +220,22 @@ let check_mix (m : mix) =
         failwith "output map endpoint not in vertices")
     m.otpin_maps
 
-let validate_identifiers circuit =
+let validate circuit =
   Utils_base.Error.protect (fun () ->
-      let identifier name =
-        match Utils_names.Identifier.make name with
-        | Ok _ -> ()
-        | Error e -> failwith e
-      in
-      let endpoint (name, pin) =
-        identifier name;
-        identifier pin
-      in
-      let maps entries =
-        List.iter
-          (fun (p, target) ->
-            identifier p;
-            endpoint target)
-          entries
-      in
       let rec check = function
         | Gate _ -> ()
         | Mix m ->
-            identifier m.kind;
-            List.iter
-              (fun (name, c) ->
-                identifier name;
-                check c)
-              m.verts;
-            List.iter
-              (fun (a, b) ->
-                endpoint a;
-                endpoint b)
-              m.edges;
-            maps m.inpin_maps;
-            maps m.otpin_maps;
+            List.iter (fun (_, child) -> check child) m.verts;
             check_mix m
         | Iter i ->
-            identifier i.kind;
             check i.init;
-            List.iter check i.used;
-            List.iter
-              (fun (a, b) ->
-                identifier a;
-                identifier b)
-              (i.next_edges @ i.prev_edges);
-            maps i.inpin_maps;
-            maps i.otpin_maps
+            List.iter check i.used
       in
       check circuit)
 
 let new_mix kind verts edges inpin_maps otpin_maps =
   let circuit = Mix { kind; verts; edges; inpin_maps; otpin_maps } in
-  Result.map (fun () -> circuit) (validate_identifiers circuit)
+  Result.map (fun () -> circuit) (validate circuit)
 
 let new_iter kind init next_edges prev_edges =
   let circuit =
@@ -279,7 +250,7 @@ let new_iter kind init next_edges prev_edges =
         otpin_maps = [];
       }
   in
-  Result.map (fun () -> circuit) (validate_identifiers circuit)
+  Result.map (fun () -> circuit) (validate circuit)
 
 let input_value inputs pin =
   match List.find_opt (fun ((_, p), _) -> p = pin) inputs with
@@ -299,16 +270,21 @@ let deliver child inputs =
       | None -> None)
     inputs
 
-let rec step_exn circuit inputs =
+let rec step_exn circuit (inputs : signal) =
   match circuit with
   | Gate g ->
       let state =
         match g.gate_kind with
         | Cst -> g.state
-        | Not -> not (input_value inputs "IN")
-        | And -> input_value inputs "IN0" && input_value inputs "IN1"
-        | Or -> input_value inputs "IN0" || input_value inputs "IN1"
-        | Br | Delay | End -> input_value inputs "IN"
+        | Not -> not (input_value inputs (Utils_names.Identifier.make_exn "IN"))
+        | And ->
+            input_value inputs (Utils_names.Identifier.make_exn "IN0")
+            && input_value inputs (Utils_names.Identifier.make_exn "IN1")
+        | Or ->
+            input_value inputs (Utils_names.Identifier.make_exn "IN0")
+            || input_value inputs (Utils_names.Identifier.make_exn "IN1")
+        | Br | Delay | End ->
+            input_value inputs (Utils_names.Identifier.make_exn "IN")
       in
       Gate { g with state }
   | Mix m ->

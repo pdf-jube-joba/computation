@@ -112,25 +112,41 @@ module Code = struct
   let rec stmt_to_text = function
     | Nop -> "Nop"
     | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
-    | Assign (v, a) -> v ^ " := " ^ aexp_text a
+    | Assign (v, a) -> Utils_names.Identifier.to_string v ^ " := " ^ aexp_text a
     | If (c, b) -> "if " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
     | While (c, b) -> "while " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
     | Call (n, args, rets) ->
-        "call " ^ n ^ "(" ^ String.concat ", " args ^ ") -> "
-        ^ String.concat ", " rets
-    | Return vs -> "return " ^ String.concat ", " vs
+        "call "
+        ^ Utils_names.Identifier.to_string n
+        ^ "("
+        ^ String.concat ", " (List.map Utils_names.Identifier.to_string args)
+        ^ ") -> "
+        ^ String.concat ", " (List.map Utils_names.Identifier.to_string rets)
+    | Return vs ->
+        "return "
+        ^ String.concat ", " (List.map Utils_names.Identifier.to_string vs)
 
   let print c =
     "static"
-    ^ (if c.statics = [] then "" else " " ^ String.concat ", " c.statics)
+    ^ (if c.statics = [] then ""
+       else
+         " "
+         ^ String.concat ", "
+             (List.map Utils_names.Identifier.to_string c.statics))
     ^ ";\n"
     ^ String.concat ""
         (List.map
            (fun p ->
-             p.name ^ "("
-             ^ String.concat ", " p.params
+             Utils_names.Identifier.to_string p.name
+             ^ "("
+             ^ String.concat ", "
+                 (List.map Utils_names.Identifier.to_string p.params)
              ^ ")[\n  local"
-             ^ (if p.locals = [] then "" else " " ^ String.concat ", " p.locals)
+             ^ (if p.locals = [] then ""
+                else
+                  " "
+                  ^ String.concat ", "
+                      (List.map Utils_names.Identifier.to_string p.locals))
              ^ "\n  " ^ stmt_to_text p.body ^ "\n]\n")
            c.procs)
 end
@@ -145,24 +161,28 @@ let with_implicit_return s = if ends_with_return s then s else Seq (s, Return []
 let lookup_var s v =
   match List.assoc_opt v s.local_env with
   | Some n -> n
-  | None -> Utils_base.Assoc.lookup v s.global_env ("Unknown variable: " ^ v)
+  | None ->
+      Utils_base.Assoc.lookup v s.global_env
+        ("Unknown variable: " ^ Utils_names.Identifier.to_string v)
 
 let assign_var s v n =
   if List.mem_assoc v s.local_env then
     { s with local_env = Utils_base.Assoc.set v n s.local_env }
   else if List.mem_assoc v s.global_env then
     { s with global_env = Utils_base.Assoc.set v n s.global_env }
-  else failwith ("Unknown variable: " ^ v)
+  else failwith ("Unknown variable: " ^ Utils_names.Identifier.to_string v)
 
 let call_into s name args rets continuation =
   let p =
     match List.find_opt (fun p -> p.name = name) s.code.procs with
     | Some p -> p
-    | None -> failwith ("Unknown procedure: " ^ name)
+    | None ->
+        failwith ("Unknown procedure: " ^ Utils_names.Identifier.to_string name)
   in
   if List.length args <> List.length p.params then
     failwith
-      (Printf.sprintf "Argument count mismatch for %s: expected %d, got %d" name
+      (Printf.sprintf "Argument count mismatch for %s: expected %d, got %d"
+         (Utils_names.Identifier.to_string name)
          (List.length p.params) (List.length args));
   let values = List.map (lookup_var s) args in
   let local_env =
@@ -212,10 +232,12 @@ let rec step_stmt s = function
 
 let validate code =
   Utils_names.Identifier.check_unique
-    ~message:(fun n -> "Duplicate static variable: " ^ n)
+    ~message:(fun n ->
+      "Duplicate static variable: " ^ Utils_names.Identifier.to_string n)
     code.statics;
   Utils_names.Identifier.check_unique
-    ~message:(fun n -> "Duplicate procedure name: " ^ n)
+    ~message:(fun n ->
+      "Duplicate procedure name: " ^ Utils_names.Identifier.to_string n)
     (List.map (fun p -> p.name) code.procs);
   List.iter
     (fun p ->
@@ -224,27 +246,44 @@ let validate code =
         (fun v ->
           if List.mem v code.statics then
             failwith
-              ("Name conflict in " ^ p.name ^ ": parameter " ^ v
-             ^ " conflicts with static");
+              ("Name conflict in "
+              ^ Utils_names.Identifier.to_string p.name
+              ^ ": parameter "
+              ^ Utils_names.Identifier.to_string v
+              ^ " conflicts with static");
           if List.mem v !seen then
-            failwith ("Duplicate parameter " ^ v ^ " in " ^ p.name);
+            failwith
+              ("Duplicate parameter "
+              ^ Utils_names.Identifier.to_string v
+              ^ " in "
+              ^ Utils_names.Identifier.to_string p.name);
           seen := v :: !seen)
         p.params;
       List.iter
         (fun v ->
           if List.mem v code.statics then
             failwith
-              ("Name conflict in " ^ p.name ^ ": local " ^ v
-             ^ " conflicts with static");
+              ("Name conflict in "
+              ^ Utils_names.Identifier.to_string p.name
+              ^ ": local "
+              ^ Utils_names.Identifier.to_string v
+              ^ " conflicts with static");
           if List.mem v !seen then
             failwith
-              ("Name conflict in " ^ p.name ^ ": local " ^ v
-             ^ " conflicts with parameter/local");
+              ("Name conflict in "
+              ^ Utils_names.Identifier.to_string p.name
+              ^ ": local "
+              ^ Utils_names.Identifier.to_string v
+              ^ " conflicts with parameter/local");
           seen := v :: !seen)
         p.locals)
     code.procs;
   let main =
-    match List.find_opt (fun p -> p.name = "main") code.procs with
+    match
+      List.find_opt
+        (fun p -> p.name = Utils_names.Identifier.make_exn "main")
+        code.procs
+    with
     | Some p -> p
     | None -> failwith "Procedure 'main' is required"
   in
@@ -252,12 +291,17 @@ let validate code =
   main
 
 let make code global_env =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let main = validate code in
       validate_env code.statics global_env
-        ~duplicate:(fun n -> "Duplicate static variable: " ^ n)
-        ~extra:(fun n -> "AInput contains undeclared static variable: " ^ n)
-        ~missing:(fun n -> "AInput missing static variable: " ^ n);
+        ~duplicate:(fun n ->
+          "Duplicate static variable: " ^ Utils_names.Identifier.to_string n)
+        ~extra:(fun n ->
+          "AInput contains undeclared static variable: "
+          ^ Utils_names.Identifier.to_string n)
+        ~missing:(fun n ->
+          "AInput missing static variable: "
+          ^ Utils_names.Identifier.to_string n);
       {
         code;
         stmt = with_implicit_return main.body;
@@ -268,7 +312,7 @@ let make code global_env =
       })
 
 let step s _ =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       match (s.stmt, s.call_stack) with
       | Return _, [] -> Utils_runtime.Machine.Halt s.global_env
       | _ ->

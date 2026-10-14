@@ -1,6 +1,6 @@
 (library
  (name goto_lang)
  (public_name computation.goto_lang)
- (libraries yojson utils_names utils_codec utils)
+ (libraries yojson utils utils_codec utils_names)
  (preprocess
   (pps ppx_deriving_yojson)))

@@ -16,7 +16,8 @@ let if_lambda condition yes no = apps condition [ yes; no ]
 
 (* One allocator per construction. Every binder is distinct, even when names
    coincide in nested compiled functions. Imported terms keep their free IDs. *)
-let fresh = Target.fresh_var
+let fresh supply hint =
+  Target.fresh_var supply (Utils_names.Identifier.make_exn hint)
 
 let vars next prefix count =
   List.init count (fun i -> fresh next (prefix ^ string_of_int i))

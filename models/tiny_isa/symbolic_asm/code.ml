@@ -86,8 +86,8 @@ let parse text =
 
 let raw_value_to_text = function
   | Imm n -> N.to_string n
-  | Label n -> "@" ^ n
-  | Const n -> n
+  | Label n -> "@" ^ Utils_names.Identifier.to_string n
+  | Const n -> Utils_names.Identifier.to_string n
 
 let operand_to_text = function
   | Reg r -> "%r" ^ string_of_int r
@@ -102,8 +102,9 @@ let raw_inst_to_text i =
 let item_to_text = function
   | Directive Text -> ".text"
   | Directive Data -> ".data"
-  | Directive (Equ (n, v)) -> ".equ " ^ n ^ " #" ^ N.to_string v
-  | LabelDef n -> "@" ^ n ^ ":"
+  | Directive (Equ (n, v)) ->
+      ".equ " ^ Utils_names.Identifier.to_string n ^ " #" ^ N.to_string v
+  | LabelDef n -> "@" ^ Utils_names.Identifier.to_string n ^ ":"
   | Inst i -> raw_inst_to_text i
   | DataValue v -> raw_value_to_text v
 

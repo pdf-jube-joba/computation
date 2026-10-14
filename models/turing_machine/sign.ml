@@ -9,4 +9,6 @@ let parse text =
   if text = "-" then Ok None
   else Result.map (fun s -> Some s) (Utils_names.Identifier.make text)
 
-let print = function None -> "-" | Some s -> s
+let print = function
+  | None -> "-"
+  | Some s -> Utils_names.Identifier.to_string s

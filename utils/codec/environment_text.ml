@@ -19,7 +19,7 @@ let fold_lines ?(invalid_line = fun line -> "Invalid env line: " ^ line) f init
         (String.split_on_char '\n' text))
 
 let parse ?invalid_line parse_value text =
-  let get = function Ok value -> value | Error error -> failwith error in
+  let get = Utils_base.Error.get in
   fold_lines ?invalid_line
     (fun env name value ->
       let name = get (Utils_names.Identifier.make name) in
@@ -27,9 +27,15 @@ let parse ?invalid_line parse_value text =
       Utils_base.Assoc.set name value env)
     [] text
 
-let print ?(trailing_newline = false) value_text env =
+let print_lines ?(trailing_newline = false) value_text env =
   let lines =
     List.map (fun (name, value) -> name ^ " = " ^ value_text value) env
   in
   String.concat "\n" lines
   ^ if trailing_newline && lines <> [] then "\n" else ""
+
+let print ?trailing_newline value_text env =
+  print_lines ?trailing_newline value_text
+    (List.map
+       (fun (name, value) -> (Utils_names.Identifier.to_string name, value))
+       env)

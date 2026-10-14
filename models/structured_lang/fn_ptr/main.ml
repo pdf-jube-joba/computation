@@ -6,23 +6,29 @@ open Eval
 
 let validate code =
   Utils_names.Identifier.check_unique
-    ~message:(fun s -> "duplicate function: " ^ s)
+    ~message:(fun s ->
+      "duplicate function: " ^ Utils_names.Identifier.to_string s)
     (List.map (fun f -> f.name) code.functions)
 
 let function_lookup c name =
   match List.find_opt (fun f -> f.name = name) c.functions with
   | Some f -> f
-  | None -> failwith ("unknown function: " ^ name)
+  | None ->
+      failwith ("unknown function: " ^ Utils_names.Identifier.to_string name)
 
 let split_body = function
   | [] -> failwith "function body must not be empty"
   | s :: ss -> (Some s, ss)
 
 let make code () =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       validate code;
       let f =
-        match List.find_opt (fun f -> f.name = "main") code.functions with
+        match
+          List.find_opt
+            (fun f -> f.name = Utils_names.Identifier.make_exn "main")
+            code.functions
+        with
         | Some f -> f
         | None -> failwith "function 'main' is missing"
       in
@@ -45,7 +51,7 @@ let make code () =
       })
 
 let step s () =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let continue next =
         Utils_runtime.Machine.Continue { next; output = "" }
       in
@@ -75,7 +81,8 @@ let step s () =
           if List.length values <> List.length f.params then
             failwith
               (Printf.sprintf
-                 "argument count mismatch for %s: expected %d, got %d" name
+                 "argument count mismatch for %s: expected %d, got %d"
+                 (Utils_names.Identifier.to_string name)
                  (List.length f.params) (List.length values));
           let current_stmt, inner_k = split_body f.body in
           let frame_id, next_frame_id = Frame_id.Supply.fresh s.next_frame_id in
@@ -121,7 +128,7 @@ let snapshot = state_to_yojson
 
 let restore json =
   Result.bind (state_of_yojson json) (fun s ->
-      L.protect (fun () ->
+      Utils_base.Error.protect (fun () ->
           validate s.code;
           let ids = ref Frame_id.Set.empty in
           let location (l : location) =

@@ -1,7 +1,7 @@
 module N = Utils_base.Number
 module L = Utils_parsing.Parser
 
-let get = function Ok x -> x | Error e -> failwith e
+let get = Utils_base.Error.get
 
 type env = (Utils_names.Identifier.t * N.t) list [@@deriving yojson]
 
@@ -57,7 +57,9 @@ let parse_bexp p =
     ~operand:parse_atom
     ~make:(fun a op b -> (a, op, b))
 
-let atom_text = function Var v -> v | Imm n -> N.to_string n
+let atom_text = function
+  | Var v -> Utils_names.Identifier.to_string v
+  | Imm n -> N.to_string n
 
 let aexp_text = function
   | Atom a -> atom_text a

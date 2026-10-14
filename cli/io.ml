@@ -1,6 +1,6 @@
 open Utils
 
-let get = function Ok value -> value | Error message -> failwith message
+let get = Utils_base.Error.get
 let output json = print_endline (Json.encode json)
 
 let stdin_text () =

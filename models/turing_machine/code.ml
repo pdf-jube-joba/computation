@@ -18,11 +18,9 @@ let validate d =
       if List.length ids <> State_id.Set.cardinal known_ids then
         failwith "Duplicate state ID";
       Utils_names.Identifier.check_unique
-        ~message:(fun name -> "Duplicate state name: " ^ name)
+        ~message:(fun name ->
+          "Duplicate state name: " ^ Utils_names.Identifier.to_string name)
         (List.map snd d.state_names);
-      List.iter
-        (fun (_, name) -> ignore (unwrap (State.parse name)))
-        d.state_names;
       let known id =
         if not (State_id.Set.mem id known_ids) then failwith "Unknown state ID"
       in
@@ -54,7 +52,6 @@ let make init_state accepted_state code =
       let ids = ref Utils_names.Identifier.Map.empty in
       let names = ref [] in
       let state name =
-        let name = unwrap (State.parse name) in
         match Utils_names.Identifier.Map.find_opt name !ids with
         | Some id -> id
         | None ->
@@ -112,7 +109,7 @@ let parse text =
       | [] | [ _ ] -> failwith "Missing initial or accepted state line")
 
 let print d =
-  let name = state_name d in
+  let name id = State.print (state_name d id) in
   name d.init_state ^ "\n"
   ^ String.concat "," (List.map name d.accepted_state)
   ^ "\n"

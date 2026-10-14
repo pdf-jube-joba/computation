@@ -3,7 +3,15 @@
  (library
   (name recursive_function_to_rec_tm_ir)
   (public_name computation.recursive_function_to_rec_tm_ir)
-  (libraries rec_tm_compiler_shared rec_tm_ir recursive_function turing_machine yojson utils_base utils_names utils_parsing utils_runtime)
+  (libraries
+   yojson
+   rec_tm_compiler_shared
+   rec_tm_ir
+   recursive_function
+   turing_machine
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -12,7 +20,14 @@
  (library
   (name rec_tm_ir_to_rec_tm_ir_jump)
   (public_name computation.rec_tm_ir_to_rec_tm_ir_jump)
-  (libraries rec_tm_ir rec_tm_ir_jump rec_tm_shared yojson utils_names utils_parsing utils_runtime)
+  (libraries
+   yojson
+   rec_tm_ir
+   rec_tm_ir_jump
+   rec_tm_shared
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -21,7 +36,14 @@
  (library
   (name rec_tm_ir_jump_to_turing_machine)
   (public_name computation.rec_tm_ir_jump_to_turing_machine)
-  (libraries rec_tm_ir_jump rec_tm_shared turing_machine yojson utils_names utils_parsing utils_runtime)
+  (libraries
+   yojson
+   rec_tm_ir_jump
+   rec_tm_shared
+   turing_machine
+   utils_base
+   utils_names
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -30,6 +52,11 @@
  (library
   (name recursive_function_to_turing_machine)
   (public_name computation.recursive_function_to_turing_machine)
-  (libraries rec_tm_ir_jump_to_turing_machine rec_tm_ir_to_rec_tm_ir_jump recursive_function recursive_function_to_rec_tm_ir turing_machine yojson utils_runtime)
+  (libraries
+   yojson
+   rec_tm_ir_jump_to_turing_machine
+   rec_tm_ir_to_rec_tm_ir_jump
+   recursive_function_to_rec_tm_ir
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))

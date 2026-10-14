@@ -9,8 +9,8 @@ type varloc = Global | Param of int | Local of int
 type scope = {
   locals_len : int;
   params_len : int;
-  vars : (string * varloc) list;
-  entries : (string * string) list;
+  vars : (Utils_names.Identifier.t * varloc) list;
+  entries : (Utils_names.Identifier.t * Utils_names.Identifier.t) list;
 }
 
 let index_from_top c offset dst =
@@ -19,7 +19,8 @@ let index_from_top c offset dst =
 
 let place_for_var c scope v =
   match
-    Utils_base.Assoc.lookup v scope.vars ("Unknown variable in compiler: " ^ v)
+    Utils_base.Assoc.lookup v scope.vars
+      ("Unknown variable in compiler: " ^ Utils_names.Identifier.to_string v)
   with
   | Global -> ([], I.Label v)
   | Local i ->
@@ -118,7 +119,8 @@ let rec compile_stmt stmt cont scope c =
       in
       let target =
         Utils_base.Assoc.lookup name scope.entries
-          ("Unknown procedure in compiler: " ^ name)
+          ("Unknown procedure in compiler: "
+          ^ Utils_names.Identifier.to_string name)
       in
       let call_region = fresh_region c "call" in
       single c call_region
@@ -137,13 +139,16 @@ let rec compile_stmt stmt cont scope c =
       call_region
 
 let compile (source : P.code) =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let c = create () in
       let halt = fresh_region c "halt" in
       single c halt [ I.Nop ] (I.Halt []);
       let entries =
         List.map
-          (fun (p : P.proc_def) -> (p.name, fresh_region c ("proc_" ^ p.name)))
+          (fun (p : P.proc_def) ->
+            ( p.name,
+              fresh_region c ("proc_" ^ Utils_names.Identifier.to_string p.name)
+            ))
           source.procs
       in
       List.iter
@@ -178,9 +183,14 @@ let compile (source : P.code) =
             (enter body))
         source.procs;
       let main =
-        Utils_base.Assoc.lookup "main" entries "Procedure 'main' is required"
+        Utils_base.Assoc.lookup
+          (Utils_names.Identifier.make_exn "main")
+          entries "Procedure 'main' is required"
       in
-      single c "main" [ I.Push (I.CodeLabel halt); I.Nop ] (enter main);
+      single c
+        (Utils_names.Identifier.make_exn "main")
+        [ I.Push (I.CodeLabel halt); I.Nop ]
+        (enter main);
       finish c
         (List.map (fun label -> { I.label; value = N.zero }) source.statics))
 
@@ -189,15 +199,16 @@ let encode_rinput s = Ok s
 let decode_routput s = Ok s
 
 let decode_foutput values =
-  L.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       List.map
         (fun (k, v) ->
           match v with
           | I.Num n -> (k, n)
           | _ ->
               failwith
-                ("expected numeric global for " ^ k ^ ", got "
-               ^ I.Ainput.print_value v))
+                ("expected numeric global for "
+                ^ Utils_names.Identifier.to_string k
+                ^ ", got " ^ I.Ainput.print_value v))
         (Utils_base.Assoc.sorted values))
 
 let api =

@@ -54,7 +54,7 @@ let rec small_step = function
   | If (Bool false, _, e) -> Ok (e, None)
   | If (c, _, _) ->
       Error ("if expects a boolean condition, found " ^ Code.print c)
-  | Var x -> Error ("unbound variable: " ^ x)
+  | Var x -> Error ("unbound variable: " ^ Utils_names.Identifier.to_string x)
   | Block _ -> Error "blocks belong to the expression/statement machine"
   | _ -> Error "cannot step a value"
 

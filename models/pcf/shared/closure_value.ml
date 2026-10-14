@@ -11,10 +11,10 @@ type value =
 
 and env = (Utils_names.Identifier.t * value) list [@@deriving yojson]
 
-let lookup_env env x =
+let lookup_env (env : env) x =
   match List.assoc_opt x env with
   | Some v -> Ok v
-  | None -> Error ("unbound variable: " ^ x)
+  | None -> Error ("unbound variable: " ^ Utils_names.Identifier.to_string x)
 
 let value_to_expr = function
   | VNat n -> Nat n

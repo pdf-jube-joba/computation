@@ -29,7 +29,9 @@ let keywords =
 
 let identifier ?(keywords = keywords) p =
   let s = L.identifier p in
-  if List.mem s keywords then L.error p ("identifier cannot be a keyword: " ^ s);
+  if List.mem (Utils_names.Identifier.to_string s) keywords then
+    L.error p
+      ("identifier cannot be a keyword: " ^ Utils_names.Identifier.to_string s);
   s
 
 let sign p =
@@ -59,10 +61,12 @@ let condition ?keywords p =
       ~operand:(rvalue ?keywords)
       ~make:(fun left () right -> Some { left; right })
 
-let lvalue_print : lvalue -> string = function Var s -> s | Head -> "@"
+let lvalue_print : lvalue -> string = function
+  | Var s -> Utils_names.Identifier.to_string s
+  | Head -> "@"
 
 let rvalue_print : rvalue -> string = function
-  | Var s -> s
+  | Var s -> Utils_names.Identifier.to_string s
   | Head -> "@"
   | Const s -> "const " ^ T.Sign.print s
 
@@ -73,8 +77,13 @@ let condition_print = function
 let alphabet_print a =
   "alphabet: (" ^ String.concat ", " (List.map T.Sign.print a) ^ ")\n"
 
-let vars_rvalue : rvalue -> string list = function Var s -> [ s ] | _ -> []
-let vars_lvalue : lvalue -> string list = function Var s -> [ s ] | _ -> []
+let vars_rvalue : rvalue -> Utils_names.Identifier.t list = function
+  | Var s -> [ s ]
+  | _ -> []
+
+let vars_lvalue : lvalue -> Utils_names.Identifier.t list = function
+  | Var s -> [ s ]
+  | _ -> []
 
 let vars_condition = function
   | None -> []

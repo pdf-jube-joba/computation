@@ -5,10 +5,11 @@ let get = Utils_base.Error.get
 
 type t = ainput
 
-let print_value = function
+let print_value (value : flow_value) =
+  match value with
   | Num n -> N.to_string n
-  | Code_label l -> ":" ^ l
-  | Key (Static l) -> "k:@" ^ l
+  | Code_label l -> ":" ^ Utils_names.Identifier.to_string l
+  | Key (Static l) -> "k:@" ^ Utils_names.Identifier.to_string l
   | Key (Stack i) -> Printf.sprintf "k:s[%d]" i
   | Key (Heap (h, i)) -> Printf.sprintf "k:h[%d][%d]" (Heap_id.to_int h) i
 

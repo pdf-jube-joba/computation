@@ -23,7 +23,8 @@ module Make (Key : Map.OrderedType) = struct
     match find key t with
     | Some name -> (name, t)
     | None ->
-        if not (Identifier.valid hint) then invalid_arg "Invalid name hint";
+        if not (Identifier.valid (Identifier.to_string hint)) then
+          invalid_arg "Invalid name hint";
         let name, next_suffix =
           if Identifier.Set.mem hint t.used then
             let start =
@@ -31,7 +32,10 @@ module Make (Key : Map.OrderedType) = struct
                 (Identifier.Map.find_opt hint t.next_suffix)
             in
             let rec choose i =
-              let name = hint ^ "_" ^ string_of_int i in
+              let name =
+                Identifier.make_exn
+                  (Identifier.to_string hint ^ "_" ^ string_of_int i)
+              in
               if Identifier.Set.mem name t.used then choose (i + 1)
               else (name, i + 1)
             in

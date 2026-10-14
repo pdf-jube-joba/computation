@@ -22,8 +22,8 @@ let op_text = function
   | Or -> "||"
 
 let rec place_text = function
-  | Static n -> "static " ^ n
-  | Local n -> "local " ^ n
+  | Static n -> "static " ^ Utils_names.Identifier.to_string n
+  | Local n -> "local " ^ Utils_names.Identifier.to_string n
   | Field (p, i) -> place_text p ^ "." ^ string_of_int i
   | Tag_place (p, i) -> place_text p ^ "?" ^ string_of_int i
   | Index (p, v) -> place_text p ^ "[" ^ expr_text v ^ "]"
@@ -46,7 +46,7 @@ and expr_text = function
   | Tag (t, v) -> expr_text v ^ " tag(" ^ string_of_int t ^ ")"
   | Load p -> "ld " ^ place_text p
   | Addr p -> place_text p ^ " #addr"
-  | Function n -> "fn " ^ n
+  | Function n -> "fn " ^ Utils_names.Identifier.to_string n
 
 let rec stmt_text = function
   | Assign (p, v) -> "assign " ^ place_text p ^ " := " ^ expr_text v
@@ -55,9 +55,10 @@ let rec stmt_text = function
       "case " ^ string_of_int t ^ " of " ^ expr_text v ^ " " ^ stmt_text s
   | HAlloc (t, p) -> "halloc " ^ type_text t ^ " -> " ^ place_text p
   | HFree v -> "hfree " ^ expr_text v
-  | Loop (l, s) -> "loop " ^ l ^ ": " ^ stmt_text s
-  | Break l -> "break " ^ l
-  | Continue l -> "continue " ^ l
+  | Loop (l, s) ->
+      "loop " ^ Utils_names.Identifier.to_string l ^ ": " ^ stmt_text s
+  | Break l -> "break " ^ Utils_names.Identifier.to_string l
+  | Continue l -> "continue " ^ Utils_names.Identifier.to_string l
   | Call (f, args, rets) ->
       "call " ^ expr_text f ^ "("
       ^ String.concat ", " (List.map expr_text args)
@@ -71,7 +72,9 @@ let rec stmt_text = function
 and block_text b =
   "("
   ^ String.concat ", "
-      (List.map (fun (n, t) -> n ^ ": " ^ type_text t) b.bindings)
+      (List.map
+         (fun (n, t) -> Utils_names.Identifier.to_string n ^ ": " ^ type_text t)
+         b.bindings)
   ^ ") { "
   ^ String.concat "; " (List.map stmt_text b.stmts)
   ^ " }"
@@ -79,8 +82,12 @@ and block_text b =
 let print (c : code) =
   String.concat "\n"
     (List.map
-       (fun (s : static_decl) -> "static " ^ s.name ^ ": " ^ type_text s.ty)
+       (fun (s : static_decl) ->
+         "static "
+         ^ Utils_names.Identifier.to_string s.name
+         ^ ": " ^ type_text s.ty)
        c.statics
     @ List.map
-        (fun (f : fn_decl) -> "fn " ^ f.name ^ block_text f.block)
+        (fun (f : fn_decl) ->
+          "fn " ^ Utils_names.Identifier.to_string f.name ^ block_text f.block)
         c.functions)

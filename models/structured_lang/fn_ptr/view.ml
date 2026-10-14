@@ -8,7 +8,7 @@ let render s =
       text_table ~title:"status" ~columns:[ "field"; "value" ]
         [
           [ "control"; (if s.current_stmt = None then "next" else "eval") ];
-          [ "function"; s.current_function ];
+          [ "function"; Utils_names.Identifier.to_string s.current_function ];
           [
             "current";
             Option.fold ~none:"<none>" ~some:Code.stmt_to_text s.current_stmt;
@@ -23,7 +23,7 @@ let render s =
         (List.map
            (fun (n, l) ->
              [
-               n;
+               Utils_names.Identifier.to_string n;
                Runtime_value.location_text l;
                Runtime_value.print
                  (try store_lookup s l with Failure _ -> Null_ptr);
@@ -47,7 +47,7 @@ let render s =
            (fun i f ->
              [
                string_of_int i;
-               f.function_name;
+               Utils_names.Identifier.to_string f.function_name;
                string_of_int (List.length f.inner_k);
              ])
            s.fn_k);

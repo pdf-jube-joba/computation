@@ -122,7 +122,7 @@ let identifier p =
   match peek p with
   | Ident s ->
       ignore (bump p);
-      s
+      Utils_base.Error.get (Utils_names.Identifier.make s)
   | _ -> error p "Expected identifier"
 
 let natural p =

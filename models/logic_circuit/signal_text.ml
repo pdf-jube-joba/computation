@@ -2,7 +2,7 @@ open Circuit
 
 type t = signal
 
-let value = function Ok value -> value | Error error -> failwith error
+let value = Utils_base.Error.get
 
 let parse_bool text =
   Utils_base.Bool.to_bool (value (Utils_base.Bool.parse text))
@@ -16,7 +16,8 @@ let read_pin p =
   let owner, end_name =
     if P.bump_if_symbol p '@' then
       let name = P.identifier p in
-      (External name, start + 1 + String.length name)
+      ( External name,
+        start + 1 + String.length (Utils_names.Identifier.to_string name) )
     else if P.bump_if_symbol p '$' then (
       let start_id = P.offset p in
       if start_id <> start + 1 then P.error p "Expected contiguous $ID.PIN";
@@ -27,7 +28,8 @@ let read_pin p =
       (Instance (id value), start_id + width))
     else
       let name = P.identifier p in
-      (Internal name, start + String.length name)
+      ( Internal name,
+        start + String.length (Utils_names.Identifier.to_string name) )
   in
   let dot = P.offset p in
   if dot <> end_name then P.error p "Expected contiguous endpoint.PIN";
@@ -43,13 +45,15 @@ let read_item p =
   P.expect_symbol p '#';
   if P.offset p <> start + 1 then P.error p "Expected #true or #false";
   let boolean = P.identifier p in
-  (pin, parse_bool ("#" ^ boolean))
+  (pin, parse_bool ("#" ^ Utils_names.Identifier.to_string boolean))
 
 let parse_pin text = value (P.parse read_pin text)
 let parse_item text = value (P.parse read_item text)
 
 let print_item ((name, pin), value) =
-  owner_text name ^ "." ^ pin ^ "=" ^ print_bool value
+  owner_text name ^ "."
+  ^ Utils_names.Identifier.to_string pin
+  ^ "=" ^ print_bool value
 
 let parse = P.parse (fun p -> P.separated_list p ~separator:',' read_item)
 let print signal = String.concat ", " (List.map print_item signal)
