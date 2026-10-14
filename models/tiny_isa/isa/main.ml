@@ -47,8 +47,7 @@ let step s () =
         let pc = Utils_base.Error.get (N.to_int s.regs.(0)) in
         let inst =
           Utils_base.Error.get
-            (Tiny_isa_shared.Encoding.decode
-               (Tiny_isa_shared.Memory.read s.memory pc))
+            (Encoding.decode (Tiny_isa_shared.Memory.read s.memory pc))
         in
         let regs, flag, memory, halted =
           Tiny_isa_shared.Execute.execute ~resolve:Fun.id inst s.regs s.flag
@@ -73,7 +72,7 @@ let render s =
   let next =
     match pc with
     | Some i when i < Array.length s.memory -> (
-        match Tiny_isa_shared.Encoding.decode s.memory.(i) with
+        match Encoding.decode s.memory.(i) with
         | Ok inst -> inst_text N.to_string inst
         | _ -> "halt")
     | _ -> "halt"

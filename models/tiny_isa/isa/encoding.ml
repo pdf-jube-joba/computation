@@ -1,4 +1,4 @@
-open Instruction
+open Tiny_isa_shared.Instruction
 
 let value = Utils_base.Error.get
 

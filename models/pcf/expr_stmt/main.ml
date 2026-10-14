@@ -1,5 +1,5 @@
 open Pcf_shared.Syntax
-module Code = Pcf_shared.Stmt_code
+module Code = Code
 
 let ( let* ) = Result.bind
 
