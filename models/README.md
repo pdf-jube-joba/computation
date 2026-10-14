@@ -5,7 +5,7 @@ Web と CLI の公開名は `registry/registry.ml` に登録します。
 
 ## モデルの契約
 
-`Utils.Machine.S` はコード、入力、出力、状態の型を抽象化した module signature です。
+`Utils_runtime.Machine.S` はコード、入力、出力、状態の型を抽象化した module signature です。
 
 ```ocaml
 type ('state, 'routput, 'foutput) step_result =
@@ -15,18 +15,26 @@ type ('state, 'routput, 'foutput) step_result =
 
 `make` は初期状態を生成し、`step` は一段階の遷移を返します。
 `Code` / `Ainput` / `Rinput` の `parse` は外部のテキストをモデルの型に変換します。
-`Utils.Session.Make` functor が共通のセッション管理を実装します。
+`Utils_runtime.Session.Make` functor が共通のセッション管理を実装します。
 エラーでは元の状態を保持し、停止ではセッションを終了します。
+セッションは `Continued of string` / `Halted of string` を返し、
+`Utils_runtime.Session_json` が CLI / Web の既存 JSON 形式へ変換します。
 
 snapshot は `Yojson.Safe.t` に保存し、モデルごとに復元します。
 `ppx_deriving_yojson` が多くの型の JSON エンコーダー・デコーダーを生成します。
-`Utils.Compiler.S` は Source / Target の module を持つ型付きのコンパイラで、
-`Utils.Compiler.api` が CLI / Web に公開するテキストの境界です。
+`Utils_runtime.Compiler.S` は Source / Target の module を持つ型付きのコンパイラで、
+`Utils_runtime.Compiler_text_api.api` が CLI / Web に公開するテキストの境界です。
+Source / Target に必要なのは codec を定義する `Utils_runtime.Language.S` で、
+状態遷移や描画への依存はありません。`Compiler.Compose` で型付きコンパイラを合成できます。
+PCF の式から CEK への変換は共通 AST の恒等変換で、CEK の初期化・遷移はモデル側にあります。
+式から SECD 命令列への変換本体は `compilers/pcf/pcf_expr_to_pcf_secd/` にあります。
 
 ## 描画
 
 `render` の戻り値は既存の `assets/renderer.js` が扱う JSON block の配列です。
-`Utils.Render` で text / table / container を構築できます。
+`Utils_runtime.Render` の抽象型 `block` を通して text / table / container を構築し、
+`Render.state` で JSON に変換します。向きは `Vertical` / `Horizontal`、
+配置は `Inline` / `Block` で指定します。
 
 - text: `{kind: "text", text: string}`
 - table: `{kind: "table", columns: [block], rows: [{cells: [block]}]}`
@@ -37,8 +45,8 @@ snapshot は `Yojson.Safe.t` に保存し、モデルごとに復元します。
 
 ## テキストの解析
 
-`Utils.Lexer` はコメント・空白を除いて token と byte 位置を作ります。
-`Utils.Parser.create` はそれを一度読み、対応する `()` / `[]` / `{}` を
+`Utils_parsing.Lexer` はコメント・空白を除いて token と byte 位置を作ります。
+`Utils_parsing.Parser.create` はそれを一度読み、対応する `()` / `[]` / `{}` を
 `Group` にまとめた token tree を内部に持ちます。`Parser.tree` で参照できます。
 文字列・文字リテラルやコメントの中の括弧は対応付けの対象になりません。
 閉じ忘れ・対応の不一致は初期化時に検出します。
@@ -49,14 +57,14 @@ snapshot は `Yojson.Safe.t` に保存し、モデルごとに復元します。
 キーワードの意味・型検査は各モデル側で定義します。
 
 ```ocaml
-module P = Utils.Parser
+module P = Utils_parsing.Parser
 
 let parse_numbers =
   P.parse (fun p ->
       P.expect_keyword p "numbers";
       P.group p ~opening:'[' (fun inside ->
           P.separated_list inside ~separator:',' P.natural))
-(* numbers [001, 2] -> Ok ["1"; "2"] *)
+(* 自然数の表示には Utils_base.Number.to_string を使う。 *)
 ```
 
 `group` は対応済みの括弧の中だけを読む parser を渡します。その parser は
@@ -71,7 +79,7 @@ token 列の消費、`expect` は必須の token 列の消費です。
 失敗時の復元まで含めた試行には `attempt` を使います。
 `parse` は読み残しを検査して `(値, string) result` にまとめます。
 
-`natural` は桁数を制限しない `Utils.Number.t` に正規化し、`integer` は
+`natural` は桁数を制限しない `Utils_base.Number.t` に正規化し、`integer` は
 OCaml の非負 `int` に収まるか検査します。`string_literal` は JSON 形式の
 エスケープを解釈した文字列を返します。`character_literal` を使う文法は
 `~character_literals:true` を指定します。
@@ -104,13 +112,19 @@ procedure 言語の文は `separated_list` で読み、モデル側で右結合�
 | `tiny_isa/symbolic_asm` | 改行単位の命令・ディレクティブ、セクションの切り替え |
 | `tiny_isa/cfg_vreg` | ブロック内の命令順序と終端命令の検査。括弧・数値・比較・オペランドの読み取りは共通 parser |
 | `turing_machine` | テープの区切り、行・CSV 形式の遷移表 |
-| `Utils.Text`・入力 codec | 単独の数値・素の文字列・行形式の環境など、既存の入力形式の解釈。自然数リストは共通 parser |
+| `Utils_codec.Text`・入力 codec | 単独の数値・素の文字列・行形式の環境など、既存の入力形式の解釈。自然数リストは共通 parser |
 
 CFG、`fn_ptr` の `loc(...)` 入力、自然数リストも `group` で括弧を読みます。
 λ計算の入力リストと論理回路の信号リストも `separated_list` を使います。
 symbolic assembly や CSV 形式の行単位 parser は、`String_ext`・`Number`・`Text` の
-共通関数を使いながら専用の読み取りを行います。`Parse.delimited_list` は
-任意のテキストを要素 parser に渡す互換用の helper で、モデルの括弧解析には使っていません。
+共通関数を使いながら専用の読み取りを行います。
+環境の行形式は `Utils_codec.Environment_text`、実行時の汎用例外変換は
+`Utils_base.Error.protect` が受け持ちます。
+
+`Utils_names.Identifier.t` と `Utils_base.Number.t` は抽象型です。
+識別子は `Identifier.make`、自然数は `Number.of_string` / `Number.of_int` で作り、
+文字列が必要な境界で `to_string` を使います。Flow IR の構築と名前解決も
+`Id` / `Intern` / `Naming` を共通の土台とし、IR 固有の規則だけをモデル側に置きます。
 
 ## TODO
 プログラミング言語は基本的に、

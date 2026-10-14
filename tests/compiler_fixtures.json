@@ -1,0 +1,98 @@
+[
+  {
+    "name": "example_counter-example_counter",
+    "target": "example_counter",
+    "code": "3",
+    "ainput": "",
+    "rinput": "inc",
+    "expected": "End"
+  },
+  {
+    "name": "pcf-expr-cek",
+    "target": "pcf-cek",
+    "code": "(fun f => f(3))(fun x => inc x)",
+    "ainput": "()",
+    "rinput": "",
+    "expected": "4"
+  },
+  {
+    "name": "pcf-expr-secd",
+    "target": "pcf-secd",
+    "code": "(fun f => f(3))(fun x => inc x)",
+    "ainput": "()",
+    "rinput": "",
+    "expected": "4"
+  },
+  {
+    "name": "expr_to_flow_ir",
+    "target": "flow_ir",
+    "code": "x := 3; x := x + 2",
+    "ainput": "",
+    "rinput": "",
+    "expected": "x = 5\n"
+  },
+  {
+    "name": "internal_ctrl_to_flow_ir",
+    "target": "flow_ir",
+    "code": "static x; x := 3",
+    "ainput": "x=0",
+    "rinput": "",
+    "expected": "x = 3\n"
+  },
+  {
+    "name": "proc_to_flow_ir",
+    "target": "flow_ir",
+    "code": "static x; main() [ local tmp x := 3; return ]",
+    "ainput": "x=0",
+    "rinput": "",
+    "expected": "x = 3\n"
+  },
+  {
+    "name": "recursive_function-goto_lang",
+    "target": "goto_lang",
+    "code": "SUCC",
+    "ainput": "(3)",
+    "rinput": "",
+    "expected": "4"
+  },
+  {
+    "name": "recursive_function-lambda_calculus",
+    "target": "lambda_calculus",
+    "code": "SUCC",
+    "ainput": "(3)",
+    "rinput": "",
+    "expected": "4"
+  },
+  {
+    "name": "recursive_function-rec_tm_ir",
+    "target": "rec_tm_ir",
+    "code": "SUCC",
+    "ainput": "(3)",
+    "rinput": "",
+    "expected": "4"
+  },
+  {
+    "name": "recursive_function-turing_machine",
+    "target": "turing_machine",
+    "code": "SUCC",
+    "ainput": "(3)",
+    "rinput": "",
+    "expected": "4"
+  },
+  {
+    "name": "rec_tm_ir-rec_tm_ir_jump",
+    "target": "rec_tm_ir_jump",
+    "code": "alphabet: (-, x) fn main { label start: { @ := const x return } }",
+    "ainput": "|-|",
+    "rinput": "",
+    "expected": "|x|"
+  },
+  {
+    "name": "rec_tm_ir_jump-turing_machine",
+    "target": "turing_machine",
+    "code": "alphabet: (-, x) @ := const x",
+    "ainput": "|-|",
+    "rinput": "",
+    "expected": "|x|"
+  }
+]

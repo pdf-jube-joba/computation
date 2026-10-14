@@ -1,0 +1,1018 @@
+[
+  {
+    "name": "example_counter",
+    "code": "3",
+    "ainput": "",
+    "rinput": "inc",
+    "steps": 7,
+    "outputs": [
+      "inc",
+      "inc",
+      "inc",
+      "inc",
+      "inc",
+      "inc"
+    ],
+    "final": "End"
+  },
+  {
+    "name": "lambda_calculus",
+    "code": "(\\x. x) y",
+    "ainput": "",
+    "rinput": "0",
+    "steps": 1,
+    "outputs": [],
+    "final": "y"
+  },
+  {
+    "name": "goto_lang",
+    "code": "inc x; inc x;",
+    "ainput": "",
+    "rinput": "",
+    "steps": 3,
+    "outputs": [
+      "",
+      ""
+    ],
+    "final": "x = 2"
+  },
+  {
+    "name": "recursive_function",
+    "code": "SUCC",
+    "ainput": "(3)",
+    "rinput": "",
+    "steps": 2,
+    "outputs": [
+      ""
+    ],
+    "final": "4"
+  },
+  {
+    "name": "expr_lang",
+    "code": "x := 3; x := x + 2",
+    "ainput": "",
+    "rinput": "",
+    "steps": 4,
+    "outputs": [
+      "",
+      "",
+      ""
+    ],
+    "final": "x = 5\n"
+  },
+  {
+    "name": "internal_ctrl",
+    "code": "static x; x := 3",
+    "ainput": "x=0",
+    "rinput": "",
+    "steps": 2,
+    "outputs": [
+      "x := 3"
+    ],
+    "final": "x = 3\n"
+  },
+  {
+    "name": "proc_lang",
+    "code": "static x; main() [ local tmp x := 3; return ]",
+    "ainput": "x=0",
+    "rinput": "",
+    "steps": 3,
+    "outputs": [
+      "x := 3; return ",
+      "Nop; return "
+    ],
+    "final": "x = 3\n"
+  },
+  {
+    "name": "fn_ptr",
+    "code": "fn main() { call f(); return } fn f() { return }",
+    "ainput": "",
+    "rinput": "",
+    "steps": 4,
+    "outputs": [
+      "",
+      "",
+      ""
+    ],
+    "final": "halted\ncurrent_function: main\nfinished_frame: 0\nremaining_store:\n  <empty>\n"
+  },
+  {
+    "name": "mini_prog",
+    "code": "fn main() { return 7 }",
+    "ainput": "()",
+    "rinput": "",
+    "steps": 3,
+    "outputs": [
+      "",
+      ""
+    ],
+    "final": "7",
+    "initial_snapshot": {
+      "code": {
+        "statics": [],
+        "functions": [
+          {
+            "name": "main",
+            "block": {
+              "bindings": [],
+              "stmts": [
+                [
+                  "Return",
+                  [
+                    [
+                      "Number",
+                      "7"
+                    ]
+                  ]
+                ]
+              ]
+            }
+          }
+        ]
+      },
+      "current_function": "main",
+      "exec": [
+        "Ctrl",
+        [
+          "Next"
+        ]
+      ],
+      "env": [
+        []
+      ],
+      "store": {
+        "heap": [],
+        "statics": [],
+        "locals": [
+          [
+            []
+          ]
+        ]
+      },
+      "inner_k": [
+        [
+          "Stmt_frame",
+          [
+            "Return",
+            [
+              [
+                "Number",
+                "7"
+              ]
+            ]
+          ]
+        ]
+      ],
+      "fn_k": [],
+      "next_local_id": 0,
+      "next_heap_id": 0
+    }
+  },
+  {
+    "name": "flow_ir",
+    "code": "@a 0 :main { :entry { %x := #5; @a := st %x; halt; } }",
+    "ainput": "",
+    "rinput": "",
+    "steps": 3,
+    "outputs": [
+      "",
+      ""
+    ],
+    "final": "a = 5\n",
+    "initial_snapshot": {
+      "code": {
+        "statics": [
+          {
+            "label": "a",
+            "value": "0"
+          }
+        ],
+        "regions": [
+          {
+            "label": "main",
+            "blocks": [
+              {
+                "label": "entry",
+                "stmts": [
+                  [
+                    "Assign",
+                    "x",
+                    [
+                      "Imm",
+                      "5"
+                    ]
+                  ],
+                  [
+                    "Store",
+                    [
+                      "Label",
+                      "a"
+                    ],
+                    [
+                      "VReg",
+                      "x"
+                    ]
+                  ]
+                ],
+                "cont": [
+                  "Halt",
+                  []
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "current_region": 0,
+      "current_block": 0,
+      "current_line": 0,
+      "resolution": {
+        "registers": [
+          [
+            "x",
+            0
+          ]
+        ],
+        "data": [
+          [
+            "a",
+            0
+          ]
+        ],
+        "regions": [
+          [
+            "main",
+            0
+          ]
+        ],
+        "blocks": [
+          [
+            [
+              "entry",
+              0
+            ]
+          ]
+        ],
+        "label_names": [
+          [
+            [
+              "Region_target",
+              0
+            ],
+            "main"
+          ],
+          [
+            [
+              "Block_target",
+              0
+            ],
+            "entry"
+          ]
+        ]
+      },
+      "vregs": [],
+      "static_mem": [
+        [
+          0,
+          [
+            "Num",
+            "0"
+          ]
+        ]
+      ],
+      "stack": [],
+      "heap": [],
+      "next_handle": 1,
+      "halted": false
+    }
+  },
+  {
+    "name": "flow_ir",
+    "code": "@a 0 :main { :entry { halloc(#2) %h; hacc(%h)[#1] := st #7; %x := ld hacc(%h)[#1]; push %x; pop %y; @a := st %y; hfree %h; halt; } }",
+    "ainput": "",
+    "rinput": "",
+    "steps": 8,
+    "outputs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "final": "a = 7\n",
+    "initial_snapshot": {
+      "code": {
+        "statics": [
+          {
+            "label": "a",
+            "value": "0"
+          }
+        ],
+        "regions": [
+          {
+            "label": "main",
+            "blocks": [
+              {
+                "label": "entry",
+                "stmts": [
+                  [
+                    "HAlloc",
+                    [
+                      "Imm",
+                      "2"
+                    ],
+                    "h"
+                  ],
+                  [
+                    "Store",
+                    [
+                      "HAcc",
+                      [
+                        "VReg",
+                        "h"
+                      ],
+                      [
+                        "Imm",
+                        "1"
+                      ]
+                    ],
+                    [
+                      "Imm",
+                      "7"
+                    ]
+                  ],
+                  [
+                    "Load",
+                    "x",
+                    [
+                      "HAcc",
+                      [
+                        "VReg",
+                        "h"
+                      ],
+                      [
+                        "Imm",
+                        "1"
+                      ]
+                    ]
+                  ],
+                  [
+                    "Push",
+                    [
+                      "VReg",
+                      "x"
+                    ]
+                  ],
+                  [
+                    "Pop",
+                    "y"
+                  ],
+                  [
+                    "Store",
+                    [
+                      "Label",
+                      "a"
+                    ],
+                    [
+                      "VReg",
+                      "y"
+                    ]
+                  ],
+                  [
+                    "HFree",
+                    [
+                      "VReg",
+                      "h"
+                    ]
+                  ]
+                ],
+                "cont": [
+                  "Halt",
+                  []
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "current_region": 0,
+      "current_block": 0,
+      "current_line": 0,
+      "resolution": {
+        "registers": [
+          [
+            "h",
+            0
+          ],
+          [
+            "x",
+            1
+          ],
+          [
+            "y",
+            2
+          ]
+        ],
+        "data": [
+          [
+            "a",
+            0
+          ]
+        ],
+        "regions": [
+          [
+            "main",
+            0
+          ]
+        ],
+        "blocks": [
+          [
+            [
+              "entry",
+              0
+            ]
+          ]
+        ],
+        "label_names": [
+          [
+            [
+              "Region_target",
+              0
+            ],
+            "main"
+          ],
+          [
+            [
+              "Block_target",
+              0
+            ],
+            "entry"
+          ]
+        ]
+      },
+      "vregs": [],
+      "static_mem": [
+        [
+          0,
+          [
+            "Num",
+            "0"
+          ]
+        ]
+      ],
+      "stack": [],
+      "heap": [],
+      "next_handle": 1,
+      "halted": false
+    }
+  },
+  {
+    "name": "flow_ir",
+    "code": ":main { :entry { push #0; input sacc #0; pop %x; print %x; halt; } }",
+    "ainput": "",
+    "rinput": "hello",
+    "steps": 5,
+    "outputs": [
+      "",
+      "",
+      "",
+      "hello"
+    ],
+    "final": "",
+    "initial_snapshot": {
+      "code": {
+        "statics": [],
+        "regions": [
+          {
+            "label": "main",
+            "blocks": [
+              {
+                "label": "entry",
+                "stmts": [
+                  [
+                    "Push",
+                    [
+                      "Imm",
+                      "0"
+                    ]
+                  ],
+                  [
+                    "Input",
+                    [
+                      "SAcc",
+                      [
+                        "Imm",
+                        "0"
+                      ]
+                    ]
+                  ],
+                  [
+                    "Pop",
+                    "x"
+                  ],
+                  [
+                    "Print",
+                    "x"
+                  ]
+                ],
+                "cont": [
+                  "Halt",
+                  []
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "current_region": 0,
+      "current_block": 0,
+      "current_line": 0,
+      "resolution": {
+        "registers": [
+          [
+            "x",
+            0
+          ]
+        ],
+        "data": [],
+        "regions": [
+          [
+            "main",
+            0
+          ]
+        ],
+        "blocks": [
+          [
+            [
+              "entry",
+              0
+            ]
+          ]
+        ],
+        "label_names": [
+          [
+            [
+              "Region_target",
+              0
+            ],
+            "main"
+          ],
+          [
+            [
+              "Block_target",
+              0
+            ],
+            "entry"
+          ]
+        ]
+      },
+      "vregs": [],
+      "static_mem": [],
+      "stack": [],
+      "heap": [],
+      "next_handle": 1,
+      "halted": false
+    }
+  },
+  {
+    "name": "pcf-expr",
+    "code": "(fun f => f(3))(fun x => inc x)",
+    "ainput": "()",
+    "rinput": "",
+    "steps": 4,
+    "outputs": [
+      "",
+      "",
+      ""
+    ],
+    "final": "4"
+  },
+  {
+    "name": "pcf-cek",
+    "code": "(fun f => f(3))(fun x => inc x)",
+    "ainput": "()",
+    "rinput": "",
+    "steps": 14,
+    "outputs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "final": "4",
+    "initial_snapshot": {
+      "code": [
+        "App",
+        [
+          "Fun",
+          "f",
+          [
+            "App",
+            [
+              "Var",
+              "f"
+            ],
+            [
+              "Nat",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "Fun",
+          "x",
+          [
+            "UnOp",
+            [
+              "Inc"
+            ],
+            [
+              "Var",
+              "x"
+            ]
+          ]
+        ]
+      ],
+      "state": [
+        "Eval",
+        [
+          "App",
+          [
+            "Fun",
+            "f",
+            [
+              "App",
+              [
+                "Var",
+                "f"
+              ],
+              [
+                "Nat",
+                "3"
+              ]
+            ]
+          ],
+          [
+            "Fun",
+            "x",
+            [
+              "UnOp",
+              [
+                "Inc"
+              ],
+              [
+                "Var",
+                "x"
+              ]
+            ]
+          ]
+        ],
+        [],
+        [
+          [
+            "Init"
+          ]
+        ]
+      ]
+    }
+  },
+  {
+    "name": "pcf-expr-stmt-cek",
+    "code": "{ let x := 4; print 3; inc x }",
+    "ainput": "()",
+    "rinput": "",
+    "steps": 12,
+    "outputs": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "3",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "final": "5"
+  },
+  {
+    "name": "pcf-secd",
+    "code": "[{\"PushNat\":4},{\"UnOp\":\"Inc\"}]",
+    "ainput": "()",
+    "rinput": "",
+    "steps": 3,
+    "outputs": [
+      "",
+      ""
+    ],
+    "final": "5"
+  },
+  {
+    "name": "lambda_continuations",
+    "code": "succ zero",
+    "ainput": "()",
+    "rinput": "",
+    "steps": 1,
+    "outputs": [],
+    "final": "S 0"
+  },
+  {
+    "name": "logic_circuit",
+    "code": "graph: main { in {I} out {O=N.OUT} N, NOT_F {IN=I} }",
+    "ainput": "",
+    "rinput": "@main.I=#true",
+    "steps": 4,
+    "outputs": [
+      "@main.O=#false",
+      "@main.O=#false",
+      "@main.O=#false",
+      "@main.O=#false"
+    ],
+    "final": null,
+    "initial_snapshot": [
+      "Mix",
+      {
+        "kind": "main",
+        "verts": [
+          [
+            "N",
+            [
+              "Gate",
+              {
+                "gate_kind": [
+                  "Not"
+                ],
+                "state": false
+              }
+            ]
+          ]
+        ],
+        "edges": [],
+        "inpin_maps": [
+          [
+            "I",
+            [
+              "N",
+              "IN"
+            ]
+          ]
+        ],
+        "otpin_maps": [
+          [
+            "O",
+            [
+              "N",
+              "OUT"
+            ]
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "name": "turing_machine",
+    "code": "start\nhalt\n-,start,x,halt,C",
+    "ainput": "|-|",
+    "rinput": "",
+    "steps": 1,
+    "outputs": [],
+    "final": "|x|",
+    "initial_snapshot": {
+      "definition": {
+        "init_state": 0,
+        "accepted_state": [
+          1
+        ],
+        "code": [
+          [
+            [
+              null,
+              0
+            ],
+            [
+              "x",
+              1,
+              [
+                "Constant"
+              ]
+            ]
+          ]
+        ],
+        "state_names": [
+          [
+            0,
+            "start"
+          ],
+          [
+            1,
+            "halt"
+          ]
+        ]
+      },
+      "current_state": 0,
+      "tape": {
+        "left": [],
+        "head": null,
+        "right": []
+      }
+    }
+  },
+  {
+    "name": "rec_tm_ir",
+    "code": "alphabet: (-, x) fn main { label start: { @ := const x return } }",
+    "ainput": "|-|",
+    "rinput": "",
+    "steps": 2,
+    "outputs": [
+      ""
+    ],
+    "final": "|x|"
+  },
+  {
+    "name": "rec_tm_ir_jump",
+    "code": "alphabet: (-, x) @ := const x",
+    "ainput": "|-|",
+    "rinput": "",
+    "steps": 2,
+    "outputs": [
+      ""
+    ],
+    "final": "|x|"
+  },
+  {
+    "name": "tiny_isa",
+    "code": "329864\n64",
+    "ainput": "0,0,0,0,0,0,0,0",
+    "rinput": "",
+    "steps": 2,
+    "outputs": [
+      ""
+    ],
+    "final": "1, 5, 0, 0, 0, 0, 0, 0"
+  },
+  {
+    "name": "symbolic_asm",
+    "code": ".equ FIVE 5\nldi %r1 FIVE\nhalt",
+    "ainput": "0,0,0,0,0,0,0,0",
+    "rinput": "",
+    "steps": 2,
+    "outputs": [
+      ""
+    ],
+    "final": "1, 5, 0, 0, 0, 0, 0, 0"
+  },
+  {
+    "name": "cfg_vreg",
+    "code": "@a 0 @main { %v0 := #5; [@a] := %v0; goto @main; }",
+    "ainput": "()",
+    "rinput": "",
+    "steps": 4,
+    "outputs": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "final": null
+  },
+  {
+    "name": "coroutine",
+    "code": "fn main { x <- 3; run worker -> $task; yield; } fn worker { x <- x + 2; yield; }",
+    "ainput": "1",
+    "rinput": "0",
+    "steps": 14,
+    "outputs": [
+      "agent 0: dequeue task 0",
+      "agent 0: x <- 3",
+      "agent 0: run worker -> $task",
+      "agent 0: yield",
+      "agent 0: dequeue task 1",
+      "agent 0: x <- (x + 2)",
+      "agent 0: yield",
+      "agent 0: dequeue task 0",
+      "agent 0: return from main",
+      "agent 0: release task 0",
+      "agent 0: dequeue task 1",
+      "agent 0: return from worker",
+      "agent 0: release task 1"
+    ],
+    "final": "x = 5\n$task = 1\n",
+    "initial_snapshot": {
+      "code": [
+        {
+          "name": "main",
+          "body": [
+            [
+              "Assign",
+              "x",
+              [
+                "Atom",
+                [
+                  "Imm",
+                  "3"
+                ]
+              ]
+            ],
+            [
+              "Run",
+              "worker",
+              "task"
+            ],
+            [
+              "Yield"
+            ]
+          ]
+        },
+        {
+          "name": "worker",
+          "body": [
+            [
+              "Assign",
+              "x",
+              [
+                "Bin",
+                [
+                  "Atom",
+                  [
+                    "Var",
+                    "x"
+                  ]
+                ],
+                [
+                  "Add"
+                ],
+                [
+                  "Atom",
+                  [
+                    "Imm",
+                    "2"
+                  ]
+                ]
+              ]
+            ],
+            [
+              "Yield"
+            ]
+          ]
+        }
+      ],
+      "env": {
+        "vars": [],
+        "task_ids": []
+      },
+      "workers": [
+        null
+      ],
+      "queue": [
+        0
+      ],
+      "tasks": [
+        [
+          {
+            "function_name": "main",
+            "pc": 0
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "name": "strarr",
+    "code": "x := ['a', 'b']; x := tail x",
+    "ainput": "",
+    "rinput": "",
+    "steps": 4,
+    "outputs": [
+      "",
+      "",
+      ""
+    ],
+    "final": "x = ['b']\n"
+  },
+  {
+    "name": "strtree",
+    "code": "x := cons atom 'a' atom 'b'; x := left x",
+    "ainput": "",
+    "rinput": "",
+    "steps": 4,
+    "outputs": [
+      "",
+      "",
+      ""
+    ],
+    "final": "x = atom 'a'\n"
+  }
+]

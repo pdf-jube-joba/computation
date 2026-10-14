@@ -1,0 +1,14 @@
+(test
+ (name regression)
+ (libraries
+  model_registry
+  utils_base
+  utils_names
+  utils_codec
+  utils_runtime
+  pcf_shared
+  pcf_expr
+  pcf_cek
+  pcf_expr_to_pcf_cek
+  yojson)
+ (deps model_fixtures.json compiler_fixtures.json))
