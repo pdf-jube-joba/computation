@@ -1,5 +1,0 @@
-module Vreg_id = Utils_names.Id.Make ()
-module Static_id = Utils_names.Id.Make ()
-module Region_id = Utils_names.Id.Make ()
-module Block_id = Utils_names.Id.Make ()
-module Heap_id = Utils_names.Id.Make ()

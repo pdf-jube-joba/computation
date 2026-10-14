@@ -1,5 +1,5 @@
 val bindings :
-  Identity.Frame_id.t ->
+  Runtime_types.Frame_id.t ->
   Utils_names.Identifier.t list ->
   Runtime_types.value list ->
   (Utils_names.Identifier.t * Runtime_types.location) list

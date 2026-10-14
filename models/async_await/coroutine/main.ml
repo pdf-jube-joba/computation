@@ -5,8 +5,6 @@ module L = Utils_base.Error
 
 let value = Utils_base.Error.get
 
-open Validation
-
 let make code agents =
   Utils_base.Error.protect (fun () ->
       validate code;
@@ -25,8 +23,20 @@ let make code agents =
       })
 
 let step = Scheduler.step
-let snapshot = Snapshot.encode
-let restore = Snapshot.decode
+let snapshot = state_to_yojson
+
+let restore json =
+  Result.bind (state_of_yojson json) (fun s ->
+      L.protect (fun () ->
+          validate s.code;
+          let check id =
+            if Task_id.to_int id >= Array.length s.tasks then
+              failwith "Unknown task ID in snapshot"
+          in
+          List.iter check s.queue;
+          Array.iter (Option.iter check) s.workers;
+          s))
+
 let render = View.render
 
 module Ainput = Utils_codec.Text.Natural_int

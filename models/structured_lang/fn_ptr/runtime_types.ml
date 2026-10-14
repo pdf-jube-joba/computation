@@ -1,5 +1,5 @@
 include Syntax
-include Identity
+module Frame_id = Utils_names.Id.Make ()
 
 type location = { frame_id : Frame_id.t; slot : int } [@@deriving yojson]
 

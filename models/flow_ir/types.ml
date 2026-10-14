@@ -1,5 +1,9 @@
 include Syntax
-include Identity
+module Vreg_id = Utils_names.Id.Make ()
+module Static_id = Utils_names.Id.Make ()
+module Region_id = Utils_names.Id.Make ()
+module Block_id = Utils_names.Id.Make ()
+module Heap_id = Utils_names.Id.Make ()
 
 type code_target = Region_target of Region_id.t | Block_target of Block_id.t
 [@@deriving yojson]

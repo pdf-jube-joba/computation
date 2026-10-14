@@ -1,6 +1,7 @@
 open Types
 open Resolution
-open Runtime_value
+
+let runtime_text s v = Input_text.print_value (named_value s.resolution v)
 
 let render s =
   let module R = Utils_runtime.Render in

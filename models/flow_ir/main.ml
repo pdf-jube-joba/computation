@@ -2,11 +2,59 @@ include Types
 module Ainput = Input_text
 module Code = Code
 open Resolution
-open Runtime_value
-open Store
 module L = Utils_base.Error
 
 let get = Utils_base.Error.get
+let runtime_text = View.runtime_text
+let register_id s name = id_of_name s.resolution.registers name
+
+let read_place s = function
+  | Static l -> (
+      match List.assoc_opt l s.static_mem with
+      | Some v -> v
+      | None ->
+          failwith
+            ("Unknown data label: @"
+            ^ Utils_names.Identifier.to_string (name_of_id s.resolution.data l)
+            ))
+  | Stack i ->
+      Utils_base.List_ext.nth s.stack i
+        (Printf.sprintf "Invalid stack key: s[%d]" i)
+  | Heap (h, i) ->
+      Utils_base.List_ext.nth
+        (Option.value (List.assoc_opt h s.heap) ~default:[])
+        i
+        (Printf.sprintf "Invalid heap key: h[%d][%d]" (Heap_id.to_int h) i)
+
+let write_place s key value =
+  match key with
+  | Static l ->
+      ignore (read_place s key);
+      { s with static_mem = Utils_base.Assoc.set l value s.static_mem }
+  | Stack i ->
+      {
+        s with
+        stack =
+          Utils_base.List_ext.replace s.stack i value
+            (Printf.sprintf "Invalid stack key: s[%d]" i);
+      }
+  | Heap (h, i) ->
+      let area =
+        match List.assoc_opt h s.heap with
+        | Some a -> a
+        | None ->
+            failwith
+              (Printf.sprintf "Unknown heap handle: %d" (Heap_id.to_int h))
+      in
+      {
+        s with
+        heap =
+          Utils_base.Assoc.set h
+            (Utils_base.List_ext.replace area i value
+               (Printf.sprintf "Invalid heap key: h[%d][%d]" (Heap_id.to_int h)
+                  i))
+            s.heap;
+      }
 
 let make code input =
   Utils_base.Error.protect (fun () ->
@@ -255,8 +303,38 @@ let step s input =
           | Halt _ -> halt s
         else failwith "Current line out of range")
 
-let snapshot = Snapshot.encode
-let restore = Snapshot.decode
+let snapshot = state_to_yojson
+
+let restore json =
+  Result.bind (state_of_yojson json) (fun s ->
+      L.protect (fun () ->
+          validate s.code;
+          if s.resolution <> build_resolution s.code then
+            failwith "Inconsistent name resolution in snapshot";
+          let known_data id = ignore (name_of_id s.resolution.data id) in
+          let heap_ids = ref (Heap_id.Set.of_list (List.map fst s.heap)) in
+          let check_value = function
+            | Num _ -> ()
+            | Code_label target -> ignore (target_name s.resolution target)
+            | Key (Static id) -> known_data id
+            | Key (Heap (id, _)) -> heap_ids := Heap_id.Set.add id !heap_ids
+            | Key (Stack _) -> ()
+          in
+          List.iter
+            (fun (id, v) ->
+              ignore (name_of_id s.resolution.registers id);
+              check_value v)
+            s.vregs;
+          List.iter
+            (fun (id, v) ->
+              known_data id;
+              check_value v)
+            s.static_mem;
+          List.iter check_value s.stack;
+          List.iter (fun (_, values) -> List.iter check_value values) s.heap;
+          get (Heap_id.Supply.validate_used !heap_ids s.next_handle);
+          s))
+
 let render = View.render
 
 module Rinput = Utils_codec.Text.String

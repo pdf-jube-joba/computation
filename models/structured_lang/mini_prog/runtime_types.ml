@@ -1,5 +1,6 @@
 include Syntax
-include Identity
+module Local_id = Utils_names.Id.Make ()
+module Heap_id = Utils_names.Id.Make ()
 
 type location_key =
   | Heap of Heap_id.t
