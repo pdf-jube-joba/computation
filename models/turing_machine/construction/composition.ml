@@ -10,7 +10,7 @@ type 'sign graph = {
 }
 
 let builder_composition g =
-  Utils.Parser.protect (fun () ->
+  Utils_parsing.Parser.protect (fun () ->
       let vertices = Array.of_list g.assign_vertex_to_builder in
       if Array.length vertices <> List.length g.acceptable then
         failwith "Length of vertices and acceptable states differ";

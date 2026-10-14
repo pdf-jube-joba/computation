@@ -12,3 +12,12 @@ module Make (Key : Map.OrderedType) : sig
   (** Reuses the existing name for a key. Otherwise uses [hint] if available, or
       a fresh [hint_0], [hint_1], ... and records the chosen name. *)
 end
+
+(** A local supply for generated printable names, using the same naming policy.
+*)
+module Fresh () : sig
+  type t
+
+  val create : ?reserved:Identifier.t list -> unit -> t
+  val take : t -> Identifier.t -> Identifier.t
+end

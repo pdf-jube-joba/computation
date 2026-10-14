@@ -1,9 +1,9 @@
 module Value_type = struct
   type t =
     | Bit
-    | Array of Utils.Number.t * t
-    | Strct of (Utils.Identifier.t * t) list
-    | Enume of Utils.Identifier.t list
+    | Array of Utils_base.Number.t * t
+    | Strct of (Utils_names.Identifier.t * t) list
+    | Enume of Utils_names.Identifier.t list
   [@@deriving yojson]
 end
 
@@ -11,8 +11,8 @@ module Value = struct
   type t =
     | Bit of bool
     | Array of t list
-    | Strct of (Utils.Identifier.t * t) list
-    | Enume of Utils.Identifier.t
+    | Strct of (Utils_names.Identifier.t * t) list
+    | Enume of Utils_names.Identifier.t
   [@@deriving yojson]
 
   let new_bit b = Bit b
@@ -46,7 +46,9 @@ let rec typable_value_exn value expected =
   | Value.Array values, Value_type.Array (length, element_type) ->
       if
         not
-          (Utils.Number.equal (Utils.Number.of_int (List.length values)) length)
+          (Utils_base.Number.equal
+             (Utils_base.Number.of_int (List.length values))
+             length)
       then failwith "mismatch length of array";
       List.iter (fun value -> typable_value_exn value element_type) values
   | Value.Strct fields, Value_type.Strct field_types ->
@@ -64,26 +66,26 @@ let rec typable_value_exn value expected =
   | _ -> failwith "type mismatch"
 
 let typable_value value expected =
-  Utils.Json.protect (fun () -> typable_value_exn value expected)
+  Utils_base.Error.protect (fun () -> typable_value_exn value expected)
 
 type comb_exp_val =
   | Val of value
-  | Var of Utils.Identifier.t
+  | Var of Utils_names.Identifier.t
   | And of comb_exp_val * comb_exp_val
   | Or of comb_exp_val * comb_exp_val
   | Not of comb_exp_val
   | IfCond of comb_exp_val * comb_exp_val * comb_exp_val
-  | ArrayAcc of comb_exp_val * Utils.Number.t
+  | ArrayAcc of comb_exp_val * Utils_base.Number.t
   | ArrayConst of comb_exp_val list
-  | FieldAcc of comb_exp_val * Utils.Identifier.t
-  | StrctConst of (Utils.Identifier.t * comb_exp_val) list
-  | Switch of comb_exp_val * (Utils.Identifier.t * comb_exp_val) list
-  | SeqAndFinal of (Utils.Identifier.t * comb_exp_val) list * comb_exp_val
-  | CombModule of Utils.Identifier.t * comb_exp_val
+  | FieldAcc of comb_exp_val * Utils_names.Identifier.t
+  | StrctConst of (Utils_names.Identifier.t * comb_exp_val) list
+  | Switch of comb_exp_val * (Utils_names.Identifier.t * comb_exp_val) list
+  | SeqAndFinal of (Utils_names.Identifier.t * comb_exp_val) list * comb_exp_val
+  | CombModule of Utils_names.Identifier.t * comb_exp_val
 [@@deriving yojson]
 
 type comb_module = {
-  name : Utils.Identifier.t;
+  name : Utils_names.Identifier.t;
   input_type : value_type;
   otput_type : value_type;
   comb_func : comb_exp_val;
@@ -128,7 +130,7 @@ let rec eval_exn mod_env var_env expression =
       | _ -> failwith "expression is not boolean")
   | ArrayAcc (expression, index) -> (
       let index =
-        match Utils.Number.to_int index with
+        match Utils_base.Number.to_int index with
         | Ok n -> n
         | Error _ -> failwith "access out of index"
       in
@@ -179,7 +181,7 @@ let rec eval_exn mod_env var_env expression =
       eval_exn mod_env [ ("IN", value) ] comb_module.comb_func
 
 let eval_to_val mod_env var_env expression =
-  Utils.Json.protect (fun () -> eval_exn mod_env var_env expression)
+  Utils_base.Error.protect (fun () -> eval_exn mod_env var_env expression)
 
 type simple_module = {
   state_type_and_init : value * value_type;
@@ -203,7 +205,7 @@ type general_module =
   | Iter of iter_module
 
 and graph_module = {
-  state_name_machines : (Utils.Identifier.t * general_module) list;
+  state_name_machines : (Utils_names.Identifier.t * general_module) list;
   input_type : value_type;
   otput_type : value_type;
   trans_func : comb_exp_val;
@@ -224,7 +226,7 @@ type general_module_state =
   | IterState of iter_module_state
 
 and graph_module_state = {
-  states_machines : (Utils.Identifier.t * general_module_state) list;
+  states_machines : (Utils_names.Identifier.t * general_module_state) list;
   trans_func : code_env;
   otput_func : code_env;
 }
@@ -278,14 +280,14 @@ let result_exn = function
   | Error message -> failwith message
 
 let graph_now_state (machine : graph_module_state) =
-  Utils.Json.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       Value.Strct
         (List.map
            (fun (name, state) -> (name, result_exn (general_now_state state)))
            machine.states_machines))
 
 let graph_get_otput (machine : graph_module_state) =
-  Utils.Json.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let vars =
         List.map
           (fun (name, state) -> (name, result_exn (general_get_otput state)))
@@ -295,7 +297,7 @@ let graph_get_otput (machine : graph_module_state) =
       eval_exn machine.trans_func.mod_env vars machine.trans_func.code)
 
 let graph_clock (machine : graph_module_state) input =
-  Utils.Json.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let vars =
         (field_in, input)
         :: List.map
@@ -319,7 +321,7 @@ let graph_clock (machine : graph_module_state) input =
       { machine with states_machines })
 
 let iter_get_otput (machine : iter_module_state) =
-  Utils.Json.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let first =
         match machine.state_machines with
         | state :: _ -> state
@@ -331,7 +333,7 @@ let iter_get_otput (machine : iter_module_state) =
         machine.otput_func.code)
 
 let iter_clock (machine : iter_module_state) input =
-  Utils.Json.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let previous =
         eval_exn machine.input_func.mod_env
           [ (field_in, input) ]
@@ -374,7 +376,7 @@ let iter_clock (machine : iter_module_state) input =
       { machine with state_machines })
 
 module Parser = struct
-  module L = Utils.Parser
+  module L = Utils_parsing.Parser
 
   let block p opening item =
     L.group p ~opening (fun p -> L.many ~skip_separator:',' p item)

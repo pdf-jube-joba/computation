@@ -1,9 +1,9 @@
-open Utils.Machine
+open Utils_runtime.Machine
 module Source = Recursive_function.Main
 module Target = Goto_lang.Main
-module Label_id = Utils.Id.Make ()
-module Temp_id = Utils.Id.Make ()
-module Temp_names = Utils.Naming.Make (Temp_id)
+module Label_id = Utils_names.Id.Make ()
+module Temp_id = Utils_names.Id.Make ()
+module Temp_names = Utils_names.Naming.Make (Temp_id)
 
 let output_var = "y"
 let always_one_var = "__one"
@@ -129,7 +129,7 @@ let finalize b =
           | Branch (var, label) -> (
               match Hashtbl.find_opt b.labels label with
               | Some target ->
-                  Ok (Target.Ifnz (var, Utils.Number.of_int target))
+                  Ok (Target.Ifnz (var, Utils_base.Number.of_int target))
               | None ->
                   Error
                     ("undefined label: " ^ string_of_int (Label_id.to_int label))
@@ -156,10 +156,11 @@ let decode_routput () = Ok ()
 
 let decode_foutput output =
   Ok
-    (Option.value ~default:Utils.Number.zero (List.assoc_opt output_var output))
+    (Option.value ~default:Utils_base.Number.zero
+       (List.assoc_opt output_var output))
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

@@ -7,9 +7,9 @@ type instr =
   | PushBool of bool
   | PushUnit
   | Print of N.t
-  | Acc of Utils.Identifier.t
-  | MkCls of Utils.Identifier.t * instr list
-  | MkRec of Utils.Identifier.t * Utils.Identifier.t * instr list
+  | Acc of Utils_names.Identifier.t
+  | MkCls of Utils_names.Identifier.t * instr list
+  | MkRec of Utils_names.Identifier.t * Utils_names.Identifier.t * instr list
   | BinOp of binop
   | UnOp of unop
   | Ap
@@ -21,10 +21,11 @@ type value =
   | VNat of N.t
   | VBool of bool
   | VUnit
-  | VFun of Utils.Identifier.t * instr list * env
-  | VRec of Utils.Identifier.t * Utils.Identifier.t * instr list * env
+  | VFun of Utils_names.Identifier.t * instr list * env
+  | VRec of
+      Utils_names.Identifier.t * Utils_names.Identifier.t * instr list * env
 
-and env = (Utils.Identifier.t * value) list [@@deriving yojson]
+and env = (Utils_names.Identifier.t * value) list [@@deriving yojson]
 
 type dump_frame = { stack : value list; env : env; control : instr list }
 [@@deriving yojson]
@@ -104,7 +105,8 @@ module Code = struct
     | `Intlit s -> get (N.of_string s)
     | _ -> failwith "expected natural number"
 
-  let identifier_json j = get (Utils.Identifier.make (Utils.Json.string j))
+  let identifier_json j =
+    get (Utils_names.Identifier.make (Utils_codec.Json.string j))
 
   let rec instr_from_json = function
     | `String "PushUnit" -> PushUnit
@@ -116,13 +118,13 @@ module Code = struct
     | `Assoc [ ("Acc", j) ] -> Acc (identifier_json j)
     | `Assoc [ ("MkCls", j) ] ->
         MkCls
-          ( identifier_json (Utils.Json.field "param" j),
-            code_from_json (Utils.Json.field "code" j) )
+          ( identifier_json (Utils_codec.Json.field "param" j),
+            code_from_json (Utils_codec.Json.field "code" j) )
     | `Assoc [ ("MkRec", j) ] ->
         MkRec
-          ( identifier_json (Utils.Json.field "name" j),
-            identifier_json (Utils.Json.field "param" j),
-            code_from_json (Utils.Json.field "code" j) )
+          ( identifier_json (Utils_codec.Json.field "name" j),
+            identifier_json (Utils_codec.Json.field "param" j),
+            code_from_json (Utils_codec.Json.field "code" j) )
     | `Assoc [ ("BinOp", `String o) ] ->
         BinOp
           (match o with
@@ -139,15 +141,15 @@ module Code = struct
           | _ -> failwith "unknown unop")
     | `Assoc [ ("If", j) ] ->
         If
-          ( code_from_json (Utils.Json.field "then_code" j),
-            code_from_json (Utils.Json.field "else_code" j) )
+          ( code_from_json (Utils_codec.Json.field "then_code" j),
+            code_from_json (Utils_codec.Json.field "else_code" j) )
     | _ -> failwith "invalid SECD instruction"
 
-  and code_from_json j = List.map instr_from_json (Utils.Json.list j)
+  and code_from_json j = List.map instr_from_json (Utils_codec.Json.list j)
 
   let parse text =
-    let* j = Utils.Json.decode text in
-    Utils.Json.protect (fun () -> code_from_json j)
+    let* j = Utils_codec.Json.decode text in
+    Utils_codec.Json.protect (fun () -> code_from_json j)
 
   let print c = Yojson.Safe.pretty_to_string (code_json c)
 end
@@ -162,25 +164,17 @@ let make code inputs =
       dump = [];
     }
 
-let eval_binop a op b =
-  match (op, a, b) with
-  | Add, VNat a, VNat b -> Ok (VNat (N.add a b))
-  | Sub, VNat a, VNat b when N.compare a b >= 0 -> Ok (VNat (N.sub a b))
-  | Sub, VNat _, VNat _ -> Error "operator '-' expects lhs >= rhs over naturals"
-  | And, VBool a, VBool b -> Ok (VBool (a && b))
-  | Add, _, _ -> Error "operator '+' expects naturals"
-  | Sub, _, _ -> Error "operator '-' expects naturals"
-  | And, _, _ -> Error "operator '&&' expects booleans"
+include Pcf_shared.Primitive.Make (struct
+  type t = value
 
-let eval_unop op value =
-  match (op, value) with
-  | Inc, VNat n -> Ok (VNat (N.succ n))
-  | Dec, VNat n when not (N.is_zero n) -> Ok (VNat (N.pred n))
-  | Dec, VNat _ -> Error "operator 'dec' expects a positive natural"
-  | Not, VBool b -> Ok (VBool (not b))
-  | Inc, _ -> Error "operator 'inc' expects a natural"
-  | Dec, _ -> Error "operator 'dec' expects a natural"
-  | Not, _ -> Error "operator 'not' expects a boolean"
+  let view = function
+    | VNat n -> Pcf_shared.Primitive.Nat n
+    | VBool b -> Pcf_shared.Primitive.Bool b
+    | _ -> Pcf_shared.Primitive.Other
+
+  let natural n = VNat n
+  let boolean b = VBool b
+end)
 
 let as_nat = function
   | VNat n -> Ok n
@@ -281,16 +275,16 @@ let step s () =
   | [], [], [] -> Error "empty stack at halt"
   | [], [], v :: _ ->
       let* n = as_nat v in
-      Ok (Utils.Machine.Halt n)
+      Ok (Utils_runtime.Machine.Halt n)
   | _ ->
       let* next, output = step_once s in
-      Ok (Utils.Machine.Continue { next; output })
+      Ok (Utils_runtime.Machine.Continue { next; output })
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  let open Utils.Render in
+  let open Utils_runtime.Render in
   state
     [
       text ~title:"code" (Code.print s.code);
@@ -324,25 +318,7 @@ let render s =
            s.dump);
     ]
 
-let rec compile_expr (e : expr) =
-  match e with
-  | Nat n -> [ PushNat n ]
-  | Bool b -> [ PushBool b ]
-  | Unit -> [ PushUnit ]
-  | Pcf_shared.Syntax.Print n -> [ Print n ]
-  | Var x -> [ Acc x ]
-  | Pcf_shared.Syntax.BinOp (a, o, b) ->
-      compile_expr a @ compile_expr b @ [ BinOp o ]
-  | Pcf_shared.Syntax.UnOp (o, e) -> compile_expr e @ [ UnOp o ]
-  | Fun (x, b) -> [ MkCls (x, compile_expr b @ [ Ret ]) ]
-  | Rec (f, x, b) -> [ MkRec (f, x, compile_expr b @ [ Ret ]) ]
-  | App (f, a) -> compile_expr f @ compile_expr a @ [ Ap ]
-  | Pcf_shared.Syntax.If (c, t, e) ->
-      compile_expr c @ [ If (compile_expr t, compile_expr e) ]
-  | Block _ ->
-      invalid_arg "SECD compiler accepts the direct expression language"
-
-module Ainput = Pcf_shared.Syntax.Ainput
-module Rinput = Utils.Text.Unit
-module Routput = Pcf_shared.Syntax.Routput
-module Foutput = Pcf_shared.Syntax.Foutput
+module Ainput = Pcf_shared.Io.Ainput
+module Rinput = Utils_codec.Text.Unit
+module Routput = Pcf_shared.Io.Routput
+module Foutput = Pcf_shared.Io.Foutput

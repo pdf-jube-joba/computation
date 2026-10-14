@@ -129,7 +129,7 @@ let natural p =
   match peek p with
   | Number s ->
       ignore (bump p);
-      Number.normalize s
+      Utils_base.Error.get (Utils_base.Number.of_string s)
   | _ -> error p "Expected natural number"
 
 let natural_with_plus p =
@@ -141,7 +141,11 @@ let natural_with_plus p =
 let integer p =
   match peek p with
   | Number s -> (
-      match int_of_string_opt (Number.normalize s) with
+      match
+        int_of_string_opt
+          (Utils_base.Number.to_string
+             (Utils_base.Error.get (Utils_base.Number.of_string s)))
+      with
       | Some n when n >= 0 ->
           ignore (bump p);
           n

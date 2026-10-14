@@ -1,23 +1,16 @@
-open Utils.Machine
+open Utils_runtime.Machine
 open Rec_tm_ir.Main
 module I = Rec_tm_ir.Main
-module N = Utils.Number
+module N = Utils_base.Number
 module R = Recursive_function.Main
 module T = Turing_machine.Main
-module L = Utils.Parser
-
-let b = None
-let l = Some "l"
-let x = Some "x"
-let alphabet = [ b; l; x ]
-
-(* A compilation owns its function table; calls get distinct runtime frames,
-   and the lowering pass gives each call site fresh variable names. *)
-module Function_id = Utils.Id.Make ()
-module Function_names = Utils.Naming.Make (Function_id)
+module L = Utils_parsing.Parser
+open Rec_tm_compiler_shared.Tape_encoding
+module Function_id = Utils_names.Id.Make ()
+module Function_names = Utils_names.Naming.Make (Function_id)
 
 module Functions =
-  Utils.Intern.Make
+  Utils_names.Intern.Make
     (struct
       type t = I.block list
 
@@ -372,42 +365,6 @@ let compile f =
       let ctx = create () in
       wrap_function ctx (compile_function ctx f))
 
-let write tuple =
-  L.protect (fun () ->
-      let signs =
-        x
-        :: List.concat_map
-             (fun n ->
-               let n = T.unwrap (N.to_int n) in
-               b :: List.init n (fun _ -> l))
-             tuple
-        @ [ x ]
-      in
-      T.unwrap (T.Tape.from_vec signs 0))
-
-let write_usize tuple = write (List.map N.of_int tuple)
-
-let read_right_one tape =
-  if tape.T.head <> x then None
-  else
-    let rec take acc = function
-      | [] -> List.rev acc
-      | s :: _ when s = x -> List.rev acc
-      | s :: xs -> take (s :: acc) xs
-    in
-    let signs = take [] tape.right in
-    let rec split current acc = function
-      | [] -> List.rev (current :: acc)
-      | s :: xs when s = b -> split 0 (current :: acc) xs
-      | _ :: xs -> split (current + 1) acc xs
-    in
-    match split 0 [] signs with
-    | [] -> Some []
-    | _ :: ns -> Some (List.map N.of_int ns)
-
-let read_right_one_usize t =
-  Option.map (List.map (fun n -> T.unwrap (N.to_int n))) (read_right_one t)
-
 module Source = R
 module Target = I
 
@@ -426,7 +383,7 @@ let decode_foutput t =
   | None -> Error "failed to decode tape as recursive_function output"
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

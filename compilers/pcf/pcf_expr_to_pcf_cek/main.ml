@@ -8,7 +8,7 @@ let decode_routput o = Ok o
 let decode_foutput o = Ok o
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

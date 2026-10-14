@@ -1,57 +1,207 @@
 open Utils
 
-type entry = Model of (module Machine.S) | Compiler of Compiler.api
+type implementation =
+  | Model of (module Machine.S)
+  | Compiler of Compiler_text_api.api
+
+type entry = {
+  name : string;
+  library : string;
+  implementation : implementation;
+}
 
 let entries =
   [
-    ("example_counter", Model (module Example_counter.Main));
-    ("lambda_calculus", Model (module Lambda_calculus.Main));
-    ("goto_lang", Model (module Goto_lang.Main));
-    ("recursive_function", Model (module Recursive_function.Main));
-    ( "example_counter-example_counter",
-      Compiler Example_counter_to_example_counter.Main.api );
-    ( "recursive_function-goto_lang",
-      Compiler Recursive_function_to_goto_lang.Main.api );
-    ( "recursive_function-lambda_calculus",
-      Compiler Recursive_function_to_lambda_calculus.Main.api );
-    ("flow_ir", Model (module Flow_ir.Main));
-    ("expr_lang", Model (module Expr_lang.Main));
-    ("proc_lang", Model (module Proc_lang.Main));
-    ("internal_ctrl", Model (module Internal_ctrl.Main));
-    ("fn_ptr", Model (module Fn_ptr.Main));
-    ("mini_prog", Model (module Mini_prog.Main));
-    ("expr_to_flow_ir", Compiler Expr_lang_to_flow_ir.Main.api);
-    ("internal_ctrl_to_flow_ir", Compiler Internal_ctrl_to_flow_ir.Main.api);
-    ("proc_to_flow_ir", Compiler Proc_lang_to_flow_ir.Main.api);
-    ("pcf-expr", Model (module Pcf_expr.Main));
-    ("pcf-expr-stmt-cek", Model (module Pcf_expr_stmt.Main));
-    ("pcf-cek", Model (module Pcf_cek.Main));
-    ("pcf-secd", Model (module Pcf_secd.Main));
-    ("pcf-expr-cek", Compiler Pcf_expr_to_pcf_cek.Main.api);
-    ("pcf-expr-secd", Compiler Pcf_expr_to_pcf_secd.Main.api);
-    ("lambda_continuations", Model (module Lambda_continuations_no_ext.Main));
-    ("logic_circuit", Model (module Logic_circuit.Main));
-    ("turing_machine", Model (module Turing_machine.Main));
-    ("rec_tm_ir", Model (module Rec_tm_ir.Main));
-    ("rec_tm_ir_jump", Model (module Rec_tm_ir_jump.Main));
-    ( "recursive_function-rec_tm_ir",
-      Compiler Recursive_function_to_rec_tm_ir.Main.api );
-    ("rec_tm_ir-rec_tm_ir_jump", Compiler Rec_tm_ir_to_rec_tm_ir_jump.Main.api);
-    ( "rec_tm_ir_jump-turing_machine",
-      Compiler Rec_tm_ir_jump_to_turing_machine.Main.api );
-    ( "recursive_function-turing_machine",
-      Compiler Recursive_function_to_turing_machine.Main.api );
-    ("tiny_isa", Model (module Tiny_isa.Main));
-    ("symbolic_asm", Model (module Symbolic_asm.Main));
-    ("cfg_vreg", Model (module Cfg_vreg.Main));
-    ("coroutine", Model (module Coroutine.Main));
-    ("strarr", Model (module Strarr.Main));
-    ("strtree", Model (module Strtree.Main));
+    {
+      name = "example_counter";
+      library = "example_counter";
+      implementation = Model (module Example_counter.Main);
+    };
+    {
+      name = "lambda_calculus";
+      library = "lambda_calculus";
+      implementation = Model (module Lambda_calculus.Main);
+    };
+    {
+      name = "goto_lang";
+      library = "goto_lang";
+      implementation = Model (module Goto_lang.Main);
+    };
+    {
+      name = "recursive_function";
+      library = "recursive_function";
+      implementation = Model (module Recursive_function.Main);
+    };
+    {
+      name = "example_counter-example_counter";
+      library = "example_counter_to_example_counter";
+      implementation = Compiler Example_counter_to_example_counter.Main.api;
+    };
+    {
+      name = "recursive_function-goto_lang";
+      library = "recursive_function_to_goto_lang";
+      implementation = Compiler Recursive_function_to_goto_lang.Main.api;
+    };
+    {
+      name = "recursive_function-lambda_calculus";
+      library = "recursive_function_to_lambda_calculus";
+      implementation = Compiler Recursive_function_to_lambda_calculus.Main.api;
+    };
+    {
+      name = "flow_ir";
+      library = "flow_ir";
+      implementation = Model (module Flow_ir.Main);
+    };
+    {
+      name = "expr_lang";
+      library = "expr_lang";
+      implementation = Model (module Expr_lang.Main);
+    };
+    {
+      name = "proc_lang";
+      library = "proc_lang";
+      implementation = Model (module Proc_lang.Main);
+    };
+    {
+      name = "internal_ctrl";
+      library = "internal_ctrl";
+      implementation = Model (module Internal_ctrl.Main);
+    };
+    {
+      name = "fn_ptr";
+      library = "fn_ptr";
+      implementation = Model (module Fn_ptr.Main);
+    };
+    {
+      name = "mini_prog";
+      library = "mini_prog";
+      implementation = Model (module Mini_prog.Main);
+    };
+    {
+      name = "expr_to_flow_ir";
+      library = "expr_lang_to_flow_ir";
+      implementation = Compiler Expr_lang_to_flow_ir.Main.api;
+    };
+    {
+      name = "internal_ctrl_to_flow_ir";
+      library = "internal_ctrl_to_flow_ir";
+      implementation = Compiler Internal_ctrl_to_flow_ir.Main.api;
+    };
+    {
+      name = "proc_to_flow_ir";
+      library = "proc_lang_to_flow_ir";
+      implementation = Compiler Proc_lang_to_flow_ir.Main.api;
+    };
+    {
+      name = "pcf-expr";
+      library = "pcf_expr";
+      implementation = Model (module Pcf_expr.Main);
+    };
+    {
+      name = "pcf-expr-stmt-cek";
+      library = "pcf_expr_stmt";
+      implementation = Model (module Pcf_expr_stmt.Main);
+    };
+    {
+      name = "pcf-cek";
+      library = "pcf_cek";
+      implementation = Model (module Pcf_cek.Main);
+    };
+    {
+      name = "pcf-secd";
+      library = "pcf_secd";
+      implementation = Model (module Pcf_secd.Main);
+    };
+    {
+      name = "pcf-expr-cek";
+      library = "pcf_expr_to_pcf_cek";
+      implementation = Compiler Pcf_expr_to_pcf_cek.Main.api;
+    };
+    {
+      name = "pcf-expr-secd";
+      library = "pcf_expr_to_pcf_secd";
+      implementation = Compiler Pcf_expr_to_pcf_secd.Main.api;
+    };
+    {
+      name = "lambda_continuations";
+      library = "lambda_continuations_no_ext";
+      implementation = Model (module Lambda_continuations_no_ext.Main);
+    };
+    {
+      name = "logic_circuit";
+      library = "logic_circuit";
+      implementation = Model (module Logic_circuit.Main);
+    };
+    {
+      name = "turing_machine";
+      library = "turing_machine";
+      implementation = Model (module Turing_machine.Main);
+    };
+    {
+      name = "rec_tm_ir";
+      library = "rec_tm_ir";
+      implementation = Model (module Rec_tm_ir.Main);
+    };
+    {
+      name = "rec_tm_ir_jump";
+      library = "rec_tm_ir_jump";
+      implementation = Model (module Rec_tm_ir_jump.Main);
+    };
+    {
+      name = "recursive_function-rec_tm_ir";
+      library = "recursive_function_to_rec_tm_ir";
+      implementation = Compiler Recursive_function_to_rec_tm_ir.Main.api;
+    };
+    {
+      name = "rec_tm_ir-rec_tm_ir_jump";
+      library = "rec_tm_ir_to_rec_tm_ir_jump";
+      implementation = Compiler Rec_tm_ir_to_rec_tm_ir_jump.Main.api;
+    };
+    {
+      name = "rec_tm_ir_jump-turing_machine";
+      library = "rec_tm_ir_jump_to_turing_machine";
+      implementation = Compiler Rec_tm_ir_jump_to_turing_machine.Main.api;
+    };
+    {
+      name = "recursive_function-turing_machine";
+      library = "recursive_function_to_turing_machine";
+      implementation = Compiler Recursive_function_to_turing_machine.Main.api;
+    };
+    {
+      name = "tiny_isa";
+      library = "tiny_isa";
+      implementation = Model (module Tiny_isa.Main);
+    };
+    {
+      name = "symbolic_asm";
+      library = "symbolic_asm";
+      implementation = Model (module Symbolic_asm.Main);
+    };
+    {
+      name = "cfg_vreg";
+      library = "cfg_vreg";
+      implementation = Model (module Cfg_vreg.Main);
+    };
+    {
+      name = "coroutine";
+      library = "coroutine";
+      implementation = Model (module Coroutine.Main);
+    };
+    {
+      name = "strarr";
+      library = "strarr";
+      implementation = Model (module Strarr.Main);
+    };
+    {
+      name = "strtree";
+      library = "strtree";
+      implementation = Model (module Strtree.Main);
+    };
   ]
 
 let find name =
-  match List.assoc_opt name entries with
-  | Some entry -> Ok entry
+  match List.find_opt (fun entry -> entry.name = name) entries with
+  | Some entry -> Ok entry.implementation
   | None -> Error ("Unknown model/compiler: " ^ name)
 
 let model name =
@@ -66,39 +216,17 @@ let compiler name =
   | Ok (Model _) -> Error (name ^ " is a model")
   | Error e -> Error e
 
-let library = function
-  | "example_counter-example_counter" -> "example_counter_to_example_counter"
-  | "recursive_function-goto_lang" -> "recursive_function_to_goto_lang"
-  | "recursive_function-lambda_calculus" ->
-      "recursive_function_to_lambda_calculus"
-  | "expr_to_flow_ir" -> "expr_lang_to_flow_ir"
-  | "internal_ctrl_to_flow_ir" -> "internal_ctrl_to_flow_ir"
-  | "proc_to_flow_ir" -> "proc_lang_to_flow_ir"
-  | "pcf-expr" -> "pcf_expr"
-  | "pcf-expr-stmt-cek" -> "pcf_expr_stmt"
-  | "pcf-cek" -> "pcf_cek"
-  | "pcf-secd" -> "pcf_secd"
-  | "pcf-expr-cek" -> "pcf_expr_to_pcf_cek"
-  | "pcf-expr-secd" -> "pcf_expr_to_pcf_secd"
-  | "lambda_continuations" -> "lambda_continuations_no_ext"
-  | "recursive_function-rec_tm_ir" -> "recursive_function_to_rec_tm_ir"
-  | "rec_tm_ir-rec_tm_ir_jump" -> "rec_tm_ir_to_rec_tm_ir_jump"
-  | "rec_tm_ir_jump-turing_machine" -> "rec_tm_ir_jump_to_turing_machine"
-  | "recursive_function-turing_machine" ->
-      "recursive_function_to_turing_machine"
-  | name -> name
-
 let manifest () =
   `List
     (List.map
-       (fun (name, entry) ->
+       (fun entry ->
          `Assoc
            [
-             ("name", `String name);
-             ("library", `String (library name));
+             ("name", `String entry.name);
+             ("library", `String entry.library);
              ( "kind",
                `String
-                 (match entry with
+                 (match entry.implementation with
                  | Model _ -> "model"
                  | Compiler _ -> "compiler") );
            ])

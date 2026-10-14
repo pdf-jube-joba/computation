@@ -1,9 +1,9 @@
-module L = Utils.Parser
+module L = Utils_parsing.Parser
 
 type aexp = Mtoa of texp | AtomChar of string
 
 and texp =
-  | Var of Utils.Identifier.t
+  | Var of Utils_names.Identifier.t
   | Atom of aexp
   | Cons of texp * texp
   | Left of texp
@@ -14,7 +14,7 @@ type bexp = IsAtom of texp | Eq of texp * texp [@@deriving yojson]
 
 type stmt =
   | Nop
-  | Assign of Utils.Identifier.t * texp
+  | Assign of Utils_names.Identifier.t * texp
   | Seq of stmt * stmt
   | IfEq of bexp * stmt
   | While of bexp * stmt
@@ -24,7 +24,7 @@ type value = AtomValue of string | ConsValue of value * value
 [@@deriving yojson]
 
 type code = stmt [@@deriving yojson]
-type environment = (Utils.Identifier.t * value) list [@@deriving yojson]
+type environment = (Utils_names.Identifier.t * value) list [@@deriving yojson]
 type ainput = environment
 type rinput = unit
 type routput = unit
@@ -36,7 +36,7 @@ module Code = struct
 
   let rec aexp_to_text = function
     | Mtoa t -> "mtoa " ^ texp_to_text t
-    | AtomChar c -> Utils.Char_literal.to_text c
+    | AtomChar c -> Utils_parsing.Char_literal.to_text c
 
   and texp_to_text = function
     | Var n -> n
@@ -135,7 +135,7 @@ module Ainput = struct
   type t = ainput
 
   let rec print_value = function
-    | AtomValue c -> "atom " ^ Utils.Char_literal.to_text c
+    | AtomValue c -> "atom " ^ Utils_parsing.Char_literal.to_text c
     | ConsValue (a, b) -> "cons " ^ print_value a ^ " " ^ print_value b
 
   let rec lower_value = function
@@ -148,8 +148,10 @@ module Ainput = struct
   let parse_value =
     L.parse ~character_literals:true (fun p -> lower_value (Code.parse_texp p))
 
-  let parse = Utils.Environment.parse parse_value
-  let print = Utils.Environment.print ~trailing_newline:true print_value
+  let parse = Utils_codec.Environment_text.parse parse_value
+
+  let print =
+    Utils_codec.Environment_text.print ~trailing_newline:true print_value
 end
 
 let rec eval_aexp env = function
@@ -160,7 +162,7 @@ let rec eval_aexp env = function
       | _ -> failwith "mtoa expects an atom")
 
 and eval_texp env = function
-  | Var n -> Utils.Assoc.lookup n env ("uninitialized variable: " ^ n)
+  | Var n -> Utils_base.Assoc.lookup n env ("uninitialized variable: " ^ n)
   | Atom a -> AtomValue (eval_aexp env a)
   | Cons (a, b) ->
       let a = eval_texp env a in
@@ -185,7 +187,7 @@ let eval_bexp env = function
 let rec small_step stmt env =
   match stmt with
   | Nop -> (Nop, env)
-  | Assign (n, a) -> (Nop, Utils.Assoc.set n (eval_texp env a) env)
+  | Assign (n, a) -> (Nop, Utils_base.Assoc.set n (eval_texp env a) env)
   | Seq (Nop, b) -> (b, env)
   | Seq (a, b) ->
       let a, env = small_step a env in
@@ -196,18 +198,20 @@ let rec small_step stmt env =
 let make code env = Ok { code; stmt = code; env }
 
 let step s () =
-  Utils.Parser.protect (fun () ->
-      if s.stmt = Nop then Utils.Machine.Halt s.env
+  Utils_parsing.Parser.protect (fun () ->
+      if s.stmt = Nop then Utils_runtime.Machine.Halt s.env
       else
         let stmt, env = small_step s.stmt s.env in
-        Utils.Machine.Continue { next = { s with stmt; env }; output = () })
+        Utils_runtime.Machine.Continue
+          { next = { s with stmt; env }; output = () })
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.statement_env (Code.print s.stmt) Ainput.print_value s.env
+  Utils_runtime.Render.statement_env (Code.print s.stmt) Ainput.print_value
+    s.env
 
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Ainput

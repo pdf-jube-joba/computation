@@ -1,7 +1,7 @@
 (library
  (name turing_machine)
  (public_name computation.turing_machine)
- (libraries utils yojson)
+ (libraries yojson utils_base utils_names utils_parsing utils_codec utils_runtime)
  (preprocess
   (pps ppx_deriving_yojson)))
 
@@ -10,4 +10,4 @@
  (library
   (name turing_machine_construction)
   (public_name computation.turing_machine_construction)
-  (libraries turing_machine utils)))
+  (libraries turing_machine utils_names utils_parsing utils_runtime)))

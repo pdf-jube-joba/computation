@@ -1,6 +1,6 @@
 (library
  (name duals)
  (public_name computation.duals)
- (libraries utils yojson)
+ (libraries yojson)
  (preprocess
   (pps ppx_deriving_yojson)))

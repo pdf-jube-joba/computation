@@ -1,13 +1,17 @@
-open Utils.Machine
+open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
+open Rec_tm_shared.Environment
+open Rec_tm_shared.Eval
 module T = Turing_machine.Main
-module L = Utils.Parser
+module L = Utils_parsing.Parser
 
-type lvalue = Rec_tm_shared.Syntax.lvalue = Var of Utils.Identifier.t | Head
+type lvalue = Rec_tm_shared.Syntax.lvalue =
+  | Var of Utils_names.Identifier.t
+  | Head
 [@@deriving yojson]
 
 type rvalue = Rec_tm_shared.Syntax.rvalue =
-  | Var of Utils.Identifier.t
+  | Var of Utils_names.Identifier.t
   | Head
   | Const of T.sign
 [@@deriving yojson]
@@ -133,17 +137,18 @@ let restore json =
       s)
 
 let render s =
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text ~title:"pc" (string_of_int s.pc);
-      Utils.Render.text ~title:"next"
+      Utils_runtime.Render.text ~title:"pc" (string_of_int s.pc);
+      Utils_runtime.Render.text ~title:"next"
         (if s.pc >= List.length s.program.body then "halt"
          else Code.stmt_print (List.nth s.program.body s.pc));
-      Utils.Render.assoc_table ~title:"env" T.Sign.print (env_named s.env);
-      T.Tape.render s.tape;
+      Utils_runtime.Render.assoc_table ~title:"env" T.Sign.print
+        (env_named s.env);
+      Turing_machine.View.render_tape s.tape;
     ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Ainput

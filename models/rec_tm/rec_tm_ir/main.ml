@@ -1,13 +1,17 @@
-open Utils.Machine
+open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
+open Rec_tm_shared.Environment
+open Rec_tm_shared.Eval
 module T = Turing_machine.Main
-module L = Utils.Parser
+module L = Utils_parsing.Parser
 
-type lvalue = Rec_tm_shared.Syntax.lvalue = Var of Utils.Identifier.t | Head
+type lvalue = Rec_tm_shared.Syntax.lvalue =
+  | Var of Utils_names.Identifier.t
+  | Head
 [@@deriving yojson]
 
 type rvalue = Rec_tm_shared.Syntax.rvalue =
-  | Var of Utils.Identifier.t
+  | Var of Utils_names.Identifier.t
   | Head
   | Const of T.sign
 [@@deriving yojson]
@@ -24,15 +28,15 @@ type stmt =
   | Assign of lvalue * rvalue
   | Break of condition option
   | Continue of condition option
-  | Jump of Utils.Identifier.t * condition option
+  | Jump of Utils_names.Identifier.t * condition option
   | Return of condition option
-  | Call of Utils.Identifier.t
+  | Call of Utils_names.Identifier.t
 [@@deriving yojson]
 
-type block = { label : Utils.Identifier.t; body : stmt list }
+type block = { label : Utils_names.Identifier.t; body : stmt list }
 [@@deriving yojson]
 
-type func = { name : Utils.Identifier.t; blocks : block list }
+type func = { name : Utils_names.Identifier.t; blocks : block list }
 [@@deriving yojson]
 
 type code = { alphabet : T.sign list; functions : func list }
@@ -44,7 +48,7 @@ type routput = unit
 type foutput = T.tape
 
 type frame = {
-  function_ : Utils.Identifier.t;
+  function_ : Utils_names.Identifier.t;
   env : environment;
   blocks : block list;
   pc : int * int;
@@ -266,7 +270,7 @@ let step s () =
         match s.stack with
         | [] -> Halt s.tape
         | frame :: stack ->
-            Utils.Machine.Continue
+            Utils_runtime.Machine.Continue
               { next = { s with frame; stack }; output = () }
       in
       let b, i = normalized_pc s.frame in
@@ -275,7 +279,9 @@ let step s () =
         let stmt = List.nth (List.nth s.frame.blocks b).body i in
         let next = { s with frame = { s.frame with pc = (b, i + 1) } } in
         let cond c = eval_cond next.frame.env next.tape c in
-        let continue next = Utils.Machine.Continue { next; output = () } in
+        let continue next =
+          Utils_runtime.Machine.Continue { next; output = () }
+        in
         let pc pc = continue { next with frame = { next.frame with pc } } in
         match stmt with
         | Lt -> continue { next with tape = T.Tape.move_to next.tape T.Left }
@@ -324,20 +330,26 @@ let restore json =
 
 let render s =
   let b, i = normalized_pc s.frame in
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text ~title:"function" s.frame.function_;
-      Utils.Render.text ~title:"pc" (Printf.sprintf "%d:%d" b i);
-      Utils.Render.text ~title:"next"
+      Utils_runtime.Render.text ~title:"function" s.frame.function_;
+      Utils_runtime.Render.text ~title:"pc" (Printf.sprintf "%d:%d" b i);
+      Utils_runtime.Render.text ~title:"next"
         (Option.fold ~none:"halt" ~some:Code.stmt_print (peek_stmt s));
-      Utils.Render.container ~title:"stack" ~orientation:"horizontal"
-        (List.map (fun f -> Utils.Render.text f.function_) (List.rev s.stack)
-        @ [ Utils.Render.text ~class_name:"highlight" s.frame.function_ ]);
-      Utils.Render.assoc_table ~title:"env" T.Sign.print (env_named s.frame.env);
-      T.Tape.render s.tape;
+      Utils_runtime.Render.container ~title:"stack"
+        ~orientation:Utils_runtime.Render.Horizontal
+        (List.map
+           (fun f -> Utils_runtime.Render.text f.function_)
+           (List.rev s.stack)
+        @ [
+            Utils_runtime.Render.text ~class_name:"highlight" s.frame.function_;
+          ]);
+      Utils_runtime.Render.assoc_table ~title:"env" T.Sign.print
+        (env_named s.frame.env);
+      Turing_machine.View.render_tape s.tape;
     ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Ainput

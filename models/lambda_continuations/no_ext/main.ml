@@ -43,23 +43,25 @@ let make code inputs =
 let step s () =
   match reduce s.current with
   | Some current ->
-      Ok (Utils.Machine.Continue { next = { s with current }; output = () })
+      Ok
+        (Utils_runtime.Machine.Continue
+           { next = { s with current }; output = () })
   | None -> (
       match is_value s.current with
-      | Some value -> Ok (Utils.Machine.Halt value)
+      | Some value -> Ok (Utils_runtime.Machine.Halt value)
       | None -> Error ("stuck term: " ^ Code.pretty s.current))
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text ~title:"code" (Code.pretty s.code);
-      Utils.Render.text ~title:"current" (Code.pretty s.current);
+      Utils_runtime.Render.text ~title:"code" (Code.pretty s.code);
+      Utils_runtime.Render.text ~title:"current" (Code.pretty s.current);
     ]
 
-module Ainput = Utils.Text.Natural_list
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Ainput = Utils_codec.Text.Natural_list
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Lambda_continuations_shared.Syntax.Value

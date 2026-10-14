@@ -1,10 +1,10 @@
 open Circuit
-module L = Utils.Parser
+module L = Utils_parsing.Parser
 
-type library = (Utils.Identifier.t * t) list
+type library = (Utils_names.Identifier.t * t) list
 
 let by_const name =
-  match Utils.Identifier.make name with
+  match Utils_names.Identifier.make name with
   | Ok name -> name
   | Error message -> invalid_arg message
 
@@ -136,7 +136,7 @@ module Code = struct
   let parse text =
     match String.trim text with
     | text when String.starts_with ~prefix:"[" text ->
-        Result.bind (Utils.Json.decode text) (fun json ->
+        Result.bind (Utils_codec.Json.decode text) (fun json ->
             Result.bind (of_yojson json) (fun circuit ->
                 Result.map (fun () -> circuit) (validate_identifiers circuit)))
     | _ -> parse_main_with_maps text (init_maps ())

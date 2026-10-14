@@ -1,6 +1,6 @@
 (library
  (name logic_circuit)
  (public_name computation.logic_circuit)
- (libraries utils yojson)
+ (libraries yojson utils_base utils_names utils_parsing utils_codec utils_runtime)
  (preprocess
   (pps ppx_deriving_yojson)))

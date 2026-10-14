@@ -1,12 +1,12 @@
-open Utils.Machine
+open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
 module I = Rec_tm_ir.Main
 module J = Rec_tm_ir_jump.Main
-module L = Utils.Parser
-module Var_id = Utils.Id.Make ()
-module Label_id = Utils.Id.Make ()
-module Var_names = Utils.Naming.Make (Var_id)
-module Label_names = Utils.Naming.Make (Label_id)
+module L = Utils_parsing.Parser
+module Var_id = Utils_names.Id.Make ()
+module Label_id = Utils_names.Id.Make ()
+module Var_names = Utils_names.Naming.Make (Var_id)
+module Label_names = Utils_names.Naming.Make (Label_id)
 
 let flatten_program p =
   let* () = I.validate p in
@@ -178,7 +178,7 @@ let decode_routput () = Ok ()
 let decode_foutput t = Ok t
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

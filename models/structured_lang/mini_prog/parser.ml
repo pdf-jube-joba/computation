@@ -2,7 +2,7 @@ open Structured_lang_shared.Arithmetic
 open Syntax
 
 module Code = struct
-  include Code_print
+  include Print
 
   let parse f text = L.parse ~character_literals:true f text
 
@@ -213,4 +213,4 @@ module Code = struct
         loop [] [])
 end
 
-module Ainput = Utils.Text.Natural_list
+module Ainput = Utils_codec.Text.Natural_list

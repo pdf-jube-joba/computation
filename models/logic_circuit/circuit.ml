@@ -1,19 +1,19 @@
-module Vertex_id = Utils.Id.Make ()
-module Vertex_names = Utils.Naming.Make (Vertex_id)
-module Vertices = Utils.Intern.Make (Utils.Identifier) (Vertex_id)
+module Vertex_id = Utils_names.Id.Make ()
+module Vertex_names = Utils_names.Naming.Make (Vertex_id)
+module Vertices = Utils_names.Intern.Make (Utils_names.Identifier) (Vertex_id)
 
-type pin = Utils.Identifier.t [@@deriving yojson]
+type pin = Utils_names.Identifier.t [@@deriving yojson]
 
 (* Public references distinguish external ports, named local vertices, and
    the IDs of appended iterator instances. Names are resolved within a circuit. *)
 type owner =
-  | External of Utils.Identifier.t
-  | Internal of Utils.Identifier.t
+  | External of Utils_names.Identifier.t
+  | Internal of Utils_names.Identifier.t
   | Instance of Vertex_id.t
 [@@deriving yojson]
 
 type named_pin = owner * pin [@@deriving yojson]
-type internal_pin = Utils.Identifier.t * pin [@@deriving yojson]
+type internal_pin = Utils_names.Identifier.t * pin [@@deriving yojson]
 type signal = (named_pin * bool) list [@@deriving yojson]
 type gate_kind = Cst | Not | And | Or | Br | Delay | End [@@deriving yojson]
 type gate = { gate_kind : gate_kind; state : bool } [@@deriving yojson]
@@ -21,15 +21,15 @@ type gate = { gate_kind : gate_kind; state : bool } [@@deriving yojson]
 type t = Gate of gate | Mix of mix | Iter of iter
 
 and mix = {
-  kind : Utils.Identifier.t;
-  verts : (Utils.Identifier.t * t) list;
+  kind : Utils_names.Identifier.t;
+  verts : (Utils_names.Identifier.t * t) list;
   edges : (internal_pin * internal_pin) list;
   inpin_maps : (pin * internal_pin) list;
   otpin_maps : (pin * internal_pin) list;
 }
 
 and iter = {
-  kind : Utils.Identifier.t;
+  kind : Utils_names.Identifier.t;
   init : t;
   used : t list;
   next_edges : (pin * pin) list;
@@ -178,7 +178,7 @@ let rec get_otputs = function
            i.used)
 
 let check_mix (m : mix) =
-  Utils.Identifier.check_unique
+  Utils_names.Identifier.check_unique
     ~message:(fun name -> "duplicate vertex name: " ^ name)
     (List.map fst m.verts);
   let inputs =
@@ -214,9 +214,9 @@ let check_mix (m : mix) =
     m.otpin_maps
 
 let validate_identifiers circuit =
-  Utils.Json.protect (fun () ->
+  Utils_base.Error.protect (fun () ->
       let identifier name =
-        match Utils.Identifier.make name with
+        match Utils_names.Identifier.make name with
         | Ok _ -> ()
         | Error e -> failwith e
       in
@@ -405,157 +405,4 @@ let rec step_exn circuit inputs =
       in
       Iter { i with used }
 
-let step c inputs = Utils.Json.protect (fun () -> step_exn c inputs)
-
-let as_graph_group = function
-  | Gate _ as c ->
-      {
-        verts = [ (External (kind c), c) ];
-        edges = [];
-        inpins_map = List.map (fun p -> (p, p)) (get_inpins c);
-        otpins_map = List.map (fun p -> (p, p)) (get_otpins c);
-      }
-  | Mix m ->
-      {
-        verts = List.map (fun (name, c) -> (Internal name, c)) m.verts;
-        edges = List.map (fun (a, b) -> (internal a, internal b)) m.edges;
-        inpins_map =
-          List.map
-            (fun p -> (map_internal m.kind m.inpin_maps p, internal p))
-            (usable_mix_inpins m);
-        otpins_map =
-          List.map
-            (fun p -> (map_internal m.kind m.otpin_maps p, internal p))
-            (usable_mix_otpins m);
-      }
-  | Iter i ->
-      let edges =
-        List.concat
-          (List.mapi
-             (fun n _ ->
-               (if n < List.length i.used - 1 then
-                  List.map
-                    (fun (a, b) -> (instance n a, instance (n + 1) b))
-                    i.next_edges
-                else [])
-               @
-               if n > 0 then
-                 List.map
-                   (fun (a, b) -> (instance n a, instance (n - 1) b))
-                   i.prev_edges
-               else [])
-             i.used)
-      in
-      {
-        verts = List.mapi (fun n c -> (Instance (id n), c)) i.used;
-        edges;
-        inpins_map = List.map (fun p -> (p, p)) (usable_iter_inpins i);
-        otpins_map = List.map (fun p -> (p, p)) (usable_iter_otpins i);
-      }
-
-module Signal = struct
-  type t = signal
-
-  let value = function Ok value -> value | Error error -> failwith error
-  let parse_bool text = Utils.Bool.to_bool (value (Utils.Bool.parse text))
-  let print_bool value = Utils.Bool.print (Utils.Bool.of_bool value)
-
-  module P = Utils.Parser
-
-  let read_pin p =
-    let start = P.offset p in
-    let owner, end_name =
-      if P.bump_if_symbol p '@' then
-        let name = P.identifier p in
-        (External name, start + 1 + String.length name)
-      else if P.bump_if_symbol p '$' then (
-        let start_id = P.offset p in
-        if start_id <> start + 1 then P.error p "Expected contiguous $ID.PIN";
-        let width =
-          match P.peek p with P.Number text -> String.length text | _ -> 0
-        in
-        let value = P.integer p in
-        (Instance (id value), start_id + width))
-      else
-        let name = P.identifier p in
-        (Internal name, start + String.length name)
-    in
-    let dot = P.offset p in
-    if dot <> end_name then P.error p "Expected contiguous endpoint.PIN";
-    P.expect_symbol p '.';
-    if P.offset p <> dot + 1 then P.error p "Expected contiguous endpoint.PIN";
-    let pin = P.identifier p in
-    (owner, pin)
-
-  let read_item p =
-    let pin = read_pin p in
-    P.expect_symbol p '=';
-    let start = P.offset p in
-    P.expect_symbol p '#';
-    if P.offset p <> start + 1 then P.error p "Expected #true or #false";
-    let boolean = P.identifier p in
-    (pin, parse_bool ("#" ^ boolean))
-
-  let parse_pin text = value (P.parse read_pin text)
-  let parse_item text = value (P.parse read_item text)
-
-  let print_item ((name, pin), value) =
-    owner_text name ^ "." ^ pin ^ "=" ^ print_bool value
-
-  let parse = P.parse (fun p -> P.separated_list p ~separator:',' read_item)
-  let print signal = String.concat ", " (List.map print_item signal)
-end
-
-let render circuit =
-  let graph = as_graph_group circuit in
-  let names = ref Vertex_names.empty in
-  List.iter
-    (fun (owner, _) ->
-      match owner with
-      | Internal name | External name ->
-          names := Vertex_names.reserve name !names
-      | Instance _ -> ())
-    graph.verts;
-  let display = function
-    | Instance id ->
-        let name, next = Vertex_names.assign ~hint:"instance" id !names in
-        names := next;
-        name
-    | owner -> owner_text owner
-  in
-  let inputs =
-    List.map (fun ((owner, p), _) -> [ display owner; p ]) graph.inpins_map
-  in
-  let outputs =
-    List.map
-      (fun ((owner, p), (vert, pin)) ->
-        let value =
-          match List.assoc_opt vert graph.verts with
-          | None -> "?"
-          | Some c -> (
-              match
-                List.find_opt (fun ((_, p), _) -> p = pin) (get_otputs c)
-              with
-              | Some (_, b) -> Signal.print_bool b
-              | None -> "?")
-        in
-        [ display owner; p; value ])
-      graph.otpins_map
-  in
-  let verts =
-    List.concat_map
-      (fun (owner, c) ->
-        List.map
-          (fun ((_, p), v) -> [ display owner; p; Signal.print_bool v ])
-          (get_otputs c))
-      graph.verts
-  in
-  Utils.Render.state
-    [
-      Utils.Render.text ~title:"kind" (kind circuit);
-      Utils.Render.text_table ~title:"inputs" ~columns:[ "name"; "pin" ] inputs;
-      Utils.Render.text_table ~title:"outputs"
-        ~columns:[ "name"; "pin"; "value" ] outputs;
-      Utils.Render.text_table ~title:"verts" ~columns:[ "vert"; "pin"; "value" ]
-        verts;
-    ]
+let step c inputs = Utils_base.Error.protect (fun () -> step_exn c inputs)

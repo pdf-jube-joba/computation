@@ -31,32 +31,30 @@ let rec compile_stmt stmt cont loops c =
         yes cont;
       label
   | C.Break (l, v) ->
-      let _, exit = Utils.Assoc.lookup l loops ("unknown loop label: " ^ l) in
+      let _, exit =
+        Utils_base.Assoc.lookup l loops ("unknown loop label: " ^ l)
+      in
       let label = fresh_region c "break" in
       let r = fresh_vreg c "break" in
       single c label [ I.Load (r, I.Label v); I.Push (I.VReg r) ] (enter exit);
       label
   | C.Continue l ->
-      let head, _ = Utils.Assoc.lookup l loops ("unknown loop label: " ^ l) in
+      let head, _ =
+        Utils_base.Assoc.lookup l loops ("unknown loop label: " ^ l)
+      in
       let label = fresh_region c "continue" in
       single c label [ I.Nop ] (enter head);
       label
   | C.Loop (l, b, out) ->
       let head = fresh_region c "loop_head" in
       let exit = fresh_region c "loop_exit" in
-      let body = compile_stmt b head (Utils.Assoc.set l (head, exit) loops) c in
+      let body =
+        compile_stmt b head (Utils_base.Assoc.set l (head, exit) loops) c
+      in
       single c head [ I.Nop ] (enter body);
       let r = fresh_vreg c "loop_break" in
       single c exit [ I.Pop r; I.Store (I.Label out, I.VReg r) ] (enter cont);
       head
-
-let rec stmt_vars = function
-  | C.Nop | C.Continue _ -> []
-  | C.Seq (a, b) -> stmt_vars a @ stmt_vars b
-  | C.Assign (v, a) -> v :: aexp_vars a
-  | C.If (c, b) -> bexp_vars c @ stmt_vars b
-  | C.Break (_, v) -> [ v ]
-  | C.Loop (_, b, v) -> v :: stmt_vars b
 
 let compile (source : C.code) =
   L.protect (fun () ->
@@ -65,15 +63,16 @@ let compile (source : C.code) =
       let hb = fresh_block c "halt_entry" in
       region c halt [ block hb [ I.Nop ] (I.Halt []) ];
       let entry = compile_stmt source.body halt [] c in
-      {
-        I.statics = static_defs (source.statics @ stmt_vars source.body);
-        regions =
-          {
-            I.label = "main";
-            blocks = [ block "entry" [ I.Nop ] (enter entry) ];
-          }
-          :: c.regions;
-      })
+      finish
+        ~prefix:
+          [
+            {
+              I.label = "main";
+              blocks = [ block "entry" [ I.Nop ] (enter entry) ];
+            };
+          ]
+        c
+        (static_defs (source.statics @ C.stmt_vars source.body)))
 
 let encode_ainput = Structured_lang_compiler_shared.Lowering.encode_ainput
 let encode_rinput () = Ok ""
@@ -81,7 +80,7 @@ let decode_routput _ = Ok ""
 let decode_foutput = decode_foutput "internal_ctrl"
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

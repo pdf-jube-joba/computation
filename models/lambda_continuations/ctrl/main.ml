@@ -19,7 +19,7 @@ let snapshot = Lambda_continuations_no_ext.Main.snapshot
 let restore = Lambda_continuations_no_ext.Main.restore
 let render = Lambda_continuations_no_ext.Main.render
 
-module Ainput = Utils.Text.Natural_list
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Ainput = Utils_codec.Text.Natural_list
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Lambda_continuations_shared.Syntax.Value

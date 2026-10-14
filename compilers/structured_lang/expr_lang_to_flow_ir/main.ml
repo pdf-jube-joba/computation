@@ -106,23 +106,6 @@ let rec compile_stmt stmt cont c =
       region c head [ block hb [ I.Nop ] (enter test) ];
       head
 
-let rec a_vars = function
-  | E.Var v -> [ v ]
-  | E.Num _ -> []
-  | E.BinOp (a, _, b) -> a_vars a @ a_vars b
-  | E.IfThenElse (c, a, b) -> b_vars c @ a_vars a @ a_vars b
-
-and b_vars = function
-  | E.Rel (a, _, b) -> a_vars a @ a_vars b
-  | E.Or (a, b) -> b_vars a @ b_vars b
-  | E.Not b -> b_vars b
-
-let rec stmt_vars = function
-  | E.Nop -> []
-  | E.Assign (v, a) -> v :: a_vars a
-  | E.Seq (a, b) -> stmt_vars a @ stmt_vars b
-  | E.If (c, b) | E.While (c, b) -> b_vars c @ stmt_vars b
-
 let compile source =
   L.protect (fun () ->
       let c = create () in
@@ -130,15 +113,16 @@ let compile source =
       let hb = fresh_block c "halt_entry" in
       region c halt [ block hb [ I.Nop ] (I.Halt []) ];
       let entry = compile_stmt source halt c in
-      {
-        I.statics = static_defs (stmt_vars source);
-        regions =
-          {
-            I.label = "main";
-            blocks = [ block "entry" [ I.Nop ] (enter entry) ];
-          }
-          :: c.regions;
-      })
+      finish
+        ~prefix:
+          [
+            {
+              I.label = "main";
+              blocks = [ block "entry" [ I.Nop ] (enter entry) ];
+            };
+          ]
+        c
+        (static_defs (E.stmt_vars source)))
 
 let encode_ainput = Structured_lang_compiler_shared.Lowering.encode_ainput
 let encode_rinput () = Ok ""
@@ -146,7 +130,7 @@ let decode_routput _ = Ok ()
 let decode_foutput = decode_foutput "expr"
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

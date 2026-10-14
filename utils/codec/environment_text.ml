@@ -1,6 +1,6 @@
 let fold_lines ?(invalid_line = fun line -> "Invalid env line: " ^ line) f init
     text =
-  Parser.protect (fun () ->
+  Utils_parsing.Parser.protect (fun () ->
       List.fold_left
         (fun env line ->
           let line = String.trim line in
@@ -22,9 +22,9 @@ let parse ?invalid_line parse_value text =
   let get = function Ok value -> value | Error error -> failwith error in
   fold_lines ?invalid_line
     (fun env name value ->
-      let name = get (Identifier.make name) in
+      let name = get (Utils_names.Identifier.make name) in
       let value = get (parse_value value) in
-      Assoc.set name value env)
+      Utils_base.Assoc.set name value env)
     [] text
 
 let print ?(trailing_newline = false) value_text env =

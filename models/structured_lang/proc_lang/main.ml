@@ -3,29 +3,31 @@ open Structured_lang_shared.Arithmetic
 type stmt =
   | Nop
   | Seq of stmt * stmt
-  | Assign of Utils.Identifier.t * aexp
+  | Assign of Utils_names.Identifier.t * aexp
   | If of bexp * stmt
   | While of bexp * stmt
   | Call of
-      Utils.Identifier.t * Utils.Identifier.t list * Utils.Identifier.t list
-  | Return of Utils.Identifier.t list
+      Utils_names.Identifier.t
+      * Utils_names.Identifier.t list
+      * Utils_names.Identifier.t list
+  | Return of Utils_names.Identifier.t list
 [@@deriving yojson]
 
 type proc_def = {
-  name : Utils.Identifier.t;
-  params : Utils.Identifier.t list;
-  locals : Utils.Identifier.t list;
+  name : Utils_names.Identifier.t;
+  params : Utils_names.Identifier.t list;
+  locals : Utils_names.Identifier.t list;
   body : stmt;
 }
 [@@deriving yojson]
 
-type code = { statics : Utils.Identifier.t list; procs : proc_def list }
+type code = { statics : Utils_names.Identifier.t list; procs : proc_def list }
 [@@deriving yojson]
 
 type frame = {
   stmt : stmt;
   local_env : env;
-  ret_vars : Utils.Identifier.t list;
+  ret_vars : Utils_names.Identifier.t list;
 }
 [@@deriving yojson]
 
@@ -143,13 +145,13 @@ let with_implicit_return s = if ends_with_return s then s else Seq (s, Return []
 let lookup_var s v =
   match List.assoc_opt v s.local_env with
   | Some n -> n
-  | None -> Utils.Assoc.lookup v s.global_env ("Unknown variable: " ^ v)
+  | None -> Utils_base.Assoc.lookup v s.global_env ("Unknown variable: " ^ v)
 
 let assign_var s v n =
   if List.mem_assoc v s.local_env then
-    { s with local_env = Utils.Assoc.set v n s.local_env }
+    { s with local_env = Utils_base.Assoc.set v n s.local_env }
   else if List.mem_assoc v s.global_env then
-    { s with global_env = Utils.Assoc.set v n s.global_env }
+    { s with global_env = Utils_base.Assoc.set v n s.global_env }
   else failwith ("Unknown variable: " ^ v)
 
 let call_into s name args rets continuation =
@@ -165,10 +167,10 @@ let call_into s name args rets continuation =
   let values = List.map (lookup_var s) args in
   let local_env =
     List.fold_left
-      (fun e v -> Utils.Assoc.set v N.zero e)
+      (fun e v -> Utils_base.Assoc.set v N.zero e)
       (List.combine p.params values)
       p.locals
-    |> Utils.Assoc.sorted
+    |> Utils_base.Assoc.sorted
   in
   ( with_implicit_return p.body,
     {
@@ -209,10 +211,10 @@ let rec step_stmt s = function
               (List.combine frame.ret_vars values) ))
 
 let validate code =
-  Utils.Identifier.check_unique
+  Utils_names.Identifier.check_unique
     ~message:(fun n -> "Duplicate static variable: " ^ n)
     code.statics;
-  Utils.Identifier.check_unique
+  Utils_names.Identifier.check_unique
     ~message:(fun n -> "Duplicate procedure name: " ^ n)
     (List.map (fun p -> p.name) code.procs);
   List.iter
@@ -259,43 +261,43 @@ let make code global_env =
       {
         code;
         stmt = with_implicit_return main.body;
-        global_env = Utils.Assoc.sorted global_env;
+        global_env = Utils_base.Assoc.sorted global_env;
         local_env =
-          Utils.Assoc.sorted (List.map (fun v -> (v, N.zero)) main.locals);
+          Utils_base.Assoc.sorted (List.map (fun v -> (v, N.zero)) main.locals);
         call_stack = [];
       })
 
 let step s _ =
   L.protect (fun () ->
       match (s.stmt, s.call_stack) with
-      | Return _, [] -> Utils.Machine.Halt s.global_env
+      | Return _, [] -> Utils_runtime.Machine.Halt s.global_env
       | _ ->
           let output = Code.stmt_to_text s.stmt in
           let stmt, next = step_stmt s s.stmt in
-          Utils.Machine.Continue { next = { next with stmt }; output })
+          Utils_runtime.Machine.Continue { next = { next with stmt }; output })
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text ~title:"stmt" (Code.stmt_to_text s.stmt);
-      Utils.Render.text ~title:"global env"
-        (Env.print_inline (Utils.Assoc.sorted s.global_env));
-      Utils.Render.text ~title:"local env"
-        (Env.print_inline (Utils.Assoc.sorted s.local_env));
-      Utils.Render.text ~title:"call stack depth"
+      Utils_runtime.Render.text ~title:"stmt" (Code.stmt_to_text s.stmt);
+      Utils_runtime.Render.text ~title:"global env"
+        (Env.print_inline (Utils_base.Assoc.sorted s.global_env));
+      Utils_runtime.Render.text ~title:"local env"
+        (Env.print_inline (Utils_base.Assoc.sorted s.local_env));
+      Utils_runtime.Render.text ~title:"call stack depth"
         (string_of_int (List.length s.call_stack));
     ]
 
 module Ainput = struct
   type t = ainput
 
-  let parse text = Result.map Utils.Assoc.sorted (Env.parse text)
-  let print = fun env -> Env.print (Utils.Assoc.sorted env)
+  let parse text = Result.map Utils_base.Assoc.sorted (Env.parse text)
+  let print = fun env -> Env.print (Utils_base.Assoc.sorted env)
 end
 
-module Rinput = Utils.Text.String
-module Routput = Utils.Text.String
+module Rinput = Utils_codec.Text.String
+module Routput = Utils_codec.Text.String
 module Foutput = Ainput

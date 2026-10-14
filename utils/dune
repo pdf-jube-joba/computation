@@ -1,8 +1,5 @@
-(include_subdirs unqualified)
-
 (library
  (name utils)
  (public_name computation.utils)
- (libraries yojson)
- (preprocess
-  (pps ppx_deriving_yojson)))
+ (modules utils)
+ (libraries utils_base utils_names utils_parsing utils_codec utils_runtime))

@@ -1,7 +1,7 @@
 (library
  (name computation_cli)
- (modules host)
- (libraries utils model_registry))
+ (modules host io arguments compiler_command pipe repl)
+ (libraries model_registry utils))
 
 (executables
  (names main pipe_machine repl_machine)

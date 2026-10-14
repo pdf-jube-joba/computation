@@ -63,10 +63,10 @@ val bump_if_symbol : t -> char -> bool
 val expect_symbol : t -> char -> unit
 val bump_if_keyword : t -> string -> bool
 val expect_keyword : t -> string -> unit
-val identifier : t -> Identifier.t
-val natural : t -> Number.t
+val identifier : t -> Utils_names.Identifier.t
+val natural : t -> Utils_base.Number.t
 
-val natural_with_plus : t -> Number.t
+val natural_with_plus : t -> Utils_base.Number.t
 (** Like [natural], accepting an optional plus directly followed by digits. *)
 
 val integer : t -> int

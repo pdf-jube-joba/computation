@@ -1,7 +1,7 @@
 open Structured_lang_shared.Arithmetic
 
 type aexp =
-  | Var of Utils.Identifier.t
+  | Var of Utils_names.Identifier.t
   | Num of N.t
   | BinOp of aexp * abinop * aexp
   | IfThenElse of bexp * aexp * aexp
@@ -11,7 +11,7 @@ and bexp = Rel of aexp * relop * aexp | Or of bexp * bexp | Not of bexp
 
 type stmt =
   | Nop
-  | Assign of Utils.Identifier.t * aexp
+  | Assign of Utils_names.Identifier.t * aexp
   | Seq of stmt * stmt
   | If of bexp * stmt
   | While of bexp * stmt
@@ -41,7 +41,7 @@ and eval_bexp env = function
 let rec small_step stmt env =
   match stmt with
   | Nop -> (Nop, env)
-  | Assign (v, a) -> (Nop, Utils.Assoc.set v (eval_aexp env a) env)
+  | Assign (v, a) -> (Nop, Utils_base.Assoc.set v (eval_aexp env a) env)
   | Seq (Nop, b) -> (b, env)
   | Seq (a, b) ->
       let a, env = small_step a env in
@@ -142,16 +142,37 @@ end
 let make code env = Ok { code; stmt = code; env }
 
 let step s () =
-  if s.stmt = Nop then Ok (Utils.Machine.Halt s.env)
+  if s.stmt = Nop then Ok (Utils_runtime.Machine.Halt s.env)
   else
     let stmt, env = small_step s.stmt s.env in
-    Ok (Utils.Machine.Continue { next = { s with stmt; env }; output = () })
+    Ok
+      (Utils_runtime.Machine.Continue
+         { next = { s with stmt; env }; output = () })
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
-let render s = Utils.Render.statement_env (Code.print s.stmt) N.to_string s.env
+
+let render s =
+  Utils_runtime.Render.statement_env (Code.print s.stmt) N.to_string s.env
 
 module Ainput = Structured_lang_shared.Arithmetic.Env
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Ainput
+
+let rec a_vars = function
+  | Var v -> [ v ]
+  | Num _ -> []
+  | BinOp (a, _, b) -> a_vars a @ a_vars b
+  | IfThenElse (c, a, b) -> b_vars c @ a_vars a @ a_vars b
+
+and b_vars = function
+  | Rel (a, _, b) -> a_vars a @ a_vars b
+  | Or (a, b) -> b_vars a @ b_vars b
+  | Not b -> b_vars b
+
+let rec stmt_vars = function
+  | Nop -> []
+  | Assign (v, a) -> v :: a_vars a
+  | Seq (a, b) -> stmt_vars a @ stmt_vars b
+  | If (c, b) | While (c, b) -> b_vars c @ stmt_vars b

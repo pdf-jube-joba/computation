@@ -1,18 +1,21 @@
-module N = Utils.Number
-module L = Utils.Parser
+module N = Utils_base.Number
+module L = Utils_parsing.Parser
 
 let get = function Ok x -> x | Error e -> failwith e
 
-type env = (Utils.Identifier.t * N.t) list [@@deriving yojson]
+type env = (Utils_names.Identifier.t * N.t) list [@@deriving yojson]
 
 let env_get e k = Option.value (List.assoc_opt k e) ~default:N.zero
 
 module Env = struct
   type t = env
 
-  let parse = Utils.Environment.parse N.of_string
-  let print = Utils.Environment.print ~trailing_newline:true N.to_string
-  let print_inline = Utils.Environment.print N.to_string
+  let parse = Utils_codec.Environment_text.parse N.of_string
+
+  let print =
+    Utils_codec.Environment_text.print ~trailing_newline:true N.to_string
+
+  let print_inline = Utils_codec.Environment_text.print N.to_string
 end
 
 let names_until p endc =
@@ -23,7 +26,7 @@ let names_boundary p =
   match L.peek p with L.Ident _ -> names_until p '\000' | _ -> []
 
 let validate_env statics env ~duplicate ~extra ~missing =
-  Utils.Identifier.check_unique ~message:duplicate statics;
+  Utils_names.Identifier.check_unique ~message:duplicate statics;
   List.iter
     (fun (k, _) -> if not (List.mem k statics) then failwith (extra k))
     env;
@@ -31,7 +34,7 @@ let validate_env statics env ~duplicate ~extra ~missing =
     (fun k -> if not (List.mem_assoc k env) then failwith (missing k))
     statics
 
-type atom = Var of Utils.Identifier.t | Imm of N.t [@@deriving yojson]
+type atom = Var of Utils_names.Identifier.t | Imm of N.t [@@deriving yojson]
 type abinop = Add | Sub [@@deriving yojson]
 type aexp = Atom of atom | Bin of atom * abinop * atom [@@deriving yojson]
 type relop = Lt | Eq | Gt [@@deriving yojson]
@@ -74,3 +77,11 @@ let eval_aexp lookup = function
 let eval_bexp lookup (a, op, b) =
   let c = N.compare (eval_atom lookup a) (eval_atom lookup b) in
   match op with Lt -> c < 0 | Eq -> c = 0 | Gt -> c > 0
+
+let atom_vars = function Var v -> [ v ] | Imm _ -> []
+
+let aexp_vars = function
+  | Atom a -> atom_vars a
+  | Bin (a, _, b) -> atom_vars a @ atom_vars b
+
+let bexp_vars (a, _, b) = atom_vars a @ atom_vars b

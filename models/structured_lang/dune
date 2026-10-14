@@ -3,7 +3,7 @@
  (library
   (name structured_lang_shared)
   (public_name computation.structured_lang_shared)
-  (libraries utils yojson)
+  (libraries yojson utils_base utils_names utils_parsing utils_codec)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -12,7 +12,7 @@
  (library
   (name expr_lang)
   (public_name computation.expr_lang)
-  (libraries structured_lang_shared utils yojson)
+  (libraries structured_lang_shared yojson utils_base utils_names utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -21,7 +21,7 @@
  (library
   (name internal_ctrl)
   (public_name computation.internal_ctrl)
-  (libraries structured_lang_shared utils yojson)
+  (libraries structured_lang_shared yojson utils_base utils_names utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -30,7 +30,7 @@
  (library
   (name proc_lang)
   (public_name computation.proc_lang)
-  (libraries structured_lang_shared utils yojson)
+  (libraries structured_lang_shared yojson utils_base utils_names utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -39,7 +39,7 @@
  (library
   (name fn_ptr)
   (public_name computation.fn_ptr)
-  (libraries structured_lang_shared utils yojson)
+  (libraries structured_lang_shared yojson utils_base utils_names utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -48,7 +48,7 @@
  (library
   (name mini_prog)
   (public_name computation.mini_prog)
-  (libraries structured_lang_shared utils yojson)
+  (libraries structured_lang_shared yojson utils_base utils_names utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -57,6 +57,6 @@
  (library
   (name data_lang)
   (public_name computation.data_lang)
-  (libraries utils yojson)
+  (libraries yojson)
   (preprocess
    (pps ppx_deriving_yojson))))

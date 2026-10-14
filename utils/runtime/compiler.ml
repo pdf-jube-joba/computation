@@ -1,16 +1,6 @@
-(* Typed model-to-model compilers can retain Source/Target modules and expose
-   this text boundary to the common browser and CLI hosts. *)
-type api = {
-  compile_code : string -> (string, string) result;
-  encode_ainput : string -> (string, string) result;
-  encode_rinput : string -> (string, string) result;
-  decode_routput : string -> (string, string) result;
-  decode_foutput : string -> (string, string) result;
-}
-
 module type S = sig
-  module Source : Machine.S
-  module Target : Machine.S
+  module Source : Language.S
+  module Target : Language.S
 
   val compile : Source.Code.t -> (Target.Code.t, string) result
   val encode_ainput : Source.Ainput.t -> (Target.Ainput.t, string) result
@@ -19,18 +9,24 @@ module type S = sig
   val decode_foutput : Target.Foutput.t -> (Source.Foutput.t, string) result
 end
 
-let make_api (module C : S) =
-  let convert parse transform print text =
-    Result.bind (parse text) (fun value -> Result.map print (transform value))
-  in
-  {
-    compile_code = convert C.Source.Code.parse C.compile C.Target.Code.print;
-    encode_ainput =
-      convert C.Source.Ainput.parse C.encode_ainput C.Target.Ainput.print;
-    encode_rinput =
-      convert C.Source.Rinput.parse C.encode_rinput C.Target.Rinput.print;
-    decode_routput =
-      convert C.Target.Routput.parse C.decode_routput C.Source.Routput.print;
-    decode_foutput =
-      convert C.Target.Foutput.parse C.decode_foutput C.Source.Foutput.print;
-  }
+(** Compose typed transformations; output decoding runs in the reverse order. *)
+module Compose
+    (A : S)
+    (B :
+      S
+        with type Source.Code.t = A.Target.Code.t
+         and type Source.Ainput.t = A.Target.Ainput.t
+         and type Source.Rinput.t = A.Target.Rinput.t
+         and type Source.Routput.t = A.Target.Routput.t
+         and type Source.Foutput.t = A.Target.Foutput.t) =
+struct
+  module Source = A.Source
+  module Target = B.Target
+
+  let compose first second input = Result.bind (first input) second
+  let compile = compose A.compile B.compile
+  let encode_ainput = compose A.encode_ainput B.encode_ainput
+  let encode_rinput = compose A.encode_rinput B.encode_rinput
+  let decode_routput = compose B.decode_routput A.decode_routput
+  let decode_foutput = compose B.decode_foutput A.decode_foutput
+end

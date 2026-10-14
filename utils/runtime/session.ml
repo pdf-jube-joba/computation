@@ -1,5 +1,7 @@
 open Machine
 
+type step = Continued of string | Halted of string
+
 module Make (M : S) = struct
   type t = { mutable state : M.state option }
 
@@ -10,7 +12,7 @@ module Make (M : S) = struct
     let* ainput = M.Ainput.parse ainput in
     let* state = M.make code ainput in
     session.state <- Some state;
-    Ok `Null
+    Ok ()
 
   let with_state session f =
     match session.state with
@@ -24,27 +26,17 @@ module Make (M : S) = struct
         match result with
         | Continue { next; output } ->
             session.state <- Some next;
-            Ok
-              (`Assoc
-                 [
-                   ("kind", `String "continue");
-                   ("output", `String (M.Routput.print output));
-                 ])
+            Ok (Continued (M.Routput.print output))
         | Halt output ->
             session.state <- None;
-            Ok
-              (`Assoc
-                 [
-                   ("kind", `String "halt");
-                   ("output", `String (M.Foutput.print output));
-                 ]))
+            Ok (Halted (M.Foutput.print output)))
 
   let snapshot session = with_state session (fun state -> Ok (M.snapshot state))
 
   let restore session json =
     let* state = M.restore json in
     session.state <- Some state;
-    Ok `Null
+    Ok ()
 
   let render session = with_state session (fun state -> Ok (M.render state))
 end

@@ -1,8 +1,8 @@
-module L = Utils.Parser
+module L = Utils_parsing.Parser
 
 type aexp =
   | Const of string list
-  | Var of Utils.Identifier.t
+  | Var of Utils_names.Identifier.t
   | Concat of aexp * aexp
   | Head of aexp
   | Tail of aexp
@@ -12,14 +12,17 @@ type bexp = IsEmpty of aexp | Eq of aexp * aexp [@@deriving yojson]
 
 type stmt =
   | Nop
-  | Assign of Utils.Identifier.t * aexp
+  | Assign of Utils_names.Identifier.t * aexp
   | Seq of stmt * stmt
   | If of bexp * stmt
   | While of bexp * stmt
 [@@deriving yojson]
 
 type code = stmt [@@deriving yojson]
-type environment = (Utils.Identifier.t * string list) list [@@deriving yojson]
+
+type environment = (Utils_names.Identifier.t * string list) list
+[@@deriving yojson]
+
 type ainput = environment
 type rinput = unit
 type routput = unit
@@ -85,7 +88,9 @@ module Code = struct
 
   let rec aexp_to_text = function
     | Const cs ->
-        "[" ^ String.concat ", " (List.map Utils.Char_literal.to_text cs) ^ "]"
+        "["
+        ^ String.concat ", " (List.map Utils_parsing.Char_literal.to_text cs)
+        ^ "]"
     | Var n -> n
     | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
     | Head a -> "head " ^ aexp_to_text a
@@ -114,8 +119,10 @@ module Ainput = struct
         | Const cs -> cs
         | _ -> failwith "Expected constant character list")
 
-  let parse = Utils.Environment.parse parse_value
-  let print = Utils.Environment.print ~trailing_newline:true print_value
+  let parse = Utils_codec.Environment_text.parse parse_value
+
+  let print =
+    Utils_codec.Environment_text.print ~trailing_newline:true print_value
 end
 
 let rec eval_aexp env = function
@@ -132,7 +139,7 @@ let eval_bexp env = function
 let rec small_step stmt env =
   match stmt with
   | Nop -> (Nop, env)
-  | Assign (n, a) -> (Nop, Utils.Assoc.set n (eval_aexp env a) env)
+  | Assign (n, a) -> (Nop, Utils_base.Assoc.set n (eval_aexp env a) env)
   | Seq (Nop, b) -> (b, env)
   | Seq (a, b) ->
       let a, env = small_step a env in
@@ -143,17 +150,20 @@ let rec small_step stmt env =
 let make code env = Ok { code; stmt = code; env }
 
 let step s () =
-  if s.stmt = Nop then Ok (Utils.Machine.Halt s.env)
+  if s.stmt = Nop then Ok (Utils_runtime.Machine.Halt s.env)
   else
     let stmt, env = small_step s.stmt s.env in
-    Ok (Utils.Machine.Continue { next = { s with stmt; env }; output = () })
+    Ok
+      (Utils_runtime.Machine.Continue
+         { next = { s with stmt; env }; output = () })
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.statement_env (Code.print s.stmt) Ainput.print_value s.env
+  Utils_runtime.Render.statement_env (Code.print s.stmt) Ainput.print_value
+    s.env
 
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Ainput

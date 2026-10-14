@@ -12,10 +12,10 @@ exception Error of string
 let skip_block_comment ?(nested_comments = true) text i =
   let j = ref (i + 2) and depth = ref 1 in
   while !j < String.length text && !depth > 0 do
-    if nested_comments && String_ext.starts_at text !j "/*" then (
+    if nested_comments && Utils_base.String_ext.starts_at text !j "/*" then (
       incr depth;
       j := !j + 2)
-    else if String_ext.starts_at text !j "*/" then (
+    else if Utils_base.String_ext.starts_at text !j "*/" then (
       decr depth;
       j := !j + 2)
     else incr j
@@ -26,15 +26,16 @@ let skip_block_comment ?(nested_comments = true) text i =
 
 let tokenize ?(nested_comments = true) ?(character_literals = false) text =
   let n = String.length text in
-  let alpha = Identifier.is_start in
+  let alpha = Utils_names.Identifier.is_start in
   let digit = function '0' .. '9' -> true | _ -> false in
-  let has = String_ext.starts_at text in
+  let has = Utils_base.String_ext.starts_at text in
   let rec scan i acc =
     if i >= n then Array.of_list (List.rev ((Eof, n) :: acc))
     else
       match text.[i] with
-      | c when String_ext.is_whitespace c -> scan (i + 1) acc
-      | '/' when has i "//" -> scan (String_ext.skip_line text (i + 2)) acc
+      | c when Utils_base.String_ext.is_whitespace c -> scan (i + 1) acc
+      | '/' when has i "//" ->
+          scan (Utils_base.String_ext.skip_line text (i + 2)) acc
       | '/' when has i "/*" ->
           scan (skip_block_comment ~nested_comments text i) acc
       | '\'' when character_literals ->
@@ -60,8 +61,10 @@ let tokenize ?(nested_comments = true) ?(character_literals = false) text =
           scan (!j + 1) ((String_lit value, i) :: acc)
       | c when alpha c || digit c ->
           let is_number = digit c in
-          let predicate = if is_number then digit else Identifier.is_continue in
-          let j = String_ext.skip_while predicate text (i + 1) in
+          let predicate =
+            if is_number then digit else Utils_names.Identifier.is_continue
+          in
+          let j = Utils_base.String_ext.skip_while predicate text (i + 1) in
           let word = String.sub text i (j - i) in
           scan j (((if is_number then Number word else Ident word), i) :: acc)
       | c when Char.code c < 128 && c <> '\000' ->

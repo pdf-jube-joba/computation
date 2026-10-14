@@ -19,7 +19,7 @@ let index_from_top c offset dst =
 
 let place_for_var c scope v =
   match
-    Utils.Assoc.lookup v scope.vars ("Unknown variable in compiler: " ^ v)
+    Utils_base.Assoc.lookup v scope.vars ("Unknown variable in compiler: " ^ v)
   with
   | Global -> ([], I.Label v)
   | Local i ->
@@ -117,7 +117,7 @@ let rec compile_stmt stmt cont scope c =
           (List.rev args)
       in
       let target =
-        Utils.Assoc.lookup name scope.entries
+        Utils_base.Assoc.lookup name scope.entries
           ("Unknown procedure in compiler: " ^ name)
       in
       let call_region = fresh_region c "call" in
@@ -151,13 +151,13 @@ let compile (source : P.code) =
           let vars = List.map (fun v -> (v, Global)) source.statics in
           let vars =
             List.fold_left
-              (fun vs (i, v) -> Utils.Assoc.set v (Param i) vs)
+              (fun vs (i, v) -> Utils_base.Assoc.set v (Param i) vs)
               vars
               (List.mapi (fun i v -> (i, v)) p.params)
           in
           let vars =
             List.fold_left
-              (fun vs (i, v) -> Utils.Assoc.set v (Local i) vs)
+              (fun vs (i, v) -> Utils_base.Assoc.set v (Local i) vs)
               vars
               (List.mapi (fun i v -> (i, v)) p.locals)
           in
@@ -178,14 +178,11 @@ let compile (source : P.code) =
             (enter body))
         source.procs;
       let main =
-        Utils.Assoc.lookup "main" entries "Procedure 'main' is required"
+        Utils_base.Assoc.lookup "main" entries "Procedure 'main' is required"
       in
       single c "main" [ I.Push (I.CodeLabel halt); I.Nop ] (enter main);
-      {
-        I.statics =
-          List.map (fun label -> { I.label; value = N.zero }) source.statics;
-        regions = c.regions;
-      })
+      finish c
+        (List.map (fun label -> { I.label; value = N.zero }) source.statics))
 
 let encode_ainput = Structured_lang_compiler_shared.Lowering.encode_ainput
 let encode_rinput s = Ok s
@@ -201,10 +198,10 @@ let decode_foutput values =
               failwith
                 ("expected numeric global for " ^ k ^ ", got "
                ^ I.Ainput.print_value v))
-        (Utils.Assoc.sorted values))
+        (Utils_base.Assoc.sorted values))
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

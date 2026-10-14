@@ -10,14 +10,15 @@ let restore json =
 
 let step state input =
   Result.map
-    (fun next -> Utils.Machine.Continue { next; output = get_otputs next })
+    (fun next ->
+      Utils_runtime.Machine.Continue { next; output = get_otputs next })
     (Circuit.step state input)
 
-module Ainput = Utils.Text.Unit
-module Rinput = Circuit.Signal
+module Ainput = Utils_codec.Text.Unit
+module Rinput = Signal_text
 module Routput = Rinput
-module Foutput = Utils.Text.Unit
+module Foutput = Utils_codec.Text.Unit
 
 type state = Circuit.t
 
-let render = Circuit.render
+let render = View.render

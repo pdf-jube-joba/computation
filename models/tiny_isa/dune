@@ -3,7 +3,7 @@
  (library
   (name tiny_isa_shared)
   (public_name computation.tiny_isa_shared)
-  (libraries utils yojson)
+  (libraries yojson utils_base utils_parsing utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -12,7 +12,7 @@
  (library
   (name tiny_isa)
   (public_name computation.tiny_isa)
-  (libraries tiny_isa_shared utils yojson)
+  (libraries tiny_isa_shared yojson utils_parsing utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -21,7 +21,7 @@
  (library
   (name symbolic_asm)
   (public_name computation.symbolic_asm)
-  (libraries tiny_isa_shared utils yojson)
+  (libraries tiny_isa_shared yojson utils_base utils_names utils_parsing utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -30,6 +30,6 @@
  (library
   (name cfg_vreg)
   (public_name computation.cfg_vreg)
-  (libraries tiny_isa_shared utils yojson)
+  (libraries tiny_isa_shared yojson utils_base utils_names utils_parsing utils_codec utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))

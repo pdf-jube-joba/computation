@@ -1,4 +1,4 @@
-open Utils.Machine
+open Utils_runtime.Machine
 module Source = Recursive_function.Main
 module Target = Lambda_calculus.Main
 
@@ -38,8 +38,10 @@ let church next number =
   abs_vs [ s; z ] !body
 
 let number_to_lambda_term number =
-  let* number = Utils.Number.of_string (Utils.Number.to_string number) in
-  let* number = Utils.Number.to_int number in
+  let* number =
+    Utils_base.Number.of_string (Utils_base.Number.to_string number)
+  in
+  let* number = Utils_base.Number.to_int number in
   Ok (church (ref Target.Var_id.Supply.empty) number)
 
 let lambda_term_to_number = function
@@ -47,10 +49,10 @@ let lambda_term_to_number = function
       let rec count number = function
         | Target.Var var when var.id = z.id -> Some number
         | Target.App (Target.Var var, rest) when var.id = s.id ->
-            count (Utils.Number.succ number) rest
+            count (Utils_base.Number.succ number) rest
         | _ -> None
       in
-      count Utils.Number.zero body
+      count Utils_base.Number.zero body
   | _ -> None
 
 let build_y next =
@@ -207,7 +209,7 @@ let decode_foutput term =
   | None -> Error ("failed to decode Church numeral: " ^ Target.Code.print term)
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

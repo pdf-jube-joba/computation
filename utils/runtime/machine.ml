@@ -2,16 +2,12 @@ type ('state, 'routput, 'foutput) step_result =
   | Continue of { next : 'state; output : 'routput }
   | Halt of 'foutput
 
-module type TEXT = Text.S
+module type TEXT = Utils_codec.Text.S
 
 module type S = sig
   type state
 
-  module Code : TEXT
-  module Ainput : TEXT
-  module Rinput : TEXT
-  module Routput : TEXT
-  module Foutput : TEXT
+  include Language.S
 
   val make : Code.t -> Ainput.t -> (state, string) result
 
@@ -26,6 +22,3 @@ module type S = sig
 end
 
 let ( let* ) = Result.bind
-
-let text_render text =
-  `List [ `Assoc [ ("kind", `String "text"); ("text", `String text) ] ]

@@ -1,24 +1,25 @@
-module N = Utils.Number
-module L = Utils.Parser
-module Names = Utils.Identifier.Set
+module N = Utils_base.Number
+module L = Utils_parsing.Parser
+module Names = Utils_names.Identifier.Set
 
 (* Abort/Control extend the same structure, so the implemented variable
    operations can be shared with Ctrl. Its reduction is deliberately unsupported. *)
 type term =
-  | Var of Utils.Identifier.t
-  | Lam of Utils.Identifier.t * term
+  | Var of Utils_names.Identifier.t
+  | Lam of Utils_names.Identifier.t * term
   | App of term * term
   | Zero
   | Succ of term
   | Pred of term
   | IfZ of term * term * term
-  | Let of Utils.Identifier.t * term * term
-  | Rec of Utils.Identifier.t * Utils.Identifier.t * term
+  | Let of Utils_names.Identifier.t * term * term
+  | Rec of Utils_names.Identifier.t * Utils_names.Identifier.t * term
   | Abort of term
   | Control of term
 [@@deriving yojson]
 
-type value = Fun of Utils.Identifier.t * term | Num of N.t [@@deriving yojson]
+type value = Fun of Utils_names.Identifier.t * term | Num of N.t
+[@@deriving yojson]
 
 let rec num_to_exp n =
   if N.is_zero n then Zero else Succ (num_to_exp (N.pred n))
@@ -58,14 +59,14 @@ let rec bound_variables = function
   | Rec (f, x, b) -> Names.add f (Names.add x (bound_variables b))
 
 module Substitution =
-  Utils.Binding.Make
+  Utils_names.Binding.Make
     (struct
       type t = term
 
       let variable name = Var name
 
       let view e =
-        let open Utils.Binding in
+        let open Utils_names.Binding in
         match e with
         | Var name -> Variable name
         | Lam (x, body) ->

@@ -16,8 +16,8 @@ type 'sign t = {
 }
 
 let new_builder name init_state =
-  let open Utils.Machine in
-  let* name = Utils.Identifier.make name in
+  let open Utils_runtime.Machine in
+  let* name = Utils_names.Identifier.make name in
   let* init_state = State.parse init_state in
   Ok { name; init_state; accepted_state = []; code = [] }
 
@@ -29,7 +29,7 @@ let to_entry ~sign e =
     (sign e.value_sign, e.value_state, e.direction) )
 
 let build ~sign b tape =
-  let open Utils.Machine in
+  let open Utils_runtime.Machine in
   let* d =
     Code.make b.init_state b.accepted_state (List.map (to_entry ~sign) b.code)
   in

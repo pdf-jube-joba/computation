@@ -1,9 +1,9 @@
-open Utils.Machine
-module Variable = Utils.Symbol.Make ()
+open Utils_runtime.Machine
+module Variable = Utils_names.Symbol.Make ()
 module Var_id = Variable.Id
 module Names = Variable.Names
 
-type var = Variable.t = { id : Var_id.t; name : Utils.Identifier.t }
+type var = Variable.t = { id : Var_id.t; name : Utils_names.Identifier.t }
 type term = Var of var | Abs of var * term | App of term * term
 type code = term
 type ainput = term list
@@ -19,7 +19,7 @@ let fresh_var = Variable.fresh
 module Code = struct
   type t = term
 
-  module L = Utils.Parser
+  module L = Utils_parsing.Parser
 
   let read p =
     let reader = Variable.Reader.create () in
@@ -207,7 +207,7 @@ let restore json =
     | `Assoc fields -> (
         match (List.assoc_opt "id" fields, List.assoc_opt "name" fields) with
         | Some (`Int id), Some (`String name)
-          when id >= 0 && id < max_int && Utils.Identifier.valid name -> (
+          when id >= 0 && id < max_int && Utils_names.Identifier.valid name -> (
             let* id = Var_id.of_int id in
             match Hashtbl.find_opt vars id with
             | Some var when var.name <> name ->
@@ -262,25 +262,25 @@ let render term =
         (match left with Abs _ -> [ term ] | _ -> [])
         @ redexes left @ redexes right
   in
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text ~title:"term" (Code.print term);
-      Utils.Render.indexed_table ~title:"redexes" ~columns:[ "index"; "term" ]
-        Code.print (redexes term);
+      Utils_runtime.Render.text ~title:"term" (Code.print term);
+      Utils_runtime.Render.indexed_table ~title:"redexes"
+        ~columns:[ "index"; "term" ] Code.print (redexes term);
     ]
 
 module Ainput = struct
   type t = ainput
 
   let parse =
-    Utils.Parser.parse (fun p ->
-        Utils.Parser.separated_list p ~separator:',' Code.read)
+    Utils_parsing.Parser.parse (fun p ->
+        Utils_parsing.Parser.separated_list p ~separator:',' Code.read)
 
   let print = fun terms -> String.concat ", " (List.map Code.print terms)
 end
 
-module Rinput = Utils.Text.Natural_int
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Natural_int
+module Routput = Utils_codec.Text.Unit
 
 module Foutput = struct
   type t = foutput

@@ -4,15 +4,15 @@ module Var_id = Id.Make ()
 module Variables = Intern.Make (Identifier) (Var_id)
 
 type command =
-  | Clr of Utils.Identifier.t
-  | Inc of Utils.Identifier.t
-  | Dec of Utils.Identifier.t
-  | Cpy of Utils.Identifier.t * Utils.Identifier.t
-  | Ifnz of Utils.Identifier.t * Number.t
+  | Clr of Utils_names.Identifier.t
+  | Inc of Utils_names.Identifier.t
+  | Dec of Utils_names.Identifier.t
+  | Cpy of Utils_names.Identifier.t * Utils_names.Identifier.t
+  | Ifnz of Utils_names.Identifier.t * Number.t
 [@@deriving yojson]
 
 type code = command list [@@deriving yojson]
-type ainput = (Utils.Identifier.t * Number.t) list [@@deriving yojson]
+type ainput = (Utils_names.Identifier.t * Number.t) list [@@deriving yojson]
 type rinput = unit
 type routput = unit
 type foutput = ainput
@@ -20,7 +20,7 @@ type foutput = ainput
 type state = {
   commands : code;
   pc : Number.t;
-  variable_names : (Utils.Identifier.t * Var_id.t) list;
+  variable_names : (Utils_names.Identifier.t * Var_id.t) list;
   env : (Var_id.t * Number.t) list;
 }
 [@@deriving yojson]
@@ -54,7 +54,7 @@ module Code = struct
     | Inc v -> "inc " ^ v ^ ";"
     | Dec v -> "dec " ^ v ^ ";"
     | Cpy (d, s) -> "cpy " ^ d ^ " <- " ^ s ^ ";"
-    | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ n ^ ";"
+    | Ifnz (v, n) -> "ifnz " ^ v ^ " : " ^ Number.to_string n ^ ";"
 
   let print code = String.concat "\n" (List.map print_command code)
 end
@@ -147,7 +147,7 @@ let render state =
     [
       Render.assoc_table ~title:"status" ~columns:[ "field"; "value" ] Fun.id
         [
-          ("pc", state.pc);
+          ("pc", Number.to_string state.pc);
           ( "next",
             match Number.to_int state.pc with
             | Ok pc -> (
@@ -156,7 +156,7 @@ let render state =
                 | None -> "halt")
             | Error _ -> "halt" );
         ];
-      Render.assoc_table ~title:"env" Fun.id (named_env state);
+      Render.assoc_table ~title:"env" Number.to_string (named_env state);
     ]
 
 module Ainput = struct
@@ -171,9 +171,9 @@ module Ainput = struct
             ignore (Parser.bump_if_symbol p ';');
             (name, value)))
 
-  let print = Utils.Environment.print Fun.id
+  let print = Utils_codec.Environment_text.print Number.to_string
 end
 
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Ainput

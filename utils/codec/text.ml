@@ -22,10 +22,10 @@ module String = struct
 end
 
 module Natural = struct
-  type t = Number.t
+  type t = Utils_base.Number.t
 
-  let parse = Number.of_string_with_plus
-  let print = Number.to_string
+  let parse = Utils_base.Number.of_string_with_plus
+  let print = Utils_base.Number.to_string
 end
 
 module Natural_int = struct
@@ -40,13 +40,13 @@ module Natural_int = struct
 end
 
 module Natural_list = struct
-  type t = Number.t list
+  type t = Utils_base.Number.t list
 
   let parse =
-    Parser.parse (fun p ->
-        Parser.group p ~opening:'(' (fun p ->
-            Parser.separated_list ~skip_empty:true p ~separator:','
-              Parser.natural_with_plus))
+    Utils_parsing.Parser.parse (fun p ->
+        Utils_parsing.Parser.group p ~opening:'(' (fun p ->
+            Utils_parsing.Parser.separated_list ~skip_empty:true p
+              ~separator:',' Utils_parsing.Parser.natural_with_plus))
 
   let print values =
     "(" ^ Stdlib.String.concat ", " (List.map Natural.print values) ^ ")"

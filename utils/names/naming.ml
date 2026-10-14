@@ -46,3 +46,26 @@ module Make (Key : Map.OrderedType) = struct
             next_suffix;
           } )
 end
+
+module Fresh () = struct
+  module Identity = Id.Make ()
+  module Names = Make (Identity)
+
+  type t = { mutable supply : Identity.Supply.t; mutable names : Names.t }
+
+  let create ?(reserved = []) () =
+    {
+      supply = Identity.Supply.empty;
+      names =
+        List.fold_left
+          (fun names name -> Names.reserve name names)
+          Names.empty reserved;
+    }
+
+  let take t hint =
+    let id, supply = Identity.Supply.fresh t.supply in
+    let name, names = Names.assign ~hint id t.names in
+    t.supply <- supply;
+    t.names <- names;
+    name
+end

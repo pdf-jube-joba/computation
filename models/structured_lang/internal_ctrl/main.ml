@@ -3,26 +3,26 @@ open Structured_lang_shared.Arithmetic
 type stmt =
   | Nop
   | Seq of stmt * stmt
-  | Assign of Utils.Identifier.t * aexp
+  | Assign of Utils_names.Identifier.t * aexp
   | If of bexp * stmt
-  | Break of Utils.Identifier.t * Utils.Identifier.t
-  | Continue of Utils.Identifier.t
-  | Loop of Utils.Identifier.t * stmt * Utils.Identifier.t
+  | Break of Utils_names.Identifier.t * Utils_names.Identifier.t
+  | Continue of Utils_names.Identifier.t
+  | Loop of Utils_names.Identifier.t * stmt * Utils_names.Identifier.t
 [@@deriving yojson]
 
-type code = { statics : Utils.Identifier.t list; body : stmt }
+type code = { statics : Utils_names.Identifier.t list; body : stmt }
 [@@deriving yojson]
 
 type control =
   | Normal
-  | Break_result of Utils.Identifier.t * N.t
-  | Continue_result of Utils.Identifier.t
+  | Break_result of Utils_names.Identifier.t * N.t
+  | Continue_result of Utils_names.Identifier.t
 [@@deriving yojson]
 
 type exec = Stmt of stmt | Result of control [@@deriving yojson]
 
 type frame =
-  | Loop_frame of Utils.Identifier.t * stmt * Utils.Identifier.t
+  | Loop_frame of Utils_names.Identifier.t * stmt * Utils_names.Identifier.t
   | Seq_frame of stmt
 [@@deriving yojson]
 
@@ -119,7 +119,7 @@ let step s () =
         | Stmt (Assign (v, a)) ->
             {
               s with
-              env = Utils.Assoc.set v (eval_aexp (env_get s.env) a) s.env;
+              env = Utils_base.Assoc.set v (eval_aexp (env_get s.env) a) s.env;
               exec = Result Normal;
             }
         | Stmt (If (c, b)) ->
@@ -163,23 +163,23 @@ let step s () =
                       s with
                       stack;
                       exec = Result Normal;
-                      env = Utils.Assoc.set v n s.env;
+                      env = Utils_base.Assoc.set v n s.env;
                     }
                 | _ -> { s with stack; exec = Result control }))
       in
       match (s.exec, next.exec, next.stack) with
-      | Result _, Result Normal, [] -> Utils.Machine.Halt next.env
-      | _ -> Utils.Machine.Continue { next; output })
+      | Result _, Result Normal, [] -> Utils_runtime.Machine.Halt next.env
+      | _ -> Utils_runtime.Machine.Continue { next; output })
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text ~title:"exec" (exec_to_text s.exec);
-      Utils.Render.text ~title:"env" (Env.print_inline s.env);
-      Utils.Render.text ~title:"stack"
+      Utils_runtime.Render.text ~title:"exec" (exec_to_text s.exec);
+      Utils_runtime.Render.text ~title:"env" (Env.print_inline s.env);
+      Utils_runtime.Render.text ~title:"stack"
         (String.concat "\n"
            (List.map
               (function
@@ -189,6 +189,14 @@ let render s =
     ]
 
 module Ainput = Structured_lang_shared.Arithmetic.Env
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.String
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.String
 module Foutput = Ainput
+
+let rec stmt_vars = function
+  | Nop | Continue _ -> []
+  | Seq (a, b) -> stmt_vars a @ stmt_vars b
+  | Assign (v, a) -> v :: aexp_vars a
+  | If (c, b) -> bexp_vars c @ stmt_vars b
+  | Break (_, v) -> [ v ]
+  | Loop (_, b, v) -> v :: stmt_vars b

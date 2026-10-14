@@ -1,6 +1,6 @@
 (library
  (name lambda_calculus)
  (public_name computation.lambda_calculus)
- (libraries utils yojson)
+ (libraries yojson utils_names utils_parsing utils_codec utils_runtime)
  (preprocess
   (pps ppx_deriving_yojson)))

@@ -1,27 +1,19 @@
 open Pcf_shared.Syntax
-module Code = Pcf_shared.Syntax.Code
+module Code = Pcf_shared.Code
 
 let ( let* ) = Result.bind
 
-let eval_binop lhs op rhs =
-  match (op, lhs, rhs) with
-  | Add, Nat a, Nat b -> Ok (Nat (N.add a b))
-  | Sub, Nat a, Nat b when N.compare a b >= 0 -> Ok (Nat (N.sub a b))
-  | Sub, Nat _, Nat _ -> Error "operator '-' expects lhs >= rhs over naturals"
-  | And, Bool a, Bool b -> Ok (Bool (a && b))
-  | Add, _, _ -> Error "operator '+' expects naturals"
-  | Sub, _, _ -> Error "operator '-' expects naturals"
-  | And, _, _ -> Error "operator '&&' expects booleans"
+include Pcf_shared.Primitive.Make (struct
+  type t = expr
 
-let eval_unop op e =
-  match (op, e) with
-  | Inc, Nat n -> Ok (Nat (N.succ n))
-  | Dec, Nat n when not (N.is_zero n) -> Ok (Nat (N.pred n))
-  | Dec, Nat _ -> Error "operator 'dec' expects a positive natural"
-  | Not, Bool b -> Ok (Bool (not b))
-  | Inc, _ -> Error "operator 'inc' expects a natural"
-  | Dec, _ -> Error "operator 'dec' expects a natural"
-  | Not, _ -> Error "operator 'not' expects a boolean"
+  let view = function
+    | Nat n -> Pcf_shared.Primitive.Nat n
+    | Bool b -> Pcf_shared.Primitive.Bool b
+    | _ -> Pcf_shared.Primitive.Other
+
+  let natural n = Nat n
+  let boolean b = Bool b
+end)
 
 let rec small_step = function
   | Print n -> Ok (Unit, Some n)
@@ -46,8 +38,13 @@ let rec small_step = function
   | App (f, a) when not (is_value a) ->
       let* a, out = small_step a in
       Ok (App (f, a), out)
-  | App (Fun (x, b), a) -> Ok (substitute b x a, None)
-  | App ((Rec (f, x, b) as r), a) -> Ok (substitute (substitute b f r) x a, None)
+  | App (Fun (x, b), a) -> Ok (Pcf_shared.Substitution.substitute b x a, None)
+  | App ((Rec (f, x, b) as r), a) ->
+      Ok
+        ( Pcf_shared.Substitution.substitute
+            (Pcf_shared.Substitution.substitute b f r)
+            x a,
+          None )
   | App (f, _) ->
       Error ("application expects a function value, found " ^ Code.print f)
   | If (c, t, e) when not (is_value c) ->
@@ -68,27 +65,29 @@ type routput = print_effect
 type foutput = N.t
 type state = { code : code; expr : expr } [@@deriving yojson]
 
-let make code inputs = Ok { code; expr = apply_inputs code inputs }
+let make code inputs =
+  let* () = validate_direct code in
+  Ok { code; expr = apply_inputs code inputs }
 
 let step state () =
   if is_value state.expr then
     let* n = expect_nat state.expr in
-    Ok (Utils.Machine.Halt n)
+    Ok (Utils_runtime.Machine.Halt n)
   else
     let* expr, output = small_step state.expr in
-    Ok (Utils.Machine.Continue { next = { state with expr }; output })
+    Ok (Utils_runtime.Machine.Continue { next = { state with expr }; output })
 
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
 let render s =
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text ~title:"code" (Code.print s.code);
-      Utils.Render.text ~title:"current" (Code.print s.expr);
+      Utils_runtime.Render.text ~title:"code" (Code.print s.code);
+      Utils_runtime.Render.text ~title:"current" (Code.print s.expr);
     ]
 
-module Ainput = Pcf_shared.Syntax.Ainput
-module Rinput = Utils.Text.Unit
-module Routput = Pcf_shared.Syntax.Routput
-module Foutput = Pcf_shared.Syntax.Foutput
+module Ainput = Pcf_shared.Io.Ainput
+module Rinput = Utils_codec.Text.Unit
+module Routput = Pcf_shared.Io.Routput
+module Foutput = Pcf_shared.Io.Foutput

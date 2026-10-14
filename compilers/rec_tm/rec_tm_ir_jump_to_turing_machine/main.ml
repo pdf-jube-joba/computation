@@ -1,9 +1,11 @@
-open Utils.Machine
+open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
+open Rec_tm_shared.Environment
+open Rec_tm_shared.Eval
 module J = Rec_tm_ir_jump.Main
 module T = Turing_machine.Main
-module L = Utils.Parser
-module Names = Utils.Identifier.Set
+module L = Utils_parsing.Parser
+module Names = Utils_names.Identifier.Set
 
 module State_key = struct
   type t = int * T.sign list
@@ -11,7 +13,7 @@ module State_key = struct
   let compare = Stdlib.compare
 end
 
-module States = Utils.Intern.Make (State_key) (T.State_id)
+module States = Utils_names.Intern.Make (State_key) (T.State_id)
 
 (* Retain only values which a later instruction can read. Function expansion
    creates fresh variables for each call site, so enumerating every valuation
@@ -136,7 +138,7 @@ let decode_routput () = Ok ()
 let decode_foutput t = Ok t
 
 let api =
-  Utils.Compiler.make_api
+  Utils_runtime.Compiler_text_api.make
     (module struct
       module Source = Source
       module Target = Target

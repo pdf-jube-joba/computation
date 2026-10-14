@@ -1,6 +1,6 @@
 open Utils
 open Js_of_ocaml
-module Json = Utils.Json
+module Json = Utils_codec.Json
 module Registry = Model_registry.Registry
 
 let get = function Ok value -> value | Error message -> failwith message
@@ -15,16 +15,21 @@ let export_model (module M : Machine.S) =
   let session = S.create () in
   object%js
     method make code ainput =
-      response (S.make session (Js.to_string code) (Js.to_string ainput))
+      response
+        (Result.map Session_json.unit
+           (S.make session (Js.to_string code) (Js.to_string ainput)))
 
-    method step input = response (S.step session (Js.to_string input))
+    method step input =
+      response
+        (Result.map Session_json.step (S.step session (Js.to_string input)))
+
     method snapshot = response (S.snapshot session)
 
     method restore json =
       let result =
         let open Machine in
         let* json = Json.decode (Js.to_string json) in
-        S.restore session json
+        Result.map Session_json.unit (S.restore session json)
       in
       response result
 
@@ -40,7 +45,7 @@ let export_model (module M : Machine.S) =
       response result
   end
 
-let export_compiler (compiler : Compiler.api) =
+let export_compiler (compiler : Compiler_text_api.api) =
   let call f input =
     response (Result.map (fun text -> `String text) (f (Js.to_string input)))
   in

@@ -1,213 +1,11 @@
+include Runtime_types
+module Code = Code
 open Structured_lang_shared.Arithmetic
-module Frame_id = Utils.Id.Make ()
-
-type binop = Add | Sub [@@deriving yojson]
-
-type place_expr = Var of Utils.Identifier.t | Deref of value_expr
-
-and value_expr =
-  | Number of int64
-  | NullPtr
-  | BinOp of value_expr * binop * value_expr
-  | Load of place_expr
-  | Addr of place_expr
-[@@deriving yojson]
-
-type stmt =
-  | Assign of place_expr * value_expr
-  | Ifz of value_expr * stmt * stmt
-  | Call of Utils.Identifier.t * value_expr list
-  | Return
-[@@deriving yojson]
-
-type fn_decl = {
-  name : Utils.Identifier.t;
-  params : Utils.Identifier.t list;
-  body : stmt list;
-}
-[@@deriving yojson]
-
-type code = { functions : fn_decl list } [@@deriving yojson]
-type location = { frame_id : Frame_id.t; slot : int } [@@deriving yojson]
-
-type value = Num of int64 | Location of location | Null_ptr
-[@@deriving yojson]
-
-type frame_store = { frame_id : Frame_id.t; values : (location * value) list }
-[@@deriving yojson]
-
-type call_frame = {
-  env : (Utils.Identifier.t * location) list;
-  inner_k : stmt list;
-  function_name : Utils.Identifier.t;
-}
-[@@deriving yojson]
-
-type state = {
-  code : code;
-  current_function : Utils.Identifier.t;
-  current_stmt : stmt option;
-  env : (Utils.Identifier.t * location) list;
-  store : frame_store list;
-  inner_k : stmt list;
-  fn_k : call_frame list;
-  next_frame_id : Frame_id.Supply.t;
-}
-[@@deriving yojson]
-
-type ainput = unit
-type rinput = unit
-type routput = string
-type foutput = string
-
-module Code = struct
-  type t = code
-
-  let rec place_to_text = function
-    | Var v -> v
-    | Deref v -> "(" ^ value_to_text v ^ ") #loc"
-
-  and value_to_text = function
-    | Number n -> Int64.to_string n
-    | NullPtr -> "#null_ptr"
-    | BinOp (a, op, b) ->
-        "(" ^ value_to_text a
-        ^ (if op = Add then " + " else " - ")
-        ^ value_to_text b ^ ")"
-    | Load p -> "ld " ^ place_to_text p
-    | Addr p -> place_to_text p ^ " #addr"
-
-  let rec stmt_to_text = function
-    | Assign (p, v) -> "assign " ^ place_to_text p ^ " := " ^ value_to_text v
-    | Ifz (c, a, b) ->
-        "ifz " ^ value_to_text c ^ " then " ^ stmt_to_text a ^ " else "
-        ^ stmt_to_text b ^ " end"
-    | Call (n, args) ->
-        "call " ^ n ^ "("
-        ^ String.concat ", " (List.map value_to_text args)
-        ^ ")"
-    | Return -> "return"
-
-  let print c =
-    String.concat "\n\n"
-      (List.map
-         (fun f ->
-           "fn " ^ f.name ^ "("
-           ^ String.concat ", " f.params
-           ^ ") { "
-           ^ String.concat "; " (List.map stmt_to_text f.body)
-           ^ " }")
-         c.functions)
-
-  let rec parse_place p =
-    match L.peek p with
-    | L.Ident _ -> Var (L.identifier p)
-    | _ ->
-        let v = L.group p ~opening:'(' parse_value in
-        L.expect p "#loc";
-        Deref v
-
-  and parse_value p =
-    L.expression
-      ~infix:
-        [
-          ("+", 1, 2, fun a b -> BinOp (a, Add, b));
-          ("-", 1, 2, fun a b -> BinOp (a, Sub, b));
-        ]
-      ~atom:(fun _ p -> parse_atom p)
-      p
-
-  and parse_atom p =
-    if L.bump_if p "#null_ptr" then NullPtr
-    else if L.bump_if_keyword p "ld" then Load (parse_place p)
-    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_value
-    else
-      match L.peek p with
-      | L.Number _ -> Number (Int64.of_string (L.natural p))
-      | _ ->
-          let v = parse_place p in
-          L.expect p "#addr";
-          Addr v
-
-  let rec parse_stmt p =
-    if L.bump_if_keyword p "assign" then (
-      let place = parse_place p in
-      L.expect p ":=";
-      Assign (place, parse_value p))
-    else if L.bump_if_keyword p "ifz" then (
-      let cond = parse_value p in
-      L.expect_keyword p "then";
-      let a = parse_stmt p in
-      L.expect_keyword p "else";
-      let b = parse_stmt p in
-      L.expect_keyword p "end";
-      Ifz (cond, a, b))
-    else if L.bump_if_keyword p "call" then
-      let n = L.identifier p in
-      let args =
-        L.group p ~opening:'(' (fun p ->
-            L.separated_list p ~separator:',' parse_value)
-      in
-      Call (n, args)
-    else (
-      L.expect_keyword p "return";
-      Return)
-
-  let parse =
-    L.parse (fun p ->
-        let functions =
-          L.many p (fun p ->
-              L.expect_keyword p "fn";
-              let name = L.identifier p in
-              let params =
-                L.group p ~opening:'(' (fun p ->
-                    L.separated_list p ~separator:',' L.identifier)
-              in
-              let body =
-                L.group p ~opening:'{' (fun p ->
-                    L.separated_list ~allow_trailing:true p ~separator:';'
-                      parse_stmt)
-              in
-              { name; params; body })
-        in
-        { functions })
-end
-
-module Runtime_value = struct
-  type t = value
-
-  let location_text (l : location) =
-    Printf.sprintf "loc(%d, %d)" (Frame_id.to_int l.frame_id) l.slot
-
-  let print = function
-    | Num n -> Int64.to_string n
-    | Location l -> location_text l
-    | Null_ptr -> "#null_ptr"
-
-  let parse text =
-    L.protect (fun () ->
-        let text = String.trim text in
-        if text = "#null_ptr" then Null_ptr
-        else if
-          String.starts_with ~prefix:"loc(" text
-          && String.ends_with ~suffix:")" text
-        then (
-          let p = L.create text in
-          L.expect_keyword p "loc";
-          let location =
-            L.group p ~opening:'(' (fun p ->
-                let frame_id = get (Frame_id.of_int (L.integer p)) in
-                L.expect_symbol p ',';
-                let slot = L.integer p in
-                Location { frame_id; slot })
-          in
-          L.expect_eof p;
-          location)
-        else Num (Int64.of_string text))
-end
+open Store
+open Eval
 
 let validate code =
-  Utils.Identifier.check_unique
+  Utils_names.Identifier.check_unique
     ~message:(fun s -> "duplicate function: " ^ s)
     (List.map (fun f -> f.name) code.functions)
 
@@ -219,14 +17,6 @@ let function_lookup c name =
 let split_body = function
   | [] -> failwith "function body must not be empty"
   | s :: ss -> (Some s, ss)
-
-let bindings frame_id params values =
-  List.fold_left
-    (fun (env, store) (slot, (p, v)) ->
-      let loc = { frame_id; slot } in
-      (Utils.Assoc.set p loc env, (loc, v) :: store))
-    ([], [])
-    (List.mapi (fun i pv -> (i, pv)) (List.combine params values))
 
 let make code () =
   L.protect (fun () ->
@@ -248,79 +38,17 @@ let make code () =
         current_function = f.name;
         current_stmt;
         inner_k;
-        env = Utils.Assoc.sorted env;
+        env = Utils_base.Assoc.sorted env;
         store = [ { frame_id; values } ];
         fn_k = [];
         next_frame_id;
       })
 
-let store_lookup s loc =
-  let rec loop = function
-    | [] -> failwith ("unknown location: " ^ Runtime_value.location_text loc)
-    | f :: fs -> (
-        match List.assoc_opt loc f.values with Some v -> v | None -> loop fs)
-  in
-  loop s.store
-
-let store_assign s loc value =
-  let rec loop = function
-    | [] -> failwith ("unknown location: " ^ Runtime_value.location_text loc)
-    | f :: fs ->
-        if List.mem_assoc loc f.values then
-          { f with values = Utils.Assoc.set loc value f.values } :: fs
-        else f :: loop fs
-  in
-  { s with store = loop s.store }
-
-let expect_number = function
-  | Num n -> n
-  | v -> failwith ("expected a number, found " ^ Runtime_value.print v)
-
-let rec eval_place s = function
-  | Var v -> Utils.Assoc.lookup v s.env ("unknown variable: " ^ v)
-  | Deref v -> (
-      match eval_value s v with
-      | Location loc -> loc
-      | Null_ptr -> failwith "cannot dereference #null_ptr"
-      | Num _ -> failwith "dereference expects a location value")
-
-and eval_value s = function
-  | Number n -> Num n
-  | NullPtr -> Null_ptr
-  | BinOp (a, op, b) ->
-      let a = expect_number (eval_value s a)
-      and b = expect_number (eval_value s b) in
-      Num ((if op = Add then Int64.add else Int64.sub) a b)
-  | Load p -> store_lookup s (eval_place s p)
-  | Addr p -> Location (eval_place s p)
-
-let format_final_state s f =
-  let values indent f =
-    String.concat ""
-      (List.map
-         (fun (l, v) ->
-           indent
-           ^ Runtime_value.location_text l
-           ^ " = " ^ Runtime_value.print v ^ "\n")
-         (Utils.Assoc.sorted f.values))
-  in
-  "halted\ncurrent_function: " ^ s.current_function ^ "\nfinished_frame: "
-  ^ string_of_int (Frame_id.to_int f.frame_id)
-  ^ "\n" ^ values "  " f ^ "remaining_store:\n"
-  ^
-  if s.store = [] then "  <empty>\n"
-  else
-    String.concat ""
-      (List.map
-         (fun f ->
-           "  frame "
-           ^ string_of_int (Frame_id.to_int f.frame_id)
-           ^ ":\n" ^ values "    " f)
-         (List.rev s.store))
-
 let step s () =
   L.protect (fun () ->
-      let continue next = Utils.Machine.Continue { next; output = "" } in
+      let continue next =
+        Utils_runtime.Machine.Continue { next; output = "" }
+      in
       match s.current_stmt with
       | None -> (
           match s.inner_k with
@@ -358,7 +86,7 @@ let step s () =
               current_function = f.name;
               current_stmt;
               inner_k;
-              env = Utils.Assoc.sorted env;
+              env = Utils_base.Assoc.sorted env;
               store = { frame_id; values } :: s.store;
               fn_k =
                 {
@@ -375,7 +103,9 @@ let step s () =
           | finished :: store -> (
               let s = { s with store } in
               match s.fn_k with
-              | [] -> Utils.Machine.Halt (format_final_state s finished)
+              | [] ->
+                  Utils_runtime.Machine.Halt
+                    (Output_text.format_final_state s finished)
               | f :: fn_k ->
                   continue
                     {
@@ -414,59 +144,9 @@ let restore json =
           get (Frame_id.Supply.validate_used !ids s.next_frame_id);
           s))
 
-let render s =
-  let open Utils.Render in
-  state
-    [
-      text_table ~title:"status" ~columns:[ "field"; "value" ]
-        [
-          [ "control"; (if s.current_stmt = None then "next" else "eval") ];
-          [ "function"; s.current_function ];
-          [
-            "current";
-            Option.fold ~none:"<none>" ~some:Code.stmt_to_text s.current_stmt;
-          ];
-          [
-            "next_frame_id";
-            string_of_int (Frame_id.Supply.to_int s.next_frame_id);
-          ];
-        ];
-      text_table ~title:"env"
-        ~columns:[ "var"; "location"; "value" ]
-        (List.map
-           (fun (n, l) ->
-             [
-               n;
-               Runtime_value.location_text l;
-               Runtime_value.print
-                 (try store_lookup s l with Failure _ -> Null_ptr);
-             ])
-           (Utils.Assoc.sorted s.env));
-      container ~title:"store"
-        (List.map
-           (fun f ->
-             assoc_table
-               ~title:("frame " ^ string_of_int (Frame_id.to_int f.frame_id))
-               ~columns:[ "location"; "value" ] Runtime_value.print
-               (List.map
-                  (fun (l, v) -> (Runtime_value.location_text l, v))
-                  (Utils.Assoc.sorted f.values)))
-           (List.rev s.store));
-      container ~title:"inner_k"
-        (List.map (fun st -> text (Code.stmt_to_text st)) s.inner_k);
-      text_table ~title:"fn_k"
-        ~columns:[ "depth"; "function"; "resume_len" ]
-        (List.mapi
-           (fun i f ->
-             [
-               string_of_int i;
-               f.function_name;
-               string_of_int (List.length f.inner_k);
-             ])
-           s.fn_k);
-    ]
+let render = View.render
 
-module Ainput = Utils.Text.Unit
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.String
-module Foutput = Utils.Text.String
+module Ainput = Utils_codec.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.String
+module Foutput = Utils_codec.Text.String

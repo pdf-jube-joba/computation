@@ -19,11 +19,11 @@ type state = {
 }
 [@@deriving yojson]
 
-module Code = Numbers
+module Code = Tiny_isa_shared.Numbers_text
 
 let make code (input : ainput) =
-  Utils.Parser.protect (fun () ->
-      validate_regs input.register;
+  Utils_parsing.Parser.protect (fun () ->
+      Tiny_isa_shared.Registers.validate input.register;
       {
         regs = Array.copy input.register;
         flag = false;
@@ -41,24 +41,29 @@ let output s =
   }
 
 let step s () =
-  Utils.Parser.protect (fun () ->
-      if s.halted then Utils.Machine.Halt (output s)
+  Utils_parsing.Parser.protect (fun () ->
+      if s.halted then Utils_runtime.Machine.Halt (output s)
       else
-        let pc = value (N.to_int s.regs.(0)) in
-        let inst = value (decode (read s.memory pc)) in
+        let pc = Utils_base.Error.get (N.to_int s.regs.(0)) in
+        let inst =
+          Utils_base.Error.get
+            (Tiny_isa_shared.Encoding.decode
+               (Tiny_isa_shared.Memory.read s.memory pc))
+        in
         let regs, flag, memory, halted =
-          execute ~resolve:Fun.id inst s.regs s.flag s.memory
+          Tiny_isa_shared.Execute.execute ~resolve:Fun.id inst s.regs s.flag
+            s.memory
         in
         let next = { s with regs; flag; memory; halted } in
-        if halted then Utils.Machine.Halt (output next)
-        else Utils.Machine.Continue { next; output = () })
+        if halted then Utils_runtime.Machine.Halt (output next)
+        else Utils_runtime.Machine.Continue { next; output = () })
 
 let snapshot = state_to_yojson
 
 let restore json =
   Result.bind (state_of_yojson json) (fun s ->
-      Utils.Parser.protect (fun () ->
-          validate_regs s.regs;
+      Utils_parsing.Parser.protect (fun () ->
+          Tiny_isa_shared.Registers.validate s.regs;
           if s.code_len < 0 || s.code_len > Array.length s.memory then
             failwith "Invalid code length";
           s))
@@ -68,25 +73,27 @@ let render s =
   let next =
     match pc with
     | Some i when i < Array.length s.memory -> (
-        match decode s.memory.(i) with
+        match Tiny_isa_shared.Encoding.decode s.memory.(i) with
         | Ok inst -> inst_text N.to_string inst
         | _ -> "halt")
     | _ -> "halt"
   in
   let memory =
-    Utils.Render.indexed_table ~title:"memory" ~columns:[ "addr"; "value" ]
-      ?highlight:pc N.to_string (Array.to_list s.memory)
+    Utils_runtime.Render.indexed_table ~title:"memory"
+      ~columns:[ "addr"; "value" ] ?highlight:pc N.to_string
+      (Array.to_list s.memory)
   in
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.text_table ~title:"status" ~columns:[ "field"; "value" ]
+      Utils_runtime.Render.text_table ~title:"status"
+        ~columns:[ "field"; "value" ]
         [
           [ "pc"; (match pc with Some n -> string_of_int n | None -> "?") ];
           [ "flag"; string_of_bool s.flag ];
           [ "next"; next ];
           [ "halted"; string_of_bool s.halted ];
         ];
-      registers s.regs;
+      Tiny_isa_shared.View.registers s.regs;
       memory;
     ]
 
@@ -96,11 +103,13 @@ module Ainput = struct
   let parse text =
     Result.map
       (fun (register, memory) -> { register; memory })
-      (Image.parse text)
+      (Tiny_isa_shared.Image_text.parse text)
 
-  let print = fun (image : t) -> Image.print (image.register, image.memory)
+  let print =
+   fun (image : t) ->
+    Tiny_isa_shared.Image_text.print (image.register, image.memory)
 end
 
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
 module Foutput = Ainput

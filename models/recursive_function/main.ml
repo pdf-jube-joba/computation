@@ -225,19 +225,20 @@ let restore json =
   else Ok state
 
 let rec print_process = function
-  | Result n -> n
+  | Result n -> Number.to_string n
   | Call (f, args) ->
       Code.print f ^ "("
       ^ String.concat ", " (List.map print_process args)
       ^ ")"
-  | Search (n, _, _, p) -> "Mu[" ^ n ^ "](" ^ print_process p ^ ")"
+  | Search (n, _, _, p) ->
+      "Mu[" ^ Number.to_string n ^ "](" ^ print_process p ^ ")"
 
 let render state =
   Render.state
     [
       Render.text ~title:"function" (Code.print state.function_);
-      Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ] Fun.id
-        state.input;
+      Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ]
+        Number.to_string state.input;
       Render.text ~title:"process" (print_process state.process);
     ]
 
@@ -250,9 +251,9 @@ module Ainput = struct
             Parser.separated_list ~allow_trailing:true p ~separator:','
               Parser.natural))
 
-  let print = Utils.Text.Natural_list.print
+  let print = Utils_codec.Text.Natural_list.print
 end
 
-module Rinput = Utils.Text.Unit
-module Routput = Utils.Text.Unit
-module Foutput = Utils.Text.Natural
+module Rinput = Utils_codec.Text.Unit
+module Routput = Utils_codec.Text.Unit
+module Foutput = Utils_codec.Text.Natural

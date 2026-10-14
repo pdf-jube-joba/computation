@@ -1,4 +1,4 @@
-open Utils.Machine
+open Utils_runtime.Machine
 
 type code = int
 type ainput = unit
@@ -8,10 +8,11 @@ type foutput = string
 type state = int
 
 module Code = struct
-  include Utils.Text.Natural_int
+  include Utils_codec.Text.Natural_int
 
   let parse text =
-    if String.trim text = "" then Ok 0 else Utils.Text.Natural_int.parse text
+    if String.trim text = "" then Ok 0
+    else Utils_codec.Text.Natural_int.parse text
 end
 
 let make code () = Ok code
@@ -32,14 +33,14 @@ let restore = function
   | _ -> Error "Expected a counter snapshot with a nonnegative count"
 
 let render count =
-  Utils.Render.state
+  Utils_runtime.Render.state
     [
-      Utils.Render.assoc_table ~title:"status" ~columns:[ "field"; "value" ]
-        string_of_int
+      Utils_runtime.Render.assoc_table ~title:"status"
+        ~columns:[ "field"; "value" ] string_of_int
         [ ("count", count) ];
     ]
 
-module Ainput = Utils.Text.Unit
+module Ainput = Utils_codec.Text.Unit
 
 module Rinput = struct
   type t = rinput
@@ -53,5 +54,5 @@ module Rinput = struct
   let print = function Increment -> "inc" | Decrement -> "dec"
 end
 
-module Routput = Utils.Text.String
-module Foutput = Utils.Text.String
+module Routput = Utils_codec.Text.String
+module Foutput = Utils_codec.Text.String
