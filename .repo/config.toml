@@ -50,6 +50,8 @@ paths = [
   "ocamlformat",
   "computation.install",
   "computation.opam",
+  ".ocamlformat",
+  ".gitmodules",
 ]
 
 [[policy]]
