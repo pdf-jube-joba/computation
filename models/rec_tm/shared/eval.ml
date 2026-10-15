@@ -4,7 +4,7 @@ open Environment
 let eval env tape : rvalue -> T.sign = function
   | Var s ->
       Option.value ~default:None (List.assoc_opt (variable env s) env.values)
-  | Head -> tape.T.head
+  | Head -> tape.Utils_data.Tape.head
   | Const s -> s
 
 let eval_cond env tape = function
@@ -19,4 +19,4 @@ let assign env tape (dst : lvalue) value =
           values = Utils_base.Assoc.set_sorted (variable env s) value env.values;
         },
         tape )
-  | Head -> (env, T.Tape.head_write tape value)
+  | Head -> (env, T.head_write tape value)

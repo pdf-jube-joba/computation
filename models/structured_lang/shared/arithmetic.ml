@@ -3,20 +3,11 @@ module L = Utils_parsing.Parser
 
 let get = Utils_base.Error.get
 
-type env = (Utils_names.Identifier.t * N.t) list [@@deriving yojson]
+type env = Utils_data.Environment.Natural.t [@@deriving yojson]
 
-let env_get e k = Option.value (List.assoc_opt k e) ~default:N.zero
+let env_get = Utils_data.Environment.Natural.get
 
-module Env = struct
-  type t = env
-
-  let parse = Utils_codec.Environment_text.parse N.of_string
-
-  let print =
-    Utils_codec.Environment_text.print ~trailing_newline:true N.to_string
-
-  let print_inline = Utils_codec.Environment_text.print N.to_string
-end
+module Env = Utils_codec.Environment_text.Natural
 
 let names_until p endc =
   if L.peek p = L.Symbol endc then []

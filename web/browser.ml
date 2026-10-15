@@ -1,4 +1,7 @@
-open Utils
+module Compiler_text_api = Utils_runtime.Compiler_text_api
+module Machine = Utils_runtime.Machine
+module Session = Utils_runtime.Session
+module Session_json = Utils_runtime.Session_json
 open Js_of_ocaml
 module Json = Utils_codec.Json
 module Registry = Model_registry.Registry

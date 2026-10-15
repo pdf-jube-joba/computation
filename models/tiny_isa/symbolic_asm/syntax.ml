@@ -30,8 +30,8 @@ type raw_item =
 type code = raw_item list [@@deriving yojson]
 type inst = raw_value Tiny_isa_shared.Instruction.inst [@@deriving yojson]
 
-type asm_input = { regs : N.t array; data_extension : N.t list }
+type asm_input = { regs : N.t Utils_data.Memory.t; data_extension : N.t list }
 [@@deriving yojson]
 
-type asm_output = { regs : N.t array; data_memory : N.t list }
+type asm_output = { regs : N.t Utils_data.Memory.t; data_memory : N.t list }
 [@@deriving yojson]

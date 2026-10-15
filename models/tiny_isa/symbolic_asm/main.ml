@@ -64,12 +64,14 @@ module Ainput = struct
 
   let parse text =
     Result.map
-      (fun (regs, data_extension) -> { regs; data_extension })
-      (Tiny_isa_shared.Image_text.parse text)
+      (fun (image : N.t Utils_data.Memory_image.t) ->
+        { regs = image.register; data_extension = image.memory })
+      (Utils_codec.Memory_image_text.Natural.parse ~register_count:8 text)
 
   let print =
    fun (image : t) ->
-    Tiny_isa_shared.Image_text.print (image.regs, image.data_extension)
+    Utils_codec.Memory_image_text.Natural.print
+      { register = image.regs; memory = image.data_extension }
 end
 
 module Rinput = Utils_codec.Text.Unit
@@ -80,10 +82,12 @@ module Foutput = struct
 
   let parse text =
     Result.map
-      (fun (regs, data_memory) -> ({ regs; data_memory } : asm_output))
-      (Tiny_isa_shared.Image_text.parse text)
+      (fun (image : N.t Utils_data.Memory_image.t) ->
+        ({ regs = image.register; data_memory = image.memory } : asm_output))
+      (Utils_codec.Memory_image_text.Natural.parse ~register_count:8 text)
 
   let print =
    fun (image : t) ->
-    Tiny_isa_shared.Image_text.print (image.regs, image.data_memory)
+    Utils_codec.Memory_image_text.Natural.print
+      { register = image.regs; memory = image.data_memory }
 end

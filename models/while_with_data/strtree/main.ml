@@ -20,11 +20,13 @@ type stmt =
   | While of bexp * stmt
 [@@deriving yojson]
 
-type value = AtomValue of string | ConsValue of value * value
+type value = Utils_data.Character_tree.t =
+  | AtomValue of string
+  | ConsValue of value * value
 [@@deriving yojson]
 
 type code = stmt [@@deriving yojson]
-type environment = (Utils_names.Identifier.t * value) list [@@deriving yojson]
+type environment = value Utils_data.Environment.t [@@deriving yojson]
 type ainput = environment
 type rinput = unit
 type routput = unit
@@ -136,22 +138,8 @@ end
 module Ainput = struct
   type t = ainput
 
-  let rec print_value = function
-    | AtomValue c -> "atom " ^ Utils_parsing.Char_literal.to_text c
-    | ConsValue (a, b) -> "cons " ^ print_value a ^ " " ^ print_value b
-
-  let rec lower_value = function
-    | Atom (AtomChar c) -> AtomValue c
-    | Cons (a, b) -> ConsValue (lower_value a, lower_value b)
-    | Var n ->
-        failwith
-          ("unexpected variable in value: " ^ Utils_names.Identifier.to_string n)
-    | Atom (Mtoa _) -> failwith "unexpected mtoa in value"
-    | Left _ | Right _ -> failwith "unexpected projection in value"
-
-  let parse_value =
-    L.parse ~character_literals:true (fun p -> lower_value (Code.parse_texp p))
-
+  let print_value = Utils_codec.Character_tree_text.print
+  let parse_value = Utils_codec.Character_tree_text.parse
   let parse = Utils_codec.Environment_text.parse parse_value
 
   let print =

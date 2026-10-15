@@ -6,6 +6,7 @@
   (libraries
    yojson
    utils_base
+   utils_data
    utils_codec
    utils_names
    utils_parsing
@@ -21,6 +22,7 @@
   (libraries
    yojson
    utils_base
+   utils_data
    utils_codec
    utils_names
    utils_parsing

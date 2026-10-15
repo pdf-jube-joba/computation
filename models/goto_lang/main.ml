@@ -1,5 +1,11 @@
-open Utils
-open Machine
+module Assoc = Utils_base.Assoc
+module Number = Utils_base.Number
+module Id = Utils_names.Id
+module Identifier = Utils_names.Identifier
+module Intern = Utils_names.Intern
+module Parser = Utils_parsing.Parser
+module Render = Utils_runtime.Render
+open Utils_runtime.Machine
 module Var_id = Id.Make ()
 module Variables = Intern.Make (Identifier) (Var_id)
 
@@ -12,7 +18,7 @@ type command =
 [@@deriving yojson]
 
 type code = command list [@@deriving yojson]
-type ainput = (Utils_names.Identifier.t * Number.t) list [@@deriving yojson]
+type ainput = Utils_data.Environment.Natural.t [@@deriving yojson]
 type rinput = unit
 type routput = unit
 type foutput = ainput

@@ -2,10 +2,7 @@ include module type of struct
   include Types
 end
 
-module Sign = Sign
 module State = State
-module Direction = Direction
-module Tape = Tape
 module Code = Code
 module Ainput = Tape
 module Rinput = Utils_codec.Text.Unit

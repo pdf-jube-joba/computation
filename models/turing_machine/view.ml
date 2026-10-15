@@ -1,15 +1,6 @@
 open Types
 
-let render_tape t =
-  let signs, pos = Tape.into_vec t in
-  Utils_runtime.Render.container ~title:"tape"
-    ~orientation:Utils_runtime.Render.Horizontal
-    (List.mapi
-       (fun i s ->
-         if i = pos then
-           Utils_runtime.Render.text ~class_name:"highlight" (Sign.print s)
-         else Utils_runtime.Render.text (Sign.print s))
-       signs)
+let render_tape = Utils_runtime.Data_view.tape Sign.print
 
 let render ~highlight s =
   let name = Code.state_name s.definition in

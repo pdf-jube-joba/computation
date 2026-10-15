@@ -1,5 +1,0 @@
-(library
- (name utils)
- (public_name computation.utils)
- (modules utils)
- (libraries utils_base utils_codec utils_names utils_parsing utils_runtime))

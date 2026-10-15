@@ -2,7 +2,7 @@ open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
 open Rec_tm_shared.Environment
 open Rec_tm_shared.Eval
-module T = Turing_machine.Main
+module T = Utils_codec.Tape_text.Identifier
 module L = Utils_parsing.Parser
 
 type lvalue = Rec_tm_shared.Syntax.lvalue =
@@ -42,10 +42,10 @@ type func = { name : Utils_names.Identifier.t; blocks : block list }
 type code = { alphabet : T.sign list; functions : func list }
 [@@deriving yojson]
 
-type ainput = T.tape
+type ainput = T.t
 type rinput = unit
 type routput = unit
-type foutput = T.tape
+type foutput = T.t
 
 type frame = {
   function_ : Utils_names.Identifier.t;
@@ -55,12 +55,7 @@ type frame = {
 }
 [@@deriving yojson]
 
-type state = {
-  program : code;
-  frame : frame;
-  stack : frame list;
-  tape : T.tape;
-}
+type state = { program : code; frame : frame; stack : frame list; tape : T.t }
 [@@deriving yojson]
 
 let stmt_vars = function
@@ -308,8 +303,8 @@ let step s () =
         in
         let pc pc = continue { next with frame = { next.frame with pc } } in
         match stmt with
-        | Lt -> continue { next with tape = T.Tape.move_to next.tape T.Left }
-        | Rt -> continue { next with tape = T.Tape.move_to next.tape T.Right }
+        | Lt -> continue { next with tape = T.move_to next.tape T.Left }
+        | Rt -> continue { next with tape = T.move_to next.tape T.Right }
         | Assign (dst, src) ->
             let env, tape =
               assign next.frame.env next.tape dst
@@ -379,7 +374,7 @@ let render s =
       Utils_runtime.Render.keyed_table
         ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
         (env_named s.frame.env);
-      Turing_machine.View.render_tape s.tape;
+      Utils_runtime.Data_view.tape T.Sign.print s.tape;
     ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape

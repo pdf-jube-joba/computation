@@ -1,4 +1,4 @@
-open Utils
+module Parser = Utils_parsing.Parser
 
 let pipe = Pipe.run
 let repl = Repl.run

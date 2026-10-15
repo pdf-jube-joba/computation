@@ -25,12 +25,12 @@ type state = {
   insts : inst array;
   symbols : symbols;
   debug_info : debug_info;
-  regs : N.t array;
+  regs : N.t Utils_data.Memory.t;
   flag : bool;
   pc : int;
   static_data_len : int;
   static_data : N.t list;
-  data_memory : N.t array;
+  data_memory : N.t Utils_data.Memory.t;
   halted : bool;
 }
 [@@deriving yojson]

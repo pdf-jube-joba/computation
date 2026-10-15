@@ -186,7 +186,7 @@ graph: main {
 
 ## OCaml implementation
 
-`main.ml` defines `Logic_circuit.Main` with the shared `Utils.Machine.S` contract.
+`main.ml` defines `Logic_circuit.Main` with the shared `Utils_runtime.Machine.S` contract.
 `Circuit` retains gates, synchronous graph composition, iterator state and graph
 views; `Parser`/`Parse` retain `graph:` and `iter:` definitions and signal text.
 `Example.utils_map ()` contains all six original example circuits.
@@ -202,7 +202,7 @@ input and output, and an empty iterator can be seeded through its external
 input or `$0`.
 
 Local vertex names resolve to typed integer IDs while stepping. Display names
-for instances use `Utils.Naming`; changing a display name does not change
+for instances use `Utils_names.Naming`; changing a display name does not change
 routing. External maps must point to existing vertices and ports, and snapshots
 with duplicate vertex names are rejected. Duplicate library definitions still
 keep the first definition.

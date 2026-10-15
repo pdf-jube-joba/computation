@@ -47,7 +47,7 @@ let make (code : code) ainput =
       })
 
 let eval_addr s = function
-  | VReg i -> Tiny_isa_shared.Memory.read s.vregs i
+  | VReg i -> Utils_data.Memory.read ~default:N.zero s.vregs i
   | Imm n -> n
   | Label n -> (
       match List.assoc_opt n s.compiled.static_labels with
@@ -62,10 +62,10 @@ let eval_addr s = function
 let eval_place s p = Utils_base.Error.get (N.to_int (eval_addr s p))
 
 let eval_value s = function
-  | VRegValue i -> Tiny_isa_shared.Memory.read s.vregs i
+  | VRegValue i -> Utils_data.Memory.read ~default:N.zero s.vregs i
   | ImmValue n -> n
   | LabelValue n -> eval_addr s (Label n)
-  | Deref p -> Tiny_isa_shared.Memory.read s.memory (eval_place s p)
+  | Deref p -> Utils_data.Memory.read ~default:N.zero s.memory (eval_place s p)
 
 let eval_cond s = function
   | Lt (a, b) ->
@@ -97,14 +97,18 @@ let step s () =
             (fun s -> function
               | Assign (dst, src) ->
                   let n = eval_value s src in
-                  { s with vregs = Tiny_isa_shared.Memory.write s.vregs dst n }
+                  {
+                    s with
+                    vregs =
+                      Utils_data.Memory.write ~default:N.zero s.vregs dst n;
+                  }
               | BinOp (dst, a, op, b) ->
                   let a = eval_value s a in
                   let b = eval_value s b in
                   {
                     s with
                     vregs =
-                      Tiny_isa_shared.Memory.write s.vregs dst
+                      Utils_data.Memory.write ~default:N.zero s.vregs dst
                         ((match op with Add -> N.add | Sub -> N.sub) a b);
                   }
               | Store (place, src) ->
@@ -112,7 +116,8 @@ let step s () =
                   let n = eval_value s src in
                   {
                     s with
-                    memory = Tiny_isa_shared.Memory.write s.memory addr n;
+                    memory =
+                      Utils_data.Memory.write ~default:N.zero s.memory addr n;
                   })
             s block.stmts
         in

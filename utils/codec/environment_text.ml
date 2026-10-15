@@ -39,3 +39,11 @@ let print ?trailing_newline value_text env =
     (List.map
        (fun (name, value) -> (Utils_names.Identifier.to_string name, value))
        env)
+
+module Natural = struct
+  type t = Utils_data.Environment.Natural.t
+
+  let parse = parse Utils_base.Number.of_string
+  let print_inline = print Utils_base.Number.to_string
+  let print = print ~trailing_newline:true Utils_base.Number.to_string
+end

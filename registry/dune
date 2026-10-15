@@ -40,5 +40,5 @@
   symbolic_asm
   tiny_isa
   turing_machine
-  utils
+  utils_codec
   utils_runtime))
