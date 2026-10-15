@@ -30,7 +30,7 @@ let insert library (name, circuit) =
 let result_exn = function Ok x -> x | Error message -> raise (L.Error message)
 
 let block p item =
-  L.group p ~opening:'{' (fun p -> L.many ~skip_separator:',' p item)
+  L.group p L.Braces (fun p -> L.many ~skip_separator:',' p item)
 
 let named_pin p =
   let n = L.identifier p in
@@ -51,7 +51,7 @@ let definitions p (maps : library) =
         L.expect_symbol p ':';
         let n = L.identifier p in
         let circuit =
-          L.group p ~opening:'{' (fun p ->
+          L.group p L.Braces (fun p ->
               L.expect_keyword p "in";
               let inpins = block p L.identifier in
               L.expect_keyword p "out";
@@ -105,7 +105,7 @@ let definitions p (maps : library) =
         L.expect_symbol p ':';
         let n = L.identifier p in
         let circuit =
-          L.group p ~opening:'{' (fun p ->
+          L.group p L.Braces (fun p ->
               let init_name = L.identifier p in
               L.expect_symbol p ',';
               let conn p =

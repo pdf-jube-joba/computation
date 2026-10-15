@@ -79,13 +79,13 @@ module Code = struct
             | "ZERO" -> Zero
             | "SUCC" -> Succ
             | "PROJ" ->
-                Parser.group p ~opening:'[' (fun p ->
+                Parser.group p Parser.Brackets (fun p ->
                     let n = Parser.integer p in
                     Parser.expect_symbol p ',';
                     let i = Parser.integer p in
                     Proj (n, i))
             | "COMP" ->
-                Parser.group p ~opening:'[' (fun p ->
+                Parser.group p Parser.Brackets (fun p ->
                     let outer = func p in
                     Parser.expect_symbol p ':';
                     let items p =
@@ -93,8 +93,8 @@ module Code = struct
                         func
                     in
                     let inner =
-                      if Parser.peek p = Parser.Symbol '(' then (
-                        let xs = Parser.group p ~opening:'(' items in
+                      if Parser.is_group p Parser.Parentheses then (
+                        let xs = Parser.group p Parser.Parentheses items in
                         ignore (Parser.bump_if_symbol p ',');
                         xs @ items p)
                       else
@@ -104,13 +104,13 @@ module Code = struct
                     in
                     Comp (outer, inner))
             | "PRIM" ->
-                Parser.group p ~opening:'[' (fun p ->
+                Parser.group p Parser.Brackets (fun p ->
                     Parser.expect p "z:";
                     let z = func p in
                     Parser.expect p "s:";
                     let s = func p in
                     Prim (z, s))
-            | "MUOP" -> Parser.group p ~opening:'[' (fun p -> Mu (func p))
+            | "MUOP" -> Parser.group p Parser.Brackets (fun p -> Mu (func p))
             | name -> (
                 match List.assoc_opt name !bindings with
                 | Some f -> f
@@ -250,7 +250,7 @@ module Ainput = struct
 
   let parse =
     Parser.parse (fun p ->
-        Parser.group p ~opening:'(' (fun p ->
+        Parser.group p Parser.Parentheses (fun p ->
             Parser.separated_list ~allow_trailing:true p ~separator:','
               Parser.natural))
 

@@ -38,14 +38,14 @@ module Make (Value : VALUE) = struct
   let move_to = Utils_data.Tape.move_to ~default:Value.default
   let equal = Utils_data.Tape.equal ~default:Value.default ~equal:Value.equal
 
-  let parse_side text =
-    if String.trim text = "" then []
-    else
-      List.map (fun x -> unwrap (Value.parse x)) (String.split_on_char ',' text)
-
-  let print_side values = String.concat "," (List.map Value.print values)
-
   let parse text =
+    let parse_side text =
+      if String.trim text = "" then []
+      else
+        List.map
+          (fun x -> unwrap (Value.parse x))
+          (String.split_on_char ',' text)
+    in
     Utils_parsing.Parser.protect (fun () ->
         match String.split_on_char '|' text with
         | [ l; h; r ] ->
@@ -57,6 +57,7 @@ module Make (Value : VALUE) = struct
         | _ -> failwith "Invalid tape format | format ... 0,1,2|3|4,5,6")
 
   let print (t : t) =
+    let print_side values = String.concat "," (List.map Value.print values) in
     print_side (List.rev t.left)
     ^ "|" ^ Value.print t.head ^ "|" ^ print_side t.right
 end

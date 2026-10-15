@@ -48,7 +48,7 @@ let rec parse_place p =
   match L.peek p with
   | L.Ident _ -> Var (L.identifier p)
   | _ ->
-      let v = L.group p ~opening:'(' parse_value in
+      let v = L.group p L.Parentheses parse_value in
       L.expect p "#loc";
       Deref v
 
@@ -65,7 +65,7 @@ and parse_value p =
 and parse_atom p =
   if L.bump_if p "#null_ptr" then NullPtr
   else if L.bump_if_keyword p "ld" then Load (parse_place p)
-  else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_value
+  else if L.is_group p L.Parentheses then L.group p L.Parentheses parse_value
   else
     match L.peek p with
     | L.Number _ -> Number (Int64.of_string (N.to_string (L.natural p)))
@@ -90,7 +90,7 @@ let rec parse_stmt p =
   else if L.bump_if_keyword p "call" then
     let n = L.identifier p in
     let args =
-      L.group p ~opening:'(' (fun p ->
+      L.group p L.Parentheses (fun p ->
           L.separated_list p ~separator:',' parse_value)
     in
     Call (n, args)
@@ -105,11 +105,11 @@ let parse =
             L.expect_keyword p "fn";
             let name = L.identifier p in
             let params =
-              L.group p ~opening:'(' (fun p ->
+              L.group p L.Parentheses (fun p ->
                   L.separated_list p ~separator:',' L.identifier)
             in
             let body =
-              L.group p ~opening:'{' (fun p ->
+              L.group p L.Braces (fun p ->
                   L.separated_list ~allow_trailing:true p ~separator:';'
                     parse_stmt)
             in

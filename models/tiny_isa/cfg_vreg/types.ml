@@ -17,8 +17,8 @@ type state = {
   code : code;
   compiled : compiled_program;
   current_block : int;
-  vregs : N.t Utils_data.Memory.t;
-  memory : N.t Utils_data.Memory.t;
+  vregs : N.t array;
+  memory : N.t array;
   halted : bool;
 }
 [@@deriving yojson]

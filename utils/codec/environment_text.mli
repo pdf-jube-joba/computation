@@ -10,7 +10,7 @@ val parse :
   ?invalid_line:(string -> string) ->
   (string -> ('value, string) result) ->
   string ->
-  ('value Utils_data.Environment.t, string) result
+  ((Utils_names.Identifier.t * 'value) list, string) result
 
 val print_lines :
   ?trailing_newline:bool ->
@@ -21,11 +21,11 @@ val print_lines :
 val print :
   ?trailing_newline:bool ->
   ('value -> string) ->
-  'value Utils_data.Environment.t ->
+  (Utils_names.Identifier.t * 'value) list ->
   string
 
 module Natural : sig
-  type t = Utils_data.Environment.Natural.t
+  type t = (Utils_names.Identifier.t * Utils_base.Number.t) list
 
   val parse : string -> (t, string) result
   val print : t -> string

@@ -27,10 +27,14 @@ module Code = struct
     let rec application env p =
       let first = atom env p in
       let rec rest left =
-        match L.peek p with
-        | L.Ident _ | L.Symbol '(' | L.Symbol '\\' ->
-            rest (App (left, atom env p))
-        | _ -> left
+        let starts_atom =
+          L.is_group p L.Parentheses
+          ||
+          match L.peek p with
+          | L.Ident _ | L.Symbol '\\' -> true
+          | _ -> false
+        in
+        if starts_atom then rest (App (left, atom env p)) else left
       in
       rest first
     and atom env p =
@@ -42,7 +46,8 @@ module Code = struct
               (Utils_names.Identifier.make_exn name)
           in
           Var var
-      | L.Symbol '(' -> L.group p ~opening:'(' (application env)
+      | _ when L.is_group p L.Parentheses ->
+          L.group p L.Parentheses (application env)
       | L.Symbol '\\' ->
           ignore (L.bump p);
           let rec binders env acc =

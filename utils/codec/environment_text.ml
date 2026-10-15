@@ -41,7 +41,7 @@ let print ?trailing_newline value_text env =
        env)
 
 module Natural = struct
-  type t = Utils_data.Environment.Natural.t
+  type t = (Utils_names.Identifier.t * Utils_base.Number.t) list
 
   let parse = parse Utils_base.Number.of_string
   let print_inline = print Utils_base.Number.to_string

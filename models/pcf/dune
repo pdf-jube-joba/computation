@@ -3,7 +3,7 @@
  (library
   (name pcf_shared)
   (public_name computation.pcf_shared)
-  (libraries yojson utils_base utils_codec utils_names utils_parsing)
+  (libraries yojson utils_base utils_codec utils_names utils_parsing utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 

@@ -46,9 +46,8 @@ val parse :
   ('a, string) result
 
 val peek : t -> token
-(** Flat token access remains available for grammars that explicitly consume
-    opening and closing symbols. At the end of a scope, bump returns Eof and
-    does not advance. *)
+(** At the end of a scope, returns Eof. Use [is_group] to recognize groups and
+    [group] to consume them. *)
 
 val bump : t -> token
 val eof : t -> bool
@@ -56,7 +55,7 @@ val expect_eof : t -> unit
 
 val bump_if : t -> string -> bool
 (** Match a token sequence atomically. A failed match leaves the cursor intact.
-    Patterns may contain partial brackets, e.g. ") ->". *)
+    Use [group] for bracketed syntax. *)
 
 val expect : t -> string -> unit
 val bump_if_symbol : t -> char -> bool
@@ -73,13 +72,15 @@ val integer : t -> int
 val string_literal : t -> string
 val character_literal : t -> string
 
-val group : t -> opening:char -> (t -> 'a) -> 'a
+val is_group : t -> delimiter -> bool
+(** Whether the next item is a group with the given delimiter. *)
+
+val group : t -> delimiter -> (t -> 'a) -> 'a
 (** Read an already matched group through a child parser. The child sees Eof at
     the closing bracket and must consume all its contents. The parent advances
-    past the whole group only on success. Opening must be a parenthesis, square
-    bracket or brace. *)
+    past the whole group only on success. *)
 
-val bump_group_if : t -> opening:char -> (t -> 'a) -> 'a option
+val bump_group_if : t -> delimiter -> (t -> 'a) -> 'a option
 (** None means the opening bracket is absent; errors inside a group propagate.
 *)
 
@@ -143,16 +144,4 @@ val separated_list :
     [skip_empty] ignores empty fields, including leading, repeated and trailing
     separators. This matches the permissive list format used by input codecs. *)
 
-val many_until :
-  ?skip_separator:char -> t -> closing:char -> (t -> 'a) -> 'a list
-(** Flat token helpers for grammars with explicit closing symbols. *)
-
 val separated : t -> separator:char -> (t -> 'a) -> 'a list
-
-val separated_until :
-  ?allow_trailing:bool ->
-  t ->
-  separator:char ->
-  closing:char ->
-  (t -> 'a) ->
-  'a list

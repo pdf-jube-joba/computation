@@ -63,23 +63,23 @@ module Code = struct
     if L.bump_if_keyword p "Nop" then Nop
     else if L.bump_if_keyword p "if" then
       let c = parse_bexp p in
-      let b = L.group p ~opening:'[' parse_stmt in
+      let b = L.group p L.Brackets parse_stmt in
       If (c, b)
     else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      let b = L.group p ~opening:'[' parse_stmt in
+      let b = L.group p L.Brackets parse_stmt in
       While (c, b)
     else if L.bump_if_keyword p "call" then (
       let n = L.identifier p in
       let args =
-        L.group p ~opening:'(' (fun p ->
+        L.group p L.Parentheses (fun p ->
             L.separated_list p ~separator:',' L.identifier)
       in
       L.expect p "->";
       let rets = names_boundary p in
       Call (n, args, rets))
     else if L.bump_if_keyword p "return" then Return (names_boundary p)
-    else if L.peek p = L.Symbol '[' then L.group p ~opening:'[' parse_stmt
+    else if L.is_group p L.Brackets then L.group p L.Brackets parse_stmt
     else
       let v = L.identifier p in
       L.expect p ":=";
@@ -94,11 +94,11 @@ module Code = struct
           L.many p (fun p ->
               let name = L.identifier p in
               let params =
-                L.group p ~opening:'(' (fun p ->
+                L.group p L.Parentheses (fun p ->
                     L.separated_list p ~separator:',' L.identifier)
               in
               let locals, body =
-                L.group p ~opening:'[' (fun p ->
+                L.group p L.Brackets (fun p ->
                     L.expect_keyword p "local";
                     let locals = names_boundary p in
                     let body = parse_stmt p in
@@ -151,12 +151,13 @@ module Code = struct
            c.procs)
 end
 
-let rec ends_with_return = function
-  | Return _ -> true
-  | Seq (_, b) -> ends_with_return b
-  | _ -> false
-
-let with_implicit_return s = if ends_with_return s then s else Seq (s, Return [])
+let with_implicit_return s =
+  let rec ends_with_return = function
+    | Return _ -> true
+    | Seq (_, b) -> ends_with_return b
+    | _ -> false
+  in
+  if ends_with_return s then s else Seq (s, Return [])
 
 let lookup_var s v =
   match List.assoc_opt v s.local_env with

@@ -104,8 +104,8 @@ and parse_place p =
   else if L.bump_if_keyword p "deref" then Deref (vreg p)
   else if L.bump_if_keyword p "sacc" then SAcc (parse_value p)
   else if L.bump_if_keyword p "hacc" then
-    let h = L.group p ~opening:'(' parse_value in
-    let i = L.group p ~opening:'[' parse_value in
+    let h = L.group p L.Parentheses parse_value in
+    let i = L.group p L.Brackets parse_value in
     HAcc (h, i)
   else L.error p "Expected place expression"
 
@@ -130,7 +130,7 @@ let parse_stmt p =
     else if L.bump_if_keyword p "print" then Print (vreg p)
     else if L.bump_if_keyword p "input" then Input (parse_place p)
     else if L.bump_if_keyword p "halloc" then
-      let v = L.group p ~opening:'(' parse_value in
+      let v = L.group p L.Parentheses parse_value in
       let r = vreg p in
       HAlloc (v, r)
     else if L.peek p = L.Symbol '%' then (
@@ -153,7 +153,7 @@ let parse_stmt p =
 let parse_block p =
   L.expect_symbol p ':';
   let label = L.identifier p in
-  L.group p ~opening:'{' (fun p ->
+  L.group p L.Braces (fun p ->
       let rec loop stmts jumps cont =
         if L.eof p then
           {
@@ -197,7 +197,7 @@ let parse =
         else (
           L.expect_symbol p ':';
           let label = L.identifier p in
-          let blocks = L.group p ~opening:'{' (fun p -> L.many p parse_block) in
+          let blocks = L.group p L.Braces (fun p -> L.many p parse_block) in
           if blocks = [] then L.error p "Region has no blocks";
           loop ss ({ label; blocks } :: rs))
       in

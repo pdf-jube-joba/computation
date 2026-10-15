@@ -26,7 +26,7 @@ type value = Utils_data.Character_tree.t =
 [@@deriving yojson]
 
 type code = stmt [@@deriving yojson]
-type environment = value Utils_data.Environment.t [@@deriving yojson]
+type environment = (Utils_names.Identifier.t * value) list [@@deriving yojson]
 type ainput = environment
 type rinput = unit
 type routput = unit
@@ -82,7 +82,7 @@ module Code = struct
 
   let rec parse_aexp p =
     if L.bump_if_keyword p "mtoa" then Mtoa (parse_texp p)
-    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_aexp
+    else if L.is_group p L.Parentheses then L.group p L.Parentheses parse_aexp
     else AtomChar (L.character_literal p)
 
   and parse_texp p =
@@ -93,7 +93,7 @@ module Code = struct
       Cons (a, b)
     else if L.bump_if_keyword p "left" then Left (parse_texp p)
     else if L.bump_if_keyword p "right" then Right (parse_texp p)
-    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_texp
+    else if L.is_group p L.Parentheses then L.group p L.Parentheses parse_texp
     else Var (parse_name p)
 
   let parse_bexp p =
@@ -108,7 +108,7 @@ module Code = struct
       in
       match L.attempt p relation with
       | Ok c -> c
-      | Error _ -> L.group p ~opening:'(' relation
+      | Error _ -> L.group p L.Parentheses relation
 
   let rec parse_stmt p =
     L.chain_left p ~separator:';' ~combine:(fun a b -> Seq (a, b)) parse_single
@@ -123,9 +123,9 @@ module Code = struct
       IfEq (c, b))
     else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      let b = L.group p ~opening:'{' parse_stmt in
+      let b = L.group p L.Braces parse_stmt in
       While (c, b)
-    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_stmt
+    else if L.is_group p L.Parentheses then L.group p L.Parentheses parse_stmt
     else
       let n = parse_name p in
       L.expect p ":=";

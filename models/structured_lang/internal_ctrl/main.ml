@@ -46,7 +46,7 @@ module Code = struct
       ~combine:(fun a b -> Seq (a, b))
       parse_single
 
-  and parse_block p = L.group p ~opening:'{' parse_stmt
+  and parse_block p = L.group p L.Braces parse_stmt
 
   and parse_single p =
     if L.bump_if_keyword p "Nop" then Nop
@@ -61,11 +61,11 @@ module Code = struct
     else if L.bump_if_keyword p "continue" then Continue (label p)
     else if L.bump_if_keyword p "loop" then (
       let l = label p in
-      let b = L.group p ~opening:'(' parse_stmt in
+      let b = L.group p L.Parentheses parse_stmt in
       L.expect p "->";
       let v = L.identifier p in
       Loop (l, b, v))
-    else if L.peek p = L.Symbol '{' then parse_block p
+    else if L.is_group p L.Braces then parse_block p
     else
       let v = L.identifier p in
       L.expect p ":=";

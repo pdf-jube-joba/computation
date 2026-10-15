@@ -1,5 +1,3 @@
-type 'a t = 'a array [@@deriving yojson]
-
 let read ~default array addr =
   if addr < 0 then failwith "Negative address"
   else if addr < Array.length array then array.(addr)

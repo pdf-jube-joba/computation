@@ -7,7 +7,9 @@ type rvalue = Var of Utils_names.Identifier.t | Head | Const of T.sign
 [@@deriving yojson]
 
 type condition = { left : rvalue; right : rvalue } [@@deriving yojson]
-type named_environment = T.sign Utils_data.Environment.t [@@deriving yojson]
+
+type named_environment = (Utils_names.Identifier.t * T.sign) list
+[@@deriving yojson]
 
 let keywords =
   [
@@ -40,7 +42,7 @@ let sign p =
 
 let alphabet p =
   L.expect p "alphabet:";
-  L.group p ~opening:'(' (fun p ->
+  L.group p L.Parentheses (fun p ->
       L.separated_list ~allow_trailing:true p ~separator:',' sign)
 
 let lvalue ?keywords p : lvalue =

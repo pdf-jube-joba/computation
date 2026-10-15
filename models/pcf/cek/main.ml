@@ -76,33 +76,25 @@ let step s () =
 let snapshot = state_to_yojson
 let restore = state_of_yojson
 
-let env_from_kont k =
-  List.find_map
-    (function
-      | BinOpLeft (_, _, env) | AppFun (_, env) | IfFrame (_, _, env) ->
-          Some env
-      | _ -> None)
-    k
-  |> Option.value ~default:[]
-
 let render s =
-  let open Utils_runtime.Render in
+  let env_from_kont k =
+    List.find_map
+      (function
+        | BinOpLeft (_, _, env) | AppFun (_, env) | IfFrame (_, _, env) ->
+            Some env
+        | _ -> None)
+      k
+    |> Option.value ~default:[]
+  in
   let mode, focus, env, k =
     match s.state with
     | Eval (e, env, k) -> ("eval", Code.print e, env, k)
     | Return (v, k) -> ("return", value_text v, env_from_kont k, k)
   in
-  state
-    [
-      text ~title:"code" (Code.print s.code);
-      text_table ~title:"state" ~columns:[ "field"; "value" ]
-        [ [ "mode"; mode ]; [ "focus"; focus ] ];
-      keyed_table ~key_text:Utils_names.Identifier.to_string ~title:"env"
-        ~columns:[ "name"; "value" ] value_text (List.rev env);
-      indexed_table ~title:"kont" ~columns:[ "depth"; "frame" ]
-        (fun f -> Yojson.Safe.to_string (frame_to_yojson f))
-        k;
-    ]
+  Pcf_shared.View.continuation ~code:(Code.print s.code) ~mode ~focus
+    ~bindings:env
+    ~frame_text:(fun f -> Yojson.Safe.to_string (frame_to_yojson f))
+    k
 
 module Ainput = Pcf_shared.Io.Ainput
 module Rinput = Utils_codec.Text.Unit

@@ -74,7 +74,7 @@ module P = Utils_parsing.Parser
 let parse_numbers =
   P.parse (fun p ->
       P.expect_keyword p "numbers";
-      P.group p ~opening:'[' (fun inside ->
+      P.group p P.Brackets (fun inside ->
           P.separated_list inside ~separator:',' P.natural))
 (* 自然数の表示には Utils_base.Number.to_string を使う。 *)
 ```
@@ -82,12 +82,13 @@ let parse_numbers =
 `group` は対応済みの括弧の中だけを読む parser を渡します。その parser は
 閉じ括弧の位置で `Eof` を返し、中身を読み切ると親が閉じ括弧の先へ進みます。
 中身の読み取りが失敗した場合は親の位置を進めません。
-`bump_group_if` は指定の開き括弧がなければ `None` を返します。
+括弧の種類は `Parentheses`・`Brackets`・`Braces` で指定します。
+`is_group` で次のグループの種類を確認し、`bump_group_if` は指定のグループがなければ `None` を返します。
 
 `peek` は次の token の確認、`bump` は一つの消費、`bump_if` は一致した
 token 列の消費、`expect` は必須の token 列の消費です。
-`bump_if` は不一致なら位置を戻します。既存の文法では括弧を個別の
-`expect_symbol` で読むこともできます。後戻りには `checkpoint` / `restore` を使います。
+`bump_if` は不一致なら位置を戻します。括弧付きの構文は `group` で読みます。
+後戻りには `checkpoint` / `restore` を使います。
 失敗時の復元まで含めた試行には `attempt` を使います。
 `parse` は読み残しを検査して `(値, string) result` にまとめます。
 
@@ -140,12 +141,14 @@ symbolic assembly や CSV 形式の行単位 parser は、`String_ext`・`Number
 
 ## 入出力のデータ
 
-テープ・メモリ・レジスタ画像・環境・文字のリストと木は `Utils_data` に定義します。
+文字リストは `string list`、メモリは `'a array`、環境は `(Identifier.t * 'a) list` を直接使います。
+テープ・レジスタ画像・文字の木の型と、配列メモリの操作は `Utils_data` に定義します。
 テキスト変換は `Utils_codec.Tape_text`、`Memory_image_text`、`Natural_lines`、
 `Environment_text`、`Character_list_text`、`Character_tree_text` を使います。
 テープ・メモリ・レジスタ画像は要素型に関して polymorphic です。操作には `~default` を渡し、
 テープの codec は `Tape_text.Make`、画像の codec は `Memory_image_text.Make` で具体化します。
-テープの共通描画 `Utils_runtime.Data_view.tape` には要素を表示する関数を渡します。
+`Utils_runtime.Render.highlight` は任意のリストの指定位置を強調表示します。
+テープには `Tape.into_vec` で得たセルのリストとヘッド位置を渡します。
 新しいモデルからデータを共有するときは、他モデルの `Main` を経由せずこれらを参照します。
 環境入力の並び順、予約語、使用できる記号、レジスタ数などモデル固有の制約は各モデルで扱います。
 
