@@ -110,24 +110,24 @@ module Code = struct
         { statics; procs })
 
   let rec stmt_to_text = function
-    | Nop -> "Nop"
+    | Nop -> "\\Nop"
     | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
     | Assign (v, a) -> Utils_names.Identifier.to_string v ^ " := " ^ aexp_text a
-    | If (c, b) -> "if " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
-    | While (c, b) -> "while " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
+    | If (c, b) -> "\\if " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
+    | While (c, b) -> "\\while " ^ bexp_text c ^ " [" ^ stmt_to_text b ^ "]"
     | Call (n, args, rets) ->
-        "call "
+        "\\call "
         ^ Utils_names.Identifier.to_string n
         ^ "("
         ^ String.concat ", " (List.map Utils_names.Identifier.to_string args)
         ^ ") -> "
         ^ String.concat ", " (List.map Utils_names.Identifier.to_string rets)
     | Return vs ->
-        "return "
+        "\\return "
         ^ String.concat ", " (List.map Utils_names.Identifier.to_string vs)
 
   let print c =
-    "static"
+    "\\static"
     ^ (if c.statics = [] then ""
        else
          " "
@@ -141,7 +141,7 @@ module Code = struct
              ^ "("
              ^ String.concat ", "
                  (List.map Utils_names.Identifier.to_string p.params)
-             ^ ")[\n  local"
+             ^ ")[\n  \\local"
              ^ (if p.locals = [] then ""
                 else
                   " "

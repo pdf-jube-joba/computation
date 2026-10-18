@@ -16,12 +16,22 @@ let equal message expected actual =
 
 let fixtures = Yojson.Safe.from_file "model_fixtures.json" |> Json.list
 
+let text_roundtrip name (module Text : Utils_data.Text.S) input =
+  let printed = Text.print (get (Text.parse input)) in
+  equal
+    (name ^ ": text roundtrip")
+    printed
+    (Text.print (get (Text.parse printed)))
+
 let run_fixture fixture =
   let string key = Json.string (Json.field key fixture) in
   let name = string "name" in
   let module M = (val get (Registry.model name)) in
   let module S = Session_json.Make (M) in
   let module Typed = Session.Make (M) in
+  text_roundtrip (name ^ " code") (module M.Code) (string "code");
+  text_roundtrip (name ^ " ainput") (module M.Ainput) (string "ainput");
+  text_roundtrip (name ^ " rinput") (module M.Rinput) (string "rinput");
   let session = S.create () in
   get (S.make session (string "code") (string "ainput"));
   (match
@@ -124,7 +134,7 @@ let session_errors () =
   let module M = (val get (Registry.model "example_counter")) in
   let module S = Session_json.Make (M) in
   let session = S.create () in
-  check "step before make" (Result.is_error (S.step session "inc"));
+  check "step before make" (Result.is_error (S.step session "\\inc"));
   get (S.make session "3" "");
   let saved = get (S.snapshot session) in
   List.iter
@@ -140,7 +150,7 @@ let session_errors () =
   let module M = (val get (Registry.model "flow_ir")) in
   let module S = Session_json.Make (M) in
   let session = S.create () in
-  get (S.make session ":main { :entry { %x := ld sacc #0; halt; } }" "");
+  get (S.make session ":main { :entry { %x := \\ld \\sacc #0; \\halt; } }" "");
   let saved = get (S.snapshot session) in
   check "invalid memory read accepted" (Result.is_error (S.step session ""));
   check "failed execution changed state" (saved = get (S.snapshot session))

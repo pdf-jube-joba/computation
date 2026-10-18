@@ -22,4 +22,17 @@
 (test
  (name parsing)
  (modules parsing)
- (libraries utils_base utils_parsing))
+ (libraries utils_base utils_names utils_parsing))
+
+(test
+ (name keywords)
+ (modules keywords)
+ (libraries
+  model_registry
+  utils_base
+  utils_data
+  utils_runtime
+  fn_ptr
+  flow_ir
+  lambda_continuations_shared
+  my_hdl))

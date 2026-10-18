@@ -48,13 +48,14 @@ module Ainput = Utils_data.Text.Unit
 module Rinput = struct
   type t = rinput
 
-  let parse text =
-    match String.trim text with
-    | "inc" -> Ok Increment
-    | "dec" -> Ok Decrement
-    | _ -> Error "Expected inc or dec"
+  let parse =
+    Utils_parsing.Parser.parse (fun p ->
+        match Utils_parsing.Parser.keyword p with
+        | "inc" -> Increment
+        | "dec" -> Decrement
+        | _ -> Utils_parsing.Parser.error p "Expected \\inc or \\dec")
 
-  let print = function Increment -> "inc" | Decrement -> "dec"
+  let print = function Increment -> "\\inc" | Decrement -> "\\dec"
 end
 
 module Routput = Utils_data.Text.String

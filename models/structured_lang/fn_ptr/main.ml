@@ -11,7 +11,7 @@ let rec eval_place s = function
   | Deref v -> (
       match eval_value s v with
       | Location loc -> loc
-      | Null_ptr -> failwith "cannot dereference #null_ptr"
+      | Null_ptr -> failwith "cannot dereference \\null_ptr"
       | Num _ -> failwith "dereference expects a location value")
 
 and eval_value s = function

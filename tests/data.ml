@@ -70,7 +70,7 @@ let polymorphic_data () =
       | _ -> Error "Expected bit"
   end in
   let module Bits = Utils_data.Tape.Make (Bit) in
-  let tape = get (Bits.parse "#true|#false|#true") in
+  let tape = get (Bits.parse "\\true|\\false|\\true") in
   let left = Bits.move_to tape Bits.Left in
   check "generic tape stores boolean cells" left.head;
   check "generic tape uses its supplied default"
@@ -91,7 +91,7 @@ let polymorphic_data () =
   check "generic memory reads missing cells as its supplied default"
     (Memory.read ~default:"empty" extended 5 = "empty");
   let module Image = Utils_data.Memory_image.Make (Bit) in
-  let image = get (Image.parse ~register_count:2 "#false, #true\n#true") in
+  let image = get (Image.parse ~register_count:2 "\\false, \\true\n\\true") in
   check "generic image uses the element codec"
     (get (Image.parse ~register_count:2 (Image.print image)) = image)
 
@@ -111,10 +111,10 @@ let codecs () =
   check "character input rejects expressions"
     (Result.is_error (Chars.parse "head ['a']"));
   let module Tree = Utils_data.Character_tree in
-  let tree = get (Tree.parse "(cons (atom (('あ'))) (atom '\\n'))") in
+  let tree = get (Tree.parse "(\\cons (\\atom (('あ'))) (\\atom '\\n'))") in
   check "character tree roundtrip" (get (Tree.parse (Tree.print tree)) = tree);
   check "tree input rejects projections"
-    (Result.is_error (Tree.parse "left (cons atom 'a' atom 'b')"));
+    (Result.is_error (Tree.parse "\\left (\\cons \\atom 'a' \\atom 'b')"));
   let module Env = Utils_data.Environment.Natural in
   let env = get (Env.parse "x = 2\ny = 3\nx = 4") in
   check "environment keeps the last assignment"

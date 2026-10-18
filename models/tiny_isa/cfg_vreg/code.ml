@@ -83,13 +83,15 @@ let parse_stmt text =
   else None
 
 let parse_jump_if text =
-  if String.starts_with ~prefix:"if " text && String.ends_with ~suffix:";" text
+  if
+    String.starts_with ~prefix:"\\if " text && String.ends_with ~suffix:";" text
   then Some (Utils_base.Error.get (P.parse read_jump_if text))
   else None
 
 let parse_goto text =
   if
-    String.starts_with ~prefix:"goto " text && String.ends_with ~suffix:";" text
+    String.starts_with ~prefix:"\\goto " text
+    && String.ends_with ~suffix:";" text
   then Some (Utils_base.Error.get (P.parse read_goto text))
   else None
 
@@ -106,27 +108,27 @@ let parse =
                       P.error p
                         ("Block @"
                         ^ Utils_names.Identifier.to_string label
-                        ^ " missing final goto")
+                        ^ " missing final \\goto")
                 in
                 {
                   label;
                   stmts = List.rev stmts;
                   cont = { ifs = List.rev ifs; jump };
                 }
-              else if P.peek p = P.Ident "if" then
+              else if P.peek p = P.Keyword "if" then
                 let jump_if = read_jump_if p in
                 body stmts (jump_if :: ifs) jump
-              else if P.peek p = P.Ident "goto" then (
+              else if P.peek p = P.Keyword "goto" then (
                 if jump <> None then
                   P.error p
-                    ("Multiple final goto in block @"
+                    ("Multiple final \\goto in block @"
                     ^ Utils_names.Identifier.to_string label);
                 let target = read_goto p in
                 body stmts ifs (Some target))
               else (
                 if jump <> None then
                   P.error p
-                    ("Statement after goto in block @"
+                    ("Statement after \\goto in block @"
                     ^ Utils_names.Identifier.to_string label);
                 let stmt = read_stmt p in
                 body (stmt :: stmts) ifs jump)
@@ -192,8 +194,8 @@ let print (code : code) =
           ^ String.concat ""
               (List.map
                  (fun j ->
-                   "  if " ^ cond_to_text j.cond ^ " then "
+                   "  \\if " ^ cond_to_text j.cond ^ " \\then "
                    ^ addr_to_text j.target ^ ";\n")
                  b.cont.ifs)
-          ^ "  goto " ^ addr_to_text b.cont.jump ^ ";\n}\n")
+          ^ "  \\goto " ^ addr_to_text b.cont.jump ^ ";\n}\n")
         code.blocks)

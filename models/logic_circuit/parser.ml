@@ -40,10 +40,21 @@ let named_pin p =
 
 let definitions p (maps : library) =
   let maps = ref maps in
+  let builtins = init_maps () in
   let lookup p n =
     match List.assoc_opt n !maps with
     | Some c -> c
     | None -> L.error p ("not found name " ^ Utils_names.Identifier.to_string n)
+  in
+  let circuit_reference p =
+    match L.peek p with
+    | L.Keyword _ -> (
+        let name = L.keyword p in
+        let key = Utils_names.Identifier.make_exn name in
+        match List.assoc_opt key builtins with
+        | Some circuit -> circuit
+        | None -> L.error p ("Unknown builtin gate: \\" ^ name))
+    | _ -> lookup p (L.identifier p)
   in
   while not (L.eof p) do
     let circuit_name, circuit =
@@ -68,8 +79,7 @@ let definitions p (maps : library) =
                 else
                   let vn = L.identifier p in
                   L.expect_symbol p ',';
-                  let used = L.identifier p in
-                  let c = lookup p used in
+                  let c = circuit_reference p in
                   let conns =
                     block p (fun p ->
                         let pin = L.identifier p in
@@ -106,7 +116,7 @@ let definitions p (maps : library) =
         let n = L.identifier p in
         let circuit =
           L.group p L.Braces (fun p ->
-              let init_name = L.identifier p in
+              let initial = circuit_reference p in
               L.expect_symbol p ',';
               let conn p =
                 let a = L.identifier p in
@@ -118,7 +128,7 @@ let definitions p (maps : library) =
               let next = block p conn in
               L.expect_keyword p "prev";
               let prev = block p conn in
-              result_exn (new_iter n (lookup p init_name) next prev))
+              result_exn (new_iter n initial next prev))
         in
         (n, circuit))
       else L.error p "expected graph or iter"
@@ -145,7 +155,7 @@ module Code = struct
         Result.bind (Utils_data.Json.decode text) (fun json ->
             Result.bind (of_yojson json) (fun circuit ->
                 Result.map (fun () -> circuit) (validate circuit)))
-    | _ -> parse_main_with_maps text (init_maps ())
+    | _ -> parse_main_with_maps text []
 
   let print circuit = Yojson.Safe.pretty_to_string (to_yojson circuit)
 end

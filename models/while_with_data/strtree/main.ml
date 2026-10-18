@@ -37,48 +37,30 @@ module Code = struct
   type t = code
 
   let rec aexp_to_text = function
-    | Mtoa t -> "mtoa " ^ texp_to_text t
+    | Mtoa t -> "\\mtoa " ^ texp_to_text t
     | AtomChar c -> Utils_parsing.Char_literal.to_text c
 
   and texp_to_text = function
     | Var n -> Utils_names.Identifier.to_string n
-    | Atom a -> "atom " ^ aexp_to_text a
-    | Cons (a, b) -> "cons " ^ texp_to_text a ^ " " ^ texp_to_text b
-    | Left a -> "left " ^ texp_to_text a
-    | Right a -> "right " ^ texp_to_text a
+    | Atom a -> "\\atom " ^ aexp_to_text a
+    | Cons (a, b) -> "\\cons " ^ texp_to_text a ^ " " ^ texp_to_text b
+    | Left a -> "\\left " ^ texp_to_text a
+    | Right a -> "\\right " ^ texp_to_text a
 
   let bexp_to_text = function
-    | IsAtom a -> "is_atom " ^ texp_to_text a
+    | IsAtom a -> "\\is_atom " ^ texp_to_text a
     | Eq (a, b) -> "(" ^ texp_to_text a ^ " == " ^ texp_to_text b ^ ")"
 
   let rec print = function
-    | Nop -> "Nop"
+    | Nop -> "\\Nop"
     | Assign (n, a) ->
         Utils_names.Identifier.to_string n ^ " := " ^ texp_to_text a
     | Seq (a, b) -> print a ^ " ; " ^ print b
-    | IfEq (c, b) -> "ifeq " ^ bexp_to_text c ^ " then " ^ print b ^ " end"
-    | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ print b ^ " }"
+    | IfEq (c, b) ->
+        "\\ifeq " ^ bexp_to_text c ^ " \\then " ^ print b ^ " \\end"
+    | While (c, b) -> "\\while " ^ bexp_to_text c ^ " { " ^ print b ^ " }"
 
-  let reserved =
-    [
-      "Nop";
-      "ifeq";
-      "then";
-      "end";
-      "while";
-      "is_atom";
-      "mtoa";
-      "atom";
-      "cons";
-      "left";
-      "right";
-    ]
-
-  let parse_name p =
-    let n = L.identifier p in
-    if List.mem (Utils_names.Identifier.to_string n) reserved then
-      failwith "Expected identifier";
-    n
+  let parse_name = L.identifier
 
   let rec parse_aexp p =
     if L.bump_if_keyword p "mtoa" then Mtoa (parse_texp p)

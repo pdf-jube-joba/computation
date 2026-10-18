@@ -117,7 +117,7 @@ module Code = struct
     | BinOp (a, op, b) ->
         "(" ^ aexp_to_text a ^ " " ^ abinop_text op ^ " " ^ aexp_to_text b ^ ")"
     | IfThenElse (c, a, b) ->
-        "if " ^ bexp_to_text c ^ " then " ^ aexp_to_text a ^ " else "
+        "\\if " ^ bexp_to_text c ^ " \\then " ^ aexp_to_text a ^ " \\else "
         ^ aexp_to_text b
 
   and bexp_to_text = function
@@ -127,12 +127,12 @@ module Code = struct
     | Not b -> "!" ^ bexp_to_text b
 
   let rec print = function
-    | Nop -> "Nop"
+    | Nop -> "\\Nop"
     | Assign (v, a) ->
         Utils_names.Identifier.to_string v ^ " := " ^ aexp_to_text a
     | Seq (a, b) -> print a ^ " ; " ^ print b
-    | If (c, b) -> "if " ^ bexp_to_text c ^ " " ^ print b
-    | While (c, b) -> "while " ^ bexp_to_text c ^ " [ " ^ print b ^ " ]"
+    | If (c, b) -> "\\if " ^ bexp_to_text c ^ " " ^ print b
+    | While (c, b) -> "\\while " ^ bexp_to_text c ^ " [ " ^ print b ^ " ]"
 end
 
 let make code env = Ok { code; stmt = code; env }

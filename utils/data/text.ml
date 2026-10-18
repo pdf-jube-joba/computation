@@ -24,13 +24,14 @@ end
 module Bool = struct
   type t = bool
 
-  let parse text =
-    match Stdlib.String.trim text with
-    | "#true" -> Ok true
-    | "#false" -> Ok false
-    | text -> Error ("Invalid boolean text: " ^ text)
+  let read p =
+    match Utils_parsing.Parser.keyword p with
+    | "true" -> true
+    | "false" -> false
+    | word -> Utils_parsing.Parser.error p ("Invalid boolean: \\" ^ word)
 
-  let print = function true -> "#true" | false -> "#false"
+  let parse = Utils_parsing.Parser.parse read
+  let print = function true -> "\\true" | false -> "\\false"
 end
 
 module Natural = struct

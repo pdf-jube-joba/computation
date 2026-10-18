@@ -18,5 +18,5 @@ let rec read p =
 let parse = P.parse ~character_literals:true read
 
 let rec print = function
-  | AtomValue c -> "atom " ^ Utils_parsing.Char_literal.to_text c
-  | ConsValue (a, b) -> "cons " ^ print a ^ " " ^ print b
+  | AtomValue c -> "\\atom " ^ Utils_parsing.Char_literal.to_text c
+  | ConsValue (a, b) -> "\\cons " ^ print a ^ " " ^ print b

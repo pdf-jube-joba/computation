@@ -10,26 +10,26 @@ mini_prog はいろいろ詰め込んでいてよくわからないので、こ�
 \\
 \NT{place-expr} &\defeq \\
   &| \NT{var} \\
-  &| \NT{value-expr} \T{\#loc}
+  &| \NT{value-expr} \T{\textbackslash loc}
     &\syntaxname{dereference} \\
 \\
 \NT{value-expr} &\defeq \\
-  &| \N | \T{\#null_ptr} \\
+  &| \N | \T{\textbackslash null_ptr} \\
   &| \NT{value-expr} \NT{value-expr} \NT{binop} \\
-  &| \T{ld} \NT{place-expr}
+  &| \T{\textbackslash ld} \NT{place-expr}
     &\syntaxname{load from location} \\
-  &| \NT{place-expr} \T{\#addr}
+  &| \NT{place-expr} \T{\textbackslash addr}
     &\syntaxname{reference} \\
 \\
 \NT{stmt} &\defeq \\
-  &| \T{assign} \NT{place-expr} \T{:=} \NT{value-expr} &\syntaxname{assign} \\
-  &| \T{ifz} \NT{value-expr} \T{then} \NT{stmt} \T{else} \NT{stmt} \T{end} \\
-  &| \T{call} \NT{fn-name} \T{\LP} \syntaxmacro{comma-separated}{\NT{value-expr}} \T{\RP}  
+  &| \T{\textbackslash assign} \NT{place-expr} \T{:=} \NT{value-expr} &\syntaxname{assign} \\
+  &| \T{\textbackslash ifz} \NT{value-expr} \T{\textbackslash then} \NT{stmt} \T{\textbackslash else} \NT{stmt} \T{\textbackslash end} \\
+  &| \T{\textbackslash call} \NT{fn-name} \T{\LP} \syntaxmacro{comma-separated}{\NT{value-expr}} \T{\RP}
     &\syntaxname{function call} \\
-  &| \T{return}\\
+  &| \T{\textbackslash return}\\
 \\
 \NT{fn-decl} &\defeq \\
-  &\T{fn} \NT{fn-name}  \\
+  &\T{\textbackslash fn} \NT{fn-name}  \\
   &\T{\LP} \syntaxmacro{comma-separated}{\NT{var}} \T{\RP} &\syntaxname{block local variable} \\
   &\T{\LCB} \syntaxmacro{semicolon-separated}{\NT{stmt}} \T{\RCB} \\ \\
 \NT{program} &\defeq  \NT{fn-decl}* \\
@@ -43,7 +43,7 @@ location ~ pointer みたいに使える。
 local の導入方法は関数しかない。
 
 - \(L\): set ... location 用でなんでもいい。（例えば、 frameId * offset とか。）
-- \(V\) := \(\N + L + \T{\#null_ptr}\)
+- \(V\) := \(\N + L + \T{\textbackslash null_ptr}\)
 - \(E\) := \(\NT{var} \pfun L\)
 - \(S\) := \(\texttt{list}(L \to V)\) ... store だが、関数呼び出し前後で push/pop する。（ call stack に対応）
 - \(S[l := v]\) := \(l\) が \(S\) に存在する場合に限り \(S[l]\) を \(v\) で上書きしたものとする。
@@ -67,20 +67,20 @@ value や place の eval は 1step で行えるようになっている。
 
 \[
 \begin{aligned}
-  \text{eval}(\T{assign} p e, E, S, K) &\to \text{next}(E, S', K) \\
+  \text{eval}(\T{\textbackslash assign} p e, E, S, K) &\to \text{next}(E, S', K) \\
     & l: L := \text{eval-place}(E, S, p) \\
     & v: V := \text{eval-value}(E, S, e) \\
     & S' := S[l := v], \\
-  \text{eval}(\T{ifz} e s_1 s_2, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E, S, s_1 :: K_{\text{inner}}, K_{\text{fn}}) && \text{eval-value}(E, S, e) = 0 \\
-  \text{eval}(\T{ifz} e s_1 s_2, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E, S, s_2 :: K_{\text{inner}}, K_{\text{fn}}) && \text{eval-value}(E, S, e) \neq 0\\
-  \text{eval}(\T{call} n (e_i)_i, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E', S', (s_i), (E, K_{\text{inner}})::K) \\
+  \text{eval}(\T{\textbackslash ifz} e s_1 s_2, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E, S, s_1 :: K_{\text{inner}}, K_{\text{fn}}) && \text{eval-value}(E, S, e) = 0 \\
+  \text{eval}(\T{\textbackslash ifz} e s_1 s_2, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E, S, s_2 :: K_{\text{inner}}, K_{\text{fn}}) && \text{eval-value}(E, S, e) \neq 0\\
+  \text{eval}(\T{\textbackslash call} n (e_i)_i, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E', S', (s_i), (E, K_{\text{inner}})::K) \\
     & (x_i)_i , (s_i) := \text{coressponding program of } n \\
     & v_i: V := \text{eval-value}(E, S, e_i) \\
     & l_i: L := \texttt{new}(S) \\
     & S_f: L \pfun V := (l_i \mapsto v_i) \\
     & S' := S_f ::S \\
     & E' := [x_i \mapsto l_i] \\
-  \text{eval}(\T{return}, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E', S', K'_{\text{inner}}, K'_{\text{fn}}) \\
+  \text{eval}(\T{\textbackslash return}, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{next}(E', S', K'_{\text{inner}}, K'_{\text{fn}}) \\
     & S' := \texttt{tail}(S) \\
     & (E', K'_{\text{inner}})::K'_{\text{fn}} := K \\
 \\

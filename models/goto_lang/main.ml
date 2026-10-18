@@ -41,7 +41,7 @@ module Code = struct
     Parser.parse (fun p ->
         Parser.many p (fun p ->
             let command =
-              match Identifier.to_string (Parser.identifier p) with
+              match Parser.keyword p with
               | "clr" -> Clr (Parser.identifier p)
               | "inc" -> Inc (Parser.identifier p)
               | "dec" -> Dec (Parser.identifier p)
@@ -59,17 +59,17 @@ module Code = struct
             command))
 
   let print_command = function
-    | Clr v -> "clr " ^ Utils_names.Identifier.to_string v ^ ";"
-    | Inc v -> "inc " ^ Utils_names.Identifier.to_string v ^ ";"
-    | Dec v -> "dec " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Clr v -> "\\clr " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Inc v -> "\\inc " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Dec v -> "\\dec " ^ Utils_names.Identifier.to_string v ^ ";"
     | Cpy (d, s) ->
-        "cpy "
+        "\\cpy "
         ^ Utils_names.Identifier.to_string d
         ^ " <- "
         ^ Utils_names.Identifier.to_string s
         ^ ";"
     | Ifnz (v, n) ->
-        "ifnz "
+        "\\ifnz "
         ^ Utils_names.Identifier.to_string v
         ^ " : " ^ Number.to_string n ^ ";"
 

@@ -4,19 +4,19 @@ open Runtime_types
 type t = value
 
 let location_text (l : location) =
-  Printf.sprintf "loc(%d, %d)" (Frame_id.to_int l.frame_id) l.slot
+  Printf.sprintf "\\loc(%d, %d)" (Frame_id.to_int l.frame_id) l.slot
 
 let print = function
   | Num n -> Int64.to_string n
   | Location l -> location_text l
-  | Null_ptr -> "#null_ptr"
+  | Null_ptr -> "\\null_ptr"
 
 let parse text =
   L.protect (fun () ->
       let text = String.trim text in
-      if text = "#null_ptr" then Null_ptr
+      if text = "\\null_ptr" then Null_ptr
       else if
-        String.starts_with ~prefix:"loc(" text
+        String.starts_with ~prefix:"\\loc(" text
         && String.ends_with ~suffix:")" text
       then (
         let p = L.create text in

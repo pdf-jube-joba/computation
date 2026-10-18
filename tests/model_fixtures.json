@@ -3,7 +3,7 @@
     "name": "example_counter",
     "code": "3",
     "ainput": "",
-    "rinput": "inc",
+    "rinput": "\\inc",
     "steps": 7,
     "outputs": [
       "inc",
@@ -17,7 +17,7 @@
   },
   {
     "name": "lambda_calculus",
-    "code": "(\\x. x) y",
+    "code": "(\\fun x. x) y",
     "ainput": "",
     "rinput": "0",
     "steps": 1,
@@ -26,7 +26,7 @@
   },
   {
     "name": "goto_lang",
-    "code": "inc x; inc x;",
+    "code": "\\inc x; \\inc x;",
     "ainput": "",
     "rinput": "",
     "steps": 3,
@@ -38,7 +38,7 @@
   },
   {
     "name": "recursive_function",
-    "code": "SUCC",
+    "code": "\\SUCC",
     "ainput": "(3)",
     "rinput": "",
     "steps": 2,
@@ -62,7 +62,7 @@
   },
   {
     "name": "internal_ctrl",
-    "code": "static x; x := 3",
+    "code": "\\static x; x := 3",
     "ainput": "x=0",
     "rinput": "",
     "steps": 2,
@@ -73,19 +73,19 @@
   },
   {
     "name": "proc_lang",
-    "code": "static x; main() [ local tmp x := 3; return ]",
+    "code": "\\static x; main() [ \\local tmp x := 3; \\return ]",
     "ainput": "x=0",
     "rinput": "",
     "steps": 3,
     "outputs": [
-      "x := 3; return ",
-      "Nop; return "
+      "x := 3; \\return ",
+      "\\Nop; \\return "
     ],
     "final": "x = 3\n"
   },
   {
     "name": "fn_ptr",
-    "code": "fn main() { call f(); return } fn f() { return }",
+    "code": "\\fn main() { \\call f(); \\return } \\fn f() { \\return }",
     "ainput": "",
     "rinput": "",
     "steps": 4,
@@ -98,7 +98,7 @@
   },
   {
     "name": "mini_prog",
-    "code": "fn main() { return 7 }",
+    "code": "\\fn main() { \\return 7 }",
     "ainput": "()",
     "rinput": "",
     "steps": 3,
@@ -170,7 +170,7 @@
   },
   {
     "name": "flow_ir",
-    "code": "@a 0 :main { :entry { %x := #5; @a := st %x; halt; } }",
+    "code": "@a 0 :main { :entry { %x := #5; @a := \\st %x; \\halt; } }",
     "ainput": "",
     "rinput": "",
     "steps": 3,
@@ -288,7 +288,7 @@
   },
   {
     "name": "flow_ir",
-    "code": "@a 0 :main { :entry { halloc(#2) %h; hacc(%h)[#1] := st #7; %x := ld hacc(%h)[#1]; push %x; pop %y; @a := st %y; hfree %h; halt; } }",
+    "code": "@a 0 :main { :entry { \\halloc(#2) %h; \\hacc(%h)[#1] := \\st #7; %x := \\ld \\hacc(%h)[#1]; \\push %x; \\pop %y; @a := \\st %y; \\hfree %h; \\halt; } }",
     "ainput": "",
     "rinput": "",
     "steps": 8,
@@ -470,7 +470,7 @@
   },
   {
     "name": "flow_ir",
-    "code": ":main { :entry { push #0; input sacc #0; pop %x; print %x; halt; } }",
+    "code": ":main { :entry { \\push #0; \\input \\sacc #0; \\pop %x; \\print %x; \\halt; } }",
     "ainput": "",
     "rinput": "hello",
     "steps": 5,
@@ -578,7 +578,7 @@
   },
   {
     "name": "pcf-expr",
-    "code": "(fun f => f(3))(fun x => inc x)",
+    "code": "(\\fun f => f(3))(\\fun x => \\inc x)",
     "ainput": "()",
     "rinput": "",
     "steps": 4,
@@ -591,7 +591,7 @@
   },
   {
     "name": "pcf-cek",
-    "code": "(fun f => f(3))(fun x => inc x)",
+    "code": "(\\fun f => f(3))(\\fun x => \\inc x)",
     "ainput": "()",
     "rinput": "",
     "steps": 14,
@@ -689,7 +689,7 @@
   },
   {
     "name": "pcf-expr-stmt-cek",
-    "code": "{ let x := 4; print 3; inc x }",
+    "code": "{ \\let x := 4; \\print 3; \\inc x }",
     "ainput": "()",
     "rinput": "",
     "steps": 12,
@@ -722,24 +722,24 @@
   },
   {
     "name": "lambda_continuations",
-    "code": "succ zero",
+    "code": "\\succ \\zero",
     "ainput": "()",
     "rinput": "",
     "steps": 1,
     "outputs": [],
-    "final": "S 0"
+    "final": "\\S 0"
   },
   {
     "name": "logic_circuit",
-    "code": "graph: main { in {I} out {O=N.OUT} N, NOT_F {IN=I} }",
+    "code": "\\graph: main { \\in {I} \\out {O=N.OUT} N, \\NOT_F {IN=I} }",
     "ainput": "",
-    "rinput": "@main.I=#true",
+    "rinput": "@main.I=\\true",
     "steps": 4,
     "outputs": [
-      "@main.O=#false",
-      "@main.O=#false",
-      "@main.O=#false",
-      "@main.O=#false"
+      "@main.O=\\false",
+      "@main.O=\\false",
+      "@main.O=\\false",
+      "@main.O=\\false"
     ],
     "final": null,
     "initial_snapshot": [
@@ -784,7 +784,7 @@
   },
   {
     "name": "turing_machine",
-    "code": "start\nhalt\n-,start,x,halt,C",
+    "code": "start\nhalt\n-,start,x,halt,\\C",
     "ainput": "|-|",
     "rinput": "",
     "steps": 1,
@@ -832,7 +832,7 @@
   },
   {
     "name": "rec_tm_ir",
-    "code": "alphabet: (-, x) fn main { label start: { @ := const x return } }",
+    "code": "\\alphabet: (-, x) \\fn main { \\label start: { @ := \\const x \\return } }",
     "ainput": "|-|",
     "rinput": "",
     "steps": 2,
@@ -843,7 +843,7 @@
   },
   {
     "name": "rec_tm_ir_jump",
-    "code": "alphabet: (-, x) @ := const x",
+    "code": "\\alphabet: (-, x) @ := \\const x",
     "ainput": "|-|",
     "rinput": "",
     "steps": 2,
@@ -865,7 +865,7 @@
   },
   {
     "name": "symbolic_asm",
-    "code": ".equ FIVE 5\nldi %r1 FIVE\nhalt",
+    "code": "\\equ FIVE 5\n\\ldi %r1 FIVE\n\\halt",
     "ainput": "0,0,0,0,0,0,0,0",
     "rinput": "",
     "steps": 2,
@@ -876,7 +876,7 @@
   },
   {
     "name": "cfg_vreg",
-    "code": "@a 0 @main { %v0 := #5; [@a] := %v0; goto @main; }",
+    "code": "@a 0 @main { %v0 := #5; [@a] := %v0; \\goto @main; }",
     "ainput": "()",
     "rinput": "",
     "steps": 4,
@@ -890,18 +890,18 @@
   },
   {
     "name": "coroutine",
-    "code": "fn main { x <- 3; run worker -> $task; yield; } fn worker { x <- x + 2; yield; }",
+    "code": "\\fn main { x <- 3; \\run worker -> $task; \\yield; } \\fn worker { x <- x + 2; \\yield; }",
     "ainput": "1",
     "rinput": "0",
     "steps": 14,
     "outputs": [
       "agent 0: dequeue task 0",
       "agent 0: x <- 3",
-      "agent 0: run worker -> $task",
-      "agent 0: yield",
+      "agent 0: \\run worker -> $task",
+      "agent 0: \\yield",
       "agent 0: dequeue task 1",
       "agent 0: x <- (x + 2)",
-      "agent 0: yield",
+      "agent 0: \\yield",
       "agent 0: dequeue task 0",
       "agent 0: return from main",
       "agent 0: release task 0",
@@ -991,7 +991,7 @@
   },
   {
     "name": "strarr",
-    "code": "x := ['a', 'b']; x := tail x",
+    "code": "x := ['a', 'b']; x := \\tail x",
     "ainput": "",
     "rinput": "",
     "steps": 4,
@@ -1004,7 +1004,7 @@
   },
   {
     "name": "strtree",
-    "code": "x := cons atom 'a' atom 'b'; x := left x",
+    "code": "x := \\cons \\atom 'a' \\atom 'b'; x := \\left x",
     "ainput": "",
     "rinput": "",
     "steps": 4,
@@ -1013,6 +1013,6 @@
       "",
       ""
     ],
-    "final": "x = atom 'a'\n"
+    "final": "x = \\atom 'a'\n"
   }
 ]

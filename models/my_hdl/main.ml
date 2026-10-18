@@ -27,7 +27,7 @@ module Value = struct
     match value with Strct fields -> List.assoc_opt name fields | _ -> None
 
   let rec print = function
-    | Bit b -> if b then "#true" else "#false"
+    | Bit b -> if b then "\\true" else "\\false"
     | Array values -> "[" ^ String.concat ", " (List.map print values) ^ "]"
     | Strct fields ->
         "{"
@@ -403,8 +403,8 @@ module Parser = struct
     L.group p delimiter (fun p -> L.many ~skip_separator:',' p item)
 
   let rec value p =
-    if L.bump_if p "#true" then Value.Bit true
-    else if L.bump_if p "#false" then Value.Bit false
+    if L.bump_if p "\\true" then Value.Bit true
+    else if L.bump_if p "\\false" then Value.Bit false
     else if L.is_group p L.Brackets then Value.Array (block p L.Brackets value)
     else if L.is_group p L.Braces then
       let fields =

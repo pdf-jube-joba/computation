@@ -41,8 +41,6 @@ type state = { program : code; pc : int; env : environment; tape : T.t }
 module Code = struct
   type t = code
 
-  let keywords = [ "alphabet"; "jump"; "if"; "const"; "LT"; "RT" ]
-
   let parse =
     L.parse (fun p ->
         let alphabet = alphabet p in
@@ -50,23 +48,23 @@ module Code = struct
           if L.bump_if_keyword p "LT" then Lt
           else if L.bump_if_keyword p "RT" then Rt
           else if L.bump_if_keyword p "jump" then
-            let c = condition ~keywords p in
+            let c = condition p in
             let target = L.integer p in
             Jump (target, c)
           else
-            let dst = lvalue ~keywords p in
+            let dst = lvalue p in
             L.expect p ":=";
-            let src = rvalue ~keywords p in
+            let src = rvalue p in
             Assign (dst, src)
         in
         { alphabet; body = L.many p stmt })
 
   let stmt_print = function
-    | Lt -> "LT"
-    | Rt -> "RT"
+    | Lt -> "\\LT"
+    | Rt -> "\\RT"
     | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
     | Jump (target, c) ->
-        "jump" ^ condition_print c ^ " " ^ string_of_int target
+        "\\jump" ^ condition_print c ^ " " ^ string_of_int target
 
   let print p =
     alphabet_print p.alphabet

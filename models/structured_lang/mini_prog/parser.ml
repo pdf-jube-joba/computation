@@ -7,8 +7,7 @@ module Code = struct
   let parse f text = L.parse ~character_literals:true f text
 
   let type_atom p =
-    L.expect_symbol p '#';
-    match Utils_names.Identifier.to_string (L.identifier p) with
+    match L.keyword p with
     | "num" -> Num
     | "u8" -> U8
     | "bool" -> Bool
@@ -49,7 +48,7 @@ module Code = struct
 
   let stmt_start p =
     match L.peek p with
-    | L.Ident
+    | L.Keyword
         ( "assign" | "if" | "case" | "halloc" | "hfree" | "loop" | "break"
         | "continue" | "call" | "return" | "block" ) ->
         true
@@ -61,7 +60,7 @@ module Code = struct
       else if L.bump_if_keyword p "local" then Local (L.identifier p)
       else
         let v = L.group p L.Parentheses (fun p -> parse_value p L.eof) in
-        L.expect p "#loc";
+        L.expect p "\\loc";
         Deref v
     in
     let rec project pbase =
@@ -101,19 +100,19 @@ module Code = struct
         | L.Character_lit c ->
             ignore (L.bump p);
             push (Char c)
-        | _ when L.bump_if p "#true" -> push (Boolean true)
-        | _ when L.bump_if p "#false" -> push (Boolean false)
-        | _ when L.bump_if p "#unit" -> push Unit_value
-        | _ when L.bump_if p "#null_ptr" -> push NullPtr
-        | _ when L.bump_if p "#null_fn" -> push NullFn
+        | _ when L.bump_if p "\\true" -> push (Boolean true)
+        | _ when L.bump_if p "\\false" -> push (Boolean false)
+        | _ when L.bump_if p "\\unit" -> push Unit_value
+        | _ when L.bump_if p "\\null_ptr" -> push NullPtr
+        | _ when L.bump_if p "\\null_fn" -> push NullFn
         | _ when L.bump_if_keyword p "fn" -> push (Function (L.identifier p))
         | _ when L.bump_if_keyword p "ld" -> push (Load (parse_place p))
         | _
           when L.is_group p L.Parentheses
-               || L.peek p = L.Ident "static"
-               || L.peek p = L.Ident "local" ->
+               || L.peek p = L.Keyword "static"
+               || L.peek p = L.Keyword "local" ->
             let place = parse_place p in
-            L.expect p "#addr";
+            L.expect p "\\addr";
             push (Addr place)
         | _ when L.bump_if_symbol p '!' -> unary (fun v -> UnOp (Not, v))
         | _ when L.bump_if_symbol p '+' -> binary Add
@@ -129,7 +128,7 @@ module Code = struct
               else
                 match xs with
                 | x :: xs -> take (n - 1) xs (x :: acc)
-                | _ -> L.error p "pair arity exceeds expression stack"
+                | _ -> L.error p "\\pair arity exceeds expression stack"
             in
             let items, ss = take count stack [] in
             loop (Pair items :: ss)

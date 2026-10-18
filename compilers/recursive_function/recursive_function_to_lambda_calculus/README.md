@@ -6,12 +6,12 @@
 : \(n \in \Nat \mapsto \lambda f. \lambda z. f^{n} x\) により定義する。
 
 その他必要な項の定義
-- `true = \x y. x`
-- `false = \x y. y`
+- `true = \fun x y. x`
+- `false = \fun x y. y`
 - `succ = \ x y z. y(x y z)`
-- `pred = \x y z. x(\ p q. q(p y))(\ v. z)(\ v.v)`
-- `iszero = \x. x (\y. false) true)`
-- `if = \x y z. x y z`
+- `pred = \fun x y z. x(\ p q. q(p y))(\ v. z)(\ v.v)`
+- `iszero = \fun x. x (\fun y. false) true)`
+- `if = \fun x y z. x y z`
 - \(\text{proj}^n_i = \lambda x_1, \ldots , x_n. x_i\)
 - \(\text{comp}^n_m = \lambda g f_1, \ldots f_n. \lambda x_1, \ldots x_m. g (f_1 x_1 \cdots x_m) \cdots (f_n x_1 \cdots x_m\)\)
 
@@ -63,7 +63,7 @@
 
 <div data-model="recursive_function-lambda_calculus">
 <template data-default-code>
-PRIM[z: PROJ[1, 0] s: COMP[SUCC: PROJ[3, 0]]]
+\PRIM[\z: \PROJ[1, 0] \s: \COMP[\SUCC: \PROJ[3, 0]]]
 </template>
 <template data-default-ainput>
 (2, 3)

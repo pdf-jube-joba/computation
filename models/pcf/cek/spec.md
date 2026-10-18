@@ -8,7 +8,7 @@ control, environment, kontinuation(continuation) の略らしい。
 ここでも stuck を入れる。
 
 - \(\text{Cls}\) := \(\text{Fun}(x, M, E) + \text{Rec}(f, x, M, E)\) ... いわゆる closure
-- \(V\) := \(\N + \T{\#true} + \T{\#false} + \T{\#unit} + F\)
+- \(V\) := \(\N + \T{\textbackslash true} + \T{\textbackslash false} + \T{\textbackslash unit} + F\)
     - こっちの \(V\) では return 時に closure は評価する際に使った環境をつかむ必要があるので、 \(E\) との recursive な定義になる。
 - \(E\) := \(\text{list}(\NT{var}, V)\)
 - \(C\) := \(\NT{expr}\)
@@ -18,7 +18,7 @@ control, environment, kontinuation(continuation) の略らしい。
     - \((\NT{unop} [], E)\)
     - \(([] (N), E)\)
     - \((f \in \text{Cls})[]\)
-    - \((\T{if} [] M N, E)\)
+    - \((\T{\textbackslash if} [] M N, E)\)
     - \(\text{init}\)
 - \(S\) := \(\text{eval}(C, E, K) + \text{return}(V, K)\)
 
@@ -29,17 +29,17 @@ closure だけ環境が値の中に入っているので、 paring の方法が�
 
 \[
 \begin{aligned}
-\text{eval}(v, E, K) &\to \text{return}(v, K) && v = n \in \N | \T{\#true} | \T{\#true} | \T{\#unit} \\
-\text{eval}(\T{fun} x \T{=>} M, E, K) &\to \text{return}(\text{Fun}(x, M, E), K) \\
-\text{eval}(\T{rec} f x \T{:=} M, E, K) &\to \text{return}(\text{Rec}(f, x, M, E), K) \\
+\text{eval}(v, E, K) &\to \text{return}(v, K) && v = n \in \N | \T{\textbackslash true} | \T{\textbackslash true} | \T{\textbackslash unit} \\
+\text{eval}(\T{\textbackslash fun} x \T{=>} M, E, K) &\to \text{return}(\text{Fun}(x, M, E), K) \\
+\text{eval}(\T{\textbackslash rec} f x \T{:=} M, E, K) &\to \text{return}(\text{Rec}(f, x, M, E), K) \\
 \\
-\text{eval}(\T{print} n, E, K) &\to^{\text{print} n} \text{return}(\T{\#unit}, K) \\
+\text{eval}(\T{\textbackslash print} n, E, K) &\to^{\text{print} n} \text{return}(\T{\textbackslash unit}, K) \\
 \\
 \text{eval}(x, E, K) &\to \text{return}(\text{lookup}(E, x), K) \\
 \text{eval}(M \NT{binop} N, E, K) &\to \text{eval}(M, E, ([] \NT{binop} N, E) ::K) \\
 \text{eval}(\NT{unop} M, E, K) &\to \text{eval}(M, E, (\NT{unop} []) ::K ) \\
 \text{eval}(M (N), E, K) &\to \text{eval}(M, E, ([] (N), E) ::K) \\
-\text{eval}(\T{if} L M N, E, K) &\to \text{eval}(L, E, (\T{if} [] M N, E) ::K) \\
+\text{eval}(\T{\textbackslash if} L M N, E, K) &\to \text{eval}(L, E, (\T{\textbackslash if} [] M N, E) ::K) \\
 \\
 \text{return}(v, ([] \NT{binop} M, E) ::K) &\to \text{eval}(M, E, (v \NT{binop} [], E) :: K) \\
 \text{return}(v, (v' \NT{binop} [], E) ::K) &\to \text{return}(v'', K) && v'' = v \NT{binop} v' \\
@@ -49,8 +49,8 @@ closure だけ環境が値の中に入っているので、 paring の方法が�
 \text{return}(v, (\text{Fun}(x, M, E_f) [])::K) &\to \text{eval}(M, (x, v):: E_f, K) \\
 \text{return}(v, (\text{Rec}(f, x, M, E_f) [])::K) &\to \text{eval}(M, (x, v)::(f, \text{Rec}(f, x, M, E_f))::E_f ,K) \\
 \\
-\text{return}(\T{\#true}, (\T{if} [] M N, E):: K) &\to \text{eval}(M, E, K) \\
-\text{return}(\T{\#false}, (\T{if} [] M N, E):: K) &\to \text{eval}(N, E, K) \\
+\text{return}(\T{\textbackslash true}, (\T{\textbackslash if} [] M N, E):: K) &\to \text{eval}(M, E, K) \\
+\text{return}(\T{\textbackslash false}, (\T{\textbackslash if} [] M N, E):: K) &\to \text{eval}(N, E, K) \\
 \end{aligned}
 \]
 

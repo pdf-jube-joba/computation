@@ -80,24 +80,24 @@ module Code = struct
         { statics; body })
 
   let rec stmt_to_text = function
-    | Nop -> "Nop"
+    | Nop -> "\\Nop"
     | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
     | Assign (v, a) -> Utils_names.Identifier.to_string v ^ " := " ^ aexp_text a
-    | If (c, b) -> "if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
+    | If (c, b) -> "\\if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
     | Break (l, v) ->
-        "break :"
+        "\\break :"
         ^ Utils_names.Identifier.to_string l
         ^ " "
         ^ Utils_names.Identifier.to_string v
-    | Continue l -> "continue :" ^ Utils_names.Identifier.to_string l
+    | Continue l -> "\\continue :" ^ Utils_names.Identifier.to_string l
     | Loop (l, b, v) ->
-        "loop :"
+        "\\loop :"
         ^ Utils_names.Identifier.to_string l
         ^ " (" ^ stmt_to_text b ^ ") -> "
         ^ Utils_names.Identifier.to_string v
 
   let print c =
-    "static"
+    "\\static"
     ^ (if c.statics = [] then ""
        else
          " "

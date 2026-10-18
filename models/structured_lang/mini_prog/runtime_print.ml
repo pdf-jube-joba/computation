@@ -16,11 +16,11 @@ let location_text loc =
 let rec value_text = function
   | Number_value n -> N.to_string n
   | Char_value c -> "'" ^ c ^ "'"
-  | Bool_value b -> if b then "#true" else "#false"
-  | Unit_v -> "#unit"
-  | Ptr_value None -> "#null_ptr"
+  | Bool_value b -> if b then "\\true" else "\\false"
+  | Unit_v -> "\\unit"
+  | Ptr_value None -> "\\null_ptr"
   | Ptr_value (Some l) -> location_text l
-  | FnPtr None -> "#null_fn"
+  | FnPtr None -> "\\null_fn"
   | FnPtr (Some n) -> "fn " ^ Utils_names.Identifier.to_string n
   | Aggregate vs -> "(" ^ String.concat ", " (List.map value_text vs) ^ ")"
   | Sum_value (t, v) -> "tag(" ^ string_of_int t ^ ", " ^ value_text v ^ ")"

@@ -60,6 +60,17 @@ PCF の式から CEK への変換は共通 AST の恒等変換で、CEK の初�
 
 ## テキストの解析
 
+組み込みの単語はコード・式・値のテキスト形式で共通して `\` を付けます。
+たとえば `\if`、`\inc`、`\true`、`\cons` はキーワードで、`if` や `inc` は識別子です。
+lexer が `Keyword` と `Ident` を区別するため、モデルごとの予約語リストは不要です。
+`expect_keyword p "if"` は入力の `\if` を読み、`identifier p` は接頭辞のない名前を読みます。
+λ計算の抽象は `\fun x. x`、PCF の関数式は `\fun x => x` と書きます。
+数値、記号演算子、文字・文字列の中身、JSON のキーやタグにはこの接頭辞を付けません。
+旧記法の `#true` や接頭辞のない命令は受け付けません。
+テープの方向も `\L` / `\R` / `\C` と書きます。
+Flow IR の入力に含めるキー値は `\static @name`、`\stack[index]`、`\heap[handle][index]` です。
+アセンブリは `\text` / `\data` / `\equ`、条件フラグは `\ldi \f %r1 3` のように書きます。
+
 `Utils_parsing.Lexer` はコメント・空白を除いて token と byte 位置を作ります。
 `Utils_parsing.Parser.create` はそれを一度読み、対応する `()` / `[]` / `{}` を
 `Group` にまとめた token tree を内部に持ちます。`Parser.tree` で参照できます。

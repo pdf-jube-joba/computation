@@ -25,45 +25,45 @@
 &\defeq \NT{string} \\
 \\
 \NT{type} &\defeq \\
-  &|\T{\#num} | \T{\#u8} | \T{\#bool} | \T{\#unit} \\
-  &| \T{\#ptr}| \T{\#fn} \\
+  &|\T{\textbackslash num} | \T{\textbackslash u8} | \T{\textbackslash bool} | \T{\textbackslash unit} \\
+  &| \T{\textbackslash ptr}| \T{\textbackslash fn} \\
   &| \NT{type} (\T{*} \NT{type})+ | \NT{type} (\T{+} \NT{type})+ | \T{\LSB} \NT{type} \T{;} \N \T{\RCB} \\
 \\
 \NT{place-expr} &\defeq \\
-  &| \T{static} \NT{var} | \T{local} \NT{var} \\
+  &| \T{\textbackslash static} \NT{var} | \T{\textbackslash local} \NT{var} \\
   &| \NT{place-expr} \T{.} \N &\syntaxname{field access} \\
   &| \NT{place-expr} \T{?} \N &\syntaxname{tag access} \\
   &| \NT{place-expr} \T{\LSB} \NT{value-expr} \T{\RSB} &\syntaxname{index access} \\
-  &| \NT{value-expr} \T{\#loc} &\syntaxname{dereference} \\
+  &| \NT{value-expr} \T{\textbackslash loc} &\syntaxname{dereference} \\
 \\
 \NT{value-expr} &\defeq \\
-  &| \N | \T{'} \NT{char} \T{'} | \T{\#true} | \T{\#false} | \T{\#unit} &\syntaxname{primitive value} \\
-  &| \T{\#null_ptr} | \T{\#null_fn} \\
+  &| \N | \T{'} \NT{char} \T{'} | \T{\textbackslash true} | \T{\textbackslash false} | \T{\textbackslash unit} &\syntaxname{primitive value} \\
+  &| \T{\textbackslash null_ptr} | \T{\textbackslash null_fn} \\
   &| \NT{value-expr} \NT{value-expr} \NT{binop} | \NT{value-expr} \NT{unop}  &\syntaxname{binop, unop} \\
-  &| \NT{value-expr} (\T{,} \NT{value-expr})+ \T{pair} \T{\LP} \N \T{\RP} &\syntaxname{pair} \\
-  &| \NT{value-expr} \T{tag} \T{\LP} \N \T{\RP} &\syntaxname{tagged sum} \\
-  &| \T{ld} \NT{place-expr} &\syntaxname{load from location} \\
-  &| \NT{place-expr} \T{\#addr} &\syntaxname{reference} \\
-  &| \T{fn} \NT{fn-name} &\syntaxname{function pointer} \\
+  &| \NT{value-expr} (\T{,} \NT{value-expr})+ \T{\textbackslash pair} \T{\LP} \N \T{\RP} &\syntaxname{pair} \\
+  &| \NT{value-expr} \T{\textbackslash tag} \T{\LP} \N \T{\RP} &\syntaxname{tagged sum} \\
+  &| \T{\textbackslash ld} \NT{place-expr} &\syntaxname{load from location} \\
+  &| \NT{place-expr} \T{\textbackslash addr} &\syntaxname{reference} \\
+  &| \T{\textbackslash fn} \NT{fn-name} &\syntaxname{function pointer} \\
 \\
 \NT{stmt} &\defeq \\
-  &| \T{assign} \NT{place-expr} \T{:=} \NT{value-expr} &\syntaxname{assign} \\
-  &| \T{if} \NT{value-expr} \NT{stmt} \\
-  &| \T{case} \N \T{of} \NT{value-expr} \NT{stmt} \\
-  &| \T{halloc} \NT{type} \T{->} \NT{place-expr} &\syntaxname{alloc returning pointer} \\
-  &| \T{hfree} \NT{value-expr} \\
-  &| \T{loop} \NT{label} \T{:} \NT{stmt} \\
-  &| \T{break} \NT{label} \\
-  &| \T{continue} \NT{label} \\
-  &| \T{call} \NT{value-expr} \T{\LP} \syntaxmacro{comma-separated}{\NT{value-expr}} \T{\RP} \T{->} \syntaxmacro{comma-separated}{\NT{place-expr}} &\syntaxname{function call} \\
-  &| \T{return} \syntaxmacro{comma-separated}{\NT{value-expr}} \\
-  &| \T{block} \NT{block} \\
+  &| \T{\textbackslash assign} \NT{place-expr} \T{:=} \NT{value-expr} &\syntaxname{assign} \\
+  &| \T{\textbackslash if} \NT{value-expr} \NT{stmt} \\
+  &| \T{\textbackslash case} \N \T{\textbackslash of} \NT{value-expr} \NT{stmt} \\
+  &| \T{\textbackslash halloc} \NT{type} \T{->} \NT{place-expr} &\syntaxname{alloc returning pointer} \\
+  &| \T{\textbackslash hfree} \NT{value-expr} \\
+  &| \T{\textbackslash loop} \NT{label} \T{:} \NT{stmt} \\
+  &| \T{\textbackslash break} \NT{label} \\
+  &| \T{\textbackslash continue} \NT{label} \\
+  &| \T{\textbackslash call} \NT{value-expr} \T{\LP} \syntaxmacro{comma-separated}{\NT{value-expr}} \T{\RP} \T{->} \syntaxmacro{comma-separated}{\NT{place-expr}} &\syntaxname{function call} \\
+  &| \T{\textbackslash return} \syntaxmacro{comma-separated}{\NT{value-expr}} \\
+  &| \T{\textbackslash block} \NT{block} \\
 \NT{block} &\defeq \\
   &\T{\LP} \syntaxmacro{comma-separated}{\NT{var} \T{:} \NT{type}} \T{\RP} &\syntaxname{block local variable} \\
   &\T{\LCB} \syntaxmacro{semicolon-separated}{\NT{stmt}} \T{\RCB} \\
 \\
-\NT{fn-decl} &\defeq \T{fn} \NT{fn-name} \NT{block} \\
-\NT{static-decl} &\defeq \T{static} \NT{var} \T{:} \NT{type} \\
+\NT{fn-decl} &\defeq \T{\textbackslash fn} \NT{fn-name} \NT{block} \\
+\NT{static-decl} &\defeq \T{\textbackslash static} \NT{var} \T{:} \NT{type} \\
 \NT{program} &\defeq \NT{static-decl}* \NT{fn-decl}* \\
 \end{aligned}
 \]
@@ -85,15 +85,15 @@ location 自体を first class にもってくることでそのまま pointer �
     - 関数呼び出しと block 内局所変数の2つと offset みたいな実装になる？
 - \(V\) := sum of
   - \(V_p\) := sum of (メモリセル一つ分)
-    - \(\N + \T{'} \NT{char} \T{'} + \T{\#true} + \T{\#false} + \T{\#unit}\)
-    - \(\T{\#null_ptr} + L\) ... データメモリへの"ポインタ"
-    - \(\T{\#null_fn} + \NT{fn-name}\) ... 関数ラベルへの"ポインタ"
+    - \(\N + \T{'} \NT{char} \T{'} + \T{\textbackslash true} + \T{\textbackslash false} + \T{\textbackslash unit}\)
+    - \(\T{\textbackslash null_ptr} + L\) ... データメモリへの"ポインタ"
+    - \(\T{\textbackslash null_fn} + \NT{fn-name}\) ... 関数ラベルへの"ポインタ"
   - \(V * V + V * V * V +\) ...pair と array
     - 一緒にしない方がいい？一応、型の方で防ぐことができる。
   - \(\N \times V\) ... sum
 - \(\text{type-match}(v: V, t: \NT{type}): \Bool\) := match (v, t) で以下の場合のみ true
   - \((n \in \N, t = \T{\#Number})\), \((c \in \NT{char}, \T{\#char})\), bool, unit も同じく。
-  - \((\T{\#null_ptr} | L, \T{\#ptr})\), \((\T{\#null_fn} | \NT{fn-name}, T{\#fn})\)
+  - \((\T{\textbackslash null_ptr} | L, \T{\textbackslash ptr})\), \((\T{\textbackslash null_fn} | \NT{fn-name}, T{\#fn})\)
   - \(((v_0, \ldots, v_n), (t_0 * \cdots * t_m))\) で \(n = m\), \(\text{type-match}(v_i, t_i)\)
   - \(((v_0, \ldots, v_n), [t; m])\) で \(\text{type-match}(v_i, t)\), \(n = m\)
   - \(((k \in \N, v), t_0 + \cdots t_n)\) で \(k \leq n\), \(\text{type-match}(v, t)\)
@@ -107,7 +107,7 @@ location 自体を first class にもってくることでそのまま pointer �
   - 変数と location の結びつきは関数間では共有されないので、これは scope だけ管理するため list でいい。
 
 まずはこんな感じで定義しておく。次に補助
-- \(\text{default-value}(t: \NT{type}): V\) := \(0 \in \N \T{'\textbackslash 0'} | \T{\#false} | \T{\#null_ptr} | \T{\#null_fn}\) を型に合わせて作る。
+- \(\text{default-value}(t: \NT{type}): V\) := \(0 \in \N \T{'\textbackslash 0'} | \T{\textbackslash false} | \T{\textbackslash null_ptr} | \T{\textbackslash null_fn}\) を型に合わせて作る。
 - \(S[l := v]\) は \(l\) の指す場所を上書きする（ persistent update ）
   1. \(l\) が \(S\) に存在し \(\text{type-match}(v, S[l].0)\) のときに限り
   2. \(S[l].1\) を \(v\) で上書きしたものとする。
@@ -169,22 +169,22 @@ closure がないので、環境がそのまま引数スタックみたいにな
 制御以外は簡単に next に移る。
 \[
 \begin{aligned}
-  \text{eval}(\T{assign} p e, E, S, K) &\to \text{ctrl}(\text{next}, E', S, K) \\
+  \text{eval}(\T{\textbackslash assign} p e, E, S, K) &\to \text{ctrl}(\text{next}, E', S, K) \\
     & l: L := \text{eval-place}(p, E, S) \\
     & v: V := \text{eval-value}(e, E, S) \\
     & E' := E[l := v], \\
-  \text{eval}(\T{if} e s, E, S, K) &\to \text{ctrl}(\text{next}, E, S, K) &&\text{eval-value}(e, E) = \T{\#false} \\
-  \text{eval}(\T{if} e s, E, S, K) &\to \text{eval}(s, E, S, K) && \text{eval-value}(e, E) = \T{\#true}\\
-  \text{eval}(\T{case} n e s, E, S, K) &\to \text{ctrl}(\text{next}, E, S, K) &&\text{eval-value}(e, E) = (m \neq n, v) \\
-  \text{eval}(\T{case} n e s, E, S, K) &\to \text{eval}(s, E, S, K) && \text{eval-value}(e, E) = (n, v)\\
+  \text{eval}(\T{\textbackslash if} e s, E, S, K) &\to \text{ctrl}(\text{next}, E, S, K) &&\text{eval-value}(e, E) = \T{\textbackslash false} \\
+  \text{eval}(\T{\textbackslash if} e s, E, S, K) &\to \text{eval}(s, E, S, K) && \text{eval-value}(e, E) = \T{\textbackslash true}\\
+  \text{eval}(\T{\textbackslash case} n e s, E, S, K) &\to \text{ctrl}(\text{next}, E, S, K) &&\text{eval-value}(e, E) = (m \neq n, v) \\
+  \text{eval}(\T{\textbackslash case} n e s, E, S, K) &\to \text{eval}(s, E, S, K) && \text{eval-value}(e, E) = (n, v)\\
 \\
-  \text{eval}(\T{halloc} t p, E, S_{\text{heap}}, S_{\text{static}}, S_{\text{locals}}, K) &\to \text{ctrl}(\text{next}, E,S'_{\text{heap}}, S_{\text{static}}, S_{\text{locals}}, K) \\
+  \text{eval}(\T{\textbackslash halloc} t p, E, S_{\text{heap}}, S_{\text{static}}, S_{\text{locals}}, K) &\to \text{ctrl}(\text{next}, E,S'_{\text{heap}}, S_{\text{static}}, S_{\text{locals}}, K) \\
     & k: L_{\text{heap}} := \text{new}(S_{\text{heap}}) \\
     & l: L := \text{eval-place}(p, E, S) \\
     & S'_{\text{heap}} := (k \mapsto (t, \text{default-value}(t)))::S_{\text{heap}} \\
     & S_1 := (S'_{\text{heap}}, S_{\text{static}}, S_{\text{locals}}) \\
     & S' := S_1[l := k] \\
-  \text{eval}(\T{hfree} e, E, S_{\text{heap}}, S_{\text{static}}, S_{\text{locals}}, K) &\to \text{ctrl}(\text{next}, E, S'_{\text{heap}}, S_{\text{static}}, S_{\text{local}}, K) \\
+  \text{eval}(\T{\textbackslash hfree} e, E, S_{\text{heap}}, S_{\text{static}}, S_{\text{locals}}, K) &\to \text{ctrl}(\text{next}, E, S'_{\text{heap}}, S_{\text{static}}, S_{\text{local}}, K) \\
     & l: L_{\text{heap}} := \text{eval-value}(e, E, S) \\
     & S'_{\text{heap}} := S_{\text{heap}} \backslash l \\
 \end{aligned}
@@ -193,11 +193,11 @@ closure がないので、環境がそのまま引数スタックみたいにな
 inner な制御の部分
 \[
 \begin{aligned}
-  \text{eval}(\T{loop} n s, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{ctrl}(\text{next}, E, S, \text{loop}(n, s):: K_{\text{inner}}, K_{\text{fn}}) \\
-  \text{eval}(\T{break} n, E, S, K) &\to \text{ctrl}(\text{break}(n), E, S, K) \\
-  \text{eval}(\T{continue} n, E, S, K) &\to \text{ctrl}(\text{continue}(n), E, S, K) \\
+  \text{eval}(\T{\textbackslash loop} n s, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{ctrl}(\text{next}, E, S, \text{loop}(n, s):: K_{\text{inner}}, K_{\text{fn}}) \\
+  \text{eval}(\T{\textbackslash break} n, E, S, K) &\to \text{ctrl}(\text{break}(n), E, S, K) \\
+  \text{eval}(\T{\textbackslash continue} n, E, S, K) &\to \text{ctrl}(\text{continue}(n), E, S, K) \\
 \\
-  \text{eval}(\T{block} (x_i: t_i)_i (s_i)_i, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{ctrl}(\text{next}, E, S', K'_{\text{inner}}, K_{\text{fn}}) \\
+  \text{eval}(\T{\textbackslash block} (x_i: t_i)_i (s_i)_i, E, S, K_{\text{inner}}, K_{\text{fn}}) &\to \text{ctrl}(\text{next}, E, S', K'_{\text{inner}}, K_{\text{fn}}) \\
     & v_i: V := \text{default-value}(t_i) \\
     & (E', S') := \text{push-scope}(E, S, (x_i, t_i, v_i)) \\
     &K'_{\text{inner}} := (s_i)_i {++} (\text{scope} ::K_{\text{inner}}) \\
@@ -219,15 +219,15 @@ inner な制御の部分
 \[
 \begin{aligned}
 \\
-  \text{eval}(\T{call} e (e_i)_i (p_i)_i, E, S, K) &\to \text{ctrl}(\text{next}, E', S', K') \\
+  \text{eval}(\T{\textbackslash call} e (e_i)_i (p_i)_i, E, S, K) &\to \text{ctrl}(\text{next}, E', S', K') \\
     & r_i: L := \text{eval-place}(p_i, E) \\
     & K'_{\text{fn}} := \text{fn-call}(E, (r_i)_i, K_{\text{inner}})::K_{\text{fn}} \\
-    & \T{fn} n := \text{eval-value}(e, E, S) \\
+    & \T{\textbackslash fn} n := \text{eval-value}(e, E, S) \\
     & (x_i: t_i), (s_i)_i := \text{coressponding program of } n \\
     & v_i: V := \text{eval-value}(e_i) \\
     & (E', S') := \text{push-scope}([], []::S, (x_i, t_i, v_i)_i) \\
     & K'_{\text{local}} := (s_i)_i, K' := (K'_{\text{local}}, K'_{\text{fn}}) \\
-  \text{eval}(\T{return} (e_i)_i, E, S, K) &\to \text{ret}((v_i)_i, E, S, K) \\
+  \text{eval}(\T{\textbackslash return} (e_i)_i, E, S, K) &\to \text{ret}((v_i)_i, E, S, K) \\
     & v_i := \text{eval-value}(e_i, E) \\
 \\
   \text{ret}((v_i)_i, E, S, K_{\text{inner}},  K_{\text{fn}}) &\to \text{ctrl}(\text{next}, E', S', K'_{\text{inner}}, K'_{\text{fn}}) \\

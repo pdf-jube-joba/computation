@@ -215,28 +215,28 @@ module Code = struct
         { alphabet; functions = funcs [] })
 
   let stmt_print = function
-    | Lt -> "LT"
-    | Rt -> "RT"
+    | Lt -> "\\LT"
+    | Rt -> "\\RT"
     | Assign (dst, src) -> lvalue_print dst ^ " := " ^ rvalue_print src
-    | Break c -> "break" ^ condition_print c
-    | Continue c -> "continue" ^ condition_print c
-    | Return c -> "return" ^ condition_print c
+    | Break c -> "\\break" ^ condition_print c
+    | Continue c -> "\\continue" ^ condition_print c
+    | Return c -> "\\return" ^ condition_print c
     | Jump (label, c) ->
-        "jump " ^ Utils_names.Identifier.to_string label ^ condition_print c
-    | Call name -> "call " ^ Utils_names.Identifier.to_string name
+        "\\jump " ^ Utils_names.Identifier.to_string label ^ condition_print c
+    | Call name -> "\\call " ^ Utils_names.Identifier.to_string name
 
   let print p =
     alphabet_print p.alphabet
     ^ String.concat "\n"
         (List.map
            (fun f ->
-             "fn "
+             "\\fn "
              ^ Utils_names.Identifier.to_string f.name
              ^ "() {\n"
              ^ String.concat ""
                  (List.map
                     (fun b ->
-                      "  label "
+                      "  \\label "
                       ^ Utils_names.Identifier.to_string b.label
                       ^ ": {\n"
                       ^ String.concat ""

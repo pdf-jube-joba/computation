@@ -5,12 +5,12 @@ let value = Utils_base.Error.get
 type t = foutput
 
 let parse_task_id text =
-  if String.lowercase_ascii text = "none" then None
+  if String.trim text = "\\none" then None
   else
     Some
       (value (Task_id.of_int (value (Utils_data.Text.Natural_int.parse text))))
 
-let print_task_id = function None -> "none" | Some n -> task_text n
+let print_task_id = function None -> "\\none" | Some n -> task_text n
 
 let parse text =
   Utils_data.Environment.fold_lines

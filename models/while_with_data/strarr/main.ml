@@ -32,22 +32,15 @@ type state = { code : code; stmt : stmt; env : environment } [@@deriving yojson]
 module Code = struct
   type t = code
 
-  let reserved =
-    [ "Nop"; "if"; "then"; "end"; "while"; "is_empty"; "head"; "tail" ]
-
-  let parse_name p =
-    let n = L.identifier p in
-    if List.mem (Utils_names.Identifier.to_string n) reserved then
-      failwith "Expected identifier";
-    n
+  let parse_name = L.identifier
 
   let parse_aexp =
     L.expression
-      ~prefix:[ ("head", 2, fun a -> Head a); ("tail", 2, fun a -> Tail a) ]
+      ~prefix:[ ("\\head", 2, fun a -> Head a); ("\\tail", 2, fun a -> Tail a) ]
       ~infix:[ ("++", 1, 2, fun a b -> Concat (a, b)) ]
       ~atom:(fun read p ->
         match L.peek p with
-        | L.Ident n when not (List.mem n reserved) -> Var (L.identifier p)
+        | L.Ident _ -> Var (L.identifier p)
         | _ when L.is_group p L.Parentheses -> L.group p L.Parentheses read
         | _ when L.is_group p L.Brackets ->
             Const
@@ -94,20 +87,20 @@ module Code = struct
         ^ "]"
     | Var n -> Utils_names.Identifier.to_string n
     | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
-    | Head a -> "head " ^ aexp_to_text a
-    | Tail a -> "tail " ^ aexp_to_text a
+    | Head a -> "\\head " ^ aexp_to_text a
+    | Tail a -> "\\tail " ^ aexp_to_text a
 
   let bexp_to_text = function
-    | IsEmpty a -> "is_empty " ^ aexp_to_text a
+    | IsEmpty a -> "\\is_empty " ^ aexp_to_text a
     | Eq (a, b) -> aexp_to_text a ^ " == " ^ aexp_to_text b
 
   let rec print = function
-    | Nop -> "Nop"
+    | Nop -> "\\Nop"
     | Assign (n, a) ->
         Utils_names.Identifier.to_string n ^ " := " ^ aexp_to_text a
     | Seq (a, b) -> print a ^ " ; " ^ print b
-    | If (c, b) -> "if " ^ bexp_to_text c ^ " then " ^ print b ^ " end"
-    | While (c, b) -> "while " ^ bexp_to_text c ^ " { " ^ print b ^ " }"
+    | If (c, b) -> "\\if " ^ bexp_to_text c ^ " \\then " ^ print b ^ " \\end"
+    | While (c, b) -> "\\while " ^ bexp_to_text c ^ " { " ^ print b ^ " }"
 end
 
 module Ainput = struct

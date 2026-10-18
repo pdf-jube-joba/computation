@@ -2,6 +2,7 @@
     supply their operator precedence and AST constructors. *)
 type token = Lexer.token =
   | Ident of string
+  | Keyword of string
   | Number of string
   | String_lit of string
   | Character_lit of string
@@ -62,6 +63,11 @@ val bump_if_symbol : t -> char -> bool
 val expect_symbol : t -> char -> unit
 val bump_if_keyword : t -> string -> bool
 val expect_keyword : t -> string -> unit
+
+val keyword : t -> string
+(** Read a backslash-prefixed word. Keyword helpers take its name without the
+    backslash; [identifier] accepts only unprefixed names. *)
+
 val identifier : t -> Utils_names.Identifier.t
 val natural : t -> Utils_base.Number.t
 

@@ -9,14 +9,14 @@
 \NT{rvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \\
 \NT{lvalue}   &\defeq \T{@}   \sp | \sp \NT{var} \sp | S \\
 
-\NT{cond}     &\defeq \T{if} \sp \NT{rvalue} \sp \T{=} \sp \NT{rvalue} \\
+\NT{cond}     &\defeq \T{\textbackslash if} \sp \NT{rvalue} \sp \T{=} \sp \NT{rvalue} \\
 \NT{stmt}   &\defeq (\\
-  &|\T{LT} |\T{RT}  \\
+  &|\T{\textbackslash LT} |\T{\textbackslash RT}  \\
   &|\NT{lvalue} \sp \T{:=} \sp \NT{rvalue} \\
-  &|\T{jump}      \sp \NT{number}  \sp \NT{cond} \\
+  &|\T{\textbackslash jump}      \sp \NT{number}  \sp \NT{cond} \\
   ) \T{;} \\
 
-\NT{alphabet-decl} &\defeq \T{alphabet} \sp \T{\LP} \syntaxmacro{comma-separated}{S} \T{\RP} \\
+\NT{alphabet-decl} &\defeq \T{\textbackslash alphabet} \sp \T{\LP} \syntaxmacro{comma-separated}{S} \T{\RP} \\
 \NT{program}  &\defeq \NT{alphabet-decl} \sp \NT{stmt}*
 \end{aligned}
 \]

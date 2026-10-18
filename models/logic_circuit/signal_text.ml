@@ -38,11 +38,7 @@ let read_pin p =
 let read_item p =
   let pin = read_pin p in
   P.expect_symbol p '=';
-  let start = P.offset p in
-  P.expect_symbol p '#';
-  if P.offset p <> start + 1 then P.error p "Expected #true or #false";
-  let boolean = P.identifier p in
-  (pin, parse_bool ("#" ^ Utils_names.Identifier.to_string boolean))
+  (pin, Utils_data.Text.Bool.read p)
 
 let parse_pin text = value (P.parse read_pin text)
 let parse_item text = value (P.parse read_item text)

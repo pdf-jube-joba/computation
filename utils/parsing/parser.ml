@@ -1,5 +1,6 @@
 type token = Lexer.token =
   | Ident of string
+  | Keyword of string
   | Number of string
   | String_lit of string
   | Character_lit of string
@@ -110,13 +111,20 @@ let expect_symbol p c =
   if not (bump_if_symbol p c) then error p (Printf.sprintf "Expected '%c'" c)
 
 let bump_if_keyword p word =
-  if peek p = Ident word then (
+  if peek p = Keyword word then (
     ignore (bump p);
     true)
   else false
 
 let expect_keyword p word =
-  if not (bump_if_keyword p word) then error p ("Expected " ^ word)
+  if not (bump_if_keyword p word) then error p ("Expected \\" ^ word)
+
+let keyword p =
+  match peek p with
+  | Keyword word ->
+      ignore (bump p);
+      word
+  | _ -> error p "Expected a keyword starting with '\\'"
 
 let identifier p =
   match peek p with

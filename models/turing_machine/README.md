@@ -218,9 +218,9 @@ Turing machine \(M = (\Sigma, Q, q_{\text{init}}, Q_{\text{fin}}, \delta)\) ã«å
 <template data-default-code>
 start
 goal
-a,start,b,start,R
-b,start,b,start,R
-c,start,c,goal,C
+a,start,b,start,\R
+b,start,b,start,\R
+c,start,c,goal,\C
 </template>
 <template data-default-ainput>
 -|a|b,a,b,b,c

@@ -7,7 +7,7 @@ let lower_inst raw =
     if List.length raw.operands <> n then
       failwith (Printf.sprintf "%s requires %d operands" m n)
   in
-  let no_flag () = if cf then failwith (m ^ ".f is not supported") in
+  let no_flag () = if cf then failwith (m ^ " \\f is not supported") in
   let reg = function
     | Reg r when r >= 0 && r < 8 -> r
     | _ -> failwith "Expected register operand"
@@ -95,14 +95,6 @@ let pass1_collect_symbols code =
       }
   in
   let available name =
-    if
-      List.mem
-        (Utils_names.Identifier.to_string name)
-        [ "THIS"; "CODE_LEN"; "DATA_LEN" ]
-    then
-      failwith
-        ("Reserved symbol name cannot be redefined: @"
-        ^ Utils_names.Identifier.to_string name);
     let s = !symbols in
     if
       List.mem_assoc name s.consts
@@ -134,11 +126,11 @@ let pass1_collect_symbols code =
               }
       | Inst _ ->
           if !section <> Text then
-            failwith "Instruction found outside .text section";
+            failwith "Instruction found outside \\text section";
           symbols := { !symbols with code_len = !symbols.code_len + 1 }
       | DataValue _ ->
           if !section <> Data then
-            failwith "Data value found outside .data section";
+            failwith "Data value found outside \\data section";
           symbols := { !symbols with data_len = !symbols.data_len + 1 })
     code;
   !symbols
@@ -151,23 +143,21 @@ let resolve_raw_value symbols section this_pos = function
       | None ->
           failwith
             ("Unknown const reference: " ^ Utils_names.Identifier.to_string n))
+  | Builtin This -> N.of_int this_pos
+  | Builtin Code_len -> N.of_int symbols.code_len
+  | Builtin Data_len -> N.of_int symbols.data_len
   | Label n -> (
-      match Utils_names.Identifier.to_string n with
-      | "THIS" -> N.of_int this_pos
-      | "CODE_LEN" -> N.of_int symbols.code_len
-      | "DATA_LEN" -> N.of_int symbols.data_len
-      | _ -> (
-          match List.assoc_opt n symbols.text_labels with
+      match List.assoc_opt n symbols.text_labels with
+      | Some n -> N.of_int n
+      | None -> (
+          match List.assoc_opt n symbols.data_labels with
           | Some n -> N.of_int n
-          | None -> (
-              match List.assoc_opt n symbols.data_labels with
-              | Some n -> N.of_int n
-              | None ->
-                  failwith
-                    ("Unknown label reference in "
-                    ^ (if section = Text then ".text" else ".data")
-                    ^ ": @"
-                    ^ Utils_names.Identifier.to_string n))))
+          | None ->
+              failwith
+                ("Unknown label reference in "
+                ^ (if section = Text then "\\text" else "\\data")
+                ^ ": @"
+                ^ Utils_names.Identifier.to_string n)))
 
 let build_debug_info symbols =
   let by_addr labels =
@@ -197,11 +187,11 @@ let preprocess code =
           | Directive (Equ _) | LabelDef _ -> ()
           | Inst raw ->
               if !section <> Text then
-                failwith "Instruction found outside .text section";
+                failwith "Instruction found outside \\text section";
               insts := lower_inst raw :: !insts
           | DataValue v ->
               if !section <> Data then
-                failwith "Data value found outside .data section";
+                failwith "Data value found outside \\data section";
               let n = resolve_raw_value symbols Data !pos v in
               incr pos;
               data := n :: !data)

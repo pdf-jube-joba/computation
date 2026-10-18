@@ -11,12 +11,12 @@ Code も instruction として、スタックマシン方式になる。
 > Wiki の方だと、変数はスタックの上から何番目みたいな指定で、 sel に対する join は return とは異なる扱いになっている。
 
 - \(F\) := \(\text{Fun}(x, C, E) + \text{Rec}(f, x, C, E)\) ... いわゆる closure
-- \(V\) := \(\N + \T{\#true} + \T{\#false} + \T{\#unit} + F\)
+- \(V\) := \(\N + \T{\textbackslash true} + \T{\textbackslash false} + \T{\textbackslash unit} + F\)
     - こっちの \(V\) では return 時に closure は評価する際に使った環境をつかむ必要があるので、 \(E\) との recursive な定義になる。
 - \(E\) := \(\texttt{list}(\NT{var}, V)\)
 - \(S\) := \(\text{list} V\)
 - \(I\) :=
-  - \(\T{push} (\N | \T{\#true} | \T{\#false} | \T{\#unit})\)
+  - \(\T{push} (\N | \T{\textbackslash true} | \T{\textbackslash false} | \T{\textbackslash unit})\)
   - \(\T{print}(n)\)
   - \(\T{acc} (\NT{var})\)
   - \(\T{mkcls}(x, C) \)
@@ -42,8 +42,8 @@ Code も instruction として、スタックマシン方式になる。
 (v::\text{Fun}(x, C_f, E_f)::S, E, \T{ap}::C, D) &\to (S, (x, v)::E_f, C_f, (E, C)::D) \\
 (v::\text{Rec}(f, x, C_f, E_f)::S, E, \T{ap}::C, D) &\to (S, (x, v)::(f, \text{Rec}(f, x, C_f, E_f))::E_f, C_f, (E, C)::D) \\
 (S, E, \text{ret}::C, (E_0, C_0)::D) &\to (S, E_0, C_0, D) \\
-(\T{\#true}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_t +C, D) \\
-(\T{\#false}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_f +C, D) \\
+(\T{\textbackslash true}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_t +C, D) \\
+(\T{\textbackslash false}::S, E, \T{if}(C_t, C_f)::C, D) &\to (S, E, C_f +C, D) \\
 \end{aligned}
 \]
 
@@ -54,7 +54,7 @@ Code も instruction として、スタックマシン方式になる。
 
 \[
   \begin{aligned}
-  \LLB c = \N | \T{\#true} | \T{\#false} | \T{\#unit} \RRB &= [\T{push}(c)] \\
+  \LLB c = \N | \T{\textbackslash true} | \T{\textbackslash false} | \T{\textbackslash unit} \RRB &= [\T{push}(c)] \\
   \LLB \T{print} n \RRB &= \T{print}(n) \\
   \LLB x \in \NT{var} \RRB &= \T{acc}(x) \\
   \LLB \T{fun} x \T{=>} M \RRB &= \T{mkcls}(x, \LLB M \RRB) \\

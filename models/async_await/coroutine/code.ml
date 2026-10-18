@@ -19,7 +19,7 @@ let rec bexp_to_text = function
       ^ " " ^ aexp_to_text b
   | And (a, b) -> "(" ^ bexp_to_text a ^ " && " ^ bexp_to_text b ^ ")"
   | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
-  | Done n -> "done $" ^ Utils_names.Identifier.to_string n
+  | Done n -> "\\done $" ^ Utils_names.Identifier.to_string n
 
 let stmt_to_text stmt =
   let fmt_offset n =
@@ -28,21 +28,21 @@ let stmt_to_text stmt =
   match stmt with
   | Assign (n, a) ->
       Utils_names.Identifier.to_string n ^ " <- " ^ aexp_to_text a
-  | IfGoto (b, n) -> "if " ^ bexp_to_text b ^ " goto " ^ fmt_offset n
-  | Goto n -> "goto " ^ fmt_offset n
-  | Call n -> "call " ^ Utils_names.Identifier.to_string n
+  | IfGoto (b, n) -> "\\if " ^ bexp_to_text b ^ " \\goto " ^ fmt_offset n
+  | Goto n -> "\\goto " ^ fmt_offset n
+  | Call n -> "\\call " ^ Utils_names.Identifier.to_string n
   | Run (n, id) ->
-      "run "
+      "\\run "
       ^ Utils_names.Identifier.to_string n
       ^ " -> $"
       ^ Utils_names.Identifier.to_string id
-  | Yield -> "yield"
+  | Yield -> "\\yield"
 
 let print code =
   String.concat "\n"
     (List.map
        (fun f ->
-         "fn "
+         "\\fn "
          ^ Utils_names.Identifier.to_string f.name
          ^ " {\n"
          ^ (if f.body = [] then ""

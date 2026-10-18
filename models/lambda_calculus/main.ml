@@ -31,7 +31,7 @@ module Code = struct
           L.is_group p L.Parentheses
           ||
           match L.peek p with
-          | L.Ident _ | L.Symbol '\\' -> true
+          | L.Ident _ | L.Keyword "fun" -> true
           | _ -> false
         in
         if starts_atom then rest (App (left, atom env p)) else left
@@ -48,7 +48,7 @@ module Code = struct
           Var var
       | _ when L.is_group p L.Parentheses ->
           L.group p L.Parentheses (application env)
-      | L.Symbol '\\' ->
+      | L.Keyword "fun" ->
           ignore (L.bump p);
           let rec binders env acc =
             match L.peek p with
@@ -93,7 +93,7 @@ module Code = struct
       | Var var -> Utils_names.Identifier.to_string (name var)
       | Abs (var, body) ->
           let binder = name var in
-          "\\" ^ Utils_names.Identifier.to_string binder ^ ". " ^ visit body
+          "\\fun " ^ Utils_names.Identifier.to_string binder ^ ". " ^ visit body
       | App (left, right) ->
           let operand term =
             match term with Abs _ -> "(" ^ visit term ^ ")" | _ -> visit term

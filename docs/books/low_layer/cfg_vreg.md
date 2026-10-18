@@ -92,8 +92,8 @@ jump by register value があるので、これを生かすためには `.text` 
     & ) \sp \T{;} \\
 \NT{cond} &\defeq \sp \NT{atom} \sp \NT{rel} \sp \NT{atom} \\
 \NT{cont} &\defeq \\
-    & | \sp \T{goto} \sp \NT{label} \\
-    & | \sp \T{if} \sp \NT{cond} \sp \T{then} \sp \NT{label} \sp \T{;} \NT{cont}
+    & | \sp \T{\textbackslash goto} \sp \NT{label} \\
+    & | \sp \T{\textbackslash if} \sp \NT{cond} \sp \T{\textbackslash then} \sp \NT{label} \sp \T{;} \NT{cont}
 \NT{block}  &\defeq \NT{label} \T{\{} \NT{stmt}* \sp \NT{cont} \T{\}}
 \end{aligned}
 \]

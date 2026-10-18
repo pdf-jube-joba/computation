@@ -60,8 +60,30 @@ let failed_groups () =
   check "optional group error preserves parent position"
     (P.is_group p P.Parentheses)
 
+let keywords () =
+  let p = P.create {|if \if ifz \ifz|} in
+  check "ordinary keyword spelling remains an identifier"
+    (Utils_names.Identifier.to_string (P.identifier p) = "if");
+  check "prefixed word is a distinct token" (P.peek p = P.Keyword "if");
+  check "identifier rejects a keyword"
+    (Result.is_error (P.protect (fun () -> P.identifier p)));
+  check "failed keyword sequence preserves its cursor"
+    (not (P.bump_if p {|\if otherwise|}));
+  P.expect_keyword p "if";
+  check "keyword matching uses a complete word" (not (P.bump_if_keyword p "if"));
+  ignore (P.identifier p);
+  check "keyword names exclude their prefix" (P.keyword p = "ifz");
+  P.expect_eof p;
+  check "unprefixed word is not accepted as a keyword"
+    (Result.is_error (P.parse (fun p -> P.expect_keyword p "if") "if"));
+  check "prefix must be adjacent to its word"
+    (Result.is_error (P.parse (fun p -> P.expect_keyword p "if") {|\ if|}));
+  check "keywords in strings and comments remain literal data"
+    (get (P.parse P.string_literal {|/* \if */ "\\fun" // \else|}) = {|\fun|})
+
 let () =
   nested_groups ();
   optional_groups ();
   failed_groups ();
+  keywords ();
   print_endline "Passed parser group checks."
