@@ -192,26 +192,56 @@ CombEnvCompile := List (\(\String\), LogicCircuits) を与える必要がある�
 compile-comb: CombEnvCompile Exp \(\function\) LogicCircuits := compile-comb \(E\) \(e\) = 
   - まあ想像できる通りみたいな感じでいけそう
 
-## OCaml implementation status
+## OCaml 実装
 
-`main.ml` ports the implemented Rust APIs: `Value_type`, `Value`,
-`typable_value`, the full `comb_exp_val` evaluator (`eval_to_val`),
-`Parser.parse_value` / `Interface.parse_value`, and direct simple-module state
-observation, output evaluation and clock transitions. All original declaration
-and state shapes, including graph and iterator shapes, have Yojson.Safe codecs.
-Graph/iterator direct methods retain their existing dispatch dependencies.
+`syntax.ml` に値・型と名前付きの組み合わせ回路の宣言を置きます。
+式は `('var, 'module_ref) expr` として定義し、名前付きの式と ID に解決済みの式で
+構造を共有します。既存の `Main.comb_exp_val` と `comb_module` も使えます。
 
-Observable quirks remain: `Value.new_strct` rejects every nonempty field list
-(the source inverted its insertion check); the text parser therefore rejects
-nonempty structs. Expression `StrctConst` directly constructs them. Conditionals
-and switches evaluate every branch. Variable lookup selects the first binding,
-so sequence bindings do not shadow earlier bindings. Combinational calls do not
-check their declared types. Graph output evaluates its transition expression.
+[Program.make](program.mli) は組み合わせモジュールの宣言を先にすべて集め、
+その後で各本体と評価対象の式の名前を解決します。後に宣言されたモジュールも参照できます。
+変数とモジュールには別の型の ID を使い、定義表と解決済みの式を抽象型 `Program.t` にまとめます。
+モジュール名・入力宣言の重複、未定義の参照、組み合わせモジュールの自己再帰・相互再帰は
+構築時にエラーにします。使われていないモジュールも検査します。
 
-The Rust crate never implemented a type/expression/module source parser, simple
-module construction, general module state/output/clock dispatch, or an HDL
-compiler. These remain explicitly unsupported, with descriptive errors for the
-existing unfinished operations. This library exposes no `Utils_runtime.Machine.S` or
-compiler API to register. It does not turn the value parser into an invented
-HDL machine. Original design documents remain available as design material;
-their unfinished semantics are not advertised as implemented.
+モジュール本体で使える入力は `IN`、評価対象の式で使える入力は `~inputs` で指定します。
+`seq` は各右辺をそれ以前の束縛で解決してから次の宣言へ進みます。
+同じ名前が複数ある場合は、元の評価器と同じく先の束縛を使います。
+構造体のフィールド名と enum のタグはラベルとして扱います。
+
+```ocaml
+let input = Utils_names.Identifier.make_exn "input"
+let neg = Utils_names.Identifier.make_exn "neg"
+let builtin_in = Utils_names.Identifier.make_exn "IN"
+let modules : My_hdl.Main.comb_module list =
+  let open My_hdl.Main in
+  [{ name = neg; input_type = Value_type.Bit; otput_type = Value_type.Bit;
+     comb_func = Not (Var builtin_in) }]
+
+let compiled =
+  My_hdl.Program.make ~modules ~inputs:[input]
+    (My_hdl.Main.CombModule (neg, My_hdl.Main.Var input))
+
+let output =
+  Result.bind compiled (fun program ->
+    My_hdl.Program.eval program [(input, My_hdl.Main.Value.Bit true)])
+```
+
+`Program.eval` は入力の値を受け取り、式中の変数・モジュール参照を ID で評価します。
+`Program.make` の結果を保持すれば、入力を変えて繰り返し評価できます。
+既存の `Main.eval_to_val` は呼び出すたびに構築と評価を行う簡易 API です。
+状態内の `code_env` も `Program.t` になり、クロック処理は解決済みのプログラムを使います。
+
+`Program.to_yojson` は `code`・`mod_env`・`inputs` を名前付きで保存します。
+同じモジュールを複数回呼んでも、その宣言は定義表に一度だけ保存します。
+`Program.of_yojson` は宣言収集と名前解決をやり直して参照の整合性を検査します。
+
+元の評価規則のうち、条件分岐・switch の全分岐を評価する挙動と、
+モジュール呼び出しで宣言された型を検査しない挙動は維持しています。
+`Value.new_strct` が空でないフィールドのリストを拒否する元の挙動も残っています。
+
+値の parser、組み合わせ式の評価、単純モジュール状態の出力・クロック処理を実装しています。
+型・式・モジュール宣言のソース parser、単純モジュールの構築、一般モジュールの
+状態・出力・クロックの dispatch、HDL compiler は未実装です。
+グラフ・iterator の既存の直接操作も、その dispatch に依存します。
+`Utils_runtime.Machine.S` や compiler API としては登録していません。

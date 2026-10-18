@@ -36,3 +36,8 @@
   flow_ir
   lambda_continuations_shared
   my_hdl))
+
+(test
+ (name my_hdl)
+ (modules my_hdl)
+ (libraries my_hdl utils_base utils_names yojson))
