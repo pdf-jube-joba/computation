@@ -134,16 +134,3 @@ let encode_ainput = Structured_lang_compiler_shared.Lowering.encode_ainput
 let encode_rinput () = Ok ""
 let decode_routput _ = Ok ()
 let decode_foutput = decode_foutput "expr"
-
-let api =
-  Utils_runtime.Compiler_text_api.make
-    (module struct
-      module Source = Source
-      module Target = Target
-
-      let compile = compile
-      let encode_ainput = encode_ainput
-      let encode_rinput = encode_rinput
-      let decode_routput = decode_routput
-      let decode_foutput = decode_foutput
-    end)

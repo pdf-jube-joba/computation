@@ -1,6 +1,5 @@
 module Number = Utils_base.Number
-module Tape = Utils_codec.Tape_text.Identifier
-module Tape_text = Utils_codec.Tape_text.Identifier
+module Tape = Utils_data.Tape.Identifier
 module Memory = Utils_data.Memory
 
 let get = Utils_base.Error.get
@@ -8,7 +7,7 @@ let check message condition = if not condition then failwith message
 let sign name = Some (Utils_names.Identifier.make_exn name)
 
 let tape () =
-  let original = get (Tape_text.parse "a,b|c|d,e") in
+  let original = get (Tape.parse "a,b|c|d,e") in
   let left = Tape.move_to original Tape.Left in
   check "tape moves toward nearest left cell" (left.head = sign "b");
   check "tape move preserves cell order"
@@ -23,7 +22,7 @@ let tape () =
   let written = Tape.head_write outside (sign "x") in
   check "writing preserves the original tape" (outside.head = None);
   check "tape text roundtrip"
-    (Tape.equal written (get (Tape_text.parse (Tape_text.print written))));
+    (Tape.equal written (get (Tape.parse (Tape.print written))));
   check "tape JSON roundtrip"
     (written = get (Tape.of_yojson (Tape.to_yojson written)));
   let at_end = get (Tape.from_vec [ sign "a"; sign "b" ] 2) in
@@ -60,7 +59,7 @@ let memory () =
 
 let polymorphic_data () =
   let module Bit = struct
-    include Utils_codec.Text.Bool
+    include Utils_data.Text.Bool
 
     let default = false
     let equal = Bool.equal
@@ -70,7 +69,7 @@ let polymorphic_data () =
       | `Bool value -> Ok value
       | _ -> Error "Expected bit"
   end in
-  let module Bits = Utils_codec.Tape_text.Make (Bit) in
+  let module Bits = Utils_data.Tape.Make (Bit) in
   let tape = get (Bits.parse "#true|#false|#true") in
   let left = Bits.move_to tape Bits.Left in
   check "generic tape stores boolean cells" left.head;
@@ -91,13 +90,13 @@ let polymorphic_data () =
     (Memory.read ~default:"empty" extended 2 = "last");
   check "generic memory reads missing cells as its supplied default"
     (Memory.read ~default:"empty" extended 5 = "empty");
-  let module Image = Utils_codec.Memory_image_text.Make (Bit) in
+  let module Image = Utils_data.Memory_image.Make (Bit) in
   let image = get (Image.parse ~register_count:2 "#false, #true\n#true") in
   check "generic image uses the element codec"
     (get (Image.parse ~register_count:2 (Image.print image)) = image)
 
 let codecs () =
-  let module Image = Utils_codec.Memory_image_text.Natural in
+  let module Image = Utils_data.Memory_image.Natural in
   let image = get (Image.parse ~register_count:2 "+0, 03\n+4\n5") in
   check "register layout is supplied by the model"
     (Image.print image = "0, 3\n4\n5");
@@ -105,18 +104,18 @@ let codecs () =
     (Result.is_error (Image.parse ~register_count:8 "0, 3"));
   check "memory image roundtrip"
     (get (Image.parse ~register_count:2 (Image.print image)) = image);
-  let module Chars = Utils_codec.Character_list_text in
+  let module Chars = Utils_data.Character_list in
   let chars = get (Chars.parse "((['あ', '\\n', '\'']))") in
   check "character list roundtrip"
     (get (Chars.parse (Chars.print chars)) = chars);
   check "character input rejects expressions"
     (Result.is_error (Chars.parse "head ['a']"));
-  let module Tree = Utils_codec.Character_tree_text in
+  let module Tree = Utils_data.Character_tree in
   let tree = get (Tree.parse "(cons (atom (('あ'))) (atom '\\n'))") in
   check "character tree roundtrip" (get (Tree.parse (Tree.print tree)) = tree);
   check "tree input rejects projections"
     (Result.is_error (Tree.parse "left (cons atom 'a' atom 'b')"));
-  let module Env = Utils_codec.Environment_text.Natural in
+  let module Env = Utils_data.Environment.Natural in
   let env = get (Env.parse "x = 2\ny = 3\nx = 4") in
   check "environment keeps the last assignment"
     (Number.equal
@@ -131,4 +130,4 @@ let () =
   memory ();
   polymorphic_data ();
   codecs ();
-  print_endline "Passed shared data and codec checks."
+  print_endline "Passed shared data checks."

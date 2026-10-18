@@ -7,4 +7,4 @@ type api = {
 }
 (** Text transport adapter for a typed compiler. *)
 
-val make : (module Compiler.S) -> api
+val make : (module Utils_runtime.Compiler.S) -> api

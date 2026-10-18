@@ -321,20 +321,23 @@ let step s _ =
           let stmt, next = step_stmt s s.stmt in
           Utils_runtime.Machine.Continue { next = { next with stmt }; output })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"stmt" (Code.stmt_to_text s.stmt);
-      Utils_runtime.Render.text ~title:"global env"
-        (Env.print_inline (Utils_base.Assoc.sorted s.global_env));
-      Utils_runtime.Render.text ~title:"local env"
-        (Env.print_inline (Utils_base.Assoc.sorted s.local_env));
-      Utils_runtime.Render.text ~title:"call stack depth"
-        (string_of_int (List.length s.call_stack));
-    ]
+  [
+    Utils_runtime.Render.text ~title:"stmt" (Code.stmt_to_text s.stmt);
+    Utils_runtime.Render.text ~title:"global env"
+      (Env.print_inline (Utils_base.Assoc.sorted s.global_env));
+    Utils_runtime.Render.text ~title:"local env"
+      (Env.print_inline (Utils_base.Assoc.sorted s.local_env));
+    Utils_runtime.Render.text ~title:"call stack depth"
+      (string_of_int (List.length s.call_stack));
+  ]
 
 module Ainput = struct
   type t = ainput
@@ -343,6 +346,6 @@ module Ainput = struct
   let print = fun env -> Env.print (Utils_base.Assoc.sorted env)
 end
 
-module Rinput = Utils_codec.Text.String
-module Routput = Utils_codec.Text.String
+module Rinput = Utils_data.Text.String
+module Routput = Utils_data.Text.String
 module Foutput = Ainput

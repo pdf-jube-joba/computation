@@ -2,7 +2,7 @@ open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
 open Rec_tm_shared.Environment
 open Rec_tm_shared.Eval
-module T = Utils_codec.Tape_text.Identifier
+module T = Utils_data.Tape.Identifier
 module L = Utils_parsing.Parser
 
 type lvalue = Rec_tm_shared.Syntax.lvalue =
@@ -333,45 +333,46 @@ let step s () =
               }
         | _ -> continue next)
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  let* s = state_of_yojson json in
-  let* () = validate s.program in
-  Utils_base.Error.protect (fun () ->
-      validate_tape (normalized_alphabet s.program.alphabet) s.tape;
-      List.iter
-        (fun f ->
-          let b, i = f.pc in
-          if b < 0 || i < 0 then failwith "Invalid frame pc";
-          let definition = find_function s.program f.function_ in
-          if f.blocks <> definition.blocks then
-            failwith "Frame differs from function definition";
-          validate_environment (collect_vars f.blocks) f.env)
-        (s.frame :: s.stack);
-      s)
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    let* s = state_of_yojson json in
+    let* () = validate s.program in
+    Utils_base.Error.protect (fun () ->
+        validate_tape (normalized_alphabet s.program.alphabet) s.tape;
+        List.iter
+          (fun f ->
+            let b, i = f.pc in
+            if b < 0 || i < 0 then failwith "Invalid frame pc";
+            let definition = find_function s.program f.function_ in
+            if f.blocks <> definition.blocks then
+              failwith "Frame differs from function definition";
+            validate_environment (collect_vars f.blocks) f.env)
+          (s.frame :: s.stack);
+        s)
+end
 
 let render s =
   let b, i = normalized_pc s.frame in
   let signs, head = T.into_vec s.tape in
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"function"
-        (Utils_names.Identifier.to_string s.frame.function_);
-      Utils_runtime.Render.text ~title:"pc" (Printf.sprintf "%d:%d" b i);
-      Utils_runtime.Render.text ~title:"next"
-        (Option.fold ~none:"halt" ~some:Code.stmt_print (peek_stmt s));
-      Utils_runtime.Render.highlight ~title:"stack" ~index:(List.length s.stack)
-        (fun f -> Utils_names.Identifier.to_string f.function_)
-        (List.rev s.stack @ [ s.frame ]);
-      Utils_runtime.Render.keyed_table
-        ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
-        (env_named s.frame.env);
-      Utils_runtime.Render.highlight ~title:"tape" ~index:head T.Sign.print
-        signs;
-    ]
+  [
+    Utils_runtime.Render.text ~title:"function"
+      (Utils_names.Identifier.to_string s.frame.function_);
+    Utils_runtime.Render.text ~title:"pc" (Printf.sprintf "%d:%d" b i);
+    Utils_runtime.Render.text ~title:"next"
+      (Option.fold ~none:"halt" ~some:Code.stmt_print (peek_stmt s));
+    Utils_runtime.Render.highlight ~title:"stack" ~index:(List.length s.stack)
+      (fun f -> Utils_names.Identifier.to_string f.function_)
+      (List.rev s.stack @ [ s.frame ]);
+    Utils_runtime.Render.keyed_table ~key_text:Utils_names.Identifier.to_string
+      ~title:"env" T.Sign.print (env_named s.frame.env);
+    Utils_runtime.Render.highlight ~title:"tape" ~index:head T.Sign.print signs;
+  ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput

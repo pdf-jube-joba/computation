@@ -3,13 +3,7 @@
  (library
   (name rec_tm_shared)
   (public_name computation.rec_tm_shared)
-  (libraries
-   yojson
-   utils_base
-   utils_data
-   utils_codec
-   utils_names
-   utils_parsing)
+  (libraries yojson utils_base utils_data utils_names utils_parsing)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -22,7 +16,7 @@
    yojson
    rec_tm_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_parsing
    utils_runtime)
@@ -38,7 +32,7 @@
    yojson
    rec_tm_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_parsing
    utils_runtime)

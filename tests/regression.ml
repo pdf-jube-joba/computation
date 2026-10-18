@@ -1,8 +1,9 @@
 (* Model fixtures preserve pre-refactor transitions, outputs and snapshot formats. *)
 module Registry = Model_registry.Registry
 module Session = Utils_runtime.Session
+module Session_json = Utils_runtime.Session_json
 module Machine = Utils_runtime.Machine
-module Json = Utils_codec.Json
+module Json = Utils_data.Json
 module Identifier = Utils_names.Identifier
 module Number = Utils_base.Number
 
@@ -19,7 +20,8 @@ let run_fixture fixture =
   let string key = Json.string (Json.field key fixture) in
   let name = string "name" in
   let module M = (val get (Registry.model name)) in
-  let module S = Session.Make (M) in
+  let module S = Session_json.Make (M) in
+  let module Typed = Session.Make (M) in
   let session = S.create () in
   get (S.make session (string "code") (string "ainput"));
   (match
@@ -41,6 +43,20 @@ let run_fixture fixture =
     check
       (name ^ ": rendering after restore")
       (rendering = get (S.render restored));
+    let typed = Typed.create () in
+    get (Typed.restore typed (get (M.Snapshot.of_yojson snapshot)));
+    let saved = get (Typed.snapshot typed) in
+    check
+      (name ^ ": typed rendering differs from host rendering")
+      (Utils_runtime.Render.to_yojson (get (Typed.render typed)) = rendering);
+    ignore (get (Typed.step typed (string "rinput")));
+    check
+      (name ^ ": transition changed saved typed state")
+      (M.Snapshot.to_yojson saved = snapshot);
+    get (Typed.restore typed saved);
+    check
+      (name ^ ": typed snapshot restore")
+      (M.Snapshot.to_yojson (get (Typed.snapshot typed)) = snapshot);
     get (S.restore session snapshot)
   in
   let effects =
@@ -66,7 +82,7 @@ let run_fixture fixture =
 
 let finish_model name code ainput rinput =
   let module M = (val get (Registry.model name)) in
-  let module S = Session.Make (M) in
+  let module S = Session_json.Make (M) in
   let session = S.create () in
   get (S.make session code ainput);
   let rec loop remaining =
@@ -106,7 +122,7 @@ let compiler_paths () =
 
 let session_errors () =
   let module M = (val get (Registry.model "example_counter")) in
-  let module S = Session.Make (M) in
+  let module S = Session_json.Make (M) in
   let session = S.create () in
   check "step before make" (Result.is_error (S.step session "inc"));
   get (S.make session "3" "");
@@ -122,12 +138,24 @@ let session_errors () =
     ];
   (* A valid parse followed by a failed transition must also keep its state. *)
   let module M = (val get (Registry.model "flow_ir")) in
-  let module S = Session.Make (M) in
+  let module S = Session_json.Make (M) in
   let session = S.create () in
   get (S.make session ":main { :entry { %x := ld sacc #0; halt; } }" "");
   let saved = get (S.snapshot session) in
   check "invalid memory read accepted" (Result.is_error (S.step session ""));
   check "failed execution changed state" (saved = get (S.snapshot session))
+
+let rendering_contract () =
+  let module M = (val get (Registry.model "example_counter")) in
+  let module S = Session_json.Make (M) in
+  let session = S.create () in
+  get (S.make session "3" "");
+  let expected =
+    get
+      (Json.decode
+         {|[{"kind":"table","columns":[{"kind":"text","text":"field"},{"kind":"text","text":"value"}],"rows":[{"cells":[{"kind":"text","text":"count"},{"kind":"text","text":"3"}]}],"title":"status"}]|})
+  in
+  check "browser rendering format changed" (get (S.render session) = expected)
 
 let domains () =
   check "invalid identifier" (Result.is_error (Identifier.make "bad name"));
@@ -175,6 +203,7 @@ let () =
   List.iter run_fixture fixtures;
   let tested_compilers = compiler_paths () in
   session_errors ();
+  rendering_contract ();
   domains ();
   registry_coverage tested_compilers;
   Printf.printf

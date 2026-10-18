@@ -5,8 +5,8 @@ end
 module State = State
 module Code = Code
 module Ainput = Tape
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Tape
 
 val unwrap : ('a, string) result -> 'a

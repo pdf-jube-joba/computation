@@ -68,7 +68,7 @@ let natural_json = function
   | _ -> failwith "expected natural number"
 
 let identifier_json j =
-  get (Utils_names.Identifier.make (Utils_codec.Json.string j))
+  get (Utils_names.Identifier.make (Utils_data.Json.string j))
 
 let rec instr_from_json = function
   | `String "PushUnit" -> PushUnit
@@ -80,13 +80,13 @@ let rec instr_from_json = function
   | `Assoc [ ("Acc", j) ] -> Acc (identifier_json j)
   | `Assoc [ ("MkCls", j) ] ->
       MkCls
-        ( identifier_json (Utils_codec.Json.field "param" j),
-          code_from_json (Utils_codec.Json.field "code" j) )
+        ( identifier_json (Utils_data.Json.field "param" j),
+          code_from_json (Utils_data.Json.field "code" j) )
   | `Assoc [ ("MkRec", j) ] ->
       MkRec
-        ( identifier_json (Utils_codec.Json.field "name" j),
-          identifier_json (Utils_codec.Json.field "param" j),
-          code_from_json (Utils_codec.Json.field "code" j) )
+        ( identifier_json (Utils_data.Json.field "name" j),
+          identifier_json (Utils_data.Json.field "param" j),
+          code_from_json (Utils_data.Json.field "code" j) )
   | `Assoc [ ("BinOp", `String o) ] ->
       BinOp
         (match o with
@@ -103,14 +103,14 @@ let rec instr_from_json = function
         | _ -> failwith "unknown unop")
   | `Assoc [ ("If", j) ] ->
       If
-        ( code_from_json (Utils_codec.Json.field "then_code" j),
-          code_from_json (Utils_codec.Json.field "else_code" j) )
+        ( code_from_json (Utils_data.Json.field "then_code" j),
+          code_from_json (Utils_data.Json.field "else_code" j) )
   | _ -> failwith "invalid SECD instruction"
 
-and code_from_json j = List.map instr_from_json (Utils_codec.Json.list j)
+and code_from_json j = List.map instr_from_json (Utils_data.Json.list j)
 
 let parse text =
-  let* j = Utils_codec.Json.decode text in
-  Utils_codec.Json.protect (fun () -> code_from_json j)
+  let* j = Utils_data.Json.decode text in
+  Utils_data.Json.protect (fun () -> code_from_json j)
 
 let print c = Yojson.Safe.pretty_to_string (code_json c)

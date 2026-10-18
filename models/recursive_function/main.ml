@@ -218,14 +218,18 @@ let step state () =
       | Result output -> Ok (Halt output)
       | _ -> Error "Invalid recursive-function process")
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  let* state = state_of_yojson json in
-  let* () = validate state.function_ in
-  if List.length state.input <> arity state.function_ then
-    Error "Invalid snapshot input arity"
-  else Ok state
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    let* state = state_of_yojson json in
+    let* () = validate state.function_ in
+    if List.length state.input <> arity state.function_ then
+      Error "Invalid snapshot input arity"
+    else Ok state
+end
 
 let rec print_process = function
   | Result n -> Number.to_string n
@@ -237,13 +241,12 @@ let rec print_process = function
       "Mu[" ^ Number.to_string n ^ "](" ^ print_process p ^ ")"
 
 let render state =
-  Render.state
-    [
-      Render.text ~title:"function" (Code.print state.function_);
-      Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ]
-        Number.to_string state.input;
-      Render.text ~title:"process" (print_process state.process);
-    ]
+  [
+    Render.text ~title:"function" (Code.print state.function_);
+    Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ]
+      Number.to_string state.input;
+    Render.text ~title:"process" (print_process state.process);
+  ]
 
 module Ainput = struct
   type t = ainput
@@ -254,9 +257,9 @@ module Ainput = struct
             Parser.separated_list ~allow_trailing:true p ~separator:','
               Parser.natural))
 
-  let print = Utils_codec.Text.Natural_list.print
+  let print = Utils_data.Text.Natural_list.print
 end
 
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
-module Foutput = Utils_codec.Text.Natural
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
+module Foutput = Utils_data.Text.Natural

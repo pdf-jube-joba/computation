@@ -37,7 +37,9 @@ let highlight ?title ~index value_text entries =
            (value_text value))
        entries)
 
-let rec to_yojson block =
+type t = block list
+
+let rec block_to_yojson block =
   let optional name = function
     | None -> []
     | Some value -> [ (name, `String value) ]
@@ -52,13 +54,13 @@ let rec to_yojson block =
       `Assoc
         ([
            ("kind", `String "table");
-           ("columns", `List (List.map to_yojson columns));
+           ("columns", `List (List.map block_to_yojson columns));
            ( "rows",
              `List
                (List.mapi
                   (fun i cells ->
                     `Assoc
-                      ([ ("cells", `List (List.map to_yojson cells)) ]
+                      ([ ("cells", `List (List.map block_to_yojson cells)) ]
                       @
                       if highlight = Some i then
                         [ ("className", `String "highlight") ]
@@ -70,7 +72,7 @@ let rec to_yojson block =
       `Assoc
         ([
            ("kind", `String "container");
-           ("children", `List (List.map to_yojson children));
+           ("children", `List (List.map block_to_yojson children));
            ( "orientation",
              `String
                (match orientation with
@@ -82,7 +84,7 @@ let rec to_yojson block =
          ]
         @ optional "title" title)
 
-let state blocks = `List (List.map to_yojson blocks)
+let to_yojson blocks = `List (List.map block_to_yojson blocks)
 
 let text_table ?title ?(columns = []) ?highlight rows =
   table ?title ~columns:(List.map text columns) ?highlight
@@ -104,8 +106,7 @@ let indexed_table ?title ?(columns = [ "index"; "value" ])
     (List.mapi (fun i value -> [ index_text i; value_text value ]) entries)
 
 let statement_env ~name_text stmt value_text env =
-  state
-    [
-      text ~title:"stmt" stmt;
-      keyed_table ~key_text:name_text ~title:"env" value_text env;
-    ]
+  [
+    text ~title:"stmt" stmt;
+    keyed_table ~key_text:name_text ~title:"env" value_text env;
+  ]

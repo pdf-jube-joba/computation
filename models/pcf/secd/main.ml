@@ -102,44 +102,47 @@ let step s () =
       let* next, output = step_once s in
       Ok (Utils_runtime.Machine.Continue { next; output })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
   let open Utils_runtime.Render in
-  state
-    [
-      text ~title:"code" (Code.print s.code);
-      text_table ~title:"status" ~columns:[ "field"; "value" ]
+  [
+    text ~title:"code" (Code.print s.code);
+    text_table ~title:"status" ~columns:[ "field"; "value" ]
+      [
         [
-          [
-            "next";
-            (match s.control with
-            | [] -> "ret"
-            | i :: _ -> Yojson.Safe.to_string (Code.instr_json i));
-          ];
-          [ "dump_depth"; string_of_int (List.length s.dump) ];
+          "next";
+          (match s.control with
+          | [] -> "ret"
+          | i :: _ -> Yojson.Safe.to_string (Code.instr_json i));
         ];
-      indexed_table ~title:"stack" ~columns:[ "depth"; "value" ] value_text
-        s.stack;
-      Pcf_shared.View.env value_text s.env;
-      indexed_table ~title:"control" ~columns:[ "pc"; "instr" ]
-        (fun i -> Yojson.Safe.to_string (Code.instr_json i))
-        s.control;
-      text_table ~title:"dump"
-        ~columns:[ "depth"; "stack"; "env"; "control" ]
-        (List.mapi
-           (fun i (f : dump_frame) ->
-             [
-               string_of_int i;
-               string_of_int (List.length f.stack);
-               string_of_int (List.length f.env);
-               string_of_int (List.length f.control);
-             ])
-           s.dump);
-    ]
+        [ "dump_depth"; string_of_int (List.length s.dump) ];
+      ];
+    indexed_table ~title:"stack" ~columns:[ "depth"; "value" ] value_text
+      s.stack;
+    Pcf_shared.View.env value_text s.env;
+    indexed_table ~title:"control" ~columns:[ "pc"; "instr" ]
+      (fun i -> Yojson.Safe.to_string (Code.instr_json i))
+      s.control;
+    text_table ~title:"dump"
+      ~columns:[ "depth"; "stack"; "env"; "control" ]
+      (List.mapi
+         (fun i (f : dump_frame) ->
+           [
+             string_of_int i;
+             string_of_int (List.length f.stack);
+             string_of_int (List.length f.env);
+             string_of_int (List.length f.control);
+           ])
+         s.dump);
+  ]
 
 module Ainput = Pcf_shared.Io.Ainput
-module Rinput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
 module Routput = Pcf_shared.Io.Routput
 module Foutput = Pcf_shared.Io.Foutput

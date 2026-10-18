@@ -1,4 +1,4 @@
-module Tape = Utils_codec.Tape_text.Identifier
+module Tape = Utils_data.Tape.Identifier
 module Sign = Tape.Sign
 module Direction = Tape.Direction
 module State_id = Utils_names.Id.Make ()

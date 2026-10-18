@@ -31,10 +31,9 @@ module Make (M : S) = struct
             session.state <- None;
             Ok (Halted (M.Foutput.print output)))
 
-  let snapshot session = with_state session (fun state -> Ok (M.snapshot state))
+  let snapshot session = with_state session (fun state -> Ok state)
 
-  let restore session json =
-    let* state = M.restore json in
+  let restore session state =
     session.state <- Some state;
     Ok ()
 

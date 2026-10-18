@@ -3,7 +3,13 @@
  (library
   (name pcf_shared)
   (public_name computation.pcf_shared)
-  (libraries yojson utils_base utils_codec utils_names utils_parsing utils_runtime)
+  (libraries
+   yojson
+   utils_base
+   utils_data
+   utils_names
+   utils_parsing
+   utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -16,7 +22,7 @@
    yojson
    pcf_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess
@@ -31,7 +37,7 @@
    yojson
    pcf_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess
@@ -46,7 +52,7 @@
    yojson
    pcf_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess
@@ -61,7 +67,7 @@
    yojson
    pcf_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_parsing
    utils_runtime)

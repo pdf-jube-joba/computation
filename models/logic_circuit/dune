@@ -4,7 +4,7 @@
  (libraries
   yojson
   utils_base
-  utils_codec
+  utils_data
   utils_names
   utils_parsing
   utils_runtime)

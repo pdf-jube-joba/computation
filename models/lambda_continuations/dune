@@ -12,7 +12,7 @@
  (library
   (name lambda_continuations_no_ext)
   (public_name computation.lambda_continuations_no_ext)
-  (libraries yojson lambda_continuations_shared utils_codec utils_runtime)
+  (libraries yojson lambda_continuations_shared utils_data utils_runtime)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -25,6 +25,6 @@
    yojson
    lambda_continuations_no_ext
    lambda_continuations_shared
-   utils_codec)
+   utils_data)
   (preprocess
    (pps ppx_deriving_yojson))))

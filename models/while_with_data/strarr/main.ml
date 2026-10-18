@@ -113,12 +113,10 @@ end
 module Ainput = struct
   type t = ainput
 
-  let print_value = Utils_codec.Character_list_text.print
-  let parse_value = Utils_codec.Character_list_text.parse
-  let parse = Utils_codec.Environment_text.parse parse_value
-
-  let print =
-    Utils_codec.Environment_text.print ~trailing_newline:true print_value
+  let print_value = Utils_data.Character_list.print
+  let parse_value = Utils_data.Character_list.parse
+  let parse = Utils_data.Environment.parse parse_value
+  let print = Utils_data.Environment.print ~trailing_newline:true print_value
 end
 
 let rec eval_aexp env = function
@@ -153,13 +151,17 @@ let step s () =
       (Utils_runtime.Machine.Continue
          { next = { s with stmt; env }; output = () })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
   Utils_runtime.Render.statement_env ~name_text:Utils_names.Identifier.to_string
     (Code.print s.stmt) Ainput.print_value s.env
 
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput

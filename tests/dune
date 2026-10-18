@@ -5,7 +5,7 @@
   model_registry
   utils_base
   utils_names
-  utils_codec
+  utils_data
   utils_runtime
   pcf_shared
   pcf_expr
@@ -17,7 +17,7 @@
 (test
  (name data)
  (modules data)
- (libraries utils_base utils_codec utils_data utils_names))
+ (libraries utils_base utils_data utils_names))
 
 (test
  (name parsing)

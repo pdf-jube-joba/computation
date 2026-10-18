@@ -51,17 +51,20 @@ let step s () =
       | Some value -> Ok (Utils_runtime.Machine.Halt value)
       | None -> Error ("stuck term: " ^ Code.pretty s.current))
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"code" (Code.pretty s.code);
-      Utils_runtime.Render.text ~title:"current" (Code.pretty s.current);
-    ]
+  [
+    Utils_runtime.Render.text ~title:"code" (Code.pretty s.code);
+    Utils_runtime.Render.text ~title:"current" (Code.pretty s.current);
+  ]
 
-module Ainput = Utils_codec.Text.Natural_list
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Ainput = Utils_data.Text.Natural_list
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Lambda_continuations_shared.Syntax.Value

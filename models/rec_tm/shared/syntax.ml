@@ -1,4 +1,4 @@
-module T = Utils_codec.Tape_text.Identifier
+module T = Utils_data.Tape.Identifier
 module L = Utils_parsing.Parser
 
 type lvalue = Var of Utils_names.Identifier.t | Head [@@deriving yojson]
@@ -37,7 +37,7 @@ let identifier ?(keywords = keywords) p =
 let sign p =
   match L.bump p with
   | L.Symbol '-' -> None
-  | L.Ident s -> T.unwrap (T.Sign.parse s)
+  | L.Ident s -> Utils_base.Error.get (T.Sign.parse s)
   | _ -> L.error p "Expected sign"
 
 let alphabet p =
@@ -119,16 +119,18 @@ module Env = struct
 
   let parse_entry env key value =
     if String.contains value '=' then failwith "Invalid environment line";
-    ignore (T.unwrap (Utils_names.Identifier.make key));
+    ignore (Utils_base.Error.get (Utils_names.Identifier.make key));
     if List.mem key keywords then failwith "Reserved environment variable";
-    Utils_base.Assoc.set_sorted key (T.unwrap (T.Sign.parse value)) env
+    Utils_base.Assoc.set_sorted key
+      (Utils_base.Error.get (T.Sign.parse value))
+      env
 
   let parse text =
-    Utils_codec.Environment_text.fold_lines
+    Utils_data.Environment.fold_lines
       ~invalid_line:(fun _ -> "Invalid environment line")
       parse_entry [] text
 
-  let print = Utils_codec.Environment_text.print T.Sign.print
+  let print = Utils_data.Environment.print T.Sign.print
 end
 
 module Tape = T

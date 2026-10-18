@@ -3,10 +3,8 @@ open Circuit
 type t = signal
 
 let value = Utils_base.Error.get
-
-let parse_bool text = value (Utils_codec.Text.Bool.parse text)
-
-let print_bool = Utils_codec.Text.Bool.print
+let parse_bool text = value (Utils_data.Text.Bool.parse text)
+let print_bool = Utils_data.Text.Bool.print
 
 module P = Utils_parsing.Parser
 

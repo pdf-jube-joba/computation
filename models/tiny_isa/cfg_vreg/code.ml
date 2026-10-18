@@ -6,7 +6,7 @@ let parse_vreg s =
   if not (String.starts_with ~prefix:"%v" s) then failwith ("Invalid vreg: " ^ s)
   else
     Utils_base.Error.get
-      (Utils_codec.Text.Natural_int.parse (Text.strip_prefix "%v" s))
+      (Utils_data.Text.Natural_int.parse (Text.strip_prefix "%v" s))
 
 module P = Utils_parsing.Parser
 

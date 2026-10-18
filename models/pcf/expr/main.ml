@@ -77,17 +77,20 @@ let step state () =
     let* expr, output = small_step state.expr in
     Ok (Utils_runtime.Machine.Continue { next = { state with expr }; output })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"code" (Code.print s.code);
-      Utils_runtime.Render.text ~title:"current" (Code.print s.expr);
-    ]
+  [
+    Utils_runtime.Render.text ~title:"code" (Code.print s.code);
+    Utils_runtime.Render.text ~title:"current" (Code.print s.expr);
+  ]
 
 module Ainput = Pcf_shared.Io.Ainput
-module Rinput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
 module Routput = Pcf_shared.Io.Routput
 module Foutput = Pcf_shared.Io.Foutput

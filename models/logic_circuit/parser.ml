@@ -142,7 +142,7 @@ module Code = struct
   let parse text =
     match String.trim text with
     | text when String.starts_with ~prefix:"[" text ->
-        Result.bind (Utils_codec.Json.decode text) (fun json ->
+        Result.bind (Utils_data.Json.decode text) (fun json ->
             Result.bind (of_yojson json) (fun circuit ->
                 Result.map (fun () -> circuit) (validate circuit)))
     | _ -> parse_main_with_maps text (init_maps ())

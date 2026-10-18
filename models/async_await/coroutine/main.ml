@@ -23,22 +23,27 @@ let make code agents =
       })
 
 let step = Scheduler.step
-let snapshot = state_to_yojson
 
-let restore json =
-  Result.bind (state_of_yojson json) (fun s ->
-      L.protect (fun () ->
-          validate s.code;
-          let check id =
-            if Task_id.to_int id >= Array.length s.tasks then
-              failwith "Unknown task ID in snapshot"
-          in
-          List.iter check s.queue;
-          Array.iter (Option.iter check) s.workers;
-          s))
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    Result.bind (state_of_yojson json) (fun s ->
+        L.protect (fun () ->
+            validate s.code;
+            let check id =
+              if Task_id.to_int id >= Array.length s.tasks then
+                failwith "Unknown task ID in snapshot"
+            in
+            List.iter check s.queue;
+            Array.iter (Option.iter check) s.workers;
+            s))
+end
 
 let render = View.render
 
-module Ainput = Utils_codec.Text.Natural_int
-module Rinput = Utils_codec.Text.Natural_int
-module Routput = Utils_codec.Text.String
+module Ainput = Utils_data.Text.Natural_int
+module Rinput = Utils_data.Text.Natural_int
+module Routput = Utils_data.Text.String

@@ -145,16 +145,20 @@ let step s () =
       (Utils_runtime.Machine.Continue
          { next = { s with stmt; env }; output = () })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
   Utils_runtime.Render.statement_env ~name_text:Utils_names.Identifier.to_string
     (Code.print s.stmt) N.to_string s.env
 
 module Ainput = Structured_lang_shared.Arithmetic.Env
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput
 
 let rec a_vars = function

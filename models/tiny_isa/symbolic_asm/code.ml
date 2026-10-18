@@ -4,7 +4,7 @@ type t = code
 
 let parse_reg token =
   let t = Text.strip_prefix "r" (Text.strip_prefix "%" (String.trim token)) in
-  let n = Utils_base.Error.get (Utils_codec.Text.Natural_int.parse t) in
+  let n = Utils_base.Error.get (Utils_data.Text.Natural_int.parse t) in
   if n >= 8 then
     failwith (Printf.sprintf "Register out of range (expected 0..=7): %d" n);
   n

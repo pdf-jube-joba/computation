@@ -29,11 +29,12 @@ let step s () =
   else Ok (Continue { next; output = () })
 
 let unwrap = Utils_base.Error.get
-let snapshot = Snapshot.encode
-let restore = Snapshot.decode
+
+module Snapshot = Snapshot
+
 let render s = View.render ~highlight:(Option.map fst (next_code s)) s
 
 module Ainput = Tape
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput

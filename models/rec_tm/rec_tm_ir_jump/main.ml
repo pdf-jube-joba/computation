@@ -2,7 +2,7 @@ open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
 open Rec_tm_shared.Environment
 open Rec_tm_shared.Eval
-module T = Utils_codec.Tape_text.Identifier
+module T = Utils_data.Tape.Identifier
 module L = Utils_parsing.Parser
 
 type lvalue = Rec_tm_shared.Syntax.lvalue =
@@ -124,34 +124,35 @@ let step s () =
         in
         Continue { next; output = () })
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  let* s = state_of_yojson json in
-  let* () = validate s.program in
-  Utils_base.Error.protect (fun () ->
-      if s.pc < 0 || s.pc > List.length s.program.body then
-        failwith "Invalid pc";
-      validate_tape (normalized_alphabet s.program.alphabet) s.tape;
-      validate_environment (collect_vars s.program.body) s.env;
-      s)
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    let* s = state_of_yojson json in
+    let* () = validate s.program in
+    Utils_base.Error.protect (fun () ->
+        if s.pc < 0 || s.pc > List.length s.program.body then
+          failwith "Invalid pc";
+        validate_tape (normalized_alphabet s.program.alphabet) s.tape;
+        validate_environment (collect_vars s.program.body) s.env;
+        s)
+end
 
 let render s =
   let signs, head = T.into_vec s.tape in
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"pc" (string_of_int s.pc);
-      Utils_runtime.Render.text ~title:"next"
-        (if s.pc >= List.length s.program.body then "halt"
-         else Code.stmt_print (List.nth s.program.body s.pc));
-      Utils_runtime.Render.keyed_table
-        ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
-        (env_named s.env);
-      Utils_runtime.Render.highlight ~title:"tape" ~index:head T.Sign.print
-        signs;
-    ]
+  [
+    Utils_runtime.Render.text ~title:"pc" (string_of_int s.pc);
+    Utils_runtime.Render.text ~title:"next"
+      (if s.pc >= List.length s.program.body then "halt"
+       else Code.stmt_print (List.nth s.program.body s.pc));
+    Utils_runtime.Render.keyed_table ~key_text:Utils_names.Identifier.to_string
+      ~title:"env" T.Sign.print (env_named s.env);
+    Utils_runtime.Render.highlight ~title:"tape" ~index:head T.Sign.print signs;
+  ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput

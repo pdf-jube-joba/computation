@@ -200,74 +200,79 @@ let step term index =
   if redex_count next = 0 then Ok (Halt next)
   else Ok (Continue { next; output = () })
 
-let snapshot term =
-  let var_json var =
-    `Assoc
-      [
-        ("id", Var_id.to_yojson var.id);
-        ("name", `String (Utils_names.Identifier.to_string var.name));
-      ]
-  in
-  let rec visit = function
-    | Var var -> `List [ `String "var"; var_json var ]
-    | Abs (var, body) -> `List [ `String "abs"; var_json var; visit body ]
-    | App (left, right) -> `List [ `String "app"; visit left; visit right ]
-  in
-  visit term
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  let vars = Hashtbl.create 16 and binders = Hashtbl.create 16 in
-  let variable = function
-    | `Assoc fields -> (
-        match (List.assoc_opt "id" fields, List.assoc_opt "name" fields) with
-        | Some (`Int id), Some (`String name)
-          when id >= 0 && id < max_int && Utils_names.Identifier.valid name -> (
-            let* id = Var_id.of_int id in
-            let* name = Utils_names.Identifier.make name in
-            match Hashtbl.find_opt vars id with
-            | Some var when var.name <> name ->
-                Error "Conflicting variable names"
-            | Some var -> Ok var
-            | None ->
-                let var = { id; name } in
-                Hashtbl.add vars id var;
-                Ok var)
-        | _ -> Error "Invalid variable in snapshot")
-    | _ -> Error "Invalid variable in snapshot"
-  in
-  let rec visit env = function
-    | `List [ `String "var"; json ] ->
-        let* var = variable json in
-        if
-          Hashtbl.mem binders (Var_id.to_int var.id)
-          && not (List.mem var.id env)
-        then Error "Bound variable occurs outside its scope"
-        else Ok (Var var)
-    | `List [ `String "abs"; json; body ] ->
-        let* var = variable json in
-        if List.mem var.id env then Error "Repeated binder ID"
-        else
-          let* body = visit (var.id :: env) body in
-          Ok (Abs (var, body))
-    | `List [ `String "app"; left; right ] ->
-        let* left = visit env left in
-        let* right = visit env right in
-        Ok (App (left, right))
-    | _ -> Error "Invalid lambda snapshot"
-  in
-  let rec collect = function
-    | `List [ `String "abs"; `Assoc fields; body ] ->
-        (match List.assoc_opt "id" fields with
-        | Some (`Int id) -> Hashtbl.replace binders id ()
-        | _ -> ());
-        collect body
-    | `List [ `String "app"; left; right ] ->
-        collect left;
-        collect right
-    | _ -> ()
-  in
-  collect json;
-  visit [] json
+  let to_yojson term =
+    let var_json var =
+      `Assoc
+        [
+          ("id", Var_id.to_yojson var.id);
+          ("name", `String (Utils_names.Identifier.to_string var.name));
+        ]
+    in
+    let rec visit = function
+      | Var var -> `List [ `String "var"; var_json var ]
+      | Abs (var, body) -> `List [ `String "abs"; var_json var; visit body ]
+      | App (left, right) -> `List [ `String "app"; visit left; visit right ]
+    in
+    visit term
+
+  let of_yojson json =
+    let vars = Hashtbl.create 16 and binders = Hashtbl.create 16 in
+    let variable = function
+      | `Assoc fields -> (
+          match (List.assoc_opt "id" fields, List.assoc_opt "name" fields) with
+          | Some (`Int id), Some (`String name)
+            when id >= 0 && id < max_int && Utils_names.Identifier.valid name
+            -> (
+              let* id = Var_id.of_int id in
+              let* name = Utils_names.Identifier.make name in
+              match Hashtbl.find_opt vars id with
+              | Some var when var.name <> name ->
+                  Error "Conflicting variable names"
+              | Some var -> Ok var
+              | None ->
+                  let var = { id; name } in
+                  Hashtbl.add vars id var;
+                  Ok var)
+          | _ -> Error "Invalid variable in snapshot")
+      | _ -> Error "Invalid variable in snapshot"
+    in
+    let rec visit env = function
+      | `List [ `String "var"; json ] ->
+          let* var = variable json in
+          if
+            Hashtbl.mem binders (Var_id.to_int var.id)
+            && not (List.mem var.id env)
+          then Error "Bound variable occurs outside its scope"
+          else Ok (Var var)
+      | `List [ `String "abs"; json; body ] ->
+          let* var = variable json in
+          if List.mem var.id env then Error "Repeated binder ID"
+          else
+            let* body = visit (var.id :: env) body in
+            Ok (Abs (var, body))
+      | `List [ `String "app"; left; right ] ->
+          let* left = visit env left in
+          let* right = visit env right in
+          Ok (App (left, right))
+      | _ -> Error "Invalid lambda snapshot"
+    in
+    let rec collect = function
+      | `List [ `String "abs"; `Assoc fields; body ] ->
+          (match List.assoc_opt "id" fields with
+          | Some (`Int id) -> Hashtbl.replace binders id ()
+          | _ -> ());
+          collect body
+      | `List [ `String "app"; left; right ] ->
+          collect left;
+          collect right
+      | _ -> ()
+    in
+    collect json;
+    visit [] json
+end
 
 let render term =
   let rec redexes = function
@@ -277,12 +282,11 @@ let render term =
         (match left with Abs _ -> [ term ] | _ -> [])
         @ redexes left @ redexes right
   in
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"term" (Code.print term);
-      Utils_runtime.Render.indexed_table ~title:"redexes"
-        ~columns:[ "index"; "term" ] Code.print (redexes term);
-    ]
+  [
+    Utils_runtime.Render.text ~title:"term" (Code.print term);
+    Utils_runtime.Render.indexed_table ~title:"redexes"
+      ~columns:[ "index"; "term" ] Code.print (redexes term);
+  ]
 
 module Ainput = struct
   type t = ainput
@@ -294,8 +298,8 @@ module Ainput = struct
   let print = fun terms -> String.concat ", " (List.map Code.print terms)
 end
 
-module Rinput = Utils_codec.Text.Natural_int
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Natural_int
+module Routput = Utils_data.Text.Unit
 
 module Foutput = struct
   type t = foutput

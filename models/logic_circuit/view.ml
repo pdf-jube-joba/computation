@@ -102,13 +102,12 @@ let render circuit =
           (get_otputs c))
       graph.verts
   in
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"kind" (kind circuit);
-      Utils_runtime.Render.text_table ~title:"inputs" ~columns:[ "name"; "pin" ]
-        inputs;
-      Utils_runtime.Render.text_table ~title:"outputs"
-        ~columns:[ "name"; "pin"; "value" ] outputs;
-      Utils_runtime.Render.text_table ~title:"verts"
-        ~columns:[ "vert"; "pin"; "value" ] verts;
-    ]
+  [
+    Utils_runtime.Render.text ~title:"kind" (kind circuit);
+    Utils_runtime.Render.text_table ~title:"inputs" ~columns:[ "name"; "pin" ]
+      inputs;
+    Utils_runtime.Render.text_table ~title:"outputs"
+      ~columns:[ "name"; "pin"; "value" ] outputs;
+    Utils_runtime.Render.text_table ~title:"verts"
+      ~columns:[ "vert"; "pin"; "value" ] verts;
+  ]

@@ -1,4 +1,5 @@
-module Json = Utils_codec.Json
+module Session_json = Utils_runtime.Session_json
+module Json = Utils_data.Json
 module Session = Utils_runtime.Session
 open Io
 open Arguments
@@ -7,7 +8,7 @@ module Registry = Model_registry.Registry
 let run = function
   | "model" :: name :: operation :: args -> (
       let module M = (val get (Registry.model name)) in
-      let module S = Session.Make (M) in
+      let module S = Session_json.Make (M) in
       let session = S.create () and fields = options args in
       match operation with
       | "create" ->
@@ -25,8 +26,8 @@ let run = function
               output (get (S.snapshot session))
           | Session.Halted text -> prerr_endline (Json.encode (`String text)))
       | "render" ->
-          let state = get (M.restore (get (Json.decode (stdin_text ())))) in
-          output (M.render state)
+          get (S.restore session (get (Json.decode (stdin_text ()))));
+          output (get (S.render session))
       | _ -> failwith "Expected create, step or render")
   | "compiler" :: operation :: name :: args ->
       print_endline (Compiler_command.run operation name (options args))

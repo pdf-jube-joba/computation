@@ -39,11 +39,11 @@ let parse_value text =
       else Num (get (N.of_string s)))
 
 let parse text =
-  Utils_codec.Environment_text.parse
+  Utils_data.Environment.parse
     ~invalid_line:(fun line -> "Invalid static input line: " ^ line)
     parse_value text
   |> Result.map Utils_base.Assoc.sorted
 
 let print env =
-  Utils_codec.Environment_text.print ~trailing_newline:true print_value
+  Utils_data.Environment.print ~trailing_newline:true print_value
     (Utils_base.Assoc.sorted env)
