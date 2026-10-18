@@ -18,8 +18,8 @@ module Code = struct
     | _ -> L.error p "Expected type atom"
 
   let rec parse_type p =
-    if L.peek p = L.Symbol '[' then
-      L.group p ~opening:'[' (fun p ->
+    if L.is_group p L.Brackets then
+      L.group p L.Brackets (fun p ->
           let t = parse_type p in
           L.expect_symbol p ';';
           let len = L.integer p in
@@ -60,7 +60,7 @@ module Code = struct
       if L.bump_if_keyword p "static" then Static (L.identifier p)
       else if L.bump_if_keyword p "local" then Local (L.identifier p)
       else
-        let v = L.group p ~opening:'(' (fun p -> parse_value p L.eof) in
+        let v = L.group p L.Parentheses (fun p -> parse_value p L.eof) in
         L.expect p "#loc";
         Deref v
     in
@@ -71,8 +71,8 @@ module Code = struct
       else if L.bump_if_symbol p '?' then
         let i = L.integer p in
         project (Tag_place (pbase, i))
-      else if L.peek p = L.Symbol '[' then
-        let i = L.group p ~opening:'[' (fun p -> parse_value p L.eof) in
+      else if L.is_group p L.Brackets then
+        let i = L.group p L.Brackets (fun p -> parse_value p L.eof) in
         project (Index (pbase, i))
       else pbase
     in
@@ -108,7 +108,10 @@ module Code = struct
         | _ when L.bump_if p "#null_fn" -> push NullFn
         | _ when L.bump_if_keyword p "fn" -> push (Function (L.identifier p))
         | _ when L.bump_if_keyword p "ld" -> push (Load (parse_place p))
-        | L.Ident ("static" | "local") | L.Symbol '(' ->
+        | _
+          when L.is_group p L.Parentheses
+               || L.peek p = L.Ident "static"
+               || L.peek p = L.Ident "local" ->
             let place = parse_place p in
             L.expect p "#addr";
             push (Addr place)
@@ -120,7 +123,7 @@ module Code = struct
         | _ when L.bump_if p "&&" -> binary And
         | _ when L.bump_if p "||" -> binary Or
         | _ when L.bump_if_keyword p "pair" ->
-            let count = L.group p ~opening:'(' L.integer in
+            let count = L.group p L.Parentheses L.integer in
             let rec take n xs acc =
               if n = 0 then (acc, xs)
               else
@@ -131,7 +134,7 @@ module Code = struct
             let items, ss = take count stack [] in
             loop (Pair items :: ss)
         | _ when L.bump_if_keyword p "tag" ->
-            let tag = L.group p ~opening:'(' L.integer in
+            let tag = L.group p L.Parentheses L.integer in
             unary (fun v -> Tag (tag, v))
         | _ -> L.error p "Unexpected token in value expression"
     in
@@ -171,8 +174,8 @@ module Code = struct
     else if L.bump_if_keyword p "break" then Break (L.identifier p)
     else if L.bump_if_keyword p "continue" then Continue (L.identifier p)
     else if L.bump_if_keyword p "call" then (
-      let f = parse_value p (fun p -> L.peek p = L.Symbol '(') in
-      let args = L.group p ~opening:'(' (fun p -> value_list p L.eof) in
+      let f = parse_value p (fun p -> L.is_group p L.Parentheses) in
+      let args = L.group p L.Parentheses (fun p -> value_list p L.eof) in
       L.expect p "->";
       let places = L.separated p ~separator:',' parse_place in
       Call (f, args, places))
@@ -182,7 +185,7 @@ module Code = struct
 
   and parse_block p =
     let bindings =
-      L.group p ~opening:'(' (fun p ->
+      L.group p L.Parentheses (fun p ->
           L.separated_list p ~separator:',' (fun p ->
               let n = L.identifier p in
               L.expect_symbol p ':';
@@ -190,7 +193,7 @@ module Code = struct
               (n, ty)))
     in
     let stmts =
-      L.group p ~opening:'{' (fun p ->
+      L.group p L.Braces (fun p ->
           L.separated_list ~allow_trailing:true p ~separator:';' parse_stmt)
     in
     { bindings; stmts }

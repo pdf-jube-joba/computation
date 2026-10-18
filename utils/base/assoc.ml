@@ -5,6 +5,9 @@ let set key value entries =
 
 let sorted entries = List.sort (fun (a, _) (b, _) -> compare a b) entries
 
+let get ~default key entries =
+  Option.value ~default (List.assoc_opt key entries)
+
 let set_sorted key value entries =
   sorted ((key, value) :: List.remove_assoc key entries)
 

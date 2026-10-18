@@ -27,14 +27,11 @@ type state = { code : code; stmt : stmt; env : env } [@@deriving yojson]
 let rec eval_aexp env = function
   | Var v -> env_get env v
   | Num n -> n
-  | BinOp (a, op, b) ->
-      (if op = Add then N.add else N.sub) (eval_aexp env a) (eval_aexp env b)
+  | BinOp (a, op, b) -> eval_abinop op (eval_aexp env a) (eval_aexp env b)
   | IfThenElse (c, a, b) -> eval_aexp env (if eval_bexp env c then a else b)
 
 and eval_bexp env = function
-  | Rel (a, op, b) -> (
-      let c = N.compare (eval_aexp env a) (eval_aexp env b) in
-      match op with Lt -> c < 0 | Eq -> c = 0 | Gt -> c > 0)
+  | Rel (a, op, b) -> eval_relop op (eval_aexp env a) (eval_aexp env b)
   | Or (a, b) -> eval_bexp env a || eval_bexp env b
   | Not b -> not (eval_bexp env b)
 
@@ -71,7 +68,7 @@ module Code = struct
         p
 
   and parse_aatom p =
-    if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_aexp
+    if L.is_group p L.Parentheses then L.group p L.Parentheses parse_aexp
     else
       match L.peek p with
       | L.Number _ -> Num (L.natural p)
@@ -88,8 +85,8 @@ module Code = struct
       ~prefix:[ ("!", 2, fun b -> Not b) ]
       ~infix:[ ("||", 0, 1, fun a b -> Or (a, b)) ]
       ~atom:(fun read p ->
-        if L.peek p = L.Symbol '(' then
-          try L.group p ~opening:'(' read with L.Error _ -> relation p
+        if L.is_group p L.Parentheses then
+          try L.group p L.Parentheses read with L.Error _ -> relation p
         else relation p)
       p
 
@@ -104,9 +101,9 @@ module Code = struct
       If (c, b)
     else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      let b = L.group p ~opening:'[' parse_stmt in
+      let b = L.group p L.Brackets parse_stmt in
       While (c, b)
-    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_stmt
+    else if L.is_group p L.Parentheses then L.group p L.Parentheses parse_stmt
     else
       let v = L.identifier p in
       L.expect p ":=";
@@ -118,9 +115,7 @@ module Code = struct
     | Var v -> Utils_names.Identifier.to_string v
     | Num n -> N.to_string n
     | BinOp (a, op, b) ->
-        "(" ^ aexp_to_text a
-        ^ (if op = Add then " + " else " - ")
-        ^ aexp_to_text b ^ ")"
+        "(" ^ aexp_to_text a ^ " " ^ abinop_text op ^ " " ^ aexp_to_text b ^ ")"
     | IfThenElse (c, a, b) ->
         "if " ^ bexp_to_text c ^ " then " ^ aexp_to_text a ^ " else "
         ^ aexp_to_text b

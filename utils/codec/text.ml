@@ -56,7 +56,7 @@ module Natural_list = struct
 
   let parse =
     Utils_parsing.Parser.parse (fun p ->
-        Utils_parsing.Parser.group p ~opening:'(' (fun p ->
+        Utils_parsing.Parser.group p Utils_parsing.Parser.Parentheses (fun p ->
             Utils_parsing.Parser.separated_list ~skip_empty:true p
               ~separator:',' Utils_parsing.Parser.natural_with_plus))
 

@@ -1,9 +1,8 @@
 open Types
 
-let render_tape = Utils_runtime.Data_view.tape Sign.print
-
 let render ~highlight s =
   let name = Code.state_name s.definition in
+  let signs, head = Utils_data.Tape.into_vec s.tape in
   Utils_runtime.Render.state
     [
       Utils_runtime.Render.text_table ~title:"code" ?highlight
@@ -21,5 +20,5 @@ let render ~highlight s =
            s.definition.code);
       Utils_runtime.Render.text ~title:"state"
         (Utils_names.Identifier.to_string (name s.current_state));
-      render_tape s.tape;
+      Utils_runtime.Render.highlight ~title:"tape" ~index:head Sign.print signs;
     ]

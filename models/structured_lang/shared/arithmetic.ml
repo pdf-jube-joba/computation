@@ -3,9 +3,9 @@ module L = Utils_parsing.Parser
 
 let get = Utils_base.Error.get
 
-type env = Utils_data.Environment.Natural.t [@@deriving yojson]
+type env = (Utils_names.Identifier.t * N.t) list [@@deriving yojson]
 
-let env_get = Utils_data.Environment.Natural.get
+let env_get env name = Utils_base.Assoc.get ~default:N.zero name env
 
 module Env = Utils_codec.Environment_text.Natural
 
@@ -31,6 +31,14 @@ type aexp = Atom of atom | Bin of atom * abinop * atom [@@deriving yojson]
 type relop = Lt | Eq | Gt [@@deriving yojson]
 type bexp = atom * relop * atom [@@deriving yojson]
 
+let abinop_text = function Add -> "+" | Sub -> "-"
+let rel_text = function Lt -> "<" | Eq -> "=" | Gt -> ">"
+let eval_abinop = function Add -> N.add | Sub -> N.sub
+
+let eval_relop op a b =
+  let c = N.compare a b in
+  match op with Lt -> c < 0 | Eq -> c = 0 | Gt -> c > 0
+
 let parse_atom p =
   match L.peek p with
   | L.Number _ -> Imm (L.natural p)
@@ -54,22 +62,17 @@ let atom_text = function
 
 let aexp_text = function
   | Atom a -> atom_text a
-  | Bin (a, op, b) ->
-      atom_text a ^ (if op = Add then " + " else " - ") ^ atom_text b
+  | Bin (a, op, b) -> atom_text a ^ " " ^ abinop_text op ^ " " ^ atom_text b
 
-let rel_text = function Lt -> "<" | Eq -> "=" | Gt -> ">"
 let bexp_text (a, op, b) = atom_text a ^ " " ^ rel_text op ^ " " ^ atom_text b
 let eval_atom lookup = function Var v -> lookup v | Imm n -> n
 
 let eval_aexp lookup = function
   | Atom a -> eval_atom lookup a
-  | Bin (a, op, b) ->
-      (if op = Add then N.add else N.sub)
-        (eval_atom lookup a) (eval_atom lookup b)
+  | Bin (a, op, b) -> eval_abinop op (eval_atom lookup a) (eval_atom lookup b)
 
 let eval_bexp lookup (a, op, b) =
-  let c = N.compare (eval_atom lookup a) (eval_atom lookup b) in
-  match op with Lt -> c < 0 | Eq -> c = 0 | Gt -> c > 0
+  eval_relop op (eval_atom lookup a) (eval_atom lookup b)
 
 let atom_vars = function Var v -> [ v ] | Imm _ -> []
 

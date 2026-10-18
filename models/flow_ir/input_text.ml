@@ -26,14 +26,14 @@ let parse_value text =
       else if prefix "k:s[" then (
         let p = L.create s in
         L.expect p "k:s";
-        let index = L.group p ~opening:'[' L.integer in
+        let index = L.group p L.Brackets L.integer in
         L.expect_eof p;
         Key (Stack index))
       else if prefix "k:h[" then (
         let p = L.create s in
         L.expect p "k:h";
-        let handle = L.group p ~opening:'[' L.integer in
-        let index = L.group p ~opening:'[' L.integer in
+        let handle = L.group p L.Brackets L.integer in
+        let index = L.group p L.Brackets L.integer in
         L.expect_eof p;
         Key (Heap (get (Heap_id.of_int handle), index)))
       else Num (get (N.of_string s)))

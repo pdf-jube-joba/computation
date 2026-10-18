@@ -187,12 +187,12 @@ module Code = struct
         Lam (x, read_term ~control p)
     | L.Symbol '@' ->
         ignore (L.bump p);
-        L.group p ~opening:'(' (fun p ->
+        L.group p L.Parentheses (fun p ->
             let a = read_term ~control p in
             let b = read_term ~control p in
             App (a, b))
-    | L.Symbol '(' ->
-        L.group p ~opening:'(' (fun p ->
+    | _ when L.is_group p L.Parentheses ->
+        L.group p L.Parentheses (fun p ->
             let a = read_term ~control p in
             if L.eof p then a
             else
@@ -267,11 +267,11 @@ module Nat_code = struct
           | Error _ -> Var (L.identifier p))
       | L.Symbol '@' ->
           ignore (L.bump p);
-          L.group p ~opening:'(' (fun p ->
+          L.group p L.Parentheses (fun p ->
               let f = read p in
               let a = read p in
               App (f, a))
-      | L.Symbol '(' -> L.group p ~opening:'(' read
+      | _ when L.is_group p L.Parentheses -> L.group p L.Parentheses read
       | _ -> Var (L.identifier p)
     in
     fun text -> Result.map Substitution.normalize (L.parse read text)

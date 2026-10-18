@@ -43,8 +43,8 @@ and binary statements p =
 
 and application statements p =
   let rec loop f =
-    if L.peek p = L.Symbol '(' then
-      let x = L.group p ~opening:'(' (expression statements) in
+    if L.is_group p L.Parentheses then
+      let x = L.group p L.Parentheses (expression statements) in
       loop (App (f, x))
     else f
   in
@@ -81,9 +81,10 @@ and atom statements p =
       L.expect p "=>";
       Rec (f, x, expression statements p)
   | L.Ident "if" -> if_expr statements p
-  | L.Symbol '(' -> L.group p ~opening:'(' (expression statements)
-  | L.Symbol '{' when statements ->
-      let s, e = L.group p ~opening:'{' block_contents in
+  | _ when L.is_group p L.Parentheses ->
+      L.group p L.Parentheses (expression statements)
+  | _ when statements && L.is_group p L.Braces ->
+      let s, e = L.group p L.Braces block_contents in
       Block (s, e)
   | _ -> Var (identifier statements p)
 

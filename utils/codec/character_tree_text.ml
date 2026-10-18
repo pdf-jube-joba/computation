@@ -4,11 +4,11 @@ open Utils_data.Character_tree
 type t = Utils_data.Character_tree.t
 
 let rec read_character p =
-  if P.peek p = P.Symbol '(' then P.group p ~opening:'(' read_character
+  if P.is_group p P.Parentheses then P.group p P.Parentheses read_character
   else P.character_literal p
 
 let rec read p =
-  if P.peek p = P.Symbol '(' then P.group p ~opening:'(' read
+  if P.is_group p P.Parentheses then P.group p P.Parentheses read
   else if P.bump_if_keyword p "atom" then AtomValue (read_character p)
   else (
     P.expect_keyword p "cons";

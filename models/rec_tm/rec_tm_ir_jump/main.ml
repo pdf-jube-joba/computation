@@ -137,6 +137,7 @@ let restore json =
       s)
 
 let render s =
+  let signs, head = T.into_vec s.tape in
   Utils_runtime.Render.state
     [
       Utils_runtime.Render.text ~title:"pc" (string_of_int s.pc);
@@ -146,7 +147,8 @@ let render s =
       Utils_runtime.Render.keyed_table
         ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
         (env_named s.env);
-      Utils_runtime.Data_view.tape T.Sign.print s.tape;
+      Utils_runtime.Render.highlight ~title:"tape" ~index:head T.Sign.print
+        signs;
     ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape

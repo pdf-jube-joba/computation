@@ -3,7 +3,6 @@ type orientation = Vertical | Horizontal
 
 type display = Inline | Block
 type block
-type state = block list
 
 val text : ?title:string -> ?class_name:string -> string -> block
 
@@ -21,8 +20,11 @@ val container :
   block list ->
   block
 
+val highlight : ?title:string -> index:int -> ('a -> string) -> 'a list -> block
+(** Display a horizontal sequence, highlighting the item at [index]. *)
+
 val to_yojson : block -> Yojson.Safe.t
-val state : state -> Yojson.Safe.t
+val state : block list -> Yojson.Safe.t
 
 val text_table :
   ?title:string ->

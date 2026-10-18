@@ -20,8 +20,6 @@ type block =
       children : block list;
     }
 
-type state = block list
-
 let text ?title ?class_name value = Text { title; class_name; value }
 
 let table ?title ?(columns = []) ?highlight rows =
@@ -30,11 +28,21 @@ let table ?title ?(columns = []) ?highlight rows =
 let container ?title ?(orientation = Vertical) ?(display = Block) children =
   Container { title; orientation; display; children }
 
-let optional name = function
-  | None -> []
-  | Some value -> [ (name, `String value) ]
+let highlight ?title ~index value_text entries =
+  container ?title ~orientation:Horizontal
+    (List.mapi
+       (fun i value ->
+         text
+           ?class_name:(if i = index then Some "highlight" else None)
+           (value_text value))
+       entries)
 
-let rec to_yojson = function
+let rec to_yojson block =
+  let optional name = function
+    | None -> []
+    | Some value -> [ (name, `String value) ]
+  in
+  match block with
   | Text { title; class_name; value } ->
       `Assoc
         ([ ("kind", `String "text"); ("text", `String value) ]

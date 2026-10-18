@@ -8,10 +8,10 @@ type routput = unit
 type foutput = register_memory_image
 
 type state = {
-  regs : N.t Utils_data.Memory.t;
+  regs : N.t array;
   flag : bool;
   code_len : int;
-  memory : N.t Utils_data.Memory.t;
+  memory : N.t array;
   halted : bool;
 }
 [@@deriving yojson]

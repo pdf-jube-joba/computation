@@ -399,16 +399,16 @@ let iter_clock (machine : iter_module_state) input =
 module Parser = struct
   module L = Utils_parsing.Parser
 
-  let block p opening item =
-    L.group p ~opening (fun p -> L.many ~skip_separator:',' p item)
+  let block p delimiter item =
+    L.group p delimiter (fun p -> L.many ~skip_separator:',' p item)
 
   let rec value p =
     if L.bump_if p "#true" then Value.Bit true
     else if L.bump_if p "#false" then Value.Bit false
-    else if L.peek p = L.Symbol '[' then Value.Array (block p '[' value)
-    else if L.peek p = L.Symbol '{' then
+    else if L.is_group p L.Brackets then Value.Array (block p L.Brackets value)
+    else if L.is_group p L.Braces then
       let fields =
-        block p '{' (fun p ->
+        block p L.Braces (fun p ->
             let name = L.identifier p in
             L.expect_symbol p ':';
             let value = value p in

@@ -183,10 +183,16 @@ let bump_if p text =
 
 let expect p text = if not (bump_if p text) then error p ("Expected " ^ text)
 
-let group p ~opening f =
-  ignore (delimiter opening);
-  if peek p <> Symbol opening then
-    error p (Printf.sprintf "Expected '%c'" opening);
+let opening_symbol = function
+  | Parentheses -> '('
+  | Brackets -> '['
+  | Braces -> '{'
+
+let is_group p delimiter = peek p = Symbol (opening_symbol delimiter)
+
+let group p delimiter f =
+  if not (is_group p delimiter) then
+    error p (Printf.sprintf "Expected '%c'" (opening_symbol delimiter));
   (* Reuse the already constructed subtree; never re-tokenize a group. *)
   let limit, tree =
     match p.groups.(p.pos) with Some group -> group | None -> assert false
@@ -197,9 +203,8 @@ let group p ~opening f =
   p.pos <- limit + 1;
   value
 
-let bump_group_if p ~opening f =
-  ignore (delimiter opening);
-  if peek p = Symbol opening then Some (group p ~opening f) else None
+let bump_group_if p delimiter f =
+  if is_group p delimiter then Some (group p delimiter f) else None
 
 let protect f =
   try Ok (f ())
@@ -290,18 +295,6 @@ let many ?skip_separator p item =
   in
   loop []
 
-let many_until ?skip_separator p ~closing item =
-  let rec loop acc =
-    match skip_separator with
-    | Some c when bump_if_symbol p c -> loop acc
-    | _ when bump_if_symbol p closing -> List.rev acc
-    | _ when eof p -> error p (Printf.sprintf "Expected '%c'" closing)
-    | _ ->
-        let value = item_with_progress p item in
-        loop (value :: acc)
-  in
-  loop []
-
 let rec separated p ~separator item =
   let first = item_with_progress p item in
   if bump_if_symbol p separator then first :: separated p ~separator item
@@ -323,16 +316,3 @@ let separated_list ?(allow_trailing = false) ?(skip_empty = false) p ~separator
         List.rev acc)
   in
   if eof p then [] else loop []
-
-let separated_until ?(allow_trailing = false) p ~separator ~closing item =
-  let rec loop acc =
-    let value = item_with_progress p item in
-    let acc = value :: acc in
-    if bump_if_symbol p separator then
-      if allow_trailing && bump_if_symbol p closing then List.rev acc
-      else loop acc
-    else (
-      expect_symbol p closing;
-      List.rev acc)
-  in
-  if bump_if_symbol p closing then [] else loop []

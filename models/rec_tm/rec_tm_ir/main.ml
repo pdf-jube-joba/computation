@@ -177,7 +177,7 @@ module Code = struct
             Jump (label, condition p)
           else if L.bump_if_keyword p "call" then (
             let name = identifier p in
-            ignore (L.bump_group_if p ~opening:'(' L.expect_eof);
+            ignore (L.bump_group_if p L.Parentheses L.expect_eof);
             Call name)
           else
             let dst = lvalue p in
@@ -189,14 +189,14 @@ module Code = struct
           L.expect_keyword p "label";
           let label = identifier p in
           L.expect_symbol p ':';
-          let body = L.group p ~opening:'{' (fun p -> L.many p stmt) in
+          let body = L.group p L.Braces (fun p -> L.many p stmt) in
           { label; body }
         in
         let func p =
           L.expect_keyword p "fn";
           let name = identifier p in
-          ignore (L.bump_group_if p ~opening:'(' L.expect_eof);
-          let blocks = L.group p ~opening:'{' (fun p -> L.many p block) in
+          ignore (L.bump_group_if p L.Parentheses L.expect_eof);
+          let blocks = L.group p L.Braces (fun p -> L.many p block) in
           { name; blocks }
         in
         let rec funcs acc =
@@ -353,6 +353,7 @@ let restore json =
 
 let render s =
   let b, i = normalized_pc s.frame in
+  let signs, head = T.into_vec s.tape in
   Utils_runtime.Render.state
     [
       Utils_runtime.Render.text ~title:"function"
@@ -360,21 +361,14 @@ let render s =
       Utils_runtime.Render.text ~title:"pc" (Printf.sprintf "%d:%d" b i);
       Utils_runtime.Render.text ~title:"next"
         (Option.fold ~none:"halt" ~some:Code.stmt_print (peek_stmt s));
-      Utils_runtime.Render.container ~title:"stack"
-        ~orientation:Utils_runtime.Render.Horizontal
-        (List.map
-           (fun f ->
-             Utils_runtime.Render.text
-               (Utils_names.Identifier.to_string f.function_))
-           (List.rev s.stack)
-        @ [
-            Utils_runtime.Render.text ~class_name:"highlight"
-              (Utils_names.Identifier.to_string s.frame.function_);
-          ]);
+      Utils_runtime.Render.highlight ~title:"stack" ~index:(List.length s.stack)
+        (fun f -> Utils_names.Identifier.to_string f.function_)
+        (List.rev s.stack @ [ s.frame ]);
       Utils_runtime.Render.keyed_table
         ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
         (env_named s.frame.env);
-      Utils_runtime.Data_view.tape T.Sign.print s.tape;
+      Utils_runtime.Render.highlight ~title:"tape" ~index:head T.Sign.print
+        signs;
     ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape

@@ -1,7 +1,7 @@
 module L = Utils_parsing.Parser
 
 type aexp =
-  | Const of Utils_data.Character_list.t
+  | Const of string list
   | Var of Utils_names.Identifier.t
   | Concat of aexp * aexp
   | Head of aexp
@@ -20,7 +20,7 @@ type stmt =
 
 type code = stmt [@@deriving yojson]
 
-type environment = Utils_data.Character_list.t Utils_data.Environment.t
+type environment = (Utils_names.Identifier.t * string list) list
 [@@deriving yojson]
 
 type ainput = environment
@@ -48,10 +48,10 @@ module Code = struct
       ~atom:(fun read p ->
         match L.peek p with
         | L.Ident n when not (List.mem n reserved) -> Var (L.identifier p)
-        | L.Symbol '(' -> L.group p ~opening:'(' read
-        | L.Symbol '[' ->
+        | _ when L.is_group p L.Parentheses -> L.group p L.Parentheses read
+        | _ when L.is_group p L.Brackets ->
             Const
-              (L.group p ~opening:'[' (fun p ->
+              (L.group p L.Brackets (fun p ->
                    L.separated_list p ~separator:',' L.character_literal))
         | _ -> L.error p "Invalid aexp")
 
@@ -76,9 +76,9 @@ module Code = struct
       If (c, b))
     else if L.bump_if_keyword p "while" then
       let c = parse_bexp p in
-      let b = L.group p ~opening:'{' parse_stmt in
+      let b = L.group p L.Braces parse_stmt in
       While (c, b)
-    else if L.peek p = L.Symbol '(' then L.group p ~opening:'(' parse_stmt
+    else if L.is_group p L.Parentheses then L.group p L.Parentheses parse_stmt
     else
       let n = parse_name p in
       L.expect p ":=";

@@ -21,9 +21,11 @@ let rec bexp_to_text = function
   | Or (a, b) -> "(" ^ bexp_to_text a ^ " || " ^ bexp_to_text b ^ ")"
   | Done n -> "done $" ^ Utils_names.Identifier.to_string n
 
-let fmt_offset n = if n >= 0 then "+" ^ string_of_int n else string_of_int n
-
-let stmt_to_text = function
+let stmt_to_text stmt =
+  let fmt_offset n =
+    if n >= 0 then "+" ^ string_of_int n else string_of_int n
+  in
+  match stmt with
   | Assign (n, a) ->
       Utils_names.Identifier.to_string n ^ " <- " ^ aexp_to_text a
   | IfGoto (b, n) -> "if " ^ bexp_to_text b ^ " goto " ^ fmt_offset n
@@ -60,7 +62,7 @@ let parse_aexp =
       match L.peek p with
       | L.Ident _ -> Atom (Var (L.identifier p))
       | L.Number _ -> Atom (Imm (L.natural p))
-      | L.Symbol '(' -> L.group p ~opening:'(' read
+      | _ when L.is_group p L.Parentheses -> L.group p L.Parentheses read
       | _ -> L.error p "Unexpected token in arithmetic expression")
 
 let parse_bexp =
@@ -80,22 +82,22 @@ let parse_bexp =
       if L.bump_if_keyword p "done" then (
         L.expect_symbol p '$';
         Done (L.identifier p))
-      else if L.peek p = L.Symbol '(' then
+      else if L.is_group p L.Parentheses then
         (* A group can contain a boolean expression or the arithmetic LHS of
            a relation. A failed group read leaves the parent cursor intact. *)
-        try L.group p ~opening:'(' read with L.Error _ -> relation p
+        try L.group p L.Parentheses read with L.Error _ -> relation p
       else relation p)
 
-let parse_offset p =
-  let sign =
-    if L.bump_if_symbol p '-' then -1
-    else (
-      ignore (L.bump_if_symbol p '+');
-      1)
-  in
-  sign * L.integer p
-
 let parse_stmt p =
+  let parse_offset p =
+    let sign =
+      if L.bump_if_symbol p '-' then -1
+      else (
+        ignore (L.bump_if_symbol p '+');
+        1)
+    in
+    sign * L.integer p
+  in
   if L.bump_if_keyword p "if" then (
     let b = parse_bexp p in
     L.expect_keyword p "goto";
@@ -122,7 +124,7 @@ let parse =
             L.expect_keyword p "fn";
             let name = L.identifier p in
             let body =
-              L.group p ~opening:'{' (fun p ->
+              L.group p L.Braces (fun p ->
                   L.many ~skip_separator:';' p (fun p ->
                       let s = parse_stmt p in
                       if not (L.eof p) then L.expect_symbol p ';';

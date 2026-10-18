@@ -18,3 +18,8 @@
  (name data)
  (modules data)
  (libraries utils_base utils_codec utils_data utils_names))
+
+(test
+ (name parsing)
+ (modules parsing)
+ (libraries utils_base utils_parsing))

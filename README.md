@@ -27,7 +27,7 @@ cargo run --manifest-path _wfs/Cargo.toml -- .
 - [models/](./models/): 計算モデル。
 - [compilers/](./compilers/): モデル間のコンパイラ。
 - [docs/](./docs/): 計算モデルについての文章。
-- [utils/](./utils/): モデルで共通に使うコード。`base/` は基本データ型・汎用操作、`names/` は識別子・ID・束縛、`data/` はテープ・メモリ・環境などのデータ、`parsing/` は字句・構文解析、`codec/` は入出力変換、`runtime/` はモデルの共通契約・実行・表示。
+- [utils/](./utils/): モデルで共通に使うコード。`base/` は基本データ型・汎用操作、`names/` は識別子・ID・束縛、`data/` はテープなどのデータ構造とメモリ操作、`parsing/` は字句・構文解析、`codec/` は入出力変換、`runtime/` はモデルの共通契約・実行・表示。
 - [web/](./web/): ブラウザ用コード。`ui/` は画面と描画、`runtime/` はランタイムの読み込みと API 変換、`browser.ml` は OCaml 側の入口。
 
 ## コードを触るとき
@@ -48,18 +48,20 @@ opam exec -- dune runtest
 | --- | --- | --- |
 | `utils/base/` | `utils_base` | 自然数、汎用操作、result のエラー境界 |
 | `utils/names/` | `utils_names` | 検証済み識別子、型付き ID、intern、名前生成、束縛 |
-| `utils/data/` | `utils_data` | 要素型を選べるテープ・メモリ・レジスタ画像、環境、文字のリストと木 |
+| `utils/data/` | `utils_data` | テープ・レジスタ画像・文字の木、配列メモリの操作 |
 | `utils/parsing/` | `utils_parsing` | 字句解析、token tree、parser |
 | `utils/codec/` | `utils_codec` | JSON、テキスト、環境の行形式 |
 | `utils/runtime/` | `utils_runtime` | 言語・機械・コンパイラの契約、セッション、描画 |
 
-`names` は `base`、`data` と `parsing` は `base` と `names`、`codec` はこれらの下位層、
-`runtime` は `codec` と `data` に依存します。下位層はモデルや実行基盤に依存しません。
+`names` は `base`、`parsing` は `base` と `names`、`codec` はこれらと `data`、
+`runtime` は `codec` に依存します。`data` はほかの共通ライブラリに依存しません。
+下位層はモデルや実行基盤に依存しません。
 Dune の暗黙の推移依存は無効です。直接使うライブラリは各 `dune` の `libraries` に追加します。
 
-入出力に使うデータの型と基本操作は `utils/data/`、そのテキスト形式は `utils/codec/` に置きます。
-例えば `'a Utils_data.Tape.t` がテープ、`'a Utils_data.Memory.t` がメモリの型です。
-空白セルや未確保領域の値は操作の `~default` 引数で指定します。
+文字リストは `string list`、メモリは `'a array`、環境は `(Identifier.t * 'a) list` を直接使います。
+専用の構造が必要なテープ・レジスタ画像・木の型と、配列メモリの操作は `utils/data/`、
+テキスト形式は `utils/codec/` に置きます。`'a Utils_data.Tape.t` はテープの型です。
+テープの空白セルやメモリの未確保領域の値は操作の `~default` 引数で指定します。
 データ本体は要素の codec を要求せず、JSON 変換は要素の変換関数を受け取ります。
 `Utils_codec.Tape_text.Make` は default・等値比較・テキストと JSON の codec を持つ
 要素モジュールから具体的なテープを作ります。識別子と空白のテープは

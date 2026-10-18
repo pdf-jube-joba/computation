@@ -20,7 +20,7 @@ let read_addr p =
   else if P.bump_if_symbol p '#' then Imm (P.natural_with_plus p)
   else Imm (P.natural p)
 
-let read_place p = P.group p ~opening:'[' read_addr
+let read_place p = P.group p P.Brackets read_addr
 
 let read_value p =
   if P.bump_if_symbol p '*' then Deref (read_place p)
@@ -96,7 +96,7 @@ let parse_goto text =
 let parse =
   P.parse (fun p ->
       let block p (label : Utils_names.Identifier.t) =
-        P.group p ~opening:'{' (fun p ->
+        P.group p P.Braces (fun p ->
             let rec body stmts ifs jump =
               if P.eof p then
                 let jump =
@@ -139,7 +139,7 @@ let parse =
         else (
           P.expect_symbol p '@';
           let label = P.identifier p in
-          if P.peek p = P.Symbol '{' then
+          if P.is_group p P.Braces then
             let b = block p label in
             top statics (b :: blocks)
           else

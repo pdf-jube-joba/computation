@@ -22,7 +22,7 @@ let parse text =
         let p = L.create text in
         L.expect_keyword p "loc";
         let location =
-          L.group p ~opening:'(' (fun p ->
+          L.group p L.Parentheses (fun p ->
               let frame_id = get (Frame_id.of_int (L.integer p)) in
               L.expect_symbol p ',';
               let slot = L.integer p in

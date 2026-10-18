@@ -120,8 +120,9 @@ let codecs () =
   let env = get (Env.parse "x = 2\ny = 3\nx = 4") in
   check "environment keeps the last assignment"
     (Number.equal
-       (Utils_data.Environment.Natural.get env
-          (Utils_names.Identifier.make_exn "x"))
+       (Utils_base.Assoc.get ~default:Number.zero
+          (Utils_names.Identifier.make_exn "x")
+          env)
        (Number.of_int 4));
   check "environment roundtrip" (get (Env.parse (Env.print env)) = env)
 

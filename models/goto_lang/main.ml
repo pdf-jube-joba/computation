@@ -18,7 +18,10 @@ type command =
 [@@deriving yojson]
 
 type code = command list [@@deriving yojson]
-type ainput = Utils_data.Environment.Natural.t [@@deriving yojson]
+
+type ainput = (Utils_names.Identifier.t * Utils_base.Number.t) list
+[@@deriving yojson]
+
 type rinput = unit
 type routput = unit
 type foutput = ainput
