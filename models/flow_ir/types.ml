@@ -33,7 +33,7 @@ type resolution = {
 }
 [@@deriving yojson]
 
-type ainput = (Utils_names.Identifier.t * flow_value) list [@@deriving yojson]
+type ainput = flow_value Utils_data.Environment.t [@@deriving yojson]
 type foutput = ainput [@@deriving yojson]
 type rinput = string
 type routput = string

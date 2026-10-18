@@ -1,4 +1,5 @@
-open Utils
+module Compiler_text_api = Utils_runtime.Compiler_text_api
+module Machine = Utils_runtime.Machine
 
 type implementation =
   | Model of (module Machine.S)

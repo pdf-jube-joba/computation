@@ -8,7 +8,6 @@
    rec_tm_compiler_shared
    rec_tm_ir
    recursive_function
-   turing_machine
    utils_base
    utils_names
    utils_runtime)

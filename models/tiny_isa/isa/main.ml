@@ -1,25 +1,22 @@
 open Tiny_isa_shared.Instruction
 
 type code = N.t list [@@deriving yojson]
-
-type register_memory_image = { register : N.t array; memory : N.t list }
-[@@deriving yojson]
-
+type register_memory_image = N.t Utils_data.Memory_image.t [@@deriving yojson]
 type ainput = register_memory_image
 type rinput = unit
 type routput = unit
 type foutput = register_memory_image
 
 type state = {
-  regs : N.t array;
+  regs : N.t Utils_data.Memory.t;
   flag : bool;
   code_len : int;
-  memory : N.t array;
+  memory : N.t Utils_data.Memory.t;
   halted : bool;
 }
 [@@deriving yojson]
 
-module Code = Tiny_isa_shared.Numbers_text
+module Code = Utils_codec.Natural_lines
 
 let make code (input : ainput) =
   Utils_base.Error.protect (fun () ->
@@ -34,7 +31,7 @@ let make code (input : ainput) =
 
 let output s =
   {
-    register = Array.copy s.regs;
+    Utils_data.Memory_image.register = Array.copy s.regs;
     memory =
       Array.to_list
         (Array.sub s.memory s.code_len (Array.length s.memory - s.code_len));
@@ -47,7 +44,8 @@ let step s () =
         let pc = Utils_base.Error.get (N.to_int s.regs.(0)) in
         let inst =
           Utils_base.Error.get
-            (Encoding.decode (Tiny_isa_shared.Memory.read s.memory pc))
+            (Encoding.decode
+               (Utils_data.Memory.read ~default:N.zero s.memory pc))
         in
         let regs, flag, memory, halted =
           Tiny_isa_shared.Execute.execute ~resolve:Fun.id inst s.regs s.flag
@@ -99,14 +97,8 @@ let render s =
 module Ainput = struct
   type t = ainput
 
-  let parse text =
-    Result.map
-      (fun (register, memory) -> { register; memory })
-      (Tiny_isa_shared.Image_text.parse text)
-
-  let print =
-   fun (image : t) ->
-    Tiny_isa_shared.Image_text.print (image.register, image.memory)
+  let parse = Utils_codec.Memory_image_text.Natural.parse ~register_count:8
+  let print = Utils_codec.Memory_image_text.Natural.print
 end
 
 module Rinput = Utils_codec.Text.Unit

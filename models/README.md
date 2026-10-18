@@ -138,6 +138,17 @@ symbolic assembly や CSV 形式の行単位 parser は、`String_ext`・`Number
 文字列が必要な境界で `to_string` を使います。Flow IR の構築と名前解決も
 `Id` / `Intern` / `Naming` を共通の土台とし、IR 固有の規則だけをモデル側に置きます。
 
+## 入出力のデータ
+
+テープ・メモリ・レジスタ画像・環境・文字のリストと木は `Utils_data` に定義します。
+テキスト変換は `Utils_codec.Tape_text`、`Memory_image_text`、`Natural_lines`、
+`Environment_text`、`Character_list_text`、`Character_tree_text` を使います。
+テープ・メモリ・レジスタ画像は要素型に関して polymorphic です。操作には `~default` を渡し、
+テープの codec は `Tape_text.Make`、画像の codec は `Memory_image_text.Make` で具体化します。
+テープの共通描画 `Utils_runtime.Data_view.tape` には要素を表示する関数を渡します。
+新しいモデルからデータを共有するときは、他モデルの `Main` を経由せずこれらを参照します。
+環境入力の並び順、予約語、使用できる記号、レジスタ数などモデル固有の制約は各モデルで扱います。
+
 ## TODO
 プログラミング言語は基本的に、
 物事をよりよく記述できるように拡張していくが、

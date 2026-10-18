@@ -1,7 +1,7 @@
 module L = Utils_parsing.Parser
 
 type aexp =
-  | Const of string list
+  | Const of Utils_data.Character_list.t
   | Var of Utils_names.Identifier.t
   | Concat of aexp * aexp
   | Head of aexp
@@ -20,7 +20,7 @@ type stmt =
 
 type code = stmt [@@deriving yojson]
 
-type environment = (Utils_names.Identifier.t * string list) list
+type environment = Utils_data.Character_list.t Utils_data.Environment.t
 [@@deriving yojson]
 
 type ainput = environment
@@ -113,14 +113,8 @@ end
 module Ainput = struct
   type t = ainput
 
-  let print_value cs = Code.aexp_to_text (Const cs)
-
-  let parse_value =
-    L.parse ~character_literals:true (fun p ->
-        match Code.parse_aexp p with
-        | Const cs -> cs
-        | _ -> failwith "Expected constant character list")
-
+  let print_value = Utils_codec.Character_list_text.print
+  let parse_value = Utils_codec.Character_list_text.parse
   let parse = Utils_codec.Environment_text.parse parse_value
 
   let print =

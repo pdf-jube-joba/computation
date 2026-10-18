@@ -1,13 +1,15 @@
+module Tape = Utils_codec.Tape_text.Identifier
+module Sign = Tape.Sign
+module Direction = Tape.Direction
 module State_id = Utils_names.Id.Make ()
 module Names = Utils_names.Naming.Make (State_id)
 
-type direction = Right | Constant | Left [@@deriving yojson]
-type sign = Utils_names.Identifier.t option [@@deriving yojson]
-
-type tape = { left : sign list; head : sign; right : sign list }
+type direction = Utils_data.Tape.direction = Right | Constant | Left
 [@@deriving yojson]
 
-(* Both sides are stored nearest to the head first. *)
+type sign = Sign.t [@@deriving yojson]
+type tape = sign Utils_data.Tape.t [@@deriving yojson]
+
 type code_entry = (sign * State_id.t) * (sign * State_id.t * direction)
 [@@deriving yojson]
 

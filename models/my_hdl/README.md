@@ -211,7 +211,7 @@ check their declared types. Graph output evaluates its transition expression.
 The Rust crate never implemented a type/expression/module source parser, simple
 module construction, general module state/output/clock dispatch, or an HDL
 compiler. These remain explicitly unsupported, with descriptive errors for the
-existing unfinished operations. This library exposes no `Utils.Machine.S` or
+existing unfinished operations. This library exposes no `Utils_runtime.Machine.S` or
 compiler API to register. It does not turn the value parser into an invented
 HDL machine. Original design documents remain available as design material;
 their unfinished semantics are not advertised as implemented.

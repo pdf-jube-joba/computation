@@ -1,4 +1,4 @@
-module T = Turing_machine.Main
+module T = Utils_codec.Tape_text.Identifier
 module L = Utils_parsing.Parser
 
 type lvalue = Var of Utils_names.Identifier.t | Head [@@deriving yojson]
@@ -7,9 +7,7 @@ type rvalue = Var of Utils_names.Identifier.t | Head | Const of T.sign
 [@@deriving yojson]
 
 type condition = { left : rvalue; right : rvalue } [@@deriving yojson]
-
-type named_environment = (Utils_names.Identifier.t * T.sign) list
-[@@deriving yojson]
+type named_environment = T.sign Utils_data.Environment.t [@@deriving yojson]
 
 let keywords =
   [
@@ -112,10 +110,10 @@ let validate_tape allowed t =
     (fun s ->
       if not (List.mem s allowed) then
         failwith ("Unknown sign on tape: " ^ T.Sign.print s))
-    (fst (T.Tape.into_vec t))
+    (fst (T.into_vec t))
 
 module Env = struct
-  type t = (Utils_names.Identifier.t * T.sign) list
+  type t = named_environment
 
   let parse_entry env key value =
     if String.contains value '=' then failwith "Invalid environment line";
@@ -131,4 +129,4 @@ module Env = struct
   let print = Utils_codec.Environment_text.print T.Sign.print
 end
 
-module Tape = T.Ainput
+module Tape = T

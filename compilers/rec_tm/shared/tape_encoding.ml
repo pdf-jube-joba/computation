@@ -1,5 +1,5 @@
 module N = Utils_base.Number
-module T = Turing_machine.Main
+module T = Utils_codec.Tape_text.Identifier
 
 let b = None
 let l = Some (Utils_names.Identifier.make_exn "l")
@@ -17,12 +17,12 @@ let write tuple =
              tuple
         @ [ x ]
       in
-      T.unwrap (T.Tape.from_vec signs 0))
+      T.unwrap (T.from_vec signs 0))
 
 let write_usize tuple = write (List.map N.of_int tuple)
 
 let read_right_one tape =
-  if tape.T.head <> x then None
+  if tape.Utils_data.Tape.head <> x then None
   else
     let rec take acc = function
       | [] -> List.rev acc

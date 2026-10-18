@@ -1,4 +1,4 @@
-open Utils
+module Json = Utils_codec.Json
 
 let get = Utils_base.Error.get
 let output json = print_endline (Json.encode json)

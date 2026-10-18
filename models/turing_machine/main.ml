@@ -1,8 +1,5 @@
 include Types
-module Sign = Sign
 module State = State
-module Direction = Direction
-module Tape = Tape
 module Code = Code
 open Utils_runtime.Machine
 

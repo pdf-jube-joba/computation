@@ -1,5 +1,6 @@
 (test
  (name regression)
+ (modules regression)
  (libraries
   model_registry
   utils_base
@@ -12,3 +13,8 @@
   pcf_expr_to_pcf_cek
   yojson)
  (deps model_fixtures.json compiler_fixtures.json))
+
+(test
+ (name data)
+ (modules data)
+ (libraries utils_base utils_codec utils_data utils_names))

@@ -1,5 +1,5 @@
 open Instruction
-open Memory
+open Utils_data.Memory
 
 let value = Utils_base.Error.get
 
@@ -23,11 +23,13 @@ let execute ~resolve inst regs flag memory =
       advance ();
       (regs, false, memory, false)
   | Ld (d, b) ->
-      let n = read memory (value (N.to_int regs.(b))) in
+      let n = read ~default:N.zero memory (value (N.to_int regs.(b))) in
       assign d n;
       (regs, flag, memory, false)
   | St (s, b) ->
-      let memory = write memory (value (N.to_int regs.(b))) regs.(s) in
+      let memory =
+        write ~default:N.zero memory (value (N.to_int regs.(b))) regs.(s)
+      in
       advance ();
       (regs, flag, memory, false)
   | Mov (f, d, s) ->

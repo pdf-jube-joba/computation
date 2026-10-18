@@ -2,7 +2,7 @@ open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
 open Rec_tm_shared.Environment
 open Rec_tm_shared.Eval
-module T = Turing_machine.Main
+module T = Utils_codec.Tape_text.Identifier
 module L = Utils_parsing.Parser
 
 type lvalue = Rec_tm_shared.Syntax.lvalue =
@@ -30,12 +30,12 @@ type stmt =
 [@@deriving yojson]
 
 type code = { alphabet : T.sign list; body : stmt list } [@@deriving yojson]
-type ainput = T.tape
+type ainput = T.t
 type rinput = unit
 type routput = unit
-type foutput = T.tape
+type foutput = T.t
 
-type state = { program : code; pc : int; env : environment; tape : T.tape }
+type state = { program : code; pc : int; env : environment; tape : T.t }
 [@@deriving yojson]
 
 module Code = struct
@@ -109,8 +109,8 @@ let step s () =
       else
         let next =
           match List.nth s.program.body s.pc with
-          | Lt -> { s with pc = s.pc + 1; tape = T.Tape.move_to s.tape T.Left }
-          | Rt -> { s with pc = s.pc + 1; tape = T.Tape.move_to s.tape T.Right }
+          | Lt -> { s with pc = s.pc + 1; tape = T.move_to s.tape T.Left }
+          | Rt -> { s with pc = s.pc + 1; tape = T.move_to s.tape T.Right }
           | Assign (dst, src) ->
               let env, tape = assign s.env s.tape dst (eval s.env s.tape src) in
               { s with pc = s.pc + 1; env; tape }
@@ -146,7 +146,7 @@ let render s =
       Utils_runtime.Render.keyed_table
         ~key_text:Utils_names.Identifier.to_string ~title:"env" T.Sign.print
         (env_named s.env);
-      Turing_machine.View.render_tape s.tape;
+      Utils_runtime.Data_view.tape T.Sign.print s.tape;
     ]
 
 module Ainput = Rec_tm_shared.Syntax.Tape

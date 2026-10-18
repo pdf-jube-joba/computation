@@ -1,5 +1,8 @@
-open Utils
-open Machine
+module Number = Utils_base.Number
+module Identifier = Utils_names.Identifier
+module Parser = Utils_parsing.Parser
+module Render = Utils_runtime.Render
+open Utils_runtime.Machine
 
 type func =
   | Zero

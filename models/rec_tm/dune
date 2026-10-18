@@ -5,8 +5,8 @@
   (public_name computation.rec_tm_shared)
   (libraries
    yojson
-   turing_machine
    utils_base
+   utils_data
    utils_codec
    utils_names
    utils_parsing)
@@ -21,7 +21,6 @@
   (libraries
    yojson
    rec_tm_shared
-   turing_machine
    utils_base
    utils_codec
    utils_names
@@ -38,7 +37,6 @@
   (libraries
    yojson
    rec_tm_shared
-   turing_machine
    utils_base
    utils_codec
    utils_names

@@ -3,7 +3,6 @@ open Rec_tm_ir.Main
 module I = Rec_tm_ir.Main
 module N = Utils_base.Number
 module R = Recursive_function.Main
-module T = Turing_machine.Main
 open Rec_tm_compiler_shared.Tape_encoding
 module Function_id = Utils_names.Id.Make ()
 module Function_names = Utils_names.Naming.Make (Function_id)

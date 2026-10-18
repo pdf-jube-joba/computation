@@ -1,4 +1,5 @@
-open Utils
+module Session = Utils_runtime.Session
+module Session_json = Utils_runtime.Session_json
 open Io
 open Arguments
 module Registry = Model_registry.Registry
