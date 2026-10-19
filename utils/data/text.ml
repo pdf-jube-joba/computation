@@ -21,6 +21,20 @@ module String = struct
   let print text = text
 end
 
+module Char = struct
+  (* One Unicode scalar, represented as UTF-8. *)
+  type t = string
+
+  module P = Utils_parsing.Parser
+
+  let rec read p =
+    if P.is_group p P.Parentheses then P.group p P.Parentheses read
+    else P.character_literal p
+
+  let parse = P.parse ~character_literals:true read
+  let print = Utils_parsing.Char_literal.to_text
+end
+
 module Bool = struct
   type t = bool
 

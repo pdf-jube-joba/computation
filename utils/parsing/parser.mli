@@ -90,6 +90,12 @@ val bump_group_if : t -> delimiter -> (t -> 'a) -> 'a option
 (** None means the opening bracket is absent; errors inside a group propagate.
 *)
 
+val take_until : t -> stop:(token -> bool) -> string
+(** Consume a nonempty sequence up to [stop] or scope Eof and return its
+    original text with surrounding whitespace trimmed. Groups are consumed as
+    whole items; tokens inside them do not trigger [stop]. The stopping token
+    remains unread. *)
+
 val checkpoint : t -> checkpoint
 (** Checkpoints can only be restored on the parser that created them. *)
 

@@ -66,7 +66,9 @@ let identifiers () =
 let values () =
   roundtrip (module Text.Bool) {|\true|};
   roundtrip (module Utils_data.Tape.Direction) {|\L|};
-  roundtrip (module Utils_data.Character_tree) {|\cons \atom 'a' \atom 'b'|};
+  roundtrip
+    (module Utils_data.Value_tree.Character)
+    {|\cons \atom 'a' \atom 'b'|};
   roundtrip (module Fn_ptr.Runtime_value) {|\loc(0, 1)|};
   roundtrip (module Fn_ptr.Runtime_value) {|\null_ptr|};
   List.iter
@@ -80,7 +82,7 @@ let values () =
   check "bare boolean rejected" (Result.is_error (Text.Bool.parse "true"));
   check "legacy boolean rejected" (Result.is_error (Text.Bool.parse "#true"));
   check "legacy tree constructors rejected"
-    (Result.is_error (Utils_data.Character_tree.parse "atom 'a'"));
+    (Result.is_error (Utils_data.Value_tree.Character.parse "atom 'a'"));
   check "legacy direction rejected"
     (Result.is_error (Utils_data.Tape.Direction.parse "L"));
   check "strings preserve words and backslashes"

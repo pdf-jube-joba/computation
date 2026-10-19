@@ -81,10 +81,7 @@ module Code = struct
   let parse = L.parse ~character_literals:true parse_stmt
 
   let rec aexp_to_text = function
-    | Const cs ->
-        "["
-        ^ String.concat ", " (List.map Utils_parsing.Char_literal.to_text cs)
-        ^ "]"
+    | Const cs -> Utils_data.Value_list.Character.print cs
     | Var n -> Utils_names.Identifier.to_string n
     | Concat (a, b) -> "(" ^ aexp_to_text a ^ " ++ " ^ aexp_to_text b ^ ")"
     | Head a -> "\\head " ^ aexp_to_text a
@@ -106,8 +103,8 @@ end
 module Ainput = struct
   type t = ainput
 
-  let print_value = Utils_data.Character_list.print
-  let parse_value = Utils_data.Character_list.parse
+  let print_value = Utils_data.Value_list.Character.print
+  let parse_value = Utils_data.Value_list.Character.parse
   let parse = Utils_data.Environment.parse parse_value
   let print = Utils_data.Environment.print ~trailing_newline:true print_value
 end

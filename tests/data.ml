@@ -104,15 +104,20 @@ let codecs () =
     (Result.is_error (Image.parse ~register_count:8 "0, 3"));
   check "memory image roundtrip"
     (get (Image.parse ~register_count:2 (Image.print image)) = image);
-  let module Chars = Utils_data.Character_list in
+  let module Chars = Utils_data.Value_list.Character in
   let chars = get (Chars.parse "((['あ', '\\n', '\'']))") in
   check "character list roundtrip"
     (get (Chars.parse (Chars.print chars)) = chars);
   check "character input rejects expressions"
     (Result.is_error (Chars.parse "head ['a']"));
-  let module Tree = Utils_data.Character_tree in
+  let module Tree = Utils_data.Value_tree.Character in
   let tree = get (Tree.parse "(\\cons (\\atom (('あ'))) (\\atom '\\n'))") in
   check "character tree roundtrip" (get (Tree.parse (Tree.print tree)) = tree);
+  List.iter
+    (fun text ->
+      check "tree atoms preserve a following parenthesized subtree"
+        (get (Tree.parse text) = tree))
+    [ {|\cons \atom 'あ' (\atom '\n')|}; {|\cons \atom (('あ')) (\atom '\n')|} ];
   check "tree input rejects projections"
     (Result.is_error (Tree.parse "\\left (\\cons \\atom 'a' \\atom 'b')"));
   let module Env = Utils_data.Environment.Natural in
@@ -125,9 +130,84 @@ let codecs () =
        (Number.of_int 4));
   check "environment roundtrip" (get (Env.parse (Env.print env)) = env)
 
+let polymorphic_lists_and_trees () =
+  let module Text = Utils_data.Text in
+  let module Bools = Utils_data.Value_list.Make (Text.Bool) in
+  let bools = get (Bools.parse {|[\true, \false, \true]|}) in
+  check "generic lists store booleans" (bools = [ true; false; true ]);
+  check "generic list roundtrip" (get (Bools.parse (Bools.print bools)) = bools);
+  check "generic lists may be empty" (get (Bools.parse "[]") = []);
+  List.iter
+    (fun text ->
+      check "generic lists reject invalid elements and separators"
+        (Result.is_error (Bools.parse text)))
+    [ {|[\true \false]|}; {|[\true,]|}; {|[,\true]|}; "[1]"; "[] extra" ];
+  let module Nested = Utils_data.Value_list.Make (Bools) in
+  let nested = [ [ true; false ]; []; [ false ] ] in
+  check "generic lists preserve nested separators"
+    (get (Nested.parse (Nested.print nested)) = nested);
+  let module Chars = Utils_data.Value_list.Character in
+  let chars = [ ","; "["; ")"; "'"; "\\"; "\n"; "あ" ] in
+  check "character list delimiters and escapes roundtrip"
+    (get (Chars.parse (Chars.print chars)) = chars);
+  List.iter
+    (fun char ->
+      check "standalone character codec roundtrip"
+        (get (Text.Char.parse (Text.Char.print char)) = char))
+    chars;
+  List.iter
+    (fun text ->
+      check "character codec rejects invalid literals"
+        (Result.is_error (Text.Char.parse text)))
+    [ "a"; "''"; "'ab'"; "'a' 'b'"; "'あ" ];
+  let module Tree = Utils_data.Value_tree in
+  let module Bool_tree = Tree.Make (Text.Bool) in
+  let tree =
+    Tree.ConsValue
+      ( Tree.AtomValue true,
+        Tree.ConsValue (Tree.AtomValue false, Tree.AtomValue true) )
+  in
+  check "generic tree stores boolean atoms"
+    (get
+       (Bool_tree.parse {|\cons (\atom \true) \cons \atom \false \atom \true|})
+    = tree);
+  check "generic tree roundtrip"
+    (get (Bool_tree.parse (Bool_tree.print tree)) = tree);
+  check "generic tree JSON uses the supplied element codec"
+    (get
+       (Tree.of_yojson
+          (function `Bool value -> Ok value | _ -> Error "Expected boolean")
+          (Tree.to_yojson (fun value -> `Bool value) tree))
+    = tree);
+  List.iter
+    (fun text ->
+      check "generic trees reject malformed structure and atoms"
+        (Result.is_error (Bool_tree.parse text)))
+    [
+      {|\cons \atom \true|};
+      {|\atom|};
+      {|\atom 1|};
+      {|\atom \true \atom \false|};
+    ];
+  let module List_tree = Tree.Make (Utils_data.Value_list.Make (Text.Natural_int))
+  in
+  let tree = Tree.ConsValue (Tree.AtomValue [ 1; 2 ], Tree.AtomValue []) in
+  check "generic trees support list atoms"
+    (get (List_tree.parse (List_tree.print tree)) = tree);
+  let module Trees = Utils_data.Value_list.Make (Bool_tree) in
+  let trees =
+    [
+      Tree.AtomValue false;
+      Tree.ConsValue (Tree.AtomValue true, Tree.AtomValue false);
+    ]
+  in
+  check "generic lists support tree elements spanning multiple tokens"
+    (get (Trees.parse (Trees.print trees)) = trees)
+
 let () =
   tape ();
   memory ();
   polymorphic_data ();
   codecs ();
+  polymorphic_lists_and_trees ();
   print_endline "Passed shared data checks."

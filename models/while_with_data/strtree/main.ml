@@ -20,11 +20,12 @@ type stmt =
   | While of bexp * stmt
 [@@deriving yojson]
 
-type value = Utils_data.Character_tree.t =
-  | AtomValue of string
-  | ConsValue of value * value
+type 'a tree = 'a Utils_data.Value_tree.t =
+  | AtomValue of 'a
+  | ConsValue of 'a tree * 'a tree
 [@@deriving yojson]
 
+type value = string tree [@@deriving yojson]
 type code = stmt [@@deriving yojson]
 type environment = (Utils_names.Identifier.t * value) list [@@deriving yojson]
 type ainput = environment
@@ -38,7 +39,7 @@ module Code = struct
 
   let rec aexp_to_text = function
     | Mtoa t -> "\\mtoa " ^ texp_to_text t
-    | AtomChar c -> Utils_parsing.Char_literal.to_text c
+    | AtomChar c -> Utils_data.Text.Char.print c
 
   and texp_to_text = function
     | Var n -> Utils_names.Identifier.to_string n
@@ -120,8 +121,8 @@ end
 module Ainput = struct
   type t = ainput
 
-  let print_value = Utils_data.Character_tree.print
-  let parse_value = Utils_data.Character_tree.parse
+  let print_value = Utils_data.Value_tree.Character.print
+  let parse_value = Utils_data.Value_tree.Character.parse
   let parse = Utils_data.Environment.parse parse_value
   let print = Utils_data.Environment.print ~trailing_newline:true print_value
 end

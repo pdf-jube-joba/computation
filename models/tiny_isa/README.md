@@ -117,7 +117,8 @@ hdl に落とすのは、自然数の入ったメモリの転送さえクリア�
 \NT{program} &\defeq ( \\
     &| \sp \NT{directive} \\
     &| \sp \NT{label} \sp \T{:} \\
-    &| \sp \NT{value} \\
+    &| \sp \NT{value}
+    &) \\
 \end{aligned}
 \]
 

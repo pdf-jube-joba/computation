@@ -158,8 +158,16 @@ symbolic assembly や CSV 形式の行単位 parser は、`String_ext`・`Number
 文字リストは `string list`、メモリは `'a array`、環境は `(Identifier.t * 'a) list` を直接使います。
 データ構造とそのテキスト変換は `Utils_data` にまとめます。
 テキスト変換には `Tape`、`Memory_image`、`Natural_lines`、
-`Environment`、`Character_list`、`Character_tree` を使います。
-テープ・メモリ・レジスタ画像は要素型に関して polymorphic です。操作には `~default` を渡し、
+`Environment`、`Value_list`、`Value_tree` を使います。
+テープ・メモリ・レジスタ画像・リスト・木は要素型に関して polymorphic です。
+リストと木の codec は `Value_list.Make (Value)`・`Value_tree.Make (Value)` で具体化し、
+`Value` には `parse` と `print` を持つ `Text.S` を渡します。
+文字は `Text.Char` で `'a'`・`'あ'`・`'\n'` のように読み書きし、
+文字リストと文字の木にはそれぞれの `Character` モジュールを使います。
+リストの要素はカンマ、木の atom の要素は次の `\atom`・`\cons`・部分木の開き括弧、またはスコープの終わりまでです。
+atom の要素自体を括弧で囲むこともできます。
+引用符や括弧の内側の区切りは要素の一部として扱いますが、要素の codec と外側の文法の衝突は許容します。
+テープ・メモリの操作には `~default` を渡し、
 テープの codec は `Tape.Make`、画像の codec は `Memory_image.Make` で具体化します。
 `Utils_runtime.Render.highlight` は任意のリストの指定位置を強調表示します。
 テープには `Tape.into_vec` で得たセルのリストとヘッド位置を渡します。
