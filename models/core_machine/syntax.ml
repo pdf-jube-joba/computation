@@ -16,7 +16,11 @@ type rhs =
   | Len of value_expr
 [@@deriving yojson]
 
-type stmt = Assign of Id.t * rhs | Store of place * value_expr
+type stmt =
+  | Assign of Id.t * rhs
+  | Store of place * value_expr
+  | Print of value_expr
+  | Input of place
 [@@deriving yojson]
 
 type rel = Eq | Lt | Gt [@@deriving yojson]

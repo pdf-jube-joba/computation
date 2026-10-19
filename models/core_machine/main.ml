@@ -2,8 +2,8 @@ include Types
 module Code = Code
 module Ainput = Input_text
 module Foutput = Input_text
-module Rinput = Utils_data.Text.Unit
-module Routput = Utils_data.Text.Unit
+module Rinput = Utils_data.Text.String
+module Routput = Utils_data.Text.String
 module E = Utils_base.Error
 
 let fail s = failwith s
@@ -59,6 +59,8 @@ let validate_code code =
     (fun b ->
       List.iter
         (function
+          | Print v -> value v
+          | Input p -> place p
           | Store (p, v) ->
               place p;
               value v
@@ -192,7 +194,7 @@ let jump s v =
   | Code_label l when known_label s.code l -> { s with block = l; line = 0 }
   | _ -> fail "Jump target is not a known code label"
 
-let step s () =
+let step s input =
   E.protect (fun () ->
       let b =
         match List.find_opt (fun b -> b.label = s.block) s.code.blocks with
@@ -201,21 +203,28 @@ let step s () =
       in
       let ns = List.length b.stmts and ni = List.length b.ifs in
       let continue next =
-        Utils_runtime.Machine.Continue { next; output = () }
+        Utils_runtime.Machine.Continue { next; output = "" }
       in
       if s.line < 0 then fail "Invalid instruction position"
       else if s.line < ns then
-        let next =
+        let next, output =
           match List.nth b.stmts s.line with
+          | Print v ->
+              let bytes = N.to_bytes (num (eval s v)) in
+              if not (Utils_base.Utf8.valid bytes) then
+                fail "print expects valid UTF-8";
+              (s, bytes)
+          | Input p -> (store s (place s p) (Num (N.of_bytes input)), "")
           | Assign (r, e) ->
               let v = rhs s e in
-              { s with registers = Utils_base.Assoc.set r v s.registers }
+              ({ s with registers = Utils_base.Assoc.set r v s.registers }, "")
           | Store (p, v) ->
               let dst = place s p in
               let v = eval s v in
-              store s dst v
+              (store s dst v, "")
         in
-        continue { next with line = s.line + 1 }
+        Utils_runtime.Machine.Continue
+          { next = { next with line = s.line + 1 }; output }
       else if s.line < ns + ni then
         let j = List.nth b.ifs (s.line - ns) in
         continue

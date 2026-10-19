@@ -143,7 +143,9 @@ slice の重なりは許す。境界検査と、所有権・生存状態の管�
   &\mid \T{\textbackslash addr}\ \NT{value}\ \NT{value} \\
   &\mid \T{\textbackslash len}\ \NT{value} \\
 \NT{stmt} &\defeq \NT{vreg}\ \T{:=}\ \NT{rhs}\T{;} \\
-  &\mid \NT{place}\ \T{:=}\ \T{\textbackslash st}\ \NT{value}\T{;}
+  &\mid \NT{place}\ \T{:=}\ \T{\textbackslash st}\ \NT{value}\T{;} \\
+  &\mid \T{\textbackslash print}\ \NT{value}\T{;} \\
+  &\mid \T{\textbackslash input}\ \NT{place}\T{;}
 \end{aligned}
 \]
 
@@ -245,7 +247,9 @@ slice の構造的等値は作成時刻によらない。addr の `==` は境界
 | --- | --- |
 | `AInput` | `index := value;` の列。メモリ0の初期指定、指定外・他メモリは0 |
 | `FOutput` | 同形式。メモリ0の非0セルのみ、添字の昇順 |
-| `RInput` / `ROutput` | 現実装は unit（空文字列）。`flow_ir` の input/print 対応は今後追加 |
+| `RInput` / `ROutput` | 文字列。`\input p` は `Number.of_bytes(input)` を store、`\print v` は自然数を `Number.to_bytes` で出力 |
+
+`\print` は UTF-8 として不正なバイト列なら `Err`。出力しないステップの `ROutput` は空文字列。
 
 入出力の値は自然数、`:label`、`MEM_i`、`\slice s b e`、`\addr s i`。slice/addr は再帰的に記述できる。
 重複添字・未宣言ラベル/メモリ・不正な境界は `Err`。空入力は全セル0。
@@ -262,6 +266,8 @@ slice の構造的等値は作成時刻によらない。addr の `==` は境界
 static 初期値は初期化コードで配置する案。入力との配置規約はコンパイラ側で定める。
 
 ## flow_ir からのコンパイル
+
+実装：[flow_ir_to_core_machine](../../compilers/flow_ir_to_core_machine/README.md)。
 
 | flow_ir | core_machine |
 | --- | --- |
@@ -287,5 +293,5 @@ stack 用メモリを \(m_s\)、\(a_i:=\mathrm{At}(\mathrm{Whole}(m_s),i)\) と�
 heap も handle 発行・確保サイズ・解放状態を管理する。保存済み参照にも検査が必要。
 
 > [!Note]
-> lowering の正しさで `Err` も保存するかは別途明示する。
-> 保存する場合、生成コードから明示的に失敗させる操作も決める。
+> 実装は値をタグ付きで表し、型・境界・生存状態を検査する。
+> 検査失敗は `\len MEM_0` を実行する共通ブロックへ分岐して `Err` にする。エラーメッセージは一致させない。

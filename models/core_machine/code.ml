@@ -50,7 +50,9 @@ let rhs p =
 
 let stmt p =
   let s =
-    if P.peek p = P.Symbol '%' then (
+    if P.bump_if_keyword p "print" then Print (value p)
+    else if P.bump_if_keyword p "input" then Input (place p)
+    else if P.peek p = P.Symbol '%' then (
       let r = reg p in
       P.expect p ":=";
       Assign (r, rhs p))
@@ -121,6 +123,8 @@ let rhs_text = function
   | Len s -> "\\len " ^ value_text s
 
 let stmt_text = function
+  | Print v -> "\\print " ^ value_text v ^ ";"
+  | Input p -> "\\input " ^ place_text p ^ ";"
   | Assign (r, e) -> "%" ^ Id.to_string r ^ " := " ^ rhs_text e ^ ";"
   | Store (p, v) -> place_text p ^ " := \\st " ^ value_text v ^ ";"
 

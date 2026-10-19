@@ -61,6 +61,12 @@ let entries =
       implementation = Model (module Core_machine.Main);
     };
     {
+      name = "flow_ir_to_core_machine";
+      library = "flow_ir_to_core_machine";
+      implementation =
+        Compiler (Compiler_text_api.make (module Flow_ir_to_core_machine.Main));
+    };
+    {
       name = "flow_ir";
       library = "flow_ir";
       implementation = Model (module Flow_ir.Main);

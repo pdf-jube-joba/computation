@@ -94,5 +94,13 @@
     "ainput": "|-|",
     "rinput": "",
     "expected": "|x|"
+  },
+  {
+    "name": "flow_ir_to_core_machine",
+    "target": "core_machine",
+    "code": "@x 0 :main { :entry { \\halloc(1) %h; \\hacc(%h)[0] := \\st 42; %v := \\ld \\hacc(%h)[0]; @x := \\st %v; \\halt; } }",
+    "ainput": "",
+    "rinput": "",
+    "expected": "x = 42\n"
   }
 ]

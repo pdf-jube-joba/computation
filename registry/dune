@@ -11,6 +11,7 @@
   expr_lang
   expr_lang_to_flow_ir
   flow_ir
+  flow_ir_to_core_machine
   fn_ptr
   goto_lang
   internal_ctrl

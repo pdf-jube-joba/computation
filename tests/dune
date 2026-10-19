@@ -46,3 +46,8 @@
  (name core_machine)
  (modules core_machine)
  (libraries core_machine utils_base utils_runtime yojson))
+
+(test
+ (name flow_ir_to_core_machine)
+ (modules flow_ir_to_core_machine)
+ (libraries flow_ir_to_core_machine flow_ir core_machine utils_base utils_runtime))

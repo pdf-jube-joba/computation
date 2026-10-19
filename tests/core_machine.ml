@@ -19,9 +19,9 @@ let rec run fuel s =
   let saved = M.Snapshot.to_yojson s in
   let restored = get (M.Snapshot.of_yojson saved) in
   check "snapshot roundtrip" (M.Snapshot.to_yojson restored = saved);
-  let result = M.step s () in
+  let result = M.step s "" in
   check "step immutable" (M.Snapshot.to_yojson s = saved);
-  check "restored transition" (result = M.step restored ());
+  check "restored transition" (result = M.step restored "");
   match result with
   | Error e -> Error e
   | Ok (Utils_runtime.Machine.Halt out) -> Ok (M.Foutput.print out)

@@ -22,5 +22,5 @@ type state = {
 
 type ainput = memory
 type foutput = memory
-type rinput = unit
-type routput = unit
+type rinput = string
+type routput = string
