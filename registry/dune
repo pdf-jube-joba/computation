@@ -4,6 +4,7 @@
  (libraries
   yojson
   cfg_vreg
+  core_machine
   coroutine
   example_counter
   example_counter_to_example_counter

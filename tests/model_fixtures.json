@@ -1014,5 +1014,19 @@
       ""
     ],
     "final": "x = \\atom 'a'\n"
+  },
+  {
+    "name": "core_machine",
+    "code": "\\memories 2; :main { %p := \\addr MEM_0 0; %n := \\ld \\deref %p; %n := %n + 1; \\deref %p := \\st %n; \\halt; }",
+    "ainput": "0 := 41;",
+    "rinput": "",
+    "steps": 5,
+    "outputs": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "final": "0 := 42;\n"
   }
 ]

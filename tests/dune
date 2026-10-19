@@ -41,3 +41,8 @@
  (name my_hdl)
  (modules my_hdl)
  (libraries my_hdl utils_base utils_names yojson))
+
+(test
+ (name core_machine)
+ (modules core_machine)
+ (libraries core_machine utils_base utils_runtime yojson))

@@ -56,6 +56,11 @@ let entries =
              (module Recursive_function_to_lambda_calculus.Main));
     };
     {
+      name = "core_machine";
+      library = "core_machine";
+      implementation = Model (module Core_machine.Main);
+    };
+    {
       name = "flow_ir";
       library = "flow_ir";
       implementation = Model (module Flow_ir.Main);
