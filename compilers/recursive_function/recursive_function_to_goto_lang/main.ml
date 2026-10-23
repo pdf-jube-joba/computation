@@ -20,7 +20,7 @@ type unresolved =
 type builder = {
   mutable commands : unresolved list;
   mutable position : int;
-  labels : (Label_id.t, int) Hashtbl.t;
+  mutable labels : int Label_id.Map.t;
   mutable next_label : Label_id.Supply.t;
   mutable next_temp : Temp_id.Supply.t;
   mutable temp_names : Temp_names.t;
@@ -30,7 +30,7 @@ let builder () =
   {
     commands = [];
     position = 0;
-    labels = Hashtbl.create 16;
+    labels = Label_id.Map.empty;
     next_label = Label_id.Supply.empty;
     next_temp = Temp_id.Supply.empty;
     temp_names = Temp_names.empty;
@@ -41,7 +41,7 @@ let label b =
   b.next_label <- next;
   result
 
-let mark b label = Hashtbl.replace b.labels label b.position
+let mark b label = b.labels <- Label_id.Map.add label b.position b.labels
 
 let temp b =
   let id, next = Temp_id.Supply.fresh b.next_temp in
@@ -135,7 +135,7 @@ let finalize b =
           match command with
           | Command command -> Ok command
           | Branch (var, label) -> (
-              match Hashtbl.find_opt b.labels label with
+              match Label_id.Map.find_opt label b.labels with
               | Some target ->
                   Ok (Target.Ifnz (var, Utils_base.Number.of_int target))
               | None ->
@@ -167,6 +167,4 @@ let encode_rinput () = Ok ()
 let decode_routput () = Ok ()
 
 let decode_foutput output =
-  Ok
-    (Option.value ~default:Utils_base.Number.zero
-       (List.assoc_opt output_var output))
+  Ok (Utils_base.Assoc.get ~default:Utils_base.Number.zero output_var output)

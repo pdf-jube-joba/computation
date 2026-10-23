@@ -1,4 +1,5 @@
 open Types
+module States = Utils_names.Intern.Make (Utils_names.Identifier) (State_id)
 
 let unwrap = Utils_base.Error.get
 
@@ -48,15 +49,13 @@ let of_ids ~state_names init_state accepted_state code =
 (* Named code is an input format. Execution and composition use state IDs. *)
 let make init_state accepted_state code =
   Utils_parsing.Parser.protect (fun () ->
-      let supply = ref State_id.Supply.empty in
-      let ids = ref Utils_names.Identifier.Map.empty in
+      let ids = ref States.empty in
       let names = ref [] in
       let state name =
-        match Utils_names.Identifier.Map.find_opt name !ids with
+        match States.find name !ids with
         | Some id -> id
         | None ->
-            let id = State_id.Supply.take supply in
-            ids := Utils_names.Identifier.Map.add name id !ids;
+            let id = States.take name ids in
             names := (id, name) :: !names;
             id
       in

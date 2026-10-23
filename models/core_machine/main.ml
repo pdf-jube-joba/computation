@@ -109,7 +109,7 @@ let make code input =
       })
 
 let eval s = function
-  | Reg r -> Option.value (List.assoc_opt r s.registers) ~default:(Num N.zero)
+  | Reg r -> Utils_base.Assoc.get ~default:(Num N.zero) r s.registers
   | Imm n -> Num n
   | Label l -> Code_label l
   | Memory m -> Slice_value (Whole m)
@@ -144,9 +144,7 @@ let place s (Deref v) =
   (origin t, pos (t, i))
 
 let memory s m = s.memory.(m)
-
-let load s (m, i) =
-  Option.value (List.assoc_opt i (memory s m)) ~default:(Num N.zero)
+let load s (m, i) = Utils_base.Assoc.get ~default:(Num N.zero) i (memory s m)
 
 let store s (m, i) v =
   let cells = normalize (Utils_base.Assoc.set i v (memory s m)) in

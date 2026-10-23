@@ -34,11 +34,9 @@ let render s =
            [
              "@" ^ Utils_names.Identifier.to_string d.label;
              runtime_text s
-               (Option.value
-                  (List.assoc_opt
-                     (id_of_name s.resolution.data d.label)
-                     s.static_mem)
-                  ~default:(Num N.zero));
+               (Utils_base.Assoc.get ~default:(Num N.zero)
+                  (id_of_name s.resolution.data d.label)
+                  s.static_mem);
            ])
          s.code.statics);
     R.indexed_table ~title:"stack" (runtime_text s) s.stack;

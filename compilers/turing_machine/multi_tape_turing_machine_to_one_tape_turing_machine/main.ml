@@ -44,13 +44,13 @@ let compile (d : Source.Code.t) =
       let stuck = fresh "stuck" in
       (* Every phase starts at the left boundary. Rewinds can be shared by
          phases with the same continuation. *)
-      let rewinds = Hashtbl.create 32 in
+      let rewinds = ref State_id.Map.empty in
       let rewind target =
-        match Hashtbl.find_opt rewinds target with
+        match State_id.Map.find_opt target !rewinds with
         | Some s -> s
         | None ->
             let s = fresh "rewind" in
-            Hashtbl.add rewinds target s;
+            rewinds := State_id.Map.add target s !rewinds;
             each_cell (fun sign -> keep s sign s Left);
             keep s E.right_marker s Left;
             keep s E.left_marker target Constant;

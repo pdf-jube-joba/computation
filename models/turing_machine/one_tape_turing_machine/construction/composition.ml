@@ -1,5 +1,6 @@
 open One_tape_turing_machine.Main
 open Builder
+module Identifier = Utils_names.Identifier
 
 type 'sign graph = {
   name : string;
@@ -32,30 +33,28 @@ let builder_composition g =
         names := next;
         id
       in
-      let external_states = Hashtbl.create 8 in
+      let external_states = ref Identifier.Map.empty in
       let external_state hint =
         let hint = unwrap (State.parse hint) in
-        match Hashtbl.find_opt external_states hint with
+        match Identifier.Map.find_opt hint !external_states with
         | Some id -> id
         | None ->
             let id = allocate (Utils_names.Identifier.to_string hint) in
-            Hashtbl.add external_states hint id;
+            external_states := Identifier.Map.add hint id !external_states;
             id
       in
       (* Reserve external names before assigning printable hints to copied states.
          Each vertex owns a separate old-state -> new-ID mapping. *)
       let init_state = external_state g.init_state in
       let accepted_state = List.map external_state (List.concat g.acceptable) in
-      let copies =
-        Array.init (Array.length vertices) (fun _ -> Hashtbl.create 8)
-      in
+      let copies = Array.make (Array.length vertices) Identifier.Map.empty in
       let state i hint =
         let hint = unwrap (State.parse hint) in
-        match Hashtbl.find_opt copies.(i) hint with
+        match Identifier.Map.find_opt hint copies.(i) with
         | Some id -> id
         | None ->
             let id = allocate (Utils_names.Identifier.to_string hint) in
-            Hashtbl.add copies.(i) hint id;
+            copies.(i) <- Identifier.Map.add hint id copies.(i);
             id
       in
       let name id =

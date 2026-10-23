@@ -111,7 +111,7 @@ end
 
 let rec eval_aexp env = function
   | Const cs -> cs
-  | Var n -> Option.value ~default:[] (List.assoc_opt n env)
+  | Var n -> Utils_base.Assoc.get ~default:[] n env
   | Concat (a, b) -> eval_aexp env a @ eval_aexp env b
   | Head a -> ( match eval_aexp env a with [] -> [] | c :: _ -> [ c ])
   | Tail a -> ( match eval_aexp env a with [] -> [] | _ :: cs -> cs)

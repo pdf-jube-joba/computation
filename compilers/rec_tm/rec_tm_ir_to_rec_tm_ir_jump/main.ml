@@ -2,6 +2,7 @@ open Utils_runtime.Machine
 open Rec_tm_shared.Syntax
 module I = Rec_tm_ir.Main
 module J = Rec_tm_ir_jump.Main
+module Identifier = Utils_names.Identifier
 module Var_id = Utils_names.Id.Make ()
 module Label_id = Utils_names.Id.Make ()
 module Var_names = Utils_names.Naming.Make (Var_id)
@@ -134,17 +135,16 @@ let compile p =
         I.find_function flat (Utils_names.Identifier.make_exn "main")
       in
       let blocks = Array.of_list main.blocks in
-      let labels = Hashtbl.create 16 and offset = ref 0 in
+      Identifier.check_unique
+        ~message:(fun label ->
+          "label '" ^ Identifier.to_string label ^ "' is duplicated")
+        (List.map (fun (b : I.block) -> b.label) main.blocks);
+      let labels = ref Identifier.Map.empty and offset = ref 0 in
       let stmts =
         List.concat
           (List.mapi
              (fun idx (b : I.block) ->
-               if Hashtbl.mem labels b.label then
-                 failwith
-                   ("label '"
-                   ^ Utils_names.Identifier.to_string b.label
-                   ^ "' is duplicated");
-               Hashtbl.add labels b.label !offset;
+               labels := Identifier.Map.add b.label !offset !labels;
                offset := !offset + List.length b.body;
                List.map
                  (function
@@ -164,7 +164,7 @@ let compile p =
             | I.Assign (dst, src) -> J.Assign (dst, src)
             | I.Jump (label, c) ->
                 let target =
-                  match Hashtbl.find_opt labels label with
+                  match Identifier.Map.find_opt label !labels with
                   | Some t -> t
                   | None ->
                       failwith

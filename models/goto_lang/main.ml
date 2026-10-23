@@ -114,8 +114,7 @@ let named_env state =
     state.env
 
 let lookup state name =
-  Option.value ~default:Number.zero
-    (List.assoc_opt (variable_id state name) state.env)
+  Assoc.get ~default:Number.zero (variable_id state name) state.env
 
 let step state () =
   let* pc = Number.to_int state.pc in
@@ -128,31 +127,20 @@ let step state () =
             Number.succ state.pc )
       | Inc name ->
           ( Assoc.set (variable_id state name)
-              (Number.succ
-                 (Option.value ~default:Number.zero
-                    (List.assoc_opt (variable_id state name) state.env)))
+              (Number.succ (lookup state name))
               state.env,
             Number.succ state.pc )
       | Dec name ->
           ( Assoc.set (variable_id state name)
-              (Number.pred
-                 (Option.value ~default:Number.zero
-                    (List.assoc_opt (variable_id state name) state.env)))
+              (Number.pred (lookup state name))
               state.env,
             Number.succ state.pc )
       | Cpy (dest, source) ->
-          ( Assoc.set (variable_id state dest)
-              (Option.value ~default:Number.zero
-                 (List.assoc_opt (variable_id state source) state.env))
-              state.env,
+          ( Assoc.set (variable_id state dest) (lookup state source) state.env,
             Number.succ state.pc )
       | Ifnz (name, target) ->
           ( state.env,
-            if
-              Number.is_zero
-                (Option.value ~default:Number.zero
-                   (List.assoc_opt (variable_id state name) state.env))
-            then Number.succ state.pc
+            if Number.is_zero (lookup state name) then Number.succ state.pc
             else target )
     in
     Ok (Continue { next = { state with env; pc = next_pc }; output = () })

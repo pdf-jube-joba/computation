@@ -4,6 +4,7 @@ open Rec_tm_shared.Environment
 open Rec_tm_shared.Eval
 module T = Utils_data.Tape.Identifier
 module L = Utils_parsing.Parser
+module Identifier = Utils_names.Identifier
 
 type lvalue = Rec_tm_shared.Syntax.lvalue =
   | Var of Utils_names.Identifier.t
@@ -77,19 +78,19 @@ let find_function p name =
 let validate_no_recursion p =
   Utils_base.Error.protect (fun () ->
       ignore (find_function p (Utils_names.Identifier.make_exn "main"));
-      let visited = Hashtbl.create 32 in
+      let visited = ref Identifier.Map.empty in
       let rec visit (path : Utils_names.Identifier.t list)
           (name : Utils_names.Identifier.t) =
-        match Hashtbl.find_opt visited name with
-        | Some 2 -> ()
-        | Some 1 ->
+        match Identifier.Map.find_opt name !visited with
+        | Some `Visited -> ()
+        | Some `Visiting ->
             failwith
               ("Recursive call is not allowed: "
               ^ String.concat " -> "
                   (List.map Utils_names.Identifier.to_string (path @ [ name ]))
               )
-        | _ ->
-            Hashtbl.replace visited name 1;
+        | None ->
+            visited := Identifier.Map.add name `Visiting !visited;
             let f = find_function p name in
             List.iter
               (fun b ->
@@ -98,7 +99,7 @@ let validate_no_recursion p =
                     | Call name -> visit (path @ [ f.name ]) name | _ -> ())
                   b.body)
               f.blocks;
-            Hashtbl.replace visited name 2
+            visited := Identifier.Map.add name `Visited !visited
       in
       List.iter (fun f -> visit [] f.name) p.functions)
 
@@ -106,25 +107,18 @@ let validate p =
   let* () = validate_no_recursion p in
   Utils_base.Error.protect (fun () ->
       let allowed = normalized_alphabet p.alphabet in
-      let names = Hashtbl.create 16 in
+      Identifier.check_unique
+        ~message:(fun name ->
+          "Function '" ^ Identifier.to_string name ^ "' is defined twice")
+        (List.map (fun f -> f.name) p.functions);
       List.iter
-        (fun f ->
-          if Hashtbl.mem names f.name then
-            failwith
-              ("Function '"
-              ^ Utils_names.Identifier.to_string f.name
-              ^ "' is defined twice");
-          Hashtbl.add names f.name ();
-          let labels = Hashtbl.create 16 in
-          List.iter
-            (fun b ->
-              if Hashtbl.mem labels b.label then
-                failwith
-                  ("label '"
-                  ^ Utils_names.Identifier.to_string b.label
-                  ^ "' is duplicated");
-              Hashtbl.add labels b.label ())
-            f.blocks;
+        (fun (f : func) ->
+          let labels = List.map (fun b -> b.label) f.blocks in
+          Identifier.check_unique
+            ~message:(fun label ->
+              "label '" ^ Identifier.to_string label ^ "' is duplicated")
+            labels;
+          let labels = Identifier.Set.of_list labels in
           List.iter
             (fun b ->
               List.iter
@@ -133,7 +127,7 @@ let validate p =
                   | Break c | Continue c | Return c -> validate_cond allowed c
                   | Jump (label, c) ->
                       validate_cond allowed c;
-                      if not (Hashtbl.mem labels label) then
+                      if not (Identifier.Set.mem label labels) then
                         failwith
                           ("jump target '"
                           ^ Utils_names.Identifier.to_string label
@@ -145,10 +139,10 @@ let validate p =
 
 (* Calls are represented by names; print dependencies first so original Rust's parser also accepts compiled text. *)
 let dependency_order p =
-  let seen = Hashtbl.create 32 and result = ref [] in
+  let seen = ref Identifier.Set.empty and result = ref [] in
   let rec visit f =
-    if not (Hashtbl.mem seen f.name) then (
-      Hashtbl.add seen f.name ();
+    if not (Identifier.Set.mem f.name !seen) then (
+      seen := Identifier.Set.add f.name !seen;
       List.iter
         (fun b ->
           List.iter

@@ -22,7 +22,7 @@ let read_place s = function
         (Printf.sprintf "Invalid stack key: s[%d]" i)
   | Heap (h, i) ->
       Utils_base.List_ext.nth
-        (Option.value (List.assoc_opt h s.heap) ~default:[])
+        (Utils_base.Assoc.get ~default:[] h s.heap)
         i
         (Printf.sprintf "Invalid heap key: h[%d][%d]" (Heap_id.to_int h) i)
 
@@ -101,7 +101,7 @@ let make code input =
       })
 
 let reg s r =
-  Option.value (List.assoc_opt (register_id s r) s.vregs) ~default:(Num N.zero)
+  Utils_base.Assoc.get ~default:(Num N.zero) (register_id s r) s.vregs
 
 let num s = function
   | Num n -> n

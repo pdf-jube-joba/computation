@@ -2,8 +2,7 @@ open Syntax
 open Environment
 
 let eval env tape : rvalue -> T.sign = function
-  | Var s ->
-      Option.value ~default:None (List.assoc_opt (variable env s) env.values)
+  | Var s -> Utils_base.Assoc.get ~default:None (variable env s) env.values
   | Head -> tape.Utils_data.Tape.head
   | Const s -> s
 

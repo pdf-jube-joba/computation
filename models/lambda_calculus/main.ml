@@ -110,13 +110,13 @@ let rec max_id = function
   | App (left, right) -> max (max_id left) (max_id right)
 
 let freshen term next =
-  let table = Hashtbl.create 16 in
+  let table = ref Var_id.Map.empty in
   let variable var =
-    match Hashtbl.find_opt table var.id with
+    match Var_id.Map.find_opt var.id !table with
     | Some fresh -> fresh
     | None ->
         let fresh = { var with id = Var_id.Supply.take next } in
-        Hashtbl.add table var.id fresh;
+        table := Var_id.Map.add var.id fresh !table;
         fresh
   in
   let rec visit = function
@@ -219,7 +219,7 @@ module Snapshot = struct
     visit term
 
   let of_yojson json =
-    let vars = Hashtbl.create 16 and binders = Hashtbl.create 16 in
+    let vars = ref Var_id.Map.empty and binders = ref Var_id.Set.empty in
     let variable = function
       | `Assoc fields -> (
           match (List.assoc_opt "id" fields, List.assoc_opt "name" fields) with
@@ -228,13 +228,13 @@ module Snapshot = struct
             -> (
               let* id = Var_id.of_int id in
               let* name = Utils_names.Identifier.make name in
-              match Hashtbl.find_opt vars id with
+              match Var_id.Map.find_opt id !vars with
               | Some var when var.name <> name ->
                   Error "Conflicting variable names"
               | Some var -> Ok var
               | None ->
                   let var = { id; name } in
-                  Hashtbl.add vars id var;
+                  vars := Var_id.Map.add id var !vars;
                   Ok var)
           | _ -> Error "Invalid variable in snapshot")
       | _ -> Error "Invalid variable in snapshot"
@@ -242,10 +242,8 @@ module Snapshot = struct
     let rec visit env = function
       | `List [ `String "var"; json ] ->
           let* var = variable json in
-          if
-            Hashtbl.mem binders (Var_id.to_int var.id)
-            && not (List.mem var.id env)
-          then Error "Bound variable occurs outside its scope"
+          if Var_id.Set.mem var.id !binders && not (List.mem var.id env) then
+            Error "Bound variable occurs outside its scope"
           else Ok (Var var)
       | `List [ `String "abs"; json; body ] ->
           let* var = variable json in
@@ -262,7 +260,10 @@ module Snapshot = struct
     let rec collect = function
       | `List [ `String "abs"; `Assoc fields; body ] ->
           (match List.assoc_opt "id" fields with
-          | Some (`Int id) -> Hashtbl.replace binders id ()
+          | Some (`Int id) -> (
+              match Var_id.of_int id with
+              | Ok id -> binders := Var_id.Set.add id !binders
+              | Error _ -> ())
           | _ -> ());
           collect body
       | `List [ `String "app"; left; right ] ->

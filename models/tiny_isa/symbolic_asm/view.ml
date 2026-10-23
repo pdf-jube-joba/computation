@@ -12,8 +12,8 @@ let render s =
       (Array.mapi
          (fun addr v ->
            let labels =
-             Option.value ~default:[]
-               (List.assoc_opt addr s.debug_info.data_labels_by_addr)
+             Utils_base.Assoc.get ~default:[] addr
+               s.debug_info.data_labels_by_addr
            in
            [
              string_of_int addr;

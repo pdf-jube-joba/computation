@@ -1,4 +1,5 @@
 open Types
+module States = Utils_names.Intern.Make (Utils_names.Identifier) (State_id)
 
 type t = code
 
@@ -58,15 +59,13 @@ let of_ids ~tape_count ~alphabet ~state_names init_state accepted_state code =
 
 let make ~tape_count ~alphabet init accepted entries =
   Utils_parsing.Parser.protect (fun () ->
-      let supply = ref State_id.Supply.empty in
-      let ids = Hashtbl.create 16 in
+      let ids = ref States.empty in
       let names = ref [] in
       let state name =
-        match Hashtbl.find_opt ids name with
+        match States.find name !ids with
         | Some id -> id
         | None ->
-            let id = State_id.Supply.take supply in
-            Hashtbl.add ids name id;
+            let id = States.take name ids in
             names := (id, name) :: !names;
             id
       in

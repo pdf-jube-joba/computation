@@ -163,7 +163,7 @@ let build_debug_info symbols =
   let by_addr labels =
     List.fold_left
       (fun out (name, addr) ->
-        let names = Option.value ~default:[] (List.assoc_opt addr out) in
+        let names = Utils_base.Assoc.get ~default:[] addr out in
         (addr, List.sort Utils_names.Identifier.compare (name :: names))
         :: List.remove_assoc addr out)
       [] labels

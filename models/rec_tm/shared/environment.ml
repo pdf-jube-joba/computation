@@ -25,8 +25,7 @@ let env_create vars =
 
 let env_named env =
   List.map
-    (fun (name, id) ->
-      (name, Option.value ~default:None (List.assoc_opt id env.values)))
+    (fun (name, id) -> (name, Utils_base.Assoc.get ~default:None id env.values))
     env.names
 
 let variable env name =

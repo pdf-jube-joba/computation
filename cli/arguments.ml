@@ -4,7 +4,7 @@ let rec options = function
       (key, value) :: options rest
   | args -> failwith ("Unexpected arguments: " ^ String.concat " " args)
 
-let opt fields key default = Option.value ~default (List.assoc_opt key fields)
+let opt fields key default = Utils_base.Assoc.get ~default key fields
 
 let require fields key =
   match List.assoc_opt key fields with

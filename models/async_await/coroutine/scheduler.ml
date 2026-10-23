@@ -15,7 +15,7 @@ let get_task_id env name =
       failwith ("unknown task id $" ^ Utils_names.Identifier.to_string name)
 
 let rec eval_aexp env = function
-  | Atom (Var n) -> Option.value ~default:N.zero (List.assoc_opt n env.vars)
+  | Atom (Var n) -> Utils_base.Assoc.get ~default:N.zero n env.vars
   | Atom (Imm n) -> n
   | Bin (a, op, b) -> (
       let a = eval_aexp env a in
