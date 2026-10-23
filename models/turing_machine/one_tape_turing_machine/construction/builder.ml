@@ -1,4 +1,4 @@
-open Turing_machine.Main
+open One_tape_turing_machine.Main
 
 type 'sign user_code_entry = {
   key_sign : 'sign;

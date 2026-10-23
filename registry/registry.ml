@@ -135,8 +135,18 @@ let entries =
     };
     {
       name = "turing_machine";
-      library = "turing_machine";
-      implementation = Model (module Turing_machine.Main);
+      library = "one_tape_turing_machine";
+      implementation = Model (module One_tape_turing_machine.Main);
+    };
+    {
+      name = "one_tape_turing_machine";
+      library = "one_tape_turing_machine";
+      implementation = Model (module One_tape_turing_machine.Main);
+    };
+    {
+      name = "multi_tape_turing_machine";
+      library = "multi_tape_turing_machine";
+      implementation = Model (module Multi_tape_turing_machine.Main);
     };
     {
       name = "rec_tm_ir";

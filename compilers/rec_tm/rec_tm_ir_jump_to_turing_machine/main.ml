@@ -3,7 +3,7 @@ open Rec_tm_shared.Syntax
 open Rec_tm_shared.Environment
 open Rec_tm_shared.Eval
 module J = Rec_tm_ir_jump.Main
-module T = Turing_machine.Main
+module T = One_tape_turing_machine.Main
 module Names = Utils_names.Identifier.Set
 
 module State_key = struct

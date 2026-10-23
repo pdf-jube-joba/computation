@@ -39,6 +39,7 @@
   strtree
   symbolic_asm
   tiny_isa
-  turing_machine
+  one_tape_turing_machine
+  multi_tape_turing_machine
   utils_codec
   utils_runtime))

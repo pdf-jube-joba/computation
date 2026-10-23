@@ -82,9 +82,11 @@ let parse text =
       | init :: accepted :: lines ->
           let init = unwrap (State.parse init) in
           let accepted =
-            List.map
-              (fun s -> unwrap (State.parse s))
-              (String.split_on_char ',' accepted)
+            if String.trim accepted = "" then []
+            else
+              List.map
+                (fun s -> unwrap (State.parse s))
+                (String.split_on_char ',' accepted)
           in
           let entries =
             List.filter_map

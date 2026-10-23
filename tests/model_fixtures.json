@@ -1014,5 +1014,66 @@
       ""
     ],
     "final": "x = atom 'a'\n"
+  },
+  {
+    "name": "one_tape_turing_machine",
+    "code": "start\nhalt\n-,start,x,halt,C",
+    "ainput": "|-|",
+    "rinput": "",
+    "steps": 1,
+    "outputs": [],
+    "final": "|x|",
+    "initial_snapshot": {
+      "definition": {
+        "init_state": 0,
+        "accepted_state": [
+          1
+        ],
+        "code": [
+          [
+            [
+              null,
+              0
+            ],
+            [
+              "x",
+              1,
+              [
+                "Constant"
+              ]
+            ]
+          ]
+        ],
+        "state_names": [
+          [
+            0,
+            "start"
+          ],
+          [
+            1,
+            "halt"
+          ]
+        ]
+      },
+      "current_state": 0,
+      "tape": {
+        "left": [],
+        "head": null,
+        "right": []
+      }
+    }
+  },
+  {
+    "name": "multi_tape_turing_machine",
+    "code": "tapes: 2\nalphabet: -,a,b\ncopy\ndone\na -,copy,a a,copy,R R\nb -,copy,b b,copy,R R\n- -,copy,- -,done,C C\n",
+    "ainput": "|a|b,a\n|-|",
+    "rinput": "",
+    "steps": 4,
+    "outputs": [
+      "",
+      "",
+      ""
+    ],
+    "final": "a,b,a|-|\na,b,a|-|"
   }
 ]

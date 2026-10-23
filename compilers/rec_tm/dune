@@ -39,7 +39,7 @@
    yojson
    rec_tm_ir_jump
    rec_tm_shared
-   turing_machine
+   one_tape_turing_machine
    utils_base
    utils_names
    utils_runtime)

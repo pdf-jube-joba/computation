@@ -1,4 +1,4 @@
-open Turing_machine.Main
+open One_tape_turing_machine.Main
 open Builder
 
 type 'sign graph = {
