@@ -15,11 +15,12 @@ module Code = Lambda_continuations_shared.Syntax.Ctrl_code
 
 let make = Lambda_continuations_no_ext.Main.make
 let step _ () = Error unsupported
-let snapshot = Lambda_continuations_no_ext.Main.snapshot
-let restore = Lambda_continuations_no_ext.Main.restore
+
+module Snapshot = Lambda_continuations_no_ext.Main.Snapshot
+
 let render = Lambda_continuations_no_ext.Main.render
 
-module Ainput = Utils_codec.Text.Natural_list
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Ainput = Utils_data.Text.Natural_list
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Lambda_continuations_shared.Syntax.Value

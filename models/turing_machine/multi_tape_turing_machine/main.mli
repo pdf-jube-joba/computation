@@ -3,9 +3,9 @@ include module type of struct
 end
 
 module Code = Code
-module Ainput : Utils_codec.Text.S with type t = tape list
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Ainput : Utils_data.Text.S with type t = tape list
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput
 
 include

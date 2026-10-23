@@ -3,10 +3,8 @@ open Circuit
 type t = signal
 
 let value = Utils_base.Error.get
-
-let parse_bool text = value (Utils_codec.Text.Bool.parse text)
-
-let print_bool = Utils_codec.Text.Bool.print
+let parse_bool text = value (Utils_data.Text.Bool.parse text)
+let print_bool = Utils_data.Text.Bool.print
 
 module P = Utils_parsing.Parser
 
@@ -40,11 +38,7 @@ let read_pin p =
 let read_item p =
   let pin = read_pin p in
   P.expect_symbol p '=';
-  let start = P.offset p in
-  P.expect_symbol p '#';
-  if P.offset p <> start + 1 then P.error p "Expected #true or #false";
-  let boolean = P.identifier p in
-  (pin, parse_bool ("#" ^ Utils_names.Identifier.to_string boolean))
+  (pin, Utils_data.Text.Bool.read p)
 
 let parse_pin text = value (P.parse read_pin text)
 let parse_item text = value (P.parse read_item text)

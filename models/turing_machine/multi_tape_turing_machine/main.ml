@@ -14,8 +14,8 @@ module Ainput = struct
   let print tapes = String.concat "\n" (List.map Tape.print tapes)
 end
 
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput
 
 let validate_tapes definition tapes =
@@ -59,14 +59,18 @@ let step s () =
   if next_code next = None then Ok (Halt next.tapes)
   else Ok (Continue { next; output = () })
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  let* s = state_of_yojson json in
-  let* () = Code.validate s.definition in
-  let* () = validate_tapes s.definition s.tapes in
-  if List.mem_assoc s.current_state s.definition.state_names then Ok s
-  else Error "Unknown current state ID"
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    let* s = state_of_yojson json in
+    let* () = Code.validate s.definition in
+    let* () = validate_tapes s.definition s.tapes in
+    if List.mem_assoc s.current_state s.definition.state_names then Ok s
+    else Error "Unknown current state ID"
+end
 
 let render s =
   let module R = Utils_runtime.Render in
@@ -74,25 +78,24 @@ let render s =
     Utils_names.Identifier.to_string (Code.state_name s.definition id)
   in
   let vector print xs = String.concat " " (List.map print xs) in
-  R.state
-    (R.text_table ~title:"code"
-       ?highlight:(Option.map fst (next_code s))
-       ~columns:[ "read"; "state"; "write"; "next_state"; "directions" ]
-       (List.map
-          (fun ((reads, source), (writes, target, dirs)) ->
-            [
-              vector Sign.print reads;
-              name source;
-              vector Sign.print writes;
-              name target;
-              vector Direction.print dirs;
-            ])
-          s.definition.code)
-    :: R.text ~title:"state" (name s.current_state)
-    :: List.mapi
-         (fun i tape ->
-           let signs, head = Tape.into_vec tape in
-           R.highlight
-             ~title:(Printf.sprintf "tape %d" (i + 1))
-             ~index:head Sign.print signs)
-         s.tapes)
+  R.text_table ~title:"code"
+    ?highlight:(Option.map fst (next_code s))
+    ~columns:[ "read"; "state"; "write"; "next_state"; "directions" ]
+    (List.map
+       (fun ((reads, source), (writes, target, dirs)) ->
+         [
+           vector Sign.print reads;
+           name source;
+           vector Sign.print writes;
+           name target;
+           vector Direction.print dirs;
+         ])
+       s.definition.code)
+  :: R.text ~title:"state" (name s.current_state)
+  :: List.mapi
+       (fun i tape ->
+         let signs, head = Tape.into_vec tape in
+         R.highlight
+           ~title:(Printf.sprintf "tape %d" (i + 1))
+           ~index:head Sign.print signs)
+       s.tapes

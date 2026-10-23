@@ -2,8 +2,6 @@ type ('state, 'routput, 'foutput) step_result =
   | Continue of { next : 'state; output : 'routput }
   | Halt of 'foutput
 
-module type TEXT = Utils_codec.Text.S
-
 module type S = sig
   type state
 
@@ -16,9 +14,9 @@ module type S = sig
     Rinput.t ->
     ((state, Routput.t, Foutput.t) step_result, string) result
 
-  val snapshot : state -> Yojson.Safe.t
-  val restore : Yojson.Safe.t -> (state, string) result
-  val render : state -> Yojson.Safe.t
+  module Snapshot : Snapshot.S with type t = state
+
+  val render : state -> Render.t
 end
 
 let ( let* ) = Result.bind

@@ -80,24 +80,24 @@ module Code = struct
         { statics; body })
 
   let rec stmt_to_text = function
-    | Nop -> "Nop"
+    | Nop -> "\\Nop"
     | Seq (a, b) -> stmt_to_text a ^ "; " ^ stmt_to_text b
     | Assign (v, a) -> Utils_names.Identifier.to_string v ^ " := " ^ aexp_text a
-    | If (c, b) -> "if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
+    | If (c, b) -> "\\if " ^ bexp_text c ^ " { " ^ stmt_to_text b ^ " }"
     | Break (l, v) ->
-        "break :"
+        "\\break :"
         ^ Utils_names.Identifier.to_string l
         ^ " "
         ^ Utils_names.Identifier.to_string v
-    | Continue l -> "continue :" ^ Utils_names.Identifier.to_string l
+    | Continue l -> "\\continue :" ^ Utils_names.Identifier.to_string l
     | Loop (l, b, v) ->
-        "loop :"
+        "\\loop :"
         ^ Utils_names.Identifier.to_string l
         ^ " (" ^ stmt_to_text b ^ ") -> "
         ^ Utils_names.Identifier.to_string v
 
   let print c =
-    "static"
+    "\\static"
     ^ (if c.statics = [] then ""
        else
          " "
@@ -196,30 +196,33 @@ let step s () =
       | Result _, Result Normal, [] -> Utils_runtime.Machine.Halt next.env
       | _ -> Utils_runtime.Machine.Continue { next; output })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text ~title:"exec" (exec_to_text s.exec);
-      Utils_runtime.Render.text ~title:"env" (Env.print_inline s.env);
-      Utils_runtime.Render.text ~title:"stack"
-        (String.concat "\n"
-           (List.map
-              (function
-                | Loop_frame (l, _, v) ->
-                    "loop "
-                    ^ Utils_names.Identifier.to_string l
-                    ^ " -> "
-                    ^ Utils_names.Identifier.to_string v
-                | Seq_frame b -> "seq " ^ Code.stmt_to_text b)
-              (List.rev s.stack)));
-    ]
+  [
+    Utils_runtime.Render.text ~title:"exec" (exec_to_text s.exec);
+    Utils_runtime.Render.text ~title:"env" (Env.print_inline s.env);
+    Utils_runtime.Render.text ~title:"stack"
+      (String.concat "\n"
+         (List.map
+            (function
+              | Loop_frame (l, _, v) ->
+                  "loop "
+                  ^ Utils_names.Identifier.to_string l
+                  ^ " -> "
+                  ^ Utils_names.Identifier.to_string v
+              | Seq_frame b -> "seq " ^ Code.stmt_to_text b)
+            (List.rev s.stack)));
+  ]
 
 module Ainput = Structured_lang_shared.Arithmetic.Env
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.String
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.String
 module Foutput = Ainput
 
 let rec stmt_vars = function

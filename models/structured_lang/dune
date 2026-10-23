@@ -3,7 +3,7 @@
  (library
   (name structured_lang_shared)
   (public_name computation.structured_lang_shared)
-  (libraries yojson utils_base utils_codec utils_names utils_parsing)
+  (libraries yojson utils_base utils_data utils_names utils_parsing)
   (preprocess
    (pps ppx_deriving_yojson))))
 
@@ -16,7 +16,7 @@
    yojson
    structured_lang_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess
@@ -31,7 +31,7 @@
    yojson
    structured_lang_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess
@@ -46,7 +46,7 @@
    yojson
    structured_lang_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess
@@ -61,7 +61,7 @@
    yojson
    structured_lang_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess
@@ -76,7 +76,7 @@
    yojson
    structured_lang_shared
    utils_base
-   utils_codec
+   utils_data
    utils_names
    utils_runtime)
   (preprocess

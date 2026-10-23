@@ -99,7 +99,7 @@ markdown の中でタグを配置するときの注意
 5
 </template>
 <template data-default-rinput>
-inc
+\inc
 </template>
 </div>
 
@@ -109,7 +109,7 @@ inc
 8
 </template>
 <template data-default-rinput>
-inc
+\inc
 </template>
 </div>
 
@@ -120,6 +120,6 @@ identity compiler の場合
 8
 </template>
 <template data-default-rinput>
-inc
+\inc
 </template>
 </div>

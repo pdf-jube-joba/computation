@@ -1,8 +1,10 @@
-(** Typed rendering blocks; serialization happens at [state]. *)
+(** Typed rendering blocks; hosts serialize a complete rendering with
+    [to_yojson]. *)
 type orientation = Vertical | Horizontal
 
 type display = Inline | Block
 type block
+type t = block list
 
 val text : ?title:string -> ?class_name:string -> string -> block
 
@@ -23,8 +25,7 @@ val container :
 val highlight : ?title:string -> index:int -> ('a -> string) -> 'a list -> block
 (** Display a horizontal sequence, highlighting the item at [index]. *)
 
-val to_yojson : block -> Yojson.Safe.t
-val state : block list -> Yojson.Safe.t
+val to_yojson : t -> Yojson.Safe.t
 
 val text_table :
   ?title:string ->
@@ -62,4 +63,4 @@ val statement_env :
   string ->
   ('value -> string) ->
   ('name * 'value) list ->
-  Yojson.Safe.t
+  t

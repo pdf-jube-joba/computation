@@ -4,7 +4,7 @@
 
 正の整数 `k` 本の左右無限テープと、それぞれ独立したヘッドを持つ決定的チューリングマシン。
 1回の遷移では、全テープのヘッドにある記号を読み、その組と状態から遷移を選ぶ。
-全ヘッド位置への書き込みを行い、それぞれのヘッドを `L`（左）、`R`（右）、`C`（その場）に動かす。
+全ヘッド位置への書き込みを行い、それぞれのヘッドを `\L`（左）、`\R`（右）、`\C`（その場）に動かす。
 受理状態に入るか、現在の状態・読み取り記号の組に対応する遷移がなければ停止する。
 停止時の出力は全テープであり、受理・不受理の区別は状態の受理状態集合への所属で表す。
 
@@ -23,9 +23,9 @@ tapes: 2
 alphabet: -,a,b
 copy
 done
-a -,copy,a a,copy,R R
-b -,copy,b b,copy,R R
-- -,copy,- -,done,C C
+a -,copy,a a,copy,\R \R
+b -,copy,b b,copy,\R \R
+- -,copy,- -,done,\C \C
 ```
 
 この機械は第1テープの `a`・`b` を第2テープにコピーする。
@@ -57,9 +57,9 @@ tapes: 2
 alphabet: -,a,b
 copy
 done
-a -,copy,a a,copy,R R
-b -,copy,b b,copy,R R
-- -,copy,- -,done,C C
+a -,copy,a a,copy,\R \R
+b -,copy,b b,copy,\R \R
+- -,copy,- -,done,\C \C
 </template>
 <template data-default-ainput>
 |a|b,a

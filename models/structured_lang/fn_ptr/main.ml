@@ -11,7 +11,7 @@ let rec eval_place s = function
   | Deref v -> (
       match eval_value s v with
       | Location loc -> loc
-      | Null_ptr -> failwith "cannot dereference #null_ptr"
+      | Null_ptr -> failwith "cannot dereference \\null_ptr"
       | Num _ -> failwith "dereference expects a location value")
 
 and eval_value s = function
@@ -148,36 +148,40 @@ let step s () =
                       current_stmt = None;
                     })))
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  Result.bind (state_of_yojson json) (fun s ->
-      Utils_base.Error.protect (fun () ->
-          validate s.code;
-          let ids = ref Frame_id.Set.empty in
-          let location (l : location) =
-            ids := Frame_id.Set.add l.frame_id !ids
-          in
-          List.iter
-            (fun frame ->
-              ids := Frame_id.Set.add frame.frame_id !ids;
-              List.iter
-                (fun (l, v) ->
-                  location l;
-                  match v with Location l -> location l | _ -> ())
-                frame.values)
-            s.store;
-          List.iter (fun (_, l) -> location l) s.env;
-          List.iter
-            (fun (frame : call_frame) ->
-              List.iter (fun (_, l) -> location l) frame.env)
-            s.fn_k;
-          get (Frame_id.Supply.validate_used !ids s.next_frame_id);
-          s))
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    Result.bind (state_of_yojson json) (fun s ->
+        Utils_base.Error.protect (fun () ->
+            validate s.code;
+            let ids = ref Frame_id.Set.empty in
+            let location (l : location) =
+              ids := Frame_id.Set.add l.frame_id !ids
+            in
+            List.iter
+              (fun frame ->
+                ids := Frame_id.Set.add frame.frame_id !ids;
+                List.iter
+                  (fun (l, v) ->
+                    location l;
+                    match v with Location l -> location l | _ -> ())
+                  frame.values)
+              s.store;
+            List.iter (fun (_, l) -> location l) s.env;
+            List.iter
+              (fun (frame : call_frame) ->
+                List.iter (fun (_, l) -> location l) frame.env)
+              s.fn_k;
+            get (Frame_id.Supply.validate_used !ids s.next_frame_id);
+            s))
+end
 
 let render = View.render
 
-module Ainput = Utils_codec.Text.Unit
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.String
-module Foutput = Utils_codec.Text.String
+module Ainput = Utils_data.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.String
+module Foutput = Utils_data.Text.String

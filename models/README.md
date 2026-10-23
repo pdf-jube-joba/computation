@@ -30,12 +30,15 @@ type ('state, 'routput, 'foutput) step_result =
 `Utils_runtime.Session.Make` functor が共通のセッション管理を実装します。
 エラーでは元の状態を保持し、停止ではセッションを終了します。
 セッションは `Continued of string` / `Halted of string` を返し、
-`Utils_runtime.Session_json` が CLI / Web の既存 JSON 形式へ変換します。
+`Utils_runtime.Session_json.Make` が CLI / Web の既存 JSON 形式へ変換します。
 
-snapshot は `Yojson.Safe.t` に保存し、モデルごとに復元します。
+snapshot はモデルの状態型をそのまま使います。`Machine.S` の `Snapshot` module は
+`type t = state` と `to_yojson` / `of_yojson` を公開し、JSON からの復元時にモデル固有の検証を行います。
+`Session.Make` の `snapshot` / `restore` はこの型を受け渡し、JSON 変換は `Session_json.Make` に集めます。
 `ppx_deriving_yojson` が多くの型の JSON エンコーダー・デコーダーを生成します。
 `Utils_runtime.Compiler.S` は Source / Target の module を持つ型付きのコンパイラで、
-`Utils_runtime.Compiler_text_api.api` が CLI / Web に公開するテキストの境界です。
+`Model_registry.Compiler_text_api.api` が CLI / Web に公開するテキストの境界です。
+アダプタは registry が生成するため、各コンパイラに `api` を定義する必要はありません。
 Source / Target に必要なのは codec を定義する `Utils_runtime.Language.S` で、
 状態遷移や描画への依存はありません。`Compiler.Compose` で型付きコンパイラを合成できます。
 PCF の式から CEK への変換は共通 AST の恒等変換で、CEK の初期化・遷移はモデル側にあります。
@@ -43,9 +46,9 @@ PCF の式から CEK への変換は共通 AST の恒等変換で、CEK の初�
 
 ## 描画
 
-`render` の戻り値は既存の `assets/renderer.js` が扱う JSON block の配列です。
-`Utils_runtime.Render` の抽象型 `block` を通して text / table / container を構築し、
-`Render.state` で JSON に変換します。向きは `Vertical` / `Horizontal`、
+`render` の戻り値は `Utils_runtime.Render.t = block list` です。
+`Render` の抽象型 `block` を通して text / table / container を構築します。
+`Session_json.Make` が `Render.to_yojson` で `web/ui/renderer.js` 用の JSON に変換します。向きは `Vertical` / `Horizontal`、
 配置は `Inline` / `Block` で指定します。
 
 - text: `{kind: "text", text: string}`
@@ -56,6 +59,17 @@ PCF の式から CEK への変換は共通 AST の恒等変換で、CEK の初�
 保存済み snapshot の描画はアクティブな状態を変更しません。
 
 ## テキストの解析
+
+組み込みの単語はコード・式・値のテキスト形式で共通して `\` を付けます。
+たとえば `\if`、`\inc`、`\true`、`\cons` はキーワードで、`if` や `inc` は識別子です。
+lexer が `Keyword` と `Ident` を区別するため、モデルごとの予約語リストは不要です。
+`expect_keyword p "if"` は入力の `\if` を読み、`identifier p` は接頭辞のない名前を読みます。
+λ計算の抽象は `\fun x. x`、PCF の関数式は `\fun x => x` と書きます。
+数値、記号演算子、文字・文字列の中身、JSON のキーやタグにはこの接頭辞を付けません。
+旧記法の `#true` や接頭辞のない命令は受け付けません。
+テープの方向も `\L` / `\R` / `\C` と書きます。
+Flow IR の入力に含めるキー値は `\static @name`、`\stack[index]`、`\heap[handle][index]` です。
+アセンブリは `\text` / `\data` / `\equ`、条件フラグは `\ldi \f %r1 3` のように書きます。
 
 `Utils_parsing.Lexer` はコメント・空白を除いて token と byte 位置を作ります。
 `Utils_parsing.Parser.create` はそれを一度読み、対応する `()` / `[]` / `{}` を
@@ -125,13 +139,13 @@ procedure 言語の文は `separated_list` で読み、モデル側で右結合�
 | `tiny_isa/symbolic_asm` | 改行単位の命令・ディレクティブ、セクションの切り替え |
 | `tiny_isa/cfg_vreg` | ブロック内の命令順序と終端命令の検査。括弧・数値・比較・オペランドの読み取りは共通 parser |
 | `turing_machine` | テープの区切り、行・CSV 形式の遷移表 |
-| `Utils_codec.Text`・入力 codec | 単独の数値・素の文字列・行形式の環境など、既存の入力形式の解釈。自然数リストは共通 parser |
+| `Utils_data.Text`・入力 codec | 単独の数値・素の文字列・行形式の環境など、既存の入力形式の解釈。自然数リストは共通 parser |
 
 CFG、`fn_ptr` の `loc(...)` 入力、自然数リストも `group` で括弧を読みます。
 λ計算の入力リストと論理回路の信号リストも `separated_list` を使います。
 symbolic assembly や CSV 形式の行単位 parser は、`String_ext`・`Number`・`Text` の
 共通関数を使いながら専用の読み取りを行います。
-環境の行形式は `Utils_codec.Environment_text`、実行時の汎用例外変換は
+環境の行形式は `Utils_data.Environment`、実行時の汎用例外変換は
 `Utils_base.Error.protect` が受け持ちます。
 
 `Utils_names.Identifier.t` と `Utils_base.Number.t` は抽象型です。
@@ -142,11 +156,19 @@ symbolic assembly や CSV 形式の行単位 parser は、`String_ext`・`Number
 ## 入出力のデータ
 
 文字リストは `string list`、メモリは `'a array`、環境は `(Identifier.t * 'a) list` を直接使います。
-テープ・レジスタ画像・文字の木の型と、配列メモリの操作は `Utils_data` に定義します。
-テキスト変換は `Utils_codec.Tape_text`、`Memory_image_text`、`Natural_lines`、
-`Environment_text`、`Character_list_text`、`Character_tree_text` を使います。
-テープ・メモリ・レジスタ画像は要素型に関して polymorphic です。操作には `~default` を渡し、
-テープの codec は `Tape_text.Make`、画像の codec は `Memory_image_text.Make` で具体化します。
+データ構造とそのテキスト変換は `Utils_data` にまとめます。
+テキスト変換には `Tape`、`Memory_image`、`Natural_lines`、
+`Environment`、`Value_list`、`Value_tree` を使います。
+テープ・メモリ・レジスタ画像・リスト・木は要素型に関して polymorphic です。
+リストと木の codec は `Value_list.Make (Value)`・`Value_tree.Make (Value)` で具体化し、
+`Value` には `parse` と `print` を持つ `Text.S` を渡します。
+文字は `Text.Char` で `'a'`・`'あ'`・`'\n'` のように読み書きし、
+文字リストと文字の木にはそれぞれの `Character` モジュールを使います。
+リストの要素はカンマ、木の atom の要素は次の `\atom`・`\cons`・部分木の開き括弧、またはスコープの終わりまでです。
+atom の要素自体を括弧で囲むこともできます。
+引用符や括弧の内側の区切りは要素の一部として扱いますが、要素の codec と外側の文法の衝突は許容します。
+テープ・メモリの操作には `~default` を渡し、
+テープの codec は `Tape.Make`、画像の codec は `Memory_image.Make` で具体化します。
 `Utils_runtime.Render.highlight` は任意のリストの指定位置を強調表示します。
 テープには `Tape.into_vec` で得たセルのリストとヘッド位置を渡します。
 新しいモデルからデータを共有するときは、他モデルの `Main` を経由せずこれらを参照します。

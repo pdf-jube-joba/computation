@@ -12,9 +12,9 @@
 
 <div data-model="recursive_function">
 <template data-default-code>
-let zf = PROJ[1,0].
-let sf = COMP[SUCC: PROJ[3,0]].
-let add = PRIM[z: zf s: sf].
+\let zf = \PROJ[1,0].
+\let sf = \COMP[\SUCC: \PROJ[3,0]].
+\let add = \PRIM[\z: zf \s: sf].
 add
 </template>
 <template data-default-ainput>

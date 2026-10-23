@@ -71,7 +71,7 @@ async function main() {
   first.make('3', '');
   second.make('3', '');
   const initial = second.snapshot();
-  first.step('inc');
+  first.step('\\inc');
   assert.notEqual(first.snapshot(), initial);
   assert.equal(second.snapshot(), initial, 'model sessions must be independent');
   const reloaded = await createModel('example_counter');

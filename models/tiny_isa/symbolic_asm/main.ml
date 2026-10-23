@@ -45,17 +45,21 @@ let step s () =
         if halted then Utils_runtime.Machine.Halt (output next)
         else Utils_runtime.Machine.Continue { next; output = () })
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  Result.bind (state_of_yojson json) (fun s ->
-      Utils_base.Error.protect (fun () ->
-          Tiny_isa_shared.Registers.validate s.regs;
-          if
-            s.pc < 0 || s.static_data_len < 0
-            || s.static_data_len > Array.length s.data_memory
-          then failwith "Invalid assembly snapshot";
-          s))
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    Result.bind (state_of_yojson json) (fun s ->
+        Utils_base.Error.protect (fun () ->
+            Tiny_isa_shared.Registers.validate s.regs;
+            if
+              s.pc < 0 || s.static_data_len < 0
+              || s.static_data_len > Array.length s.data_memory
+            then failwith "Invalid assembly snapshot";
+            s))
+end
 
 let render = View.render
 
@@ -66,16 +70,16 @@ module Ainput = struct
     Result.map
       (fun (image : N.t Utils_data.Memory_image.t) ->
         { regs = image.register; data_extension = image.memory })
-      (Utils_codec.Memory_image_text.Natural.parse ~register_count:8 text)
+      (Utils_data.Memory_image.Natural.parse ~register_count:8 text)
 
   let print =
    fun (image : t) ->
-    Utils_codec.Memory_image_text.Natural.print
+    Utils_data.Memory_image.Natural.print
       { register = image.regs; memory = image.data_extension }
 end
 
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 
 module Foutput = struct
   type t = foutput
@@ -84,10 +88,10 @@ module Foutput = struct
     Result.map
       (fun (image : N.t Utils_data.Memory_image.t) ->
         ({ regs = image.register; data_memory = image.memory } : asm_output))
-      (Utils_codec.Memory_image_text.Natural.parse ~register_count:8 text)
+      (Utils_data.Memory_image.Natural.parse ~register_count:8 text)
 
   let print =
    fun (image : t) ->
-    Utils_codec.Memory_image_text.Natural.print
+    Utils_data.Memory_image.Natural.print
       { register = image.regs; memory = image.data_memory }
 end

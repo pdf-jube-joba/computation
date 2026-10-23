@@ -1,5 +1,5 @@
 (library
  (name multi_tape_turing_machine)
  (public_name computation.multi_tape_turing_machine)
- (libraries yojson utils_base utils_data utils_codec utils_names utils_parsing utils_runtime)
+ (libraries yojson utils_base utils_data utils_names utils_parsing utils_runtime)
  (preprocess (pps ppx_deriving_yojson)))

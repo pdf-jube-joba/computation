@@ -8,7 +8,7 @@ type api = {
   decode_foutput : string -> (string, string) result;
 }
 
-let make (module C : Compiler.S) =
+let make (module C : Utils_runtime.Compiler.S) =
   let convert parse transform print text =
     Result.bind (parse text) (fun value -> Result.map print (transform value))
   in

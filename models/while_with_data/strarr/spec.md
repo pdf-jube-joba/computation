@@ -24,11 +24,11 @@
   &| \NT{aexp} \T{==} \NT{aexp} \\
 \\
 \NT{stmt} &\defeq \\
-  &| \T{Nop} \\
+  &| \T{\textbackslash Nop} \\
   &| \NT{stmt} \T{;} \NT{stmt} \\
   &| \NT{var} \T{:=} \NT{aexp} \\
-  &| \T{if} \NT{bexp} \T{then} \NT{stmt} \T{end} \\
-  &| \T{while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB}
+  &| \T{if} \NT{bexp} \T{\textbackslash then} \NT{stmt} \T{\textbackslash end} \\
+  &| \T{\textbackslash while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB}
 
 \end{aligned}
 \]

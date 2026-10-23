@@ -1,24 +1,12 @@
 open Syntax
 module L = Utils_parsing.Parser
 
-let reserved statements x =
-  List.mem x
-    ([ "print"; "fun"; "rec"; "if"; "then"; "else"; "fi"; "inc"; "dec"; "not" ]
-    @ if statements then [ "skip"; "let"; "while"; "do"; "end" ] else [])
-
-let identifier statements p =
-  let x = L.identifier p in
-  if reserved statements (Utils_names.Identifier.to_string x) then
-    L.error p
-      ("identifier expected, found keyword '"
-      ^ Utils_names.Identifier.to_string x
-      ^ "'");
-  x
-
+let identifier _statements p = L.identifier p
 let number = L.natural
 
 let rec expression statements p =
-  if L.peek p = L.Ident "if" then if_expr statements p else binary statements p
+  if L.peek p = L.Keyword "if" then if_expr statements p
+  else binary statements p
 
 and if_expr statements p =
   L.expect_keyword p "if";
@@ -59,28 +47,30 @@ and prefix statements p =
 and atom statements p =
   match L.peek p with
   | L.Number _ -> Nat (number p)
-  | L.Symbol '#' -> (
+  | L.Keyword "true" ->
       ignore (L.bump p);
-      match Utils_names.Identifier.to_string (L.identifier p) with
-      | "true" -> Bool true
-      | "false" -> Bool false
-      | "unit" -> Unit
-      | k -> L.error p ("unknown token: #" ^ k))
-  | L.Ident "print" when not statements ->
+      Bool true
+  | L.Keyword "false" ->
+      ignore (L.bump p);
+      Bool false
+  | L.Keyword "unit" ->
+      ignore (L.bump p);
+      Unit
+  | L.Keyword "print" when not statements ->
       ignore (L.bump p);
       Print (number p)
-  | L.Ident "fun" ->
+  | L.Keyword "fun" ->
       ignore (L.bump p);
       let x = identifier statements p in
       L.expect p "=>";
       Fun (x, expression statements p)
-  | L.Ident "rec" ->
+  | L.Keyword "rec" ->
       ignore (L.bump p);
       let f = identifier statements p in
       let x = identifier statements p in
       L.expect p "=>";
       Rec (f, x, expression statements p)
-  | L.Ident "if" -> if_expr statements p
+  | L.Keyword "if" -> if_expr statements p
   | _ when L.is_group p L.Parentheses ->
       L.group p L.Parentheses (expression statements)
   | _ when statements && L.is_group p L.Braces ->

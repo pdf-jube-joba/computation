@@ -419,16 +419,3 @@ let decode_foutput t =
            "expected a single output value, but got tuple of length %d"
            (List.length xs))
   | None -> Error "failed to decode tape as recursive_function output"
-
-let api =
-  Utils_runtime.Compiler_text_api.make
-    (module struct
-      module Source = Source
-      module Target = Target
-
-      let compile = compile
-      let encode_ainput = encode_ainput
-      let encode_rinput = encode_rinput
-      let decode_routput = decode_routput
-      let decode_foutput = decode_foutput
-    end)

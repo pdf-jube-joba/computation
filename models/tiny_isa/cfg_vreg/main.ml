@@ -136,11 +136,16 @@ let step s () =
         Utils_runtime.Machine.Continue
           { next = { s with current_block }; output = () }))
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
+
 let render = View.render
 
-module Ainput = Utils_codec.Text.Natural_list
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
-module Foutput = Utils_codec.Text.Natural_list
+module Ainput = Utils_data.Text.Natural_list
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
+module Foutput = Utils_data.Text.Natural_list

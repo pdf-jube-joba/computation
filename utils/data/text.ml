@@ -21,16 +21,31 @@ module String = struct
   let print text = text
 end
 
+module Char = struct
+  (* One Unicode scalar, represented as UTF-8. *)
+  type t = string
+
+  module P = Utils_parsing.Parser
+
+  let rec read p =
+    if P.is_group p P.Parentheses then P.group p P.Parentheses read
+    else P.character_literal p
+
+  let parse = P.parse ~character_literals:true read
+  let print = Utils_parsing.Char_literal.to_text
+end
+
 module Bool = struct
   type t = bool
 
-  let parse text =
-    match Stdlib.String.trim text with
-    | "#true" -> Ok true
-    | "#false" -> Ok false
-    | text -> Error ("Invalid boolean text: " ^ text)
+  let read p =
+    match Utils_parsing.Parser.keyword p with
+    | "true" -> true
+    | "false" -> false
+    | word -> Utils_parsing.Parser.error p ("Invalid boolean: \\" ^ word)
 
-  let print = function true -> "#true" | false -> "#false"
+  let parse = Utils_parsing.Parser.parse read
+  let print = function true -> "\\true" | false -> "\\false"
 end
 
 module Natural = struct

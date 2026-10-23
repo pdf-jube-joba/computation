@@ -1,6 +1,5 @@
 module Number = Utils_base.Number
-module Tape = Utils_codec.Tape_text.Identifier
-module Tape_text = Utils_codec.Tape_text.Identifier
+module Tape = Utils_data.Tape.Identifier
 module Memory = Utils_data.Memory
 
 let get = Utils_base.Error.get
@@ -8,7 +7,7 @@ let check message condition = if not condition then failwith message
 let sign name = Some (Utils_names.Identifier.make_exn name)
 
 let tape () =
-  let original = get (Tape_text.parse "a,b|c|d,e") in
+  let original = get (Tape.parse "a,b|c|d,e") in
   let left = Tape.move_to original Tape.Left in
   check "tape moves toward nearest left cell" (left.head = sign "b");
   check "tape move preserves cell order"
@@ -23,7 +22,7 @@ let tape () =
   let written = Tape.head_write outside (sign "x") in
   check "writing preserves the original tape" (outside.head = None);
   check "tape text roundtrip"
-    (Tape.equal written (get (Tape_text.parse (Tape_text.print written))));
+    (Tape.equal written (get (Tape.parse (Tape.print written))));
   check "tape JSON roundtrip"
     (written = get (Tape.of_yojson (Tape.to_yojson written)));
   let at_end = get (Tape.from_vec [ sign "a"; sign "b" ] 2) in
@@ -60,7 +59,7 @@ let memory () =
 
 let polymorphic_data () =
   let module Bit = struct
-    include Utils_codec.Text.Bool
+    include Utils_data.Text.Bool
 
     let default = false
     let equal = Bool.equal
@@ -70,8 +69,8 @@ let polymorphic_data () =
       | `Bool value -> Ok value
       | _ -> Error "Expected bit"
   end in
-  let module Bits = Utils_codec.Tape_text.Make (Bit) in
-  let tape = get (Bits.parse "#true|#false|#true") in
+  let module Bits = Utils_data.Tape.Make (Bit) in
+  let tape = get (Bits.parse "\\true|\\false|\\true") in
   let left = Bits.move_to tape Bits.Left in
   check "generic tape stores boolean cells" left.head;
   check "generic tape uses its supplied default"
@@ -91,13 +90,13 @@ let polymorphic_data () =
     (Memory.read ~default:"empty" extended 2 = "last");
   check "generic memory reads missing cells as its supplied default"
     (Memory.read ~default:"empty" extended 5 = "empty");
-  let module Image = Utils_codec.Memory_image_text.Make (Bit) in
-  let image = get (Image.parse ~register_count:2 "#false, #true\n#true") in
+  let module Image = Utils_data.Memory_image.Make (Bit) in
+  let image = get (Image.parse ~register_count:2 "\\false, \\true\n\\true") in
   check "generic image uses the element codec"
     (get (Image.parse ~register_count:2 (Image.print image)) = image)
 
 let codecs () =
-  let module Image = Utils_codec.Memory_image_text.Natural in
+  let module Image = Utils_data.Memory_image.Natural in
   let image = get (Image.parse ~register_count:2 "+0, 03\n+4\n5") in
   check "register layout is supplied by the model"
     (Image.print image = "0, 3\n4\n5");
@@ -105,18 +104,23 @@ let codecs () =
     (Result.is_error (Image.parse ~register_count:8 "0, 3"));
   check "memory image roundtrip"
     (get (Image.parse ~register_count:2 (Image.print image)) = image);
-  let module Chars = Utils_codec.Character_list_text in
+  let module Chars = Utils_data.Value_list.Character in
   let chars = get (Chars.parse "((['あ', '\\n', '\'']))") in
   check "character list roundtrip"
     (get (Chars.parse (Chars.print chars)) = chars);
   check "character input rejects expressions"
     (Result.is_error (Chars.parse "head ['a']"));
-  let module Tree = Utils_codec.Character_tree_text in
-  let tree = get (Tree.parse "(cons (atom (('あ'))) (atom '\\n'))") in
+  let module Tree = Utils_data.Value_tree.Character in
+  let tree = get (Tree.parse "(\\cons (\\atom (('あ'))) (\\atom '\\n'))") in
   check "character tree roundtrip" (get (Tree.parse (Tree.print tree)) = tree);
+  List.iter
+    (fun text ->
+      check "tree atoms preserve a following parenthesized subtree"
+        (get (Tree.parse text) = tree))
+    [ {|\cons \atom 'あ' (\atom '\n')|}; {|\cons \atom (('あ')) (\atom '\n')|} ];
   check "tree input rejects projections"
-    (Result.is_error (Tree.parse "left (cons atom 'a' atom 'b')"));
-  let module Env = Utils_codec.Environment_text.Natural in
+    (Result.is_error (Tree.parse "\\left (\\cons \\atom 'a' \\atom 'b')"));
+  let module Env = Utils_data.Environment.Natural in
   let env = get (Env.parse "x = 2\ny = 3\nx = 4") in
   check "environment keeps the last assignment"
     (Number.equal
@@ -126,9 +130,84 @@ let codecs () =
        (Number.of_int 4));
   check "environment roundtrip" (get (Env.parse (Env.print env)) = env)
 
+let polymorphic_lists_and_trees () =
+  let module Text = Utils_data.Text in
+  let module Bools = Utils_data.Value_list.Make (Text.Bool) in
+  let bools = get (Bools.parse {|[\true, \false, \true]|}) in
+  check "generic lists store booleans" (bools = [ true; false; true ]);
+  check "generic list roundtrip" (get (Bools.parse (Bools.print bools)) = bools);
+  check "generic lists may be empty" (get (Bools.parse "[]") = []);
+  List.iter
+    (fun text ->
+      check "generic lists reject invalid elements and separators"
+        (Result.is_error (Bools.parse text)))
+    [ {|[\true \false]|}; {|[\true,]|}; {|[,\true]|}; "[1]"; "[] extra" ];
+  let module Nested = Utils_data.Value_list.Make (Bools) in
+  let nested = [ [ true; false ]; []; [ false ] ] in
+  check "generic lists preserve nested separators"
+    (get (Nested.parse (Nested.print nested)) = nested);
+  let module Chars = Utils_data.Value_list.Character in
+  let chars = [ ","; "["; ")"; "'"; "\\"; "\n"; "あ" ] in
+  check "character list delimiters and escapes roundtrip"
+    (get (Chars.parse (Chars.print chars)) = chars);
+  List.iter
+    (fun char ->
+      check "standalone character codec roundtrip"
+        (get (Text.Char.parse (Text.Char.print char)) = char))
+    chars;
+  List.iter
+    (fun text ->
+      check "character codec rejects invalid literals"
+        (Result.is_error (Text.Char.parse text)))
+    [ "a"; "''"; "'ab'"; "'a' 'b'"; "'あ" ];
+  let module Tree = Utils_data.Value_tree in
+  let module Bool_tree = Tree.Make (Text.Bool) in
+  let tree =
+    Tree.ConsValue
+      ( Tree.AtomValue true,
+        Tree.ConsValue (Tree.AtomValue false, Tree.AtomValue true) )
+  in
+  check "generic tree stores boolean atoms"
+    (get
+       (Bool_tree.parse {|\cons (\atom \true) \cons \atom \false \atom \true|})
+    = tree);
+  check "generic tree roundtrip"
+    (get (Bool_tree.parse (Bool_tree.print tree)) = tree);
+  check "generic tree JSON uses the supplied element codec"
+    (get
+       (Tree.of_yojson
+          (function `Bool value -> Ok value | _ -> Error "Expected boolean")
+          (Tree.to_yojson (fun value -> `Bool value) tree))
+    = tree);
+  List.iter
+    (fun text ->
+      check "generic trees reject malformed structure and atoms"
+        (Result.is_error (Bool_tree.parse text)))
+    [
+      {|\cons \atom \true|};
+      {|\atom|};
+      {|\atom 1|};
+      {|\atom \true \atom \false|};
+    ];
+  let module List_tree = Tree.Make (Utils_data.Value_list.Make (Text.Natural_int))
+  in
+  let tree = Tree.ConsValue (Tree.AtomValue [ 1; 2 ], Tree.AtomValue []) in
+  check "generic trees support list atoms"
+    (get (List_tree.parse (List_tree.print tree)) = tree);
+  let module Trees = Utils_data.Value_list.Make (Bool_tree) in
+  let trees =
+    [
+      Tree.AtomValue false;
+      Tree.ConsValue (Tree.AtomValue true, Tree.AtomValue false);
+    ]
+  in
+  check "generic lists support tree elements spanning multiple tokens"
+    (get (Trees.parse (Trees.print trees)) = trees)
+
 let () =
   tape ();
   memory ();
   polymorphic_data ();
   codecs ();
-  print_endline "Passed shared data and codec checks."
+  polymorphic_lists_and_trees ();
+  print_endline "Passed shared data checks."

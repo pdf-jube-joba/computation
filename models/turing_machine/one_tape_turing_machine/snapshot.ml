@@ -1,5 +1,7 @@
 open Types
 
+type t = state
+
 let ( let* ) = Result.bind
 
 (* The previous snapshot format used named states in both code and runtime. *)
@@ -24,9 +26,9 @@ module Named_snapshot = struct
   [@@deriving yojson]
 end
 
-let encode = state_to_yojson
+let to_yojson = state_to_yojson
 
-let decode json =
+let of_yojson json =
   let* s =
     match json with
     | `Assoc fields

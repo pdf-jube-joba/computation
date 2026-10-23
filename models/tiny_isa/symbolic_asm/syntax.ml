@@ -2,10 +2,13 @@ module N = Utils_base.Number
 module Text = Utils_base.String_ext
 open Tiny_isa_shared.Instruction
 
+type builtin = This | Code_len | Data_len [@@deriving yojson]
+
 type raw_value =
   | Imm of N.t
   | Label of Utils_names.Identifier.t
   | Const of Utils_names.Identifier.t
+  | Builtin of builtin
 [@@deriving yojson]
 
 type raw_operand = Reg of int | Value of raw_value [@@deriving yojson]

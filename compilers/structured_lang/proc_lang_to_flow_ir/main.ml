@@ -210,16 +210,3 @@ let decode_foutput values =
                 ^ Utils_names.Identifier.to_string k
                 ^ ", got " ^ I.Ainput.print_value v))
         (Utils_base.Assoc.sorted values))
-
-let api =
-  Utils_runtime.Compiler_text_api.make
-    (module struct
-      module Source = Source
-      module Target = Target
-
-      let compile = compile
-      let encode_ainput = encode_ainput
-      let encode_rinput = encode_rinput
-      let decode_routput = decode_routput
-      let decode_foutput = decode_foutput
-    end)

@@ -114,8 +114,12 @@ let step s () =
       let* state, output = step_state s.state in
       Ok (Utils_runtime.Machine.Continue { next = { s with state }; output })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render s =
   let env_from_kont k =
@@ -145,6 +149,6 @@ let render s =
     k
 
 module Ainput = Pcf_shared.Io.Ainput
-module Rinput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
 module Routput = Pcf_shared.Io.Routput
 module Foutput = Pcf_shared.Io.Foutput

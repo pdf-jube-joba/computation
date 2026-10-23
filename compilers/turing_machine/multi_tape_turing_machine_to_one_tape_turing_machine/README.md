@@ -34,7 +34,7 @@
 - `compile`: 型付きコードから1テープの型付きコードを生成する。
 - `encode_ainput`: 全入力テープを1本に符号化する。
 - `decode_foutput`: 停止時の1本のテープから、元の各テープとヘッド位置を復元する。
-- `api`: CLI / Web 用のテキスト API。
+- CLI / Web 用のテキスト API は registry の `Compiler_text_api.make` で生成する。
 
 入力は元のコードのテープ本数・アルファベットに従う。
 入力の符号化 API はコードを受け取らないため、この対応関係の検査は元モデルの `make` が行う。
@@ -48,9 +48,9 @@ tapes: 2
 alphabet: -,a,b
 copy
 done
-a -,copy,a a,copy,R R
-b -,copy,b b,copy,R R
-- -,copy,- -,done,C C
+a -,copy,a a,copy,\R \R
+b -,copy,b b,copy,\R \R
+- -,copy,- -,done,\C \C
 </template>
 <template data-default-ainput>
 |a|b,a

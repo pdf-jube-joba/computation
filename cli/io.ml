@@ -1,4 +1,4 @@
-module Json = Utils_codec.Json
+module Json = Utils_data.Json
 
 let get = Utils_base.Error.get
 let output json = print_endline (Json.encode json)

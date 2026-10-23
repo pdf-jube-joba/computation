@@ -128,7 +128,7 @@ let compile (p : J.code) =
           ]
         else List.rev !accepted
       in
-      T.unwrap
+      Utils_base.Error.get
         (T.Code.of_ids ~state_names:(List.rev !state_names) init_state accepted
            (List.rev !code)))
 
@@ -139,16 +139,3 @@ let encode_ainput t = Ok t
 let encode_rinput () = Ok ()
 let decode_routput () = Ok ()
 let decode_foutput t = Ok t
-
-let api =
-  Utils_runtime.Compiler_text_api.make
-    (module struct
-      module Source = Source
-      module Target = Target
-
-      let compile = compile
-      let encode_ainput = encode_ainput
-      let encode_rinput = encode_rinput
-      let decode_routput = decode_routput
-      let decode_foutput = decode_foutput
-    end)

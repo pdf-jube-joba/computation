@@ -25,18 +25,17 @@ let render s =
            ])
          s.data_memory)
   in
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text_table ~title:"status"
-        ~columns:[ "field"; "value" ]
-        [
-          [ "pc"; string_of_int s.pc ];
-          [ "flag"; string_of_bool s.flag ];
-          [ "next"; next ];
-          [ "halted"; string_of_bool s.halted ];
-        ];
-      Tiny_isa_shared.View.registers s.regs;
-      Utils_runtime.Render.text_table ~title:"data"
-        ~columns:[ "addr"; "label"; "value" ]
-        data_rows;
-    ]
+  [
+    Utils_runtime.Render.text_table ~title:"status"
+      ~columns:[ "field"; "value" ]
+      [
+        [ "pc"; string_of_int s.pc ];
+        [ "flag"; string_of_bool s.flag ];
+        [ "next"; next ];
+        [ "halted"; string_of_bool s.halted ];
+      ];
+    Tiny_isa_shared.View.registers s.regs;
+    Utils_runtime.Render.text_table ~title:"data"
+      ~columns:[ "addr"; "label"; "value" ]
+      data_rows;
+  ]

@@ -1,204 +1,18 @@
-module Value_type = struct
-  type t =
-    | Bit
-    | Array of Utils_base.Number.t * t
-    | Strct of (Utils_names.Identifier.t * t) list
-    | Enume of Utils_names.Identifier.t list
-  [@@deriving yojson]
-end
+include Syntax
+module Program = Program
 
-module Value = struct
-  type t =
-    | Bit of bool
-    | Array of t list
-    | Strct of (Utils_names.Identifier.t * t) list
-    | Enume of Utils_names.Identifier.t
-  [@@deriving yojson]
-
-  let new_bit b = Bit b
-  let new_array values = Array values
-
-  (* Preserve the source constructor's inverted HashSet::insert check: its
-     first field always returns None. Expression StrctConst bypasses it. *)
-  let new_strct = function [] -> Some (Strct []) | _ -> None
-  let new_enume name = Enume name
-
-  let get_field_of_value value name =
-    match value with Strct fields -> List.assoc_opt name fields | _ -> None
-
-  let rec print = function
-    | Bit b -> if b then "#true" else "#false"
-    | Array values -> "[" ^ String.concat ", " (List.map print values) ^ "]"
-    | Strct fields ->
-        "{"
-        ^ String.concat ", "
-            (List.map
-               (fun (name, value) ->
-                 Utils_names.Identifier.to_string name ^ ": " ^ print value)
-               fields)
-        ^ "}"
-    | Enume name -> "<" ^ Utils_names.Identifier.to_string name ^ ">"
-end
-
-type value_type = Value_type.t [@@deriving yojson]
-type value = Value.t [@@deriving yojson]
-
-let rec typable_value_exn value expected =
-  match (value, expected) with
-  | Value.Bit _, Value_type.Bit -> ()
-  | Value.Array values, Value_type.Array (length, element_type) ->
-      if
-        not
-          (Utils_base.Number.equal
-             (Utils_base.Number.of_int (List.length values))
-             length)
-      then failwith "mismatch length of array";
-      List.iter (fun value -> typable_value_exn value element_type) values
-  | Value.Strct fields, Value_type.Strct field_types ->
-      let keys fields =
-        List.map fst fields |> List.sort_uniq Utils_names.Identifier.compare
-      in
-      if keys fields <> keys field_types then failwith "mismatch field name";
-      List.iter
-        (fun key ->
-          typable_value_exn (List.assoc key fields) (List.assoc key field_types))
-        (keys fields)
-  | Value.Enume name, Value_type.Enume names ->
-      if not (List.mem name names) then
-        failwith
-          ("enum "
-          ^ Utils_names.Identifier.to_string name
-          ^ " is not contained in ["
-          ^ String.concat ", " (List.map Utils_names.Identifier.to_string names)
-          ^ "]")
-  | _ -> failwith "type mismatch"
-
-let typable_value value expected =
-  Utils_base.Error.protect (fun () -> typable_value_exn value expected)
-
-type comb_exp_val =
-  | Val of value
-  | Var of Utils_names.Identifier.t
-  | And of comb_exp_val * comb_exp_val
-  | Or of comb_exp_val * comb_exp_val
-  | Not of comb_exp_val
-  | IfCond of comb_exp_val * comb_exp_val * comb_exp_val
-  | ArrayAcc of comb_exp_val * Utils_base.Number.t
-  | ArrayConst of comb_exp_val list
-  | FieldAcc of comb_exp_val * Utils_names.Identifier.t
-  | StrctConst of (Utils_names.Identifier.t * comb_exp_val) list
-  | Switch of comb_exp_val * (Utils_names.Identifier.t * comb_exp_val) list
-  | SeqAndFinal of (Utils_names.Identifier.t * comb_exp_val) list * comb_exp_val
-  | CombModule of Utils_names.Identifier.t * comb_exp_val
-[@@deriving yojson]
-
-type comb_module = {
-  name : Utils_names.Identifier.t;
-  input_type : value_type;
-  otput_type : value_type;
-  comb_func : comb_exp_val;
-}
-[@@deriving yojson]
-
-type code_env = { code : comb_exp_val; mod_env : comb_module list }
-[@@deriving yojson]
-
-let rec eval_exn mod_env var_env expression =
-  let eval expression = eval_exn mod_env var_env expression in
-  match expression with
-  | Val value -> value
-  | Var name -> (
-      match List.assoc_opt name var_env with
-      | Some value -> value
-      | None ->
-          failwith ("not found var " ^ Utils_names.Identifier.to_string name))
-  | And (a, b) -> (
-      let va = eval a in
-      let vb = eval b in
-      match (va, vb) with
-      | Value.Bit a, Value.Bit b -> Value.Bit (a && b)
-      | _ -> failwith "expression is not boolean")
-  | Or (a, b) -> (
-      let va = eval a in
-      let vb = eval b in
-      match (va, vb) with
-      | Value.Bit a, Value.Bit b -> Value.Bit (a || b)
-      | _ -> failwith "expression is not boolean")
-  | Not expression -> (
-      match eval expression with
-      | Value.Bit b -> Value.Bit (not b)
-      | _ -> failwith "expression is not boolean")
-  | IfCond (condition, consequent, alternative) -> (
-      (* Rust evaluates both branches, including the unselected branch. *)
-      let condition = eval condition in
-      let consequent = eval consequent in
-      let alternative = eval alternative in
-      match condition with
-      | Value.Bit true -> consequent
-      | Value.Bit false -> alternative
-      | _ -> failwith "expression is not boolean")
-  | ArrayAcc (expression, index) -> (
-      let index =
-        match Utils_base.Number.to_int index with
-        | Ok n -> n
-        | Error _ -> failwith "access out of index"
-      in
-      match eval expression with
-      | Value.Array values ->
-          if index >= List.length values then failwith "access out of index"
-          else List.nth values index
-      | _ -> failwith "expression is not array")
-  | ArrayConst expressions -> Value.Array (List.map eval expressions)
-  | FieldAcc (expression, field) -> (
-      match eval expression with
-      | Value.Strct fields -> (
-          match List.assoc_opt field fields with
-          | Some value -> value
-          | None ->
-              failwith
-                ("not found field " ^ Utils_names.Identifier.to_string field))
-      | _ -> failwith "expression is not struct")
-  | StrctConst fields ->
-      Value.Strct
-        (List.map (fun (name, expression) -> (name, eval expression)) fields)
-  | Switch (expression, cases) -> (
-      let value = eval expression in
-      let cases =
-        List.map (fun (name, expression) -> (name, eval expression)) cases
-      in
-      match value with
-      | Value.Enume name -> (
-          match List.assoc_opt name cases with
-          | Some value -> value
-          | None -> failwith "switch miss")
-      | _ -> failwith "expression is not enume")
-  | SeqAndFinal (sequence, final_value) ->
-      let vars =
-        List.fold_left
-          (fun vars (name, expression) ->
-            let value = eval_exn mod_env vars expression in
-            vars @ [ (name, value) ])
-          var_env sequence
-      in
-      eval_exn mod_env vars final_value
-  | CombModule (name, expression) ->
-      let comb_module =
-        match List.find_opt (fun m -> m.name = name) mod_env with
-        | Some m -> m
-        | None ->
-            failwith
-              ("module name "
-              ^ Utils_names.Identifier.to_string name
-              ^ " is not found")
-      in
-      let value = eval expression in
-      (* The implemented evaluator does not check declared module types. *)
-      eval_exn mod_env
-        [ (Utils_names.Identifier.make_exn "IN", value) ]
-        comb_module.comb_func
+type code_env = Program.t [@@deriving yojson]
 
 let eval_to_val mod_env var_env expression =
-  Utils_base.Error.protect (fun () -> eval_exn mod_env var_env expression)
+  let open Utils_base.Error in
+  let inputs =
+    List.sort_uniq Utils_names.Identifier.compare (List.map fst var_env)
+  in
+  let* program = Program.make ~modules:mod_env ~inputs expression in
+  Program.eval program var_env
+
+let eval_exn mod_env var_env expression =
+  Utils_base.Error.get (eval_to_val mod_env var_env expression)
 
 type simple_module = {
   state_type_and_init : value * value_type;
@@ -265,16 +79,13 @@ let field_this = Utils_names.Identifier.make_exn "THIS"
 let field_prev = Utils_names.Identifier.make_exn "PREV"
 
 let simple_get_otput (machine : simple_module_state) =
-  eval_to_val machine.otput_func.mod_env
-    [ (field_state, machine.state) ]
-    machine.otput_func.code
+  Program.eval machine.otput_func [ (field_state, machine.state) ]
 
 let simple_clock (machine : simple_module_state) input =
   Result.map
     (fun state -> { machine with state })
-    (eval_to_val machine.trans_func.mod_env
-       [ (field_in, input); (field_state, machine.state) ]
-       machine.trans_func.code)
+    (Program.eval machine.trans_func
+       [ (field_in, input); (field_state, machine.state) ])
 
 let unsupported feature =
   Error (feature ^ " was not implemented in the original Rust HDL")
@@ -311,7 +122,7 @@ let graph_get_otput (machine : graph_module_state) =
           machine.states_machines
       in
       (* The original implementation evaluates trans_func here, not otput_func. *)
-      eval_exn machine.trans_func.mod_env vars machine.trans_func.code)
+      result_exn (Program.eval machine.trans_func vars))
 
 let graph_clock (machine : graph_module_state) input =
   Utils_base.Error.protect (fun () ->
@@ -321,9 +132,7 @@ let graph_clock (machine : graph_module_state) input =
              (fun (name, state) -> (name, result_exn (general_get_otput state)))
              machine.states_machines
       in
-      let value =
-        eval_exn machine.trans_func.mod_env vars machine.trans_func.code
-      in
+      let value = result_exn (Program.eval machine.trans_func vars) in
       let states_machines =
         List.map
           (fun (name, state) ->
@@ -349,16 +158,12 @@ let iter_get_otput (machine : iter_module_state) =
         | [] -> failwith "Iterator has no first module state"
       in
       let output = result_exn (general_get_otput first) in
-      eval_exn machine.otput_func.mod_env
-        [ (field_state, output) ]
-        machine.otput_func.code)
+      result_exn (Program.eval machine.otput_func [ (field_state, output) ]))
 
 let iter_clock (machine : iter_module_state) input =
   Utils_base.Error.protect (fun () ->
       let previous =
-        eval_exn machine.input_func.mod_env
-          [ (field_in, input) ]
-          machine.input_func.code
+        result_exn (Program.eval machine.input_func [ (field_in, input) ])
       in
       let outputs =
         List.map
@@ -385,11 +190,13 @@ let iter_clock (machine : iter_module_state) input =
             (* Preserve the source's repeated PREV binding. General dispatch remains
        unsupported, so these dormant operations cannot be entered today. *)
             let input =
-              eval_exn machine.trans_func.mod_env
-                [
-                  (field_prev, prev); (field_this, current); (field_prev, next);
-                ]
-                machine.trans_func.code
+              result_exn
+                (Program.eval machine.trans_func
+                   [
+                     (field_prev, prev);
+                     (field_this, current);
+                     (field_prev, next);
+                   ])
             in
             result_exn (general_clock state input))
           machine.state_machines
@@ -403,8 +210,8 @@ module Parser = struct
     L.group p delimiter (fun p -> L.many ~skip_separator:',' p item)
 
   let rec value p =
-    if L.bump_if p "#true" then Value.Bit true
-    else if L.bump_if p "#false" then Value.Bit false
+    if L.bump_if p "\\true" then Value.Bit true
+    else if L.bump_if p "\\false" then Value.Bit false
     else if L.is_group p L.Brackets then Value.Array (block p L.Brackets value)
     else if L.is_group p L.Braces then
       let fields =

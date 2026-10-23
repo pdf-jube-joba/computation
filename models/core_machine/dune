@@ -1,0 +1,5 @@
+(library
+ (name core_machine)
+ (public_name computation.core_machine)
+ (libraries yojson utils_base utils_data utils_names utils_parsing utils_runtime)
+ (preprocess (pps ppx_deriving_yojson)))

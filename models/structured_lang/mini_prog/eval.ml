@@ -68,7 +68,7 @@ let rec eval_place s = function
   | Deref v -> (
       match eval_value s v with
       | Ptr_value (Some loc) -> loc
-      | Ptr_value None -> failwith "cannot dereference #null_ptr"
+      | Ptr_value None -> failwith "cannot dereference \\null_ptr"
       | _ -> failwith "dereference expects a pointer")
 
 and eval_value s = function

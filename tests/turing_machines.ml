@@ -33,9 +33,12 @@ let equal_tapes label expected actual =
 let compare_execution label code input =
   let code = get (S.Code.parse (S.Code.print code)) in
   let initial = get (S.make code input) in
-  let restored = get (S.restore (S.snapshot initial)) in
-  check (label ^ ": snapshot") (S.snapshot initial = S.snapshot restored);
-  check (label ^ ": rendering") (S.render initial = S.render restored);
+  let restored = get (S.Snapshot.of_yojson (S.Snapshot.to_yojson initial)) in
+  check (label ^ ": snapshot")
+    (S.Snapshot.to_yojson initial = S.Snapshot.to_yojson restored);
+  check (label ^ ": rendering")
+    (Utils_runtime.Render.to_yojson (S.render initial)
+    = Utils_runtime.Render.to_yojson (S.render restored));
   let target = get (C.compile code) in
   let target = get (T.Code.parse (T.Code.print target)) in
   let encoded = get (C.encode_ainput input) in
@@ -49,9 +52,9 @@ let copy_code =
    alphabet: -,a,b\n\
    copy\n\
    done\n\
-   a -,copy,a a,copy,R R\n\
-   b -,copy,b b,copy,R R\n\
-   - -,copy,- -,done,C C\n"
+   a -,copy,a a,copy,\\R \\R\n\
+   b -,copy,b b,copy,\\R \\R\n\
+   - -,copy,- -,done,\\C \\C\n"
 
 let examples () =
   compare_execution "copy"
@@ -61,13 +64,13 @@ let examples () =
     (get (S.Code.parse "tapes: 2\nalphabet: -,a\ndone\ndone\n"))
     (get (S.Ainput.parse "a|-|a\n|a|"));
   compare_execution "no matching vector"
-    (get (S.Code.parse "tapes: 2\nalphabet: -,a,b\nq\n\na a,q,b b,q,L R\n"))
+    (get (S.Code.parse "tapes: 2\nalphabet: -,a,b\nq\n\na a,q,b b,q,\\L \\R\n"))
     (get (S.Ainput.parse "|a|\n|b|"));
   compare_execution "no transitions"
     (get (S.Code.parse "tapes: 1\nalphabet: -,a\nq\n\n"))
     (get (S.Ainput.parse "|a|"));
   compare_execution "halt by missing transition after a write"
-    (get (S.Code.parse "tapes: 1\nalphabet: -,a\nq\n\n-,q,a,stuck,L\n"))
+    (get (S.Code.parse "tapes: 1\nalphabet: -,a\nq\n\n-,q,a,stuck,\\L\n"))
     [ S.Tape.blank ]
 
 (* Build terminating programs from independent tape operations. Each state has
@@ -144,12 +147,12 @@ let errors () =
       "tapes: 0\nalphabet: -\nq\nh\n";
       "tapes: 2\nalphabet: a\nq\nh\n";
       "tapes: 2\nalphabet: -,-\nq\nh\n";
-      "tapes: 2\nalphabet: -\nq\nh\n- -,q,-,h,C C\n";
-      "tapes: 2\nalphabet: -\nq\nh\n- -,q,- -,h,C\n";
-      "tapes: 2\nalphabet: -\nq\nh\n- -,q,a -,h,C C\n";
-      "tapes: 1\nalphabet: -\nq\nh\n-,q,-,h,C,extra\n";
-      "tapes: 1\nalphabet: -\nq\nh\n-,q,-,h,C\n-,q,-,q,L\n";
-      "tapes: 1\nalphabet: -\nq\nh\n-,h,-,q,C\n";
+      "tapes: 2\nalphabet: -\nq\nh\n- -,q,-,h,\\C \\C\n";
+      "tapes: 2\nalphabet: -\nq\nh\n- -,q,- -,h,\\C\n";
+      "tapes: 2\nalphabet: -\nq\nh\n- -,q,a -,h,\\C \\C\n";
+      "tapes: 1\nalphabet: -\nq\nh\n-,q,-,h,\\C,extra\n";
+      "tapes: 1\nalphabet: -\nq\nh\n-,q,-,h,\\C\n-,q,-,q,\\L\n";
+      "tapes: 1\nalphabet: -\nq\nh\n-,h,-,q,\\C\n";
     ];
   let code = get (S.Code.parse copy_code) in
   check "wrong input count" (Result.is_error (S.make code [ S.Tape.blank ]));
@@ -163,7 +166,7 @@ let errors () =
   let initial = get (S.make code [ S.Tape.blank; S.Tape.blank ]) in
   let bad_state = { initial with tapes = [] } in
   check "snapshot validation"
-    (Result.is_error (S.restore (S.snapshot bad_state)));
+    (Result.is_error (S.Snapshot.of_yojson (S.Snapshot.to_yojson bad_state)));
   List.iter
     (fun tape ->
       check "malformed encoding"

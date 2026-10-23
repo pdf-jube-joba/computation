@@ -5,7 +5,7 @@
   model_registry
   utils_base
   utils_names
-  utils_codec
+  utils_data
   utils_runtime
   pcf_shared
   pcf_expr
@@ -17,12 +17,40 @@
 (test
  (name data)
  (modules data)
- (libraries utils_base utils_codec utils_data utils_names))
+ (libraries utils_base utils_data utils_names))
 
 (test
  (name parsing)
  (modules parsing)
- (libraries utils_base utils_parsing))
+ (libraries utils_base utils_names utils_parsing))
+
+(test
+ (name keywords)
+ (modules keywords)
+ (libraries
+  model_registry
+  utils_base
+  utils_data
+  utils_runtime
+  fn_ptr
+  flow_ir
+  lambda_continuations_shared
+  my_hdl))
+
+(test
+ (name my_hdl)
+ (modules my_hdl)
+ (libraries my_hdl utils_base utils_names yojson))
+
+(test
+ (name core_machine)
+ (modules core_machine)
+ (libraries core_machine utils_base utils_runtime yojson))
+
+(test
+ (name flow_ir_to_core_machine)
+ (modules flow_ir_to_core_machine)
+ (libraries flow_ir_to_core_machine flow_ir core_machine utils_base utils_runtime))
 
 (test
  (name turing_machines)

@@ -7,7 +7,7 @@ type env = (Utils_names.Identifier.t * N.t) list [@@deriving yojson]
 
 let env_get env name = Utils_base.Assoc.get ~default:N.zero name env
 
-module Env = Utils_codec.Environment_text.Natural
+module Env = Utils_data.Environment.Natural
 
 let names_until p endc =
   if L.peek p = L.Symbol endc then []

@@ -2,6 +2,7 @@
     supply their operator precedence and AST constructors. *)
 type token = Lexer.token =
   | Ident of string
+  | Keyword of string
   | Number of string
   | String_lit of string
   | Character_lit of string
@@ -62,6 +63,11 @@ val bump_if_symbol : t -> char -> bool
 val expect_symbol : t -> char -> unit
 val bump_if_keyword : t -> string -> bool
 val expect_keyword : t -> string -> unit
+
+val keyword : t -> string
+(** Read a backslash-prefixed word. Keyword helpers take its name without the
+    backslash; [identifier] accepts only unprefixed names. *)
+
 val identifier : t -> Utils_names.Identifier.t
 val natural : t -> Utils_base.Number.t
 
@@ -83,6 +89,12 @@ val group : t -> delimiter -> (t -> 'a) -> 'a
 val bump_group_if : t -> delimiter -> (t -> 'a) -> 'a option
 (** None means the opening bracket is absent; errors inside a group propagate.
 *)
+
+val take_until : t -> stop:(token -> bool) -> string
+(** Consume a nonempty sequence up to [stop] or scope Eof and return its
+    original text with surrounding whitespace trimmed. Groups are consumed as
+    whole items; tokens inside them do not trigger [stop]. The stopping token
+    remains unread. *)
 
 val checkpoint : t -> checkpoint
 (** Checkpoints can only be restored on the parser that created them. *)

@@ -1,5 +1,6 @@
 type token = Lexer.token =
   | Ident of string
+  | Keyword of string
   | Number of string
   | String_lit of string
   | Character_lit of string
@@ -18,6 +19,7 @@ type node =
     }
 
 type t = {
+  source : string;
   tokens : (token * int) array;
   groups : (int * node list) option array;
   tree : node list;
@@ -81,7 +83,7 @@ let create ?(nested_comments = true) ?(character_literals = false) text =
     | _ -> sequence (i + 1) opened (Atom { token; offset } :: acc)
   in
   let tree, limit = sequence 0 None [] in
-  { tokens; groups; tree; pos = 0; limit }
+  { source = text; tokens; groups; tree; pos = 0; limit }
 
 let tree p = p.tree
 let checkpoint p = (p, p.pos)
@@ -110,13 +112,20 @@ let expect_symbol p c =
   if not (bump_if_symbol p c) then error p (Printf.sprintf "Expected '%c'" c)
 
 let bump_if_keyword p word =
-  if peek p = Ident word then (
+  if peek p = Keyword word then (
     ignore (bump p);
     true)
   else false
 
 let expect_keyword p word =
-  if not (bump_if_keyword p word) then error p ("Expected " ^ word)
+  if not (bump_if_keyword p word) then error p ("Expected \\" ^ word)
+
+let keyword p =
+  match peek p with
+  | Keyword word ->
+      ignore (bump p);
+      word
+  | _ -> error p "Expected a keyword starting with '\\'"
 
 let identifier p =
   match peek p with
@@ -205,6 +214,17 @@ let group p delimiter f =
 
 let bump_group_if p delimiter f =
   if is_group p delimiter then Some (group p delimiter f) else None
+
+let take_until p ~stop =
+  let start = offset p in
+  let before = p.pos in
+  while (not (eof p)) && not (stop (peek p)) do
+    match p.groups.(p.pos) with
+    | Some (closing, _) -> p.pos <- closing + 1
+    | None -> ignore (bump p)
+  done;
+  if p.pos = before then error p "Expected a value";
+  String.trim (String.sub p.source start (offset p - start))
 
 let protect f =
   try Ok (f ())

@@ -4,13 +4,13 @@
     "target": "example_counter",
     "code": "3",
     "ainput": "",
-    "rinput": "inc",
+    "rinput": "\\inc",
     "expected": "End"
   },
   {
     "name": "pcf-expr-cek",
     "target": "pcf-cek",
-    "code": "(fun f => f(3))(fun x => inc x)",
+    "code": "(\\fun f => f(3))(\\fun x => \\inc x)",
     "ainput": "()",
     "rinput": "",
     "expected": "4"
@@ -18,7 +18,7 @@
   {
     "name": "pcf-expr-secd",
     "target": "pcf-secd",
-    "code": "(fun f => f(3))(fun x => inc x)",
+    "code": "(\\fun f => f(3))(\\fun x => \\inc x)",
     "ainput": "()",
     "rinput": "",
     "expected": "4"
@@ -34,7 +34,7 @@
   {
     "name": "internal_ctrl_to_flow_ir",
     "target": "flow_ir",
-    "code": "static x; x := 3",
+    "code": "\\static x; x := 3",
     "ainput": "x=0",
     "rinput": "",
     "expected": "x = 3\n"
@@ -42,7 +42,7 @@
   {
     "name": "proc_to_flow_ir",
     "target": "flow_ir",
-    "code": "static x; main() [ local tmp x := 3; return ]",
+    "code": "\\static x; main() [ \\local tmp x := 3; \\return ]",
     "ainput": "x=0",
     "rinput": "",
     "expected": "x = 3\n"
@@ -50,7 +50,7 @@
   {
     "name": "recursive_function-goto_lang",
     "target": "goto_lang",
-    "code": "SUCC",
+    "code": "\\SUCC",
     "ainput": "(3)",
     "rinput": "",
     "expected": "4"
@@ -58,7 +58,7 @@
   {
     "name": "recursive_function-lambda_calculus",
     "target": "lambda_calculus",
-    "code": "SUCC",
+    "code": "\\SUCC",
     "ainput": "(3)",
     "rinput": "",
     "expected": "4"
@@ -66,7 +66,7 @@
   {
     "name": "recursive_function-rec_tm_ir",
     "target": "rec_tm_ir",
-    "code": "SUCC",
+    "code": "\\SUCC",
     "ainput": "(3)",
     "rinput": "",
     "expected": "4"
@@ -74,7 +74,7 @@
   {
     "name": "recursive_function-turing_machine",
     "target": "turing_machine",
-    "code": "SUCC",
+    "code": "\\SUCC",
     "ainput": "(3)",
     "rinput": "",
     "expected": "4"
@@ -82,7 +82,7 @@
   {
     "name": "rec_tm_ir-rec_tm_ir_jump",
     "target": "rec_tm_ir_jump",
-    "code": "alphabet: (-, x) fn main { label start: { @ := const x return } }",
+    "code": "\\alphabet: (-, x) \\fn main { \\label start: { @ := \\const x \\return } }",
     "ainput": "|-|",
     "rinput": "",
     "expected": "|x|"
@@ -90,15 +90,23 @@
   {
     "name": "rec_tm_ir_jump-turing_machine",
     "target": "turing_machine",
-    "code": "alphabet: (-, x) @ := const x",
+    "code": "\\alphabet: (-, x) @ := \\const x",
     "ainput": "|-|",
     "rinput": "",
     "expected": "|x|"
   },
   {
+    "name": "flow_ir_to_core_machine",
+    "target": "core_machine",
+    "code": "@x 0 :main { :entry { \\halloc(1) %h; \\hacc(%h)[0] := \\st 42; %v := \\ld \\hacc(%h)[0]; @x := \\st %v; \\halt; } }",
+    "ainput": "",
+    "rinput": "",
+    "expected": "x = 42\n"
+  },
+  {
     "name": "multi_tape_turing_machine-one_tape_turing_machine",
     "target": "one_tape_turing_machine",
-    "code": "tapes: 2\nalphabet: -,a,b\ncopy\ndone\na -,copy,a a,copy,R R\nb -,copy,b b,copy,R R\n- -,copy,- -,done,C C\n",
+    "code": "tapes: 2\nalphabet: -,a,b\ncopy\ndone\na -,copy,a a,copy,\\R \\R\nb -,copy,b b,copy,\\R \\R\n- -,copy,- -,done,\\C \\C\n",
     "ainput": "|a|b,a\n|-|",
     "rinput": "",
     "expected": "a,b,a|-|\na,b,a|-|"

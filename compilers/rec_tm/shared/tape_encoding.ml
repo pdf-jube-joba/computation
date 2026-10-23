@@ -1,5 +1,5 @@
 module N = Utils_base.Number
-module T = Utils_codec.Tape_text.Identifier
+module T = Utils_data.Tape.Identifier
 
 let b = None
 let l = Some (Utils_names.Identifier.make_exn "l")
@@ -12,12 +12,12 @@ let write tuple =
         x
         :: List.concat_map
              (fun n ->
-               let n = T.unwrap (N.to_int n) in
+               let n = Utils_base.Error.get (N.to_int n) in
                b :: List.init n (fun _ -> l))
              tuple
         @ [ x ]
       in
-      T.unwrap (T.from_vec signs 0))
+      Utils_base.Error.get (T.from_vec signs 0))
 
 let write_usize tuple = write (List.map N.of_int tuple)
 
@@ -40,4 +40,6 @@ let read_right_one tape =
     | _ :: ns -> Some (List.map N.of_int ns)
 
 let read_right_one_usize t =
-  Option.map (List.map (fun n -> T.unwrap (N.to_int n))) (read_right_one t)
+  Option.map
+    (List.map (fun n -> Utils_base.Error.get (N.to_int n)))
+    (read_right_one t)

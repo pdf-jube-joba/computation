@@ -113,74 +113,54 @@ module Code = struct
   let rec pretty = function
     | Var x -> Utils_names.Identifier.to_string x
     | Lam (x, b) ->
-        "fun " ^ Utils_names.Identifier.to_string x ^ " => " ^ pretty b
+        "\\fun " ^ Utils_names.Identifier.to_string x ^ " => " ^ pretty b
     | App (a, b) -> "(" ^ pretty a ^ " " ^ pretty b ^ ")"
     | Zero -> "0"
-    | Succ e -> "S " ^ pretty e
-    | Pred e -> "P " ^ pretty e
+    | Succ e -> "\\S " ^ pretty e
+    | Pred e -> "\\P " ^ pretty e
     | IfZ (c, t, f) ->
-        "if " ^ pretty c ^ " then " ^ pretty t ^ " else " ^ pretty f
+        "\\if " ^ pretty c ^ " \\then " ^ pretty t ^ " \\else " ^ pretty f
     | Let (x, e, b) ->
-        "let "
+        "\\let "
         ^ Utils_names.Identifier.to_string x
-        ^ " = " ^ pretty e ^ " in \n " ^ pretty b
+        ^ " = " ^ pretty e ^ " \\in \n " ^ pretty b
     | Rec (f, x, b) ->
-        "rec "
+        "\\rec "
         ^ Utils_names.Identifier.to_string f
         ^ " "
         ^ Utils_names.Identifier.to_string x
         ^ " = " ^ pretty b
-    | Abort e -> "abort " ^ pretty e
-    | Control e -> "control " ^ pretty e
+    | Abort e -> "\\abort " ^ pretty e
+    | Control e -> "\\control " ^ pretty e
 
   let rec print = function
     | Var x -> Utils_names.Identifier.to_string x
     | Lam (x, b) ->
-        "(fun " ^ Utils_names.Identifier.to_string x ^ " => " ^ print b ^ ")"
+        "(\\fun " ^ Utils_names.Identifier.to_string x ^ " => " ^ print b ^ ")"
     | App (a, b) -> "@(" ^ print a ^ " " ^ print b ^ ")"
-    | Zero -> "zero"
-    | Succ e -> "(succ " ^ print e ^ ")"
-    | Pred e -> "(pred " ^ print e ^ ")"
+    | Zero -> "\\zero"
+    | Succ e -> "(\\succ " ^ print e ^ ")"
+    | Pred e -> "(\\pred " ^ print e ^ ")"
     | IfZ (c, t, f) ->
-        "(ifz " ^ print c ^ " then " ^ print t ^ " else " ^ print f ^ ")"
+        "(\\ifz " ^ print c ^ " \\then " ^ print t ^ " \\else " ^ print f ^ ")"
     | Let (x, e, b) ->
-        "(let "
+        "(\\let "
         ^ Utils_names.Identifier.to_string x
-        ^ " = " ^ print e ^ " in " ^ print b ^ ")"
+        ^ " = " ^ print e ^ " \\in " ^ print b ^ ")"
     | Rec (f, x, b) ->
-        "(rec "
+        "(\\rec "
         ^ Utils_names.Identifier.to_string f
         ^ " "
         ^ Utils_names.Identifier.to_string x
         ^ " = " ^ print b ^ ")"
-    | Abort e -> "(abort " ^ print e ^ ")"
-    | Control e -> "(control " ^ print e ^ ")"
+    | Abort e -> "(\\abort " ^ print e ^ ")"
+    | Control e -> "(\\control " ^ print e ^ ")"
 
-  let variable p =
-    let name = L.identifier p in
-    if
-      List.mem
-        (Utils_names.Identifier.to_string name)
-        [
-          "fun";
-          "zero";
-          "succ";
-          "pred";
-          "ifz";
-          "then";
-          "else";
-          "let";
-          "in";
-          "rec";
-          "abort";
-          "control";
-        ]
-    then L.error p "expected variable";
-    name
+  let variable = L.identifier
 
   let rec read_term ~control p =
     match L.peek p with
-    | L.Ident "fun" ->
+    | L.Keyword "fun" ->
         ignore (L.bump p);
         let x = variable p in
         L.expect p "=>";
@@ -198,39 +178,39 @@ module Code = struct
             else
               let b = read_term ~control p in
               App (a, b))
-    | L.Ident "zero" | L.Number "0" ->
+    | L.Keyword "zero" | L.Number "0" ->
         ignore (L.bump p);
         Zero
-    | L.Ident "succ" | L.Ident "S" ->
+    | L.Keyword "succ" | L.Keyword "S" ->
         ignore (L.bump p);
         Succ (read_term ~control p)
-    | L.Ident "pred" | L.Ident "P" ->
+    | L.Keyword "pred" | L.Keyword "P" ->
         ignore (L.bump p);
         Pred (read_term ~control p)
-    | L.Ident "ifz" | L.Ident "if" ->
+    | L.Keyword "ifz" | L.Keyword "if" ->
         ignore (L.bump p);
         let c = read_term ~control p in
         L.expect_keyword p "then";
         let t = read_term ~control p in
         L.expect_keyword p "else";
         IfZ (c, t, read_term ~control p)
-    | L.Ident "let" ->
+    | L.Keyword "let" ->
         ignore (L.bump p);
         let x = variable p in
         L.expect_symbol p '=';
         let e = read_term ~control p in
         L.expect_keyword p "in";
         Let (x, e, read_term ~control p)
-    | L.Ident "rec" ->
+    | L.Keyword "rec" ->
         ignore (L.bump p);
         let f = variable p in
         let x = variable p in
         L.expect_symbol p '=';
         Rec (f, x, read_term ~control p)
-    | L.Ident "abort" when control ->
+    | L.Keyword "abort" when control ->
         ignore (L.bump p);
         Abort (read_term ~control p)
-    | L.Ident "control" when control ->
+    | L.Keyword "control" when control ->
         ignore (L.bump p);
         Control (read_term ~control p)
     | _ -> Var (variable p)
@@ -255,16 +235,11 @@ module Nat_code = struct
     (* The unextended grammar treats names such as zero and succ as variables. *)
     let rec read p =
       match L.peek p with
-      | L.Ident "fun" -> (
-          match
-            L.attempt p (fun p ->
-                ignore (L.bump p);
-                let x = L.identifier p in
-                L.expect p "=>";
-                Lam (x, read p))
-          with
-          | Ok e -> e
-          | Error _ -> Var (L.identifier p))
+      | L.Keyword "fun" ->
+          ignore (L.bump p);
+          let x = L.identifier p in
+          L.expect p "=>";
+          Lam (x, read p)
       | L.Symbol '@' ->
           ignore (L.bump p);
           L.group p L.Parentheses (fun p ->

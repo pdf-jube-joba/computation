@@ -5,15 +5,15 @@ let value = Utils_base.Error.get
 type t = foutput
 
 let parse_task_id text =
-  if String.lowercase_ascii text = "none" then None
+  if String.trim text = "\\none" then None
   else
     Some
-      (value (Task_id.of_int (value (Utils_codec.Text.Natural_int.parse text))))
+      (value (Task_id.of_int (value (Utils_data.Text.Natural_int.parse text))))
 
-let print_task_id = function None -> "none" | Some n -> task_text n
+let print_task_id = function None -> "\\none" | Some n -> task_text n
 
 let parse text =
-  Utils_codec.Environment_text.fold_lines
+  Utils_data.Environment.fold_lines
     ~invalid_line:(fun line -> "invalid env line: " ^ line)
     (fun env name v ->
       if String.starts_with ~prefix:"$" name then
@@ -34,9 +34,8 @@ let parse text =
     text
 
 let print env =
-  Utils_codec.Environment_text.print ~trailing_newline:true N.to_string env.vars
-  ^ Utils_codec.Environment_text.print_lines ~trailing_newline:true
-      print_task_id
+  Utils_data.Environment.print ~trailing_newline:true N.to_string env.vars
+  ^ Utils_data.Environment.print_lines ~trailing_newline:true print_task_id
       (List.map
          (fun (n, v) -> ("$" ^ Utils_names.Identifier.to_string n, v))
          env.task_ids)

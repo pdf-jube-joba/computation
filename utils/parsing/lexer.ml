@@ -1,5 +1,6 @@
 type token =
   | Ident of string
+  | Keyword of string
   | Number of string
   | String_lit of string
   | Character_lit of string
@@ -59,6 +60,13 @@ let tokenize ?(nested_comments = true) ?(character_literals = false) text =
             with Yojson.Json_error e -> raise (Error e)
           in
           scan (!j + 1) ((String_lit value, i) :: acc)
+      | '\\' when i + 1 < n && alpha text.[i + 1] ->
+          let j =
+            Utils_base.String_ext.skip_while Utils_names.Identifier.is_continue
+              text (i + 2)
+          in
+          let word = String.sub text (i + 1) (j - i - 1) in
+          scan j ((Keyword word, i) :: acc)
       | c when alpha c || digit c ->
           let is_number = digit c in
           let predicate =

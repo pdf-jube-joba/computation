@@ -26,24 +26,24 @@
 \NT{atom-char} &\defeq \T{'} \NT{char} \T{'} \\
 \\
 \NT{aexp} &\defeq \\
-  &| \T{mtoa} \NT{texp} \\
-  &| \T{atom-char} \\
+  &| \T{\textbackslash mtoa} \NT{texp} \\
+  &| \T{\textbackslash atom-char} \\
 \NT{texp} &\defeq \\
   &| \NT{var} \\
-  &| \T{atom} \NT{aexp} \\
-  &| \T{cons} \NT{texp} \NT{texp} \\
-  &| \T{left} \NT{texp} \\
-  &| \T{right} \NT{texp} \\
+  &| \T{\textbackslash atom} \NT{aexp} \\
+  &| \T{\textbackslash cons} \NT{texp} \NT{texp} \\
+  &| \T{\textbackslash left} \NT{texp} \\
+  &| \T{\textbackslash right} \NT{texp} \\
 \NT{bexp} &\defeq \\
   &| \NT{is_atom} \NT{texp} \\
   &| \NT{texp} \T{==} \NT{texp} \\
 \\
 \NT{stmt} &\defeq \\
-  &| \T{Nop} \\
+  &| \T{\textbackslash Nop} \\
   &| \NT{stmt} \T{;} \NT{stmt} \\
   &| \NT{var} \T{:=} \NT{texp} \\
-  &| \T{ifeq} \NT{bexp} \T{then} \NT{stmt} \T{end} \\
-  &| \T{while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB}
+  &| \T{\textbackslash ifeq} \NT{bexp} \T{\textbackslash then} \NT{stmt} \T{\textbackslash end} \\
+  &| \T{\textbackslash while} \NT{bexp} \T{\LCB} \NT{stmt} \T{\RCB}
 \end{aligned}
 \]
 
@@ -52,7 +52,7 @@
 短絡評価のようなものは行わず、そのまま全部を eval する。
 
 実装で気を付ける部分（部分関数なので、 `Err` を吐く。）
-- \(\T{mtoa} (s \in S) = s, \T{mtoa}(t_1, t_2) = \bot\)
-- \(\T{left} (s \in S) = \bot, \T{left}(t_1, t_2) = t_1\)
-- \(\T{right} (s \in S) = \bot, \T{right}(t_1, t_2) = t_2\)
+- \(\T{\textbackslash mtoa} (s \in S) = s, \T{\textbackslash mtoa}(t_1, t_2) = \bot\)
+- \(\T{\textbackslash left} (s \in S) = \bot, \T{\textbackslash left}(t_1, t_2) = t_1\)
+- \(\T{\textbackslash right} (s \in S) = \bot, \T{\textbackslash right}(t_1, t_2) = t_2\)
 - 木の equality は構造的等値でやる。

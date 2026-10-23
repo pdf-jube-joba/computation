@@ -16,7 +16,7 @@ type state = {
 }
 [@@deriving yojson]
 
-module Code = Utils_codec.Natural_lines
+module Code = Utils_data.Natural_lines
 
 let make code (input : ainput) =
   Utils_base.Error.protect (fun () ->
@@ -55,15 +55,19 @@ let step s () =
         if halted then Utils_runtime.Machine.Halt (output next)
         else Utils_runtime.Machine.Continue { next; output = () })
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  Result.bind (state_of_yojson json) (fun s ->
-      Utils_base.Error.protect (fun () ->
-          Tiny_isa_shared.Registers.validate s.regs;
-          if s.code_len < 0 || s.code_len > Array.length s.memory then
-            failwith "Invalid code length";
-          s))
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    Result.bind (state_of_yojson json) (fun s ->
+        Utils_base.Error.protect (fun () ->
+            Tiny_isa_shared.Registers.validate s.regs;
+            if s.code_len < 0 || s.code_len > Array.length s.memory then
+              failwith "Invalid code length";
+            s))
+end
 
 let render s =
   let pc = match N.to_int s.regs.(0) with Ok n -> Some n | _ -> None in
@@ -80,27 +84,26 @@ let render s =
       ~columns:[ "addr"; "value" ] ?highlight:pc N.to_string
       (Array.to_list s.memory)
   in
-  Utils_runtime.Render.state
-    [
-      Utils_runtime.Render.text_table ~title:"status"
-        ~columns:[ "field"; "value" ]
-        [
-          [ "pc"; (match pc with Some n -> string_of_int n | None -> "?") ];
-          [ "flag"; string_of_bool s.flag ];
-          [ "next"; next ];
-          [ "halted"; string_of_bool s.halted ];
-        ];
-      Tiny_isa_shared.View.registers s.regs;
-      memory;
-    ]
+  [
+    Utils_runtime.Render.text_table ~title:"status"
+      ~columns:[ "field"; "value" ]
+      [
+        [ "pc"; (match pc with Some n -> string_of_int n | None -> "?") ];
+        [ "flag"; string_of_bool s.flag ];
+        [ "next"; next ];
+        [ "halted"; string_of_bool s.halted ];
+      ];
+    Tiny_isa_shared.View.registers s.regs;
+    memory;
+  ]
 
 module Ainput = struct
   type t = ainput
 
-  let parse = Utils_codec.Memory_image_text.Natural.parse ~register_count:8
-  let print = Utils_codec.Memory_image_text.Natural.print
+  let parse = Utils_data.Memory_image.Natural.parse ~register_count:8
+  let print = Utils_data.Memory_image.Natural.print
 end
 
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput

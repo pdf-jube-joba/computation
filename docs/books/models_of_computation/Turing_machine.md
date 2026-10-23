@@ -15,9 +15,9 @@ Turing machine は次のもので構成される。
 <template data-default-code>
 start
 goal
-a,start,b,start,R
-b,start,b,start,R
-c,start,c,goal,C
+a,start,b,start,\R
+b,start,b,start,\R
+c,start,c,goal,\C
 </template>
 <template data-default-ainput>
 -|a|b,a,b,b,c
@@ -30,16 +30,16 @@ c,start,c,goal,C
 <template data-default-code>
 s
 g
-a,s,a,s,R
--,s,-,g,C
-b,s,b,k,R
-b,k,b,k,R
--,k,-,g,C
-a,k,b,b,L
-b,b,a,r,L
-b,r,b,r,L
-a,r,a,r,L
-x,r,x,s,R
+a,s,a,s,\R
+-,s,-,g,\C
+b,s,b,k,\R
+b,k,b,k,\R
+-,k,-,g,\C
+a,k,b,b,\L
+b,b,a,r,\L
+b,r,b,r,\L
+a,r,a,r,\L
+x,r,x,s,\R
 </template>
 <template data-default-ainput>
 x|b|a,a,b

@@ -75,16 +75,16 @@ module Code = struct
         (fun p ->
           let bindings = ref [] in
           let rec func p =
-            match Identifier.to_string (Parser.identifier p) with
-            | "ZERO" -> Zero
-            | "SUCC" -> Succ
-            | "PROJ" ->
+            match Parser.bump p with
+            | Parser.Keyword "ZERO" -> Zero
+            | Parser.Keyword "SUCC" -> Succ
+            | Parser.Keyword "PROJ" ->
                 Parser.group p Parser.Brackets (fun p ->
                     let n = Parser.integer p in
                     Parser.expect_symbol p ',';
                     let i = Parser.integer p in
                     Proj (n, i))
-            | "COMP" ->
+            | Parser.Keyword "COMP" ->
                 Parser.group p Parser.Brackets (fun p ->
                     let outer = func p in
                     Parser.expect_symbol p ':';
@@ -103,18 +103,20 @@ module Code = struct
                         else [ f ]
                     in
                     Comp (outer, inner))
-            | "PRIM" ->
+            | Parser.Keyword "PRIM" ->
                 Parser.group p Parser.Brackets (fun p ->
-                    Parser.expect p "z:";
+                    Parser.expect p "\\z:";
                     let z = func p in
-                    Parser.expect p "s:";
+                    Parser.expect p "\\s:";
                     let s = func p in
                     Prim (z, s))
-            | "MUOP" -> Parser.group p Parser.Brackets (fun p -> Mu (func p))
-            | name -> (
+            | Parser.Keyword "MUOP" ->
+                Parser.group p Parser.Brackets (fun p -> Mu (func p))
+            | Parser.Ident name -> (
                 match List.assoc_opt name !bindings with
                 | Some f -> f
                 | None -> Parser.error p ("Unknown function: " ^ name))
+            | _ -> Parser.error p "Expected function"
           in
           while Parser.bump_if_keyword p "let" do
             let name = Identifier.to_string (Parser.identifier p) in
@@ -132,15 +134,15 @@ module Code = struct
     Ok f
 
   let rec print = function
-    | Zero -> "ZERO"
-    | Succ -> "SUCC"
-    | Proj (n, i) -> Printf.sprintf "PROJ[%d,%d]" n i
+    | Zero -> "\\ZERO"
+    | Succ -> "\\SUCC"
+    | Proj (n, i) -> Printf.sprintf "\\PROJ[%d,%d]" n i
     | Comp (f, args) ->
-        "COMP[" ^ print f ^ ": "
+        "\\COMP[" ^ print f ^ ": "
         ^ String.concat ", " (List.map print args)
         ^ "]"
-    | Prim (z, s) -> "PRIM[z:" ^ print z ^ " s:" ^ print s ^ "]"
-    | Mu f -> "MUOP[" ^ print f ^ "]"
+    | Prim (z, s) -> "\\PRIM[\\z:" ^ print z ^ " \\s:" ^ print s ^ "]"
+    | Mu f -> "\\MUOP[" ^ print f ^ "]"
 end
 
 let make function_ input =
@@ -218,14 +220,18 @@ let step state () =
       | Result output -> Ok (Halt output)
       | _ -> Error "Invalid recursive-function process")
 
-let snapshot = state_to_yojson
+module Snapshot = struct
+  type t = state
 
-let restore json =
-  let* state = state_of_yojson json in
-  let* () = validate state.function_ in
-  if List.length state.input <> arity state.function_ then
-    Error "Invalid snapshot input arity"
-  else Ok state
+  let to_yojson = state_to_yojson
+
+  let of_yojson json =
+    let* state = state_of_yojson json in
+    let* () = validate state.function_ in
+    if List.length state.input <> arity state.function_ then
+      Error "Invalid snapshot input arity"
+    else Ok state
+end
 
 let rec print_process = function
   | Result n -> Number.to_string n
@@ -237,13 +243,12 @@ let rec print_process = function
       "Mu[" ^ Number.to_string n ^ "](" ^ print_process p ^ ")"
 
 let render state =
-  Render.state
-    [
-      Render.text ~title:"function" (Code.print state.function_);
-      Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ]
-        Number.to_string state.input;
-      Render.text ~title:"process" (print_process state.process);
-    ]
+  [
+    Render.text ~title:"function" (Code.print state.function_);
+    Render.indexed_table ~title:"input" ~columns:[ "arg"; "value" ]
+      Number.to_string state.input;
+    Render.text ~title:"process" (print_process state.process);
+  ]
 
 module Ainput = struct
   type t = ainput
@@ -254,9 +259,9 @@ module Ainput = struct
             Parser.separated_list ~allow_trailing:true p ~separator:','
               Parser.natural))
 
-  let print = Utils_codec.Text.Natural_list.print
+  let print = Utils_data.Text.Natural_list.print
 end
 
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
-module Foutput = Utils_codec.Text.Natural
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
+module Foutput = Utils_data.Text.Natural

@@ -18,7 +18,7 @@ let run = function
         | None -> prompt "ainput"
       in
       let module M = (val get (Registry.model name)) in
-      let module S = Session.Make (M) in
+      let module S = Session_json.Make (M) in
       let session = S.create () in
       ignore (get (S.make session code ainput));
       print_endline "world=model";

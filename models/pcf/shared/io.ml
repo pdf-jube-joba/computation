@@ -1,4 +1,4 @@
-module Ainput = Utils_codec.Text.Natural_list
+module Ainput = Utils_data.Text.Natural_list
 
 module Routput = struct
   type t = Syntax.print_effect
@@ -10,4 +10,4 @@ module Routput = struct
   let print = function None -> "" | Some n -> Syntax.N.to_string n
 end
 
-module Foutput = Utils_codec.Text.Natural
+module Foutput = Utils_data.Text.Natural

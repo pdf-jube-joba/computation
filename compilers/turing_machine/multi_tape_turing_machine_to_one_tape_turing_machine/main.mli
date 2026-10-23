@@ -5,5 +5,3 @@ include
   Utils_runtime.Compiler.S
     with module Source := Source
      and module Target := Target
-
-val api : Utils_runtime.Compiler_text_api.api

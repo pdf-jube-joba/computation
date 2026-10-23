@@ -41,7 +41,7 @@ module Code = struct
     Parser.parse (fun p ->
         Parser.many p (fun p ->
             let command =
-              match Identifier.to_string (Parser.identifier p) with
+              match Parser.keyword p with
               | "clr" -> Clr (Parser.identifier p)
               | "inc" -> Inc (Parser.identifier p)
               | "dec" -> Dec (Parser.identifier p)
@@ -59,17 +59,17 @@ module Code = struct
             command))
 
   let print_command = function
-    | Clr v -> "clr " ^ Utils_names.Identifier.to_string v ^ ";"
-    | Inc v -> "inc " ^ Utils_names.Identifier.to_string v ^ ";"
-    | Dec v -> "dec " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Clr v -> "\\clr " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Inc v -> "\\inc " ^ Utils_names.Identifier.to_string v ^ ";"
+    | Dec v -> "\\dec " ^ Utils_names.Identifier.to_string v ^ ";"
     | Cpy (d, s) ->
-        "cpy "
+        "\\cpy "
         ^ Utils_names.Identifier.to_string d
         ^ " <- "
         ^ Utils_names.Identifier.to_string s
         ^ ";"
     | Ifnz (v, n) ->
-        "ifnz "
+        "\\ifnz "
         ^ Utils_names.Identifier.to_string v
         ^ " : " ^ Number.to_string n ^ ";"
 
@@ -157,26 +157,29 @@ let step state () =
     in
     Ok (Continue { next = { state with env; pc = next_pc }; output = () })
 
-let snapshot = state_to_yojson
-let restore = state_of_yojson
+module Snapshot = struct
+  type t = state
+
+  let to_yojson = state_to_yojson
+  let of_yojson = state_of_yojson
+end
 
 let render state =
-  Render.state
-    [
-      Render.assoc_table ~title:"status" ~columns:[ "field"; "value" ] Fun.id
-        [
-          ("pc", Number.to_string state.pc);
-          ( "next",
-            match Number.to_int state.pc with
-            | Ok pc -> (
-                match List.nth_opt state.commands pc with
-                | Some command -> Code.print_command command
-                | None -> "halt")
-            | Error _ -> "halt" );
-        ];
-      Render.keyed_table ~key_text:Utils_names.Identifier.to_string ~title:"env"
-        Number.to_string (named_env state);
-    ]
+  [
+    Render.assoc_table ~title:"status" ~columns:[ "field"; "value" ] Fun.id
+      [
+        ("pc", Number.to_string state.pc);
+        ( "next",
+          match Number.to_int state.pc with
+          | Ok pc -> (
+              match List.nth_opt state.commands pc with
+              | Some command -> Code.print_command command
+              | None -> "halt")
+          | Error _ -> "halt" );
+      ];
+    Render.keyed_table ~key_text:Utils_names.Identifier.to_string ~title:"env"
+      Number.to_string (named_env state);
+  ]
 
 module Ainput = struct
   type t = ainput
@@ -190,9 +193,9 @@ module Ainput = struct
             ignore (Parser.bump_if_symbol p ';');
             (name, value)))
 
-  let print = Utils_codec.Environment_text.print Number.to_string
+  let print = Utils_data.Environment.print Number.to_string
 end
 
-module Rinput = Utils_codec.Text.Unit
-module Routput = Utils_codec.Text.Unit
+module Rinput = Utils_data.Text.Unit
+module Routput = Utils_data.Text.Unit
 module Foutput = Ainput

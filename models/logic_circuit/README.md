@@ -161,12 +161,12 @@
 
 <div data-model="logic_circuit">
 <template data-default-code>
-graph: main {
-    in {I}
-    out {O=A.OUT}
-    B, BR_F {IN=I}
-    N, NOT_T {IN=B.OUT0}
-    A, AND_F {IN0=B.OUT1, IN1=N.OUT}
+\graph: main {
+    \in {I}
+    \out {O=A.OUT}
+    B, \BR_F {IN=I}
+    N, \NOT_T {IN=B.OUT0}
+    A, \AND_F {IN0=B.OUT1, IN1=N.OUT}
 }
 </template>
 <template data-default-ainput>
@@ -188,15 +188,15 @@ graph: main {
 
 `main.ml` defines `Logic_circuit.Main` with the shared `Utils_runtime.Machine.S` contract.
 `Circuit` retains gates, synchronous graph composition, iterator state and graph
-views; `Parser`/`Parse` retain `graph:` and `iter:` definitions and signal text.
+views; `Parser`/`Parse` retain `\graph:` and `\iter:` definitions and signal text.
 `Example.utils_map ()` contains all six original example circuits.
 Snapshots use Yojson.Safe codecs and rendering retains the kind, input, output
 and vertex tables. There was no circuit compiler in the original crate.
 
 Circuit timing is one transition per gate, including DLY. Missing inputs are
 false; the first signal for a pin wins; graph edges override external signals.
-Signal references distinguish external ports (`@main.I=#true`), local vertices
-(`A.IN=#true`), and iterator instance IDs (`$0.IN=#true`). This distinction
+Signal references distinguish external ports (`@main.I=\true`), local vertices
+(`A.IN=\true`), and iterator instance IDs (`$0.IN=\true`). This distinction
 allows a circuit and a vertex to have the same name. Iterator IDs are shared by
 input and output, and an empty iterator can be seeded through its external
 input or `$0`.

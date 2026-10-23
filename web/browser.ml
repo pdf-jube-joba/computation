@@ -1,9 +1,8 @@
-module Compiler_text_api = Utils_runtime.Compiler_text_api
+module Compiler_text_api = Model_registry.Compiler_text_api
 module Machine = Utils_runtime.Machine
-module Session = Utils_runtime.Session
 module Session_json = Utils_runtime.Session_json
 open Js_of_ocaml
-module Json = Utils_codec.Json
+module Json = Utils_data.Json
 module Registry = Model_registry.Registry
 
 let get = Utils_base.Error.get
@@ -14,7 +13,7 @@ let response = function
       Js.string (Json.encode (`Assoc [ ("error", `String message) ]))
 
 let export_model (module M : Machine.S) =
-  let module S = Session.Make (M) in
+  let module S = Session_json.Make (M) in
   let session = S.create () in
   object%js
     method make code ainput =
@@ -42,8 +41,9 @@ let export_model (module M : Machine.S) =
       let result =
         let open Machine in
         let* json = Json.decode (Js.to_string json) in
-        let* state = M.restore json in
-        Ok (M.render state)
+        let preview = S.create () in
+        let* () = S.restore preview json in
+        S.render preview
       in
       response result
   end

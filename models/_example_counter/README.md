@@ -2,8 +2,8 @@
 
 これは example です。
 - create を押すと入力した数字のままが生成されます。
-- `inc` が rinput に入っている状態で step を押すと数字が上がっていきます。
-- `dec` が rinput に入っている状態で step を押すと数字が上がっていきます。
+- `\inc` が rinput に入っている状態で step を押すと数字が上がっていきます。
+- `\dec` が rinput に入っている状態で step を押すと数字が上がっていきます。
 - 10 を超えると、最終的な出力 End が表示されます。
 
 <div data-model="example_counter">
@@ -11,7 +11,7 @@
 3
 </template>
 <template data-default-rinput>
-inc
+\inc
 </template>
 </div>
 
@@ -20,6 +20,6 @@ inc
 7
 </template>
 <template data-default-rinput>
-dec
+\dec
 </template>
 </div>

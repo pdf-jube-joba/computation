@@ -3,17 +3,17 @@
 \[
 \begin{aligned}
 \NT{program} &\defeq \NT{func-decl}+ \\
-\NT{func-decl} &\defeq \T{fn} \NT{f-name} \T{\LCB} \syntaxmacro{semicolon-separated}{\NT{stmt}} \T{\RCB} \\
+\NT{func-decl} &\defeq \T{\textbackslash fn} \NT{f-name} \T{\LCB} \syntaxmacro{semicolon-separated}{\NT{stmt}} \T{\RCB} \\
 \NT{stmt} &\defeq \\
   &| \NT{var} \T{<-} \NT{aexp} \\
-  &| \T{if} \NT{bexp} \T{goto} \NT{offset} \\
-  &| \T{goto} \NT{offset} \\
-  &| \T{call} \NT{f-name} \\
-  &| \T{run} \NT{f-name} \T{->} \NT{id} \\
-  &| \T{yield} \\
+  &| \T{\textbackslash if} \NT{bexp} \T{\textbackslash goto} \NT{offset} \\
+  &| \T{\textbackslash goto} \NT{offset} \\
+  &| \T{\textbackslash call} \NT{f-name} \\
+  &| \T{\textbackslash run} \NT{f-name} \T{->} \NT{id} \\
+  &| \T{\textbackslash yield} \\
 \NT{aexp} &\defeq \NT{number} | \NT{var} | \NT{aexp} \NT{op} \NT{aexp} \\
 \NT{bexp} &\defeq \NT{uop} \NT{bexp} | \NT{aexp} \NT{rop} \NT{aexp} | \NT{bexp} \NT{cop} \NT{bexp} \\
-  &| \T{done} \NT{id} \\
+  &| \T{\textbackslash done} \NT{id} \\
 
 \NT{var} &\defeq \NT{string} \\
 \NT{id} &\defeq \T{\$} \NT{string} \\
@@ -74,12 +74,12 @@
   &\text{where \(S' := S[j \mapsto (f, p + 1)::F]\)} \\
 (M, Q, S, E) &\to^{i \in A} (M, Q, S', E) \\
   &\text{if \(M(i) = j\), \(S[j] = (f, p)::F\)} \\
-  &\text{if \(f[p] = \T{if} b \T{goto} r\)} \\
+  &\text{if \(f[p] = \T{\textbackslash if} b \T{\textbackslash goto} r\)} \\
   &\text{where \(r' = \text{if \(\text{eval-bexp}(b, E, S)\) then \(r\) else \(1\)}\)} \\
   &\text{where \(S' := S[j \mapsto (f, p + r')::F]\)} \\
 (M, Q, S, E) &\to^{i \in A} (M, Q, S', E) \\
   &\text{if \(M(i) = j\), \(S[j] = (f, p)::F\)} \\
-  &\text{if \(f[p] = \T{goto} r\)} \\
+  &\text{if \(f[p] = \T{\textbackslash goto} r\)} \\
   &\text{where \(S' := S[j \mapsto (f, p + r)::F]\)} \\
 \end{aligned}
 \]
@@ -89,11 +89,11 @@
 \begin{aligned}
 (M, Q, S, E) &\to^{i \in A} (M, Q, S', E) \\
   &\text{if \(M(i) = j\), \(S[j] = (f, p)::F\)} \\
-  &\text{if \(f[p] = \T{call} f'\)} \\
+  &\text{if \(f[p] = \T{\textbackslash call} f'\)} \\
   &\text{where \(S' := S[j \mapsto (f', 0)::(f, p + 1)::F]\)} \\
 (M, Q, S, E) &\to^{i \in A} (M, Q', S', E') \\
   &\text{if \(M(i) = j\), \(S[j] = (f, p)::F\)} \\
-  &\text{if \(f[p] = \T{run} f' \T{->} v\)} \\
+  &\text{if \(f[p] = \T{\textbackslash run} f' \T{->} v\)} \\
   &\text{where l := \text{length}(S)} \\
   &\text{where \(E' := E[v \mapsto l]\)}\\
   &\text{where \(S_1 := S[j \mapsto (f, p + 1)::F]\)} \\
@@ -101,7 +101,7 @@
   &\text{where \(Q' := Q@l\)} \\
 (M, Q, S, E) &\to^{i \in A} (M', Q', S', E) \\
   &\text{if \(M(i) = j\), \(S[j] = (f, p)::F\)} \\
-  &\text{if \(f[p] = \T{yield}\)} \\
+  &\text{if \(f[p] = \T{\textbackslash yield}\)} \\
   &\text{where \(S' := S[j \mapsto (f, p + 1)::F]\)} \\
   &\text{where \(M' := M[i \mapsto \bot]\)} \\
   &\text{where \(Q' := Q@j\)} \\

@@ -1,4 +1,3 @@
-module Compiler_text_api = Utils_runtime.Compiler_text_api
 module Machine = Utils_runtime.Machine
 
 type implementation =
@@ -36,17 +35,36 @@ let entries =
     {
       name = "example_counter-example_counter";
       library = "example_counter_to_example_counter";
-      implementation = Compiler Example_counter_to_example_counter.Main.api;
+      implementation =
+        Compiler
+          (Compiler_text_api.make
+             (module Example_counter_to_example_counter.Main));
     };
     {
       name = "recursive_function-goto_lang";
       library = "recursive_function_to_goto_lang";
-      implementation = Compiler Recursive_function_to_goto_lang.Main.api;
+      implementation =
+        Compiler
+          (Compiler_text_api.make (module Recursive_function_to_goto_lang.Main));
     };
     {
       name = "recursive_function-lambda_calculus";
       library = "recursive_function_to_lambda_calculus";
-      implementation = Compiler Recursive_function_to_lambda_calculus.Main.api;
+      implementation =
+        Compiler
+          (Compiler_text_api.make
+             (module Recursive_function_to_lambda_calculus.Main));
+    };
+    {
+      name = "core_machine";
+      library = "core_machine";
+      implementation = Model (module Core_machine.Main);
+    };
+    {
+      name = "flow_ir_to_core_machine";
+      library = "flow_ir_to_core_machine";
+      implementation =
+        Compiler (Compiler_text_api.make (module Flow_ir_to_core_machine.Main));
     };
     {
       name = "flow_ir";
@@ -81,17 +99,20 @@ let entries =
     {
       name = "expr_to_flow_ir";
       library = "expr_lang_to_flow_ir";
-      implementation = Compiler Expr_lang_to_flow_ir.Main.api;
+      implementation =
+        Compiler (Compiler_text_api.make (module Expr_lang_to_flow_ir.Main));
     };
     {
       name = "internal_ctrl_to_flow_ir";
       library = "internal_ctrl_to_flow_ir";
-      implementation = Compiler Internal_ctrl_to_flow_ir.Main.api;
+      implementation =
+        Compiler (Compiler_text_api.make (module Internal_ctrl_to_flow_ir.Main));
     };
     {
       name = "proc_to_flow_ir";
       library = "proc_lang_to_flow_ir";
-      implementation = Compiler Proc_lang_to_flow_ir.Main.api;
+      implementation =
+        Compiler (Compiler_text_api.make (module Proc_lang_to_flow_ir.Main));
     };
     {
       name = "pcf-expr";
@@ -116,12 +137,14 @@ let entries =
     {
       name = "pcf-expr-cek";
       library = "pcf_expr_to_pcf_cek";
-      implementation = Compiler Pcf_expr_to_pcf_cek.Main.api;
+      implementation =
+        Compiler (Compiler_text_api.make (module Pcf_expr_to_pcf_cek.Main));
     };
     {
       name = "pcf-expr-secd";
       library = "pcf_expr_to_pcf_secd";
-      implementation = Compiler Pcf_expr_to_pcf_secd.Main.api;
+      implementation =
+        Compiler (Compiler_text_api.make (module Pcf_expr_to_pcf_secd.Main));
     };
     {
       name = "lambda_continuations";
@@ -152,7 +175,9 @@ let entries =
       name = "multi_tape_turing_machine-one_tape_turing_machine";
       library = "multi_tape_turing_machine_to_one_tape_turing_machine";
       implementation =
-        Compiler Multi_tape_turing_machine_to_one_tape_turing_machine.Main.api;
+        Compiler
+          (Compiler_text_api.make
+             (module Multi_tape_turing_machine_to_one_tape_turing_machine.Main));
     };
     {
       name = "rec_tm_ir";
@@ -167,22 +192,32 @@ let entries =
     {
       name = "recursive_function-rec_tm_ir";
       library = "recursive_function_to_rec_tm_ir";
-      implementation = Compiler Recursive_function_to_rec_tm_ir.Main.api;
+      implementation =
+        Compiler
+          (Compiler_text_api.make (module Recursive_function_to_rec_tm_ir.Main));
     };
     {
       name = "rec_tm_ir-rec_tm_ir_jump";
       library = "rec_tm_ir_to_rec_tm_ir_jump";
-      implementation = Compiler Rec_tm_ir_to_rec_tm_ir_jump.Main.api;
+      implementation =
+        Compiler
+          (Compiler_text_api.make (module Rec_tm_ir_to_rec_tm_ir_jump.Main));
     };
     {
       name = "rec_tm_ir_jump-turing_machine";
       library = "rec_tm_ir_jump_to_turing_machine";
-      implementation = Compiler Rec_tm_ir_jump_to_turing_machine.Main.api;
+      implementation =
+        Compiler
+          (Compiler_text_api.make
+             (module Rec_tm_ir_jump_to_turing_machine.Main));
     };
     {
       name = "recursive_function-turing_machine";
       library = "recursive_function_to_turing_machine";
-      implementation = Compiler Recursive_function_to_turing_machine.Main.api;
+      implementation =
+        Compiler
+          (Compiler_text_api.make
+             (module Recursive_function_to_turing_machine.Main));
     };
     {
       name = "tiny_isa";
