@@ -1,5 +1,4 @@
 const OUTPUT_PLACEHOLDER = "\u00a0";
-let nextInstanceId = 0;
 const bundleManifests = new Map();
 
 export function loadBundleManifest(baseUrl) {
@@ -34,17 +33,21 @@ export function ensureStyleSheet(options = {}) {
 export async function mountModel(element, options = {}) {
   ensureStyleSheet(options);
   const spec = normalizeMountSpec(options);
-  const module = await loadModelModule(spec.model, spec.instanceId, options.bundleBaseUrl);
-  const kind = detectModuleKind(module);
-  if (kind === "model") {
-    await renderModelMount(element, spec.model, module, spec, options);
+  const manifest = await loadBundleManifest(options.bundleBaseUrl);
+  const entry = manifest.entries.find(entry => entry.name === spec.model);
+  if (!entry) throw new Error(`Unknown model/compiler: ${spec.model}`);
+  const runtime = await import(assetUrl(manifest.runtime, options.bundleBaseUrl));
+  if (entry.kind === "model") {
+    const instance = await runtime.createModel(entry.name);
+    await renderModelMount(element, spec.model, instance, spec, options);
     return;
   }
-  if (kind === "compiler") {
-    renderCompilerMount(element, spec.model, module, spec);
+  if (entry.kind === "compiler") {
+    const instance = await runtime.createCompiler(entry.name);
+    renderCompilerMount(element, spec.model, instance, spec);
     return;
   }
-  throw new Error(`unknown module kind for ${spec.model}`);
+  throw new Error(`unknown model/compiler kind for ${spec.model}: ${entry.kind}`);
 }
 
 function normalizeMountSpec(options) {
@@ -60,25 +63,11 @@ function normalizeMountSpec(options) {
     code: options.code || "",
     ainput: options.ainput || "",
     rinput: options.rinput || "",
-    instanceId: options.instanceId || `wm-${nextInstanceId++}`,
   };
-}
-
-async function loadModelModule(model, instanceId, baseUrl) {
-  const manifest = await loadBundleManifest(baseUrl);
-  const entry = manifest.entries.find(entry => entry.name === model);
-  if (!entry) throw new Error(`Unknown model/compiler: ${model}`);
-  return import(modelModuleUrl(entry.module, instanceId, baseUrl));
 }
 
 function assetUrl(relativePath, baseUrl) {
   return new URL(relativePath, resolveBaseUrl(baseUrl)).href;
-}
-
-function modelModuleUrl(module, instanceId, baseUrl) {
-  const url = new URL(module, resolveBaseUrl(baseUrl));
-  url.searchParams.set("instance", instanceId);
-  return url.href;
 }
 
 function resolveBaseUrl(baseUrl) {
@@ -146,36 +135,13 @@ function createOutput(host, title, className = "") {
   return body;
 }
 
-function detectModuleKind(module) {
-  const modelFns = ["make", "step", "snapshot", "restore", "render"];
-  const compilerFns = [
-    "compileCode",
-    "encodeAinput",
-    "encodeRinput",
-    "decodeRoutput",
-    "decodeFoutput",
-  ];
-  const hasModel = modelFns.every(name => typeof module[name] === "function");
-  const hasCompiler = compilerFns.every(name => typeof module[name] === "function");
-  if (hasModel && !hasCompiler) {
-    return "model";
-  }
-  if (hasCompiler && !hasModel) {
-    return "compiler";
-  }
-  if (hasModel && hasCompiler) {
-    throw new Error("module exports both model and compiler APIs");
-  }
-  throw new Error("module does not match model/compiler APIs");
-}
-
-async function drawCurrentSnapshot(module, renderer) {
-  const snapshot = await module.snapshot();
-  const rendered = await module.render(snapshot);
+async function drawCurrentSnapshot(instance, renderer) {
+  const snapshot = await instance.snapshot();
+  const rendered = await instance.render(snapshot);
   renderer.draw(parseJsonString(rendered, "render"));
 }
 
-async function renderModelMount(root, name, module, defaults, options) {
+async function renderModelMount(root, name, instance, defaults, options) {
   root.replaceChildren();
   const statusPanel = createPanel(root, "wm-panel-controller-status", `Model: ${name}`);
   const status = createOutput(statusPanel.body, "Status", "wm-controller-status-box");
@@ -228,8 +194,8 @@ async function renderModelMount(root, name, module, defaults, options) {
 
   createBtn.addEventListener("click", async () => {
     try {
-      await module.make(code.value, ainput.value);
-      await drawCurrentSnapshot(module, renderer);
+      await instance.make(code.value, ainput.value);
+      await drawCurrentSnapshot(instance, renderer);
       machineReady = true;
       setOutputText(routput, "");
       setOutputText(foutput, "");
@@ -246,9 +212,9 @@ async function renderModelMount(root, name, module, defaults, options) {
       return;
     }
     try {
-      const result = parseJsonString(await module.step(rinput.value), "step");
+      const result = parseJsonString(await instance.step(rinput.value), "step");
       if (result.kind === "continue") {
-        await drawCurrentSnapshot(module, renderer);
+        await drawCurrentSnapshot(instance, renderer);
         setOutputText(routput, result.routput ?? "");
         setOutputText(foutput, "");
         setStatus("");
@@ -267,7 +233,7 @@ async function renderModelMount(root, name, module, defaults, options) {
   });
 }
 
-function renderCompilerMount(root, name, module, defaults) {
+function renderCompilerMount(root, name, instance, defaults) {
   root.replaceChildren();
   const statusPanel = createPanel(root, "wm-panel-controller-status", `Compiler: ${name}`);
   const status = createOutput(statusPanel.body, "Status", "wm-controller-status-box");
@@ -360,9 +326,9 @@ function renderCompilerMount(root, name, module, defaults) {
     setOutputText(status, message || "");
   };
 
-  addIoRow("Code", "compile", "wm-field-code", defaults.code, async value => module.compileCode(value), 8);
-  addIoRow("AInput", "encode", "wm-field-ainput", defaults.ainput, async value => module.encodeAinput(value), 6);
-  addIoRow("RInput", "encode", "wm-field-rinput", defaults.rinput, async value => module.encodeRinput(value), 4);
-  addIoRow("ROutput", "decode", "wm-field-routput", "", async value => module.decodeRoutput(value), 4, "target-to-source");
-  addIoRow("FOutput", "decode", "wm-field-foutput", "", async value => module.decodeFoutput(value), 4, "target-to-source");
+  addIoRow("Code", "compile", "wm-field-code", defaults.code, async value => instance.compileCode(value), 8);
+  addIoRow("AInput", "encode", "wm-field-ainput", defaults.ainput, async value => instance.encodeAinput(value), 6);
+  addIoRow("RInput", "encode", "wm-field-rinput", defaults.rinput, async value => instance.encodeRinput(value), 4);
+  addIoRow("ROutput", "decode", "wm-field-routput", "", async value => instance.decodeRoutput(value), 4, "target-to-source");
+  addIoRow("FOutput", "decode", "wm-field-foutput", "", async value => instance.decodeFoutput(value), 4, "target-to-source");
 }

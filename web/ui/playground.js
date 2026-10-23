@@ -11,7 +11,7 @@ const statusText = document.querySelector("#status-text");
 const selectedModelText = document.querySelector("#selected-model");
 const modelCountText = document.querySelector("#model-count");
 const root = document.querySelector("#playground-root");
-const jsLink = document.querySelector("#js-link");
+const runtimeLink = document.querySelector("#runtime-link");
 const loaderLink = document.querySelector("#loader-link");
 const wasmLink = document.querySelector("#wasm-link");
 
@@ -49,7 +49,7 @@ function artifactUrl(fileName) {
 function setArtifactLinks(model) {
   const entry = bundleManifest.entries.find(entry => entry.name === model);
   const entries = [
-    [jsLink, entry.module],
+    [runtimeLink, bundleManifest.runtime],
     [loaderLink, bundleManifest.loaders[entry?.backend || "wasm"]],
     [wasmLink, "browser.bc.wasm.assets/"],
   ];
@@ -88,7 +88,6 @@ async function loadSelectedModel(model) {
       model,
       bundleBaseUrl,
       assetBaseUrl,
-      instanceId: `playground-${seq}`,
     });
     if (seq !== mountSequence) {
       return;

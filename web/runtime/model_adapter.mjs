@@ -1,5 +1,5 @@
 // Match web/ui/script.js's model API without requiring a Wasm Component.
-// Each module import (including ?instance=...) creates its own model session.
+// Each factory call creates its own model session.
 export function createAdapter(api, name) {
   const session = api.model(name);
   function unwrap(text) {

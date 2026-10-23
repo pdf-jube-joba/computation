@@ -1,4 +1,4 @@
-import {cp, mkdir, readFile, writeFile, rm} from 'node:fs/promises';
+import {cp, mkdir, readFile, writeFile, rm, rmdir} from 'node:fs/promises';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -63,26 +63,19 @@ for (const file of ['models.json', 'browser.bc.js', 'browser.bc.wasm.assets']) {
   await rm(path.join(outputDir, file), {recursive: true, force: true});
 }
 for (const directory of ['models', 'compiles']) {
-  await mkdir(path.join(outputDir, directory), {recursive: true});
+  // Remove obsolete adapter directories only when empty.
+  try {
+    await rmdir(path.join(outputDir, directory));
+  } catch (error) {
+    if (!['ENOENT', 'ENOTEMPTY'].includes(error.code)) throw error;
+  }
 }
 const built = path.join(repoRoot, '_build/default/web');
 await cp(path.join(built, 'browser.bc.wasm.js'), path.join(outputDir, 'browser.bc.wasm.js'));
 await cp(path.join(built, 'browser.bc.wasm.assets'), path.join(outputDir, 'browser.bc.wasm.assets'), {recursive: true});
 for (const file of ['runtime.mjs', 'model_adapter.mjs']) await cp(path.join(repoRoot, 'web/runtime', file), path.join(outputDir, file));
-const published = [];
-for (const entry of entries) {
-  const directory = entry.kind === 'model' ? 'models' : 'compiles';
-  const module = `${directory}/${entry.name}.js`;
-  const factory = entry.kind === 'model' ? 'createModel' : 'createCompiler';
-  const exports = entry.kind === 'model' ? 'make, step, snapshot, restore, render'
-    : 'compileCode, encodeAinput, encodeRinput, decodeRoutput, decodeFoutput';
-  await writeFile(path.join(outputDir, module), `import {${factory}} from '../runtime.mjs';
-const instance = await ${factory}(${JSON.stringify(entry.name)});
-export const {${exports}} = instance;
-`);
-  published.push({...entry, module, backend: 'wasm'});
-}
-await writeFile(path.join(outputDir, 'manifest.json'), JSON.stringify({entries: published, loaders: {
+const published = entries.map(entry => ({...entry, backend: 'wasm'}));
+await writeFile(path.join(outputDir, 'manifest.json'), JSON.stringify({entries: published, runtime: 'runtime.mjs', loaders: {
   wasm: 'browser.bc.wasm.js',
 }}, null, 2) + '\n');
 console.log(`Built ${entries.length} models/compilers (Wasm): ${outputDir}`);
