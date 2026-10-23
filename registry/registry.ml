@@ -13,6 +13,11 @@ type entry = {
 let entries =
   [
     {
+      name = "pure_lisp";
+      library = "pure_lisp";
+      implementation = Model (module Pure_lisp.Main);
+    };
+    {
       name = "example_counter";
       library = "example_counter";
       implementation = Model (module Example_counter.Main);

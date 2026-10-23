@@ -28,6 +28,7 @@
   pcf_secd
   proc_lang
   proc_lang_to_flow_ir
+  pure_lisp
   rec_tm_ir
   rec_tm_ir_jump
   rec_tm_ir_jump_to_turing_machine

@@ -1,4 +1,9 @@
 (test
+ (name pure_lisp)
+ (modules pure_lisp)
+ (libraries pure_lisp utils_runtime yojson))
+
+(test
  (name regression)
  (modules regression)
  (libraries

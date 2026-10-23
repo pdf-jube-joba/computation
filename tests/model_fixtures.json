@@ -1,5 +1,14 @@
 [
   {
+    "name": "pure_lisp",
+    "code": "'hello",
+    "ainput": "",
+    "rinput": "",
+    "steps": 2,
+    "outputs": [""],
+    "final": "hello"
+  },
+  {
     "name": "example_counter",
     "code": "3",
     "ainput": "",

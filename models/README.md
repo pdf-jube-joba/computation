@@ -196,5 +196,5 @@ atom の要素自体を括弧で囲むこともできます。
     - [] tag system
     - [] FRACTRAN
     - [] Grass
-    - [] pure lisp
+    - [x] [pure lisp](pure_lisp/README.md)
     - [] rustbelt の lambda rust

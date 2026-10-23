@@ -1,81 +1,107 @@
-Lisp の面白いところは quote と eval による meta circular とか homoiconic みたいに言われるところだと思うので、
-それを中心に pure lisp と呼ばれるところだけ持ってくる。
-あと、 dynamic scope なところも面白いので、そのように定義したい。
+# Pure Lisp
 
-nil は `()` で表すことが多いらしい。
+S 式をコードと値の両方に使う、動的スコープの小さな Lisp。
+代入や入出力の副作用はなく、`quote` でコードを値にし、`eval` で値をコードとして評価できる。
+以前の設計メモに代えて、ここでは実装の評価規則を定義する。
 
-\[\begin{aligned}
-\NT{nil} &\defeq \T{\LP \RP} \\
-\NT{func} &\defeq \T{atom} | \T{eq} | \T{car} | \T{cdr} | \T{cons} \\
-\NT{spec} &\defeq \T{quote} | \T{eval} | \T{if} | \T{lambda} \\
-\NT{atom} &\defeq \NT{string} \\
-\NT{term} &\defeq \NT{nil} \\
-  &\defeq \NT{atom} \\
-  &\defeq \T{\LP} \NT{term} \NT{term} \T{\RP} \\
-\end{aligned}\]
+## S 式
 
-これに対して、単に interpreter を定義するのはいいが、
-ラムダ計算に対する cek みたいな感じで進むことになる。
-one step で進めるのはかなりめんどくさい。
+値は空リスト `nil`、シンボル、cons 対のいずれか。
+`()` と `nil` は同じ値で、出力では `nil` に統一する。
+`(a b c)` は `(a . (b . (c . nil)))` の略記で、`(a b . c)` のような dotted list も使える。
+`'x` は `(quote x)` の略記。`;` から行末まではコメント。
+シンボルは大文字・小文字を区別する。数値や文字列は特別扱いせず、例えば `123` もシンボルになる。
 
-環境としては初期に変数としての \(\NT{atom}\) に対して、
-そのうち \(\NT{func}\) については最初からある種の関数が束縛されている。
-また、これらの関数は未定義な領域があるので、それにあたるとエラーをはくのが典型的な動作だが、
-ここでは普通に部分関数として動作していくことにする。
+`nil` と `t` は自己評価する定数で、変数として束縛できない。
+それ以外のシンボルの評価は環境からの検索で、未束縛ならエラー。
+条件では `nil` だけが偽で、それ以外の値はすべて真。
 
-自由な変数に対して、普通は closure として環境を含めて評価できるようにしておくが、
-これをせずに、呼び出し側の環境の下で変数を考えるのが dynamic なスコープになる。
+## 評価規則
 
-アルファ変換みたいなものは必要らしい。
-ここでは特にアルファ変換を定義しないが、代入の時にはそれを使っていい感じにする。
+| 形式 | 意味 |
+| --- | --- |
+| `(quote datum)` | `datum` を評価せず返す |
+| `(cond (test body) ...)` | 条件を左から評価し、最初に真になった節の本体だけを評価する。該当なし、または節が空なら `nil` |
+| `(lambda (x ...) body)` | 環境を保存せず、この S 式自体を関数値として返す |
+| `(label name (lambda (x ...) body))` | 自分を `name` で参照できる再帰関数の S 式を返す |
+| `(operator arg ...)` | 演算子、引数の順に左から評価して適用する |
 
-- \(V\) := \(\NT{term}\) ... これがすごくて、簡約されていないプログラムがここに入りうる。
-  ただし、以降では気持ちの整理のために、分けて書いたりする。
-- \(E\) := \(\NT{atom} \to V\) ... これについても、クロージャをつくらないので lambda もこのまま入れられる。
-- 以下は組み込みとして定義されている関数
-  - \(\text{atom}\): \(V \to V\) := これは atom かどうかを判定して、 "T" か nil を返す。 
-  - \(\text{eq}\): \(V \times V \pfun V\) := これは **両辺が atom の場合に** 同じかどうか判定して、上と同じように返す。
-  - \(\text{car}, \text{cdr}, \text{cons}\) なども適切に定義する
-- \(K\) := \(E\) and enum of
-  - \([] \NT{term}\)
-  - \(\text{eval}\)
-  - \(\text{if}(V, V)\)
-  - \(\text{lambda}(x \in \NT{atom}, M)\)
-  - \(\text{cont}(\NT{func})
+`quote`、`cond`、`lambda`、`label` はリスト先頭で認識する特殊形式。
+通常の適用では、演算子も各引数も同じ呼び出し元の環境で評価する。
+引数の評価がすべて済んでから、仮引数を値に束縛して本体を評価する。
+引数の数は一致する必要があり、仮引数の重複はエラー。
+`label` は本体の評価時に関数自身の束縛を追加する。仮引数の束縛はそれより優先する。
 
-この状態で、次のように動く
-\[\begin{aligned}
-(\NT{nil}, E, K) &\to \text{return}(\NT{nil}, K) \\
-(a \in \NT{atom}, E, K) &\to \text{return}(E[a], K) \\
-\begin{aligned}\]
-以降は、リストの先頭を見るという構文的な形で対応する。
-リストの先頭が特定の形式をしていなかった場合はそこを評価する。
-評価し終わって戻ってきたときにちゃんとした形じゃなかったら終わり。
-\[\begin{aligned}
-((\T{quote} M), E, K) &\to \text{return}(M, K) \\
-((\T{eval} M), E, K) &\to (M, E, (\text{eval}, E):: K) \\
-((\T{if} ( M (M _ 1 M _ 2) )) , E, K) &\to (M, (\text{if}(M _ 1, M _ 2), E)::K) \\
-(((\T{lambda} (x \in \NT{atom}) M) B), E, K) &\to (B, E, (\text{lambda}(x, M), E)::K) \\
-((\T{lambda} M), E, K) &\to \text{return}((\T{lambda} M), K) \\
-\\
-((A B), E, K) &\to (B, E, (\text{cont}(A), E)::K) &\text{if \(A\) is in \NT{func}} \\
-((A B), E, K) &\to (A, E, (([] B), E)::K) &\text{if \(A\) is not in \NT{func}} \\
-\end{aligned}\]
-return してきた値を次のようにして継続で処理する。
-\[\begin{aligned}
-\text{return}(v, ([] T, E)::K) &\to ((v T), E, K) \\
-\text{return}(v, (\text{eval}, E)::K) &\to (v, E, K) \\
-\text{return}(v, (\text{if}(M _ 1, M _ 2), E)::K) &\to (M _ 1, E, K) &\text{if \(v\) is \T{T}} \\
-\text{return}(v, (\text{if}(M _ 1, M _ 2), E)::K) &\to (M _ 2, E, K) &\text{if \(v\) is not \T{T}} \\
-\text{return}(v, (\text{lambda}(x, M), E)::K) &\to (M, E[x \mapsto v], K) \\
-\\
-\text{return}(v, (\text{cont}(eq), E)::K) &\to (v, E, K) \\
-\text{return}(v, (\text{cont}(atom), E)::K) &\to (v, E, K) \\
-\end{aligned}\]
+関数本体で使う環境は **呼び出し時の環境** を拡張したもの。
+定義時の環境を持つクロージャは作らない。
+呼び出しを抜けると呼び出し元の環境に戻る。
+束縛は環境で管理するため、式の置換やアルファ変換は行わない。
 
-## OCaml implementation status
+```lisp
+((lambda (x)
+   ((lambda (f)
+      ((lambda (x) (f)) 'inner))
+    (lambda () x)))
+ 'outer)
+; => inner
+```
 
-The original Rust entry point only printed `Hello, world!`; it did not implement
-Lisp evaluation or a parser. `main.ml` records `implemented = false`,
-`unsupported_reason`, and the location of these unchanged design notes. There
-is no `Utils_runtime.Machine.S` or compiler API to register.
+定義した場所から返された関数も、定義時の束縛を保持しない。
+例えば `(((lambda (x) (lambda () x)) 'gone))` は未束縛の `x` でエラーになる。
+
+## 組み込み関数と eval
+
+初期環境には次の名前を同名のシンボルとして束縛している。
+適用時にこれらのシンボルを組み込み関数として扱うため、関数を引数として渡したり、別名に束縛したりできる。
+通常の変数と同様に、その名前を仮引数で隠すこともできる。
+
+| 関数 | 結果 |
+| --- | --- |
+| `(atom x)` | `x` がシンボルまたは `nil` なら `t`、cons 対なら `nil` |
+| `(eq x y)` | 同じシンボル、または両方 `nil` なら `t`。それ以外は `nil`。リストの構造比較はしない |
+| `(cons x y)` | `x` と `y` の cons 対 |
+| `(car x)` / `(cdr x)` | cons 対の左 / 右。`nil` には `nil`、ほかのシンボルにはエラー |
+| `(eval x)` | 引数を評価して得た S 式を、`eval` の呼び出し位置の環境でさらに評価する |
+
+`eval` は引数を一つ取る通常の関数。環境を明示的に渡す第二引数はない。
+`quote` と組み合わせることで、組み立てたコードにも現在の動的な束縛が見える。
+関数値も S 式なので、`car` などで調べたり、`cons` で組み立てたりできる。
+
+```lisp
+((lambda (x) (eval 'x)) 'dynamic)
+; => dynamic
+
+(eval (cons 'cons (cons ''a (cons ''b nil))))
+; => (a . b)
+
+('(lambda (x) x) 'data)
+; => data
+```
+
+## 再帰とステップ実行
+
+`label` によるリストの連結：
+
+<div data-model="pure_lisp">
+<template data-default-code>
+((label append
+   (lambda (xs ys)
+     (cond ((eq xs nil) ys)
+           (t (cons (car xs) (append (cdr xs) ys))))))
+ '(a b) '(c d))
+</template>
+</div>
+
+結果は `(a b c d)`。
+モデル名は `pure_lisp`。Code は S 式一つ、AInput と RInput は空文字列。
+ROutput も空で、終了時の FOutput に結果の S 式を返す。
+
+評価器は評価・値の返却・関数適用を明示した継続付き抽象機械で、
+一回の step で一つの遷移を進める。`eval` や再帰もこの機械上で実行する。
+描画には現在の式、動的環境、継続を表示し、snapshot から途中状態を復元できる。
+
+```sh
+opam exec -- dune exec repl-machine -- model pure_lisp --code "(eval '(cons 'a '(b)))" --ainput ''
+```
+
+空行を入力するたびに一段階進む。最終結果は `(a b)`。

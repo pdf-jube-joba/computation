@@ -1,6 +1,6 @@
 (library
  (name pure_lisp)
  (public_name computation.pure_lisp)
- (libraries yojson)
+ (libraries yojson utils_data utils_runtime)
  (preprocess
   (pps ppx_deriving_yojson)))
