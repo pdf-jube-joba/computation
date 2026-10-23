@@ -1,4 +1,9 @@
 (test
+ (name others)
+ (modules others)
+ (libraries brainfuck ski_calculus p_double_prime utils_runtime yojson))
+
+(test
  (name pure_lisp)
  (modules pure_lisp)
  (libraries pure_lisp utils_runtime yojson))

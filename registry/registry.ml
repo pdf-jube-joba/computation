@@ -13,6 +13,21 @@ type entry = {
 let entries =
   [
     {
+      name = "brainfuck";
+      library = "brainfuck";
+      implementation = Model (module Brainfuck.Main);
+    };
+    {
+      name = "ski_calculus";
+      library = "ski_calculus";
+      implementation = Model (module Ski_calculus.Main);
+    };
+    {
+      name = "p_double_prime";
+      library = "p_double_prime";
+      implementation = Model (module P_double_prime.Main);
+    };
+    {
       name = "pure_lisp";
       library = "pure_lisp";
       implementation = Model (module Pure_lisp.Main);

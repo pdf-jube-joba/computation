@@ -1,5 +1,32 @@
 [
   {
+    "name": "brainfuck",
+    "code": ",+.",
+    "ainput": "[64]",
+    "rinput": "",
+    "steps": 4,
+    "outputs": ["", "", "65"],
+    "final": "[65]"
+  },
+  {
+    "name": "ski_calculus",
+    "code": "SKK K",
+    "ainput": "",
+    "rinput": "",
+    "steps": 3,
+    "outputs": ["", ""],
+    "final": "K"
+  },
+  {
+    "name": "p_double_prime",
+    "code": "λR",
+    "ainput": "2\n|1|",
+    "rinput": "",
+    "steps": 3,
+    "outputs": ["", ""],
+    "final": "0|0|"
+  },
+  {
     "name": "pure_lisp",
     "code": "'hello",
     "ainput": "",

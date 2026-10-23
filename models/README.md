@@ -191,8 +191,9 @@ atom の要素自体を括弧で囲むこともできます。
     - [] Wang tiles
     - [] セルオートマトン
 - その他
-    - [] brainfuck
-    - [] SKI 計算
+    - [x] [brainfuck](others/brainfuck/README.md)
+    - [x] [SKI 計算](others/ski_calculus/README.md)
+    - [x] [P′′](others/p_double_prime/README.md)
     - [] tag system
     - [] FRACTRAN
     - [] Grass

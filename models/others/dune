@@ -1,6 +1,30 @@
 (library
  (name others)
  (public_name computation.others)
- (libraries yojson)
+ (libraries yojson utils_data)
  (preprocess
   (pps ppx_deriving_yojson)))
+
+(subdir
+ brainfuck
+ (library
+  (name brainfuck)
+  (public_name computation.brainfuck)
+  (libraries others yojson utils_data utils_runtime)
+  (preprocess (pps ppx_deriving_yojson))))
+
+(subdir
+ ski_calculus
+ (library
+  (name ski_calculus)
+  (public_name computation.ski_calculus)
+  (libraries yojson utils_data utils_names utils_parsing utils_runtime)
+  (preprocess (pps ppx_deriving_yojson))))
+
+(subdir
+ p_double_prime
+ (library
+  (name p_double_prime)
+  (public_name computation.p_double_prime)
+  (libraries others yojson utils_data utils_runtime)
+  (preprocess (pps ppx_deriving_yojson))))

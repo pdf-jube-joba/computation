@@ -3,6 +3,9 @@
  (public_name computation.registry)
  (libraries
   yojson
+  brainfuck
+  ski_calculus
+  p_double_prime
   cfg_vreg
   core_machine
   coroutine
