@@ -189,7 +189,7 @@ atom の要素自体を括弧で囲むこともできます。
     - [] spinless tagless G machine
 - 表示が難しそう
     - [] Wang tiles
-    - [] セルオートマトン
+    - [x] [セルオートマトン・ライフゲーム](cellular_automaton/README.md)
 - その他
     - [x] [brainfuck](others/brainfuck/README.md)
     - [x] [SKI 計算](others/ski_calculus/README.md)

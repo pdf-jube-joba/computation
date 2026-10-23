@@ -1,5 +1,23 @@
 [
   {
+    "name": "cellular_automaton",
+    "code": "30",
+    "ainput": "1",
+    "rinput": "",
+    "steps": 3,
+    "outputs": ["111", "11001", "1101111"],
+    "final": null
+  },
+  {
+    "name": "game_of_life",
+    "code": "",
+    "ainput": "111",
+    "rinput": "",
+    "steps": 2,
+    "outputs": ["00100\n00100\n00100", "0000000\n0000000\n0011100\n0000000\n0000000"],
+    "final": null
+  },
+  {
     "name": "brainfuck",
     "code": ",+.",
     "ainput": "[64]",

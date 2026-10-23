@@ -3,6 +3,7 @@
  (public_name computation.registry)
  (libraries
   yojson
+  cellular_automaton
   brainfuck
   ski_calculus
   p_double_prime

@@ -1,0 +1,5 @@
+(library
+ (name cellular_automaton)
+ (public_name computation.cellular_automaton)
+ (libraries yojson utils_data utils_runtime)
+ (preprocess (pps ppx_deriving_yojson)))

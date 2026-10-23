@@ -13,6 +13,16 @@ type entry = {
 let entries =
   [
     {
+      name = "cellular_automaton";
+      library = "cellular_automaton";
+      implementation = Model (module Cellular_automaton.Main);
+    };
+    {
+      name = "game_of_life";
+      library = "cellular_automaton";
+      implementation = Model (module Cellular_automaton.Life);
+    };
+    {
       name = "brainfuck";
       library = "brainfuck";
       implementation = Model (module Brainfuck.Main);

@@ -1,4 +1,9 @@
 (test
+ (name cellular_automata)
+ (modules cellular_automata)
+ (libraries cellular_automaton utils_runtime yojson))
+
+(test
  (name others)
  (modules others)
  (libraries brainfuck ski_calculus p_double_prime utils_runtime yojson))
