@@ -1,0 +1,6 @@
+(library
+ (name stg)
+ (public_name computation.stg)
+ (libraries yojson utils_base utils_names utils_parsing utils_data utils_runtime)
+ (preprocess
+  (pps ppx_deriving_yojson)))

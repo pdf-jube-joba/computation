@@ -43,6 +43,11 @@ let entries =
       implementation = Model (module Pure_lisp.Main);
     };
     {
+      name = "stg";
+      library = "stg";
+      implementation = Model (module Stg.Main);
+    };
+    {
       name = "example_counter";
       library = "example_counter";
       implementation = Model (module Example_counter.Main);

@@ -54,6 +54,15 @@
     "final": "hello"
   },
   {
+    "name": "stg",
+    "code": "main = \\fun [] \\u [] -> 42",
+    "ainput": "",
+    "rinput": "",
+    "steps": 4,
+    "outputs": ["", "", ""],
+    "final": "42"
+  },
+  {
     "name": "example_counter",
     "code": "3",
     "ainput": "",

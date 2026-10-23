@@ -186,7 +186,7 @@ atom の要素自体を括弧で囲むこともできます。
 - 抽象機械
     - [] ZINC
     - [] CAM
-    - [] spinless tagless G machine
+    - [x] [Spineless Tagless G-machine](stg/README.md)
 - 表示が難しそう
     - [] Wang tiles
     - [x] [セルオートマトン・ライフゲーム](cellular_automaton/README.md)
