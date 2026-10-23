@@ -94,5 +94,13 @@
     "ainput": "|-|",
     "rinput": "",
     "expected": "|x|"
+  },
+  {
+    "name": "multi_tape_turing_machine-one_tape_turing_machine",
+    "target": "one_tape_turing_machine",
+    "code": "tapes: 2\nalphabet: -,a,b\ncopy\ndone\na -,copy,a a,copy,R R\nb -,copy,b b,copy,R R\n- -,copy,- -,done,C C\n",
+    "ainput": "|a|b,a\n|-|",
+    "rinput": "",
+    "expected": "a,b,a|-|\na,b,a|-|"
   }
 ]

@@ -23,3 +23,10 @@
  (name parsing)
  (modules parsing)
  (libraries utils_base utils_parsing))
+
+(test
+ (name turing_machines)
+ (modules turing_machines)
+ (libraries one_tape_turing_machine multi_tape_turing_machine
+  multi_tape_turing_machine_to_one_tape_turing_machine
+  utils_base utils_data utils_names utils_runtime yojson))

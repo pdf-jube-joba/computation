@@ -41,5 +41,6 @@
   tiny_isa
   one_tape_turing_machine
   multi_tape_turing_machine
+  multi_tape_turing_machine_to_one_tape_turing_machine
   utils_codec
   utils_runtime))

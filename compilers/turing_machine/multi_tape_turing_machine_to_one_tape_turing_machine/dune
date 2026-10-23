@@ -1,0 +1,5 @@
+(library
+ (name multi_tape_turing_machine_to_one_tape_turing_machine)
+ (public_name computation.multi_tape_turing_machine_to_one_tape_turing_machine)
+ (libraries one_tape_turing_machine multi_tape_turing_machine
+  utils_base utils_data utils_names utils_runtime))

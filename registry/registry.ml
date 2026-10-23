@@ -149,6 +149,12 @@ let entries =
       implementation = Model (module Multi_tape_turing_machine.Main);
     };
     {
+      name = "multi_tape_turing_machine-one_tape_turing_machine";
+      library = "multi_tape_turing_machine_to_one_tape_turing_machine";
+      implementation =
+        Compiler Multi_tape_turing_machine_to_one_tape_turing_machine.Main.api;
+    };
+    {
       name = "rec_tm_ir";
       library = "rec_tm_ir";
       implementation = Model (module Rec_tm_ir.Main);
