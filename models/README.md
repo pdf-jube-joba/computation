@@ -47,13 +47,17 @@ PCF の式から CEK への変換は共通 AST の恒等変換で、CEK の初�
 ## 描画
 
 `render` の戻り値は `Utils_runtime.Render.t = block list` です。
-`Render` の抽象型 `block` を通して text / table / container を構築します。
+`Render` の抽象型 `block` を通して text / table / container / graph を構築します。
 `Session_json.Make` が `Render.to_yojson` で `web/ui/renderer.js` 用の JSON に変換します。向きは `Vertical` / `Horizontal`、
 配置は `Inline` / `Block` で指定します。
 
 - text: `{kind: "text", text: string}`
 - table: `{kind: "table", columns: [block], rows: [{cells: [block]}]}`
 - container: `{kind: "container", children: [block], orientation: "vertical" | "horizontal", display: "inline" | "block"}`
+- graph: `{kind: "graph", nodes: [{id, label, ports: [string]}], edges: [{source: {node, port}, target: {node, port}, highlighted: bool}]}`
+
+graph は無向のポート付きグラフ。端点はノード ID と0始まりのポート添字で指定する。
+Web は SVG で描画し、`highlighted` な辺を強調する。
 
 `title` / `className` は任意です。JSON の描画は OCaml の型に依存せず、
 保存済み snapshot の描画はアクティブな状態を変更しません。
@@ -190,6 +194,7 @@ atom の要素自体を括弧で囲むこともできます。
 - 表示が難しそう
     - [] Wang tiles
     - [x] [セルオートマトン・ライフゲーム](cellular_automaton/README.md)
+    - [x] [Interaction Combinators](interaction_combinators/README.md)
 - その他
     - [x] [brainfuck](others/brainfuck/README.md)
     - [x] [SKI 計算](others/ski_calculus/README.md)

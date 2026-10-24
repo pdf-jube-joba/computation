@@ -3,10 +3,27 @@
 type orientation = Vertical | Horizontal
 
 type display = Inline | Block
+type graph_node = { id : string; label : string; ports : string list }
+
+type graph_edge = {
+  source : string * int;
+  target : string * int;
+  highlighted : bool;
+}
+
 type block
 type t = block list
 
 val text : ?title:string -> ?class_name:string -> string -> block
+
+val graph :
+  ?title:string ->
+  nodes:graph_node list ->
+  edges:graph_edge list ->
+  unit ->
+  block
+(** Undirected port graph. An endpoint is a node ID and a zero-based port index.
+    Node IDs must be unique and all endpoints must exist. *)
 
 val table :
   ?title:string ->

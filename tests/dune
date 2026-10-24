@@ -1,3 +1,13 @@
+(rule
+ (alias runtest)
+ (deps renderer.cjs ../web/ui/renderer.js)
+ (action (run node --test %{dep:renderer.cjs})))
+
+(test
+ (name interaction_combinators)
+ (modules interaction_combinators)
+ (libraries interaction_combinators utils_base utils_names utils_runtime yojson))
+
 (test
  (name cellular_automata)
  (modules cellular_automata)

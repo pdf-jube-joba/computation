@@ -1,0 +1,5 @@
+(library
+ (name interaction_combinators)
+ (public_name computation.interaction_combinators)
+ (libraries yojson utils_base utils_names utils_parsing utils_data utils_runtime)
+ (preprocess (pps ppx_deriving_yojson)))

@@ -13,6 +13,11 @@ type entry = {
 let entries =
   [
     {
+      name = "interaction_combinators";
+      library = "interaction_combinators";
+      implementation = Model (module Interaction_combinators.Main);
+    };
+    {
       name = "cellular_automaton";
       library = "cellular_automaton";
       implementation = Model (module Cellular_automaton.Main);

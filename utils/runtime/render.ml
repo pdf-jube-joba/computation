@@ -1,7 +1,19 @@
 type orientation = Vertical | Horizontal
 type display = Inline | Block
+type graph_node = { id : string; label : string; ports : string list }
+
+type graph_edge = {
+  source : string * int;
+  target : string * int;
+  highlighted : bool;
+}
 
 type block =
+  | Graph of {
+      title : string option;
+      nodes : graph_node list;
+      edges : graph_edge list;
+    }
   | Text of {
       title : string option;
       class_name : string option;
@@ -21,6 +33,7 @@ type block =
     }
 
 let text ?title ?class_name value = Text { title; class_name; value }
+let graph ?title ~nodes ~edges () = Graph { title; nodes; edges }
 
 let table ?title ?(columns = []) ?highlight rows =
   Table { title; columns; rows; highlight }
@@ -45,6 +58,37 @@ let rec block_to_yojson block =
     | Some value -> [ (name, `String value) ]
   in
   match block with
+  | Graph { title; nodes; edges } ->
+      let endpoint (node, port) =
+        `Assoc [ ("node", `String node); ("port", `Int port) ]
+      in
+      `Assoc
+        ([
+           ("kind", `String "graph");
+           ( "nodes",
+             `List
+               (List.map
+                  (fun n ->
+                    `Assoc
+                      [
+                        ("id", `String n.id);
+                        ("label", `String n.label);
+                        ("ports", `List (List.map (fun p -> `String p) n.ports));
+                      ])
+                  nodes) );
+           ( "edges",
+             `List
+               (List.map
+                  (fun e ->
+                    `Assoc
+                      [
+                        ("source", endpoint e.source);
+                        ("target", endpoint e.target);
+                        ("highlighted", `Bool e.highlighted);
+                      ])
+                  edges) );
+         ]
+        @ optional "title" title)
   | Text { title; class_name; value } ->
       `Assoc
         ([ ("kind", `String "text"); ("text", `String value) ]

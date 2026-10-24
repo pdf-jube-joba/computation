@@ -1,5 +1,14 @@
 [
   {
+    "name": "interaction_combinators",
+    "code": "\\gamma a; \\gamma b; a.0 ~ b.0; a.1 ~ @x; a.2 ~ @y; b.1 ~ @u; b.2 ~ @v;",
+    "ainput": "",
+    "rinput": "",
+    "steps": 2,
+    "outputs": ["gamma-gamma"],
+    "final": "@u ~ @y;\n@v ~ @x;"
+  },
+  {
     "name": "cellular_automaton",
     "code": "30",
     "ainput": "1",

@@ -173,3 +173,43 @@
   font-weight: 600;
   margin: 0 0 6px;
 }
+
+.wm-graph {
+  overflow: auto;
+  max-width: 100%;
+}
+
+.wm-graph svg {
+  display: block;
+  background: #fcfdff;
+}
+
+.wm-graph-edge {
+  fill: none;
+  stroke: #54718a;
+  stroke-width: 2;
+}
+
+.wm-graph-edge.is-active {
+  stroke: #b42318;
+  stroke-width: 4;
+}
+
+.wm-graph-node > circle {
+  fill: #f4fbff;
+  stroke: #2f5f86;
+  stroke-width: 2;
+}
+
+.wm-graph-node text {
+  fill: #163a57;
+  font: 13px monospace;
+}
+
+.wm-graph-node .wm-graph-port {
+  fill: #2f5f86;
+}
+
+.wm-graph-node .wm-graph-port-label {
+  font-size: 11px;
+}
