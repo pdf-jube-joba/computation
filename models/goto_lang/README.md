@@ -19,6 +19,6 @@ goto プログラムは次のテーブルで定義される文の列のこと。
 | \(\T{\textbackslash dec} (s \in V)\) | \(s\) から \(1\) を減算する |
 | \(\T{\textbackslash clr} (s \in V)\) | \(s\) を \(0\) にする |
 | \(\T{\textbackslash cpy} (s_1 \in V) (s_2 \in V)\) | \(s_2\) の値を \(s_1\) に代入する。 |
-| \(\T{\textbackslash ifnz} (s \in V) (n \in \N)\) |\(s\) に入っている値が \(0\) のとき、 \(n\) 行目のコードに移る。|
+| \(\T{\textbackslash ifnz} (s \in V) (n \in \N)\) |\(s\) に入っている値が \(0\) じゃないとき、 \(n\) 行目のコードに移る。|
 
 各文は \(\T{;}\) で終わるようにすること。
