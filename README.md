@@ -1,41 +1,32 @@
-# 計算モデルと視覚化に関するメモと実験コード
+# computation
 
-計算モデルについての個人的な学習メモと、インタプリタ・コンパイラの実験コードを置いています。
-Markdown に埋め込んだモデルを動かしながら、計算の様子を見られます。
+MoonBit で書いた計算モデルとコンパイラ。各処理系を独立した Wasm Component にビルドする。
+実装は `models/` と `compilers/`、ビルド対象は [registry/components.json](registry/components.json)。
 
-## 動かし方
+## ビルド
 
-OCaml / opam、Node.js、Rust / Cargo を用意し、リポジトリのルートで実行します。
-
-```sh
-git submodule update --init --recursive
-opam install . --deps-only
-npm --prefix _wfs/default_plugins/md_preview install
-cargo run --manifest-path _wfs/Cargo.toml -- .
-```
-
-起動後に `task build` を実行し、[README のプレビュー](http://localhost:3000/md/md_preview.html?path=README.md)を開きます。
-
-- [動く見本：カウンタ](models/_example_counter/README.md)
-- [Model 一覧](./md/directory_view.html?link=Model)
-- [Compiler 一覧](./md/directory_view.html?link=Compiler)
-- [Model Playground](./assets/playground_model.html)
-- [Compiler Playground](./assets/playground_compiler.html)
-
-## 内容
-
-- [models/](./models/): 計算モデル。
-- [compilers/](./compilers/): モデル間のコンパイラ。
-- [docs/](./docs/): 計算モデルについての文章。
-- [utils/](./utils/): モデルで共通に使うコード。`base/` は基本データ型・汎用操作、`names/` は識別子・ID・束縛、`parsing/` は字句・構文解析、`data/` はデータ構造・メモリ操作と入出力変換、`runtime/` はモデルの共通契約・実行・表示。
-- [web/](./web/): ブラウザ用コード。`ui/` は画面と描画、`runtime/` はランタイムの読み込みと API 変換、`browser.ml` は OCaml 側の入口。
-- [utils/wit/](./utils/wit/README.md): Git 履歴から復元し、公開仕様として採用する Component Model インターフェース。処理系は1インスタンスに1マシンを対応させます。
-
-## コードを触るとき
+MoonBit、Node.js、wit-bindgen-cli **0.63.0**、wasm-tools が必要。
 
 ```sh
-opam exec -- dune build @all
-opam exec -- dune runtest
+node tools/build_components.mjs --list
+node tools/build_components.mjs --model goto_lang
+node tools/build_components.mjs  # 全モデル・コンパイラ
 ```
 
-ターミナルからモデルを動かすには、[CLI の使い方](./cli/README.md)を参照してください。
+出力は `wasm_bundle/<名前>.wasm`。`--out-dir PATH` で出力先を変えられる。
+`MOON` / `WIT_BINDGEN` / `WASM_TOOLS` で実行ファイルを指定できる。
+`moon` は `~/.moon/bin/moon`、wit-bindgen は `../build/tools/bin/wit-bindgen` も探索する。
+
+## コードの入口
+
+- `models/*/main.mbt` の `model()` がモデルを作る。
+- `compilers/*/main.mbt` の `compiler()` が変換器を作る。
+- [utils/runtime/session.mbt](utils/runtime/session.mbt) が状態の保持と文字列 API を担当する。
+- [utils/wit/web.wit](utils/wit/web.wit) が公開する関数の型、[動作規約](utils/wit/README.md) がその意味を定める。
+- `tools/build_components.mjs` が WIT アダプターを生成して Component にまとめる。
+
+モデルの状態は代数直和と不変の値で表し、失敗した操作では元の状態を保つ。
+MoonBit の `wasm` ターゲットは線形メモリと参照カウントを使う。ヒープ内の循環は ID で表す。
+
+型検査は `moon check --target wasm`。必要な変更では既存の `moon test --target wasm` を使う。
+モデルの意味論や構文のメモは各モデルの README / spec、読書メモは `docs/` にある。

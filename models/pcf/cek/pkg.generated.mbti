@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/pcf/cek"
+
+import {
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn model(statements? : Bool) -> @runtime.Model
+
+pub fn statement_model() -> @runtime.Model
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

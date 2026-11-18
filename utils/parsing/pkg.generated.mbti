@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/utils/parsing"
+
+import {
+  "computation/models/utils/base",
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn create(String, character_literals? : Bool, nested_comments? : Bool) -> Parser raise @base.Fault
+
+// Errors
+
+// Types and methods
+pub struct Parser {
+  source : String
+  tokens : Array[Token]
+  offsets : Array[Int32]
+  matches : Array[Int32]
+  mut pos : Int32
+  limit : Int32
+}
+pub fn Parser::bump(Self) -> Token
+pub fn Parser::character(Self) -> String raise @base.Fault
+pub fn Parser::eat(Self, Char) -> Bool
+pub fn Parser::eat_keyword(Self, String) -> Bool
+pub fn Parser::eat_text(Self, String) -> Bool raise @base.Fault
+pub fn Parser::eof(Self) -> Bool
+pub fn[T] Parser::error(Self, String) -> T raise @base.Fault
+pub fn Parser::expect(Self, Char) -> Unit raise @base.Fault
+pub fn Parser::expect_keyword(Self, String) -> Unit raise @base.Fault
+pub fn Parser::expect_text(Self, String) -> Unit raise @base.Fault
+pub fn Parser::finish(Self) -> Unit raise @base.Fault
+pub fn Parser::group(Self, Char) -> Self raise @base.Fault
+pub fn Parser::ident(Self) -> String raise @base.Fault
+pub fn Parser::integer(Self) -> Int32 raise @base.Fault
+pub fn Parser::keyword(Self) -> String raise @base.Fault
+pub fn Parser::natural(Self) -> @bigint.BigInt raise @base.Fault
+pub fn Parser::offset(Self) -> Int32
+pub fn Parser::peek(Self) -> Token
+pub fn Parser::position(Self) -> Int32
+pub fn Parser::rewind(Self, Int32) -> Unit
+pub fn Parser::string_literal(Self) -> String raise @base.Fault
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Token {
+  Ident(String)
+  Keyword(String)
+  Number(String)
+  StringLit(String)
+  Character(String)
+  Symbol(Char)
+  End
+}
+
+// Type aliases
+
+// Traits

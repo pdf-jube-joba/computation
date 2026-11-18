@@ -1,0 +1,88 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/structured_lang/shared"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/parsing",
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn aexp_json(Aexp) -> @json.Json
+
+pub fn aexp_text(Aexp) -> String
+
+pub fn atom_json(Atom) -> @json.Json
+
+pub fn atom_text(Atom) -> String
+
+pub fn bexp_json(Bexp) -> @json.Json
+
+pub fn bexp_text(Bexp) -> String
+
+pub fn decode_aexp(@json.Json) -> Aexp raise @base.Fault
+
+pub fn decode_atom(@json.Json) -> Atom raise @base.Fault
+
+pub fn decode_bexp(@json.Json) -> Bexp raise @base.Fault
+
+pub fn decode_env(@json.Json) -> Array[(String, @bigint.BigInt)] raise @base.Fault
+
+pub fn decode_names(@json.Json) -> Array[String] raise @base.Fault
+
+pub fn env_get(Array[(String, @bigint.BigInt)], String) -> @bigint.BigInt
+
+pub fn env_json(Array[(String, @bigint.BigInt)]) -> @json.Json
+
+pub fn eval_aexp(Aexp, (String) -> @bigint.BigInt raise @base.Fault) -> @bigint.BigInt raise @base.Fault
+
+pub fn eval_atom(Atom, (String) -> @bigint.BigInt raise @base.Fault) -> @bigint.BigInt raise @base.Fault
+
+pub fn eval_bexp(Bexp, (String) -> @bigint.BigInt raise @base.Fault) -> Bool raise @base.Fault
+
+pub fn names(@parsing.Parser) -> Array[String] raise @base.Fault
+
+pub fn names_json(Array[String]) -> @json.Json
+
+pub fn parse_aexp(@parsing.Parser) -> Aexp raise @base.Fault
+
+pub fn parse_atom(@parsing.Parser) -> Atom raise @base.Fault
+
+pub fn parse_bexp(@parsing.Parser) -> Bexp raise @base.Fault
+
+pub fn parse_env(String) -> Array[(String, @bigint.BigInt)] raise @base.Fault
+
+pub fn print_env(Array[(String, @bigint.BigInt)], trailing_newline? : Bool) -> String
+
+pub fn validate_env(Array[String], Array[(String, @bigint.BigInt)], duplicate~ : String, extra~ : String, missing~ : String) -> Unit raise @base.Fault
+
+// Errors
+
+// Types and methods
+pub(all) enum Aexp {
+  Atom(Atom)
+  Bin(Atom, Bool, Atom)
+}
+
+pub(all) enum Atom {
+  Var(String)
+  Imm(@bigint.BigInt)
+}
+
+pub(all) struct Bexp {
+  left : Atom
+  op : Rel
+  right : Atom
+}
+
+pub(all) enum Rel {
+  Lt
+  Eq
+  Gt
+}
+
+// Type aliases
+pub type Env = Array[(String, @bigint.BigInt)]
+
+// Traits

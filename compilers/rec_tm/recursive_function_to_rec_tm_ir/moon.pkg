@@ -1,0 +1,9 @@
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/names",
+  "computation/models/utils/runtime",
+  "computation/models/models/recursive_function" @source,
+  "computation/models/models/rec_tm/rec_tm_ir" @ir,
+  "computation/models/models/rec_tm/shared" @s,
+  "computation/models/compilers/rec_tm/shared" @encoding,
+}

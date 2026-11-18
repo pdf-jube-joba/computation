@@ -1,0 +1,68 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/tiny_isa/shared"
+
+import {
+  "computation/models/utils/base",
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn decode(@bigint.BigInt) -> Instr[@bigint.BigInt] raise @base.Fault
+
+pub fn[T] decode_instr(@json.Json, (@json.Json) -> T raise @base.Fault) -> Instr[T] raise @base.Fault
+
+pub fn decode_nats(@json.Json) -> Array[@bigint.BigInt] raise @base.Fault
+
+pub fn encode(Instr[@bigint.BigInt]) -> @bigint.BigInt
+
+pub fn[T] execute(Instr[T], (T) -> @bigint.BigInt raise @base.Fault, Array[@bigint.BigInt], Bool, Array[@bigint.BigInt]) -> (Array[@bigint.BigInt], Bool, Array[@bigint.BigInt], Bool) raise @base.Fault
+
+pub fn image(String) -> Image raise @base.Fault
+
+pub fn image_text(Array[@bigint.BigInt], Array[@bigint.BigInt]) -> String
+
+pub fn[T] instr_json(Instr[T], (T) -> @json.Json) -> @json.Json
+
+pub fn nats_json(Array[@bigint.BigInt]) -> @json.Json
+
+pub fn natural_lines(String) -> Array[@bigint.BigInt] raise @base.Fault
+
+pub fn read(Array[@bigint.BigInt], Int32) -> @bigint.BigInt raise @base.Fault
+
+pub fn registers(Array[@bigint.BigInt]) -> @json.Json
+
+pub fn[T] text(Instr[T], (T) -> String) -> String
+
+pub fn validate_regs(Array[@bigint.BigInt]) -> Unit raise @base.Fault
+
+pub fn write(Array[@bigint.BigInt], Int32, @bigint.BigInt) -> Array[@bigint.BigInt] raise @base.Fault
+
+// Errors
+
+// Types and methods
+pub(all) struct Image {
+  register : Array[@bigint.BigInt]
+  memory : Array[@bigint.BigInt]
+}
+
+pub(all) enum Instr[T] {
+  Nop
+  Halt
+  Rst
+  Ld(Int32, Int32)
+  St(Int32, Int32)
+  Mov(Bool, Int32, Int32)
+  Ldi(Bool, Int32, T)
+  Add(Bool, Int32, Int32)
+  Sub(Bool, Int32, Int32)
+  Addi(Bool, Int32, T)
+  Subi(Bool, Int32, T)
+  Eq(Int32, Int32)
+  Lt(Int32, Int32)
+  Gt(Int32, Int32)
+}
+
+// Type aliases
+
+// Traits

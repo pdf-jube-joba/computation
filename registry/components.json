@@ -1,0 +1,255 @@
+[
+  {
+    "name": "example_counter",
+    "kind": "model",
+    "package": "models/_example_counter"
+  },
+  {
+    "name": "goto_lang",
+    "kind": "model",
+    "package": "models/goto_lang"
+  },
+  {
+    "name": "brainfuck",
+    "kind": "model",
+    "package": "models/others/brainfuck"
+  },
+  {
+    "name": "p_double_prime",
+    "kind": "model",
+    "package": "models/others/p_double_prime"
+  },
+  {
+    "name": "ski_calculus",
+    "kind": "model",
+    "package": "models/others/ski_calculus"
+  },
+  {
+    "name": "pure_lisp",
+    "kind": "model",
+    "package": "models/pure_lisp"
+  },
+  {
+    "name": "cellular_automaton",
+    "kind": "model",
+    "package": "models/cellular_automaton"
+  },
+  {
+    "name": "game_of_life",
+    "kind": "model",
+    "package": "models/cellular_automaton",
+    "factory": "life_model"
+  },
+  {
+    "name": "expr_lang",
+    "kind": "model",
+    "package": "models/structured_lang/expr_lang"
+  },
+  {
+    "name": "recursive_function",
+    "kind": "model",
+    "package": "models/recursive_function"
+  },
+  {
+    "name": "lambda_calculus",
+    "kind": "model",
+    "package": "models/lambda_calculus"
+  },
+  {
+    "name": "example_counter-example_counter",
+    "kind": "compiler",
+    "package": "compilers/example_counter_to_example_counter"
+  },
+  {
+    "name": "recursive_function-goto_lang",
+    "kind": "compiler",
+    "package": "compilers/recursive_function/recursive_function_to_goto_lang"
+  },
+  {
+    "name": "turing_machine",
+    "kind": "model",
+    "package": "models/turing_machine/shared"
+  },
+  {
+    "name": "one_tape_turing_machine",
+    "kind": "model",
+    "package": "models/turing_machine/shared"
+  },
+  {
+    "name": "multi_tape_turing_machine",
+    "kind": "model",
+    "package": "models/turing_machine/shared",
+    "factory": "multi_model"
+  },
+  {
+    "name": "strarr",
+    "kind": "model",
+    "package": "models/while_with_data/strarr"
+  },
+  {
+    "name": "strtree",
+    "kind": "model",
+    "package": "models/while_with_data/strtree"
+  },
+  {
+    "name": "internal_ctrl",
+    "kind": "model",
+    "package": "models/structured_lang/internal_ctrl"
+  },
+  {
+    "name": "proc_lang",
+    "kind": "model",
+    "package": "models/structured_lang/proc_lang"
+  },
+  {
+    "name": "rec_tm_ir",
+    "kind": "model",
+    "package": "models/rec_tm/rec_tm_ir"
+  },
+  {
+    "name": "rec_tm_ir_jump",
+    "kind": "model",
+    "package": "models/rec_tm/rec_tm_ir_jump"
+  },
+  {
+    "name": "rec_tm_ir-rec_tm_ir_jump",
+    "kind": "compiler",
+    "package": "compilers/rec_tm/rec_tm_ir_to_rec_tm_ir_jump"
+  },
+  {
+    "name": "interaction_combinators",
+    "kind": "model",
+    "package": "models/interaction_combinators"
+  },
+  {
+    "name": "pcf-expr",
+    "kind": "model",
+    "package": "models/pcf/expr"
+  },
+  {
+    "name": "pcf-cek",
+    "kind": "model",
+    "package": "models/pcf/cek"
+  },
+  {
+    "name": "pcf-expr-stmt-cek",
+    "kind": "model",
+    "package": "models/pcf/cek",
+    "factory": "statement_model"
+  },
+  {
+    "name": "pcf-secd",
+    "kind": "model",
+    "package": "models/pcf/secd"
+  },
+  {
+    "name": "lambda_continuations",
+    "kind": "model",
+    "package": "models/lambda_continuations/no_ext"
+  },
+  {
+    "name": "pcf-expr-cek",
+    "kind": "compiler",
+    "package": "compilers/pcf/pcf_expr_to_pcf_cek"
+  },
+  {
+    "name": "pcf-expr-secd",
+    "kind": "compiler",
+    "package": "compilers/pcf/pcf_expr_to_pcf_secd"
+  },
+  {
+    "name": "stg",
+    "kind": "model",
+    "package": "models/stg"
+  },
+  {
+    "name": "coroutine",
+    "kind": "model",
+    "package": "models/async_await/coroutine"
+  },
+  {
+    "name": "tiny_isa",
+    "kind": "model",
+    "package": "models/tiny_isa/isa"
+  },
+  {
+    "name": "symbolic_asm",
+    "kind": "model",
+    "package": "models/tiny_isa/symbolic_asm"
+  },
+  {
+    "name": "cfg_vreg",
+    "kind": "model",
+    "package": "models/tiny_isa/cfg_vreg"
+  },
+  {
+    "name": "core_machine",
+    "kind": "model",
+    "package": "models/core_machine"
+  },
+  {
+    "name": "flow_ir",
+    "kind": "model",
+    "package": "models/flow_ir"
+  },
+  {
+    "name": "fn_ptr",
+    "kind": "model",
+    "package": "models/structured_lang/fn_ptr"
+  },
+  {
+    "name": "logic_circuit",
+    "kind": "model",
+    "package": "models/logic_circuit"
+  },
+  {
+    "name": "mini_prog",
+    "kind": "model",
+    "package": "models/structured_lang/mini_prog"
+  },
+  {
+    "name": "recursive_function-lambda_calculus",
+    "kind": "compiler",
+    "package": "compilers/recursive_function/recursive_function_to_lambda_calculus"
+  },
+  {
+    "name": "expr_to_flow_ir",
+    "kind": "compiler",
+    "package": "compilers/structured_lang/expr_lang_to_flow_ir"
+  },
+  {
+    "name": "internal_ctrl_to_flow_ir",
+    "kind": "compiler",
+    "package": "compilers/structured_lang/internal_ctrl_to_flow_ir"
+  },
+  {
+    "name": "proc_to_flow_ir",
+    "kind": "compiler",
+    "package": "compilers/structured_lang/proc_lang_to_flow_ir"
+  },
+  {
+    "name": "rec_tm_ir_jump-turing_machine",
+    "kind": "compiler",
+    "package": "compilers/rec_tm/rec_tm_ir_jump_to_turing_machine"
+  },
+  {
+    "name": "recursive_function-rec_tm_ir",
+    "kind": "compiler",
+    "package": "compilers/rec_tm/recursive_function_to_rec_tm_ir"
+  },
+  {
+    "name": "recursive_function-turing_machine",
+    "kind": "compiler",
+    "package": "compilers/rec_tm/recursive_function_to_turing_machine"
+  },
+  {
+    "name": "multi_tape_turing_machine-one_tape_turing_machine",
+    "kind": "compiler",
+    "package": "compilers/turing_machine/multi_tape_turing_machine_to_one_tape_turing_machine"
+  },
+  {
+    "name": "flow_ir_to_core_machine",
+    "kind": "compiler",
+    "package": "compilers/flow_ir_to_core_machine"
+  }
+]

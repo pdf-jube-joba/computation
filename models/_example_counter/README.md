@@ -6,20 +6,26 @@
 - `\dec` が rinput に入っている状態で step を押すと数字が上がっていきます。
 - 10 を超えると、最終的な出力 End が表示されます。
 
-<div data-model="example_counter">
-<template data-default-code>
-3
-</template>
-<template data-default-rinput>
-\inc
-</template>
-</div>
+code:
 
-<div data-model="example_counter-example_counter">
-<template data-default-code>
+```text
+3
+```
+
+rinput:
+
+```text
+\inc
+```
+
+code:
+
+```text
 7
-</template>
-<template data-default-rinput>
+```
+
+rinput:
+
+```text
 \dec
-</template>
-</div>
+```

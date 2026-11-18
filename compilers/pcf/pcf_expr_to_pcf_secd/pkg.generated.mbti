@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/compilers/pcf/pcf_expr_to_pcf_secd"
+
+import {
+  "computation/models/models/pcf/secd",
+  "computation/models/models/pcf/shared",
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn compile(@shared.Expr) -> Array[@secd.Instr] raise @base.Fault
+
+pub fn compiler() -> @runtime.Compiler
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

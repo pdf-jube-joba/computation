@@ -24,7 +24,7 @@
 > print と input を入れておく。
 > 両方とも、 UTF-8 <-> [u8] として解釈する。
 
-<div data-model="flow_ir"></div>
+
 
 ## region の導入
 仮想レジスタのスコープを切る仕組みを入れる。

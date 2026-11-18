@@ -51,8 +51,9 @@ a,b,a|-|
 実行時の追加入力・途中出力は空文字列。保存状態にはコード、現在状態、全テープを含み、
 描画では遷移表と各テープのヘッド位置を表示する。
 
-<div data-model="multi_tape_turing_machine">
-<template data-default-code>
+code:
+
+```text
 tapes: 2
 alphabet: -,a,b
 copy
@@ -60,11 +61,13 @@ done
 a -,copy,a a,copy,\R \R
 b -,copy,b b,copy,\R \R
 - -,copy,- -,done,\C \C
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 |a|b,a
 |-|
-</template>
-</div>
+```
 
 [1テープへの変換](../../../compilers/turing_machine/multi_tape_turing_machine_to_one_tape_turing_machine/README.md)で、同じ計算を1テープ機械として実行できる。

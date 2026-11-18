@@ -82,15 +82,15 @@ S 式をコードと値の両方に使う、動的スコープの小さな Lisp�
 
 `label` によるリストの連結：
 
-<div data-model="pure_lisp">
-<template data-default-code>
+code:
+
+```text
 ((label append
    (lambda (xs ys)
      (cond ((eq xs nil) ys)
            (t (cons (car xs) (append (cdr xs) ys))))))
  '(a b) '(c d))
-</template>
-</div>
+```
 
 結果は `(a b c d)`。
 モデル名は `pure_lisp`。Code は S 式一つ、AInput と RInput は空文字列。
@@ -100,8 +100,8 @@ ROutput も空で、終了時の FOutput に結果の S 式を返す。
 一回の step で一つの遷移を進める。`eval` や再帰もこの機械上で実行する。
 描画には現在の式、動的環境、継続を表示し、snapshot から途中状態を復元できる。
 
-```sh
-opam exec -- dune exec repl-machine -- model pure_lisp --code "(eval '(cons 'a '(b)))" --ainput ''
+```text
+(eval '(cons 'a '(b)))
 ```
 
-空行を入力するたびに一段階進む。最終結果は `(a b)`。
+一回の step で一段階進む。最終結果は `(a b)`。

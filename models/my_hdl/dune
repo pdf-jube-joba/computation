@@ -1,6 +1,0 @@
-(library
- (name my_hdl)
- (public_name computation.my_hdl)
- (libraries yojson utils_base utils_names utils_parsing)
- (preprocess
-  (pps ppx_deriving_yojson)))

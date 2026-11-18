@@ -1,6 +1,6 @@
 [[Model]]
 
-既存の1テープモデル。公開名は `one_tape_turing_machine` で、`turing_machine` も互換名として使える。
+1テープモデル。公開名は `one_tape_turing_machine` で、`turing_machine` も別名として使える。
 [多テープ版](../multi_tape_turing_machine/README.md)と
 [1テープへの変換](../../../compilers/turing_machine/multi_tape_turing_machine_to_one_tape_turing_machine/README.md)も参照。
 
@@ -218,15 +218,18 @@ Turing machine \(M = (\Sigma, Q, q_{\text{init}}, Q_{\text{fin}}, \delta)\) に�
 > \(\sim_{\text{eq}}\) を状態の移りあいを考慮して定義することが必要である。
 
 
-<div data-model="one_tape_turing_machine">
-<template data-default-code>
+code:
+
+```text
 start
 goal
 a,start,b,start,\R
 b,start,b,start,\R
 c,start,c,goal,\C
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 -|a|b,a,b,b,c
-</template>
-</div>
+```

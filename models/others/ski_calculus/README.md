@@ -35,14 +35,14 @@ S K K x → K x (K x) → x
 AInput・RInput・ROutput は空文字列で、FOutput は正規形。
 保存する状態は現在の項そのもので、描画にも現在の項を表示する。
 
-<div data-model="ski_calculus">
-<template data-default-code>
-S K K x
-</template>
-</div>
+code:
 
-```sh
-opam exec -- dune exec repl-machine -- model ski_calculus --code 'S K K x' --ainput ''
+```text
+S K K x
 ```
 
-空行ごとに一つ簡約し、上の例は二回の簡約後、次の step で `x` を返す。
+```text
+S K K x
+```
+
+一回の step で一つ簡約し、上の例は二回の簡約後、次の step で `x` を返す。

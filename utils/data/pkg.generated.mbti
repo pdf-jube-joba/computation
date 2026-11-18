@@ -1,0 +1,97 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/utils/data"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/parsing",
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn[T] blank(T) -> Tape[T]
+
+pub fn char_text(String) -> String
+
+pub fn chars_text(Array[String]) -> String
+
+pub fn[T] decode_env(@json.Json, (@json.Json) -> T raise @base.Fault) -> Array[(String, T)] raise @base.Fault
+
+pub fn decode_scalar(@json.Json) -> String raise @base.Fault
+
+pub fn[T] decode_tape(@json.Json, (@json.Json) -> T raise @base.Fault) -> Tape[T] raise @base.Fault
+
+pub fn decode_tree(@json.Json) -> CharTree raise @base.Fault
+
+pub fn[T] env_get(Array[(String, T)], String) -> T?
+
+pub fn[T] env_json(Array[(String, T)], (T) -> @json.Json) -> @json.Json
+
+pub fn[T] env_lookup(Array[(String, T)], String) -> T raise @base.Fault
+
+pub fn[T] env_set(Array[(String, T)], String, T) -> Array[(String, T)]
+
+pub fn[T] env_sorted(Array[(String, T)]) -> Array[(String, T)]
+
+pub fn loop_code(Array[String], String, String, Bool) -> LoopCode raise @base.Fault
+
+pub fn natural_list(String) -> Array[@bigint.BigInt] raise @base.Fault
+
+pub fn natural_list_text(Array[@bigint.BigInt]) -> String
+
+pub fn of_bytes(String) -> @bigint.BigInt
+
+pub fn parse_chars(String) -> Array[String] raise @base.Fault
+
+pub fn[T] parse_env(String, (String) -> T raise @base.Fault) -> Array[(String, T)] raise @base.Fault
+
+pub fn[T] parse_tape(String, (String) -> T raise @base.Fault) -> Tape[T] raise @base.Fault
+
+pub fn parse_tree(String) -> CharTree raise @base.Fault
+
+pub fn[T] print_env(Array[(String, T)], (T) -> String, trailing_newline? : Bool) -> String
+
+pub fn read_char(@parsing.Parser) -> String raise @base.Fault
+
+pub fn read_chars(@parsing.Parser, grouped_characters? : Bool) -> Array[String] raise @base.Fault
+
+pub fn read_tree(@parsing.Parser) -> CharTree raise @base.Fault
+
+pub fn scalar(String) -> String raise @base.Fault
+
+pub fn to_bytes(@bigint.BigInt) -> String raise @base.Fault
+
+pub fn tree_json(CharTree) -> @json.Json
+
+pub fn tree_text(CharTree) -> String
+
+pub fn unique(Array[String], String) -> Unit raise @base.Fault
+
+// Errors
+
+// Types and methods
+#derive(Eq)
+pub(all) enum CharTree {
+  AtomValue(String)
+  ConsValue(CharTree, CharTree)
+}
+
+pub(all) struct LoopCode {
+  instructions : Array[String]
+  jumps : Array[Int32]
+}
+
+pub(all) struct Tape[T] {
+  left : Array[T]
+  head : T
+  right : Array[T]
+}
+pub fn[T] Tape::json(Self[T], (T) -> @json.Json) -> @json.Json
+pub fn[T] Tape::shift(Self[T], Int32, T) -> Self[T]
+pub fn[T] Tape::text(Self[T], (T) -> String) -> String
+pub fn[T] Tape::values(Self[T]) -> Array[T]
+pub fn[T] Tape::write(Self[T], T) -> Self[T]
+
+// Type aliases
+
+// Traits

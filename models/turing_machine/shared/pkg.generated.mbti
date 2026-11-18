@@ -1,0 +1,46 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/turing_machine/shared"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn direction_text(Int32) -> String
+
+pub fn model(multi? : Bool) -> @runtime.Model
+
+pub fn multi_model() -> @runtime.Model
+
+pub fn parse_code(String, Bool) -> Definition raise @base.Fault
+
+pub fn print_code(Definition) -> String
+
+pub fn sign(String) -> String raise @base.Fault
+
+pub fn validate(Definition, Bool) -> Unit raise @base.Fault
+
+// Errors
+
+// Types and methods
+pub(all) struct Definition {
+  count : Int32
+  alphabet : Array[String]
+  initial : Int32
+  accepted : Array[Int32]
+  code : Array[Entry]
+  names : Array[(Int32, String)]
+}
+
+pub(all) struct Entry {
+  reads : Array[String]
+  source : Int32
+  writes : Array[String]
+  target : Int32
+  directions : Array[Int32]
+}
+
+// Type aliases
+
+// Traits

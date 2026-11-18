@@ -4,6 +4,3 @@
 
 一応、ここに tiny_isa をもう一度貼っておく。
 これを直接書くことはないと思う。
-
-<div data-model="tiny_isa">
-</div>

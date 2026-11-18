@@ -13,17 +13,20 @@ Turing machine よりはこっちの方が理解しやすそう。
 
 ## 具体例
 \(x * y\) を計算するプログラム：
-<div data-model="goto_lang">
-<template data-default-code>
+code:
+
+```text
 \cpy y2 <- y;
 \inc z;
 \dec y2;
 \ifnz y2 : 1;
 \dec x;
 \ifnz x : 0;
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 x = 3
 y = 4
-</template>
-</div>
+```

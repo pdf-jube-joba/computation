@@ -10,14 +10,17 @@
 ここでは実際の計算の過程を、足し算を例にしている。
 足し算の定義には、原始再帰を使う。
 
-<div data-model="recursive_function">
-<template data-default-code>
+code:
+
+```text
 \let zf = \PROJ[1,0].
 \let sf = \COMP[\SUCC: \PROJ[3,0]].
 \let add = \PRIM[\z: zf \s: sf].
 add
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 (3, 4)
-</template>
-</div>
+```

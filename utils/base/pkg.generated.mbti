@@ -1,0 +1,92 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/utils/base"
+
+import {
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn array(@json.Json) -> Array[@json.Json] raise Fault
+
+pub fn boolean(@json.Json) -> Bool raise Fault
+
+pub fn container(String, Array[@json.Json]) -> @json.Json
+
+pub fn[T] error(String) -> T raise Fault
+
+pub fn field(@json.Json, String) -> @json.Json raise Fault
+
+pub fn highlight(String, Int32, Array[String]) -> @json.Json
+
+pub fn ident_continue(Char) -> Bool
+
+pub fn ident_start(Char) -> Bool
+
+pub fn identifier(String) -> String raise Fault
+
+pub fn index(@bigint.BigInt) -> Int32 raise Fault
+
+pub fn int(@json.Json) -> Int32 raise Fault
+
+pub fn integer(String) -> Int32 raise Fault
+
+pub fn jarray(Array[@json.Json]) -> @json.Json
+
+pub fn jbool(Bool) -> @json.Json
+
+pub fn jint(Int32) -> @json.Json
+
+pub fn join(Array[String], String) -> String
+
+pub fn json_nat(@json.Json) -> @bigint.BigInt raise Fault
+
+pub fn jstr(String) -> @json.Json
+
+pub fn nat(String) -> @bigint.BigInt raise Fault
+
+pub fn nint(Int32) -> @bigint.BigInt
+
+pub fn object(Array[(String, @json.Json)]) -> @json.Json
+
+pub fn one() -> @bigint.BigInt
+
+pub fn[T] optional_json(T?, (T) -> @json.Json) -> @json.Json
+
+pub fn parse_json(String) -> @json.Json raise Fault
+
+pub fn pred(@bigint.BigInt) -> @bigint.BigInt
+
+pub fn require(Bool, String) -> Unit raise Fault
+
+pub fn string(@json.Json) -> String raise Fault
+
+pub fn sub(@bigint.BigInt, @bigint.BigInt) -> @bigint.BigInt
+
+pub fn table(String, Array[String], Array[Array[String]], highlight? : Int32) -> @json.Json
+
+pub fn tag(String, Array[@json.Json]) -> @json.Json
+
+pub fn tag_arg(@json.Json, Int32) -> @json.Json raise Fault
+
+pub fn tag_name(@json.Json) -> String raise Fault
+
+pub fn text(String) -> @json.Json
+
+pub fn titled(String, String) -> @json.Json
+
+pub fn unit_input(String) -> Unit raise Fault
+
+pub fn zero() -> @bigint.BigInt
+
+// Errors
+pub suberror Fault {
+  Fault(String)
+}
+
+// Types and methods
+
+// Type aliases
+pub using @bigint {type BigInt as Nat}
+
+// Traits

@@ -159,8 +159,9 @@
 > - 注意点として、入出力のラベルの番号付けはちゃんとやらないといけない。
 > - 繰り返し回路 \((V, E, l)\) に対して、 \((v^{\text{in}}_i, v^{\text{in}}_j)\) を使って、 \((V \times \Nat, \{(v, i) \rightarrow (v', i) \mid v \rightarrow v' \in E\}, l)\) に対して結合を行う。
 
-<div data-model="logic_circuit">
-<template data-default-code>
+code:
+
+```text
 \graph: main {
     \in {I}
     \out {O=A.OUT}
@@ -168,10 +169,7 @@
     N, \NOT_T {IN=B.OUT0}
     A, \AND_F {IN0=B.OUT1, IN1=N.OUT}
 }
-</template>
-<template data-default-ainput>
-</template>
-</div>
+```
 
 
 ## 直したいところについて
@@ -184,14 +182,10 @@
 2. `usable` という関数が必要になるのは、ある論理回路でどんな名前が使えるのかがわからないから...これは不自然
     - ユーザー向けとしての回路・ピンの名前をつけつつ、内部では usize にした方が、使われている部分の出力があまり要らなくなる。
 
-## OCaml implementation
+## 実装
 
-`main.ml` defines `Logic_circuit.Main` with the shared `Utils_runtime.Machine.S` contract.
-`Circuit` retains gates, synchronous graph composition, iterator state and graph
-views; `Parser`/`Parse` retain `\graph:` and `\iter:` definitions and signal text.
-`Example.utils_map ()` contains all six original example circuits.
-Snapshots use Yojson.Safe codecs and rendering retains the kind, input, output
-and vertex tables. There was no circuit compiler in the original crate.
+`main.mbt` がモデルの入口。`circuit.mbt` が回路の状態と同期的な遷移、
+`parser.mbt` がコードと信号の解析を担当する。
 
 Circuit timing is one transition per gate, including DLY. Missing inputs are
 false; the first signal for a pin wins; graph edges override external signals.
@@ -201,12 +195,10 @@ allows a circuit and a vertex to have the same name. Iterator IDs are shared by
 input and output, and an empty iterator can be seeded through its external
 input or `$0`.
 
-Local vertex names resolve to typed integer IDs while stepping. Display names
-for instances use `Utils_names.Naming`; changing a display name does not change
-routing. External maps must point to existing vertices and ports, and snapshots
+Display names for instances are allocated separately from their numeric IDs;
+changing a display name does not change routing. External maps must point to existing vertices and ports, and snapshots
 with duplicate vertex names are rejected. Duplicate library definitions still
 keep the first definition.
 
 A parent delivers a pin through its child's interface, so child input routing
-does not depend on whether the instance name matches the child's kind. The
-bundled `ADDR` example computes both XOR sum and AND carry.
+does not depend on whether the instance name matches the child's kind.

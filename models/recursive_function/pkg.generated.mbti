@@ -1,0 +1,37 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/recursive_function"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+  "moonbitlang/core/bigint",
+}
+
+// Values
+pub fn arity(Func) -> Int32
+
+pub fn model() -> @runtime.Model
+
+pub fn parse_code(String) -> Func raise @base.Fault
+
+pub fn parse_input(String) -> Array[@bigint.BigInt] raise @base.Fault
+
+pub fn print_code(Func) -> String
+
+pub fn validate(Func) -> Unit raise @base.Fault
+
+// Errors
+
+// Types and methods
+pub(all) enum Func {
+  Zero
+  Succ
+  Proj(Int32, Int32)
+  Comp(Func, Array[Func])
+  Prim(Func, Func)
+  Mu(Func)
+}
+
+// Type aliases
+
+// Traits

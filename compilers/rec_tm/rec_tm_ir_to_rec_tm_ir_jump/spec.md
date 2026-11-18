@@ -72,5 +72,3 @@ main-end:
 
 こうして得られたブロック列は、 `call/return/break/continue` free な IR1 である。
 これを変換するのは簡単で、各ラベルを行数に直しておけばよい。
-
-<div data-model="rec_tm_ir-rec_tm_ir_jump"></div>

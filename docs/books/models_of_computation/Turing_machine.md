@@ -11,23 +11,27 @@ Turing machine は次のもので構成される。
 ## 具体例
 テープにある `a` を全部 `b` に書き換える例。
 テープの最後には `c` をつけること。
-<div data-model="turing_machine">
-<template data-default-code>
+code:
+
+```text
 start
 goal
 a,start,b,start,\R
 b,start,b,start,\R
 c,start,c,goal,\C
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 -|a|b,a,b,b,c
-</template>
-</div>
+```
 
 テープにある `a` と `b` の"仕分け"を行う例。
 
-<div data-model="turing_machine">
-<template data-default-code>
+code:
+
+```text
 s
 g
 a,s,a,s,\R
@@ -40,11 +44,13 @@ b,b,a,r,\L
 b,r,b,r,\L
 a,r,a,r,\L
 x,r,x,s,\R
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 x|b|a,a,b
-</template>
-</div>
+```
 
 ## 具体例
 二進数で書かれた自然数に1を足すマシンを作ってみる。

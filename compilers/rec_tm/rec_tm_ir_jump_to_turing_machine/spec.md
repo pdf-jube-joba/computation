@@ -24,5 +24,3 @@
 4. `jump ...`   :
   - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([0, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 = s\) の場合に追加
   - \(([3, (v \mapsto s_1, w \mapsto s_2)], s) \mapsto ([4, (v \mapsto s_1, w \mapsto s_2)], s), C\) ... これを \(s_2 \neq s\) の場合に追加
-
-<div data-model="rec_tm_ir_jump-turing_machine"></div>

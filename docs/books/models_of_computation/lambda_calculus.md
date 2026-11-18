@@ -16,11 +16,11 @@
 ## 具体例
 わかりやすい例が全然ないので、とりあえずいろいろ動く例を載せた。
 
-<div data-model="lambda_calculus">
-<template data-default-code>
+code:
+
+```text
 (\fun x. x) y
-</template>
-</div>
+```
 
 次はちょっと長い。
 自然数を次のようにラムダ項に解釈する。
@@ -31,10 +31,10 @@
 こう考えると、 \(s(n) = n \mapsto n + 1\) を表す関数は、 `\fun x.\fun y.\fun z. (y ((x y) z))` とすればいい。
 \(s(2)\) はそうすると次のようになる。
 
-<div data-model="lambda_calculus">
-<template data-default-code>
+code:
+
+```text
 (\fun x y z. (y ((x y) z))) (\fun s z. (s (s z)))
-</template>
-</div>
+```
 
 ともかく step を押すと、ちゃんと \(3\) に対応する表現が得られている。

@@ -25,14 +25,17 @@
 「全部の自然数 \(n\) で、\(F(\text{自然数} n \text{に対応するラムダ項})\) に対してたくさん step を押すと \(f(n)\) に一致している」ようなものを探すことである。
 
 以下で変換器が書いてある。
-<div data-model="recursive_function-lambda_calculus">
-<template data-default-code>
+code:
+
+```text
 \let zf = \PROJ[1,0].
 \let sf = \COMP[\SUCC: \PROJ[3,0]].
 \let add = \PRIM[\z: zf \s: sf].
 add
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 (2, 3)
-</template>
-</div>
+```

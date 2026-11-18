@@ -61,11 +61,14 @@
 あとは再帰関数との対応をしっかり与えればよいが、ここまでやれば自明なのでいいか。
 こうして再帰関数がラムダ計算で計算可能であることが分かった。
 
-<div data-model="recursive_function-lambda_calculus">
-<template data-default-code>
+code:
+
+```text
 \PRIM[\z: \PROJ[1, 0] \s: \COMP[\SUCC: \PROJ[3, 0]]]
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 (2, 3)
-</template>
-</div>
+```

@@ -1,6 +1,0 @@
-(library
- (name utils_data)
- (public_name computation.utils_data)
- (libraries yojson utils_base utils_names utils_parsing)
- (preprocess
-  (pps ppx_deriving_yojson)))

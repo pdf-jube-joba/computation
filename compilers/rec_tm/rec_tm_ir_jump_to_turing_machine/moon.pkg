@@ -1,0 +1,10 @@
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/data",
+  "computation/models/utils/names",
+  "computation/models/utils/runtime",
+  "computation/models/models/rec_tm/shared" @syntax,
+  "computation/models/models/rec_tm/rec_tm_ir_jump" @source,
+  "computation/models/models/turing_machine/shared" @target,
+  "computation/models/compilers/rec_tm/shared" @encoding,
+}

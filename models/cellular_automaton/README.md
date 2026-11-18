@@ -32,19 +32,22 @@ snapshot の保存・復元に対応し、復元時にはルール番号、盤�
 表示領域の外側の一様な値は `background` に保持し、同じルールで更新する。
 これにより、Rule 1 のように無限遠が世代ごとに反転する場合も扱える。
 
-<div data-model="cellular_automaton">
-<template data-default-code>
+code:
+
+```text
 30
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 1
-</template>
-</div>
+```
 
 `1 → 111 → 11001 → 1101111` と進む。Code を `110` などに変えると別のルールを試せる。
 
-```sh
-opam exec -- dune exec repl-machine -- model cellular_automaton --code 30 --ainput 1
+```text
+30
 ```
 
 ## ライフゲーム
@@ -58,20 +61,17 @@ Conway のライフゲーム（B3/S23）。周囲8セルのうち、生きたセ
 
 グライダーは4世代で右下へ一セル移動する。
 
-<div data-model="game_of_life">
-<template data-default-code></template>
-<template data-default-ainput>
+ainput:
+
+```text
 .#.
 ..#
 ###
-</template>
-</div>
+```
 
 横一列の3セル（ブリンカー）は縦一列と横一列を交互に繰り返す。
 最初の入力が一行でも、上下の領域へ広がる。
 
-```sh
-opam exec -- dune exec repl-machine -- model game_of_life --code '' --ainput '###'
-```
 
-どちらも空行を入力すると一世代進み、`:snapshot` で保存状態、`:quit` で終了する。
+
+どちらも一回の step で一世代進む。

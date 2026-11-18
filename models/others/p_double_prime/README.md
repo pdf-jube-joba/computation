@@ -49,20 +49,23 @@ RInput・ROutput は空文字列。FOutput は終了時のテープで、ヘッ�
 `λR` は元のセルへ戻ってくるので、そのセルだけを巡回加算する。
 次は 3 値のアルファベットで、1 を 2、0 と増やして停止する例：
 
-<div data-model="p_double_prime">
-<template data-default-code>
+code:
+
+```text
 (λR)
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 3
 |1|
-</template>
-</div>
+```
 
 結果は `0|0|`。左へ移動したときに通った空白も表示される。
 
-```sh
-opam exec -- dune exec repl-machine -- model p_double_prime --code 'λR' --ainput ''
+```text
+λR
 ```
 
-この CLI の例は空白を 1 にして元の位置へ戻り、`0|1|` を返す。
+この例は空白を 1 にして元の位置へ戻り、`0|1|` を返す。

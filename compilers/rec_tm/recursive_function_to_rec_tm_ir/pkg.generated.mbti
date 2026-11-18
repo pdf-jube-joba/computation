@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/compilers/rec_tm/recursive_function_to_rec_tm_ir"
+
+import {
+  "computation/models/models/rec_tm/rec_tm_ir",
+  "computation/models/models/recursive_function",
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn compile(@recursive_function.Func) -> @rec_tm_ir.Code raise @base.Fault
+
+pub fn compiler() -> @runtime.Compiler
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

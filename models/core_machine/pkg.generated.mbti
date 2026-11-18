@@ -1,0 +1,101 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/core_machine"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+  "moonbitlang/core/bigint",
+}
+
+// Values
+pub fn model() -> @runtime.Model
+
+pub fn output(Array[(@bigint.BigInt, RuntimeValue)]) -> String
+
+pub fn parse_input(String) -> Array[(@bigint.BigInt, RuntimeValue)] raise @base.Fault
+
+pub fn print_code(Code) -> String
+
+// Errors
+
+// Types and methods
+pub(all) enum Binop {
+  Add
+  Sub
+}
+
+pub(all) struct Block {
+  label : String
+  stmts : Array[Stmt]
+  ifs : Array[JumpIf]
+  ending : Ending
+}
+
+pub(all) struct Code {
+  memories : Int32
+  blocks : Array[Block]
+}
+
+pub(all) enum Ending {
+  Goto(ValueExpr)
+  Halt
+}
+
+pub(all) struct JumpIf {
+  cond : (ValueExpr, Rel, ValueExpr)
+  target : ValueExpr
+}
+
+pub(all) enum Place {
+  Deref(ValueExpr)
+}
+
+#derive(Eq)
+pub(all) enum Rel {
+  Eq
+  Lt
+  Gt
+}
+
+pub(all) enum Rhs {
+  Value(ValueExpr)
+  Binop(ValueExpr, Binop, ValueExpr)
+  Load(Place)
+  Slice(ValueExpr, ValueExpr, ValueExpr)
+  Addr(ValueExpr, ValueExpr)
+  Len(ValueExpr)
+}
+
+pub(all) enum RuntimeValue {
+  Num(@bigint.BigInt)
+  CodeLabel(String)
+  SliceValue(SliceValue)
+  Address(SliceValue, @bigint.BigInt)
+}
+
+#derive(Eq)
+pub(all) enum SliceValue {
+  Whole(Int32)
+  Subslice(SliceValue, @bigint.BigInt, @bigint.BigInt)
+}
+
+pub(all) enum Stmt {
+  Assign(String, Rhs)
+  Store(Place, ValueExpr)
+  Print(ValueExpr)
+  Input(Place)
+}
+
+pub(all) enum ValueExpr {
+  Reg(String)
+  Imm(@bigint.BigInt)
+  Label(String)
+  Memory(Int32)
+}
+
+// Type aliases
+pub type Cond = (ValueExpr, Rel, ValueExpr)
+
+pub type Memory = Array[(@bigint.BigInt, RuntimeValue)]
+
+// Traits

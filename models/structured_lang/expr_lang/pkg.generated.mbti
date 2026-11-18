@@ -1,0 +1,41 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/structured_lang/expr_lang"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+  "moonbitlang/core/bigint",
+}
+
+// Values
+pub fn model() -> @runtime.Model
+
+pub fn parse_code(String) -> Stmt raise @base.Fault
+
+// Errors
+
+// Types and methods
+pub(all) enum Aexp {
+  Var(String)
+  Num(@bigint.BigInt)
+  Bin(Aexp, Bool, Aexp)
+  Conditional(Bexp, Aexp, Aexp)
+}
+
+pub(all) enum Bexp {
+  Rel(Aexp, String, Aexp)
+  Or(Bexp, Bexp)
+  Not(Bexp)
+}
+
+pub(all) enum Stmt {
+  Nop
+  Assign(String, Aexp)
+  Seq(Stmt, Stmt)
+  If(Bexp, Stmt)
+  While(Bexp, Stmt)
+}
+
+// Type aliases
+
+// Traits

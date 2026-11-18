@@ -1,0 +1,51 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/rec_tm/rec_tm_ir_jump"
+
+import {
+  "computation/models/models/rec_tm/shared",
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn code_json(Code) -> @json.Json
+
+pub fn collect_vars(Array[Stmt]) -> Array[String]
+
+pub fn decode_code(@json.Json) -> Code raise @base.Fault
+
+pub fn model() -> @runtime.Model
+
+pub fn parse_code(String) -> Code raise @base.Fault
+
+pub fn print_code(Code) -> String
+
+pub fn sd(@json.Json) -> Stmt raise @base.Fault
+
+pub fn sj(Stmt) -> @json.Json
+
+pub fn stmt_text(Stmt) -> String
+
+pub fn validate(Code) -> Unit raise @base.Fault
+
+// Errors
+
+// Types and methods
+#derive(Eq)
+pub(all) struct Code {
+  alphabet : Array[String]
+  body : Array[Stmt]
+}
+
+#derive(Eq)
+pub(all) enum Stmt {
+  Lt
+  Rt
+  Assign(@shared.Lvalue, @shared.Rvalue)
+  Jump(Int32, @shared.Condition?)
+}
+
+// Type aliases
+
+// Traits

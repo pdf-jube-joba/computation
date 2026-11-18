@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/others/p_double_prime"
+
+import {
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn model() -> @runtime.Model
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

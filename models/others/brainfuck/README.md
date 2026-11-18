@@ -30,20 +30,23 @@ RInput は空文字列。`.` の step の ROutput に出力したバイト値を
 
 入力が尽きるまで読み書きする例：
 
-<div data-model="brainfuck">
-<template data-default-code>
+code:
+
+```text
 ,[.,]
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 [72, 105]
-</template>
-</div>
+```
 
 結果は `[72, 105]`。入力に含まれる 0 でもループは終了する。
 
-```sh
-opam exec -- dune exec repl-machine -- model brainfuck --code ',[.,]' --ainput '[72, 105]'
+```text
+,[.,]
 ```
 
-空行を入力するたびに一命令進む。描画では命令位置、テープ、残りの入力、蓄積した出力を確認できる。
+一回の step で一命令進む。描画では命令位置、テープ、残りの入力、蓄積した出力を確認できる。
 最後の `.` も実行時出力を返し、その次の step で停止する。

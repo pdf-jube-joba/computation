@@ -12,7 +12,7 @@ Simon Peyton Jones の
 自由変数はクロージャに明示的に格納し、更新可能な thunk は評価結果を共有する。
 
 これは状態遷移を観察するためのインタプリタで、ネイティブコード生成・GC は実装していない。
-論文の tagless なコードポインタへの分岐は OCaml の variant による enter の分岐で表す。
+論文の tagless なコードポインタへの分岐は 代数直和 による enter の分岐で表す。
 データ構築子の名前は `case` のパターン照合に使う。
 返却スタックと更新スタックは、順序を保持した一つの継続スタックで表現する。
 
@@ -115,17 +115,14 @@ snapshot は循環参照を整数アドレスとして保存する。復元時�
 black hole と更新フレームの対応を検証する。遷移は不変データを使い、保存済み状態を変更しない。
 表示には制御・環境・引数・継続・ヒープを含む。
 
-## 入出力と CLI
+## 入出力
 
 `AInput` / `RInput` / `ROutput` は空文字列。
 `FOutput` は自然数、`\con Cons(1, @2)`、`\function @2` のいずれか。
 `@2` は停止直前の snapshot のヒープアドレスで、フィールドの深い評価は行わない。
 
-```sh
-opam exec -- dune exec repl-machine -- model stg \
-  --code 'main = \fun [] \u [] -> \add(20, 22)' --ainput ''
+```text
+main = \fun [] \u [] -> \add(20, 22)
 ```
 
-空行を入力するごとに一段階進む。`:snapshot` で状態を取得できる。
-
-<div data-model="stg"></div>
+一回の step で一段階進み、`snapshot()` で状態を取得できる。

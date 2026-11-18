@@ -79,8 +79,9 @@ snapshot はネットと簡約回数を保存し、復元時にも配線の整�
 
 ### γ–γ の消去
 
-<div data-model="interaction_combinators">
-<template data-default-code>
+code:
+
+```text
 \gamma a;
 \gamma b;
 a.0 ~ b.0;
@@ -88,8 +89,7 @@ a.1 ~ @x;
 a.2 ~ @y;
 b.1 ~ @u;
 b.2 ~ @v;
-</template>
-</div>
+```
 
 一度簡約すると、`@x ~ @v;` と `@y ~ @u;` の配線が残る。
 
@@ -99,8 +99,9 @@ b.2 ~ @v;
 最初の γ–δ で複製を始め、その後の2回の δ–ε で葉を複製する。
 3回の簡約で、`@left` と `@right` に同じ形の木が1本ずつできる。
 
-<div data-model="interaction_combinators">
-<template data-default-code>
+code:
+
+```text
 \delta dup;
 \gamma pair;
 \epsilon l;
@@ -110,17 +111,15 @@ dup.1 ~ @left;
 dup.2 ~ @right;
 pair.1 ~ l.0;
 pair.2 ~ r.0;
-</template>
-</div>
-
-CLI から消去を試す例：
-
-```sh
-opam exec -- dune exec repl-machine -- model interaction_combinators \
-  --code '\epsilon a; \epsilon b; a.0 ~ b.0;' --ainput ''
 ```
 
-空行で一段階進む。`:snapshot` で状態を確認でき、`:quit` で終了する。
+消去の例：
+
+```text
+\epsilon a; \epsilon b; a.0 ~ b.0;
+```
+
+状態は `snapshot()` で取得できる。
 
 ## 検証
 

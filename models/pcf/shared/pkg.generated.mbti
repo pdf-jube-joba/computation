@@ -1,0 +1,140 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/pcf/shared"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/parsing",
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn apply(Value, Value) -> (Expr, Array[(String, Value)]) raise @base.Fault
+
+pub fn apply_inputs(Expr, Array[@bigint.BigInt]) -> Expr
+
+pub fn as_nat(Value) -> @bigint.BigInt raise @base.Fault
+
+pub fn bind(Array[(String, Value)], String, Value) -> Array[(String, Value)]
+
+pub fn binop(Binop, Expr, Expr) -> Expr raise @base.Fault
+
+pub fn binop_json(Binop) -> @json.Json
+
+pub fn binop_text(Binop) -> String
+
+pub fn boolean(String, Value) -> Bool raise @base.Fault
+
+pub fn decode_binop(@json.Json) -> Binop raise @base.Fault
+
+pub fn decode_env(@json.Json) -> Array[(String, Value)] raise @base.Fault
+
+pub fn decode_expr(@json.Json) -> Expr raise @base.Fault
+
+pub fn decode_stmt(@json.Json) -> Stmt raise @base.Fault
+
+pub fn decode_unop(@json.Json) -> Unop raise @base.Fault
+
+pub fn decode_value(@json.Json) -> Value raise @base.Fault
+
+pub fn env_json(Array[(String, Value)]) -> @json.Json
+
+pub fn expr_json(Expr) -> @json.Json
+
+pub fn inputs(String) -> Array[@bigint.BigInt] raise @base.Fault
+
+pub fn is_value(Expr) -> Bool
+
+pub fn lookup(Array[(String, Value)], String) -> Value raise @base.Fault
+
+pub fn normalize(Expr) -> Expr
+
+pub fn parse(String, statements? : Bool) -> Expr raise @base.Fault
+
+pub fn print(Expr) -> String
+
+pub fn print_stmt(Stmt) -> String
+
+pub fn read(@parsing.Parser, statements? : Bool) -> Expr raise @base.Fault
+
+pub fn render_env(Array[(String, Value)]) -> @json.Json
+
+pub fn scalar_value(Expr) -> Value raise @base.Fault
+
+pub fn stmt_json(Stmt) -> @json.Json
+
+pub fn substitute(Expr, String, Expr) -> Expr
+
+pub fn unop(Unop, Expr) -> Expr raise @base.Fault
+
+pub fn unop_json(Unop) -> @json.Json
+
+pub fn unop_text(Unop) -> String
+
+pub fn validate_direct(Expr) -> Unit raise @base.Fault
+
+pub fn value_binop(Binop, Value, Value) -> Value raise @base.Fault
+
+pub fn value_expr(Value) -> Expr
+
+pub fn value_json(Value) -> @json.Json
+
+pub fn value_text(Value) -> String
+
+pub fn value_unop(Unop, Value) -> Value raise @base.Fault
+
+// Errors
+
+// Types and methods
+#derive(Eq)
+pub(all) enum Binop {
+  Add
+  Sub
+  And
+}
+
+#derive(Eq)
+pub(all) enum Expr {
+  Nat(@bigint.BigInt)
+  Bool(Bool)
+  Unit
+  Print(@bigint.BigInt)
+  Var(String)
+  BinOp(Expr, Binop, Expr)
+  UnOp(Unop, Expr)
+  Fun(String, Expr)
+  Rec(String, String, Expr)
+  App(Expr, Expr)
+  If(Expr, Expr, Expr)
+  Block(Stmt, Expr)
+}
+
+#derive(Eq)
+pub(all) enum Stmt {
+  Skip
+  PrintStmt(@bigint.BigInt)
+  Seq(Stmt, Stmt)
+  Let(String, Expr)
+  IfStmt(Expr, Stmt)
+  While(Expr, Stmt)
+}
+
+#derive(Eq)
+pub(all) enum Unop {
+  Inc
+  Dec
+  Not
+}
+
+pub(all) enum Value {
+  VNat(@bigint.BigInt)
+  VBool(Bool)
+  VUnit
+  VFun(String, Expr, Array[(String, Value)])
+  VRec(String, String, Expr, Array[(String, Value)])
+}
+
+// Type aliases
+pub type Env = Array[(String, Value)]
+
+// Traits

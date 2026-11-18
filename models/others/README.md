@@ -10,7 +10,6 @@
 RInput は空文字列。Brainfuck と P′′ は一命令、SKI は一つの簡約を一段階とし、
 計算を終えた状態の次の step で最終結果を返す。
 
-`loop_code.ml` はループの括弧対応を、`cells.ml` はセルの値とテープ・バイト列の codec を共有する。
-テープ操作と描画は `Utils_data.Tape` と `Utils_runtime.Render` を使う。
+ループの括弧対応とテープ操作は `utils/data/` にある。
 
 [state_jump](state_jump/spec.md) は未実装の設計メモ。

@@ -1,0 +1,170 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/flow_ir"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/parsing",
+  "computation/models/utils/runtime",
+  "moonbitlang/core/bigint",
+}
+
+// Values
+pub fn build_resolution(Code) -> Resolution
+
+pub fn cond_text(Cond) -> String
+
+pub fn flow_text(Value[String, String]) -> String
+
+pub fn[T] id_of_name(Array[(String, T)], String) -> T raise @base.Fault
+
+pub fn ifs(Cont) -> Array[JumpIf]
+
+pub fn local_target(Resolution, Int32, String) -> Target raise @base.Fault
+
+pub fn model() -> @runtime.Model
+
+pub fn[T : Eq] name_of_id(Array[(String, T)], T) -> String raise @base.Fault
+
+pub fn parse(String) -> Code raise @base.Fault
+
+pub fn parse_input(String) -> Array[(String, Value[String, String])] raise @base.Fault
+
+pub fn place_text(PlaceExpr) -> String
+
+pub fn print_code(Code) -> String
+
+pub fn read_place(@parsing.Parser) -> PlaceExpr raise @base.Fault
+
+pub fn read_value(@parsing.Parser) -> ValueExpr raise @base.Fault
+
+pub fn region_target(Resolution, String) -> Target raise @base.Fault
+
+pub fn resolve_target(Resolution, Int32, String) -> Target raise @base.Fault
+
+pub fn stmt_text(Stmt) -> String
+
+pub fn target_name(Resolution, Target) -> String raise @base.Fault
+
+pub fn validate(Code) -> Unit raise @base.Fault
+
+pub fn value_text(ValueExpr) -> String
+
+// Errors
+
+// Types and methods
+#derive(Eq)
+pub(all) enum Binop {
+  Add
+  Sub
+}
+
+#derive(Eq)
+pub(all) struct Block {
+  label : String
+  stmts : Array[Stmt]
+  cont : Cont
+}
+
+#derive(Eq)
+pub(all) struct Code {
+  statics : Array[StaticDef]
+  regions : Array[Region]
+}
+
+#derive(Eq)
+pub(all) enum Cond {
+  Lt(ValueExpr, ValueExpr)
+  Eq(ValueExpr, ValueExpr)
+  Gt(ValueExpr, ValueExpr)
+}
+
+#derive(Eq)
+pub(all) enum Cont {
+  Go(Array[JumpIf], ValueExpr)
+  Enter(Array[JumpIf], ValueExpr)
+  Halt(Array[JumpIf])
+}
+
+#derive(Eq)
+pub(all) struct JumpIf {
+  cond : Cond
+  target : ValueExpr
+}
+
+#derive(Eq)
+pub(all) enum Location[D] {
+  Static(D)
+  Stack(Int32)
+  Heap(Int32, Int32)
+}
+
+#derive(Eq)
+pub(all) enum PlaceExpr {
+  Label(String)
+  Deref(String)
+  SAcc(ValueExpr)
+  HAcc(ValueExpr, ValueExpr)
+}
+
+#derive(Eq)
+pub(all) struct Region {
+  label : String
+  blocks : Array[Block]
+}
+
+#derive(Eq)
+pub(all) struct Resolution {
+  registers : Array[(String, Int32)]
+  data : Array[(String, Int32)]
+  regions : Array[(String, Int32)]
+  blocks : Array[Array[(String, Int32)]]
+  label_names : Array[(Target, String)]
+}
+
+#derive(Eq)
+pub(all) struct StaticDef {
+  label : String
+  value : @bigint.BigInt
+}
+
+#derive(Eq)
+pub(all) enum Stmt {
+  Nop
+  Load(String, PlaceExpr)
+  Assign(String, ValueExpr)
+  BinOp(String, ValueExpr, Binop, ValueExpr)
+  Store(PlaceExpr, ValueExpr)
+  Pop(String)
+  Push(ValueExpr)
+  LGet(String)
+  HAlloc(ValueExpr, String)
+  HFree(ValueExpr)
+  Print(String)
+  Input(PlaceExpr)
+}
+
+#derive(Eq)
+pub(all) enum Target {
+  RegionTarget(Int32)
+  BlockTarget(Int32)
+}
+
+#derive(Eq)
+pub(all) enum Value[L, D] {
+  Num(@bigint.BigInt)
+  Code_label(L)
+  Key(Location[D])
+}
+
+#derive(Eq)
+pub(all) enum ValueExpr {
+  VReg(String)
+  Imm(@bigint.BigInt)
+  CodeLabel(String)
+  Ref(PlaceExpr)
+}
+
+// Type aliases
+pub type FlowValue = Value[String, String]
+
+// Traits

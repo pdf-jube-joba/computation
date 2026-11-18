@@ -1,6 +1,0 @@
-(executable
- (name browser)
- (modes wasm)
- (libraries js_of_ocaml model_registry utils_base utils_data utils_runtime)
- (preprocess
-  (pps js_of_ocaml-ppx)))

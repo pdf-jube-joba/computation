@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/compilers/rec_tm/rec_tm_ir_jump_to_turing_machine"
+
+import {
+  "computation/models/models/rec_tm/rec_tm_ir_jump",
+  "computation/models/models/turing_machine/shared",
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn compile(@rec_tm_ir_jump.Code) -> @shared.Definition raise @base.Fault
+
+pub fn compiler() -> @runtime.Compiler
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

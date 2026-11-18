@@ -1,0 +1,106 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/rec_tm/shared"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/data",
+  "computation/models/utils/parsing",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn alphabet(@parsing.Parser) -> Array[String] raise @base.Fault
+
+pub fn assign(Environment, @data.Tape[String], Lvalue, String) -> (Environment, @data.Tape[String]) raise @base.Fault
+
+pub fn cd(@json.Json) -> Condition? raise @base.Fault
+
+pub fn cj(Condition?) -> @json.Json
+
+pub fn condition(@parsing.Parser) -> Condition? raise @base.Fault
+
+pub fn ctext(Condition?) -> String
+
+pub fn cvars(Condition?) -> Array[String]
+
+pub fn decode_sign(@json.Json) -> String raise @base.Fault
+
+pub fn ed(@json.Json, Array[String]) -> Environment raise @base.Fault
+
+pub fn ej(Environment) -> @json.Json
+
+pub fn env_create(Array[String]) -> Environment
+
+pub fn env_named(Environment) -> Array[(String, String)]
+
+pub fn eval(Environment, @data.Tape[String], Rvalue) -> String raise @base.Fault
+
+pub fn eval_condition(Environment, @data.Tape[String], Condition?) -> Bool raise @base.Fault
+
+pub fn ld(@json.Json) -> Lvalue raise @base.Fault
+
+pub fn lj(Lvalue) -> @json.Json
+
+pub fn ltext(Lvalue) -> String
+
+pub fn lvalue(@parsing.Parser) -> Lvalue raise @base.Fault
+
+pub fn lvars(Lvalue) -> Array[String]
+
+pub fn normalized_alphabet(Array[String]) -> Array[String] raise @base.Fault
+
+pub fn rd(@json.Json) -> Rvalue raise @base.Fault
+
+pub fn read_sign(@parsing.Parser) -> String raise @base.Fault
+
+pub fn rj(Rvalue) -> @json.Json
+
+pub fn rtext(Rvalue) -> String
+
+pub fn rvalue(@parsing.Parser) -> Rvalue raise @base.Fault
+
+pub fn rvars(Rvalue) -> Array[String]
+
+pub fn sign(String) -> String raise @base.Fault
+
+pub fn sign_json(String) -> @json.Json
+
+pub fn validate_condition(Array[String], Condition?) -> Unit raise @base.Fault
+
+pub fn validate_tape(Array[String], @data.Tape[String]) -> Unit raise @base.Fault
+
+pub fn validate_value(Array[String], Rvalue) -> Unit raise @base.Fault
+
+pub fn variable(Environment, String) -> Int32 raise @base.Fault
+
+// Errors
+
+// Types and methods
+#derive(Eq)
+pub(all) struct Condition {
+  left : Rvalue
+  right : Rvalue
+}
+
+#derive(Eq)
+pub(all) struct Environment {
+  names : Array[(String, Int32)]
+  values : Array[(Int32, String)]
+}
+
+#derive(Eq)
+pub(all) enum Lvalue {
+  PutVar(String)
+  PutHead
+}
+
+#derive(Eq)
+pub(all) enum Rvalue {
+  Var(String)
+  Head
+  Const(String)
+}
+
+// Type aliases
+
+// Traits

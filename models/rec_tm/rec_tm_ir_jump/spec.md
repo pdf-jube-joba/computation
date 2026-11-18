@@ -22,5 +22,3 @@
 \]
 
 これの意味は明らかなので書かない。
-
-<div data-model="rec_tm_ir_jump"></div>

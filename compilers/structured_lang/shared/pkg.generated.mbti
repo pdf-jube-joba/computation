@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/compilers/structured_lang/shared"
+
+import {
+  "computation/models/models/flow_ir",
+  "computation/models/utils/base",
+  "computation/models/utils/names",
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn block(String, Array[@flow_ir.Stmt], @flow_ir.Cont) -> @flow_ir.Block
+
+pub fn branch_region(Builder, String, Array[@flow_ir.Stmt], @flow_ir.Cond, String, String) -> Unit
+
+pub fn compiler((String) -> @flow_ir.Code raise @base.Fault, rinput_identity? : Bool, routput_identity? : Bool) -> @runtime.Compiler
+
+pub fn create() -> Builder
+
+pub fn emit_aexp(Builder, String, @computation/models/models/structured_lang/shared.Aexp) -> Array[@flow_ir.Stmt]
+
+pub fn emit_atom(Builder, String, @computation/models/models/structured_lang/shared.Atom) -> Array[@flow_ir.Stmt]
+
+pub fn enter(String) -> @flow_ir.Cont
+
+pub fn go(String) -> @flow_ir.Cont
+
+pub fn op(Bool) -> @flow_ir.Binop
+
+pub fn relation(@computation/models/models/structured_lang/shared.Rel, @flow_ir.ValueExpr, @flow_ir.ValueExpr) -> @flow_ir.Cond
+
+// Errors
+
+// Types and methods
+pub struct Builder {
+  regions : Array[@flow_ir.Region]
+  region_names : @names.Supply
+  block_names : @names.Supply
+  registers : @names.Supply
+  variables : Map[String, Bool]
+}
+pub fn Builder::finish(Self, prefix? : Array[@flow_ir.Region], statics? : Array[String]?) -> @flow_ir.Code
+pub fn Builder::fresh_block(Self, String) -> String
+pub fn Builder::fresh_region(Self, String) -> String
+pub fn Builder::fresh_vreg(Self, String) -> String
+pub fn Builder::region(Self, String, Array[@flow_ir.Block]) -> Unit
+pub fn Builder::single(Self, String, Array[@flow_ir.Stmt], @flow_ir.Cont) -> Unit
+pub fn Builder::variable(Self, String) -> Unit
+
+// Type aliases
+
+// Traits

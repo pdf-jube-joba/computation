@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/lambda_calculus"
+
+import {
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+  "moonbitlang/core/ref",
+}
+
+// Values
+pub fn fresh(@ref.Ref[Int32], String) -> Variable
+
+pub fn freshen(Term, @ref.Ref[Int32]) -> Term
+
+pub fn freshen_bound(Term, @ref.Ref[Int32]) -> Term
+
+pub fn max_id(Term) -> Int32
+
+pub fn model() -> @runtime.Model
+
+pub fn parse_code(String) -> Term raise @base.Fault
+
+pub fn parse_input(String) -> Array[Term] raise @base.Fault
+
+pub fn print_code(Term) -> String
+
+// Errors
+
+// Types and methods
+pub(all) enum Term {
+  Var(Variable)
+  Abs(Variable, Term)
+  App(Term, Term)
+}
+
+pub(all) struct Variable {
+  id : Int32
+  name : String
+}
+
+// Type aliases
+
+// Traits

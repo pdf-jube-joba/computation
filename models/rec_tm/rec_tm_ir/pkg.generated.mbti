@@ -1,0 +1,75 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/rec_tm/rec_tm_ir"
+
+import {
+  "computation/models/models/rec_tm/shared",
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn blocks_json(Array[Block]) -> @json.Json
+
+pub fn code_json(Code) -> @json.Json
+
+pub fn collect_vars(Array[Block]) -> Array[String]
+
+pub fn decode_blocks(@json.Json) -> Array[Block] raise @base.Fault
+
+pub fn decode_code(@json.Json) -> Code raise @base.Fault
+
+pub fn find_function(Code, String) -> FunctionDef raise @base.Fault
+
+pub fn model() -> @runtime.Model
+
+pub fn parse_code(String) -> Code raise @base.Fault
+
+pub fn print_code(Code) -> String raise @base.Fault
+
+pub fn sd(@json.Json) -> Stmt raise @base.Fault
+
+pub fn sj(Stmt) -> @json.Json
+
+pub fn stmt_text(Stmt) -> String
+
+pub fn stmt_vars(Stmt) -> Array[String]
+
+pub fn validate(Code) -> Unit raise @base.Fault
+
+// Errors
+
+// Types and methods
+#derive(Eq)
+pub(all) struct Block {
+  label : String
+  body : Array[Stmt]
+}
+
+#derive(Eq)
+pub(all) struct Code {
+  alphabet : Array[String]
+  functions : Array[FunctionDef]
+}
+
+#derive(Eq)
+pub(all) struct FunctionDef {
+  name : String
+  blocks : Array[Block]
+}
+
+#derive(Eq)
+pub(all) enum Stmt {
+  Lt
+  Rt
+  Assign(@shared.Lvalue, @shared.Rvalue)
+  Break(@shared.Condition?)
+  Continue(@shared.Condition?)
+  Jump(String, @shared.Condition?)
+  Return(@shared.Condition?)
+  Call(String)
+}
+
+// Type aliases
+
+// Traits

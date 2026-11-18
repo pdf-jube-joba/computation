@@ -42,8 +42,9 @@
 明示的な末尾空白の個数は元モデルのテキスト出力と異なることがある。
 比較には無限の空白を同一視する `Tape.equal` を使える。
 
-<div data-model="multi_tape_turing_machine-one_tape_turing_machine">
-<template data-default-code>
+code:
+
+```text
 tapes: 2
 alphabet: -,a,b
 copy
@@ -51,9 +52,11 @@ done
 a -,copy,a a,copy,\R \R
 b -,copy,b b,copy,\R \R
 - -,copy,- -,done,\C \C
-</template>
-<template data-default-ainput>
+```
+
+ainput:
+
+```text
 |a|b,a
 |-|
-</template>
-</div>
+```

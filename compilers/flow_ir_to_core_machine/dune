@@ -1,4 +1,0 @@
-(library
- (name flow_ir_to_core_machine)
- (public_name computation.flow_ir_to_core_machine)
- (libraries flow_ir core_machine utils_base utils_names utils_runtime))

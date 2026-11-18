@@ -1,0 +1,32 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/utils/names"
+
+// Values
+pub fn[T] normalize(Syntax[T], T) -> T
+
+pub fn[T] substitute(Syntax[T], T, String, T) -> T
+
+pub fn supply(reserved? : Array[String]) -> Supply
+
+// Errors
+
+// Types and methods
+pub struct Supply {
+  used : Map[String, Bool]
+}
+pub fn Supply::fresh(Self, String) -> String
+pub fn Supply::reserve(Self, String) -> Unit
+
+pub(all) struct Syntax[T] {
+  view : (T) -> View[T]
+  variable : (String) -> T
+}
+
+pub(all) enum View[T] {
+  Variable(String)
+  Node(Array[String], Array[(Array[Int32], T)], (Array[String], Array[T]) -> T)
+}
+
+// Type aliases
+
+// Traits

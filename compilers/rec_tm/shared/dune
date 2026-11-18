@@ -1,4 +1,0 @@
-(library
- (name rec_tm_compiler_shared)
- (public_name computation.rec_tm_compiler_shared)
- (libraries utils_data utils_base utils_names))

@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/structured_lang/proc_lang"
+
+import {
+  "computation/models/models/structured_lang/shared",
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn model() -> @runtime.Model
+
+pub fn parse_code(String) -> Code raise @base.Fault
+
+pub fn with_return(Stmt) -> Stmt
+
+// Errors
+
+// Types and methods
+pub(all) struct Code {
+  statics : Array[String]
+  procs : Array[Procedure]
+}
+
+pub(all) struct Procedure {
+  name : String
+  params : Array[String]
+  locals : Array[String]
+  body : Stmt
+}
+
+pub(all) enum Stmt {
+  Nop
+  Seq(Stmt, Stmt)
+  Assign(String, @shared.Aexp)
+  If(@shared.Bexp, Stmt)
+  While(@shared.Bexp, Stmt)
+  Call(String, Array[String], Array[String])
+  Return(Array[String])
+}
+
+// Type aliases
+
+// Traits

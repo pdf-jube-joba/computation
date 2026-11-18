@@ -53,5 +53,3 @@
   - jump: 対応するブロックに飛ぶ
   - continue 及び break: 今あるブロックの先頭に飛ぶ、次のブロックの先頭に飛ぶ
   - call/return: 別の関数を呼び出す、今の関数を抜ける
-
-<div data-model="rec_tm_ir"></div>

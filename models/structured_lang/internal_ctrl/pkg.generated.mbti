@@ -1,0 +1,35 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/models/structured_lang/internal_ctrl"
+
+import {
+  "computation/models/models/structured_lang/shared",
+  "computation/models/utils/base",
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn model() -> @runtime.Model
+
+pub fn parse_code(String) -> Code raise @base.Fault
+
+// Errors
+
+// Types and methods
+pub(all) struct Code {
+  statics : Array[String]
+  body : Stmt
+}
+
+pub(all) enum Stmt {
+  Nop
+  Seq(Stmt, Stmt)
+  Assign(String, @shared.Aexp)
+  If(@shared.Bexp, Stmt)
+  Break(String, String)
+  Continue(String)
+  Loop(String, Stmt, String)
+}
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/compilers/structured_lang/internal_ctrl_to_flow_ir"
+
+import {
+  "computation/models/utils/runtime",
+}
+
+// Values
+pub fn compiler() -> @runtime.Compiler
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
