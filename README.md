@@ -29,6 +29,7 @@ cargo run --manifest-path _wfs/Cargo.toml -- .
 - [docs/](./docs/): 計算モデルについての文章。
 - [utils/](./utils/): モデルで共通に使うコード。`base/` は基本データ型・汎用操作、`names/` は識別子・ID・束縛、`parsing/` は字句・構文解析、`data/` はデータ構造・メモリ操作と入出力変換、`runtime/` はモデルの共通契約・実行・表示。
 - [web/](./web/): ブラウザ用コード。`ui/` は画面と描画、`runtime/` はランタイムの読み込みと API 変換、`browser.ml` は OCaml 側の入口。
+- [utils/wit/](./utils/wit/README.md): Git 履歴から復元し、公開仕様として採用する Component Model インターフェース。処理系は1インスタンスに1マシンを対応させます。
 
 ## コードを触るとき
 
