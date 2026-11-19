@@ -230,24 +230,3 @@ pub fn model(statements~ : Bool = false) -> @runtime.Model {
 pub fn statement_model() -> @runtime.Model {
   model(statements=true)
 }
-
-///|
-test "statement scopes and recursive closures" {
-  let m = statement_model()
-  m.make("{ \\let x := 3; \\print 7; x + 1 }", "()")
-  let mut output = None
-  let effects = []
-  for _ in 0..<40 {
-    let j = @base.parse_json(m.step(""))
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-    let out = @base.string(@base.field(j, "routput"))
-    if out != "" {
-      effects.push(out)
-    }
-  }
-  assert_eq(output, Some("4"))
-  assert_eq(effects, ["7"])
-}

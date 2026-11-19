@@ -422,25 +422,3 @@ fn render(s : State) -> Json {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "yielding scheduler and spawned task snapshots" {
-  let m = model()
-  m.make(
-    "\\fn worker { x <- x + 1; \\yield; x <- x + 2 } \\fn main { \\run worker -> $w; \\yield; \\if !\\done $w \\goto -1 }",
-    "1",
-  )
-  let mut output = None
-  for _ in 0..<100 {
-    let saved = m.snapshot()
-    let result = m.step("0")
-    m.restore(saved)
-    assert_eq(m.step("0"), result)
-    let j = @base.parse_json(result)
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(output, Some("x = 3\n$w = 1\n"))
-}

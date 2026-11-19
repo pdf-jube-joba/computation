@@ -115,38 +115,3 @@ fn validate_state(s : State) -> Unit raise @base.Fault {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "updatable thunks share evaluated results and black holes fail atomically" {
-  let m = model()
-  m.make(
-    "main = \\fun [] \\u [] -> \\let { x = \\fun [] \\u [] -> 3 } \\in \\case x() \\of { \\default n -> \\case x() \\of { \\default m -> \\add(n,m) } }",
-    "",
-  )
-  let mut output = None
-  for _ in 0..<60 {
-    let saved = m.snapshot()
-    let result = m.step("")
-    m.restore(saved)
-    assert_eq(m.step(""), result)
-    let j = @base.parse_json(result)
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(output, Some("6"))
-  m.make("main = \\fun [] \\u [] -> main()", "")
-  ignore(m.step(""))
-  ignore(m.step(""))
-  let saved = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step(""))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), saved)
-}

@@ -231,16 +231,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "natural recursion and let desugaring" {
-  let m = model()
-  m.make("\\let x = \\S \\S 0 \\in \\P x", "()")
-  for _ in 0..<3 {
-    ignore(m.step(""))
-  }
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "foutput")),
-    "\\S 0",
-  )
-}

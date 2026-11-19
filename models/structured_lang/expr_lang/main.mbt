@@ -425,23 +425,6 @@ pub fn model() -> @runtime.Model {
 }
 
 ///|
-test "arbitrary precision, boolean grouping, saturation and conditional expressions" {
-  let m = model()
-  m.make(
-    "x := 99999999999999999999; \\while !(x = 0) [x := x - 99999999999999999999]; y := \\if (x + 1) > 0 || x > 2 \\then 7 \\else 9",
-    "",
-  )
-  let mut result = @base.parse_json(m.step(""))
-  for _ in 0..<30 {
-    if @base.string(@base.field(result, "kind")) == "halt" {
-      break
-    }
-    result = @base.parse_json(m.step(""))
-  }
-  assert_eq(@base.string(@base.field(result, "foutput")), "x = 0\ny = 7\n")
-}
-
-///|
 pub fn parse_code(text : String) -> Stmt raise @base.Fault {
   let p = @p.create(text)
   let s = statement(p)

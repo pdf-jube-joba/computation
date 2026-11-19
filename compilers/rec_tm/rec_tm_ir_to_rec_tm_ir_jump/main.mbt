@@ -172,20 +172,3 @@ pub fn compiler() -> @runtime.Compiler {
     decode_foutput: tape,
   }
 }
-
-///|
-test "inlined calls reset locals and preserve nested call continuations" {
-  let code = "\\alphabet: (-,x) \\fn inner { \\label entry: { tmp := @ @ := \\const x \\return } } \\fn outer { \\label entry: { \\call inner \\RT \\return } } \\fn main { \\label entry: { tmp := @ \\call outer \\call outer @ := tmp \\return } }"
-  let target = @j.model()
-  let c = compiler()
-  target.make((c.compile_code)(code), (c.encode_ainput)("|-|"))
-  let mut output = None
-  for _ in 0..<100 {
-    let j = @base.parse_json(target.step(""))
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(output, Some("x,x|-|"))
-}

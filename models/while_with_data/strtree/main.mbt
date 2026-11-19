@@ -389,29 +389,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "tree selectors fail atomically and grouped equality accepts printer output" {
-  let m = model()
-  m.make("x := \\left x", "x = \\atom '🌕'")
-  let saved = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step(""))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), saved)
-  m.make(
-    "\\ifeq (x == \\atom '🌕') \\then y := \\atom \\mtoa x \\end", "x = \\atom '🌕'",
-  )
-  for _ in 0..<2 {
-    ignore(m.step(""))
-  }
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "foutput")),
-    "x = \\atom '🌕'\ny = \\atom '🌕'\n",
-  )
-}

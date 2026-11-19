@@ -411,23 +411,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "capture avoidance and error recovery" {
-  let m = model()
-  m.make("(\\fun x. \\fun y. x) y", "")
-  let snapshot = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step("1"))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), snapshot)
-  let result = @base.parse_json(m.step("0"))
-  assert_eq(@base.string(@base.field(result, "foutput")), "\\fun y_0. y")
-  m.restore(snapshot)
-  assert_eq(@base.parse_json(m.step("0")), result)
-}

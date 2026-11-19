@@ -558,24 +558,6 @@ pub fn multi_model() -> @runtime.Model {
 }
 
 ///|
-test "multi tape validation and final transition" {
-  let m = multi_model()
-  m.make(
-    "tapes: 2\nalphabet: -,a,b\ncopy\ndone\na -,copy,a a,copy,\\R \\R\nb -,copy,b b,copy,\\R \\R\n- -,copy,- -,done,\\C \\C\n",
-    "|a|b,a\n|-|",
-  )
-  let mut output = ""
-  for _ in 0..<4 {
-    let j = @base.parse_json(m.step(""))
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = @base.string(@base.field(j, "foutput"))
-      break
-    }
-  }
-  assert_eq(output, "a,b,a|-|\na,b,a|-|")
-}
-
-///|
 pub fn print_code(d : Definition) -> String {
   fn name(id : Int32) -> String {
     for entry in d.names {

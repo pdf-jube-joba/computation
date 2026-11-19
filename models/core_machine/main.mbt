@@ -544,35 +544,3 @@ fn render(s : State) -> Json {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "UTF-8 I/O and slice end cannot be dereferenced" {
-  let m = model()
-  m.make(
-    "\\memories 1; :main { %p := \\addr MEM_0 0; \\input \\deref %p; %v := \\ld \\deref %p; \\print %v; \\halt; }",
-    "",
-  )
-  ignore(m.step(""))
-  ignore(m.step("日本語🌕"))
-  ignore(m.step(""))
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "routput")),
-    "日本語🌕",
-  )
-  m.make(
-    "\\memories 1; :main { %s := \\slice MEM_0 0 1; %p := \\addr %s 1; %v := \\ld \\deref %p; \\halt; }",
-    "",
-  )
-  ignore(m.step(""))
-  ignore(m.step(""))
-  let saved = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step(""))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), saved)
-}

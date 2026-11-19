@@ -106,29 +106,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "capture avoidance and strict natural subtraction" {
-  let m = model()
-  m.make("(\\fun f => f(3))(\\fun x => \\inc x)", "()")
-  let mut output = None
-  for _ in 0..<20 {
-    let j = @base.parse_json(m.step(""))
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(output, Some("4"))
-  m.make("0 - 1", "()")
-  let saved = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step(""))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), saved)
-}

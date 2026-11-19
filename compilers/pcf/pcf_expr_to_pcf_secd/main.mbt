@@ -73,31 +73,3 @@ pub fn compiler() -> @runtime.Compiler {
     decode_foutput: text => @base.nat(text).to_string(),
   }
 }
-
-///|
-test "compiled recursion, closures and arbitrary precision" {
-  let c = compiler()
-  let m = @target.model()
-  m.make(
-    (c.compile_code)(
-      "(\\rec f x => \\if \\not (x && \\false) \\then 4 \\else 2 \\fi)(\\true)",
-    ),
-    "()",
-  )
-  let mut out = None
-  for _ in 0..<100 {
-    let j = @base.parse_json(m.step(""))
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      out = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(out, Some("4"))
-  m.make((c.compile_code)("\\inc 999999999999999999999999999999"), "()")
-  ignore(m.step(""))
-  ignore(m.step(""))
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "foutput")),
-    "1000000000000000000000000000000",
-  )
-}

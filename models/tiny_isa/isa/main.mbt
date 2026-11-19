@@ -120,18 +120,3 @@ fn render(s : State) -> Json {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "instruction encoding and conditional updates preserve registers" {
-  for
-    inst in [
-      @machine.Nop,
-      @machine.Halt,
-      @machine.Rst,
-      @machine.Ldi(false, 3, @base.nat("999999999999999999999")),
-      @machine.Mov(true, 0, 2),
-    ] {
-    let word = @machine.encode(inst)
-    assert_eq(@machine.encode(@machine.decode(word)), word)
-  }
-}

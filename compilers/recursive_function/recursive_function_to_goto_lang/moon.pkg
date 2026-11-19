@@ -4,7 +4,3 @@ import {
   "computation/models/models/recursive_function" @source,
   "computation/models/utils/parsing" @p,
 }
-
-import {
-  "computation/models/models/goto_lang" @target,
-} for "test"

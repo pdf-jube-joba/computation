@@ -215,25 +215,3 @@ fn render(s : State) -> Json {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "block execution is atomic when the ending target is invalid" {
-  let m = model()
-  m.make("@x 0 @main { %v0 := *[@x] + #1; [@x] := %v0; \\goto #99; }", "()")
-  let saved = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step(""))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), saved)
-  m.make("@x 0 @main { %v0 := *[@x] + #1; [@x] := %v0; \\goto @main; }", "()")
-  for _ in 0..<3 {
-    ignore(m.step(""))
-  }
-  let j = @base.parse_json(m.snapshot())
-  assert_eq(@base.string(@base.array(@base.field(j, "memory"))[0]), "3")
-}

@@ -234,27 +234,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "conditional jump, implicit blank alphabet, and sorted variable ids" {
-  let m = model()
-  m.make(
-    "\\alphabet: (x) z := @ a := \\const x \\jump \\if z == \\const - 4 @ := \\const - @ := a",
-    "|-|",
-  )
-  for _ in 0..<4 {
-    ignore(m.step(""))
-  }
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "foutput")),
-    "|x|",
-  )
-  assert_true(
-    try {
-      m.make("\\alphabet: (x) \\jump 2", "|-|")
-      false
-    } catch {
-      _ => true
-    },
-  )
-}

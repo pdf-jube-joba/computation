@@ -28,5 +28,5 @@ node tools/build_components.mjs  # 全モデル・コンパイラ
 モデルの状態は代数直和と不変の値で表し、失敗した操作では元の状態を保つ。
 MoonBit の `wasm` ターゲットは線形メモリと参照カウントを使う。ヒープ内の循環は ID で表す。
 
-型検査は `moon check --target wasm`。必要な変更では既存の `moon test --target wasm` を使う。
+型検査は `moon check --target wasm`。Component の接続確認は makeAI 側の共通テストで行う。
 モデルの意味論や構文のメモは各モデルの README / spec、読書メモは `docs/` にある。

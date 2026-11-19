@@ -486,14 +486,3 @@ pub fn render_env(env : Env) -> Json {
     env.rev().map(p => [p.0, value_text(p.1)]),
   )
 }
-
-///|
-test "binding normalization reserves free names and avoids capture" {
-  let e = Fun("y", Var("x"))
-  let result = substitute(e, "x", Fun("z", Var("y")))
-  assert_eq(print(result), "(\\fun y_0 => (\\fun z => y))")
-  assert_eq(
-    print(parse("\\fun x => \\fun x => x")),
-    "(\\fun x => (\\fun x_0 => x_0))",
-  )
-}

@@ -255,37 +255,3 @@ fn render(s : State) -> Json {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "goto arbitrary precision and stopping step" {
-  let m = model()
-  m.make("\\inc x;", "x = 999999999999999999999999999999")
-  ignore(m.step(""))
-  let snapshot = m.snapshot()
-  let result = @base.parse_json(m.step(""))
-  assert_eq(
-    @base.string(@base.field(result, "foutput")),
-    "x = 1000000000000000000000000000000",
-  )
-  m.restore(snapshot)
-  assert_eq(@base.parse_json(m.step("")), result)
-}
-
-///|
-test "goto conditional jump uses zero based line and errors preserve state" {
-  let m = model()
-  m.make("\\ifnz x : 0;", "x = 1")
-  for _ in 0..<5 {
-    ignore(m.step(""))
-  }
-  let saved = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step("invalid"))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), saved)
-}

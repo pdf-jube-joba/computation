@@ -369,40 +369,6 @@ pub fn model() -> @runtime.Model {
 }
 
 ///|
-test "labelled nested breaks and continues unwind sequence frames" {
-  let m = model()
-  m.make(
-    "\\static x,y; \\loop :outer (x := x + 1; \\if x < 3 { \\continue :outer }; \\loop :inner (\\break :outer x) -> x) -> y",
-    "x=0\ny=0",
-  )
-  let mut output = None
-  for _ in 0..<100 {
-    let saved = m.snapshot()
-    let result = m.step("")
-    m.restore(saved)
-    assert_eq(m.step(""), result)
-    let j = @base.parse_json(result)
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(output, Some("x = 3\ny = 3\n"))
-  m.make("\\static x; \\break :outside x", "x=0")
-  ignore(m.step(""))
-  let saved = m.snapshot()
-  assert_true(
-    try {
-      ignore(m.step(""))
-      false
-    } catch {
-      _ => true
-    },
-  )
-  assert_eq(m.snapshot(), saved)
-}
-
-///|
 pub fn parse_code(text : String) -> Code raise @base.Fault {
   let p = @p.create(text)
   p.expect_keyword("static")

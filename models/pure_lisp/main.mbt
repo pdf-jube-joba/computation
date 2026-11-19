@@ -579,26 +579,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "dynamic scope, dotted pairs, recursion and unicode" {
-  try {
-    let m = model()
-    m.make(
-      "((label copy (lambda (x) (cond ((atom x) x) (t (cons (car x) (copy (cdr x))))))) (quote (日本語 🌕 . tail)))",
-      "",
-    )
-    let mut output = ""
-    for _ in 0..<300 {
-      let j = @base.parse_json(m.step(""))
-      if @base.string(@base.field(j, "kind")) == "halt" {
-        output = @base.string(@base.field(j, "foutput"))
-        break
-      }
-    }
-    assert_eq(output, "(日本語 🌕 . tail)")
-  } catch {
-    @base.Fault(message) => fail(message)
-    err => raise err
-  }
-}

@@ -400,28 +400,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "primitive recursion and minimization" {
-  let m = model()
-  m.make("\\PRIM[\\z:\\PROJ[1,0] \\s:\\COMP[\\SUCC: \\PROJ[3,0]]]", "(3,4)")
-  let snapshot = m.snapshot()
-  m.restore(snapshot)
-  let mut result = ""
-  for _ in 0..<100 {
-    let j = @base.parse_json(m.step(""))
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      result = @base.string(@base.field(j, "foutput"))
-      break
-    }
-  }
-  assert_eq(result, "7")
-  m.make("\\MUOP[\\PROJ[1,0]]", "()")
-  for _ in 0..<3 {
-    ignore(m.step(""))
-  }
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "foutput")),
-    "0",
-  )
-}

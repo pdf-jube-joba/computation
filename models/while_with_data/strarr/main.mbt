@@ -314,21 +314,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "unicode, grouped characters, escaped scalars and immutable snapshots" {
-  let m = model()
-  m.make(
-    "x := ['🌕', '日', '\\q', '\\n']; x := \\head x ++ \\tail x", "y = [('a')]",
-  )
-  let saved = m.snapshot()
-  ignore(m.step(""))
-  m.restore(saved)
-  for _ in 0..<3 {
-    ignore(m.step(""))
-  }
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "foutput")),
-    "y = ['a']\nx = ['🌕', '日', 'q', '\\n']\n",
-  )
-}

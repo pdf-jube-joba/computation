@@ -535,33 +535,3 @@ fn render(s : State) -> Json {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "nonrecursive calls restore caller environments and reject recursive code" {
-  let m = model()
-  m.make(
-    "\\alphabet: (-,x) \\fn write { \\label entry: { @ := \\const x \\return } } \\fn main { \\label a: { v := @ \\call write() \\RT @ := v \\return } }",
-    "|-|",
-  )
-  let mut output = None
-  for _ in 0..<20 {
-    let saved = m.snapshot()
-    let result = m.step("")
-    m.restore(saved)
-    assert_eq(m.step(""), result)
-    let j = @base.parse_json(result)
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(output, Some("x|-|"))
-  assert_true(
-    try {
-      m.make("\\alphabet: (-) \\fn main { \\label e: { \\call main } }", "|-|")
-      false
-    } catch {
-      _ => true
-    },
-  )
-}

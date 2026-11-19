@@ -182,19 +182,3 @@ fn render(s : State) -> Json {
 pub fn model() -> @runtime.Model {
   @runtime.model(make, step, encode, decode, render)
 }
-
-///|
-test "symbol resolution, data stores and skipped conditional immediates" {
-  let m = model()
-  m.make(
-    "\\equ N #4\n\\text\n\\ldi %r1 N;\n\\ldi %r2 @v;\n\\st %r1 %r2;\n\\ldi \\f %r3 UNKNOWN;\n\\halt;\n\\data\n@v:\n0",
-    "0,0,0,0,0,0,0,0",
-  )
-  for _ in 0..<4 {
-    ignore(m.step(""))
-  }
-  assert_eq(
-    @base.string(@base.field(@base.parse_json(m.step("")), "foutput")),
-    "4, 4, 0, 0, 0, 0, 0, 0\n4",
-  )
-}

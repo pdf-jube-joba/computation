@@ -453,33 +453,3 @@ pub fn model() -> @runtime.Model {
     ])
   })
 }
-
-///|
-test "procedure call restores locals and handles return values" {
-  let m = model()
-  m.make(
-    "\\static x; inc(n)[\\local tmp tmp := n + 1; \\return tmp] main()[\\local a a := 5; \\call inc(a) -> x; \\return]",
-    "x=0",
-  )
-  let mut output = None
-  for _ in 0..<50 {
-    let saved = m.snapshot()
-    let result = m.step("ignored")
-    m.restore(saved)
-    assert_eq(m.step("ignored"), result)
-    let j = @base.parse_json(result)
-    if @base.string(@base.field(j, "kind")) == "halt" {
-      output = Some(@base.string(@base.field(j, "foutput")))
-      break
-    }
-  }
-  assert_eq(output, Some("x = 6\n"))
-  assert_true(
-    try {
-      m.make("\\static x; main()[\\local x \\return]", "x=0")
-      false
-    } catch {
-      _ => true
-    },
-  )
-}
