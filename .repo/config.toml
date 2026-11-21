@@ -7,6 +7,13 @@ policy_url_prefix = "/.policy"
 info_url_prefix = "/.info"
 
 [[plugin]]
+name = "build-wasm"
+runner = "command"
+command = ["node", "./build.mjs"]
+allow = ["me"]
+source = "build/assets/"
+
+[[plugin]]
 name = "md-preview"
 runner = "default"
 allow = ["me"]
@@ -23,9 +30,8 @@ paths = [
   ".agents",
   "_wfs",
   "_build",
-  "tools",
-  "generated",
-  "wasm_bundle",
+  "build.mjs",
+  "build/components",
   ".gitmodules",
 ]
 

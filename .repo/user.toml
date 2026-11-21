@@ -13,3 +13,14 @@ name = "md"
 [[task.step]]
 repository = "local"
 plugin = "md-preview"
+
+[[task]]
+name = "build"
+
+[[task.step]]
+repository = "local"
+plugin = "build-wasm"
+
+[[task.step]]
+repository = "local"
+plugin = "md-preview"

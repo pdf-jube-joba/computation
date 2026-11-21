@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 
+DOCS_DIR = Path(__file__).resolve().parent.parent
 TOP_LEVEL_PREFIX = "- "
 ARCHIVE_SIZE = 50
 ARCHIVE_NAME_RE = re.compile(r"archive-(\d{3})\.md$")
@@ -19,13 +20,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--source",
         type=Path,
-        default=Path("docs/inbox.md"),
+        default=DOCS_DIR / "inbox.md",
         help="Source inbox markdown file.",
     )
     parser.add_argument(
         "--archive-dir",
         type=Path,
-        default=Path("docs/inbox"),
+        default=DOCS_DIR / "inbox",
         help="Directory where archive files are written.",
     )
     parser.add_argument(

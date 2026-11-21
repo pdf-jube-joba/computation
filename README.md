@@ -1,32 +1,40 @@
 # computation
+計算モデルとコンパイラのいろいろ
 
-MoonBit で書いた計算モデルとコンパイラ。各処理系を独立した Wasm Component にビルドする。
-実装は `models/` と `compilers/`、ビルド対象は [registry/components.json](registry/components.json)。
+## 実装について
+Moonbit で書いてる。
+MoonBit、Node.js、wit-bindgen-cli **0.63.0**、wasm-tools が必要。
+計算モデルやコンパイラは wasm component にコンパイルされて、その規約は `computation.wit` にある。
 
 ## ビルド
-
-MoonBit、Node.js、wit-bindgen-cli **0.63.0**、wasm-tools が必要。
-
-```sh
-node tools/build_components.mjs --list
-node tools/build_components.mjs --model goto_lang
-node tools/build_components.mjs  # 全モデル・コンパイラ
-```
+`build.mjs` を使ってビルドしたり一覧をのぞいたりできる。
+ソースコードを AI が見れば使い方は分かると思うので、解説は書かない。
+（ **書かない** と明示しないと AI が勝手に書いちゃう。）
 
 出力は `wasm_bundle/<名前>.wasm`。`--out-dir PATH` で出力先を変えられる。
-`MOON` / `WIT_BINDGEN` / `WASM_TOOLS` で実行ファイルを指定できる。
-`moon` は `~/.moon/bin/moon`、wit-bindgen は `../build/tools/bin/wit-bindgen` も探索する。
 
-## コードの入口
+## wasm component
+1インスタンスが1マシンとする。
+### model
 
-- `models/*/main.mbt` の `model()` がモデルを作る。
-- `compilers/*/main.mbt` の `compiler()` が変換器を作る。
-- [utils/runtime/session.mbt](utils/runtime/session.mbt) が状態の保持と文字列 API を担当する。
-- [utils/wit/web.wit](utils/wit/web.wit) が公開する関数の型、[動作規約](utils/wit/README.md) がその意味を定める。
-- `tools/build_components.mjs` が WIT アダプターを生成して Component にまとめる。
+| 関数 | 動作 |
+| --- | --- |
+| `make(code, ainput)` | プログラムと初期入力を解析し、状態を作る |
+| `step(rinput)` | 一段階進め、以下の JSON 文字列を返す |
+| `snapshot()` | 現在の状態を文字列として返す |
+| `restore(snapshot)` | 保存した状態を復元する |
+| `render(snapshot)` | 渡された状態を描画用 JSON 文字列にする |
 
-モデルの状態は代数直和と不変の値で表し、失敗した操作では元の状態を保つ。
-MoonBit の `wasm` ターゲットは線形メモリと参照カウントを使う。ヒープ内の循環は ID で表す。
+```json
+{"kind":"continue","routput":"実行時出力"}
+{"kind":"halt","foutput":"最終出力"}
+```
 
-型検査は `moon check --target wasm`。Component の接続確認は makeAI 側の共通テストで行う。
-モデルの意味論や構文のメモは各モデルの README / spec、読書メモは `docs/` にある。
+作成直後と停止後は未初期化で、`step` / `snapshot` はエラーになる。
+成功した `make` / `restore` / `step` だけが状態を更新し、停止すると状態を破棄する。
+`render` は現在の状態を読まず、変更もしない。別インスタンスの状態は独立する。
+
+## compiler
+
+`compile-code`、`encode-ainput`、`encode-rinput`、`decode-routput`、`decode-foutput`。
+いずれも文字列を受け取り、変換後の文字列またはエラーを返す。

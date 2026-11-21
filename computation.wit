@@ -1,4 +1,4 @@
-package computation:web;
+package computation:computation;
 
 world model {
   export make: func(code: string, ainput: string) -> result<_, string>;

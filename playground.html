@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Computation playground</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 2rem; background: #f5f6f8; color: #20252d; }
+    main { max-width: 88rem; margin: auto; }
+    h1 { margin: 0; font-size: 1.6rem; font-weight: 650; }
+    h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+    h3 { margin: 0 0 .5rem; font-size: 1rem; }
+    label { display: block; font-size: .9rem; font-weight: 600; }
+    input, select, textarea, button { font: inherit; }
+    input, select, textarea { width: 100%; margin-top: .4rem; padding: .65rem; border: 1px solid #bbc3cf; border-radius: .35rem; background: #fff; color: inherit; }
+    select { appearance: none; padding-right: 2.5rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23727d8c' stroke-width='2'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .85rem center; }
+    textarea { display: block; resize: vertical; min-height: 5rem; font: .9rem/1.5 ui-monospace, monospace; tab-size: 2; }
+    button { padding: .65rem 1rem; border: 1px solid #bbc3cf; border-radius: .35rem; background: #fff; color: inherit; cursor: pointer; }
+    button.primary { border-color: #2856a8; background: #2856a8; color: white; }
+    button:disabled { opacity: .45; cursor: default; }
+    :focus-visible { outline: 2px solid #4277d1; outline-offset: 2px; }
+    .toolbar, .actions { display: flex; align-items: end; gap: .65rem; flex-wrap: wrap; }
+    .toolbar label { flex: 1; min-width: 15rem; }
+    .toolbar { margin-bottom: .75rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .stages { display: flex; gap: .35rem; }
+    .stages button { border-color: transparent; background: transparent; }
+    .stages button.selected { background: #e6edf9; color: #244f98; }
+    .setup-inputs { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.25rem; }
+    .session-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .session-header h2 { margin: 0; font: 1.1rem ui-monospace, monospace; overflow-wrap: anywhere; }
+    .session-status { color: #526176; font-size: .9rem; }
+    .actions { margin-top: 1rem; }
+    .actions label { width: 7rem; }
+    .status { min-height: 1.5rem; margin: 0 0 1.25rem; color: #526176; overflow-wrap: anywhere; }
+    .status.error { color: #b12d32; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; align-items: start; }
+    .panel { padding: 1.25rem; border: 1px solid #d7dce4; border-radius: .5rem; background: #fff; min-width: 0; }
+    .panel-header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .panel-header h2 { margin: 0; }
+    .panel > label + label { margin-top: 1rem; }
+    summary { cursor: pointer; font-size: 1.1rem; font-weight: 600; }
+    details[open] > summary { margin-bottom: 1rem; }
+    .stack { display: grid; gap: 1.25rem; min-width: 0; }
+    pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: .9rem/1.5 ui-monospace, monospace; }
+    .output { min-height: 5rem; max-height: 28rem; overflow: auto; }
+    .parts { display: flex; flex-direction: column; gap: 1rem; }
+    .horizontal { flex-direction: row; flex-wrap: wrap; }
+    .part { min-width: 0; overflow: auto; }
+    .highlight { background: #fff1b8; color: #302a15; }
+    .part.highlight { padding: .25rem .5rem; border-radius: .2rem; }
+    table { border-collapse: collapse; font: .9rem/1.5 ui-monospace, monospace; }
+    th, td { border: 1px solid #d7dce4; padding: .4rem .65rem; text-align: left; vertical-align: top; }
+    th { background: #f1f3f7; }
+    [hidden] { display: none !important; }
+    @media (max-width: 50rem) { body { padding: 1rem; } .grid, .setup-inputs { grid-template-columns: 1fr; } }
+    @media (prefers-color-scheme: dark) {
+      body { background: #161a20; color: #e1e6ee; }
+      .panel, input, select, textarea, button { background-color: #20262f; border-color: #495466; }
+      .status, .session-status { color: #a3b2c7; }
+      .stages button.selected { background: #2c405e; color: #d5e4ff; }
+      .status.error { color: #ff9c9f; }
+      th { background: #2b3441; }
+      th, td { border-color: #495466; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header class="page-header">
+    <h1>Computation playground</h1>
+    <nav id="stages" class="stages" aria-label="Model workflow" hidden>
+      <button id="setupStage" type="button" class="selected" aria-pressed="true" aria-controls="setupView">Setup</button>
+      <button id="executionStage" type="button" aria-pressed="false" aria-controls="executionView" disabled>Execution</button>
+    </nav>
+  </header>
+  <p id="status" class="status" role="status" aria-live="polite">Loading components…</p>
+
+  <section id="setupView" aria-label="Setup">
+    <div class="toolbar">
+      <label>Component<select id="component" disabled></select></label>
+      <button id="reload" type="button">Reload</button>
+    </div>
+
+    <section id="modelPanel" class="panel" hidden>
+      <div class="panel-header">
+        <h2>Create a model</h2>
+        <button id="create" class="primary" type="button" disabled>Create</button>
+      </div>
+      <div class="setup-inputs">
+        <label>Code<textarea id="code" rows="14" spellcheck="false"></textarea></label>
+        <label>Initial input<textarea id="ainput" rows="14" spellcheck="false"></textarea></label>
+      </div>
+    </section>
+
+    <section id="compilerPanel" class="grid" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Compiler</h2>
+          <button id="convert" class="primary" type="button" disabled>Compile</button>
+        </div>
+        <label>Operation
+          <select id="operation">
+            <option value="compileCode">Compile code</option>
+            <option value="encodeAinput">Encode initial input</option>
+            <option value="encodeRinput">Encode runtime input</option>
+            <option value="decodeRoutput">Decode runtime output</option>
+            <option value="decodeFoutput">Decode final output</option>
+          </select>
+        </label>
+        <label>Input<textarea id="compilerInput" rows="14" spellcheck="false"></textarea></label>
+      </div>
+      <div class="panel">
+        <h2>Result</h2>
+        <pre id="compilerOutput" class="output" tabindex="0"></pre>
+      </div>
+    </section>
+  </section>
+
+  <section id="executionView" aria-label="Execution" hidden>
+    <header class="session-header">
+      <h2 id="sessionName"></h2>
+      <span id="sessionStatus" class="session-status"></span>
+    </header>
+    <div class="grid">
+      <div class="stack">
+        <div class="panel">
+          <h2>Input and execution</h2>
+          <label>Runtime input<textarea id="rinput" rows="4" spellcheck="false"></textarea></label>
+          <div class="actions">
+            <button id="step" class="primary" type="button" disabled>Step</button>
+            <label>Steps<input id="limit" type="number" min="1" max="100000" step="1" value="100"></label>
+            <button id="run" type="button" disabled>Run</button>
+            <button id="stop" type="button" disabled>Stop</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Output</h2>
+          <pre id="output" class="output" tabindex="0"></pre>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <h2>State</h2>
+          <div id="drawing" class="output"></div>
+        </div>
+        <details class="panel">
+          <summary>Snapshot</summary>
+          <label>State<textarea id="snapshot" rows="9" spellcheck="false"></textarea></label>
+          <div class="actions">
+            <button id="capture" type="button" disabled>Snapshot</button>
+            <button id="restore" type="button" disabled>Restore</button>
+            <button id="render" type="button" disabled>Render</button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+<script type="module">
+const bundleUrl = new URL('./build/assets/', location.href);
+const ui = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), element => [element.id, element]));
+let entries = [];
+let current = null;
+let active = false;
+let created = false;
+let stage = 'setup';
+let loading = false;
+let running = false;
+let steps = 0;
+let loadSequence = 0;
+let runSequence = 0;
+
+function report(message, error = false) {
+  ui.status.textContent = message;
+  ui.status.classList.toggle('error', error);
+}
+
+function errorText(error) {
+  return typeof error?.payload === 'string' ? error.payload : error?.message || String(error);
+}
+
+function updateControls() {
+  const model = current?.entry.kind === 'model';
+  ui.setupView.hidden = stage !== 'setup';
+  ui.executionView.hidden = stage !== 'execution';
+  ui.stages.hidden = !model && ui.modelPanel.hidden;
+  ui.setupStage.disabled = loading;
+  ui.executionStage.disabled = !model || !created || loading;
+  for (const name of ['setup', 'execution']) {
+    ui[`${name}Stage`].setAttribute('aria-pressed', String(stage === name));
+    ui[`${name}Stage`].classList.toggle('selected', stage === name);
+  }
+  ui.sessionName.textContent = current?.entry.name || '';
+  ui.sessionStatus.textContent = active ? running ? 'Running' : 'Ready' : 'Halted';
+  ui.component.disabled = loading || !entries.length;
+  ui.reload.disabled = loading;
+  ui.create.disabled = !model || running;
+  for (const name of ['step', 'run', 'capture']) ui[name].disabled = !model || !active || running;
+  for (const name of ['restore', 'render']) ui[name].disabled = !model || !ui.snapshot.value || running;
+  ui.stop.disabled = !running;
+  ui.snapshot.readOnly = running;
+  ui.convert.disabled = current?.entry.kind !== 'compiler';
+  ui.convert.textContent = ui.operation.value === 'compileCode' ? 'Compile' : 'Convert';
+}
+
+function attempt(action) {
+  try { action(); }
+  catch (error) { report(errorText(error), true); }
+  finally { updateControls(); }
+}
+
+function stopRun() {
+  runSequence++;
+  running = false;
+  updateControls();
+}
+
+function showStage(next) {
+  if (next === 'setup' && running) {
+    stopRun();
+    report(`Paused after ${steps} steps`);
+  }
+  stage = next;
+  updateControls();
+  ui[next === 'execution' ? 'rinput' : 'component'].focus();
+}
+
+async function loadSelected() {
+  const sequence = ++loadSequence;
+  stopRun();
+  current = null;
+  active = false;
+  created = false;
+  stage = 'setup';
+  steps = 0;
+  loading = true;
+  ui.output.textContent = '';
+  ui.compilerOutput.textContent = '';
+  ui.snapshot.value = '';
+  ui.drawing.replaceChildren();
+  const entry = entries.find(entry => entry.name === ui.component.value);
+  ui.modelPanel.hidden = entry?.kind !== 'model';
+  ui.compilerPanel.hidden = entry?.kind !== 'compiler';
+  updateControls();
+  if (!entry) { loading = false; updateControls(); return; }
+  report(`Loading ${entry.name}…`);
+  try {
+    const moduleUrl = new URL(`${entry.name}.js`, bundleUrl);
+    moduleUrl.searchParams.set('reload', Date.now());
+    const bindings = await import(moduleUrl.href);
+    const api = await bindings.instantiate(async filename => {
+      const response = await fetch(new URL(filename, bundleUrl), {cache: 'no-store'});
+      if (!response.ok) throw new Error(`${filename}: HTTP ${response.status}`);
+      return WebAssembly.compile(await response.arrayBuffer());
+    }, {});
+    if (sequence !== loadSequence) return;
+    current = {entry, api};
+    const url = new URL(location.href);
+    url.searchParams.set('component', entry.name);
+    history.replaceState(null, '', url);
+    report(`Loaded ${entry.name}`);
+  } catch (error) {
+    if (sequence === loadSequence) report(errorText(error), true);
+  } finally {
+    if (sequence === loadSequence) { loading = false; updateControls(); }
+  }
+}
+
+async function refresh() {
+  stopRun();
+  current = null;
+  active = false;
+  created = false;
+  stage = 'setup';
+  loading = true;
+  updateControls();
+  report('Loading components…');
+  try {
+    const response = await fetch(new URL('components.json', bundleUrl), {cache: 'no-store'});
+    if (!response.ok) throw new Error(`Cannot load build/assets/components.json (HTTP ${response.status}). Run node build.mjs to build components.`);
+    entries = await response.json();
+    const preferred = ui.component.value || new URL(location.href).searchParams.get('component');
+    ui.component.replaceChildren();
+    for (const kind of ['model', 'compiler']) {
+      const group = document.createElement('optgroup');
+      group.label = kind === 'model' ? 'Models' : 'Compilers';
+      for (const entry of entries.filter(entry => entry.kind === kind)) {
+        const option = document.createElement('option');
+        option.value = entry.name;
+        option.textContent = entry.name;
+        group.appendChild(option);
+      }
+      if (group.children.length) ui.component.appendChild(group);
+    }
+    if (!entries.length) {
+      ui.modelPanel.hidden = true;
+      ui.compilerPanel.hidden = true;
+      report('No built components. Run node build.mjs to build components.');
+      return;
+    }
+    ui.component.value = entries.some(entry => entry.name === preferred) ? preferred : entries[0].name;
+    await loadSelected();
+  } catch (error) {
+    report(location.protocol === 'file:' ? 'Serve this directory over HTTP to load components.' : errorText(error), true);
+  } finally {
+    loading = false;
+    updateControls();
+  }
+}
+
+function view(value) {
+  const part = document.createElement('div');
+  part.className = 'part';
+  if (Array.isArray(value)) {
+    part.classList.add('parts');
+    for (const child of value) part.appendChild(view(child));
+    return part;
+  }
+  if (value?.className === 'highlight') part.classList.add('highlight');
+  if (value?.title) {
+    const title = document.createElement('h3');
+    title.textContent = value.title;
+    part.appendChild(title);
+  }
+  if (value?.kind === 'table') {
+    const table = document.createElement('table');
+    const header = table.createTHead().insertRow();
+    for (const column of value.columns) {
+      const cell = document.createElement('th');
+      cell.scope = 'col';
+      cell.appendChild(view(column));
+      header.appendChild(cell);
+    }
+    const body = table.createTBody();
+    for (const row of value.rows) {
+      const tr = body.insertRow();
+      if (row.className === 'highlight') tr.className = 'highlight';
+      for (const cell of row.cells) tr.insertCell().appendChild(view(cell));
+    }
+    part.appendChild(table);
+  } else if (value?.kind === 'container') {
+    const children = view(value.children);
+    if (value.orientation === 'horizontal') children.classList.add('horizontal');
+    part.appendChild(children);
+  } else {
+    const text = document.createElement('pre');
+    text.textContent = value?.kind === 'text' ? value.text : typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    part.appendChild(text);
+  }
+  return part;
+}
+
+function renderSnapshot() {
+  ui.drawing.replaceChildren(view(JSON.parse(current.api.render(ui.snapshot.value))));
+}
+
+function captureSnapshot() {
+  ui.snapshot.value = current.api.snapshot();
+  renderSnapshot();
+}
+
+function stepOnce() {
+  const result = JSON.parse(current.api.step(ui.rinput.value));
+  steps++;
+  const output = result.kind === 'continue' ? result.routput : result.foutput;
+  ui.output.textContent += `${steps}: ${result.kind}\n${output}\n\n`;
+  ui.output.scrollTop = ui.output.scrollHeight;
+  active = result.kind === 'continue';
+  if (active) captureSnapshot();
+}
+
+async function runSteps() {
+  const limit = Number(ui.limit.value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100000) {
+    report('Steps must be an integer between 1 and 100000.', true);
+    return;
+  }
+  const sequence = ++runSequence;
+  running = true;
+  updateControls();
+  report('Running…');
+  try {
+    for (let index = 0; index < limit && active && sequence === runSequence; index++) {
+      stepOnce();
+      if (active && index + 1 < limit) await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    if (sequence === runSequence) report(`${active ? 'Paused' : 'Halted'} after ${steps} steps`);
+  } catch (error) {
+    if (sequence === runSequence) report(errorText(error), true);
+  } finally {
+    if (sequence === runSequence) { running = false; updateControls(); }
+  }
+}
+
+ui.reload.addEventListener('click', () => { void refresh(); });
+ui.component.addEventListener('change', () => { void loadSelected(); });
+ui.setupStage.addEventListener('click', () => showStage('setup'));
+ui.executionStage.addEventListener('click', () => showStage('execution'));
+ui.snapshot.addEventListener('input', updateControls);
+ui.operation.addEventListener('change', updateControls);
+ui.create.addEventListener('click', () => attempt(() => {
+  current.api.make(ui.code.value, ui.ainput.value);
+  active = true;
+  created = true;
+  steps = 0;
+  ui.output.textContent = '';
+  captureSnapshot();
+  showStage('execution');
+  report('Created machine');
+}));
+ui.step.addEventListener('click', () => attempt(() => {
+  stepOnce();
+  report(`${active ? 'Stepped' : 'Halted'} after ${steps} steps`);
+}));
+ui.run.addEventListener('click', () => { void runSteps(); });
+ui.stop.addEventListener('click', () => {
+  stopRun();
+  report(`Stopped after ${steps} steps`);
+});
+ui.capture.addEventListener('click', () => attempt(() => {
+  captureSnapshot();
+  report('Captured snapshot');
+}));
+ui.restore.addEventListener('click', () => attempt(() => {
+  current.api.restore(ui.snapshot.value);
+  active = true;
+  steps = 0;
+  ui.output.textContent = '';
+  captureSnapshot();
+  report('Restored machine');
+}));
+ui.render.addEventListener('click', () => attempt(() => {
+  renderSnapshot();
+  report('Rendered snapshot');
+}));
+ui.convert.addEventListener('click', () => attempt(() => {
+  const result = current.api[ui.operation.value](ui.compilerInput.value);
+  ui.compilerOutput.textContent = result;
+  report('Converted input');
+}));
+void refresh();
+</script>
+</body>
+</html>
