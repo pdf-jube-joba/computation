@@ -2,11 +2,13 @@
 package "computation/models/compilers/flow_ir_to_core_machine"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/core_machine",
+  "computation/models/models/flow_ir",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@flow_ir.Code, @flow_ir.Environment, String, String, @flow_ir.Environment, @core_machine.Code, @core_machine.MemoryImage, String, String, @core_machine.MemoryImage]
 
 // Errors
 

@@ -1,5 +1,5 @@
 ///|
-priv struct State {
+struct State {
   code : Code
   current_region : Int32
   current_block : Int32
@@ -43,8 +43,8 @@ fn[T] checked_at(
   items : Array[T],
   index : Int32,
   message : String,
-) -> T raise @base.Fault {
-  @base.require(index >= 0 && index < items.length(), message)
+) -> T raise @utils.Fault {
+  @utils.require(index >= 0 && index < items.length(), message)
   items[index]
 }
 
@@ -54,7 +54,7 @@ fn[T] replace_at(
   index : Int32,
   value : T,
   message : String,
-) -> Array[T] raise @base.Fault {
+) -> Array[T] raise @utils.Fault {
   ignore(checked_at(items, index, message))
   let updated = items.copy()
   updated[index] = value
@@ -64,18 +64,18 @@ fn[T] replace_at(
 ///|
 fn runtime_text(state : State, value : RuntimeValue) -> String {
   flow_text(named_value(state.resolution, value)) catch {
-    @base.Fault(message) => "<invalid: " + message + ">"
+    @utils.Fault(message) => "<invalid: " + message + ">"
   }
 }
 
 ///|
-fn register_id(state : State, name : String) -> Int32 raise @base.Fault {
+fn register_id(state : State, name : String) -> Int32 raise @utils.Fault {
   id_of_name(state.resolution.registers, name)
 }
 
 ///|
-fn reg(state : State, name : String) -> RuntimeValue raise @base.Fault {
-  assoc_get(state.vregs, register_id(state, name)).unwrap_or(Num(@base.zero()))
+fn reg(state : State, name : String) -> RuntimeValue raise @utils.Fault {
+  assoc_get(state.vregs, register_id(state, name)).unwrap_or(Num(@utils.zero()))
 }
 
 ///|
@@ -83,34 +83,34 @@ fn put_register(
   state : State,
   name : String,
   value : RuntimeValue,
-) -> State raise @base.Fault {
+) -> State raise @utils.Fault {
   { ..state, vregs: assoc_set(state.vregs, register_id(state, name), value), }
 }
 
 ///|
-fn number(state : State, value : RuntimeValue) -> @base.Nat raise @base.Fault {
+fn number(state : State, value : RuntimeValue) -> @utils.Nat raise @utils.Fault {
   match value {
     Num(n) => n
-    _ => @base.error("Expected number, got " + runtime_text(state, value))
+    _ => @utils.error("Expected number, got " + runtime_text(state, value))
   }
 }
 
 ///|
-fn index(state : State, value : RuntimeValue) -> Int32 raise @base.Fault {
-  @base.index(number(state, value))
+fn index(state : State, value : RuntimeValue) -> Int32 raise @utils.Fault {
+  @utils.index(number(state, value))
 }
 
 ///|
 fn load_key(
   state : State,
   key : Location[Int32],
-) -> RuntimeValue raise @base.Fault {
+) -> RuntimeValue raise @utils.Fault {
   match key {
     Static(id) =>
       match assoc_get(state.static_mem, id) {
         Some(value) => value
         None =>
-          @base.error(
+          @utils.error(
             "Unknown data label: @" + name_of_id(state.resolution.data, id),
           )
       }
@@ -129,7 +129,7 @@ fn write_key(
   state : State,
   key : Location[Int32],
   value : RuntimeValue,
-) -> State raise @base.Fault {
+) -> State raise @utils.Fault {
   match key {
     Static(id) => {
       ignore(load_key(state, key))
@@ -143,7 +143,7 @@ fn write_key(
     Heap(handle, i) => {
       let area = match assoc_get(state.heap, handle) {
         Some(area) => area
-        None => @base.error("Unknown heap handle: \{handle}")
+        None => @utils.error("Unknown heap handle: \{handle}")
       }
       let area = replace_at(
         area,
@@ -160,7 +160,7 @@ fn write_key(
 fn eval_value(
   state : State,
   expression : ValueExpr,
-) -> RuntimeValue raise @base.Fault {
+) -> RuntimeValue raise @utils.Fault {
   match expression {
     VReg(name) => reg(state, name)
     Imm(n) => Num(n)
@@ -174,11 +174,11 @@ fn eval_value(
 fn eval_place(
   state : State,
   expression : PlaceExpr,
-) -> Location[Int32] raise @base.Fault {
+) -> Location[Int32] raise @utils.Fault {
   match expression {
     Label(name) => {
       let id = id_of_name(state.resolution.data, name)
-      @base.require(
+      @utils.require(
         assoc_get(state.static_mem, id) is Some(_),
         "Place is not data label: @" + name,
       )
@@ -188,7 +188,7 @@ fn eval_place(
       match reg(state, name) {
         Key(key) => key
         value =>
-          @base.error(
+          @utils.error(
             "deref expects place key in vreg, got " + runtime_text(state, value),
           )
       }
@@ -202,7 +202,7 @@ fn eval_place(
 }
 
 ///|
-fn eval_cond(state : State, condition : Cond) -> Bool raise @base.Fault {
+fn eval_cond(state : State, condition : Cond) -> Bool raise @utils.Fault {
   let (left, right, comparison) = match condition {
     Lt(a, b) => (a, b, -1)
     Eq(a, b) => (a, b, 0)
@@ -221,7 +221,7 @@ fn eval_cond(state : State, condition : Cond) -> Bool raise @base.Fault {
       }
     _ if comparison == 0 => left == right
     _ =>
-      @base.error(
+      @utils.error(
         "Condition " +
         (if comparison < 0 { "lt" } else { "gt" }) +
         " supports only numbers, got " +

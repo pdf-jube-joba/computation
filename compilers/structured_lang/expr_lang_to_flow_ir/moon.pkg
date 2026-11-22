@@ -1,5 +1,5 @@
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
   "computation/models/models/flow_ir" @ir,
   "computation/models/models/structured_lang/expr_lang" @s,
   "computation/models/compilers/structured_lang/shared" @lower,

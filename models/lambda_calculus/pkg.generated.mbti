@@ -2,8 +2,9 @@
 package "computation/models/models/lambda_calculus"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
   "moonbitlang/core/ref",
 }
 
@@ -16,22 +17,32 @@ pub fn freshen_bound(Term, @ref.Ref[Int32]) -> Term
 
 pub fn max_id(Term) -> Int32
 
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Term, Ainput, UInt32, Unit, Term, Term]
 
-pub fn parse_code(String) -> Term raise @base.Fault
+pub fn parse_code(String) -> Term raise @utils.Fault
 
-pub fn parse_input(String) -> Array[Term] raise @base.Fault
+pub fn parse_input(String) -> Array[Term] raise @utils.Fault
 
 pub fn print_code(Term) -> String
 
 // Errors
 
 // Types and methods
+pub(all) struct Ainput {
+  values : Array[Term]
+}
+pub impl @definition.Text for Ainput
+
+#alias(Code)
+#alias(Foutput)
 pub(all) enum Term {
   Var(Variable)
   Abs(Variable, Term)
   App(Term, Term)
 }
+pub impl @definition.Render for Term
+pub impl @definition.Snapshot for Term
+pub impl @definition.Text for Term
 
 pub(all) struct Variable {
   id : Int32
@@ -39,5 +50,8 @@ pub(all) struct Variable {
 }
 
 // Type aliases
+pub type Rinput = UInt32
+
+pub type Routput = Unit
 
 // Traits

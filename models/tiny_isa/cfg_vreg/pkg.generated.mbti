@@ -2,16 +2,34 @@
 package "computation/models/models/tiny_isa/cfg_vreg"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, Memory, Unit, Unit, Memory, State]
 
 // Errors
 
 // Types and methods
+type Code
+pub impl @definition.Text for Code
+
+#alias(Ainput)
+#alias(Foutput)
+pub(all) struct Memory {
+  values : Array[@utils.Nat]
+}
+pub impl @definition.Text for Memory
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

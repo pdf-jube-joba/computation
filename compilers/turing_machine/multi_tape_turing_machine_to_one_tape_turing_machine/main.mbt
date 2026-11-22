@@ -1,5 +1,5 @@
 ///|
-fn compile(d : @tm.Definition) -> @tm.Definition raise @base.Fault {
+fn compile(d : @tm.Definition) -> @tm.Definition raise @utils.Fault {
   @tm.validate(d, true)
   let names : Array[(Int32, String)] = []
   let code : Array[@tm.Entry] = []
@@ -42,10 +42,10 @@ fn compile(d : @tm.Definition) -> @tm.Definition raise @base.Fault {
   for entry in d.names {
     states[entry.0] = fresh(entry.1)
   }
-  fn state(id : Int32) -> Int32 raise @base.Fault {
+  fn state(id : Int32) -> Int32 raise @utils.Fault {
     match states.get(id) {
       Some(s) => s
-      None => @base.error("Unknown state")
+      None => @utils.error("Unknown state")
     }
   }
   let stuck = fresh("stuck")
@@ -187,18 +187,23 @@ fn compile(d : @tm.Definition) -> @tm.Definition raise @base.Fault {
 }
 
 ///|
-fn unit_text(text : String) -> String raise @base.Fault {
-  @base.unit_input(text)
-  ""
-}
-
-///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => @tm.print_code(compile(@tm.parse_code(text, true))),
-    encode_ainput: encode_input,
-    encode_rinput: unit_text,
-    decode_routput: unit_text,
-    decode_foutput: decode_output,
-  }
+pub fn compiler() -> @definition.Compiler[
+  @tm.MultiCode,
+  @tm.Tapes,
+  Unit,
+  Unit,
+  @tm.Tapes,
+  @tm.Code,
+  @tm.Ainput,
+  @tm.Rinput,
+  @tm.Routput,
+  @tm.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=code => compile(code.definition),
+    encode_ainput=encode_input,
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=decode_output,
+  )
 }

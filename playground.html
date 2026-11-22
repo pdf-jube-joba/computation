@@ -51,6 +51,22 @@
     .part { min-width: 0; overflow: auto; }
     .highlight { background: #fff1b8; color: #302a15; }
     .part.highlight { padding: .25rem .5rem; border-radius: .2rem; }
+    .inline { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: .35rem; }
+    .graph { border: 1px solid #d7dce4; border-radius: .4rem; overflow: hidden; }
+    .graph-toolbar { display: flex; align-items: center; gap: .35rem; padding: .5rem; border-bottom: 1px solid #d7dce4; flex-wrap: wrap; }
+    .graph-toolbar button { padding: .25rem .6rem; }
+    .graph-help { margin-left: auto; color: #526176; font-size: .75rem; }
+    .graph-canvas { display: block; width: 100%; height: 24rem; background: #f8faff; touch-action: none; cursor: grab; }
+    .graph-canvas:active, .graph-node:active { cursor: grabbing; }
+    .graph-edge { fill: none; stroke: #8b99ad; stroke-width: 2; }
+    .graph-edge.active { stroke: #d06b13; stroke-width: 4; }
+    .graph-node { cursor: grab; }
+    .graph-node rect { fill: #fff; stroke: #7588a5; stroke-width: 1.5; }
+    .graph-node.active rect { fill: #fff4df; stroke: #d06b13; stroke-width: 2; }
+    .graph-label { fill: #26354c; font: 14px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+    .graph-port { fill: #fff; stroke: #526a90; stroke-width: 2; }
+    .graph-port.principal { fill: #526a90; }
+    .graph-port-label { fill: #526176; font: 11px ui-monospace, monospace; text-anchor: middle; paint-order: stroke; stroke: #f8faff; stroke-width: 3; }
     table { border-collapse: collapse; font: .9rem/1.5 ui-monospace, monospace; }
     th, td { border: 1px solid #d7dce4; padding: .4rem .65rem; text-align: left; vertical-align: top; }
     th { background: #f1f3f7; }
@@ -64,6 +80,17 @@
       .status.error { color: #ff9c9f; }
       th { background: #2b3441; }
       th, td { border-color: #495466; }
+      .graph, .graph-toolbar { border-color: #495466; }
+      .graph-help { color: #a3b2c7; }
+      .graph-canvas { background: #19212d; }
+      .graph-edge { stroke: #8396b4; }
+      .graph-edge.active { stroke: #ffb35f; }
+      .graph-node rect { fill: #263348; stroke: #94a9ca; }
+      .graph-node.active rect { fill: #493821; stroke: #ffb35f; }
+      .graph-label { fill: #e1e9f7; }
+      .graph-port { fill: #263348; stroke: #b1c7e9; }
+      .graph-port.principal { fill: #b1c7e9; }
+      .graph-port-label { fill: #bac9df; stroke: #19212d; }
     }
   </style>
 </head>
@@ -172,6 +199,7 @@ let running = false;
 let steps = 0;
 let loadSequence = 0;
 let runSequence = 0;
+const graphLayouts = new Map();
 
 function report(message, error = false) {
   ui.status.textContent = message;
@@ -236,6 +264,7 @@ async function loadSelected() {
   created = false;
   stage = 'setup';
   steps = 0;
+  graphLayouts.clear();
   loading = true;
   ui.output.textContent = '';
   ui.compilerOutput.textContent = '';
@@ -311,6 +340,188 @@ async function refresh() {
   }
 }
 
+function graphView(value) {
+  const svgElement = (tag, attributes = {}, text) => {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+    if (text !== undefined) element.textContent = text;
+    return element;
+  };
+  const wrapper = document.createElement('div');
+  wrapper.className = 'graph';
+  if (!value.nodes.length) {
+    wrapper.textContent = 'No nodes.';
+    return wrapper;
+  }
+  const nodes = value.nodes.map((node, index) => {
+    const angle = index * Math.PI * (3 - Math.sqrt(5));
+    const radius = Math.sqrt(index) * 100;
+    return {...node, width: Math.max(86, Math.min(260, [...node.label].length * 9 + 30)),
+      x: Math.cos(angle) * radius, y: Math.sin(angle) * radius};
+  });
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  const edges = value.edges.filter(edge => byId.has(edge.source.node) && byId.has(edge.target.node));
+  const signature = JSON.stringify([value.nodes, edges.map(edge => [edge.source, edge.target])]);
+  const previous = graphLayouts.get(value.title);
+  const reuseLayout = previous?.signature === signature;
+  if (reuseLayout) {
+    for (const node of nodes) {
+      const position = previous.positions.get(node.id);
+      node.x = position.x; node.y = position.y;
+    }
+  }
+  // A deterministic layout keeps reloads stable; large nets use the initial spiral.
+  if (!reuseLayout && nodes.length <= 180) {
+    for (let iteration = 0; iteration < 110; iteration++) {
+      const forces = new Map(nodes.map(node => [node.id, {x: -node.x * .012, y: -node.y * .012}]));
+      for (let a = 0; a < nodes.length; a++) {
+        for (let b = a + 1; b < nodes.length; b++) {
+          const dx = nodes[a].x - nodes[b].x, dy = nodes[a].y - nodes[b].y;
+          const distance = Math.max(1, Math.hypot(dx, dy));
+          const clearance = (nodes[a].width + nodes[b].width) / 2 + 45;
+          const strength = 6500 / (distance * distance) + Math.max(0, clearance - distance) * .3;
+          const x = dx / distance * strength, y = dy / distance * strength;
+          forces.get(nodes[a].id).x += x; forces.get(nodes[a].id).y += y;
+          forces.get(nodes[b].id).x -= x; forces.get(nodes[b].id).y -= y;
+        }
+      }
+      for (const edge of edges) {
+        const source = byId.get(edge.source.node), target = byId.get(edge.target.node);
+        if (source === target) continue;
+        const dx = target.x - source.x, dy = target.y - source.y;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const strength = (distance - (source.width + target.width) / 2 - 90) * .025;
+        const x = dx / distance * strength, y = dy / distance * strength;
+        forces.get(source.id).x += x; forces.get(source.id).y += y;
+        forces.get(target.id).x -= x; forces.get(target.id).y -= y;
+      }
+      const cooling = 1 - iteration / 140;
+      for (const node of nodes) {
+        const force = forces.get(node.id);
+        node.x += Math.max(-15, Math.min(15, force.x)) * cooling;
+        node.y += Math.max(-15, Math.min(15, force.y)) * cooling;
+      }
+    }
+  }
+  const layout = {signature, positions: byId, frame: reuseLayout ? previous.frame : null};
+  graphLayouts.set(value.title, layout);
+  const toolbar = document.createElement('div');
+  toolbar.className = 'graph-toolbar';
+  wrapper.appendChild(toolbar);
+  const svg = svgElement('svg', {class: 'graph-canvas', role: 'img', tabindex: '0',
+    'aria-label': `${value.title || 'Graph'}: ${nodes.length} nodes, ${edges.length} connections`});
+  svg.appendChild(svgElement('title', {}, `${value.title || 'Graph'}. Highlighted connections show the next interaction.`));
+  wrapper.appendChild(svg);
+  const highlighted = new Set(edges.filter(edge => edge.highlighted).flatMap(edge => [edge.source.node, edge.target.node]));
+  const edgeViews = edges.map(edge => {
+    const path = svgElement('path', {class: `graph-edge${edge.highlighted ? ' active' : ''}`});
+    path.appendChild(svgElement('title', {}, `${edge.source.node}:${edge.source.port} ↔ ${edge.target.node}:${edge.target.port}`));
+    svg.appendChild(path);
+    return {edge, path};
+  });
+  const portPosition = (node, index) => ({
+    x: index === 0 || node.ports.length <= 2 ? 0 : ((index - 1) / (node.ports.length - 2) - .5) * node.width * .7,
+    y: index === 0 ? -28 : 28,
+    direction: index === 0 ? -1 : 1,
+  });
+  let frame, drag = null;
+  function startDrag(event, node) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    drag = {node, x: event.clientX, y: event.clientY};
+    svg.setPointerCapture(event.pointerId);
+  }
+  const nodeViews = nodes.map(node => {
+    const group = svgElement('g', {class: `graph-node${highlighted.has(node.id) ? ' active' : ''}`});
+    group.appendChild(svgElement('title', {}, node.id));
+    group.appendChild(svgElement('rect', {x: -node.width / 2, y: -28, width: node.width, height: 56, rx: 12}));
+    const label = svgElement('text', {class: 'graph-label', x: 0, y: 0}, node.label);
+    if ([...node.label].length * 9 > node.width - 20) {
+      label.setAttribute('textLength', node.width - 20);
+      label.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+    }
+    group.appendChild(label);
+    node.ports.forEach((name, index) => {
+      const port = portPosition(node, index);
+      const marker = svgElement('circle', {class: `graph-port${index === 0 ? ' principal' : ''}`,
+        cx: port.x, cy: port.y, r: 4.5});
+      marker.appendChild(svgElement('title', {}, `${node.id}, port ${index}${name ? ` (${name})` : ''}`));
+      group.appendChild(marker);
+      group.appendChild(svgElement('text', {class: 'graph-port-label', x: port.x, y: port.y + port.direction * 12 + 4}, name));
+    });
+    group.addEventListener('pointerdown', event => startDrag(event, node));
+    svg.appendChild(group);
+    return {node, group};
+  });
+  function draw() {
+    for (const {node, group} of nodeViews) group.setAttribute('transform', `translate(${node.x} ${node.y})`);
+    for (const {edge, path} of edgeViews) {
+      const source = byId.get(edge.source.node), target = byId.get(edge.target.node);
+      const a = portPosition(source, edge.source.port), b = portPosition(target, edge.target.port);
+      const x1 = source.x + a.x, y1 = source.y + a.y, x2 = target.x + b.x, y2 = target.y + b.y;
+      const bend = Math.max(55, Math.min(170, Math.hypot(x2 - x1, y2 - y1) * .45));
+      const loop = source === target ? source.width / 2 + 90 : 0;
+      const endDirection = source === target && edge.source.port === edge.target.port ? -b.direction : b.direction;
+      path.setAttribute('d', `M ${x1} ${y1} C ${x1 + loop} ${y1 + a.direction * bend}, ${x2 + loop} ${y2 + endDirection * bend}, ${x2} ${y2}`);
+    }
+  }
+  function applyFrame() {
+    svg.setAttribute('viewBox', `${frame.x} ${frame.y} ${frame.width} ${frame.height}`);
+    layout.frame = {...frame};
+  }
+  function fit() {
+    const left = Math.min(...nodes.map(node => node.x - node.width / 2)) - 100;
+    const right = Math.max(...nodes.map(node => node.x + node.width / 2)) + 150;
+    const top = Math.min(...nodes.map(node => node.y)) - 120;
+    const bottom = Math.max(...nodes.map(node => node.y)) + 120;
+    frame = {x: left, y: top, width: right - left, height: bottom - top};
+    applyFrame();
+  }
+  function zoom(factor) {
+    if (frame.width * factor < 60 || frame.width * factor > 1000000) return;
+    frame.x += frame.width * (1 - factor) / 2;
+    frame.y += frame.height * (1 - factor) / 2;
+    frame.width *= factor; frame.height *= factor;
+    applyFrame();
+  }
+  for (const [label, title, action] of [['−', 'Zoom out', () => zoom(1.25)], ['+', 'Zoom in', () => zoom(.8)], ['Fit', 'Fit graph', fit]]) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = label; button.setAttribute('aria-label', title);
+    button.addEventListener('click', action);
+    toolbar.appendChild(button);
+  }
+  const help = document.createElement('span');
+  help.className = 'graph-help';
+  help.textContent = 'Drag nodes or background · orange = next interaction';
+  toolbar.appendChild(help);
+  svg.addEventListener('pointerdown', event => startDrag(event, null));
+  svg.addEventListener('pointermove', event => {
+    if (!drag) return;
+    const bounds = svg.getBoundingClientRect();
+    // Meet scaling leaves letterboxing when the viewport and viewBox ratios differ.
+    const scale = Math.max(frame.width / bounds.width, frame.height / bounds.height);
+    const dx = (event.clientX - drag.x) * scale, dy = (event.clientY - drag.y) * scale;
+    drag.x = event.clientX; drag.y = event.clientY;
+    if (drag.node) { drag.node.x += dx; drag.node.y += dy; draw(); }
+    else { frame.x -= dx; frame.y -= dy; applyFrame(); }
+  });
+  svg.addEventListener('lostpointercapture', () => { drag = null; });
+  svg.addEventListener('pointerup', () => { drag = null; });
+  svg.addEventListener('pointercancel', () => { drag = null; });
+  svg.addEventListener('keydown', event => {
+    if (event.key === '+' || event.key === '=') zoom(.8);
+    else if (event.key === '-') zoom(1.25);
+    else if (event.key === '0') fit();
+    else return;
+    event.preventDefault();
+  });
+  draw();
+  if (layout.frame) { frame = {...layout.frame}; applyFrame(); }
+  else fit();
+  return wrapper;
+}
+
 function view(value) {
   const part = document.createElement('div');
   part.className = 'part';
@@ -344,7 +555,10 @@ function view(value) {
   } else if (value?.kind === 'container') {
     const children = view(value.children);
     if (value.orientation === 'horizontal') children.classList.add('horizontal');
+    if (value.display === 'inline') children.classList.add('inline');
     part.appendChild(children);
+  } else if (value?.kind === 'graph') {
+    part.appendChild(graphView(value));
   } else {
     const text = document.createElement('pre');
     text.textContent = value?.kind === 'text' ? value.text : typeof value === 'string' ? value : JSON.stringify(value, null, 2);
@@ -406,6 +620,7 @@ ui.create.addEventListener('click', () => attempt(() => {
   active = true;
   created = true;
   steps = 0;
+  graphLayouts.clear();
   ui.output.textContent = '';
   captureSnapshot();
   showStage('execution');

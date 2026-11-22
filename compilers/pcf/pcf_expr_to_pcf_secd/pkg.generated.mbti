@@ -2,16 +2,16 @@
 package "computation/models/compilers/pcf/pcf_expr_to_pcf_secd"
 
 import {
+  "computation/models/definition",
   "computation/models/models/pcf/secd",
   "computation/models/models/pcf/shared",
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compile(@shared.Expr) -> Array[@secd.Instr] raise @base.Fault
+pub fn compile(@shared.Expr) -> Array[@secd.Instr] raise @utils.Fault
 
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@shared.Expr, @shared.Inputs, Unit, @shared.Output, @utils.Nat, @secd.Code, @shared.Inputs, Unit, @shared.Output, @utils.Nat]
 
 // Errors
 

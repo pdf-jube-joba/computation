@@ -1,7 +1,5 @@
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/data",
-  "computation/models/utils/parsing" @p,
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
   "moonbitlang/core/string",
 }

@@ -1,0 +1,247 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/utils"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn array(@json.Json) -> Array[@json.Json] raise Fault
+
+pub fn[T] blank(T) -> Tape[T]
+
+pub fn boolean(@json.Json) -> Bool raise Fault
+
+pub fn char_text(String) -> String
+
+pub fn chars_text(Array[String]) -> String
+
+pub fn create(String, character_literals? : Bool, nested_comments? : Bool) -> Parser raise Fault
+
+pub fn[T] decode_env(@json.Json, (@json.Json) -> T raise Fault) -> Array[(String, T)] raise Fault
+
+pub fn decode_scalar(@json.Json) -> String raise Fault
+
+pub fn[T] decode_tape(@json.Json, (@json.Json) -> T raise Fault) -> Tape[T] raise Fault
+
+pub fn decode_tree(@json.Json) -> CharTree raise Fault
+
+pub fn[T] env_get(Array[(String, T)], String) -> T?
+
+pub fn[T] env_json(Array[(String, T)], (T) -> @json.Json) -> @json.Json
+
+pub fn[T] env_lookup(Array[(String, T)], String) -> T raise Fault
+
+pub fn[T] env_set(Array[(String, T)], String, T) -> Array[(String, T)]
+
+pub fn[T] env_sorted(Array[(String, T)]) -> Array[(String, T)]
+
+pub fn[T] error(String) -> T raise Fault
+
+pub fn field(@json.Json, String) -> @json.Json raise Fault
+
+pub fn ident_continue(Char) -> Bool
+
+pub fn ident_start(Char) -> Bool
+
+pub fn identifier(String) -> String raise Fault
+
+pub fn index(Nat) -> Int32 raise Fault
+
+pub fn int(@json.Json) -> Int32 raise Fault
+
+pub fn integer(String) -> Int32 raise Fault
+
+pub fn jarray(Array[@json.Json]) -> @json.Json
+
+pub fn jbool(Bool) -> @json.Json
+
+pub fn jint(Int32) -> @json.Json
+
+pub fn join(Array[String], String) -> String
+
+pub fn json_nat(@json.Json) -> Nat raise Fault
+
+pub fn jstr(String) -> @json.Json
+
+pub fn juint(UInt32) -> @json.Json
+
+pub fn loop_code(Array[String], String, String, Bool) -> LoopCode raise Fault
+
+pub fn nat(String) -> Nat raise Fault
+
+pub fn natural_list(String) -> Array[Nat] raise Fault
+
+pub fn natural_list_text(Array[Nat]) -> String
+
+pub fn nint(UInt32) -> Nat
+
+pub fn[T] normalize(Syntax[T], T) -> T
+
+pub fn object(Array[(String, @json.Json)]) -> @json.Json
+
+pub fn of_bytes(String) -> Nat
+
+pub fn one() -> Nat
+
+pub fn[T] optional_json(T?, (T) -> @json.Json) -> @json.Json
+
+pub fn parse_chars(String) -> Array[String] raise Fault
+
+pub fn[T] parse_env(String, (String) -> T raise Fault) -> Array[(String, T)] raise Fault
+
+pub fn parse_json(String) -> @json.Json raise Fault
+
+pub fn[T] parse_tape(String, (String) -> T raise Fault) -> Tape[T] raise Fault
+
+pub fn parse_tree(String) -> CharTree raise Fault
+
+pub fn pred(Nat) -> Nat
+
+pub fn[T] print_env(Array[(String, T)], (T) -> String, trailing_newline? : Bool) -> String
+
+pub fn read_char(Parser) -> String raise Fault
+
+pub fn read_chars(Parser, grouped_characters? : Bool) -> Array[String] raise Fault
+
+pub fn read_tree(Parser) -> CharTree raise Fault
+
+pub fn require(Bool, String) -> Unit raise Fault
+
+pub fn scalar(String) -> String raise Fault
+
+pub fn string(@json.Json) -> String raise Fault
+
+pub fn sub(Nat, Nat) -> Nat
+
+pub fn[T] substitute(Syntax[T], T, String, T) -> T
+
+pub fn supply(reserved? : Array[String]) -> Supply
+
+pub fn tag(String, Array[@json.Json]) -> @json.Json
+
+pub fn tag_arg(@json.Json, Int32) -> @json.Json raise Fault
+
+pub fn tag_name(@json.Json) -> String raise Fault
+
+pub fn to_bytes(Nat) -> String raise Fault
+
+pub fn tree_json(CharTree) -> @json.Json
+
+pub fn tree_text(CharTree) -> String
+
+pub fn uint(@json.Json) -> UInt32 raise Fault
+
+pub fn unique(Array[String], String) -> Unit raise Fault
+
+pub fn unit_input(String) -> Unit raise Fault
+
+pub fn unsigned(String) -> UInt32 raise Fault
+
+pub fn zero() -> Nat
+
+// Errors
+pub suberror Fault {
+  Fault(String)
+}
+
+// Types and methods
+#derive(Eq)
+pub(all) enum CharTree {
+  AtomValue(String)
+  ConsValue(CharTree, CharTree)
+}
+
+pub(all) struct LoopCode {
+  instructions : Array[String]
+  jumps : Array[Int32]
+}
+
+#derive(Eq)
+pub struct Nat {
+  decimal : String
+}
+pub fn Nat::compare(Self, Self) -> Int32
+pub fn Nat::is_zero(Self) -> Bool
+pub fn Nat::to_double(Self) -> Double
+pub fn Nat::to_int(Self) -> Int32
+pub fn Nat::to_string(Self) -> String
+pub impl Add for Nat
+pub impl Compare for Nat
+pub impl Div for Nat
+pub impl Mod for Nat
+pub impl Mul for Nat
+pub impl Sub for Nat
+
+pub struct Parser {
+  source : String
+  tokens : Array[Token]
+  offsets : Array[Int32]
+  matches : Array[Int32]
+  mut pos : Int32
+  limit : Int32
+}
+pub fn Parser::bump(Self) -> Token
+pub fn Parser::character(Self) -> String raise Fault
+pub fn Parser::eat(Self, Char) -> Bool
+pub fn Parser::eat_keyword(Self, String) -> Bool
+pub fn Parser::eat_text(Self, String) -> Bool raise Fault
+pub fn Parser::eof(Self) -> Bool
+pub fn[T] Parser::error(Self, String) -> T raise Fault
+pub fn Parser::expect(Self, Char) -> Unit raise Fault
+pub fn Parser::expect_keyword(Self, String) -> Unit raise Fault
+pub fn Parser::expect_text(Self, String) -> Unit raise Fault
+pub fn Parser::finish(Self) -> Unit raise Fault
+pub fn Parser::group(Self, Char) -> Self raise Fault
+pub fn Parser::ident(Self) -> String raise Fault
+pub fn Parser::integer(Self) -> Int32 raise Fault
+pub fn Parser::keyword(Self) -> String raise Fault
+pub fn Parser::natural(Self) -> Nat raise Fault
+pub fn Parser::offset(Self) -> Int32
+pub fn Parser::peek(Self) -> Token
+pub fn Parser::position(Self) -> Int32
+pub fn Parser::rewind(Self, Int32) -> Unit
+pub fn Parser::string_literal(Self) -> String raise Fault
+
+pub struct Supply {
+  used : Map[String, Bool]
+}
+pub fn Supply::fresh(Self, String) -> String
+pub fn Supply::reserve(Self, String) -> Unit
+
+pub(all) struct Syntax[T] {
+  view : (T) -> View[T]
+  variable : (String) -> T
+}
+
+pub(all) struct Tape[T] {
+  left : Array[T]
+  head : T
+  right : Array[T]
+}
+pub fn[T] Tape::json(Self[T], (T) -> @json.Json) -> @json.Json
+pub fn[T] Tape::shift(Self[T], Int32, T) -> Self[T]
+pub fn[T] Tape::text(Self[T], (T) -> String) -> String
+pub fn[T] Tape::values(Self[T]) -> Array[T]
+pub fn[T] Tape::write(Self[T], T) -> Self[T]
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Token {
+  Ident(String)
+  Keyword(String)
+  Number(String)
+  StringLit(String)
+  Character(String)
+  Symbol(Char)
+  End
+}
+
+pub(all) enum View[T] {
+  Variable(String)
+  Node(Array[String], Array[(Array[Int32], T)], (Array[String], Array[T]) -> T)
+}
+
+// Type aliases
+
+// Traits

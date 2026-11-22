@@ -9,7 +9,7 @@ pub(all) enum Binop {
 #derive(Eq)
 pub(all) enum ValueExpr {
   VReg(String)
-  Imm(@base.Nat)
+  Imm(@utils.Nat)
   CodeLabel(String)
   Ref(PlaceExpr)
 }
@@ -82,7 +82,7 @@ pub(all) struct Region {
 #derive(Eq)
 pub(all) struct StaticDef {
   label : String
-  value : @base.Nat
+  value : @utils.Nat
 }
 
 ///|
@@ -100,16 +100,16 @@ pub fn ifs(c : Cont) -> Array[JumpIf] {
 }
 
 ///|
-fn vreg(p : @p.Parser) -> String raise @base.Fault {
+fn vreg(p : @utils.Parser) -> String raise @utils.Fault {
   p.expect('%')
   p.ident()
 }
 
 ///|
-pub fn read_value(p : @p.Parser) -> ValueExpr raise @base.Fault {
+pub fn read_value(p : @utils.Parser) -> ValueExpr raise @utils.Fault {
   if p.eat_keyword("ref") {
     Ref(read_place(p))
-  } else if p.peek() == @p.Symbol('%') {
+  } else if p.peek() == @utils.Symbol('%') {
     VReg(vreg(p))
   } else if p.eat(':') {
     CodeLabel(p.ident())
@@ -120,7 +120,7 @@ pub fn read_value(p : @p.Parser) -> ValueExpr raise @base.Fault {
 }
 
 ///|
-pub fn read_place(p : @p.Parser) -> PlaceExpr raise @base.Fault {
+pub fn read_place(p : @utils.Parser) -> PlaceExpr raise @utils.Fault {
   if p.eat('@') {
     Label(p.ident())
   } else if p.eat_keyword("deref") {
@@ -141,18 +141,18 @@ pub fn read_place(p : @p.Parser) -> PlaceExpr raise @base.Fault {
 }
 
 ///|
-fn read_cond(p : @p.Parser) -> Cond raise @base.Fault {
+fn read_cond(p : @utils.Parser) -> Cond raise @utils.Fault {
   let a = read_value(p)
   match p.bump() {
-    @p.Symbol('<') => Lt(a, read_value(p))
-    @p.Symbol('=') => Eq(a, read_value(p))
-    @p.Symbol('>') => Gt(a, read_value(p))
+    @utils.Symbol('<') => Lt(a, read_value(p))
+    @utils.Symbol('=') => Eq(a, read_value(p))
+    @utils.Symbol('>') => Gt(a, read_value(p))
     _ => p.error("Expected comparison")
   }
 }
 
 ///|
-fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
+fn read_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
   let s = if p.eat_keyword("nop") {
     Nop
   } else if p.eat_keyword("pop") {
@@ -172,7 +172,7 @@ fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
     let v = read_value(g)
     g.finish()
     HAlloc(v, vreg(p))
-  } else if p.peek() == @p.Symbol('%') {
+  } else if p.peek() == @utils.Symbol('%') {
     let r = vreg(p)
     p.expect_text(":=")
     if p.eat_keyword("ld") {
@@ -197,7 +197,7 @@ fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn read_block(p : @p.Parser) -> Block raise @base.Fault {
+fn read_block(p : @utils.Parser) -> Block raise @utils.Fault {
   p.expect(':')
   let label = p.ident()
   let g = p.group('{')
@@ -212,7 +212,7 @@ fn read_block(p : @p.Parser) -> Block raise @base.Fault {
       g.expect(';')
       jumps.push({ cond, target, })
     } else {
-      @base.require(cont.val is None, "Line exists after terminator")
+      @utils.require(cont.val is None, "Line exists after terminator")
       if g.eat_keyword("goto") {
         let v = read_value(g)
         g.expect(';')
@@ -240,8 +240,8 @@ fn read_block(p : @p.Parser) -> Block raise @base.Fault {
 }
 
 ///|
-pub fn parse(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text)
   let statics = []
   let regions = []
   while !p.eof() {
@@ -256,7 +256,7 @@ pub fn parse(text : String) -> Code raise @base.Fault {
       while !g.eof() {
         blocks.push(read_block(g))
       }
-      @base.require(!blocks.is_empty(), "Region has no blocks")
+      @utils.require(!blocks.is_empty(), "Region has no blocks")
       regions.push({ label, blocks, })
     }
   }
@@ -323,7 +323,7 @@ pub fn stmt_text(s : Stmt) -> String {
 
 ///|
 pub fn print_code(c : Code) -> String {
-  let mut text = @base.join(
+  let mut text = @utils.join(
     c.statics.map(s => "@" + s.label + " " + s.value.to_string() + "\n"),
     "",
   )

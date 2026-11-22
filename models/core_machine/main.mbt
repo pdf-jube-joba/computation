@@ -2,22 +2,22 @@
 #derive(Eq)
 pub(all) enum SliceValue {
   Whole(Int32)
-  Subslice(SliceValue, @base.Nat, @base.Nat)
+  Subslice(SliceValue, @utils.Nat, @utils.Nat)
 }
 
 ///|
 pub(all) enum RuntimeValue {
-  Num(@base.Nat)
+  Num(@utils.Nat)
   CodeLabel(String)
   SliceValue(SliceValue)
-  Address(SliceValue, @base.Nat)
+  Address(SliceValue, @utils.Nat)
 }
 
 ///|
-pub type Memory = Array[(@base.Nat, RuntimeValue)]
+pub type Memory = Array[(@utils.Nat, RuntimeValue)]
 
 ///|
-priv struct State {
+struct State {
   code : Code
   block : String
   line : Int32
@@ -34,23 +34,23 @@ fn origin(s : SliceValue) -> Int32 {
 }
 
 ///|
-fn base(s : SliceValue) -> @base.Nat {
+fn base(s : SliceValue) -> @utils.Nat {
   match s {
-    Whole(_) => @base.zero()
+    Whole(_) => @utils.zero()
     Subslice(s, b, _) => base(s) + b
   }
 }
 
 ///|
-fn length(s : SliceValue) -> @base.Nat? {
+fn length(s : SliceValue) -> @utils.Nat? {
   match s {
     Whole(_) => None
-    Subslice(_, b, e) => Some(@base.sub(e, b))
+    Subslice(_, b, e) => Some(@utils.sub(e, b))
   }
 }
 
 ///|
-fn within(s : SliceValue, i : @base.Nat) -> Bool {
+fn within(s : SliceValue, i : @utils.Nat) -> Bool {
   match length(s) {
     None => true
     Some(n) => i <= n
@@ -58,7 +58,7 @@ fn within(s : SliceValue, i : @base.Nat) -> Bool {
 }
 
 ///|
-fn readable(s : SliceValue, i : @base.Nat) -> Bool {
+fn readable(s : SliceValue, i : @utils.Nat) -> Bool {
   match length(s) {
     None => true
     Some(n) => i < n
@@ -66,12 +66,12 @@ fn readable(s : SliceValue, i : @base.Nat) -> Bool {
 }
 
 ///|
-fn validate_slice(c : Code, s : SliceValue) -> Unit raise @base.Fault {
+fn validate_slice(c : Code, s : SliceValue) -> Unit raise @utils.Fault {
   match s {
-    Whole(m) => @base.require(m >= 0 && m < c.memories, "Unknown memory")
+    Whole(m) => @utils.require(m >= 0 && m < c.memories, "Unknown memory")
     Subslice(s, b, e) => {
       validate_slice(c, s)
-      @base.require(b <= e && within(s, e), "Slice out of bounds")
+      @utils.require(b <= e && within(s, e), "Slice out of bounds")
     }
   }
 }
@@ -82,38 +82,38 @@ fn known(c : Code, l : String) -> Bool {
 }
 
 ///|
-fn validate_value(c : Code, v : RuntimeValue) -> Unit raise @base.Fault {
+fn validate_value(c : Code, v : RuntimeValue) -> Unit raise @utils.Fault {
   match v {
     Num(_) => ()
-    CodeLabel(l) => @base.require(known(c, l), "Unknown code label")
+    CodeLabel(l) => @utils.require(known(c, l), "Unknown code label")
     SliceValue(s) => validate_slice(c, s)
     Address(s, i) => {
       validate_slice(c, s)
-      @base.require(within(s, i), "Address out of bounds")
+      @utils.require(within(s, i), "Address out of bounds")
     }
   }
 }
 
 ///|
-fn validate_code(c : Code) -> Unit raise @base.Fault {
-  @base.require(c.memories >= 1, "At least one memory is required")
-  @data.unique(c.blocks.map(b => b.label), "Duplicate key: ")
-  @base.require(known(c, "main"), "Missing entry block :main")
-  fn validate_expr(v : ValueExpr) -> Unit raise @base.Fault {
+fn validate_code(c : Code) -> Unit raise @utils.Fault {
+  @utils.require(c.memories >= 1, "At least one memory is required")
+  @utils.unique(c.blocks.map(b => b.label), "Duplicate key: ")
+  @utils.require(known(c, "main"), "Missing entry block :main")
+  fn validate_expr(v : ValueExpr) -> Unit raise @utils.Fault {
     match v {
       Label(l) => validate_value(c, CodeLabel(l))
       Memory(m) => validate_slice(c, Whole(m))
       _ => ()
     }
   }
-  fn place(p : Place) -> Unit raise @base.Fault {
+  fn place(p : Place) -> Unit raise @utils.Fault {
     let Deref(v) = p
     validate_expr(v)
   }
-  fn target(v : ValueExpr) -> Unit raise @base.Fault {
+  fn target(v : ValueExpr) -> Unit raise @utils.Fault {
     match v {
       Reg(_) | Label(_) => validate_expr(v)
-      _ => @base.error("Invalid jump target")
+      _ => @utils.error("Invalid jump target")
     }
   }
   for b in c.blocks {
@@ -154,9 +154,9 @@ fn validate_code(c : Code) -> Unit raise @base.Fault {
 }
 
 ///|
-fn validate_memory(c : Code, mem : Memory) -> Unit raise @base.Fault {
+fn validate_memory(c : Code, mem : Memory) -> Unit raise @utils.Fault {
   let keys = mem.map(p => p.0.to_string())
-  @data.unique(keys, "Duplicate key: ")
+  @utils.unique(keys, "Duplicate key: ")
   for p in mem {
     validate_value(c, p.1)
   }
@@ -175,7 +175,7 @@ fn normalize(mem : Memory) -> Memory {
 }
 
 ///|
-fn read_slice(p : @p.Parser) -> SliceValue raise @base.Fault {
+fn read_slice(p : @utils.Parser) -> SliceValue raise @utils.Fault {
   if p.eat_keyword("slice") {
     let s = read_slice(p)
     let b = p.natural()
@@ -189,11 +189,11 @@ fn read_slice(p : @p.Parser) -> SliceValue raise @base.Fault {
 }
 
 ///|
-fn read_runtime_value(p : @p.Parser) -> RuntimeValue raise @base.Fault {
+fn read_runtime_value(p : @utils.Parser) -> RuntimeValue raise @utils.Fault {
   if p.eat_keyword("addr") {
     let s = read_slice(p)
     Address(s, p.natural())
-  } else if p.peek() == @p.Keyword("slice") {
+  } else if p.peek() == @utils.Keyword("slice") {
     SliceValue(read_slice(p))
   } else {
     match read_value(p) {
@@ -206,8 +206,8 @@ fn read_runtime_value(p : @p.Parser) -> RuntimeValue raise @base.Fault {
 }
 
 ///|
-pub fn parse_input(text : String) -> Memory raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse_input(text : String) -> Memory raise @utils.Fault {
+  let p = @utils.create(text)
   let cells = []
   while !p.eof() {
     let i = p.natural()
@@ -240,17 +240,16 @@ fn value_text(v : RuntimeValue) -> String {
 
 ///|
 pub fn output(mem : Memory) -> String {
-  @base.join(
+  @utils.join(
     normalize(mem).map(p => p.0.to_string() + " := " + value_text(p.1) + ";\n"),
     "",
   )
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let code = parse(text)
+fn make(code : Code, input : MemoryImage) -> State raise @utils.Fault {
   validate_code(code)
-  let input = parse_input(input)
+  let input = input.values
   validate_memory(code, input)
   {
     code,
@@ -270,7 +269,7 @@ fn make(text : String, input : String) -> State raise @base.Fault {
 ///|
 fn eval(s : State, v : ValueExpr) -> RuntimeValue {
   match v {
-    Reg(r) => @data.env_get(s.registers, r).unwrap_or(Num(@base.zero()))
+    Reg(r) => @utils.env_get(s.registers, r).unwrap_or(Num(@utils.zero()))
     Imm(n) => Num(n)
     Label(l) => CodeLabel(l)
     Memory(m) => SliceValue(Whole(m))
@@ -278,32 +277,32 @@ fn eval(s : State, v : ValueExpr) -> RuntimeValue {
 }
 
 ///|
-fn num(v : RuntimeValue) -> @base.Nat raise @base.Fault {
+fn num(v : RuntimeValue) -> @utils.Nat raise @utils.Fault {
   match v {
     Num(n) => n
-    _ => @base.error("Expected natural number")
+    _ => @utils.error("Expected natural number")
   }
 }
 
 ///|
-fn slice(v : RuntimeValue) -> SliceValue raise @base.Fault {
+fn slice(v : RuntimeValue) -> SliceValue raise @utils.Fault {
   match v {
     SliceValue(s) => s
-    _ => @base.error("Expected slice")
+    _ => @utils.error("Expected slice")
   }
 }
 
 ///|
-fn address(v : RuntimeValue) -> (SliceValue, @base.Nat) raise @base.Fault {
+fn address(v : RuntimeValue) -> (SliceValue, @utils.Nat) raise @utils.Fault {
   match v {
     Address(s, i) => (s, i)
-    _ => @base.error("Expected address")
+    _ => @utils.error("Expected address")
   }
 }
 
 ///|
-fn same_origin(s : SliceValue, t : SliceValue) -> Unit raise @base.Fault {
-  @base.require(origin(s) == origin(t), "Different address origins")
+fn same_origin(s : SliceValue, t : SliceValue) -> Unit raise @utils.Fault {
+  @utils.require(origin(s) == origin(t), "Different address origins")
 }
 
 ///|
@@ -311,41 +310,45 @@ fn binop(
   o : Binop,
   a : RuntimeValue,
   b : RuntimeValue,
-) -> RuntimeValue raise @base.Fault {
+) -> RuntimeValue raise @utils.Fault {
   match (o, a, b) {
     (Add, Num(x), Num(y)) => Num(x + y)
-    (Sub, Num(x), Num(y)) => Num(@base.sub(x, y))
+    (Sub, Num(x), Num(y)) => Num(@utils.sub(x, y))
     (Add, Address(s, i), Num(n)) => {
       let j = i + n
-      @base.require(within(s, j), "Address out of bounds")
+      @utils.require(within(s, j), "Address out of bounds")
       Address(s, j)
     }
     (Sub, Address(s, i), Num(n)) => {
-      @base.require(n <= i, "Address out of bounds")
-      Address(s, @base.sub(i, n))
+      @utils.require(n <= i, "Address out of bounds")
+      Address(s, @utils.sub(i, n))
     }
     (Sub, Address(s, i), Address(t, j)) => {
       same_origin(s, t)
-      Num(@base.sub(base(s) + i, base(t) + j))
+      Num(@utils.sub(base(s) + i, base(t) + j))
     }
-    _ => @base.error("Invalid binary operand types")
+    _ => @utils.error("Invalid binary operand types")
   }
 }
 
 ///|
-fn place(s : State, p : Place) -> (Int32, @base.Nat) raise @base.Fault {
+fn place(s : State, p : Place) -> (Int32, @utils.Nat) raise @utils.Fault {
   let Deref(v) = p
   let (t, i) = address(eval(s, v))
-  @base.require(readable(t, i), "Cannot access slice end")
+  @utils.require(readable(t, i), "Cannot access slice end")
   (origin(t), base(t) + i)
 }
 
 ///|
-fn load(s : State, m : Int32, i : @base.Nat) -> RuntimeValue raise @base.Fault {
-  @base.require(m >= 0 && m < s.memory.length(), "Unknown memory")
+fn load(
+  s : State,
+  m : Int32,
+  i : @utils.Nat,
+) -> RuntimeValue raise @utils.Fault {
+  @utils.require(m >= 0 && m < s.memory.length(), "Unknown memory")
   match s.memory[m].iter().find_first(p => p.0 == i) {
     Some(p) => p.1
-    None => Num(@base.zero())
+    None => Num(@utils.zero())
   }
 }
 
@@ -353,10 +356,10 @@ fn load(s : State, m : Int32, i : @base.Nat) -> RuntimeValue raise @base.Fault {
 fn store(
   s : State,
   m : Int32,
-  i : @base.Nat,
+  i : @utils.Nat,
   v : RuntimeValue,
-) -> State raise @base.Fault {
-  @base.require(m >= 0 && m < s.memory.length(), "Unknown memory")
+) -> State raise @utils.Fault {
+  @utils.require(m >= 0 && m < s.memory.length(), "Unknown memory")
   let mem = s.memory[m].filter(p => p.0 != i)
   mem.push((i, v))
   let memory = s.memory.copy()
@@ -365,7 +368,7 @@ fn store(
 }
 
 ///|
-fn rhs(s : State, r : Rhs) -> RuntimeValue raise @base.Fault {
+fn rhs(s : State, r : Rhs) -> RuntimeValue raise @utils.Fault {
   match r {
     Value(v) => eval(s, v)
     Binop(a, o, b) => binop(o, eval(s, a), eval(s, b))
@@ -381,19 +384,19 @@ fn rhs(s : State, r : Rhs) -> RuntimeValue raise @base.Fault {
     Addr(v, i) => {
       let t = slice(eval(s, v))
       let i = num(eval(s, i))
-      @base.require(within(t, i), "Address out of bounds")
+      @utils.require(within(t, i), "Address out of bounds")
       Address(t, i)
     }
     Len(v) =>
       match length(slice(eval(s, v))) {
         Some(n) => Num(n)
-        None => @base.error("Infinite slice has no natural length")
+        None => @utils.error("Infinite slice has no natural length")
       }
   }
 }
 
 ///|
-fn cond(s : State, c : Cond) -> Bool raise @base.Fault {
+fn cond(s : State, c : Cond) -> Bool raise @utils.Fault {
   let a = eval(s, c.0)
   let b = eval(s, c.2)
   let o = c.1
@@ -408,7 +411,7 @@ fn cond(s : State, c : Cond) -> Bool raise @base.Fault {
         same_origin(t, u)
         (base(t) + i).compare(base(u) + j)
       }
-    _ => @base.error("Invalid comparison operand types")
+    _ => @utils.error("Invalid comparison operand types")
   }
   match o {
     Eq => cmp == 0
@@ -418,45 +421,45 @@ fn cond(s : State, c : Cond) -> Bool raise @base.Fault {
 }
 
 ///|
-fn jump(s : State, v : ValueExpr) -> State raise @base.Fault {
+fn jump(s : State, v : ValueExpr) -> State raise @utils.Fault {
   match eval(s, v) {
     CodeLabel(l) if known(s.code, l) => { ..s, block: l, line: 0, }
-    _ => @base.error("Jump target is not a known code label")
+    _ => @utils.error("Jump target is not a known code label")
   }
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
+  input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   let b = match s.code.blocks.iter().find_first(b => b.label == s.block) {
     Some(b) => b
-    None => @base.error("Unknown current block")
+    None => @utils.error("Unknown current block")
   }
   let ns = b.stmts.length()
   let ni = b.ifs.length()
-  @base.require(s.line >= 0, "Invalid instruction position")
+  @utils.require(s.line >= 0, "Invalid instruction position")
   if s.line < ns {
     let (next, out) = match b.stmts[s.line] {
-      Print(v) => (s, @data.to_bytes(num(eval(s, v))))
+      Print(v) => (s, @utils.to_bytes(num(eval(s, v))))
       Input(p) => {
         let (m, i) = place(s, p)
-        (store(s, m, i, Num(@data.of_bytes(input))), "")
+        (store(s, m, i, Num(@utils.of_bytes(input))), "")
       }
       Assign(r, e) => {
         let v = rhs(s, e)
-        ({ ..s, registers: @data.env_set(s.registers, r, v), }, "")
+        ({ ..s, registers: @utils.env_set(s.registers, r, v), }, "")
       }
       Store(p, v) => {
         let (m, i) = place(s, p)
         (store(s, m, i, eval(s, v)), "")
       }
     }
-    @runtime.Continue({ ..next, line: s.line + 1, }, out)
+    @definition.Continue({ ..next, line: s.line + 1, }, out)
   } else if s.line < ns + ni {
     let j = b.ifs[s.line - ns]
-    @runtime.Continue(
+    @definition.Continue(
       if cond(s, j.cond) {
         jump(s, j.target)
       } else {
@@ -466,49 +469,49 @@ fn step(
     )
   } else if s.line == ns + ni {
     match b.ending {
-      Halt => @runtime.Halt(output(s.memory[0]))
-      Goto(v) => @runtime.Continue(jump(s, v), "")
+      Halt => @definition.Halt(MemoryImage::{ values: normalize(s.memory[0]), })
+      Goto(v) => @definition.Continue(jump(s, v), "")
     }
   } else {
-    @base.error("Invalid instruction position")
+    @utils.error("Invalid instruction position")
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("code", code_json(s.code)),
-    ("block", @base.jstr(s.block)),
-    ("line", @base.jint(s.line)),
-    ("registers", @data.env_json(s.registers, runtimevalue_json)),
-    ("memory", @base.jarray(s.memory.map(memory_json))),
+    ("block", @utils.jstr(s.block)),
+    ("line", @utils.jint(s.line)),
+    ("registers", @utils.env_json(s.registers, runtimevalue_json)),
+    ("memory", @utils.jarray(s.memory.map(memory_json))),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
-  let code = decode_code(@base.field(j, "code"))
+fn decode(j : Json) -> State raise @utils.Fault {
+  let code = decode_code(@utils.field(j, "code"))
   validate_code(code)
-  let block = @base.identifier(@base.string(@base.field(j, "block")))
+  let block = @utils.identifier(@utils.string(@utils.field(j, "block")))
   let b = match code.blocks.iter().find_first(b => b.label == block) {
     Some(b) => b
-    None => @base.error("Unknown current block")
+    None => @utils.error("Unknown current block")
   }
-  let line = @base.int(@base.field(j, "line"))
-  @base.require(
+  let line = @utils.int(@utils.field(j, "line"))
+  @utils.require(
     line >= 0 && line <= b.stmts.length() + b.ifs.length(),
     "Invalid instruction position",
   )
-  let registers = @data.decode_env(
-    @base.field(j, "registers"),
+  let registers = @utils.decode_env(
+    @utils.field(j, "registers"),
     decode_runtimevalue,
   )
-  @data.unique(registers.map(p => p.0), "Duplicate key: ")
+  @utils.unique(registers.map(p => p.0), "Duplicate key: ")
   for p in registers {
     validate_value(code, p.1)
   }
-  let memory = @base.array(@base.field(j, "memory")).map(decode_memory)
-  @base.require(
+  let memory = @utils.array(@utils.field(j, "memory")).map(decode_memory)
+  @utils.require(
     memory.length() == code.memories,
     "Memory count does not match declaration",
   )
@@ -519,28 +522,41 @@ fn decode(j : Json) -> State raise @base.Fault {
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let rows = []
   for m, cells in s.memory {
     for p in cells {
       rows.push(["MEM_" + m.to_string(), p.0.to_string(), value_text(p.1)])
     }
   }
-  @base.jarray([
-    @base.table("status", ["field", "value"], [
+  [
+    @definition.text_table("status", ["field", "value"], [
       ["block", ":" + s.block],
       ["line", s.line.to_string()],
     ]),
-    @base.table(
+    @definition.text_table(
       "registers",
       ["register", "value"],
       s.registers.map(p => ["%" + p.0, value_text(p.1)]),
     ),
-    @base.table("memory (nonzero cells)", ["memory", "address", "value"], rows),
-  ])
+    @definition.text_table(
+      "memory (nonzero cells)",
+      ["memory", "address", "value"],
+      rows,
+    ),
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

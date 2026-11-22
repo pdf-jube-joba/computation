@@ -1,7 +1,7 @@
 ///|
 pub(all) enum Aexp {
   Var(String)
-  Num(@base.Nat)
+  Num(@utils.Nat)
   Bin(Aexp, Bool, Aexp)
   Conditional(Bexp, Aexp, Aexp)
 }
@@ -23,29 +23,29 @@ pub(all) enum Stmt {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Stmt
   stmt : Stmt
-  env : Array[(String, @base.Nat)]
+  env : Array[(String, @utils.Nat)]
 }
 
 ///|
-fn atom(p : @p.Parser) -> Aexp raise @base.Fault {
-  if p.peek() == @p.Symbol('(') {
+fn atom(p : @utils.Parser) -> Aexp raise @utils.Fault {
+  if p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let a = aexp(g)
     g.finish()
     a
   } else {
     match p.peek() {
-      @p.Number(_) => Num(p.natural())
+      @utils.Number(_) => Num(p.natural())
       _ => Var(p.ident())
     }
   }
 }
 
 ///|
-fn aexp(p : @p.Parser) -> Aexp raise @base.Fault {
+fn aexp(p : @utils.Parser) -> Aexp raise @utils.Fault {
   if p.eat_keyword("if") {
     let c = bexp(p)
     p.expect_keyword("then")
@@ -54,7 +54,7 @@ fn aexp(p : @p.Parser) -> Aexp raise @base.Fault {
     Conditional(c, a, aexp(p))
   } else {
     let mut a = atom(p)
-    while p.peek() == @p.Symbol('+') || p.peek() == @p.Symbol('-') {
+    while p.peek() == @utils.Symbol('+') || p.peek() == @utils.Symbol('-') {
       let add = p.eat('+')
       if !add {
         p.expect('-')
@@ -66,11 +66,11 @@ fn aexp(p : @p.Parser) -> Aexp raise @base.Fault {
 }
 
 ///|
-fn boperand(p : @p.Parser) -> Bexp raise @base.Fault {
+fn boperand(p : @utils.Parser) -> Bexp raise @utils.Fault {
   if p.eat('!') {
     return Not(boperand(p))
   }
-  if p.peek() == @p.Symbol('(') {
+  if p.peek() == @utils.Symbol('(') {
     let saved = p.position()
     try {
       let g = p.group('(')
@@ -83,16 +83,16 @@ fn boperand(p : @p.Parser) -> Bexp raise @base.Fault {
   }
   let a = aexp(p)
   let op = match p.bump() {
-    @p.Symbol('<') => "<"
-    @p.Symbol('=') => "="
-    @p.Symbol('>') => ">"
+    @utils.Symbol('<') => "<"
+    @utils.Symbol('=') => "="
+    @utils.Symbol('>') => ">"
     _ => p.error("Expected comparison")
   }
   Rel(a, op, aexp(p))
 }
 
 ///|
-fn bexp(p : @p.Parser) -> Bexp raise @base.Fault {
+fn bexp(p : @utils.Parser) -> Bexp raise @utils.Fault {
   let mut b = boperand(p)
   while p.eat_text("||") {
     b = Or(b, boperand(p))
@@ -101,7 +101,7 @@ fn bexp(p : @p.Parser) -> Bexp raise @base.Fault {
 }
 
 ///|
-fn single(p : @p.Parser) -> Stmt raise @base.Fault {
+fn single(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("Nop") {
     Nop
   } else if p.eat_keyword("if") {
@@ -113,7 +113,7 @@ fn single(p : @p.Parser) -> Stmt raise @base.Fault {
     let b = statement(g)
     g.finish()
     While(c, b)
-  } else if p.peek() == @p.Symbol('(') {
+  } else if p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let b = statement(g)
     g.finish()
@@ -126,7 +126,7 @@ fn single(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
+fn statement(p : @utils.Parser) -> Stmt raise @utils.Fault {
   let mut s = single(p)
   while p.eat(';') {
     s = Seq(s, single(p))
@@ -135,21 +135,21 @@ fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn lookup(env : Array[(String, @base.Nat)], name : String) -> @base.Nat {
+fn lookup(env : Array[(String, @utils.Nat)], name : String) -> @utils.Nat {
   for pair in env {
     if pair.0 == name {
       return pair.1
     }
   }
-  @base.zero()
+  @utils.zero()
 }
 
 ///|
 fn set(
-  env : Array[(String, @base.Nat)],
+  env : Array[(String, @utils.Nat)],
   name : String,
-  value : @base.Nat,
-) -> Array[(String, @base.Nat)] {
+  value : @utils.Nat,
+) -> Array[(String, @utils.Nat)] {
   let result = env.map(pair => if pair.0 == name { (name, value) } else { pair })
   if !env.any(pair => pair.0 == name) {
     result.push((name, value))
@@ -158,7 +158,7 @@ fn set(
 }
 
 ///|
-fn eval_a(a : Aexp, env : Array[(String, @base.Nat)]) -> @base.Nat {
+fn eval_a(a : Aexp, env : Array[(String, @utils.Nat)]) -> @utils.Nat {
   match a {
     Var(v) => lookup(env, v)
     Num(n) => n
@@ -166,14 +166,14 @@ fn eval_a(a : Aexp, env : Array[(String, @base.Nat)]) -> @base.Nat {
       if add {
         eval_a(a, env) + eval_a(b, env)
       } else {
-        @base.sub(eval_a(a, env), eval_a(b, env))
+        @utils.sub(eval_a(a, env), eval_a(b, env))
       }
     Conditional(c, a, b) => eval_a(if eval_b(c, env) { a } else { b }, env)
   }
 }
 
 ///|
-fn eval_b(b : Bexp, env : Array[(String, @base.Nat)]) -> Bool {
+fn eval_b(b : Bexp, env : Array[(String, @utils.Nat)]) -> Bool {
   match b {
     Rel(a, op, b) => {
       let a = eval_a(a, env)
@@ -192,8 +192,8 @@ fn eval_b(b : Bexp, env : Array[(String, @base.Nat)]) -> Bool {
 ///|
 fn small_step(
   s : Stmt,
-  env : Array[(String, @base.Nat)],
-) -> (Stmt, Array[(String, @base.Nat)]) {
+  env : Array[(String, @utils.Nat)],
+) -> (Stmt, Array[(String, @utils.Nat)]) {
   match s {
     Nop => (Nop, env)
     Assign(v, a) => (Nop, set(env, v, eval_a(a, env)))
@@ -208,42 +208,20 @@ fn small_step(
 }
 
 ///|
-fn make(code : String, input : String) -> State raise @base.Fault {
-  let p = @p.create(code)
-  let code = statement(p)
-  p.finish()
-  let mut env = []
-  for line in input.split("\n") {
-    if !line.trim().is_empty() {
-      let parts = line.split("=").collect()
-      @base.require(parts.length() == 2, "Invalid env line")
-      env = set(
-        env,
-        @base.identifier(parts[0].trim().to_owned()),
-        @base.nat(parts[1].to_owned()),
-      )
-    }
-  }
-  { code, stmt: code, env, }
+fn make(code : Stmt, input : Environment) -> State {
+  { code, stmt: code, env: input.values, }
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] {
   match s.stmt {
-    Nop =>
-      @runtime.Halt(
-        @base.join(
-          s.env.map(pair => pair.0 + " = " + pair.1.to_string() + "\n"),
-          "",
-        ),
-      )
+    Nop => @definition.Halt(Environment::{ values: s.env, })
     _ => {
       let (stmt, env) = small_step(s.stmt, s.env)
-      @runtime.Continue({ ..s, stmt, env, }, "")
+      @definition.Continue({ ..s, stmt, env, }, ())
     }
   }
 }
@@ -251,15 +229,15 @@ fn step(
 ///|
 fn aj(a : Aexp) -> Json {
   match a {
-    Var(v) => @base.tag("Var", [@base.jstr(v)])
-    Num(n) => @base.tag("Num", [@base.jstr(n.to_string())])
+    Var(v) => @utils.tag("Var", [@utils.jstr(v)])
+    Num(n) => @utils.tag("Num", [@utils.jstr(n.to_string())])
     Bin(a, add, b) =>
-      @base.tag("BinOp", [
+      @utils.tag("BinOp", [
         aj(a),
-        @base.tag(if add { "Add" } else { "Sub" }, []),
+        @utils.tag(if add { "Add" } else { "Sub" }, []),
         aj(b),
       ])
-    Conditional(c, a, b) => @base.tag("IfThenElse", [bj(c), aj(a), aj(b)])
+    Conditional(c, a, b) => @utils.tag("IfThenElse", [bj(c), aj(a), aj(b)])
   }
 }
 
@@ -267,9 +245,9 @@ fn aj(a : Aexp) -> Json {
 fn bj(b : Bexp) -> Json {
   match b {
     Rel(a, op, b) =>
-      @base.tag("Rel", [
+      @utils.tag("Rel", [
         aj(a),
-        @base.tag(
+        @utils.tag(
           match op {
             "<" => "Lt"
             ">" => "Gt"
@@ -279,86 +257,86 @@ fn bj(b : Bexp) -> Json {
         ),
         aj(b),
       ])
-    Or(a, b) => @base.tag("Or", [bj(a), bj(b)])
-    Not(b) => @base.tag("Not", [bj(b)])
+    Or(a, b) => @utils.tag("Or", [bj(a), bj(b)])
+    Not(b) => @utils.tag("Not", [bj(b)])
   }
 }
 
 ///|
 fn sj(s : Stmt) -> Json {
   match s {
-    Nop => @base.tag("Nop", [])
-    Assign(v, a) => @base.tag("Assign", [@base.jstr(v), aj(a)])
-    Seq(a, b) => @base.tag("Seq", [sj(a), sj(b)])
-    If(c, b) => @base.tag("If", [bj(c), sj(b)])
-    While(c, b) => @base.tag("While", [bj(c), sj(b)])
+    Nop => @utils.tag("Nop", [])
+    Assign(v, a) => @utils.tag("Assign", [@utils.jstr(v), aj(a)])
+    Seq(a, b) => @utils.tag("Seq", [sj(a), sj(b)])
+    If(c, b) => @utils.tag("If", [bj(c), sj(b)])
+    While(c, b) => @utils.tag("While", [bj(c), sj(b)])
   }
 }
 
 ///|
-fn ad(j : Json) -> Aexp raise @base.Fault {
-  fn arg(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn ad(j : Json) -> Aexp raise @utils.Fault {
+  fn arg(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
-    "Var" => Var(@base.identifier(@base.string(arg(0))))
-    "Num" => Num(@base.json_nat(arg(0)))
+  match @utils.tag_name(j) {
+    "Var" => Var(@utils.identifier(@utils.string(arg(0))))
+    "Num" => Num(@utils.json_nat(arg(0)))
     "BinOp" => {
-      let op = @base.tag_name(arg(1))
-      @base.require(op == "Add" || op == "Sub", "Invalid arithmetic operator")
+      let op = @utils.tag_name(arg(1))
+      @utils.require(op == "Add" || op == "Sub", "Invalid arithmetic operator")
       Bin(ad(arg(0)), op == "Add", ad(arg(2)))
     }
     "IfThenElse" => Conditional(bd(arg(0)), ad(arg(1)), ad(arg(2)))
-    _ => @base.error("Invalid expression")
+    _ => @utils.error("Invalid expression")
   }
 }
 
 ///|
-fn bd(j : Json) -> Bexp raise @base.Fault {
-  fn arg(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn bd(j : Json) -> Bexp raise @utils.Fault {
+  fn arg(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
+  match @utils.tag_name(j) {
     "Rel" => {
-      let op = match @base.tag_name(arg(1)) {
+      let op = match @utils.tag_name(arg(1)) {
         "Lt" => "<"
         "Gt" => ">"
         "Eq" => "="
-        _ => @base.error("Invalid relation")
+        _ => @utils.error("Invalid relation")
       }
       Rel(ad(arg(0)), op, ad(arg(2)))
     }
     "Or" => Or(bd(arg(0)), bd(arg(1)))
     "Not" => Not(bd(arg(0)))
-    _ => @base.error("Invalid condition")
+    _ => @utils.error("Invalid condition")
   }
 }
 
 ///|
-fn sd(j : Json) -> Stmt raise @base.Fault {
-  fn arg(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn sd(j : Json) -> Stmt raise @utils.Fault {
+  fn arg(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
+  match @utils.tag_name(j) {
     "Nop" => Nop
-    "Assign" => Assign(@base.identifier(@base.string(arg(0))), ad(arg(1)))
+    "Assign" => Assign(@utils.identifier(@utils.string(arg(0))), ad(arg(1)))
     "Seq" => Seq(sd(arg(0)), sd(arg(1)))
     "If" => If(bd(arg(0)), sd(arg(1)))
     "While" => While(bd(arg(0)), sd(arg(1)))
-    _ => @base.error("Invalid statement")
+    _ => @utils.error("Invalid statement")
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("code", sj(s.code)),
     ("stmt", sj(s.stmt)),
     (
       "env",
-      @base.jarray(
+      @utils.jarray(
         s.env.map(pair => {
-          @base.jarray([@base.jstr(pair.0), @base.jstr(pair.1.to_string())])
+          @utils.jarray([@utils.jstr(pair.0), @utils.jstr(pair.1.to_string())])
         }),
       ),
     ),
@@ -366,14 +344,14 @@ fn encode(s : State) -> Json {
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
+fn decode(j : Json) -> State raise @utils.Fault {
   {
-    code: sd(@base.field(j, "code")),
-    stmt: sd(@base.field(j, "stmt")),
-    env: @base.array(@base.field(j, "env")).map(pair => {
-      let a = @base.array(pair)
-      @base.require(a.length() == 2, "Invalid env entry")
-      (@base.identifier(@base.string(a[0])), @base.json_nat(a[1]))
+    code: sd(@utils.field(j, "code")),
+    stmt: sd(@utils.field(j, "stmt")),
+    env: @utils.array(@utils.field(j, "env")).map(pair => {
+      let a = @utils.array(pair)
+      @utils.require(a.length() == 2, "Invalid env entry")
+      (@utils.identifier(@utils.string(a[0])), @utils.json_nat(a[1]))
     }),
   }
 }
@@ -411,22 +389,22 @@ fn st(s : Stmt) -> String {
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, s => {
-    @base.jarray([
-      @base.titled("stmt", st(s.stmt)),
-      @base.table(
-        "env",
-        ["var", "value"],
-        s.env.map(pair => [pair.0, pair.1.to_string()]),
-      ),
-    ])
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
   })
 }
 
 ///|
-pub fn parse_code(text : String) -> Stmt raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse_code(text : String) -> Stmt raise @utils.Fault {
+  let p = @utils.create(text)
   let s = statement(p)
   p.finish()
   s

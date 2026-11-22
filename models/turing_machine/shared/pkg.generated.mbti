@@ -2,28 +2,30 @@
 package "computation/models/models/turing_machine/shared"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
 pub fn direction_text(Int32) -> String
 
-pub fn model(multi? : Bool) -> @runtime.Model
+pub fn model() -> @definition.Model[Definition, Tape, Unit, Unit, Tape, State]
 
-pub fn multi_model() -> @runtime.Model
+pub fn multi_model() -> @definition.Model[MultiCode, Tapes, Unit, Unit, Tapes, MultiState]
 
-pub fn parse_code(String, Bool) -> Definition raise @base.Fault
+pub fn parse_code(String, Bool) -> Definition raise @utils.Fault
 
 pub fn print_code(Definition) -> String
 
-pub fn sign(String) -> String raise @base.Fault
+pub fn sign(String) -> String raise @utils.Fault
 
-pub fn validate(Definition, Bool) -> Unit raise @base.Fault
+pub fn validate(Definition, Bool) -> Unit raise @utils.Fault
 
 // Errors
 
 // Types and methods
+#alias(Code)
 pub(all) struct Definition {
   count : Int32
   alphabet : Array[String]
@@ -32,6 +34,7 @@ pub(all) struct Definition {
   code : Array[Entry]
   names : Array[(Int32, String)]
 }
+pub impl @definition.Text for Definition
 
 pub(all) struct Entry {
   reads : Array[String]
@@ -41,6 +44,34 @@ pub(all) struct Entry {
   directions : Array[Int32]
 }
 
+pub(all) struct MultiCode {
+  definition : Definition
+}
+pub impl @definition.Text for MultiCode
+
+type MultiState
+pub impl @definition.Render for MultiState
+pub impl @definition.Snapshot for MultiState
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
+
+#alias(Ainput)
+#alias(Foutput)
+pub(all) struct Tape {
+  value : @utils.Tape[String]
+}
+pub impl @definition.Text for Tape
+
+pub(all) struct Tapes {
+  values : Array[@utils.Tape[String]]
+}
+pub impl @definition.Text for Tapes
+
 // Type aliases
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

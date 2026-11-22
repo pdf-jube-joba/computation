@@ -35,14 +35,14 @@ priv struct Function {
 }
 
 ///|
-priv struct Code {
+struct Code {
   functions : Array[Function]
 }
 
 ///|
-fn parse_place(p : @p.Parser) -> Place raise @base.Fault {
+fn parse_place(p : @utils.Parser) -> Place raise @utils.Fault {
   match p.peek() {
-    @p.Ident(_) => Var(p.ident())
+    @utils.Ident(_) => Var(p.ident())
     _ => {
       let g = p.group('(')
       let v = parse_expr(g)
@@ -54,22 +54,25 @@ fn parse_place(p : @p.Parser) -> Place raise @base.Fault {
 }
 
 ///|
-fn atom(p : @p.Parser) -> Expr raise @base.Fault {
+fn atom(p : @utils.Parser) -> Expr raise @utils.Fault {
   if p.eat_keyword("null_ptr") {
     NullPtr
   } else if p.eat_keyword("ld") {
     Load(parse_place(p))
-  } else if p.peek() == @p.Symbol('(') {
+  } else if p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let v = parse_expr(g)
     g.finish()
     v
-  } else if p.peek() is @p.Number(_) {
+  } else if p.peek() is @utils.Number(_) {
     let n = p.natural()
-    @base.require(n <= @base.nat("9223372036854775807"), "Integer out of range")
+    @utils.require(
+      n <= @utils.nat("9223372036854775807"),
+      "Integer out of range",
+    )
     Number(
       @string.parse_int64(n.to_string()) catch {
-        _ => @base.error("Integer out of range")
+        _ => @utils.error("Integer out of range")
       },
     )
   } else {
@@ -80,7 +83,7 @@ fn atom(p : @p.Parser) -> Expr raise @base.Fault {
 }
 
 ///|
-fn parse_expr(p : @p.Parser) -> Expr raise @base.Fault {
+fn parse_expr(p : @utils.Parser) -> Expr raise @utils.Fault {
   let mut value = atom(p)
   while true {
     if p.eat('+') {
@@ -95,7 +98,7 @@ fn parse_expr(p : @p.Parser) -> Expr raise @base.Fault {
 }
 
 ///|
-fn parse_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
+fn parse_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("assign") {
     let place = parse_place(p)
     p.expect_text(":=")
@@ -127,8 +130,8 @@ fn parse_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn parse_code(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+fn parse_code(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text)
   let functions = []
   while !p.eof() {
     p.expect_keyword("fn")
@@ -196,7 +199,7 @@ fn stmt_text(s : Stmt) -> String {
       stmt_text(b) +
       " \\end"
     Call(n, args) =>
-      "\\call " + n + "(" + @base.join(args.map(expr_text), ", ") + ")"
+      "\\call " + n + "(" + @utils.join(args.map(expr_text), ", ") + ")"
     Return => "\\return"
   }
 }

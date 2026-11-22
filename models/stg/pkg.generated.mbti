@@ -2,16 +2,33 @@
 package "computation/models/models/stg"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, Unit, Unit, Unit, ResultValue, State]
 
 // Errors
 
 // Types and methods
+type Code
+pub impl @definition.Text for Code
+
+#alias(Foutput)
+type ResultValue
+pub impl @definition.Text for ResultValue
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Ainput = Unit
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

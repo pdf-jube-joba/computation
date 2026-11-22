@@ -2,11 +2,12 @@
 package "computation/models/compilers/turing_machine/multi_tape_turing_machine_to_one_tape_turing_machine"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/turing_machine/shared",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@shared.MultiCode, @shared.Tapes, Unit, Unit, @shared.Tapes, @shared.Definition, @shared.Tape, Unit, Unit, @shared.Tape]
 
 // Errors
 

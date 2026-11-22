@@ -2,11 +2,14 @@
 package "computation/models/compilers/rec_tm/recursive_function_to_turing_machine"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/recursive_function",
+  "computation/models/models/turing_machine/shared",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@recursive_function.Func, @recursive_function.Ainput, Unit, Unit, @utils.Nat, @shared.Definition, @shared.Tape, Unit, Unit, @shared.Tape]
 
 // Errors
 

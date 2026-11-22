@@ -1,7 +1,7 @@
 ///|
 priv enum Atom {
   Var(String)
-  Imm(@base.Nat)
+  Imm(@utils.Nat)
 }
 
 ///|
@@ -50,11 +50,11 @@ priv struct FunctionDef {
 }
 
 ///|
-fn a_atom(p : @p.Parser) -> Aexp raise @base.Fault {
+fn a_atom(p : @utils.Parser) -> Aexp raise @utils.Fault {
   match p.peek() {
-    @p.Number(_) => Atom(Imm(p.natural()))
-    @p.Ident(_) => Atom(Var(p.ident()))
-    @p.Symbol('(') => {
+    @utils.Number(_) => Atom(Imm(p.natural()))
+    @utils.Ident(_) => Atom(Var(p.ident()))
+    @utils.Symbol('(') => {
       let g = p.group('(')
       let a = aexp(g)
       g.finish()
@@ -65,13 +65,13 @@ fn a_atom(p : @p.Parser) -> Aexp raise @base.Fault {
 }
 
 ///|
-fn aexp(p : @p.Parser, min_prec~ : Int32 = 0) -> Aexp raise @base.Fault {
+fn aexp(p : @utils.Parser, min_prec~ : Int32 = 0) -> Aexp raise @utils.Fault {
   let mut a = a_atom(p)
   while true {
     let op = match p.peek() {
-      @p.Symbol('+') => Some((Add, 1))
-      @p.Symbol('-') => Some((Sub, 1))
-      @p.Symbol('*') => Some((Mul, 3))
+      @utils.Symbol('+') => Some((Add, 1))
+      @utils.Symbol('-') => Some((Sub, 1))
+      @utils.Symbol('*') => Some((Mul, 3))
       _ => None
     }
     match op {
@@ -86,7 +86,7 @@ fn aexp(p : @p.Parser, min_prec~ : Int32 = 0) -> Aexp raise @base.Fault {
 }
 
 ///|
-fn b_atom(p : @p.Parser) -> Bexp raise @base.Fault {
+fn b_atom(p : @utils.Parser) -> Bexp raise @utils.Fault {
   if p.eat('!') {
     return Not(b_atom(p))
   }
@@ -94,7 +94,7 @@ fn b_atom(p : @p.Parser) -> Bexp raise @base.Fault {
     p.expect('$')
     return Done(p.ident())
   }
-  if p.peek() == @p.Symbol('(') {
+  if p.peek() == @utils.Symbol('(') {
     let pos = p.position()
     try {
       let g = p.group('(')
@@ -118,7 +118,7 @@ fn b_atom(p : @p.Parser) -> Bexp raise @base.Fault {
 }
 
 ///|
-fn b_and(p : @p.Parser) -> Bexp raise @base.Fault {
+fn b_and(p : @utils.Parser) -> Bexp raise @utils.Fault {
   let mut b = b_atom(p)
   while p.eat_text("&&") {
     b = And(b, b_atom(p))
@@ -127,7 +127,7 @@ fn b_and(p : @p.Parser) -> Bexp raise @base.Fault {
 }
 
 ///|
-fn bexp(p : @p.Parser) -> Bexp raise @base.Fault {
+fn bexp(p : @utils.Parser) -> Bexp raise @utils.Fault {
   let mut b = b_and(p)
   while p.eat_text("||") {
     b = Or(b, b_and(p))
@@ -136,7 +136,7 @@ fn bexp(p : @p.Parser) -> Bexp raise @base.Fault {
 }
 
 ///|
-fn offset(p : @p.Parser) -> Int32 raise @base.Fault {
+fn offset(p : @utils.Parser) -> Int32 raise @utils.Fault {
   let neg = p.eat('-')
   if !neg {
     ignore(p.eat('+'))
@@ -150,7 +150,7 @@ fn offset(p : @p.Parser) -> Int32 raise @base.Fault {
 }
 
 ///|
-fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
+fn read_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("if") {
     let b = bexp(p)
     p.expect_keyword("goto")
@@ -174,8 +174,8 @@ fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn parse(text : String) -> Array[FunctionDef] raise @base.Fault {
-  let p = @p.create(text)
+fn parse(text : String) -> Array[FunctionDef] raise @utils.Fault {
+  let p = @utils.create(text)
   let code = []
   while !p.eof() {
     p.expect_keyword("fn")
@@ -193,14 +193,14 @@ fn parse(text : String) -> Array[FunctionDef] raise @base.Fault {
     }
     code.push({ name, body, })
   }
-  @base.require(!code.is_empty(), "At least one function is required")
+  @utils.require(!code.is_empty(), "At least one function is required")
   code
 }
 
 ///|
-fn validate(code : Array[FunctionDef]) -> Unit raise @base.Fault {
-  @data.unique(code.map(f => f.name), "duplicate function: ")
-  @base.require(code.any(f => f.name == "main"), "missing main function")
+fn validate(code : Array[FunctionDef]) -> Unit raise @utils.Fault {
+  @utils.unique(code.map(f => f.name), "duplicate function: ")
+  @utils.require(code.any(f => f.name == "main"), "missing main function")
 }
 
 ///|

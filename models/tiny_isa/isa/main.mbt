@@ -1,16 +1,15 @@
 ///|
-priv struct State {
-  regs : Array[@base.Nat]
+struct State {
+  regs : Array[@utils.Nat]
   flag : Bool
   code_len : Int32
-  memory : Array[@base.Nat]
+  memory : Array[@utils.Nat]
   halted : Bool
 }
 
 ///|
-fn make(code : String, input : String) -> State raise @base.Fault {
-  let code = @machine.natural_lines(code)
-  let image = @machine.image(input)
+fn make(program : Code, image : @machine.Image) -> State {
+  let code = program.words
   let memory = code.copy()
   memory.append(image.memory)
   {
@@ -23,20 +22,19 @@ fn make(code : String, input : String) -> State raise @base.Fault {
 }
 
 ///|
-fn output(s : State) -> String {
-  @machine.image_text(s.regs, s.memory[s.code_len:].to_owned())
+fn output(s : State) -> @machine.Image {
+  { register: s.regs, memory: s.memory[s.code_len:].to_owned(), }
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   if s.halted {
-    return @runtime.Halt(output(s))
+    return @definition.Halt(output(s))
   }
-  let pc = @base.index(s.regs[0])
+  let pc = @utils.index(s.regs[0])
   let inst = @machine.decode(@machine.read(s.memory, pc))
   let (regs, flag, memory, halted) = @machine.execute(
     inst,
@@ -47,30 +45,30 @@ fn step(
   )
   let next = { ..s, regs, flag, memory, halted, }
   if halted {
-    @runtime.Halt(output(next))
+    @definition.Halt(output(next))
   } else {
-    @runtime.Continue(next, "")
+    @definition.Continue(next, ())
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("regs", @machine.nats_json(s.regs)),
-    ("flag", @base.jbool(s.flag)),
-    ("code_len", @base.jint(s.code_len)),
+    ("flag", @utils.jbool(s.flag)),
+    ("code_len", @utils.jint(s.code_len)),
     ("memory", @machine.nats_json(s.memory)),
-    ("halted", @base.jbool(s.halted)),
+    ("halted", @utils.jbool(s.halted)),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
-  let regs = @machine.decode_nats(@base.field(j, "regs"))
+fn decode(j : Json) -> State raise @utils.Fault {
+  let regs = @machine.decode_nats(@utils.field(j, "regs"))
   @machine.validate_regs(regs)
-  let memory = @machine.decode_nats(@base.field(j, "memory"))
-  let code_len = @base.int(@base.field(j, "code_len"))
-  @base.require(
+  let memory = @machine.decode_nats(@utils.field(j, "memory"))
+  let code_len = @utils.int(@utils.field(j, "code_len"))
+  @utils.require(
     code_len >= 0 && code_len <= memory.length(),
     "Invalid code length",
   )
@@ -78,14 +76,14 @@ fn decode(j : Json) -> State raise @base.Fault {
     regs,
     memory,
     code_len,
-    flag: @base.boolean(@base.field(j, "flag")),
-    halted: @base.boolean(@base.field(j, "halted")),
+    flag: @utils.boolean(@utils.field(j, "flag")),
+    halted: @utils.boolean(@utils.field(j, "halted")),
   }
 }
 
 ///|
-fn render(s : State) -> Json {
-  let pc = Some(@base.index(s.regs[0])) catch { _ => None }
+fn render(s : State) -> Array[@definition.Block] {
+  let pc = Some(@utils.index(s.regs[0])) catch { _ => None }
   let next = match pc {
     Some(i) if i < s.memory.length() =>
       @machine.text(@machine.decode(s.memory[i]), n => n.to_string()) catch {
@@ -93,8 +91,8 @@ fn render(s : State) -> Json {
       }
     _ => "halt"
   }
-  @base.jarray([
-    @base.table("status", ["field", "value"], [
+  [
+    @definition.text_table("status", ["field", "value"], [
       [
         "pc",
         match pc {
@@ -107,16 +105,25 @@ fn render(s : State) -> Json {
       ["halted", s.halted.to_string()],
     ]),
     @machine.registers(s.regs),
-    @base.table(
+    @definition.text_table(
       "memory",
       ["addr", "value"],
       s.memory.mapi((i, n) => [i.to_string(), n.to_string()]),
       highlight=pc.unwrap_or(-1),
     ),
-  ])
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

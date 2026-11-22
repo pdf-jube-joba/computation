@@ -30,8 +30,8 @@ fn[K : Eq, V] assoc_set(
 }
 
 ///|
-fn[T] at(values : Array[T], i : Int32) -> T raise @base.Fault {
-  @base.require(i >= 0 && i < values.length(), "projection out of bounds")
+fn[T] at(values : Array[T], i : Int32) -> T raise @utils.Fault {
+  @utils.require(i >= 0 && i < values.length(), "projection out of bounds")
   values[i]
 }
 
@@ -39,7 +39,7 @@ fn[T] at(values : Array[T], i : Int32) -> T raise @base.Fault {
 fn type_match(v : Value, ty : Ty) -> Bool {
   match (v, ty) {
     (Number_value(_), Num) => true
-    (Number_value(n), U8) => n <= @base.nint(255)
+    (Number_value(n), U8) => n <= @utils.nint(255)
     (Bool_value(_), Bool)
     | (Unit_v, Unit)
     | (Ptr_value(_), Ptr)
@@ -64,20 +64,20 @@ fn type_match(v : Value, ty : Ty) -> Bool {
 }
 
 ///|
-fn default_value(ty : Ty) -> Value raise @base.Fault {
+fn default_value(ty : Ty) -> Value raise @utils.Fault {
   match ty {
-    Num | U8 => Number_value(@base.zero())
+    Num | U8 => Number_value(@utils.zero())
     Bool => Bool_value(false)
     Unit => Unit_v
     Ptr => Ptr_value(None)
     Fn => FnPtr(None)
     Product(ts) => Aggregate(ts.map(default_value))
     Array(t, n) => {
-      @base.require(n >= 0, "negative array length")
+      @utils.require(n >= 0, "negative array length")
       Aggregate(Array::makei(n, _ => default_value(t)))
     }
     Sum(ts) => {
-      @base.require(!ts.is_empty(), "sum type must have at least one variant")
+      @utils.require(!ts.is_empty(), "sum type must have at least one variant")
       Sum_value(0, default_value(ts[0]))
     }
   }
@@ -88,7 +88,7 @@ fn project(
   ty : Ty,
   value : Value,
   projections : Array[Projection],
-) -> (Ty, Value) raise @base.Fault {
+) -> (Ty, Value) raise @utils.Fault {
   if projections.is_empty() {
     return (ty, value)
   }
@@ -97,14 +97,14 @@ fn project(
     (Field_proj(i), Product(ts), Aggregate(vs)) =>
       project(at(ts, i), at(vs, i), rest)
     (Index_proj(i), Array(t, n), Aggregate(vs)) => {
-      @base.require(i < n, "projection out of bounds")
+      @utils.require(i < n, "projection out of bounds")
       project(t, at(vs, i), rest)
     }
     (Tag_proj(i), Sum(ts), Sum_value(tag, v)) => {
-      @base.require(i == tag, "sum tag mismatch")
+      @utils.require(i == tag, "sum tag mismatch")
       project(at(ts, i), v, rest)
     }
-    _ => @base.error("invalid place projection")
+    _ => @utils.error("invalid place projection")
   }
 }
 
@@ -114,9 +114,9 @@ fn update_projection(
   current : Value,
   projections : Array[Projection],
   value : Value,
-) -> Value raise @base.Fault {
+) -> Value raise @utils.Fault {
   if projections.is_empty() {
-    @base.require(
+    @utils.require(
       type_match(value, ty),
       "assigned value does not match location type",
     )
@@ -132,22 +132,22 @@ fn update_projection(
       Aggregate(vs)
     }
     (Index_proj(i), Array(t, n), Aggregate(vs)) => {
-      @base.require(i < n, "array index out of bounds")
+      @utils.require(i < n, "array index out of bounds")
       let old = at(vs, i)
       let vs = vs.copy()
       vs[i] = update_projection(t, old, rest, value)
       Aggregate(vs)
     }
     (Tag_proj(i), Sum(ts), Sum_value(tag, v)) => {
-      @base.require(i == tag, "sum tag mismatch")
+      @utils.require(i == tag, "sum tag mismatch")
       Sum_value(tag, update_projection(at(ts, i), v, rest, value))
     }
-    _ => @base.error("invalid assignment target")
+    _ => @utils.error("invalid assignment target")
   }
 }
 
 ///|
-fn get_cell(s : State, key : Key) -> Cell raise @base.Fault {
+fn get_cell(s : State, key : Key) -> Cell raise @utils.Fault {
   let cell = match key {
     Heap(id) => assoc_get(s.store.heap, id)
     Static_key(name) => assoc_get(s.store.statics, name)
@@ -169,12 +169,12 @@ fn get_cell(s : State, key : Key) -> Cell raise @base.Fault {
   }
   match cell {
     Some(c) => c
-    None => @base.error("unknown location: " + key_text(key))
+    None => @utils.error("unknown location: " + key_text(key))
   }
 }
 
 ///|
-fn set_cell(s : State, key : Key, cell : Cell) -> State raise @base.Fault {
+fn set_cell(s : State, key : Key, cell : Cell) -> State raise @utils.Fault {
   ignore(get_cell(s, key))
   let store = match key {
     Heap(id) => { ..s.store, heap: assoc_set(s.store.heap, id, cell), }
@@ -203,7 +203,7 @@ fn store_assign(
   s : State,
   loc : Location,
   value : Value,
-) -> State raise @base.Fault {
+) -> State raise @utils.Fault {
   let cell = get_cell(s, loc.key)
   set_cell(s, loc.key, {
     ..cell,
@@ -215,21 +215,21 @@ fn store_assign(
 fn function_lookup(
   code : Code,
   name : String,
-) -> FunctionDecl raise @base.Fault {
+) -> FunctionDecl raise @utils.Fault {
   for f in code.functions {
     if f.name == name {
       return f
     }
   }
-  @base.error("unknown function: " + name)
+  @utils.error("unknown function: " + name)
 }
 
 ///|
-fn eval_binop(op : Binop, a : Value, b : Value) -> Value raise @base.Fault {
+fn eval_binop(op : Binop, a : Value, b : Value) -> Value raise @utils.Fault {
   match (op, a, b) {
     (Add, Number_value(a), Number_value(b)) => Number_value(a + b)
     (Sub, Number_value(a), Number_value(b)) => {
-      @base.require(a >= b, "operator '-' underflowed")
+      @utils.require(a >= b, "operator '-' underflowed")
       Number_value(a - b)
     }
     (Eq, Number_value(a), Number_value(b)) => Bool_value(a == b)
@@ -241,15 +241,15 @@ fn eval_binop(op : Binop, a : Value, b : Value) -> Value raise @base.Fault {
     (Lt, Number_value(a), Number_value(b)) => Bool_value(a < b)
     (And, Bool_value(a), Bool_value(b)) => Bool_value(a && b)
     (Or, Bool_value(a), Bool_value(b)) => Bool_value(a || b)
-    _ => @base.error("operator applied to incompatible values")
+    _ => @utils.error("operator applied to incompatible values")
   }
 }
 
 ///|
-fn eval_place(s : State, p : Place) -> Location raise @base.Fault {
+fn eval_place(s : State, p : Place) -> Location raise @utils.Fault {
   match p {
     Static(n) => {
-      @base.require(
+      @utils.require(
         assoc_get(s.store.statics, n) is Some(_),
         "unknown static: " + n,
       )
@@ -261,7 +261,7 @@ fn eval_place(s : State, p : Place) -> Location raise @base.Fault {
           return { key: Local_key(id), projections: [], }
         }
       }
-      @base.error("unknown local: " + n)
+      @utils.error("unknown local: " + n)
     }
     Field(p, i) => {
       let loc = eval_place(s, p)
@@ -273,8 +273,8 @@ fn eval_place(s : State, p : Place) -> Location raise @base.Fault {
     }
     Index(p, v) => {
       let i = match eval_value(s, v) {
-        Number_value(n) => @base.index(n)
-        _ => @base.error("array index must be a number")
+        Number_value(n) => @utils.index(n)
+        _ => @utils.error("array index must be a number")
       }
       let loc = eval_place(s, p)
       { ..loc, projections: loc.projections + [Index_proj(i)], }
@@ -282,14 +282,14 @@ fn eval_place(s : State, p : Place) -> Location raise @base.Fault {
     Deref(v) =>
       match eval_value(s, v) {
         Ptr_value(Some(loc)) => loc
-        Ptr_value(None) => @base.error("cannot dereference \\null_ptr")
-        _ => @base.error("dereference expects a pointer")
+        Ptr_value(None) => @utils.error("cannot dereference \\null_ptr")
+        _ => @utils.error("dereference expects a pointer")
       }
   }
 }
 
 ///|
-fn eval_value(s : State, v : Expr) -> Value raise @base.Fault {
+fn eval_value(s : State, v : Expr) -> Value raise @utils.Fault {
   match v {
     Number(n) => Number_value(n)
     Char(c) => Char_value(c)
@@ -305,7 +305,7 @@ fn eval_value(s : State, v : Expr) -> Value raise @base.Fault {
     UnOp(Not, v) =>
       match eval_value(s, v) {
         Bool_value(b) => Bool_value(!b)
-        _ => @base.error("operator '!' expects a bool")
+        _ => @utils.error("operator '!' expects a bool")
       }
     Pair(vs) => Aggregate(vs.map(v => eval_value(s, v)))
     Tag(t, v) => Sum_value(t, eval_value(s, v))

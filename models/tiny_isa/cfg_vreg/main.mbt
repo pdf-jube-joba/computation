@@ -7,34 +7,33 @@ priv struct Compiled {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Code
   compiled : Compiled
   current_block : Int32
-  vregs : Array[@base.Nat]
-  memory : Array[@base.Nat]
+  vregs : Array[@utils.Nat]
+  memory : Array[@utils.Nat]
   halted : Bool
 }
 
 ///|
-fn link(code : Code) -> Compiled raise @base.Fault {
+fn link(code : Code) -> Compiled raise @utils.Fault {
   let block_index = code.blocks.mapi((i, b) => (b.label, i))
   let static_labels = code.statics.mapi((i, s) => (s.label, i))
-  @data.unique(block_index.map(p => p.0), "Duplicate block label: @")
-  @data.unique(static_labels.map(p => p.0), "Duplicate static label: @")
-  let entry_block = match @data.env_get(block_index, "main") {
+  @utils.unique(block_index.map(p => p.0), "Duplicate block label: @")
+  @utils.unique(static_labels.map(p => p.0), "Duplicate static label: @")
+  let entry_block = match @utils.env_get(block_index, "main") {
     Some(i) => i
-    None => @base.error("Missing entry block: @main")
+    None => @utils.error("Missing entry block: @main")
   }
   { blocks: code.blocks, entry_block, block_index, static_labels, }
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let code = parse(text)
+fn make(code : Code, input : Memory) -> State raise @utils.Fault {
   let compiled = link(code)
   let memory = code.statics.map(s => s.value)
-  memory.append(@data.natural_list(input))
+  memory.append(input.values)
   {
     code,
     compiled,
@@ -46,34 +45,34 @@ fn make(text : String, input : String) -> State raise @base.Fault {
 }
 
 ///|
-fn eval_addr(s : State, a : Addr) -> @base.Nat raise @base.Fault {
+fn eval_addr(s : State, a : Addr) -> @utils.Nat raise @utils.Fault {
   match a {
     VReg(i) => @machine.read(s.vregs, i)
     Imm(n) => n
     Label(n) =>
-      match @data.env_get(s.compiled.static_labels, n) {
-        Some(i) => @base.nint(i)
+      match @utils.env_get(s.compiled.static_labels, n) {
+        Some(i) => @utils.nint(i.reinterpret_as_uint())
         None =>
-          match @data.env_get(s.compiled.block_index, n) {
-            Some(i) => @base.nint(i)
-            None => @base.error("Unknown label: @" + n)
+          match @utils.env_get(s.compiled.block_index, n) {
+            Some(i) => @utils.nint(i.reinterpret_as_uint())
+            None => @utils.error("Unknown label: @" + n)
           }
       }
   }
 }
 
 ///|
-fn eval_value(s : State, v : Value) -> @base.Nat raise @base.Fault {
+fn eval_value(s : State, v : Value) -> @utils.Nat raise @utils.Fault {
   match v {
     VRegValue(i) => @machine.read(s.vregs, i)
     ImmValue(n) => n
     LabelValue(n) => eval_addr(s, Label(n))
-    Deref(p) => @machine.read(s.memory, @base.index(eval_addr(s, p)))
+    Deref(p) => @machine.read(s.memory, @utils.index(eval_addr(s, p)))
   }
 }
 
 ///|
-fn eval_cond(s : State, c : Cond) -> Bool raise @base.Fault {
+fn eval_cond(s : State, c : Cond) -> Bool raise @utils.Fault {
   match c {
     Lt(a, b) => {
       let a = eval_value(s, a)
@@ -93,13 +92,12 @@ fn eval_cond(s : State, c : Cond) -> Bool raise @base.Fault {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   if s.halted {
-    return @runtime.Halt(@data.natural_list_text(s.memory))
+    return @definition.Halt(Memory::{ values: s.memory, })
   }
-  @base.require(
+  @utils.require(
     s.current_block >= 0 && s.current_block < s.compiled.blocks.length(),
     "Current block out of range: " + s.current_block.to_string(),
   )
@@ -121,13 +119,13 @@ fn step(
             dst,
             match o {
               Add => a + b
-              Sub => @base.sub(a, b)
+              Sub => @utils.sub(a, b)
             },
           ),
         }
       }
       Store(p, src) => {
-        let addr = @base.index(eval_addr(s, p))
+        let addr = @utils.index(eval_addr(s, p))
         let n = eval_value(s, src)
         { ..s, memory: @machine.write(s.memory, addr, n), }
       }
@@ -138,48 +136,48 @@ fn step(
     Some(j) => j.target
     None => block.cont.jump
   }
-  let current_block = @base.index(eval_addr(s, target))
-  @base.require(
+  let current_block = @utils.index(eval_addr(s, target))
+  @utils.require(
     current_block < s.compiled.blocks.length(),
     "Block address out of range: " + current_block.to_string(),
   )
-  @runtime.Continue({ ..s, current_block, }, "")
+  @definition.Continue({ ..s, current_block, }, ())
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("code", code_json(s.code)),
     ("compiled", compiled_json(s.compiled)),
-    ("current_block", @base.jint(s.current_block)),
+    ("current_block", @utils.jint(s.current_block)),
     ("vregs", @machine.nats_json(s.vregs)),
     ("memory", @machine.nats_json(s.memory)),
-    ("halted", @base.jbool(s.halted)),
+    ("halted", @utils.jbool(s.halted)),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
+fn decode(j : Json) -> State raise @utils.Fault {
   {
-    code: decode_code(@base.field(j, "code")),
-    compiled: decode_compiled(@base.field(j, "compiled")),
-    current_block: @base.int(@base.field(j, "current_block")),
-    vregs: @machine.decode_nats(@base.field(j, "vregs")),
-    memory: @machine.decode_nats(@base.field(j, "memory")),
-    halted: @base.boolean(@base.field(j, "halted")),
+    code: decode_code(@utils.field(j, "code")),
+    compiled: decode_compiled(@utils.field(j, "compiled")),
+    current_block: @utils.int(@utils.field(j, "current_block")),
+    vregs: @machine.decode_nats(@utils.field(j, "vregs")),
+    memory: @machine.decode_nats(@utils.field(j, "memory")),
+    halted: @utils.boolean(@utils.field(j, "halted")),
   }
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let b = if s.current_block >= 0 &&
     s.current_block < s.compiled.blocks.length() {
     Some(s.compiled.blocks[s.current_block])
   } else {
     None
   }
-  @base.jarray([
-    @base.table("status", ["field", "value"], [
+  [
+    @definition.text_table("status", ["field", "value"], [
       ["block", s.current_block.to_string()],
       [
         "label",
@@ -190,7 +188,7 @@ fn render(s : State) -> Json {
       ],
       ["halted", s.halted.to_string()],
     ]),
-    @base.table(
+    @definition.text_table(
       "block",
       ["index", "stmt"],
       (match b {
@@ -198,20 +196,29 @@ fn render(s : State) -> Json {
         None => []
       }).mapi((i, s) => [i.to_string(), stmt_text(s)]),
     ),
-    @base.table(
+    @definition.text_table(
       "vregs",
       ["vreg", "value"],
       s.vregs.mapi((i, n) => ["v" + i.to_string(), n.to_string()]),
     ),
-    @base.table(
+    @definition.text_table(
       "memory",
       ["addr", "value"],
       s.memory.mapi((i, n) => [i.to_string(), n.to_string()]),
     ),
-  ])
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

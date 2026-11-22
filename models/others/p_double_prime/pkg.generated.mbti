@@ -2,16 +2,42 @@
 package "computation/models/models/others/p_double_prime"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, Configuration, Unit, Unit, NaturalTape, State]
 
 // Errors
 
 // Types and methods
+pub(all) struct Code {
+  value : @utils.LoopCode
+}
+pub impl @definition.Text for Code
+
+#alias(Ainput)
+pub(all) struct Configuration {
+  modulus : Int32
+  tape : @utils.Tape[Int32]
+}
+pub impl @definition.Text for Configuration
+
+#alias(Foutput)
+pub(all) struct NaturalTape {
+  value : @utils.Tape[Int32]
+}
+pub impl @definition.Text for NaturalTape
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

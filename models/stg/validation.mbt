@@ -1,45 +1,45 @@
 ///|
-fn validate_state(s : State) -> Unit raise @base.Fault {
+fn validate_state(s : State) -> Unit raise @utils.Fault {
   validate(s.code)
   let globals = s.code.map(p => p.0)
   let expected = globals.mapi((a, x) => (x, Addr(a)))
-  @base.require(s.globals == expected, "Invalid global environment")
+  @utils.require(s.globals == expected, "Invalid global environment")
   let addresses = s.heap.map(p => p.0)
   addresses.sort()
-  @base.require(
+  @utils.require(
     s.next_addr >= 0 &&
     addresses.length() == s.next_addr &&
     addresses.mapi((i, a) => i == a).all(b => b),
     "Invalid heap address sequence",
   )
-  fn address(a : Int32) -> Unit raise @base.Fault {
+  fn address(a : Int32) -> Unit raise @utils.Fault {
     ignore(heap(s, a))
   }
-  fn value(v : Value) -> Unit raise @base.Fault {
+  fn value(v : Value) -> Unit raise @utils.Fault {
     match v {
       Addr(a) => address(a)
       _ => ()
     }
   }
-  fn values(xs : Array[Value]) -> Unit raise @base.Fault {
+  fn values(xs : Array[Value]) -> Unit raise @utils.Fault {
     for v in xs {
       value(v)
     }
   }
-  fn environment(env : Env) -> Unit raise @base.Fault {
+  fn environment(env : Env) -> Unit raise @utils.Fault {
     unique("environment binding", env.map(p => p.0))
     for p in env {
       value(p.1)
     }
   }
-  fn function_address(a : Int32) -> Unit raise @base.Fault {
+  fn function_address(a : Int32) -> Unit raise @utils.Fault {
     match heap(s, a) {
       Closure(lf, _) if lf.update == Reentrant && !lf.args.is_empty() => ()
       Pap(_, _) => ()
-      _ => @base.error("Function must point to a function closure or PAP")
+      _ => @utils.error("Function must point to a function closure or PAP")
     }
   }
-  fn result(v : ResultValue) -> Unit raise @base.Fault {
+  fn result(v : ResultValue) -> Unit raise @utils.Fault {
     match v {
       Number(_) => ()
       Data(_, xs) => values(xs)
@@ -59,12 +59,12 @@ fn validate_state(s : State) -> Unit raise @base.Fault {
           Closure(lf, _) if lf.update == Reentrant &&
             !xs.is_empty() &&
             xs.length() < lf.args.length() => ()
-          _ => @base.error("Invalid partial application")
+          _ => @utils.error("Invalid partial application")
         }
       }
       Closure(lf, env) => {
         environment(env)
-        @base.require(env.map(p => p.0) == lf.free, "Closure capture mismatch")
+        @utils.require(env.map(p => p.0) == lf.free, "Closure capture mismatch")
         check_lambda(globals, append(env.map(p => p.0), globals), lf)
       }
     }
@@ -78,11 +78,11 @@ fn validate_state(s : State) -> Unit raise @base.Fault {
   }
   let used : Map[Int32, Bool] = Map([])
   for a in updates {
-    @base.require(!used.contains(a), "Duplicate update frame")
+    @utils.require(!used.contains(a), "Duplicate update frame")
     used[a] = true
   }
   for p in s.heap {
-    @base.require(
+    @utils.require(
       (p.1 is Blackhole) == updates.contains(p.0),
       "Black hole/update frame mismatch",
     )
@@ -112,6 +112,8 @@ fn validate_state(s : State) -> Unit raise @base.Fault {
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[Code, Unit, Unit, Unit, ResultValue, State] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

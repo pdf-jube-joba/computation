@@ -41,11 +41,11 @@ priv struct Frame {
 }
 
 ///|
-priv struct State {
+struct State {
   program : Code
   frame : Frame
   stack : Array[Frame]
-  tape : @data.Tape[String]
+  tape : @utils.Tape[String]
 }
 
 ///|
@@ -76,25 +76,25 @@ pub fn collect_vars(blocks : Array[Block]) -> Array[String] {
 pub fn find_function(
   code : Code,
   name : String,
-) -> FunctionDef raise @base.Fault {
+) -> FunctionDef raise @utils.Fault {
   match code.functions.iter().find_first(f => f.name == name) {
     Some(f) => f
-    None => @base.error("Undefined function '" + name + "'")
+    None => @utils.error("Undefined function '" + name + "'")
   }
 }
 
 ///|
-pub fn validate(code : Code) -> Unit raise @base.Fault {
+pub fn validate(code : Code) -> Unit raise @utils.Fault {
   ignore(find_function(code, "main"))
   let visited : Map[String, Int32] = Map([])
-  fn visit(name : String, path : Array[String]) -> Unit raise @base.Fault {
+  fn visit(name : String, path : Array[String]) -> Unit raise @utils.Fault {
     match visited.get(name) {
       Some(2) => ()
       Some(_) => {
         let path = path.copy()
         path.push(name)
-        @base.error(
-          "Recursive call is not allowed: " + @base.join(path, " -> "),
+        @utils.error(
+          "Recursive call is not allowed: " + @utils.join(path, " -> "),
         )
       }
       None => {
@@ -120,14 +120,14 @@ pub fn validate(code : Code) -> Unit raise @base.Fault {
   let allowed = @s.normalized_alphabet(code.alphabet)
   let seen : Map[String, Bool] = Map([])
   for f in code.functions {
-    @base.require(
+    @utils.require(
       !seen.contains(f.name),
       "Function '" + f.name + "' is defined twice",
     )
     seen[f.name] = true
     let labels : Map[String, Bool] = Map([])
     for b in f.blocks {
-      @base.require(
+      @utils.require(
         !labels.contains(b.label),
         "label '" + b.label + "' is duplicated",
       )
@@ -141,7 +141,7 @@ pub fn validate(code : Code) -> Unit raise @base.Fault {
             @s.validate_condition(allowed, c)
           Jump(label, c) => {
             @s.validate_condition(allowed, c)
-            @base.require(
+            @utils.require(
               labels.contains(label),
               "jump target '" + label + "' not found",
             )
@@ -154,7 +154,7 @@ pub fn validate(code : Code) -> Unit raise @base.Fault {
 }
 
 ///|
-fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
+fn read_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("LT") {
     Lt
   } else if p.eat_keyword("RT") {
@@ -170,7 +170,7 @@ fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
     Jump(label, @s.condition(p))
   } else if p.eat_keyword("call") {
     let name = p.ident()
-    if p.peek() == @p.Symbol('(') {
+    if p.peek() == @utils.Symbol('(') {
       p.group('(').finish()
     }
     Call(name)
@@ -182,14 +182,14 @@ fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-pub fn parse_code(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse_code(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text)
   let alphabet = @s.alphabet(p)
   let functions : Array[FunctionDef] = []
   while !p.eof() {
     p.expect_keyword("fn")
     let name = p.ident()
-    if p.peek() == @p.Symbol('(') {
+    if p.peek() == @utils.Symbol('(') {
       p.group('(').finish()
     }
     let g = p.group('{')
@@ -208,7 +208,7 @@ pub fn parse_code(text : String) -> Code raise @base.Fault {
     let f = { name, blocks, }
     match functions.iter().find_first(old => old.name == name) {
       Some(old) =>
-        @base.require(old == f, "Function '" + name + "' is defined twice")
+        @utils.require(old == f, "Function '" + name + "' is defined twice")
       None => functions.push(f)
     }
   }
@@ -230,10 +230,10 @@ pub fn stmt_text(stmt : Stmt) -> String {
 }
 
 ///|
-pub fn print_code(code : Code) -> String raise @base.Fault {
+pub fn print_code(code : Code) -> String {
   let seen : Map[String, Bool] = Map([])
   let ordered = []
-  fn visit(f : FunctionDef) -> Unit raise @base.Fault {
+  fn visit(f : FunctionDef) -> Unit {
     if seen.contains(f.name) {
       return
     }
@@ -241,7 +241,11 @@ pub fn print_code(code : Code) -> String raise @base.Fault {
     for b in f.blocks {
       for stmt in b.body {
         match stmt {
-          Call(n) => visit(find_function(code, n))
+          Call(n) =>
+            match code.functions.iter().find_first(f => f.name == n) {
+              Some(callee) => visit(callee)
+              None => ()
+            }
           _ => ()
         }
       }
@@ -252,19 +256,19 @@ pub fn print_code(code : Code) -> String raise @base.Fault {
     visit(f)
   }
   "\\alphabet: (" +
-  @base.join(code.alphabet, ", ") +
+  @utils.join(code.alphabet, ", ") +
   ")\n" +
-  @base.join(
+  @utils.join(
     ordered.map(f => {
       "\\fn " +
       f.name +
       "() {\n" +
-      @base.join(
+      @utils.join(
         f.blocks.map(b => {
           "  \\label " +
           b.label +
           ": {\n" +
-          @base.join(b.body.map(s => "    " + stmt_text(s) + "\n"), "") +
+          @utils.join(b.body.map(s => "    " + stmt_text(s) + "\n"), "") +
           "  }\n"
         }),
         "",
@@ -286,10 +290,9 @@ fn build_frame(f : FunctionDef) -> Frame {
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let program = parse_code(text)
+fn make(program : Code, input : @s.Tape) -> State raise @utils.Fault {
   validate(program)
-  let tape = @data.parse_tape(input, @s.sign)
+  let tape = input.value
   @s.validate_tape(@s.normalized_alphabet(program.alphabet), tape)
   {
     program,
@@ -311,13 +314,13 @@ fn normalized_pc(f : Frame) -> (Int32, Int32) {
 }
 
 ///|
-fn returning(s : State) -> @runtime.Transition[State] {
+fn returning(s : State) -> @definition.Transition[State, Routput, Foutput] {
   if s.stack.is_empty() {
-    @runtime.Halt(s.tape.text(v => v))
+    @definition.Halt(@s.Tape::{ value: s.tape, })
   } else {
-    @runtime.Continue(
+    @definition.Continue(
       { ..s, frame: s.stack[0], stack: s.stack[1:].to_owned(), },
-      "",
+      (),
     )
   }
 }
@@ -325,16 +328,15 @@ fn returning(s : State) -> @runtime.Transition[State] {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   let (b, i) = normalized_pc(s.frame)
   if b >= s.frame.blocks.length() {
     return returning(s)
   }
   let stmt = s.frame.blocks[b].body[i]
   let next = { ..s, frame: { ..s.frame, pc: (b, i + 1), }, }
-  fn cond(c : @s.Condition?) -> Bool raise @base.Fault {
+  fn cond(c : @s.Condition?) -> Bool raise @utils.Fault {
     @s.eval_condition(next.frame.env, next.tape, c)
   }
   let next = match stmt {
@@ -354,7 +356,7 @@ fn step(
     Jump(label, c) if cond(c) => {
       let target = match next.frame.blocks.search_by(b => b.label == label) {
         Some(i) => i
-        None => @base.error("jump target '" + label + "' not found")
+        None => @utils.error("jump target '" + label + "' not found")
       }
       { ..next, frame: { ..next.frame, pc: (target, 0), }, }
     }
@@ -366,71 +368,71 @@ fn step(
     }
     _ => next
   }
-  @runtime.Continue(next, "")
+  @definition.Continue(next, ())
 }
 
 ///|
 pub fn sj(s : Stmt) -> Json {
   match s {
-    Lt => @base.tag("Lt", [])
-    Rt => @base.tag("Rt", [])
-    Assign(dst, src) => @base.tag("Assign", [@s.lj(dst), @s.rj(src)])
-    Break(c) => @base.tag("Break", [@s.cj(c)])
-    Continue(c) => @base.tag("Continue", [@s.cj(c)])
-    Return(c) => @base.tag("Return", [@s.cj(c)])
-    Jump(l, c) => @base.tag("Jump", [@base.jstr(l), @s.cj(c)])
-    Call(n) => @base.tag("Call", [@base.jstr(n)])
+    Lt => @utils.tag("Lt", [])
+    Rt => @utils.tag("Rt", [])
+    Assign(dst, src) => @utils.tag("Assign", [@s.lj(dst), @s.rj(src)])
+    Break(c) => @utils.tag("Break", [@s.cj(c)])
+    Continue(c) => @utils.tag("Continue", [@s.cj(c)])
+    Return(c) => @utils.tag("Return", [@s.cj(c)])
+    Jump(l, c) => @utils.tag("Jump", [@utils.jstr(l), @s.cj(c)])
+    Call(n) => @utils.tag("Call", [@utils.jstr(n)])
   }
 }
 
 ///|
-pub fn sd(j : Json) -> Stmt raise @base.Fault {
-  fn a(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+pub fn sd(j : Json) -> Stmt raise @utils.Fault {
+  fn a(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
+  match @utils.tag_name(j) {
     "Lt" => Lt
     "Rt" => Rt
     "Assign" => Assign(@s.ld(a(0)), @s.rd(a(1)))
     "Break" => Break(@s.cd(a(0)))
     "Continue" => Continue(@s.cd(a(0)))
     "Return" => Return(@s.cd(a(0)))
-    "Jump" => Jump(@base.identifier(@base.string(a(0))), @s.cd(a(1)))
-    "Call" => Call(@base.identifier(@base.string(a(0))))
-    _ => @base.error("Invalid tape IR statement")
+    "Jump" => Jump(@utils.identifier(@utils.string(a(0))), @s.cd(a(1)))
+    "Call" => Call(@utils.identifier(@utils.string(a(0))))
+    _ => @utils.error("Invalid tape IR statement")
   }
 }
 
 ///|
 pub fn blocks_json(blocks : Array[Block]) -> Json {
-  @base.jarray(
+  @utils.jarray(
     blocks.map(b => {
-      @base.object([
-        ("label", @base.jstr(b.label)),
-        ("body", @base.jarray(b.body.map(sj))),
+      @utils.object([
+        ("label", @utils.jstr(b.label)),
+        ("body", @utils.jarray(b.body.map(sj))),
       ])
     }),
   )
 }
 
 ///|
-pub fn decode_blocks(j : Json) -> Array[Block] raise @base.Fault {
-  @base.array(j).map(j => {
-    label: @base.identifier(@base.string(@base.field(j, "label"))),
-    body: @base.array(@base.field(j, "body")).map(sd),
+pub fn decode_blocks(j : Json) -> Array[Block] raise @utils.Fault {
+  @utils.array(j).map(j => {
+    label: @utils.identifier(@utils.string(@utils.field(j, "label"))),
+    body: @utils.array(@utils.field(j, "body")).map(sd),
   })
 }
 
 ///|
 pub fn code_json(code : Code) -> Json {
-  @base.object([
-    ("alphabet", @base.jarray(code.alphabet.map(@s.sign_json))),
+  @utils.object([
+    ("alphabet", @utils.jarray(code.alphabet.map(@s.sign_json))),
     (
       "functions",
-      @base.jarray(
+      @utils.jarray(
         code.functions.map(f => {
-          @base.object([
-            ("name", @base.jstr(f.name)),
+          @utils.object([
+            ("name", @utils.jstr(f.name)),
             ("blocks", blocks_json(f.blocks)),
           ])
         }),
@@ -440,80 +442,80 @@ pub fn code_json(code : Code) -> Json {
 }
 
 ///|
-pub fn decode_code(j : Json) -> Code raise @base.Fault {
+pub fn decode_code(j : Json) -> Code raise @utils.Fault {
   {
-    alphabet: @base.array(@base.field(j, "alphabet")).map(@s.decode_sign),
-    functions: @base.array(@base.field(j, "functions")).map(j => {
-      name: @base.identifier(@base.string(@base.field(j, "name"))),
-      blocks: decode_blocks(@base.field(j, "blocks")),
+    alphabet: @utils.array(@utils.field(j, "alphabet")).map(@s.decode_sign),
+    functions: @utils.array(@utils.field(j, "functions")).map(j => {
+      name: @utils.identifier(@utils.string(@utils.field(j, "name"))),
+      blocks: decode_blocks(@utils.field(j, "blocks")),
     }),
   }
 }
 
 ///|
 fn fj(f : Frame) -> Json {
-  @base.object([
-    ("function_", @base.jstr(f.function_)),
+  @utils.object([
+    ("function_", @utils.jstr(f.function_)),
     ("env", @s.ej(f.env)),
     ("blocks", blocks_json(f.blocks)),
-    ("pc", @base.jarray([@base.jint(f.pc.0), @base.jint(f.pc.1)])),
+    ("pc", @utils.jarray([@utils.jint(f.pc.0), @utils.jint(f.pc.1)])),
   ])
 }
 
 ///|
-fn fd(j : Json, code : Code) -> Frame raise @base.Fault {
-  let function_ = @base.identifier(@base.string(@base.field(j, "function_")))
+fn fd(j : Json, code : Code) -> Frame raise @utils.Fault {
+  let function_ = @utils.identifier(@utils.string(@utils.field(j, "function_")))
   let definition = find_function(code, function_)
-  let blocks = decode_blocks(@base.field(j, "blocks"))
-  @base.require(
+  let blocks = decode_blocks(@utils.field(j, "blocks"))
+  @utils.require(
     blocks == definition.blocks,
     "Frame differs from function definition",
   )
-  let pc = @base.array(@base.field(j, "pc"))
-  @base.require(pc.length() == 2, "Invalid frame pc")
-  let pc = (@base.int(pc[0]), @base.int(pc[1]))
-  @base.require(pc.0 >= 0 && pc.1 >= 0, "Invalid frame pc")
+  let pc = @utils.array(@utils.field(j, "pc"))
+  @utils.require(pc.length() == 2, "Invalid frame pc")
+  let pc = (@utils.int(pc[0]), @utils.int(pc[1]))
+  @utils.require(pc.0 >= 0 && pc.1 >= 0, "Invalid frame pc")
   {
     function_,
     blocks,
     pc,
-    env: @s.ed(@base.field(j, "env"), collect_vars(blocks)),
+    env: @s.ed(@utils.field(j, "env"), collect_vars(blocks)),
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("program", code_json(s.program)),
     ("frame", fj(s.frame)),
-    ("stack", @base.jarray(s.stack.map(fj))),
+    ("stack", @utils.jarray(s.stack.map(fj))),
     ("tape", s.tape.json(@s.sign_json)),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
-  let program = decode_code(@base.field(j, "program"))
+fn decode(j : Json) -> State raise @utils.Fault {
+  let program = decode_code(@utils.field(j, "program"))
   validate(program)
-  let tape = @data.decode_tape(@base.field(j, "tape"), @s.decode_sign)
+  let tape = @utils.decode_tape(@utils.field(j, "tape"), @s.decode_sign)
   @s.validate_tape(@s.normalized_alphabet(program.alphabet), tape)
   {
     program,
-    frame: fd(@base.field(j, "frame"), program),
-    stack: @base.array(@base.field(j, "stack")).map(j => fd(j, program)),
+    frame: fd(@utils.field(j, "frame"), program),
+    stack: @utils.array(@utils.field(j, "stack")).map(j => fd(j, program)),
     tape,
   }
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let (b, i) = normalized_pc(s.frame)
   let stack = s.stack.rev()
   stack.push(s.frame)
-  @base.jarray([
-    @base.titled("function", s.frame.function_),
-    @base.titled("pc", "\{b}:\{i}"),
-    @base.titled(
+  [
+    @definition.titled("function", s.frame.function_),
+    @definition.titled("pc", "\{b}:\{i}"),
+    @definition.titled(
       "next",
       if b >= s.frame.blocks.length() {
         "halt"
@@ -521,17 +523,30 @@ fn render(s : State) -> Json {
         stmt_text(s.frame.blocks[b].body[i])
       },
     ),
-    @base.highlight("stack", s.stack.length(), stack.map(f => f.function_)),
-    @base.table(
+    @definition.highlight(
+      "stack",
+      s.stack.length(),
+      stack.map(f => f.function_),
+    ),
+    @definition.text_table(
       "env",
       ["var", "value"],
       @s.env_named(s.frame.env).map(v => [v.0, v.1]),
     ),
-    @base.highlight("tape", s.tape.left.length(), s.tape.values()),
-  ])
+    @definition.highlight("tape", s.tape.left.length(), s.tape.values()),
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

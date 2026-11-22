@@ -20,14 +20,14 @@ priv enum Port {
 }
 
 ///|
-priv struct Net {
+struct Net {
   agents : Array[Agent]
   wires : Array[(Port, Port)]
   loops : Int32
 }
 
 ///|
-priv struct State {
+struct State {
   net : Net
   steps : Int32
 }
@@ -110,27 +110,27 @@ fn normalize(net : Net) -> Net {
 }
 
 ///|
-fn validate(net : Net) -> Net raise @base.Fault {
-  @base.require(net.loops >= 0, "Negative cyclic wire count")
+fn validate(net : Net) -> Net raise @utils.Fault {
+  @utils.require(net.loops >= 0, "Negative cyclic wire count")
   let agents : Map[String, Kind] = Map([])
   for a in net.agents {
-    ignore(@base.identifier(a.id))
-    @base.require(!agents.contains(a.id), "Duplicate agent: " + a.id)
+    ignore(@utils.identifier(a.id))
+    @utils.require(!agents.contains(a.id), "Duplicate agent: " + a.id)
     agents[a.id] = a.kind
   }
   let used : Map[Port, Bool] = Map([])
-  fn use_port(p : Port) -> Unit raise @base.Fault {
+  fn use_port(p : Port) -> Unit raise @utils.Fault {
     match p {
-      Free(n) => ignore(@base.identifier(n))
+      Free(n) => ignore(@utils.identifier(n))
       AgentPort(n, i) => {
         let k = match agents.get(n) {
           Some(k) => k
-          None => @base.error("Unknown agent: " + n)
+          None => @utils.error("Unknown agent: " + n)
         }
-        @base.require(i >= 0 && i <= arity(k), "Invalid port: " + port_name(p))
+        @utils.require(i >= 0 && i <= arity(k), "Invalid port: " + port_name(p))
       }
     }
-    @base.require(
+    @utils.require(
       !used.contains(p),
       "Port used more than once: " + port_name(p),
     )
@@ -142,7 +142,7 @@ fn validate(net : Net) -> Net raise @base.Fault {
   }
   for a in net.agents {
     for i in 0..<(arity(a.kind) + 1) {
-      @base.require(
+      @utils.require(
         used.contains(AgentPort(a.id, i)),
         "Unconnected port: " + port_name(AgentPort(a.id, i)),
       )
@@ -152,12 +152,12 @@ fn validate(net : Net) -> Net raise @base.Fault {
 }
 
 ///|
-fn parse(text : String) -> Net raise @base.Fault {
-  let p = @p.create(text)
+fn parse(text : String) -> Net raise @utils.Fault {
+  let p = @utils.create(text)
   let agents = []
   let wires = []
   let loops : Ref[Int32?] = { val: None, }
-  fn port(p : @p.Parser) -> Port raise @base.Fault {
+  fn port(p : @utils.Parser) -> Port raise @utils.Fault {
     if p.eat('@') {
       Free(p.ident())
     } else {
@@ -168,10 +168,10 @@ fn parse(text : String) -> Net raise @base.Fault {
   }
   while !p.eof() {
     match p.peek() {
-      @p.Keyword(_) => {
+      @utils.Keyword(_) => {
         let word = p.keyword()
         if word == "loops" {
-          @base.require(loops.val is None, "Duplicate \\loops declaration")
+          @utils.require(loops.val is None, "Duplicate \\loops declaration")
           loops.val = Some(p.integer())
         } else {
           let kind = match word {
@@ -204,7 +204,7 @@ fn print(net : Net) -> String {
   if net.loops != 0 {
     lines.push("\\loops " + net.loops.to_string() + ";")
   }
-  @base.join(lines, "\n")
+  @utils.join(lines, "\n")
 }
 
 ///|
@@ -224,7 +224,7 @@ fn splice(
   edges : Array[(Port, Port)],
   removed : (Port) -> Bool,
   initial_loops : Int32,
-) -> (Array[(Port, Port)], Int32) raise @base.Fault {
+) -> (Array[(Port, Port)], Int32) raise @utils.Fault {
   let adjacency : Map[Port, Array[Port]] = Map([])
   let ports = []
   fn add(a : Port, b : Port) -> Unit {
@@ -264,10 +264,10 @@ fn splice(
     if ends.length() == 2 {
       wires.push(wire(ends[0], ends[1]))
     } else if ends.is_empty() {
-      @base.require(loops < 2147483647, "Cyclic wire count overflow")
+      @utils.require(loops < 2147483647, "Cyclic wire count overflow")
       loops += 1
     } else {
-      @base.error("Invalid rewrite wiring")
+      @utils.error("Invalid rewrite wiring")
     }
   }
   (wires, loops)
@@ -278,9 +278,9 @@ fn rewrite(
   net : Net,
   first : String,
   second : String,
-) -> (Net, String) raise @base.Fault {
+) -> (Net, String) raise @utils.Fault {
   let (a, b) = if first <= second { (first, second) } else { (second, first) }
-  @base.require(
+  @utils.require(
     active_pairs(net).contains((a, b)),
     "Selected agents are not an active pair",
   )
@@ -358,38 +358,29 @@ fn rewrite(
 }
 
 ///|
-fn make(code : String, input : String) -> State raise @base.Fault {
-  @base.unit_input(input)
-  { net: parse(code), steps: 0, }
+fn make(code : Net, _input : Unit) -> State {
+  { net: code, steps: 0, }
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  let selected = if input.trim().is_empty() {
-    None
-  } else {
-    let p = @p.create(input)
-    let a = p.ident()
-    let b = p.ident()
-    p.finish()
-    Some((a, b))
-  }
+  input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
+  let selected = input.pair
   let pairs = active_pairs(s.net)
   if pairs.is_empty() && selected is None {
-    return @runtime.Halt(print(s.net))
+    return @definition.Halt(s.net)
   }
   let pair = selected.unwrap_or_else(() => pairs[0])
-  @base.require(s.steps < 2147483647, "Step count overflow")
+  @utils.require(s.steps < 2147483647, "Step count overflow")
   let (net, output) = rewrite(s.net, pair.0, pair.1)
-  @runtime.Continue({ net, steps: s.steps + 1, }, output)
+  @definition.Continue({ net, steps: s.steps + 1, }, output)
 }
 
 ///|
 fn kj(k : Kind) -> Json {
-  @base.tag(
+  @utils.tag(
     match k {
       Gamma => "Gamma"
       Delta => "Delta"
@@ -400,98 +391,90 @@ fn kj(k : Kind) -> Json {
 }
 
 ///|
-fn kd(j : Json) -> Kind raise @base.Fault {
-  match @base.tag_name(j) {
+fn kd(j : Json) -> Kind raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Gamma" => Gamma
     "Delta" => Delta
     "Epsilon" => Epsilon
-    _ => @base.error("Invalid agent kind")
+    _ => @utils.error("Invalid agent kind")
   }
 }
 
 ///|
 fn pj(p : Port) -> Json {
   match p {
-    AgentPort(n, i) => @base.tag("Agent", [@base.jstr(n), @base.jint(i)])
-    Free(n) => @base.tag("Free", [@base.jstr(n)])
+    AgentPort(n, i) => @utils.tag("Agent", [@utils.jstr(n), @utils.jint(i)])
+    Free(n) => @utils.tag("Free", [@utils.jstr(n)])
   }
 }
 
 ///|
-fn pd(j : Json) -> Port raise @base.Fault {
-  let n = @base.identifier(@base.string(@base.tag_arg(j, 0)))
-  match @base.tag_name(j) {
-    "Agent" => AgentPort(n, @base.int(@base.tag_arg(j, 1)))
+fn pd(j : Json) -> Port raise @utils.Fault {
+  let n = @utils.identifier(@utils.string(@utils.tag_arg(j, 0)))
+  match @utils.tag_name(j) {
+    "Agent" => AgentPort(n, @utils.int(@utils.tag_arg(j, 1)))
     "Free" => Free(n)
-    _ => @base.error("Invalid net port")
+    _ => @utils.error("Invalid net port")
   }
 }
 
 ///|
 fn nj(net : Net) -> Json {
-  @base.object([
+  @utils.object([
     (
       "agents",
-      @base.jarray(
+      @utils.jarray(
         net.agents.map(a => {
-          @base.object([("id", @base.jstr(a.id)), ("kind", kj(a.kind))])
+          @utils.object([("id", @utils.jstr(a.id)), ("kind", kj(a.kind))])
         }),
       ),
     ),
     (
       "wires",
-      @base.jarray(
-        net.wires.map(pair => @base.jarray([pj(pair.0), pj(pair.1)])),
+      @utils.jarray(
+        net.wires.map(pair => @utils.jarray([pj(pair.0), pj(pair.1)])),
       ),
     ),
-    ("loops", @base.jint(net.loops)),
+    ("loops", @utils.jint(net.loops)),
   ])
 }
 
 ///|
-fn nd(j : Json) -> Net raise @base.Fault {
+fn nd(j : Json) -> Net raise @utils.Fault {
   validate({
-    agents: @base.array(@base.field(j, "agents")).map(j => {
-      id: @base.identifier(@base.string(@base.field(j, "id"))),
-      kind: kd(@base.field(j, "kind")),
+    agents: @utils.array(@utils.field(j, "agents")).map(j => {
+      id: @utils.identifier(@utils.string(@utils.field(j, "id"))),
+      kind: kd(@utils.field(j, "kind")),
     }),
-    wires: @base.array(@base.field(j, "wires")).map(j => {
-      let a = @base.array(j)
-      @base.require(a.length() == 2, "Invalid wire")
+    wires: @utils.array(@utils.field(j, "wires")).map(j => {
+      let a = @utils.array(j)
+      @utils.require(a.length() == 2, "Invalid wire")
       (pd(a[0]), pd(a[1]))
     }),
-    loops: @base.int(@base.field(j, "loops")),
+    loops: @utils.int(@utils.field(j, "loops")),
   })
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([("net", nj(s.net)), ("steps", @base.jint(s.steps))])
+  @utils.object([("net", nj(s.net)), ("steps", @utils.jint(s.steps))])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
-  let steps = @base.int(@base.field(j, "steps"))
-  @base.require(steps >= 0, "Negative step count")
-  { net: nd(@base.field(j, "net")), steps, }
+fn decode(j : Json) -> State raise @utils.Fault {
+  let steps = @utils.int(@utils.field(j, "steps"))
+  @utils.require(steps >= 0, "Negative step count")
+  { net: nd(@utils.field(j, "net")), steps, }
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let active = active_pairs(s.net)
   let next = if active.is_empty() { None } else { Some(active[0]) }
-  fn endpoint(p : Port) -> Json {
+  fn endpoint(p : Port) -> @definition.GraphEndpoint {
     match p {
-      AgentPort(n, i) =>
-        @base.object([
-          ("node", @base.jstr("agent:" + n)),
-          ("port", @base.jint(i)),
-        ])
-      Free(n) =>
-        @base.object([
-          ("node", @base.jstr("free:" + n)),
-          ("port", @base.jint(0)),
-        ])
+      AgentPort(n, i) => { node: "agent:" + n, port: i, }
+      Free(n) => { node: "free:" + n, port: 0, }
     }
   }
   let free : Array[String] = []
@@ -504,83 +487,60 @@ fn render(s : State) -> Json {
     }
   }
   free.sort()
-  let nodes = s.net.agents.map(a => {
-    @base.object([
-      ("id", @base.jstr("agent:" + a.id)),
-      (
-        "label",
-        @base.jstr(
-          (match a.kind {
-            Gamma => "γ"
-            Delta => "δ"
-            Epsilon => "ε"
-          }) +
-          " " +
-          a.id,
-        ),
-      ),
-      (
-        "ports",
-        @base.jarray(
-          Array::makei(arity(a.kind) + 1, i => @base.jstr(i.to_string())),
-        ),
-      ),
-    ])
+  let nodes : Array[@definition.GraphNode] = s.net.agents.map(a => {
+    id: "agent:" + a.id,
+    label: (match a.kind {
+      Gamma => "γ"
+      Delta => "δ"
+      Epsilon => "ε"
+    }) +
+    " " +
+    a.id,
+    ports: Array::makei(arity(a.kind) + 1, i => i.to_string()),
   })
-  nodes.append(
-    free.map(n => {
-      @base.object([
-        ("id", @base.jstr("free:" + n)),
-        ("label", @base.jstr("@" + n)),
-        ("ports", @base.jarray([@base.jstr("")])),
-      ])
-    }),
-  )
-  let edges = s.net.wires.map(pair => {
-    @base.object([
-      ("source", endpoint(pair.0)),
-      ("target", endpoint(pair.1)),
-      (
-        "highlighted",
-        @base.jbool(
-          match (pair.0, pair.1, next) {
-            (AgentPort(a, 0), AgentPort(b, 0), Some((x, y))) => a == x && b == y
-            _ => false
-          },
-        ),
-      ),
-    ])
+  nodes.append(free.map(n => { id: "free:" + n, label: "@" + n, ports: [""], }))
+  let edges : Array[@definition.GraphEdge] = s.net.wires.map(pair => {
+    source: endpoint(pair.0),
+    target: endpoint(pair.1),
+    highlighted: match (pair.0, pair.1, next) {
+      (AgentPort(a, 0), AgentPort(b, 0), Some((x, y))) => a == x && b == y
+      _ => false
+    },
   })
-  @base.jarray([
-    @base.titled("steps", s.steps.to_string()),
-    @base.titled(
+  [
+    @definition.titled("steps", s.steps.to_string()),
+    @definition.titled(
       "next interaction",
       match next {
         None => "No active pair"
         Some((a, b)) => a + " ↔ " + b
       },
     ),
-    @base.object([
-      ("kind", @base.jstr("graph")),
-      ("title", @base.jstr("net (principal port = 0)")),
-      ("nodes", @base.jarray(nodes)),
-      ("edges", @base.jarray(edges)),
-    ]),
-    @base.table(
+    @definition.graph("net (principal port = 0)", nodes, edges),
+    @definition.text_table(
       "active pairs",
       ["agent", "agent"],
       active.map(pair => [pair.0, pair.1]),
     ),
-    @base.table(
+    @definition.text_table(
       "wires",
       ["port", "port"],
       s.net.wires.map(pair => [port_name(pair.0), port_name(pair.1)]),
     ),
-    @base.titled("cyclic wires without ports", s.net.loops.to_string()),
-  ])
+    @definition.titled("cyclic wires without ports", s.net.loops.to_string()),
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

@@ -2,17 +2,41 @@
 package "computation/models/models/cellular_automaton"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn life_model() -> @runtime.Model
+pub fn life_model() -> @definition.Model[Unit, Grid, Unit, Grid, Unit, Life]
 
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Rule, Row, Unit, Row, Unit, Elementary]
 
 // Errors
 
 // Types and methods
+type Elementary
+pub impl @definition.Render for Elementary
+pub impl @definition.Snapshot for Elementary
+
+pub(all) struct Grid {
+  cells : Array[Array[Bool]]
+}
+pub impl @definition.Text for Grid
+
+type Life
+pub impl @definition.Render for Life
+pub impl @definition.Snapshot for Life
+
+pub(all) struct Row {
+  cells : Array[Bool]
+}
+pub impl @definition.Text for Row
+
+pub(all) struct Rule {
+  value : Int32
+}
+pub impl @definition.Text for Rule
 
 // Type aliases
 

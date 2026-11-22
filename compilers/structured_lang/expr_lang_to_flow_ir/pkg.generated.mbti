@@ -2,11 +2,13 @@
 package "computation/models/compilers/structured_lang/expr_lang_to_flow_ir"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/flow_ir",
+  "computation/models/models/structured_lang/expr_lang",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@expr_lang.Stmt, @expr_lang.Environment, Unit, Unit, @expr_lang.Environment, @flow_ir.Code, @flow_ir.Environment, String, String, @flow_ir.Environment]
 
 // Errors
 

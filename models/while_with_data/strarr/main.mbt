@@ -14,7 +14,7 @@ priv enum Bexp {
 }
 
 ///|
-priv enum Stmt {
+enum Stmt {
   Nop
   Assign(String, Aexp)
   Seq(Stmt, Stmt)
@@ -23,32 +23,32 @@ priv enum Stmt {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Stmt
   stmt : Stmt
   env : Array[(String, Array[String])]
 }
 
 ///|
-fn atom(p : @p.Parser) -> Aexp raise @base.Fault {
+fn atom(p : @utils.Parser) -> Aexp raise @utils.Fault {
   if p.eat_keyword("head") {
     Head(atom(p))
   } else if p.eat_keyword("tail") {
     Tail(atom(p))
-  } else if p.peek() == @p.Symbol('(') {
+  } else if p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let a = aexp(g)
     g.finish()
     a
-  } else if p.peek() == @p.Symbol('[') {
-    Const(@data.read_chars(p, grouped_characters=false))
+  } else if p.peek() == @utils.Symbol('[') {
+    Const(@utils.read_chars(p, grouped_characters=false))
   } else {
     Var(p.ident())
   }
 }
 
 ///|
-fn aexp(p : @p.Parser) -> Aexp raise @base.Fault {
+fn aexp(p : @utils.Parser) -> Aexp raise @utils.Fault {
   let mut a = atom(p)
   while p.eat_text("++") {
     a = Concat(a, atom(p))
@@ -57,7 +57,7 @@ fn aexp(p : @p.Parser) -> Aexp raise @base.Fault {
 }
 
 ///|
-fn bexp(p : @p.Parser) -> Bexp raise @base.Fault {
+fn bexp(p : @utils.Parser) -> Bexp raise @utils.Fault {
   if p.eat_keyword("is_empty") {
     IsEmpty(aexp(p))
   } else {
@@ -68,7 +68,7 @@ fn bexp(p : @p.Parser) -> Bexp raise @base.Fault {
 }
 
 ///|
-fn single(p : @p.Parser) -> Stmt raise @base.Fault {
+fn single(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("Nop") {
     Nop
   } else if p.eat_keyword("if") {
@@ -83,7 +83,7 @@ fn single(p : @p.Parser) -> Stmt raise @base.Fault {
     let b = statement(g)
     g.finish()
     While(c, b)
-  } else if p.peek() == @p.Symbol('(') {
+  } else if p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let s = statement(g)
     g.finish()
@@ -96,7 +96,7 @@ fn single(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
+fn statement(p : @utils.Parser) -> Stmt raise @utils.Fault {
   let mut s = single(p)
   while p.eat(';') {
     s = Seq(s, single(p))
@@ -108,7 +108,7 @@ fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
 fn eval(a : Aexp, env : Array[(String, Array[String])]) -> Array[String] {
   match a {
     Const(cs) => cs
-    Var(n) => @data.env_get(env, n).unwrap_or([])
+    Var(n) => @utils.env_get(env, n).unwrap_or([])
     Concat(a, b) => {
       let cs = eval(a, env).copy()
       cs.append(eval(b, env))
@@ -148,7 +148,7 @@ fn small(
 ) -> (Stmt, Array[(String, Array[String])]) {
   match s {
     Nop => (Nop, env)
-    Assign(n, a) => (Nop, @data.env_set(env, n, eval(a, env)))
+    Assign(n, a) => (Nop, @utils.env_set(env, n, eval(a, env)))
     Seq(Nop, b) => (b, env)
     Seq(a, b) => {
       let (a, env) = small(a, env)
@@ -160,24 +160,20 @@ fn small(
 }
 
 ///|
-fn make(code : String, input : String) -> State raise @base.Fault {
-  let p = @p.create(code, character_literals=true)
-  let code = statement(p)
-  p.finish()
-  { code, stmt: code, env: @data.parse_env(input, @data.parse_chars), }
+fn make(code : Stmt, input : Environment) -> State {
+  { code, stmt: code, env: input.values, }
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] {
   match s.stmt {
-    Nop => @runtime.Halt(@data.print_env(s.env, @data.chars_text))
+    Nop => @definition.Halt(Environment::{ values: s.env, })
     _ => {
       let (stmt, env) = small(s.stmt, s.env)
-      @runtime.Continue({ ..s, stmt, env, }, "")
+      @definition.Continue({ ..s, stmt, env, }, ())
     }
   }
 }
@@ -185,88 +181,88 @@ fn step(
 ///|
 fn aj(a : Aexp) -> Json {
   match a {
-    Const(cs) => @base.tag("Const", [@base.jarray(cs.map(@base.jstr))])
-    Var(n) => @base.tag("Var", [@base.jstr(n)])
-    Concat(a, b) => @base.tag("Concat", [aj(a), aj(b)])
-    Head(a) => @base.tag("Head", [aj(a)])
-    Tail(a) => @base.tag("Tail", [aj(a)])
+    Const(cs) => @utils.tag("Const", [@utils.jarray(cs.map(@utils.jstr))])
+    Var(n) => @utils.tag("Var", [@utils.jstr(n)])
+    Concat(a, b) => @utils.tag("Concat", [aj(a), aj(b)])
+    Head(a) => @utils.tag("Head", [aj(a)])
+    Tail(a) => @utils.tag("Tail", [aj(a)])
   }
 }
 
 ///|
-fn ad(j : Json) -> Aexp raise @base.Fault {
-  fn a(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn ad(j : Json) -> Aexp raise @utils.Fault {
+  fn a(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
-    "Const" => Const(@base.array(a(0)).map(@data.decode_scalar))
-    "Var" => Var(@base.identifier(@base.string(a(0))))
+  match @utils.tag_name(j) {
+    "Const" => Const(@utils.array(a(0)).map(@utils.decode_scalar))
+    "Var" => Var(@utils.identifier(@utils.string(a(0))))
     "Concat" => Concat(ad(a(0)), ad(a(1)))
     "Head" => Head(ad(a(0)))
     "Tail" => Tail(ad(a(0)))
-    _ => @base.error("Invalid array expression")
+    _ => @utils.error("Invalid array expression")
   }
 }
 
 ///|
 fn bj(b : Bexp) -> Json {
   match b {
-    IsEmpty(a) => @base.tag("IsEmpty", [aj(a)])
-    Equal(a, b) => @base.tag("Eq", [aj(a), aj(b)])
+    IsEmpty(a) => @utils.tag("IsEmpty", [aj(a)])
+    Equal(a, b) => @utils.tag("Eq", [aj(a), aj(b)])
   }
 }
 
 ///|
-fn bd(j : Json) -> Bexp raise @base.Fault {
-  match @base.tag_name(j) {
-    "IsEmpty" => IsEmpty(ad(@base.tag_arg(j, 0)))
-    "Eq" => Equal(ad(@base.tag_arg(j, 0)), ad(@base.tag_arg(j, 1)))
-    _ => @base.error("Invalid array condition")
+fn bd(j : Json) -> Bexp raise @utils.Fault {
+  match @utils.tag_name(j) {
+    "IsEmpty" => IsEmpty(ad(@utils.tag_arg(j, 0)))
+    "Eq" => Equal(ad(@utils.tag_arg(j, 0)), ad(@utils.tag_arg(j, 1)))
+    _ => @utils.error("Invalid array condition")
   }
 }
 
 ///|
 fn sj(s : Stmt) -> Json {
   match s {
-    Nop => @base.tag("Nop", [])
-    Assign(n, a) => @base.tag("Assign", [@base.jstr(n), aj(a)])
-    Seq(a, b) => @base.tag("Seq", [sj(a), sj(b)])
-    If(c, b) => @base.tag("If", [bj(c), sj(b)])
-    While(c, b) => @base.tag("While", [bj(c), sj(b)])
+    Nop => @utils.tag("Nop", [])
+    Assign(n, a) => @utils.tag("Assign", [@utils.jstr(n), aj(a)])
+    Seq(a, b) => @utils.tag("Seq", [sj(a), sj(b)])
+    If(c, b) => @utils.tag("If", [bj(c), sj(b)])
+    While(c, b) => @utils.tag("While", [bj(c), sj(b)])
   }
 }
 
 ///|
-fn sd(j : Json) -> Stmt raise @base.Fault {
-  fn a(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn sd(j : Json) -> Stmt raise @utils.Fault {
+  fn a(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
+  match @utils.tag_name(j) {
     "Nop" => Nop
-    "Assign" => Assign(@base.identifier(@base.string(a(0))), ad(a(1)))
+    "Assign" => Assign(@utils.identifier(@utils.string(a(0))), ad(a(1)))
     "Seq" => Seq(sd(a(0)), sd(a(1)))
     "If" => If(bd(a(0)), sd(a(1)))
     "While" => While(bd(a(0)), sd(a(1)))
-    _ => @base.error("Invalid array statement")
+    _ => @utils.error("Invalid array statement")
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("code", sj(s.code)),
     ("stmt", sj(s.stmt)),
-    ("env", @data.env_json(s.env, cs => @base.jarray(cs.map(@base.jstr)))),
+    ("env", @utils.env_json(s.env, cs => @utils.jarray(cs.map(@utils.jstr)))),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
+fn decode(j : Json) -> State raise @utils.Fault {
   {
-    code: sd(@base.field(j, "code")),
-    stmt: sd(@base.field(j, "stmt")),
-    env: @data.decode_env(@base.field(j, "env"), j => {
-      @base.array(j).map(@data.decode_scalar)
+    code: sd(@utils.field(j, "code")),
+    stmt: sd(@utils.field(j, "stmt")),
+    env: @utils.decode_env(@utils.field(j, "env"), j => {
+      @utils.array(j).map(@utils.decode_scalar)
     }),
   }
 }
@@ -274,7 +270,7 @@ fn decode(j : Json) -> State raise @base.Fault {
 ///|
 fn at(a : Aexp) -> String {
   match a {
-    Const(cs) => @data.chars_text(cs)
+    Const(cs) => @utils.chars_text(cs)
     Var(n) => n
     Concat(a, b) => "(" + at(a) + " ++ " + at(b) + ")"
     Head(a) => "\\head " + at(a)
@@ -302,15 +298,15 @@ fn st(s : Stmt) -> String {
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, s => {
-    @base.jarray([
-      @base.titled("stmt", st(s.stmt)),
-      @base.table(
-        "env",
-        ["var", "value"],
-        s.env.map(pair => [pair.0, @data.chars_text(pair.1)]),
-      ),
-    ])
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
   })
 }

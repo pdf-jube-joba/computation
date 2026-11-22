@@ -2,21 +2,13 @@
 package "computation/models/compilers/rec_tm/shared"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
-  "moonbitlang/core/bigint",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compiler((String) -> String raise @base.Fault) -> @runtime.Compiler
+pub fn decode_number(@computation/models/models/rec_tm/shared.Tape) -> @utils.Nat raise @utils.Fault
 
-pub fn decode_number(String) -> String raise @base.Fault
-
-pub fn encode_tuple(Array[@bigint.BigInt]) -> String raise @base.Fault
-
-pub fn identity_tape(String) -> String raise @base.Fault
-
-pub fn unit_text(String) -> String raise @base.Fault
+pub fn encode_tuple(Array[@utils.Nat]) -> @computation/models/models/rec_tm/shared.Tape raise @utils.Fault
 
 // Errors
 

@@ -1,12 +1,12 @@
 ///|
 priv struct Builder {
   functions : Array[@ir.FunctionDef]
-  names : @names.Supply
+  names : @utils.Supply
 }
 
 ///|
 fn create() -> Builder {
-  { functions: [], names: @names.supply(reserved=["main"]), }
+  { functions: [], names: @utils.supply(reserved=["main"]), }
 }
 
 ///|
@@ -269,7 +269,7 @@ fn composition(
   }
   blocks.push(block("outer", [call(c, outer)]))
   function_def(
-    "comp_" + outer.name + "_" + @base.join(inner.map(f => f.name), "_"),
+    "comp_" + outer.name + "_" + @utils.join(inner.map(f => f.name), "_"),
     blocks,
   )
 }
@@ -475,7 +475,7 @@ fn compile_function(c : Builder, f : @source.Func) -> @ir.FunctionDef {
 }
 
 ///|
-pub fn compile(f : @source.Func) -> @ir.Code raise @base.Fault {
+pub fn compile(f : @source.Func) -> @ir.Code raise @utils.Fault {
   @source.validate(f)
   let c = create()
   let f = compile_function(c, f)
@@ -484,12 +484,23 @@ pub fn compile(f : @source.Func) -> @ir.Code raise @base.Fault {
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => @ir.print_code(compile(@source.parse_code(text))),
-    encode_ainput: text => @encoding.encode_tuple(@source.parse_input(text)),
-    encode_rinput: @encoding.unit_text,
-    decode_routput: @encoding.unit_text,
-    decode_foutput: @encoding.decode_number,
-  }
+pub fn compiler() -> @definition.Compiler[
+  @source.Code,
+  @source.Ainput,
+  @source.Rinput,
+  @source.Routput,
+  @source.Foutput,
+  @ir.Code,
+  @ir.Ainput,
+  @ir.Rinput,
+  @ir.Routput,
+  @ir.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=compile,
+    encode_ainput=input => @encoding.encode_tuple(input.values),
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=@encoding.decode_number,
+  )
 }

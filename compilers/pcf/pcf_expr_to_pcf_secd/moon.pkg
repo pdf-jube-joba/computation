@@ -1,6 +1,6 @@
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
   "computation/models/models/pcf/shared" @s,
   "computation/models/models/pcf/secd" @target,
 }

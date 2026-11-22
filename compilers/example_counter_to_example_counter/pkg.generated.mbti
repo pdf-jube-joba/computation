@@ -2,11 +2,12 @@
 package "computation/models/compilers/example_counter_to_example_counter"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/_example_counter",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@_example_counter.Count, Unit, @_example_counter.Operation, @_example_counter.Event, Unit, @_example_counter.Count, Unit, @_example_counter.Operation, @_example_counter.Event, Unit]
 
 // Errors
 

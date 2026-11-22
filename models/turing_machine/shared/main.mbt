@@ -18,32 +18,32 @@ pub(all) struct Definition {
 }
 
 ///|
-priv struct State {
+struct State {
   definition : Definition
   current : Int32
-  tapes : Array[@data.Tape[String]]
+  tapes : Array[@utils.Tape[String]]
 }
 
 ///|
-pub fn sign(text : String) -> String raise @base.Fault {
+pub fn sign(text : String) -> String raise @utils.Fault {
   let text = text.trim().to_owned()
   if text == "-" {
     text
   } else {
-    @base.identifier(text)
+    @utils.identifier(text)
   }
 }
 
 ///|
-fn direction(text : String) -> Int32 raise @base.Fault {
-  let p = @p.create(text)
+fn direction(text : String) -> Int32 raise @utils.Fault {
+  let p = @utils.create(text)
   let d = p.keyword()
   p.finish()
   match d {
     "L" => -1
     "C" => 0
     "R" => 1
-    _ => @base.error("Invalid direction")
+    _ => @utils.error("Invalid direction")
   }
 }
 
@@ -78,47 +78,47 @@ fn strip(line : String) -> String {
 }
 
 ///|
-pub fn validate(d : Definition, multi : Bool) -> Unit raise @base.Fault {
-  @base.require(d.count > 0, "Tape count must be positive")
+pub fn validate(d : Definition, multi : Bool) -> Unit raise @utils.Fault {
+  @utils.require(d.count > 0, "Tape count must be positive")
   if multi {
-    @base.require(
+    @utils.require(
       d.alphabet.contains("-"),
       "Alphabet must contain the blank symbol (-)",
     )
     let seen : Map[String, Bool] = Map([])
     for s in d.alphabet {
       ignore(sign(s))
-      @base.require(!seen.contains(s), "Duplicate alphabet symbol")
+      @utils.require(!seen.contains(s), "Duplicate alphabet symbol")
       seen[s] = true
     }
   }
   let ids : Map[Int32, Bool] = Map([])
   let names : Map[String, Bool] = Map([])
   for pair in d.names {
-    ignore(@base.identifier(pair.1))
-    @base.require(
+    ignore(@utils.identifier(pair.1))
+    @utils.require(
       pair.0 >= 0 && !ids.contains(pair.0),
       "Duplicate or negative state ID",
     )
-    @base.require(!names.contains(pair.1), "Duplicate state name")
+    @utils.require(!names.contains(pair.1), "Duplicate state name")
     ids[pair.0] = true
     names[pair.1] = true
   }
-  @base.require(
+  @utils.require(
     ids.contains(d.initial) && d.accepted.all(id => ids.contains(id)),
     "Unknown state ID",
   )
   let seen : Map[String, Bool] = Map([])
   for entry in d.code {
-    @base.require(
+    @utils.require(
       ids.contains(entry.source) && ids.contains(entry.target),
       "Unknown state ID",
     )
-    @base.require(
+    @utils.require(
       !d.accepted.contains(entry.source),
       "Code contains accepted state",
     )
-    @base.require(
+    @utils.require(
       entry.reads.length() == d.count &&
       entry.writes.length() == d.count &&
       entry.directions.length() == d.count,
@@ -127,17 +127,17 @@ pub fn validate(d : Definition, multi : Bool) -> Unit raise @base.Fault {
     for s in entry.reads {
       ignore(sign(s))
       if multi {
-        @base.require(d.alphabet.contains(s), "Symbol outside alphabet: " + s)
+        @utils.require(d.alphabet.contains(s), "Symbol outside alphabet: " + s)
       }
     }
     for s in entry.writes {
       ignore(sign(s))
       if multi {
-        @base.require(d.alphabet.contains(s), "Symbol outside alphabet: " + s)
+        @utils.require(d.alphabet.contains(s), "Symbol outside alphabet: " + s)
       }
     }
-    let key = entry.source.to_string() + ":" + @base.join(entry.reads, ",")
-    @base.require(
+    let key = entry.source.to_string() + ":" + @utils.join(entry.reads, ",")
+    @utils.require(
       !seen.contains(key),
       "Duplicate transition for state/read vector",
     )
@@ -146,21 +146,21 @@ pub fn validate(d : Definition, multi : Bool) -> Unit raise @base.Fault {
 }
 
 ///|
-pub fn parse_code(text : String, multi : Bool) -> Definition raise @base.Fault {
+pub fn parse_code(text : String, multi : Bool) -> Definition raise @utils.Fault {
   let lines = text.split("\n").map(s => s.to_owned()).collect()
-  @base.require(
+  @utils.require(
     lines.length() >= (if multi { 4 } else { 2 }),
     "Missing code header lines",
   )
   let lines = if multi { lines.map(strip) } else { lines }
-  fn header(prefix : String, line : String) -> String raise @base.Fault {
-    @base.require(line.has_prefix(prefix), "Expected " + prefix)
+  fn header(prefix : String, line : String) -> String raise @utils.Fault {
+    @utils.require(line.has_prefix(prefix), "Expected " + prefix)
     line
     .unsafe_substring(start=prefix.length(), end=line.length())
     .trim()
     .to_owned()
   }
-  let count = if multi { @base.integer(header("tapes:", lines[0])) } else { 1 }
+  let count = if multi { @utils.integer(header("tapes:", lines[0])) } else { 1 }
   let alphabet = if multi {
     comma(header("alphabet:", lines[1])).map(sign)
   } else {
@@ -168,8 +168,8 @@ pub fn parse_code(text : String, multi : Bool) -> Definition raise @base.Fault {
   }
   let offset = if multi { 2 } else { 0 }
   let names : Array[(Int32, String)] = []
-  fn state(name : String) -> Int32 raise @base.Fault {
-    let name = @base.identifier(name.trim().to_owned())
+  fn state(name : String) -> Int32 raise @utils.Fault {
+    let name = @utils.identifier(name.trim().to_owned())
     for pair in names {
       if pair.1 == name {
         return pair.0
@@ -192,7 +192,7 @@ pub fn parse_code(text : String, multi : Bool) -> Definition raise @base.Fault {
       continue
     }
     let columns = comma(line)
-    @base.require(
+    @utils.require(
       if multi {
         columns.length() == 5
       } else {
@@ -225,13 +225,13 @@ pub fn parse_code(text : String, multi : Bool) -> Definition raise @base.Fault {
 }
 
 ///|
-fn validate_state(s : State, multi : Bool) -> State raise @base.Fault {
+fn validate_state(s : State, multi : Bool) -> State raise @utils.Fault {
   validate(s.definition, multi)
-  @base.require(
+  @utils.require(
     s.definition.names.any(pair => pair.0 == s.current),
     "Unknown current state ID",
   )
-  @base.require(
+  @utils.require(
     s.tapes.length() == s.definition.count,
     "Input tape count differs from code",
   )
@@ -239,7 +239,7 @@ fn validate_state(s : State, multi : Bool) -> State raise @base.Fault {
     for value in tape.values() {
       ignore(sign(value))
       if multi {
-        @base.require(
+        @utils.require(
           s.definition.alphabet.contains(value),
           "Input symbol outside alphabet: " + value,
         )
@@ -250,14 +250,12 @@ fn validate_state(s : State, multi : Bool) -> State raise @base.Fault {
 }
 
 ///|
-fn make(code : String, input : String, multi : Bool) -> State raise @base.Fault {
-  let definition = parse_code(code, multi)
-  let lines = if multi {
-    input.trim().to_owned().split("\n").map(s => s.to_owned()).collect()
-  } else {
-    [input]
-  }
-  let tapes = lines.map(text => @data.parse_tape(text, sign))
+fn make(
+  definition : Definition,
+  tapes : Array[@utils.Tape[String]],
+  multi : Bool,
+) -> State raise @utils.Fault {
+  validate(definition, multi)
   validate_state({ definition, current: definition.initial, tapes, }, multi)
 }
 
@@ -278,9 +276,8 @@ fn next_entry(s : State) -> Int32? {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Unit, Tapes] {
   let s = match next_entry(s) {
     None => s
     Some(i) => {
@@ -295,8 +292,8 @@ fn step(
     }
   }
   match next_entry(s) {
-    None => @runtime.Halt(@base.join(s.tapes.map(t => t.text(s => s)), "\n"))
-    Some(_) => @runtime.Continue(s, "")
+    None => @definition.Halt(Tapes::{ values: s.tapes, })
+    Some(_) => @definition.Continue(s, ())
   }
 }
 
@@ -305,68 +302,77 @@ fn sign_json(s : String) -> Json {
   if s == "-" {
     Json::null()
   } else {
-    @base.jstr(s)
+    @utils.jstr(s)
   }
 }
 
 ///|
-fn sign_decode(j : Json) -> String raise @base.Fault {
+fn sign_decode(j : Json) -> String raise @utils.Fault {
   match j {
     Null => "-"
-    _ => @base.identifier(@base.string(j))
+    _ => @utils.identifier(@utils.string(j))
   }
 }
 
 ///|
 fn dj(d : Int32) -> Json {
-  @base.tag(if d < 0 { "Left" } else if d > 0 { "Right" } else { "Constant" }, [])
+  @utils.tag(
+    if d < 0 {
+      "Left"
+    } else if d > 0 {
+      "Right"
+    } else {
+      "Constant"
+    },
+    [],
+  )
 }
 
 ///|
-fn dd(j : Json) -> Int32 raise @base.Fault {
-  match @base.tag_name(j) {
+fn dd(j : Json) -> Int32 raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Left" => -1
     "Right" => 1
     "Constant" => 0
-    _ => @base.error("Invalid direction snapshot")
+    _ => @utils.error("Invalid direction snapshot")
   }
 }
 
 ///|
 fn definition_json(d : Definition, multi : Bool) -> Json {
   let fields = [
-    ("init_state", @base.jint(d.initial)),
-    ("accepted_state", @base.jarray(d.accepted.map(@base.jint))),
+    ("init_state", @utils.jint(d.initial)),
+    ("accepted_state", @utils.jarray(d.accepted.map(@utils.jint))),
     (
       "state_names",
-      @base.jarray(
+      @utils.jarray(
         d.names.map(pair => {
-          @base.jarray([@base.jint(pair.0), @base.jstr(pair.1)])
+          @utils.jarray([@utils.jint(pair.0), @utils.jstr(pair.1)])
         }),
       ),
     ),
     (
       "code",
-      @base.jarray(
+      @utils.jarray(
         d.code.map(e => {
-          @base.jarray([
-            @base.jarray([
+          @utils.jarray([
+            @utils.jarray([
               if multi {
-                @base.jarray(e.reads.map(sign_json))
+                @utils.jarray(e.reads.map(sign_json))
               } else {
                 sign_json(e.reads[0])
               },
-              @base.jint(e.source),
+              @utils.jint(e.source),
             ]),
-            @base.jarray([
+            @utils.jarray([
               if multi {
-                @base.jarray(e.writes.map(sign_json))
+                @utils.jarray(e.writes.map(sign_json))
               } else {
                 sign_json(e.writes[0])
               },
-              @base.jint(e.target),
+              @utils.jint(e.target),
               if multi {
-                @base.jarray(e.directions.map(dj))
+                @utils.jarray(e.directions.map(dj))
               } else {
                 dj(e.directions[0])
               },
@@ -377,17 +383,17 @@ fn definition_json(d : Definition, multi : Bool) -> Json {
     ),
   ]
   if multi {
-    fields.push(("tape_count", @base.jint(d.count)))
-    fields.push(("alphabet", @base.jarray(d.alphabet.map(sign_json))))
+    fields.push(("tape_count", @utils.jint(d.count)))
+    fields.push(("alphabet", @utils.jarray(d.alphabet.map(sign_json))))
   }
-  @base.object(fields)
+  @utils.object(fields)
 }
 
 ///|
 fn encode(s : State, multi : Bool) -> Json {
-  @base.object([
+  @utils.object([
     ("definition", definition_json(s.definition, multi)),
-    ("current_state", @base.jint(s.current)),
+    ("current_state", @utils.jint(s.current)),
     (
       if multi {
         "tapes"
@@ -395,7 +401,7 @@ fn encode(s : State, multi : Bool) -> Json {
         "tape"
       },
       if multi {
-        @base.jarray(s.tapes.map(t => t.json(sign_json)))
+        @utils.jarray(s.tapes.map(t => t.json(sign_json)))
       } else {
         s.tapes[0].json(sign_json)
       },
@@ -404,9 +410,9 @@ fn encode(s : State, multi : Bool) -> Json {
 }
 
 ///|
-fn decode(j : Json, multi : Bool) -> State raise @base.Fault {
-  let d = @base.field(j, "definition")
-  let current = @base.field(j, "current_state")
+fn decode(j : Json, multi : Bool) -> State raise @utils.Fault {
+  let d = @utils.field(j, "definition")
+  let current = @utils.field(j, "current_state")
   let named = match current {
     String(_) => !multi
     _ => false
@@ -414,17 +420,17 @@ fn decode(j : Json, multi : Bool) -> State raise @base.Fault {
   let names : Array[(Int32, String)] = if named {
     []
   } else {
-    @base.array(@base.field(d, "state_names")).map(j => {
-      let a = @base.array(j)
-      @base.require(a.length() == 2, "Invalid state name")
-      (@base.int(a[0]), @base.identifier(@base.string(a[1])))
+    @utils.array(@utils.field(d, "state_names")).map(j => {
+      let a = @utils.array(j)
+      @utils.require(a.length() == 2, "Invalid state name")
+      (@utils.int(a[0]), @utils.identifier(@utils.string(a[1])))
     })
   }
-  fn state(j : Json) -> Int32 raise @base.Fault {
+  fn state(j : Json) -> Int32 raise @utils.Fault {
     if !named {
-      return @base.int(j)
+      return @utils.int(j)
     }
-    let name = @base.identifier(@base.string(j))
+    let name = @utils.identifier(@utils.string(j))
     for pair in names {
       if pair.1 == name {
         return pair.0
@@ -434,55 +440,55 @@ fn decode(j : Json, multi : Bool) -> State raise @base.Fault {
     names.push((id, name))
     id
   }
-  let initial = state(@base.field(d, "init_state"))
-  let accepted = @base.array(@base.field(d, "accepted_state")).map(state)
-  let code = @base.array(@base.field(d, "code")).map(j => {
-    let a = @base.array(j)
-    @base.require(a.length() == 2, "Invalid transition")
-    let key = @base.array(a[0])
-    let value = @base.array(a[1])
-    @base.require(
+  let initial = state(@utils.field(d, "init_state"))
+  let accepted = @utils.array(@utils.field(d, "accepted_state")).map(state)
+  let code = @utils.array(@utils.field(d, "code")).map(j => {
+    let a = @utils.array(j)
+    @utils.require(a.length() == 2, "Invalid transition")
+    let key = @utils.array(a[0])
+    let value = @utils.array(a[1])
+    @utils.require(
       key.length() == 2 && value.length() == 3,
       "Invalid transition",
     )
     {
       reads: if multi {
-        @base.array(key[0]).map(sign_decode)
+        @utils.array(key[0]).map(sign_decode)
       } else {
         [sign_decode(key[0])]
       },
       source: state(key[1]),
       writes: if multi {
-        @base.array(value[0]).map(sign_decode)
+        @utils.array(value[0]).map(sign_decode)
       } else {
         [sign_decode(value[0])]
       },
       target: state(value[1]),
       directions: if multi {
-        @base.array(value[2]).map(dd)
+        @utils.array(value[2]).map(dd)
       } else {
         [dd(value[2])]
       },
     }
   })
   let current = if named {
-    let name = @base.string(current)
+    let name = @utils.string(current)
     let found = names.iter().find_first(pair => pair.1 == name)
     match found {
       Some(pair) => pair.0
-      None => @base.error("Unknown current state name")
+      None => @utils.error("Unknown current state name")
     }
   } else {
-    @base.int(current)
+    @utils.int(current)
   }
   let definition = {
     count: if multi {
-      @base.int(@base.field(d, "tape_count"))
+      @utils.int(@utils.field(d, "tape_count"))
     } else {
       1
     },
     alphabet: if multi {
-      @base.array(@base.field(d, "alphabet")).map(sign_decode)
+      @utils.array(@utils.field(d, "alphabet")).map(sign_decode)
     } else {
       []
     },
@@ -492,21 +498,21 @@ fn decode(j : Json, multi : Bool) -> State raise @base.Fault {
     names,
   }
   let tapes = if multi {
-    @base.array(@base.field(j, "tapes")).map(j => {
-      @data.decode_tape(j, sign_decode)
+    @utils.array(@utils.field(j, "tapes")).map(j => {
+      @utils.decode_tape(j, sign_decode)
     })
   } else {
-    [@data.decode_tape(@base.field(j, "tape"), sign_decode)]
+    [@utils.decode_tape(@utils.field(j, "tape"), sign_decode)]
   }
   validate_state({ definition, current, tapes, }, multi)
 }
 
 ///|
-fn render(s : State, multi : Bool) -> Json {
+fn render(s : State, multi : Bool) -> Array[@definition.Block] {
   fn name(id : Int32) -> String {
     s.definition.names.iter().find_first(pair => pair.0 == id).unwrap().1
   }
-  let table = @base.table(
+  let table = @definition.text_table(
     "code",
     if multi {
       ["read", "state", "write", "next_state", "directions"]
@@ -515,19 +521,19 @@ fn render(s : State, multi : Bool) -> Json {
     },
     s.definition.code.map(e => {
       [
-        @base.join(e.reads, " "),
+        @utils.join(e.reads, " "),
         name(e.source),
-        @base.join(e.writes, " "),
+        @utils.join(e.writes, " "),
         name(e.target),
-        @base.join(e.directions.map(direction_text), " "),
+        @utils.join(e.directions.map(direction_text), " "),
       ]
     }),
     highlight=next_entry(s).unwrap_or(-1),
   )
-  let blocks = [table, @base.titled("state", name(s.current))]
+  let blocks = [table, @definition.titled("state", name(s.current))]
   for i, tape in s.tapes {
     blocks.push(
-      @base.highlight(
+      @definition.highlight(
         if multi {
           "tape " + (i + 1).to_string()
         } else {
@@ -538,23 +544,49 @@ fn render(s : State, multi : Bool) -> Json {
       ),
     )
   }
-  @base.jarray(blocks)
+  blocks
 }
 
 ///|
-pub fn model(multi~ : Bool = false) -> @runtime.Model {
-  @runtime.model(
-    (code, input) => make(code, input, multi),
-    step,
-    s => encode(s, multi),
-    j => decode(j, multi),
-    s => render(s, multi),
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, [input.value], false), step=(
+    state,
+    input,
+  ) => {
+    match step(state, input) {
+      @definition.Continue(next, output) => @definition.Continue(next, output)
+      @definition.Halt(output) =>
+        @definition.Halt(Tape::{ value: output.values[0], })
+    }
+  })
+}
+
+///|
+pub fn multi_model() -> @definition.Model[
+  MultiCode,
+  Tapes,
+  Unit,
+  Unit,
+  Tapes,
+  MultiState,
+] {
+  @definition.Model(
+    make=(code, input) => { value: make(code.definition, input.values, true), },
+    step=(state, input) => {
+      match step(state.value, input) {
+        @definition.Continue(next, output) =>
+          @definition.Continue({ value: next, }, output)
+        @definition.Halt(output) => @definition.Halt(output)
+      }
+    },
   )
-}
-
-///|
-pub fn multi_model() -> @runtime.Model {
-  model(multi=true)
 }
 
 ///|
@@ -569,20 +601,20 @@ pub fn print_code(d : Definition) -> String {
   }
   let header = name(d.initial) +
     "\n" +
-    @base.join(d.accepted.map(name), ",") +
+    @utils.join(d.accepted.map(name), ",") +
     "\n"
   header +
-  @base.join(
+  @utils.join(
     d.code.map(entry => {
-      @base.join(entry.reads, " ") +
+      @utils.join(entry.reads, " ") +
       "," +
       name(entry.source) +
       "," +
-      @base.join(entry.writes, " ") +
+      @utils.join(entry.writes, " ") +
       "," +
       name(entry.target) +
       "," +
-      @base.join(entry.directions.map(direction_text), " ") +
+      @utils.join(entry.directions.map(direction_text), " ") +
       "\n"
     }),
     "",

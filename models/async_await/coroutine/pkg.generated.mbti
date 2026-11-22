@@ -2,16 +2,34 @@
 package "computation/models/models/async_await/coroutine"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Program, UInt32, UInt32, String, Environment, State]
 
 // Errors
 
 // Types and methods
+#alias(Foutput)
+type Environment
+pub impl @definition.Text for Environment
+
+#alias(Code)
+type Program
+pub impl @definition.Text for Program
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Ainput = UInt32
+
+pub type Rinput = UInt32
+
+pub type Routput = String
 
 // Traits

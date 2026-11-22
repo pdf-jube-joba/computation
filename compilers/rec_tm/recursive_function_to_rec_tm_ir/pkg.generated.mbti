@@ -2,16 +2,17 @@
 package "computation/models/compilers/rec_tm/recursive_function_to_rec_tm_ir"
 
 import {
+  "computation/models/definition",
   "computation/models/models/rec_tm/rec_tm_ir",
+  "computation/models/models/rec_tm/shared",
   "computation/models/models/recursive_function",
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compile(@recursive_function.Func) -> @rec_tm_ir.Code raise @base.Fault
+pub fn compile(@recursive_function.Func) -> @rec_tm_ir.Code raise @utils.Fault
 
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@recursive_function.Func, @recursive_function.Ainput, Unit, Unit, @utils.Nat, @rec_tm_ir.Code, @shared.Tape, Unit, Unit, @shared.Tape]
 
 // Errors
 

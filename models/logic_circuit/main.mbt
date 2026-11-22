@@ -1,5 +1,5 @@
 ///|
-fn render(c : Circuit) -> Json {
+fn render(c : Circuit) -> Array[@definition.Block] {
   let (verts, input_maps, output_maps) = match c {
     Gate(_) => {
       let owner = External(kind(c))
@@ -26,7 +26,7 @@ fn render(c : Circuit) -> Json {
         iter_pins(i, false).map(p => (p, p)),
       )
   }
-  let names = @names.supply()
+  let names = @utils.supply()
   for entry in verts {
     match entry.0 {
       Internal(n) | External(n) => names.reserve(n)
@@ -71,30 +71,38 @@ fn render(c : Circuit) -> Json {
       vertices.push([display(entry.0), output.0.1, bool_text(output.1)])
     }
   }
-  @base.jarray([
-    @base.titled("kind", kind(c)),
-    @base.table("inputs", ["name", "pin"], inputs),
-    @base.table("outputs", ["name", "pin", "value"], output_rows),
-    @base.table("verts", ["vert", "pin", "value"], vertices),
-  ])
+  [
+    @definition.titled("kind", kind(c)),
+    @definition.text_table("inputs", ["name", "pin"], inputs),
+    @definition.text_table("outputs", ["name", "pin", "value"], output_rows),
+    @definition.text_table("verts", ["vert", "pin", "value"], vertices),
+  ]
 }
 
 ///|
-fn make(code : String, input : String) -> Circuit raise @base.Fault {
-  @base.unit_input(input)
-  parse_code(code)
+fn make(code : Circuit, _input : Unit) -> Circuit {
+  code
 }
 
 ///|
 fn step(
   c : Circuit,
-  input : String,
-) -> @runtime.Transition[Circuit] raise @base.Fault {
-  let next = tick(c, read_signal(input))
-  @runtime.Continue(next, signal_text(outputs(next)))
+  input : Rinput,
+) -> @definition.Transition[Circuit, Routput, Foutput] raise @utils.Fault {
+  let next = tick(c, input.values)
+  @definition.Continue(next, Signals::{ values: outputs(next), })
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, json_circuit, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  Circuit,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

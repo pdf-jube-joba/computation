@@ -2,15 +2,16 @@
 package "computation/models/models/structured_lang/proc_lang"
 
 import {
+  "computation/models/definition",
   "computation/models/models/structured_lang/shared",
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, @shared.Environment, Unit, String, @shared.Environment, State]
 
-pub fn parse_code(String) -> Code raise @base.Fault
+pub fn parse_code(String) -> Code raise @utils.Fault
 
 pub fn with_return(Stmt) -> Stmt
 
@@ -21,6 +22,7 @@ pub(all) struct Code {
   statics : Array[String]
   procs : Array[Procedure]
 }
+pub impl @definition.Text for Code
 
 pub(all) struct Procedure {
   name : String
@@ -28,6 +30,10 @@ pub(all) struct Procedure {
   locals : Array[String]
   body : Stmt
 }
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 pub(all) enum Stmt {
   Nop
@@ -40,5 +46,12 @@ pub(all) enum Stmt {
 }
 
 // Type aliases
+pub using @shared {type Environment as Ainput}
+
+pub using @shared {type Environment as Foutput}
+
+pub type Rinput = Unit
+
+pub type Routput = String
 
 // Traits

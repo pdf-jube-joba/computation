@@ -4,7 +4,7 @@ fn statement(
   stmt : @s.Stmt,
   cont : String,
   loops : Array[(String, (String, String))],
-) -> String raise @base.Fault {
+) -> String raise @utils.Fault {
   match stmt {
     @s.Nop => {
       let label = c.fresh_region("nop")
@@ -43,7 +43,7 @@ fn statement(
     }
     @s.Break(l, v) => {
       c.variable(v)
-      let (_, exit) = @data.env_lookup(loops, l)
+      let (_, exit) = @utils.env_lookup(loops, l)
       let label = c.fresh_region("break")
       let r = c.fresh_vreg("break")
       c.single(
@@ -54,7 +54,7 @@ fn statement(
       label
     }
     @s.Continue(l) => {
-      let (head, _) = @data.env_lookup(loops, l)
+      let (head, _) = @utils.env_lookup(loops, l)
       let label = c.fresh_region("continue")
       c.single(label, [@ir.Nop], @lower.enter(head))
       label
@@ -63,7 +63,7 @@ fn statement(
       c.variable(out)
       let head = c.fresh_region("loop_head")
       let exit = c.fresh_region("loop_exit")
-      let body = statement(c, b, head, @data.env_set(loops, l, (head, exit)))
+      let body = statement(c, b, head, @utils.env_set(loops, l, (head, exit)))
       c.single(head, [@ir.Nop], @lower.enter(body))
       let r = c.fresh_vreg("loop_break")
       c.single(
@@ -77,23 +77,39 @@ fn statement(
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  @lower.compiler(text => {
-    let source = @s.parse_code(text)
-    let c = @lower.create()
-    for v in source.statics {
-      c.variable(v)
-    }
-    let halt = c.fresh_region("halt")
-    c.region(halt, [
-      @lower.block(c.fresh_block("halt_entry"), [@ir.Nop], @ir.Halt([])),
-    ])
-    let entry = statement(c, source.body, halt, [])
-    c.finish(prefix=[
-      {
-        label: "main",
-        blocks: [@lower.block("entry", [@ir.Nop], @lower.enter(entry))],
-      },
-    ])
-  })
+pub fn compiler() -> @definition.Compiler[
+  @s.Code,
+  @s.Ainput,
+  @s.Rinput,
+  @s.Routput,
+  @s.Foutput,
+  @ir.Code,
+  @ir.Ainput,
+  @ir.Rinput,
+  @ir.Routput,
+  @ir.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=source => {
+      let c = @lower.create()
+      for v in source.statics {
+        c.variable(v)
+      }
+      let halt = c.fresh_region("halt")
+      c.region(halt, [
+        @lower.block(c.fresh_block("halt_entry"), [@ir.Nop], @ir.Halt([])),
+      ])
+      let entry = statement(c, source.body, halt, [])
+      c.finish(prefix=[
+        {
+          label: "main",
+          blocks: [@lower.block("entry", [@ir.Nop], @lower.enter(entry))],
+        },
+      ])
+    },
+    encode_ainput=input => @lower.encode_env(input.values),
+    encode_rinput=_ => "",
+    decode_routput=_ => "",
+    decode_foutput=output => { values: @lower.decode_env(output), },
+  )
 }

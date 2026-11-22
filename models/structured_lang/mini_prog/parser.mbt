@@ -1,5 +1,5 @@
 ///|
-fn type_atom(p : @p.Parser) -> Ty raise @base.Fault {
+fn type_atom(p : @utils.Parser) -> Ty raise @utils.Fault {
   match p.keyword() {
     "num" => Num
     "u8" => U8
@@ -12,8 +12,8 @@ fn type_atom(p : @p.Parser) -> Ty raise @base.Fault {
 }
 
 ///|
-fn parse_type(p : @p.Parser) -> Ty raise @base.Fault {
-  if p.peek() == @p.Symbol('[') {
+fn parse_type(p : @utils.Parser) -> Ty raise @utils.Fault {
+  if p.peek() == @utils.Symbol('[') {
     let g = p.group('[')
     let t = parse_type(g)
     g.expect(';')
@@ -26,7 +26,7 @@ fn parse_type(p : @p.Parser) -> Ty raise @base.Fault {
     let mut kind = 0
     while true {
       let next = if p.eat('*') { 1 } else if p.eat('+') { 2 } else { break }
-      @base.require(
+      @utils.require(
         kind == 0 || kind == next,
         "cannot mix '*' and '+' in a type without brackets",
       )
@@ -42,7 +42,7 @@ fn parse_type(p : @p.Parser) -> Ty raise @base.Fault {
 }
 
 ///|
-fn parse_place(p : @p.Parser) -> Place raise @base.Fault {
+fn parse_place(p : @utils.Parser) -> Place raise @utils.Fault {
   let mut place = if p.eat_keyword("static") {
     Static(p.ident())
   } else if p.eat_keyword("local") {
@@ -59,7 +59,7 @@ fn parse_place(p : @p.Parser) -> Place raise @base.Fault {
       place = Field(place, p.integer())
     } else if p.eat('?') {
       place = Tag_place(place, p.integer())
-    } else if p.peek() == @p.Symbol('[') {
+    } else if p.peek() == @utils.Symbol('[') {
       let g = p.group('[')
       let v = parse_value(g, p => p.eof())
       g.finish()
@@ -74,11 +74,11 @@ fn parse_place(p : @p.Parser) -> Place raise @base.Fault {
 ///|
 /// Source expressions use an explicit postfix stack.
 fn parse_value(
-  p : @p.Parser,
-  stop : (@p.Parser) -> Bool,
-) -> Expr raise @base.Fault {
+  p : @utils.Parser,
+  stop : (@utils.Parser) -> Bool,
+) -> Expr raise @utils.Fault {
   let stack = []
-  fn pop() -> Expr raise @base.Fault {
+  fn pop() -> Expr raise @utils.Fault {
     match stack.pop() {
       Some(v) => v
       None => p.error("operator needs an operand")
@@ -86,8 +86,8 @@ fn parse_value(
   }
   while !p.eof() && !stop(p) {
     match p.peek() {
-      @p.Number(_) => stack.push(Number(p.natural()))
-      @p.Character(c) => {
+      @utils.Number(_) => stack.push(Number(p.natural()))
+      @utils.Character(c) => {
         ignore(p.bump())
         stack.push(Char(c))
       }
@@ -106,9 +106,9 @@ fn parse_value(
           stack.push(Function(p.ident()))
         } else if p.eat_keyword("ld") {
           stack.push(Load(parse_place(p)))
-        } else if p.peek() == @p.Symbol('(') ||
-          p.peek() == @p.Keyword("static") ||
-          p.peek() == @p.Keyword("local") {
+        } else if p.peek() == @utils.Symbol('(') ||
+          p.peek() == @utils.Keyword("static") ||
+          p.peek() == @utils.Keyword("local") {
           let place = parse_place(p)
           p.expect_keyword("addr")
           stack.push(Addr(place))
@@ -118,7 +118,7 @@ fn parse_value(
           let g = p.group('(')
           let count = g.integer()
           g.finish()
-          @base.require(
+          @utils.require(
             count <= stack.length(),
             "\\pair arity exceeds expression stack",
           )
@@ -154,7 +154,7 @@ fn parse_value(
         }
     }
   }
-  @base.require(
+  @utils.require(
     stack.length() == 1,
     "value expression did not reduce to a single value",
   )
@@ -162,14 +162,14 @@ fn parse_value(
 }
 
 ///|
-fn terminator(p : @p.Parser) -> Bool {
-  p.eof() || p.peek() == @p.Symbol(';')
+fn terminator(p : @utils.Parser) -> Bool {
+  p.eof() || p.peek() == @utils.Symbol(';')
 }
 
 ///|
-fn statement_start(p : @p.Parser) -> Bool {
+fn statement_start(p : @utils.Parser) -> Bool {
   match p.peek() {
-    @p.Keyword(
+    @utils.Keyword(
       "assign"
       | "if"
       | "case"
@@ -188,21 +188,23 @@ fn statement_start(p : @p.Parser) -> Bool {
 
 ///|
 fn value_list(
-  p : @p.Parser,
-  stop : (@p.Parser) -> Bool,
-) -> Array[Expr] raise @base.Fault {
+  p : @utils.Parser,
+  stop : (@utils.Parser) -> Bool,
+) -> Array[Expr] raise @utils.Fault {
   let values = []
   if !p.eof() && !stop(p) {
-    values.push(parse_value(p, p => p.peek() == @p.Symbol(',') || stop(p)))
+    values.push(parse_value(p, p => p.peek() == @utils.Symbol(',') || stop(p)))
     while p.eat(',') {
-      values.push(parse_value(p, p => p.peek() == @p.Symbol(',') || stop(p)))
+      values.push(
+        parse_value(p, p => p.peek() == @utils.Symbol(',') || stop(p)),
+      )
     }
   }
   values
 }
 
 ///|
-fn parse_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
+fn parse_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("assign") {
     let place = parse_place(p)
     p.expect_text(":=")
@@ -230,7 +232,7 @@ fn parse_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
   } else if p.eat_keyword("continue") {
     Continue(p.ident())
   } else if p.eat_keyword("call") {
-    let callee = parse_value(p, p => p.peek() == @p.Symbol('('))
+    let callee = parse_value(p, p => p.peek() == @utils.Symbol('('))
     let g = p.group('(')
     let args = value_list(g, p => p.eof())
     g.finish()
@@ -249,7 +251,7 @@ fn parse_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn parse_block(p : @p.Parser) -> Block raise @base.Fault {
+fn parse_block(p : @utils.Parser) -> Block raise @utils.Fault {
   let g = p.group('(')
   let bindings = []
   if !g.eof() {
@@ -276,8 +278,8 @@ fn parse_block(p : @p.Parser) -> Block raise @base.Fault {
 }
 
 ///|
-fn parse_code(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text, character_literals=true)
+fn parse_code(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text, character_literals=true)
   let statics = []
   let functions = []
   while !p.eof() {

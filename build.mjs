@@ -7,102 +7,230 @@ import {fileURLToPath} from 'node:url';
 
 const root = fileURLToPath(new URL('./', import.meta.url));
 const moduleName = 'computation/models';
-const entries = JSON.parse(await readFile(path.join(root, 'components.json'), 'utf8'));
-let output = path.join(root, 'build/assets');
-const requested = [];
-let list = false;
-for (let i = 2; i < process.argv.length; i++) {
-  const arg = process.argv[i];
-  if (arg === '--list') list = true;
-  else if (arg === '--model' || arg === '--out-dir') {
-    const value = process.argv[++i];
-    if (!value) throw new Error(`Missing value for ${arg}`);
-    if (arg === '--model') requested.push(value);
-    else output = path.resolve(value);
-  } else throw new Error(`Unknown argument: ${arg}`);
-}
-const selected = requested.length ? requested.map(name => {
-  const entry = entries.find(entry => entry.name === name);
-  if (!entry) throw new Error(`Unknown MoonBit component: ${name}`);
-  return entry;
-}) : entries;
-if (list) { selected.forEach(entry => console.log(entry.name)); process.exit(0); }
+const expectedBindgenVersion = 'wit-bindgen-cli 0.63.0';
+const componentHeader = Buffer.from([0, 97, 115, 109, 13, 0, 1, 0]);
 
-function run(command, args, capture = false) {
+async function main() {
+  const entries = JSON.parse(await readFile(path.join(root, 'components.json'), 'utf8'));
+  const {names, outputDir, list} = parseArguments(process.argv.slice(2));
+  const selected = selectComponents(entries, names);
+
+  if (list) {
+    for (const entry of selected) console.log(entry.name);
+    return;
+  }
+
+  await mkdir(outputDir, {recursive: true});
+  checkTools();
+  for (const entry of selected) await buildComponent(entry, outputDir);
+  await writeManifest(entries, outputDir);
+}
+
+function parseArguments(args) {
+  const names = [];
+  let outputDir = path.join(root, 'build/assets');
+  let list = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--list') {
+      list = true;
+    } else if (arg === '--model' || arg === '--out-dir') {
+      const value = args[++i];
+      if (!value) throw new Error(`Missing value for ${arg}`);
+      if (arg === '--model') names.push(value);
+      else outputDir = path.resolve(value);
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+  return {names, outputDir, list};
+}
+
+function selectComponents(entries, names) {
+  if (!names.length) return entries;
+  return names.map(name => {
+    const entry = entries.find(entry => entry.name === name);
+    if (!entry) throw new Error(`Unknown MoonBit component: ${name}`);
+    return entry;
+  });
+}
+
+function checkTools() {
+  const version = run('wit-bindgen', ['--version'], {capture: true}).trim();
+  if (version !== expectedBindgenVersion) {
+    throw new Error(`Expected ${expectedBindgenVersion}, found ${version}`);
+  }
+  run('jco', ['--version'], {capture: true});
+}
+
+async function buildComponent(entry, outputDir) {
+  const packagePath = `build/components/${entry.name}`;
+  const componentDir = path.join(root, packagePath);
+  await generateBindings(entry, packagePath, componentDir);
+  const coreWasm = buildMoonBit(packagePath);
+
+  const embeddedWasm = path.join(componentDir, 'embedded.wasm');
+  const componentWasm = path.join(outputDir, `${entry.name}.wasm`);
+  run('wasm-tools', [
+    'component', 'embed', 'computation.wit', coreWasm,
+    '--world', entry.kind, '--encoding', 'utf16', '--output', embeddedWasm,
+  ]);
+  run('wasm-tools', ['component', 'new', embeddedWasm, '--output', componentWasm]);
+  run('wasm-tools', ['validate', componentWasm]);
+  run('jco', [
+    'transpile', componentWasm, '--out-dir', outputDir, '--name', entry.name,
+    '--instantiation', 'async', '--no-typescript',
+  ], {capture: true});
+  console.log(`Built ${entry.name}: ${componentWasm}`);
+}
+
+async function generateBindings(entry, packagePath, componentDir) {
+  await mkdir(componentDir, {recursive: true});
+  run('wit-bindgen', [
+    'moonbit', 'computation.wit', '--world', entry.kind, '--ignore-module-file',
+    '--project-name', `${moduleName}/${packagePath}`, '--out-dir', componentDir,
+  ], {capture: true});
+
+  const adapterDir = path.join(componentDir, 'gen/world', entry.kind);
+  await patchPostReturn(path.join(adapterDir, 'ffi.mbt'));
+  await writeAdapter(entry, adapterDir);
+}
+
+async function patchPostReturn(ffiPath) {
+  // wit-bindgen 0.63.0 allocates each result record but only frees its payload
+  // in cabi_post_*. Reclaim that record too; otherwise long training runs leak
+  // one allocation per call. Keep the generator pinned until upstream fixes it.
+  const ffi = await readFile(ffiPath, 'utf8');
+  let fixed = 0;
+  const postReturn = /(pub fn wasmExport\w+PostReturn\(p0 : Int\) -> Unit \{[\s\S]*?)(\n\})/g;
+  const patched = ffi.replace(postReturn, (_, body, end) => {
+    fixed++;
+    return `${body}\n      mbt_ffi_free(p0)\n${end}`;
+  });
+  if (fixed === 0) {
+    throw new Error(`Unexpected ${expectedBindgenVersion} post-return code (${fixed} functions)`);
+  }
+  await writeFile(ffiPath, patched);
+}
+
+async function writeAdapter(entry, adapterDir) {
+  const imports = `import {
+  "${moduleName}/${entry.package}" @target,
+  "${moduleName}/runtime",
+  "${moduleName}/utils",
+}
+warnings = "-44-27"
+`;
+  await writeFile(path.join(adapterDir, 'moon.pkg'), imports);
+  const targetFactory = entry.factory || entry.kind;
+  const source = entry.kind === 'model'
+    ? modelAdapter(targetFactory)
+    : compilerAdapter(targetFactory);
+  await writeFile(path.join(adapterDir, 'implementation.mbt'), source);
+}
+
+function modelAdapter(targetFactory) {
+  return `// Generated by build.mjs.
+let machine : @runtime.Session = @runtime.session(@target.${targetFactory}())
+
+///|
+pub fn make(code : String, ainput : String) -> Result[Unit, String] {
+  try Ok(machine.make(code, ainput)) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn step(rinput : String) -> Result[String, String] {
+  try Ok(machine.step(rinput)) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn snapshot() -> Result[String, String] {
+  try Ok(machine.snapshot()) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn restore(snapshot : String) -> Result[Unit, String] {
+  try Ok(machine.restore(snapshot)) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn render(snapshot : String) -> Result[String, String] {
+  try Ok(machine.render(snapshot)) catch { @utils.Fault(message) => Err(message) }
+}
+`;
+}
+
+function compilerAdapter(targetFactory) {
+  return `// Generated by build.mjs.
+let machine : @runtime.CompilerSession = @runtime.compiler_session(@target.${targetFactory}())
+
+///|
+pub fn compile_code(input : String) -> Result[String, String] {
+  try Ok((machine.compile_code)(input)) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn encode_ainput(ainput : String) -> Result[String, String] {
+  try Ok((machine.encode_ainput)(ainput)) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn encode_rinput(rinput : String) -> Result[String, String] {
+  try Ok((machine.encode_rinput)(rinput)) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn decode_routput(output : String) -> Result[String, String] {
+  try Ok((machine.decode_routput)(output)) catch { @utils.Fault(message) => Err(message) }
+}
+
+///|
+pub fn decode_foutput(output : String) -> Result[String, String] {
+  try Ok((machine.decode_foutput)(output)) catch { @utils.Fault(message) => Err(message) }
+}
+`;
+}
+
+function buildMoonBit(packagePath) {
+  const buildLog = run('moon', [
+    'build', '--target', 'wasm', '--release', '--deny-warn', '--output-json', `${packagePath}/gen`,
+  ], {capture: true});
+  // The standard path also works with older moon versions that don't emit artifact messages.
+  const fallback = path.join(root, '_build/wasm/release/build', packagePath, 'gen/gen.wasm');
+  for (const line of buildLog.split('\n')) {
+    let message;
+    try { message = JSON.parse(line); }
+    catch { continue; }
+    if (message?.$message_type === 'artifact' || message?.type === 'artifact') {
+      return message.path || fallback;
+    }
+  }
+  return fallback;
+}
+
+async function writeManifest(entries, outputDir) {
+  // A partial build must not hide components already built into this directory.
+  const manifest = [];
+  for (const entry of entries) {
+    const file = path.join(outputDir, `${entry.name}.wasm`);
+    if (!existsSync(file)) continue;
+    const bytes = await readFile(file);
+    if (bytes.subarray(0, componentHeader.length).equals(componentHeader)) manifest.push(entry);
+  }
+  await writeFile(path.join(outputDir, 'components.json'), JSON.stringify(manifest, null, 2) + '\n');
+}
+
+function run(command, args, {capture = false} = {}) {
   const result = spawnSync(command, args, {
     cwd: root, encoding: 'utf8',
     stdio: capture ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'inherit', 'inherit'],
   });
   if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`${command} failed (${result.status})\n${result.stdout || ''}\n${result.stderr || ''}`);
+  if (result.status !== 0) {
+    throw new Error(`${command} failed (${result.status})\n${result.stdout || ''}\n${result.stderr || ''}`);
+  }
   return result.stdout;
 }
-await mkdir(output, {recursive: true});
-const bindgenVersion = run('wit-bindgen', ['--version'], true).trim();
-if (bindgenVersion !== 'wit-bindgen-cli 0.63.0') {
-  throw new Error(`Expected wit-bindgen-cli 0.63.0, found ${bindgenVersion}`);
-}
-run('jco', ['--version'], true);
-for (const entry of selected) {
-  const relative = `build/components/${entry.name}`;
-  const directory = path.join(root, relative);
-  await mkdir(directory, {recursive: true});
-  const world = entry.kind;
-  run('wit-bindgen', ['moonbit', 'computation.wit', '--world', world,
-    '--ignore-module-file', '--project-name', `${moduleName}/${relative}`, '--out-dir', directory], true);
-  const adapter = path.join(directory, 'gen/world', world);
-  // wit-bindgen 0.63.0 allocates each result record but only frees its payload
-  // in cabi_post_*. Reclaim that record too; otherwise long training runs leak
-  // one allocation per call. Keep the generator pinned until upstream fixes it.
-  const ffiPath = path.join(adapter, 'ffi.mbt');
-  const ffi = await readFile(ffiPath, 'utf8');
-  let fixed = 0;
-  const patched = ffi.replace(/(pub fn wasmExport\w+PostReturn\(p0 : Int\) -> Unit \{[\s\S]*?)(\n\})/g,
-    (_, body, end) => { fixed++; return `${body}\n      mbt_ffi_free(p0)\n${end}`; });
-  if (fixed !== 5) throw new Error(`Unexpected ${bindgenVersion} post-return code (${fixed} functions)`);
-  await writeFile(ffiPath, patched);
-  await writeFile(path.join(adapter, 'moon.pkg'), `import {\n  "${moduleName}/${entry.package}" @target,\n  "${moduleName}/utils/base" @base,\n}\nwarnings = "-44-27"\n`);
-  const operations = world === 'model'
-    ? [['make', 'code : String, ainput : String', 'Unit', 'machine.make(code, ainput)'],
-       ['step', 'rinput : String', 'String', 'machine.step(rinput)'],
-       ['snapshot', '', 'String', 'machine.snapshot()'],
-       ['restore', 'snapshot : String', 'Unit', 'machine.restore(snapshot)'],
-       ['render', 'snapshot : String', 'String', 'machine.render(snapshot)']]
-    : [['compile_code', 'input : String', 'String', '(machine.compile_code)(input)'],
-       ['encode_ainput', 'ainput : String', 'String', '(machine.encode_ainput)(ainput)'],
-       ['encode_rinput', 'rinput : String', 'String', '(machine.encode_rinput)(rinput)'],
-       ['decode_routput', 'output : String', 'String', '(machine.decode_routput)(output)'],
-       ['decode_foutput', 'output : String', 'String', '(machine.decode_foutput)(output)']];
-  const types = world === 'model' ? 'Model' : 'Compiler';
-  let source = `// Generated by build.mjs.\nlet machine : @runtime.${types} = @target.${entry.factory || world}()\n`;
-  for (const [name, parameters, result, call] of operations) {
-    source += `\n///|\npub fn ${name}(${parameters}) -> Result[${result}, String] {\n  try Ok(${call}) catch { @base.Fault(message) => Err(message) }\n}\n`;
-  }
-  await writeFile(path.join(adapter, 'implementation.mbt'), source);
-  const pkg = await readFile(path.join(adapter, 'moon.pkg'), 'utf8');
-  await writeFile(path.join(adapter, 'moon.pkg'), pkg.replace('import {', `import {\n  "${moduleName}/utils/runtime" @runtime,`));
-  const buildLog = run('moon', ['build', '--target', 'wasm', '--release', '--output-json', `${relative}/gen`], true);
-  const artifact = buildLog.split('\n').filter(Boolean).map(line => {
-    try { return JSON.parse(line); } catch { return null; }
-  }).find(item => item?.$message_type === 'artifact' || item?.type === 'artifact');
-  // The standard path also works with older moon versions that don't emit artifact messages.
-  const core = artifact?.path || path.join(root, '_build/wasm/release/build', relative, 'gen/gen.wasm');
-  const embedded = path.join(directory, 'embedded.wasm');
-  run('wasm-tools', ['component', 'embed', 'computation.wit', core, '--world', world,
-    '--encoding', 'utf16', '--output', embedded]);
-  const component = path.join(output, `${entry.name}.wasm`);
-  run('wasm-tools', ['component', 'new', embedded, '--output', component]);
-  run('wasm-tools', ['validate', component]);
-  run('jco', ['transpile', component, '--out-dir', output, '--name', entry.name,
-    '--instantiation', 'async', '--no-typescript'], true);
-  console.log(`Built ${entry.name}: ${component}`);
-}
-// A partial build must not hide components already built into this directory.
-const manifest = [];
-for (const entry of entries) {
-  const file = path.join(output, `${entry.name}.wasm`);
-  if (!existsSync(file)) continue;
-  const bytes = await readFile(file);
-  if (bytes.subarray(0, 8).equals(Buffer.from([0, 97, 115, 109, 13, 0, 1, 0]))) manifest.push(entry);
-}
-await writeFile(path.join(output, 'components.json'), JSON.stringify(manifest, null, 2) + '\n');
+
+await main();

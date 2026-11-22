@@ -15,16 +15,16 @@ pub(all) struct Code {
 }
 
 ///|
-priv struct State {
+struct State {
   program : Code
   pc : Int32
   env : @s.Environment
-  tape : @data.Tape[String]
+  tape : @utils.Tape[String]
 }
 
 ///|
-pub fn parse_code(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse_code(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text)
   let alphabet = @s.alphabet(p)
   let body = []
   while !p.eof() {
@@ -58,9 +58,9 @@ pub fn stmt_text(stmt : Stmt) -> String {
 ///|
 pub fn print_code(code : Code) -> String {
   "\\alphabet: (" +
-  @base.join(code.alphabet, ", ") +
+  @utils.join(code.alphabet, ", ") +
   ")\n" +
-  @base.join(code.body.map(s => stmt_text(s) + "\n"), "")
+  @utils.join(code.body.map(s => stmt_text(s) + "\n"), "")
 }
 
 ///|
@@ -80,13 +80,13 @@ pub fn collect_vars(body : Array[Stmt]) -> Array[String] {
 }
 
 ///|
-pub fn validate(code : Code) -> Unit raise @base.Fault {
+pub fn validate(code : Code) -> Unit raise @utils.Fault {
   let allowed = @s.normalized_alphabet(code.alphabet)
   for i, stmt in code.body {
     match stmt {
       Assign(_, src) => @s.validate_value(allowed, src)
       Jump(target, c) => {
-        @base.require(
+        @utils.require(
           target >= 0 && target <= code.body.length(),
           "jump target out of range at " +
           i.to_string() +
@@ -101,10 +101,9 @@ pub fn validate(code : Code) -> Unit raise @base.Fault {
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let program = parse_code(text)
+fn make(program : Code, input : @s.Tape) -> State raise @utils.Fault {
   validate(program)
-  let tape = @data.parse_tape(input, @s.sign)
+  let tape = input.value
   @s.validate_tape(@s.normalized_alphabet(program.alphabet), tape)
   { program, pc: 0, env: @s.env_create(collect_vars(program.body)), tape, }
 }
@@ -112,11 +111,10 @@ fn make(text : String, input : String) -> State raise @base.Fault {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   if s.pc >= s.program.body.length() {
-    return @runtime.Halt(s.tape.text(v => v))
+    return @definition.Halt(@s.Tape::{ value: s.tape, })
   }
   let next = { ..s, pc: s.pc + 1, }
   let next = match s.program.body[s.pc] {
@@ -132,7 +130,7 @@ fn step(
       { ..next, env, tape, }
     }
     Jump(target, c) => {
-      @base.require(
+      @utils.require(
         target >= 0 && target <= s.program.body.length(),
         "jump target out of range",
       )
@@ -146,91 +144,83 @@ fn step(
       }
     }
   }
-  @runtime.Continue(next, "")
+  @definition.Continue(next, ())
 }
 
 ///|
 pub fn sj(s : Stmt) -> Json {
   match s {
-    Lt => @base.tag("Lt", [])
-    Rt => @base.tag("Rt", [])
-    Assign(dst, src) => @base.tag("Assign", [@s.lj(dst), @s.rj(src)])
-    Jump(target, c) => @base.tag("Jump", [@base.jint(target), @s.cj(c)])
+    Lt => @utils.tag("Lt", [])
+    Rt => @utils.tag("Rt", [])
+    Assign(dst, src) => @utils.tag("Assign", [@s.lj(dst), @s.rj(src)])
+    Jump(target, c) => @utils.tag("Jump", [@utils.jint(target), @s.cj(c)])
   }
 }
 
 ///|
-pub fn sd(j : Json) -> Stmt raise @base.Fault {
-  match @base.tag_name(j) {
+pub fn sd(j : Json) -> Stmt raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Lt" => Lt
     "Rt" => Rt
-    "Assign" => Assign(@s.ld(@base.tag_arg(j, 0)), @s.rd(@base.tag_arg(j, 1)))
-    "Jump" => Jump(@base.int(@base.tag_arg(j, 0)), @s.cd(@base.tag_arg(j, 1)))
-    _ => @base.error("Invalid tape jump statement")
+    "Assign" => Assign(@s.ld(@utils.tag_arg(j, 0)), @s.rd(@utils.tag_arg(j, 1)))
+    "Jump" =>
+      Jump(@utils.int(@utils.tag_arg(j, 0)), @s.cd(@utils.tag_arg(j, 1)))
+    _ => @utils.error("Invalid tape jump statement")
   }
 }
 
 ///|
 pub fn code_json(code : Code) -> Json {
-  @base.object([
-    ("alphabet", @base.jarray(code.alphabet.map(@s.sign_json))),
-    ("body", @base.jarray(code.body.map(sj))),
+  @utils.object([
+    ("alphabet", @utils.jarray(code.alphabet.map(@s.sign_json))),
+    ("body", @utils.jarray(code.body.map(sj))),
   ])
 }
 
 ///|
-pub fn decode_code(j : Json) -> Code raise @base.Fault {
+pub fn decode_code(j : Json) -> Code raise @utils.Fault {
   {
-    alphabet: @base.array(@base.field(j, "alphabet")).map(@s.decode_sign),
-    body: @base.array(@base.field(j, "body")).map(sd),
+    alphabet: @utils.array(@utils.field(j, "alphabet")).map(@s.decode_sign),
+    body: @utils.array(@utils.field(j, "body")).map(sd),
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("program", code_json(s.program)),
-    ("pc", @base.jint(s.pc)),
+    ("pc", @utils.jint(s.pc)),
     ("env", @s.ej(s.env)),
     ("tape", s.tape.json(@s.sign_json)),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
-  let program = decode_code(@base.field(j, "program"))
+fn decode(j : Json) -> State raise @utils.Fault {
+  let program = decode_code(@utils.field(j, "program"))
   validate(program)
-  let pc = @base.int(@base.field(j, "pc"))
-  @base.require(pc >= 0 && pc <= program.body.length(), "Invalid pc")
-  let tape = @data.decode_tape(@base.field(j, "tape"), @s.decode_sign)
+  let pc = @utils.int(@utils.field(j, "pc"))
+  @utils.require(pc >= 0 && pc <= program.body.length(), "Invalid pc")
+  let tape = @utils.decode_tape(@utils.field(j, "tape"), @s.decode_sign)
   @s.validate_tape(@s.normalized_alphabet(program.alphabet), tape)
   {
     program,
     pc,
-    env: @s.ed(@base.field(j, "env"), collect_vars(program.body)),
+    env: @s.ed(@utils.field(j, "env"), collect_vars(program.body)),
     tape,
   }
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, s => {
-    @base.jarray([
-      @base.titled("pc", s.pc.to_string()),
-      @base.titled(
-        "next",
-        if s.pc >= s.program.body.length() {
-          "halt"
-        } else {
-          stmt_text(s.program.body[s.pc])
-        },
-      ),
-      @base.table(
-        "env",
-        ["var", "value"],
-        @s.env_named(s.env).map(v => [v.0, v.1]),
-      ),
-      @base.highlight("tape", s.tape.left.length(), s.tape.values()),
-    ])
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
   })
 }

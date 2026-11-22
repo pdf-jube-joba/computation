@@ -2,10 +2,9 @@
 package "computation/models/models/pcf/secd"
 
 import {
+  "computation/models/definition",
   "computation/models/models/pcf/shared",
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
-  "moonbitlang/core/bigint",
+  "computation/models/utils",
   "moonbitlang/core/json",
 }
 
@@ -14,24 +13,29 @@ pub fn code_json(Array[Instr]) -> @json.Json
 
 pub fn instr_json(Instr) -> @json.Json
 
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, @shared.Inputs, Unit, @shared.Output, @utils.Nat, State]
 
-pub fn parse_code(String) -> Array[Instr] raise @base.Fault
+pub fn parse_code(String) -> Array[Instr] raise @utils.Fault
 
-pub fn parse_code_json(@json.Json) -> Array[Instr] raise @base.Fault
+pub fn parse_code_json(@json.Json) -> Array[Instr] raise @utils.Fault
 
-pub fn parse_instr(@json.Json) -> Instr raise @base.Fault
+pub fn parse_instr(@json.Json) -> Instr raise @utils.Fault
 
 pub fn print_code(Array[Instr]) -> String
 
 // Errors
 
 // Types and methods
+pub(all) struct Code {
+  instructions : Array[Instr]
+}
+pub impl @definition.Text for Code
+
 pub(all) enum Instr {
-  PushNat(@bigint.BigInt)
+  PushNat(@utils.Nat)
   PushBool(Bool)
   PushUnit
-  Print(@bigint.BigInt)
+  Print(@utils.Nat)
   Acc(String)
   MkCls(String, Array[Instr])
   MkRec(String, String, Array[Instr])
@@ -42,6 +46,17 @@ pub(all) enum Instr {
   If(Array[Instr], Array[Instr])
 }
 
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
+
 // Type aliases
+pub using @shared {type Inputs as Ainput}
+
+pub using @utils {type Nat as Foutput}
+
+pub type Rinput = Unit
+
+pub using @shared {type Output as Routput}
 
 // Traits

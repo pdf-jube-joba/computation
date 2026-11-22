@@ -3,17 +3,17 @@ fn allocate_scope(
   s : State,
   bindings : Array[(String, Ty)],
   values : Array[Value],
-) -> (Array[(String, Int32)], Array[(Int32, Cell)], Int32) raise @base.Fault {
-  @base.require(bindings.length() == values.length(), "binding count mismatch")
+) -> (Array[(String, Int32)], Array[(Int32, Cell)], Int32) raise @utils.Fault {
+  @utils.require(bindings.length() == values.length(), "binding count mismatch")
   let mut next = s.next_local_id
   let mut env = []
   let mut cells = []
   for i, binding in bindings {
-    @base.require(
+    @utils.require(
       type_match(values[i], binding.1),
       "type mismatch for " + binding.0,
     )
-    @base.require(next >= 0 && next < 2147483647, "Local ID exhausted")
+    @utils.require(next >= 0 && next < 2147483647, "Local ID exhausted")
     env = assoc_set(env, binding.0, next)
     cells = assoc_set(cells, next, { ty: binding.1, value: values[i], })
     next += 1
@@ -26,9 +26,9 @@ fn enter_function(
   s : State,
   name : String,
   args : Array[Value],
-) -> State raise @base.Fault {
+) -> State raise @utils.Fault {
   let f = function_lookup(s.code, name)
-  @base.require(
+  @utils.require(
     f.block.bindings.length() == args.length(),
     "argument count mismatch for " + name,
   )
@@ -48,8 +48,8 @@ fn push_scope(
   s : State,
   bindings : Array[(String, Ty)],
   values : Array[Value],
-) -> State raise @base.Fault {
-  @base.require(
+) -> State raise @utils.Fault {
+  @utils.require(
     !s.store.locals.is_empty(),
     "push-scope without current function frame",
   )
@@ -66,8 +66,8 @@ fn push_scope(
 }
 
 ///|
-fn pop_scope(s : State) -> State raise @base.Fault {
-  @base.require(
+fn pop_scope(s : State) -> State raise @utils.Fault {
+  @utils.require(
     !s.env.is_empty() &&
     !s.store.locals.is_empty() &&
     !s.store.locals[0].is_empty(),
@@ -84,7 +84,7 @@ fn pop_scope(s : State) -> State raise @base.Fault {
 }
 
 ///|
-fn step_eval(s : State, stmt : Stmt) -> State raise @base.Fault {
+fn step_eval(s : State, stmt : Stmt) -> State raise @utils.Fault {
   match stmt {
     Assign(p, v) => {
       let loc = eval_place(s, p)
@@ -94,17 +94,17 @@ fn step_eval(s : State, stmt : Stmt) -> State raise @base.Fault {
     If(c, st) =>
       match eval_value(s, c) {
         Bool_value(b) => { ..s, exec: if b { Eval(st) } else { Ctrl(Next) }, }
-        _ => @base.error("if expects a bool")
+        _ => @utils.error("if expects a bool")
       }
     Case(tag, v, st) =>
       match eval_value(s, v) {
         Sum_value(found, _) =>
           { ..s, exec: if tag == found { Eval(st) } else { Ctrl(Next) }, }
-        _ => @base.error("case expects a tagged sum")
+        _ => @utils.error("case expects a tagged sum")
       }
     HAlloc(ty, p) => {
       let id = s.next_heap_id
-      @base.require(id >= 0 && id < 2147483647, "Heap ID exhausted")
+      @utils.require(id >= 0 && id < 2147483647, "Heap ID exhausted")
       let s = {
         ..s,
         next_heap_id: id + 1,
@@ -126,11 +126,11 @@ fn step_eval(s : State, stmt : Stmt) -> State raise @base.Fault {
     HFree(v) => {
       let loc = match eval_value(s, v) {
         Ptr_value(Some(loc)) => loc
-        _ => @base.error("hfree expects a heap pointer")
+        _ => @utils.error("hfree expects a heap pointer")
       }
       match loc.key {
         Heap(id) if loc.projections.is_empty() => {
-          @base.require(
+          @utils.require(
             assoc_get(s.store.heap, id) is Some(_),
             "hfree on unknown heap location",
           )
@@ -143,7 +143,7 @@ fn step_eval(s : State, stmt : Stmt) -> State raise @base.Fault {
             exec: Ctrl(Next),
           }
         }
-        _ => @base.error("hfree expects a top-level heap pointer")
+        _ => @utils.error("hfree expects a top-level heap pointer")
       }
     }
     Loop(label, st) =>
@@ -163,7 +163,7 @@ fn step_eval(s : State, stmt : Stmt) -> State raise @base.Fault {
       let ret_locs = rets.map(p => eval_place(s, p))
       let name = match eval_value(s, callee) {
         FnPtr(Some(n)) => n
-        _ => @base.error("call expects a function pointer")
+        _ => @utils.error("call expects a function pointer")
       }
       let values = args.map(v => eval_value(s, v))
       let s = {
@@ -185,8 +185,8 @@ fn step_eval(s : State, stmt : Stmt) -> State raise @base.Fault {
 }
 
 ///|
-fn step_ctrl(s : State, control : Control) -> State raise @base.Fault {
-  @base.require(!s.inner_k.is_empty(), "control state has no continuation")
+fn step_ctrl(s : State, control : Control) -> State raise @utils.Fault {
+  @utils.require(!s.inner_k.is_empty(), "control state has no continuation")
   let frame = s.inner_k[0]
   let s = { ..s, inner_k: s.inner_k[1:].to_owned(), }
   match frame {
@@ -219,14 +219,14 @@ fn step_ctrl(s : State, control : Control) -> State raise @base.Fault {
 }
 
 ///|
-fn step_ret(s : State, values : Array[Value]) -> State raise @base.Fault {
-  @base.require(!s.fn_k.is_empty(), "return without caller")
+fn step_ret(s : State, values : Array[Value]) -> State raise @utils.Fault {
+  @utils.require(!s.fn_k.is_empty(), "return without caller")
   let frame = s.fn_k[0]
-  @base.require(
+  @utils.require(
     values.length() == frame.ret_locs.length(),
     "return count mismatch",
   )
-  @base.require(!s.store.locals.is_empty(), "local store underflow on return")
+  @utils.require(!s.store.locals.is_empty(), "local store underflow on return")
   let mut next = {
     ..s,
     fn_k: s.fn_k[1:].to_owned(),

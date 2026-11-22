@@ -2,30 +2,29 @@
 package "computation/models/models/rec_tm/shared"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/data",
-  "computation/models/utils/parsing",
+  "computation/models/definition",
+  "computation/models/utils",
   "moonbitlang/core/json",
 }
 
 // Values
-pub fn alphabet(@parsing.Parser) -> Array[String] raise @base.Fault
+pub fn alphabet(@utils.Parser) -> Array[String] raise @utils.Fault
 
-pub fn assign(Environment, @data.Tape[String], Lvalue, String) -> (Environment, @data.Tape[String]) raise @base.Fault
+pub fn assign(Environment, @utils.Tape[String], Lvalue, String) -> (Environment, @utils.Tape[String]) raise @utils.Fault
 
-pub fn cd(@json.Json) -> Condition? raise @base.Fault
+pub fn cd(@json.Json) -> Condition? raise @utils.Fault
 
 pub fn cj(Condition?) -> @json.Json
 
-pub fn condition(@parsing.Parser) -> Condition? raise @base.Fault
+pub fn condition(@utils.Parser) -> Condition? raise @utils.Fault
 
 pub fn ctext(Condition?) -> String
 
 pub fn cvars(Condition?) -> Array[String]
 
-pub fn decode_sign(@json.Json) -> String raise @base.Fault
+pub fn decode_sign(@json.Json) -> String raise @utils.Fault
 
-pub fn ed(@json.Json, Array[String]) -> Environment raise @base.Fault
+pub fn ed(@json.Json, Array[String]) -> Environment raise @utils.Fault
 
 pub fn ej(Environment) -> @json.Json
 
@@ -33,45 +32,45 @@ pub fn env_create(Array[String]) -> Environment
 
 pub fn env_named(Environment) -> Array[(String, String)]
 
-pub fn eval(Environment, @data.Tape[String], Rvalue) -> String raise @base.Fault
+pub fn eval(Environment, @utils.Tape[String], Rvalue) -> String raise @utils.Fault
 
-pub fn eval_condition(Environment, @data.Tape[String], Condition?) -> Bool raise @base.Fault
+pub fn eval_condition(Environment, @utils.Tape[String], Condition?) -> Bool raise @utils.Fault
 
-pub fn ld(@json.Json) -> Lvalue raise @base.Fault
+pub fn ld(@json.Json) -> Lvalue raise @utils.Fault
 
 pub fn lj(Lvalue) -> @json.Json
 
 pub fn ltext(Lvalue) -> String
 
-pub fn lvalue(@parsing.Parser) -> Lvalue raise @base.Fault
+pub fn lvalue(@utils.Parser) -> Lvalue raise @utils.Fault
 
 pub fn lvars(Lvalue) -> Array[String]
 
-pub fn normalized_alphabet(Array[String]) -> Array[String] raise @base.Fault
+pub fn normalized_alphabet(Array[String]) -> Array[String] raise @utils.Fault
 
-pub fn rd(@json.Json) -> Rvalue raise @base.Fault
+pub fn rd(@json.Json) -> Rvalue raise @utils.Fault
 
-pub fn read_sign(@parsing.Parser) -> String raise @base.Fault
+pub fn read_sign(@utils.Parser) -> String raise @utils.Fault
 
 pub fn rj(Rvalue) -> @json.Json
 
 pub fn rtext(Rvalue) -> String
 
-pub fn rvalue(@parsing.Parser) -> Rvalue raise @base.Fault
+pub fn rvalue(@utils.Parser) -> Rvalue raise @utils.Fault
 
 pub fn rvars(Rvalue) -> Array[String]
 
-pub fn sign(String) -> String raise @base.Fault
+pub fn sign(String) -> String raise @utils.Fault
 
 pub fn sign_json(String) -> @json.Json
 
-pub fn validate_condition(Array[String], Condition?) -> Unit raise @base.Fault
+pub fn validate_condition(Array[String], Condition?) -> Unit raise @utils.Fault
 
-pub fn validate_tape(Array[String], @data.Tape[String]) -> Unit raise @base.Fault
+pub fn validate_tape(Array[String], @utils.Tape[String]) -> Unit raise @utils.Fault
 
-pub fn validate_value(Array[String], Rvalue) -> Unit raise @base.Fault
+pub fn validate_value(Array[String], Rvalue) -> Unit raise @utils.Fault
 
-pub fn variable(Environment, String) -> Int32 raise @base.Fault
+pub fn variable(Environment, String) -> Int32 raise @utils.Fault
 
 // Errors
 
@@ -100,6 +99,11 @@ pub(all) enum Rvalue {
   Head
   Const(String)
 }
+
+pub(all) struct Tape {
+  value : @utils.Tape[String]
+}
+pub impl @definition.Text for Tape
 
 // Type aliases
 

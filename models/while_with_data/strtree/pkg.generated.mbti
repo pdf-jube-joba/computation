@@ -2,16 +2,35 @@
 package "computation/models/models/while_with_data/strtree"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Stmt, Environment, Unit, Unit, Environment, State]
 
 // Errors
 
 // Types and methods
+#alias(Ainput)
+#alias(Foutput)
+pub(all) struct Environment {
+  values : Array[(String, @utils.CharTree)]
+}
+pub impl @definition.Text for Environment
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
+
+#alias(Code)
+type Stmt
+pub impl @definition.Text for Stmt
 
 // Type aliases
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

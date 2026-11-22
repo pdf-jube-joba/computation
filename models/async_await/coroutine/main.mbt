@@ -1,6 +1,6 @@
 ///|
-priv struct Environment {
-  vars : Array[(String, @base.Nat)]
+struct Environment {
+  vars : Array[(String, @utils.Nat)]
   task_ids : Array[(String, Int32?)]
 }
 
@@ -11,7 +11,7 @@ priv struct Frame {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Array[FunctionDef]
   env : Environment
   workers : Array[Int32?]
@@ -20,25 +20,25 @@ priv struct State {
 }
 
 ///|
-fn get_id(env : Environment, name : String) -> Int32 raise @base.Fault {
-  match @data.env_get(env.task_ids, name) {
+fn get_id(env : Environment, name : String) -> Int32 raise @utils.Fault {
+  match @utils.env_get(env.task_ids, name) {
     Some(Some(id)) => id
-    Some(None) => @base.error("task id $" + name + " is not initialized")
-    None => @base.error("unknown task id $" + name)
+    Some(None) => @utils.error("task id $" + name + " is not initialized")
+    None => @utils.error("unknown task id $" + name)
   }
 }
 
 ///|
-fn eval_a(env : Environment, a : Aexp) -> @base.Nat {
+fn eval_a(env : Environment, a : Aexp) -> @utils.Nat {
   match a {
-    Atom(Var(n)) => @data.env_get(env.vars, n).unwrap_or(@base.zero())
+    Atom(Var(n)) => @utils.env_get(env.vars, n).unwrap_or(@utils.zero())
     Atom(Imm(n)) => n
     Bin(a, o, b) => {
       let a = eval_a(env, a)
       let b = eval_a(env, b)
       match o {
         Add => a + b
-        Sub => @base.sub(a, b)
+        Sub => @utils.sub(a, b)
         Mul => a * b
       }
     }
@@ -46,7 +46,7 @@ fn eval_a(env : Environment, a : Aexp) -> @base.Nat {
 }
 
 ///|
-fn eval_b(s : State, b : Bexp) -> Bool raise @base.Fault {
+fn eval_b(s : State, b : Bexp) -> Bool raise @utils.Fault {
   match b {
     Not(b) => !eval_b(s, b)
     Rel(a, o, b) => {
@@ -71,19 +71,22 @@ fn eval_b(s : State, b : Bexp) -> Bool raise @base.Fault {
 fn find_function(
   code : Array[FunctionDef],
   name : String,
-) -> FunctionDef raise @base.Fault {
+) -> FunctionDef raise @utils.Fault {
   match code.iter().find_first(f => f.name == name) {
     Some(f) => f
-    None => @base.error("unknown function: " + name)
+    None => @utils.error("unknown function: " + name)
   }
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let code = parse(text)
+fn make(program : Program, agents : UInt32) -> State raise @utils.Fault {
+  let code = program.functions
   validate(code)
-  let agents = @base.index(@base.nat(input))
-  @base.require(agents > 0, "agent count must be positive")
+  @utils.require(
+    agents > 0 && agents <= 2147483647U,
+    "agent count must fit in a positive index",
+  )
+  let agents = agents.reinterpret_as_int()
   {
     code,
     env: { vars: [], task_ids: [], },
@@ -95,8 +98,8 @@ fn make(text : String, input : String) -> State raise @base.Fault {
 
 ///|
 fn output(env : Environment) -> String {
-  @data.print_env(env.vars, n => n.to_string()) +
-  @base.join(
+  @utils.print_env(env.vars, n => n.to_string()) +
+  @utils.join(
     env.task_ids.map(p => {
       "$" +
       p.0 +
@@ -114,56 +117,56 @@ fn output(env : Environment) -> String {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  let agent = @base.index(@base.nat(input))
-  @base.require(
-    agent < s.workers.length(),
-    "agent " + agent.to_string() + " out of range",
+  input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
+  @utils.require(
+    input < s.workers.length().reinterpret_as_uint(),
+    "agent " + input.to_string() + " out of range",
   )
+  let agent = input.reinterpret_as_int()
   let workers = s.workers.copy()
   let tasks = s.tasks.copy()
   let s = { ..s, workers, tasks, }
   match workers[agent] {
     None =>
       if s.queue.is_empty() {
-        @runtime.Halt(output(s.env))
+        @definition.Halt(s.env)
       } else {
         let id = s.queue[0]
         workers[agent] = Some(id)
-        @runtime.Continue(
+        @definition.Continue(
           { ..s, queue: s.queue[1:].to_owned(), },
           "agent \{agent}: dequeue task \{id}",
         )
       }
     Some(id) => {
-      @base.require(
+      @utils.require(
         id >= 0 && id < tasks.length(),
         "unknown task " + id.to_string(),
       )
       let frames = tasks[id]
       if frames.is_empty() {
         workers[agent] = None
-        return @runtime.Continue(s, "agent \{agent}: release task \{id}")
+        return @definition.Continue(s, "agent \{agent}: release task \{id}")
       }
       let frame = frames[0]
       let rest = frames[1:].to_owned()
       let f = find_function(s.code, frame.function_name)
       if frame.pc == f.body.length() {
         tasks[id] = rest
-        return @runtime.Continue(
+        return @definition.Continue(
           s,
           "agent \{agent}: return from " + frame.function_name,
         )
       }
-      @base.require(
+      @utils.require(
         frame.pc >= 0 && frame.pc < f.body.length(),
         "pc \{frame.pc} out of bounds in " + frame.function_name,
       )
       let stmt = f.body[frame.pc]
-      fn shift(offset : Int32) -> Unit raise @base.Fault {
+      fn shift(offset : Int32) -> Unit raise @utils.Fault {
         let wide = frame.pc.to_int64() + offset.to_int64()
-        @base.require(
+        @utils.require(
           wide >= 0L && wide <= 2147483647L,
           "pc became negative or overflowed in " +
           frame.function_name +
@@ -181,7 +184,7 @@ fn step(
             ..s,
             env: {
               ..s.env,
-              vars: @data.env_sorted(@data.env_set(s.env.vars, n, value)),
+              vars: @utils.env_sorted(@utils.env_set(s.env.vars, n, value)),
             },
           }
         }
@@ -215,8 +218,8 @@ fn step(
             queue,
             env: {
               ..s.env,
-              task_ids: @data.env_sorted(
-                @data.env_set(s.env.task_ids, id_var, Some(new_id)),
+              task_ids: @utils.env_sorted(
+                @utils.env_set(s.env.task_ids, id_var, Some(new_id)),
               ),
             },
           }
@@ -229,147 +232,135 @@ fn step(
           { ..s, queue, }
         }
       }
-      @runtime.Continue(next, "agent \{agent}: " + stext(stmt))
+      @definition.Continue(next, "agent \{agent}: " + stext(stmt))
     }
   }
 }
 
 ///|
 fn function_json(f : FunctionDef) -> Json {
-  @base.object([
-    ("name", @base.jstr(f.name)),
-    ("body", @base.jarray(f.body.map(stmt_json))),
+  @utils.object([
+    ("name", @utils.jstr(f.name)),
+    ("body", @utils.jarray(f.body.map(stmt_json))),
   ])
 }
 
 ///|
-fn decode_function(j : Json) -> FunctionDef raise @base.Fault {
+fn decode_function(j : Json) -> FunctionDef raise @utils.Fault {
   {
-    name: @base.identifier(@base.string(@base.field(j, "name"))),
-    body: @base.array(@base.field(j, "body")).map(decode_stmt),
+    name: @utils.identifier(@utils.string(@utils.field(j, "name"))),
+    body: @utils.array(@utils.field(j, "body")).map(decode_stmt),
   }
 }
 
 ///|
 fn env_json(env : Environment) -> Json {
-  @base.object([
-    ("vars", @data.env_json(env.vars, n => @base.jstr(n.to_string()))),
+  @utils.object([
+    ("vars", @utils.env_json(env.vars, n => @utils.jstr(n.to_string()))),
     (
       "task_ids",
-      @data.env_json(env.task_ids, id => @base.optional_json(id, @base.jint)),
+      @utils.env_json(env.task_ids, id => @utils.optional_json(id, @utils.jint)),
     ),
   ])
 }
 
 ///|
-fn optional_id(j : Json) -> Int32? raise @base.Fault {
+fn optional_id(j : Json) -> Int32? raise @utils.Fault {
   match j {
     Null => None
     _ => {
-      let id = @base.int(j)
-      @base.require(id >= 0, "Invalid task ID")
+      let id = @utils.int(j)
+      @utils.require(id >= 0, "Invalid task ID")
       Some(id)
     }
   }
 }
 
 ///|
-fn decode_env(j : Json) -> Environment raise @base.Fault {
+fn decode_env(j : Json) -> Environment raise @utils.Fault {
   {
-    vars: @data.decode_env(@base.field(j, "vars"), @base.json_nat),
-    task_ids: @data.decode_env(@base.field(j, "task_ids"), optional_id),
+    vars: @utils.decode_env(@utils.field(j, "vars"), @utils.json_nat),
+    task_ids: @utils.decode_env(@utils.field(j, "task_ids"), optional_id),
   }
 }
 
 ///|
 fn frame_json(f : Frame) -> Json {
-  @base.object([
-    ("function_name", @base.jstr(f.function_name)),
-    ("pc", @base.jint(f.pc)),
+  @utils.object([
+    ("function_name", @utils.jstr(f.function_name)),
+    ("pc", @utils.jint(f.pc)),
   ])
 }
 
 ///|
-fn decode_frame(j : Json) -> Frame raise @base.Fault {
+fn decode_frame(j : Json) -> Frame raise @utils.Fault {
   {
-    function_name: @base.identifier(
-      @base.string(@base.field(j, "function_name")),
+    function_name: @utils.identifier(
+      @utils.string(@utils.field(j, "function_name")),
     ),
-    pc: @base.int(@base.field(j, "pc")),
+    pc: @utils.int(@utils.field(j, "pc")),
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
-    ("code", @base.jarray(s.code.map(function_json))),
+  @utils.object([
+    ("code", @utils.jarray(s.code.map(function_json))),
     ("env", env_json(s.env)),
     (
       "workers",
-      @base.jarray(s.workers.map(id => @base.optional_json(id, @base.jint))),
+      @utils.jarray(s.workers.map(id => @utils.optional_json(id, @utils.jint))),
     ),
-    ("queue", @base.jarray(s.queue.map(@base.jint))),
-    ("tasks", @base.jarray(s.tasks.map(fs => @base.jarray(fs.map(frame_json))))),
+    ("queue", @utils.jarray(s.queue.map(@utils.jint))),
+    (
+      "tasks",
+      @utils.jarray(s.tasks.map(fs => @utils.jarray(fs.map(frame_json)))),
+    ),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
-  let code = @base.array(@base.field(j, "code")).map(decode_function)
+fn decode(j : Json) -> State raise @utils.Fault {
+  let code = @utils.array(@utils.field(j, "code")).map(decode_function)
   validate(code)
-  let workers = @base.array(@base.field(j, "workers")).map(optional_id)
-  let queue = @base.array(@base.field(j, "queue")).map(@base.int)
-  let tasks = @base.array(@base.field(j, "tasks")).map(j => {
-    @base.array(j).map(decode_frame)
+  let workers = @utils.array(@utils.field(j, "workers")).map(optional_id)
+  let queue = @utils.array(@utils.field(j, "queue")).map(@utils.int)
+  let tasks = @utils.array(@utils.field(j, "tasks")).map(j => {
+    @utils.array(j).map(decode_frame)
   })
   for id in queue {
-    @base.require(id >= 0 && id < tasks.length(), "Unknown task ID in snapshot")
+    @utils.require(
+      id >= 0 && id < tasks.length(),
+      "Unknown task ID in snapshot",
+    )
   }
   for id in workers {
     match id {
       Some(id) =>
-        @base.require(id < tasks.length(), "Unknown task ID in snapshot")
+        @utils.require(id < tasks.length(), "Unknown task ID in snapshot")
       _ => ()
     }
   }
-  { code, env: decode_env(@base.field(j, "env")), workers, queue, tasks, }
+  { code, env: decode_env(@utils.field(j, "env")), workers, queue, tasks, }
 }
 
 ///|
-fn container(
-  title : String,
-  children : Array[Json],
-  horizontal~ : Bool = false,
-) -> Json {
-  @base.object([
-    ("kind", @base.jstr("container")),
-    ("title", @base.jstr(title)),
-    (
-      "orientation",
-      @base.jstr(if horizontal { "horizontal" } else { "vertical" }),
-    ),
-    ("display", @base.jstr("block")),
-    ("children", @base.jarray(children)),
-  ])
-}
-
-///|
-fn render(s : State) -> Json {
-  @base.jarray([
-    @base.table("status", ["field", "value"], [
+fn render(s : State) -> Array[@definition.Block] {
+  [
+    @definition.text_table("status", ["field", "value"], [
       ["agents", s.workers.length().to_string()],
       ["queue_len", s.queue.length().to_string()],
       ["task_count", s.tasks.length().to_string()],
     ]),
-    container(
+    @definition.container(
       "env",
       [
-        @base.table(
+        @definition.text_table(
           "vars",
           ["var", "value"],
           s.env.vars.map(p => [p.0, p.1.to_string()]),
         ),
-        @base.table(
+        @definition.text_table(
           "task_ids",
           ["id", "task"],
           s.env.task_ids.map(p => {
@@ -383,9 +374,9 @@ fn render(s : State) -> Json {
           }),
         ),
       ],
-      horizontal=true,
+      orientation=@definition.Horizontal,
     ),
-    @base.table(
+    @definition.text_table(
       "workers",
       ["agent", "task"],
       s.workers.mapi((i, id) => {
@@ -398,15 +389,15 @@ fn render(s : State) -> Json {
         ]
       }),
     ),
-    @base.table(
+    @definition.text_table(
       "queue",
       ["slot", "task"],
       s.queue.mapi((i, id) => [i.to_string(), id.to_string()]),
     ),
-    container(
+    @definition.container(
       "tasks",
       s.tasks.mapi((id, fs) => {
-        @base.table(
+        @definition.text_table(
           "task \{id}",
           ["depth", "function", "pc"],
           fs
@@ -415,10 +406,19 @@ fn render(s : State) -> Json {
         )
       }),
     ),
-  ])
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

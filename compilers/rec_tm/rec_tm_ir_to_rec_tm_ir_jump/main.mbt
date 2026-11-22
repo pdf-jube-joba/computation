@@ -18,10 +18,10 @@ fn lower_blocks(blocks : Array[@i.Block]) -> Array[@i.Block] {
 }
 
 ///|
-pub fn compile(program : @i.Code) -> @j.Code raise @base.Fault {
+pub fn compile(program : @i.Code) -> @j.Code raise @utils.Fault {
   @i.validate(program)
-  let variables = @names.supply()
-  let labels = @names.supply()
+  let variables = @utils.supply()
+  let labels = @utils.supply()
   for f in program.functions {
     for name in @i.collect_vars(f.blocks) {
       variables.reserve(name)
@@ -30,7 +30,7 @@ pub fn compile(program : @i.Code) -> @j.Code raise @base.Fault {
       labels.reserve(b.label)
     }
   }
-  fn expand_block(block : @i.Block) -> Array[@i.Block] raise @base.Fault {
+  fn expand_block(block : @i.Block) -> Array[@i.Block] raise @utils.Fault {
     let prefix = []
     for index, stmt in block.body {
       match stmt {
@@ -50,10 +50,10 @@ pub fn compile(program : @i.Code) -> @j.Code raise @base.Fault {
           fn variable_name(name : String) -> String {
             variable_map.get(name).unwrap_or(name)
           }
-          fn rename(name : String) -> String raise @base.Fault {
+          fn rename(name : String) -> String raise @utils.Fault {
             match label_map.get(name) {
               Some(n) => n
-              None => @base.error("Unknown label: " + name)
+              None => @utils.error("Unknown label: " + name)
             }
           }
           fn lv(v : @s.Lvalue) -> @s.Lvalue {
@@ -118,7 +118,7 @@ pub fn compile(program : @i.Code) -> @j.Code raise @base.Fault {
   let offsets : Map[String, Int32] = Map([])
   let mut offset = 0
   for b in blocks {
-    @base.require(
+    @utils.require(
       !offsets.contains(b.label),
       "label '" + b.label + "' is duplicated",
     )
@@ -136,12 +136,12 @@ pub fn compile(program : @i.Code) -> @j.Code raise @base.Fault {
           @i.Jump(label, c) => {
             let target = match offsets.get(label) {
               Some(i) => i
-              None => @base.error("jump target '" + label + "' not found")
+              None => @utils.error("jump target '" + label + "' not found")
             }
             @j.Jump(target, c)
           }
           @i.Return(c) => @j.Jump(offset, c)
-          _ => @base.error("Unflattened instruction")
+          _ => @utils.error("Unflattened instruction")
         },
       )
     }
@@ -152,23 +152,23 @@ pub fn compile(program : @i.Code) -> @j.Code raise @base.Fault {
 }
 
 ///|
-fn tape(text : String) -> String raise @base.Fault {
-  @data.parse_tape(text, @s.sign).text(s => s)
-}
-
-///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => @j.print_code(compile(@i.parse_code(text))),
-    encode_ainput: tape,
-    encode_rinput: text => {
-      @base.unit_input(text)
-      ""
-    },
-    decode_routput: text => {
-      @base.unit_input(text)
-      ""
-    },
-    decode_foutput: tape,
-  }
+pub fn compiler() -> @definition.Compiler[
+  @i.Code,
+  @i.Ainput,
+  @i.Rinput,
+  @i.Routput,
+  @i.Foutput,
+  @j.Code,
+  @j.Ainput,
+  @j.Rinput,
+  @j.Routput,
+  @j.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=compile,
+    encode_ainput=input => input,
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=output => output,
+  )
 }

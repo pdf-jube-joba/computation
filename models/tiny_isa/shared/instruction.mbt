@@ -18,29 +18,29 @@ pub(all) enum Instr[T] {
 
 ///|
 pub fn read(
-  memory : Array[@base.Nat],
+  memory : Array[@utils.Nat],
   addr : Int32,
-) -> @base.Nat raise @base.Fault {
-  @base.require(addr >= 0, "Negative address")
+) -> @utils.Nat raise @utils.Fault {
+  @utils.require(addr >= 0, "Negative address")
   if addr < memory.length() {
     memory[addr]
   } else {
-    @base.zero()
+    @utils.zero()
   }
 }
 
 ///|
 pub fn write(
-  memory : Array[@base.Nat],
+  memory : Array[@utils.Nat],
   addr : Int32,
-  value : @base.Nat,
-) -> Array[@base.Nat] raise @base.Fault {
-  @base.require(addr >= 0 && addr < 2147483647, "Memory address out of range")
+  value : @utils.Nat,
+) -> Array[@utils.Nat] raise @utils.Fault {
+  @utils.require(addr >= 0 && addr < 2147483647, "Memory address out of range")
   let memory = Array::makei(Int32::max(memory.length(), addr + 1), i => {
     if i < memory.length() {
       memory[i]
     } else {
-      @base.zero()
+      @utils.zero()
     }
   })
   memory[addr] = value
@@ -48,27 +48,27 @@ pub fn write(
 }
 
 ///|
-pub fn validate_regs(regs : Array[@base.Nat]) -> Unit raise @base.Fault {
-  @base.require(regs.length() == 8, "Expected 8 registers")
+pub fn validate_regs(regs : Array[@utils.Nat]) -> Unit raise @utils.Fault {
+  @utils.require(regs.length() == 8, "Expected 8 registers")
 }
 
 ///|
 pub fn[T] execute(
   inst : Instr[T],
-  resolve : (T) -> @base.Nat raise @base.Fault,
-  regs : Array[@base.Nat],
+  resolve : (T) -> @utils.Nat raise @utils.Fault,
+  regs : Array[@utils.Nat],
   flag : Bool,
-  memory : Array[@base.Nat],
-) -> (Array[@base.Nat], Bool, Array[@base.Nat], Bool) raise @base.Fault {
+  memory : Array[@utils.Nat],
+) -> (Array[@utils.Nat], Bool, Array[@utils.Nat], Bool) raise @utils.Fault {
   validate_regs(regs)
   let regs = regs.copy()
-  fn check(i : Int32) -> Unit raise @base.Fault {
-    @base.require(i >= 0 && i < 8, "Register out of range (expected 0..=7)")
+  fn check(i : Int32) -> Unit raise @utils.Fault {
+    @utils.require(i >= 0 && i < 8, "Register out of range (expected 0..=7)")
   }
   fn advance() -> Unit {
-    regs[0] = regs[0] + @base.one()
+    regs[0] = regs[0] + @utils.one()
   }
-  fn assign(d : Int32, n : @base.Nat) -> Unit raise @base.Fault {
+  fn assign(d : Int32, n : @utils.Nat) -> Unit raise @utils.Fault {
     check(d)
     regs[d] = n
     if d != 0 {
@@ -78,15 +78,15 @@ pub fn[T] execute(
   fn arithmetic(
     f : Bool,
     d : Int32,
-    rhs : () -> @base.Nat raise @base.Fault,
+    rhs : () -> @utils.Nat raise @utils.Fault,
     sub : Bool,
-  ) -> Unit raise @base.Fault {
+  ) -> Unit raise @utils.Fault {
     check(d)
     if f && !flag {
       advance()
     } else {
       let n = rhs()
-      assign(d, if sub { @base.sub(regs[d], n) } else { regs[d] + n })
+      assign(d, if sub { @utils.sub(regs[d], n) } else { regs[d] + n })
     }
   }
   match inst {
@@ -101,13 +101,13 @@ pub fn[T] execute(
     }
     Ld(d, b) => {
       check(b)
-      assign(d, read(memory, @base.index(regs[b])))
+      assign(d, read(memory, @utils.index(regs[b])))
       (regs, flag, memory, false)
     }
     St(s, b) => {
       check(s)
       check(b)
-      let memory = write(memory, @base.index(regs[b]), regs[s])
+      let memory = write(memory, @utils.index(regs[b]), regs[s])
       advance()
       (regs, flag, memory, false)
     }
@@ -173,9 +173,9 @@ pub fn[T] execute(
 }
 
 ///|
-pub fn decode(word : @base.Nat) -> Instr[@base.Nat] raise @base.Fault {
-  let imm = word / @base.nint(65536)
-  let op = (word % @base.nint(65536)).to_int()
+pub fn decode(word : @utils.Nat) -> Instr[@utils.Nat] raise @utils.Fault {
+  let imm = word / @utils.nint(65536)
+  let op = (word % @utils.nint(65536)).to_int()
   let top = op >> 8
   let mid = (op >> 6) & 3
   let d = (op >> 3) & 7
@@ -196,14 +196,14 @@ pub fn decode(word : @base.Nat) -> Instr[@base.Nat] raise @base.Fault {
     (17, 0, d, s) => Eq(d, s)
     (18, 0, d, s) => Lt(d, s)
     (20, 0, d, s) => Gt(d, s)
-    _ => @base.error("Invalid instruction encoding: " + op.to_string())
+    _ => @utils.error("Invalid instruction encoding: " + op.to_string())
   }
 }
 
 ///|
-pub fn encode(i : Instr[@base.Nat]) -> @base.Nat {
-  fn rr(top : Int32, mid : Int32, d : Int32, s : Int32) -> @base.Nat {
-    @base.nint((top << 8) | (mid << 6) | (d << 3) | s)
+pub fn encode(i : Instr[@utils.Nat]) -> @utils.Nat {
+  fn rr(top : Int32, mid : Int32, d : Int32, s : Int32) -> @utils.Nat {
+    @utils.nint(((top << 8) | (mid << 6) | (d << 3) | s).reinterpret_as_uint())
   }
   fn cf(flag : Bool) -> Int32 {
     if flag {
@@ -212,13 +212,13 @@ pub fn encode(i : Instr[@base.Nat]) -> @base.Nat {
       0
     }
   }
-  fn ri(top : Int32, f : Bool, d : Int32, n : @base.Nat) -> @base.Nat {
-    rr(top, 2 + cf(f), d, 0) + n * @base.nint(65536)
+  fn ri(top : Int32, f : Bool, d : Int32, n : @utils.Nat) -> @utils.Nat {
+    rr(top, 2 + cf(f), d, 0) + n * @utils.nint(65536)
   }
   match i {
-    Nop => @base.zero()
-    Halt => @base.nint(64)
-    Rst => @base.nint(63)
+    Nop => @utils.zero()
+    Halt => @utils.nint(64)
+    Rst => @utils.nint(63)
     Ld(d, s) => rr(1, 0, d, s)
     St(d, s) => rr(2, 0, d, s)
     Mov(f, d, s) => rr(8, cf(f), d, s)
@@ -254,8 +254,8 @@ pub fn[T] text(inst : Instr[T], show : (T) -> String) -> String {
 }
 
 ///|
-pub fn registers(regs : Array[@base.Nat]) -> Json {
-  @base.table(
+pub fn registers(regs : Array[@utils.Nat]) -> @definition.Block {
+  @definition.text_table(
     "registers",
     ["reg", "value"],
     regs.mapi((i, n) => ["r" + i.to_string(), n.to_string()]),
@@ -263,55 +263,58 @@ pub fn registers(regs : Array[@base.Nat]) -> Json {
 }
 
 ///|
-pub fn natural_lines(text : String) -> Array[@base.Nat] raise @base.Fault {
+pub fn natural_lines(text : String) -> Array[@utils.Nat] raise @utils.Fault {
   text
   .split("\n")
   .filter(s => !s.trim().is_empty())
   .map(s => s.trim().to_owned())
   .collect()
-  .map(@base.nat)
+  .map(@utils.nat)
 }
 
 ///|
 pub(all) struct Image {
-  register : Array[@base.Nat]
-  memory : Array[@base.Nat]
+  register : Array[@utils.Nat]
+  memory : Array[@utils.Nat]
 }
 
 ///|
-pub fn image(text : String) -> Image raise @base.Fault {
+pub fn image(text : String) -> Image raise @utils.Fault {
   let lines = text
     .split("\n")
     .filter(s => !s.trim().is_empty())
     .map(s => s.trim().to_owned())
     .collect()
-  @base.require(!lines.is_empty(), "Expected first line with 8 registers")
+  @utils.require(!lines.is_empty(), "Expected first line with 8 registers")
   let regs = lines[0]
     .split(",")
     .filter(s => !s.trim().is_empty())
     .map(s => s.trim().to_owned())
     .collect()
-    .map(@base.nat)
+    .map(@utils.nat)
   validate_regs(regs)
-  { register: regs, memory: lines[1:].map(@base.nat), }
+  { register: regs, memory: lines[1:].map(@utils.nat), }
 }
 
 ///|
-pub fn image_text(regs : Array[@base.Nat], memory : Array[@base.Nat]) -> String {
-  @base.join(regs.map(n => n.to_string()), ", ") +
+pub fn image_text(
+  regs : Array[@utils.Nat],
+  memory : Array[@utils.Nat],
+) -> String {
+  @utils.join(regs.map(n => n.to_string()), ", ") +
   (if memory.is_empty() {
     ""
   } else {
-    "\n" + @base.join(memory.map(n => n.to_string()), "\n")
+    "\n" + @utils.join(memory.map(n => n.to_string()), "\n")
   })
 }
 
 ///|
-pub fn nats_json(ns : Array[@base.Nat]) -> Json {
-  @base.jarray(ns.map(n => @base.jstr(n.to_string())))
+pub fn nats_json(ns : Array[@utils.Nat]) -> Json {
+  @utils.jarray(ns.map(n => @utils.jstr(n.to_string())))
 }
 
 ///|
-pub fn decode_nats(j : Json) -> Array[@base.Nat] raise @base.Fault {
-  @base.array(j).map(@base.json_nat)
+pub fn decode_nats(j : Json) -> Array[@utils.Nat] raise @utils.Fault {
+  @utils.array(j).map(@utils.json_nat)
 }

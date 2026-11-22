@@ -33,7 +33,7 @@ priv struct Gate {
 }
 
 ///|
-priv enum Circuit {
+enum Circuit {
   Gate(Gate)
   Mix(Mix)
   Iter(Iter)
@@ -218,12 +218,15 @@ fn outputs(c : Circuit) -> Signal {
 }
 
 ///|
-fn check_mix(m : Mix) -> Unit raise @base.Fault {
+fn check_mix(m : Mix) -> Unit raise @utils.Fault {
   let names : Map[String, Bool] = Map([])
   let inputs = []
   let outputs = []
   for entry in m.verts {
-    @base.require(!names.contains(entry.0), "duplicate vertex name: " + entry.0)
+    @utils.require(
+      !names.contains(entry.0),
+      "duplicate vertex name: " + entry.0,
+    )
     names[entry.0] = true
     for pin in pins_of(entry.1, true) {
       inputs.push((entry.0, pin.1))
@@ -235,7 +238,7 @@ fn check_mix(m : Mix) -> Unit raise @base.Fault {
   let mut available_in = inputs
   let mut available_out = outputs
   for edge in m.edges {
-    @base.require(
+    @utils.require(
       available_out.contains(edge.0) && available_in.contains(edge.1),
       "edge endpoint not in vertices",
     )
@@ -243,13 +246,13 @@ fn check_mix(m : Mix) -> Unit raise @base.Fault {
     available_in = available_in.filter(p => p != edge.1)
   }
   for entry in m.inpin_maps {
-    @base.require(
+    @utils.require(
       inputs.contains(entry.1),
       "input map endpoint not in vertices",
     )
   }
   for entry in m.otpin_maps {
-    @base.require(
+    @utils.require(
       outputs.contains(entry.1),
       "output map endpoint not in vertices",
     )
@@ -257,7 +260,7 @@ fn check_mix(m : Mix) -> Unit raise @base.Fault {
 }
 
 ///|
-fn validate(c : Circuit) -> Unit raise @base.Fault {
+fn validate(c : Circuit) -> Unit raise @utils.Fault {
   match c {
     Gate(_) => ()
     Mix(m) => {
@@ -314,7 +317,7 @@ fn input_value(inputs : Signal, pin : String) -> Bool {
 
 ///|
 /// Every child sees outputs from the previous tick.
-fn tick(c : Circuit, inputs : Signal) -> Circuit raise @base.Fault {
+fn tick(c : Circuit, inputs : Signal) -> Circuit raise @utils.Fault {
   match c {
     Gate(g) => {
       let state = match g.gate_kind {
@@ -372,7 +375,7 @@ fn tick(c : Circuit, inputs : Signal) -> Circuit raise @base.Fault {
             add_input(pending[n + 1], pin, entry.1)
           }
           if get(i.prev_edges, entry.0.1) is Some(pin) {
-            @base.require(
+            @utils.require(
               n > 0,
               "Iterator predecessor of index zero is out of bounds",
             )
@@ -387,7 +390,7 @@ fn tick(c : Circuit, inputs : Signal) -> Circuit raise @base.Fault {
           _ => None
         }
         if id is Some(n) {
-          @base.require(
+          @utils.require(
             n >= 0 && n <= count,
             "Iterator input ID is out of bounds",
           )

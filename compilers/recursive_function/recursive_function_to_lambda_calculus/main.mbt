@@ -108,7 +108,7 @@ fn is_zero(next : Ref[Int32]) -> @target.Term {
 fn compile_function(
   next : Ref[Int32],
   f : @source.Func,
-) -> @target.Term raise @base.Fault {
+) -> @target.Term raise @utils.Fault {
   match f {
     @source.Zero => church(next, 0)
     @source.Succ => successor(next)
@@ -170,56 +170,58 @@ fn compile_function(
 }
 
 ///|
-fn decode_number(text : String) -> String raise @base.Fault {
-  let t = @target.parse_code(text)
+fn decode_number(t : @target.Term) -> @utils.Nat raise @utils.Fault {
   match t {
     @target.Abs(s, @target.Abs(z, body)) if s.id != z.id => {
-      let mut count = @base.zero()
+      let mut count = @utils.zero()
       let mut current = body
       while true {
         match current {
-          @target.Var(v) if v.id == z.id => return count.to_string()
+          @target.Var(v) if v.id == z.id => return count
           @target.App(@target.Var(v), rest) if v.id == s.id => {
-            count += @base.one()
+            count += @utils.one()
             current = rest
           }
-          _ => @base.error("failed to decode Church numeral: " + text)
+          _ =>
+            @utils.error(
+              "failed to decode Church numeral: " + @target.print_code(t),
+            )
         }
       } nobreak {
-        @base.error("failed to decode Church numeral: " + text)
+        @utils.error(
+          "failed to decode Church numeral: " + @target.print_code(t),
+        )
       }
     }
-    _ => @base.error("failed to decode Church numeral: " + text)
+    _ =>
+      @utils.error("failed to decode Church numeral: " + @target.print_code(t))
   }
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => {
-      let f = @source.parse_code(text)
+pub fn compiler() -> @definition.Compiler[
+  @source.Code,
+  @source.Ainput,
+  @source.Rinput,
+  @source.Routput,
+  @source.Foutput,
+  @target.Code,
+  @target.Ainput,
+  @target.Rinput,
+  @target.Routput,
+  @target.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=f => {
       @source.validate(f)
-      @target.print_code(compile_function({ val: 0, }, f))
+      compile_function({ val: 0, }, f)
     },
-    encode_ainput: text => {
+    encode_ainput=input => {
       let next : Ref[Int32] = { val: 0, }
-      "(" +
-      @base.join(
-        @source.parse_input(text).map(n => {
-          @target.print_code(church(next, @base.index(n)))
-        }),
-        ", ",
-      ) +
-      ")"
+      { values: input.values.map(n => church(next, @utils.index(n))), }
     },
-    encode_rinput: text => {
-      @base.unit_input(text)
-      "0"
-    },
-    decode_routput: text => {
-      @base.unit_input(text)
-      ""
-    },
-    decode_foutput: decode_number,
-  }
+    encode_rinput=_ => 0,
+    decode_routput=output => output,
+    decode_foutput=decode_number,
+  )
 }

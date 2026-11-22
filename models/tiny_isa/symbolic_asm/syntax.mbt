@@ -7,7 +7,7 @@ priv enum Builtin {
 
 ///|
 priv enum RawValue {
-  Imm(@base.Nat)
+  Imm(@utils.Nat)
   Label(String)
   Const(String)
   Builtin(Builtin)
@@ -30,7 +30,7 @@ priv struct RawInst {
 priv enum Directive {
   Text
   Data
-  Equ(String, @base.Nat)
+  Equ(String, @utils.Nat)
 }
 
 ///|
@@ -43,7 +43,7 @@ priv enum Item {
 
 ///|
 priv struct Symbols {
-  consts : Array[(String, @base.Nat)]
+  consts : Array[(String, @utils.Nat)]
   text_labels : Array[(String, Int32)]
   data_labels : Array[(String, Int32)]
   code_len : Int32
@@ -57,7 +57,7 @@ priv struct DebugInfo {
 }
 
 ///|
-fn raw_value(p : @p.Parser) -> RawValue raise @base.Fault {
+fn raw_value(p : @utils.Parser) -> RawValue raise @utils.Fault {
   if p.eat('#') {
     ignore(p.eat('+'))
     Imm(p.natural())
@@ -65,8 +65,8 @@ fn raw_value(p : @p.Parser) -> RawValue raise @base.Fault {
     Label(p.ident())
   } else {
     match p.peek() {
-      @p.Number(_) => Imm(p.natural())
-      @p.Keyword(_) =>
+      @utils.Number(_) => Imm(p.natural())
+      @utils.Keyword(_) =>
         Builtin(
           match p.keyword() {
             "THIS" => This
@@ -81,11 +81,11 @@ fn raw_value(p : @p.Parser) -> RawValue raise @base.Fault {
 }
 
 ///|
-fn read_reg(p : @p.Parser) -> Int32 raise @base.Fault {
+fn read_reg(p : @utils.Parser) -> Int32 raise @utils.Fault {
   let n = p.ident()
-  @base.require(n.has_prefix("r"), "Expected register operand")
-  let i = @base.index(@base.nat(n.unsafe_substring(start=1, end=n.length())))
-  @base.require(
+  @utils.require(n.has_prefix("r"), "Expected register operand")
+  let i = @utils.index(@utils.nat(n.unsafe_substring(start=1, end=n.length())))
+  @utils.require(
     i < 8,
     "Register out of range (expected 0..=7): " + i.to_string(),
   )
@@ -93,7 +93,7 @@ fn read_reg(p : @p.Parser) -> Int32 raise @base.Fault {
 }
 
 ///|
-fn parse(text : String) -> Array[Item] raise @base.Fault {
+fn parse(text : String) -> Array[Item] raise @utils.Fault {
   let code = []
   let mut data = false
   for line in text.split("\n") {
@@ -101,7 +101,7 @@ fn parse(text : String) -> Array[Item] raise @base.Fault {
     if line.is_empty() {
       continue
     }
-    let p = @p.create(line)
+    let p = @utils.create(line)
     if line.has_prefix("@") && line.has_suffix(":") {
       p.expect('@')
       let n = p.ident()
@@ -111,19 +111,19 @@ fn parse(text : String) -> Array[Item] raise @base.Fault {
       continue
     }
     match p.peek() {
-      @p.Keyword("text") => {
+      @utils.Keyword("text") => {
         ignore(p.bump())
         p.finish()
         data = false
         code.push(Directive(Text))
       }
-      @p.Keyword("data") => {
+      @utils.Keyword("data") => {
         ignore(p.bump())
         p.finish()
         data = true
         code.push(Directive(Data))
       }
-      @p.Keyword("equ") => {
+      @utils.Keyword("equ") => {
         ignore(p.bump())
         let n = p.ident()
         ignore(p.eat('#'))
@@ -141,7 +141,7 @@ fn parse(text : String) -> Array[Item] raise @base.Fault {
         } else {
           line
         }
-        let p = @p.create(line)
+        let p = @utils.create(line)
         if data {
           let words = String::from_array(
               line.to_array().map(c => if c == '\t' { ' ' } else { c }),
@@ -149,7 +149,7 @@ fn parse(text : String) -> Array[Item] raise @base.Fault {
             .split(" ")
             .filter(s => !s.is_empty())
             .count()
-          @base.require(
+          @utils.require(
             words == 1,
             "Data value line must contain a single value",
           )
@@ -190,29 +190,29 @@ fn raw_text(v : RawValue) -> String {
 }
 
 ///|
-fn lower(raw : RawInst) -> @machine.Instr[RawValue] raise @base.Fault {
+fn lower(raw : RawInst) -> @machine.Instr[RawValue] raise @utils.Fault {
   let m = raw.mnemonic
   let cf = raw.cond_flag
   let ops = raw.operands
-  fn arity(n : Int32) -> Unit raise @base.Fault {
-    @base.require(
+  fn arity(n : Int32) -> Unit raise @utils.Fault {
+    @utils.require(
       ops.length() == n,
       m + " requires " + n.to_string() + " operands",
     )
   }
-  fn no_flag() -> Unit raise @base.Fault {
-    @base.require(!cf, m + " \\f is not supported")
+  fn no_flag() -> Unit raise @utils.Fault {
+    @utils.require(!cf, m + " \\f is not supported")
   }
-  fn reg(v : Operand) -> Int32 raise @base.Fault {
+  fn reg(v : Operand) -> Int32 raise @utils.Fault {
     match v {
       Reg(i) if i >= 0 && i < 8 => i
-      _ => @base.error("Expected register operand")
+      _ => @utils.error("Expected register operand")
     }
   }
-  fn imm(v : Operand) -> RawValue raise @base.Fault {
+  fn imm(v : Operand) -> RawValue raise @utils.Fault {
     match v {
       Value(v) => v
-      _ => @base.error("Expected value operand")
+      _ => @utils.error("Expected value operand")
     }
   }
   match m {
@@ -277,14 +277,15 @@ fn lower(raw : RawInst) -> @machine.Instr[RawValue] raise @base.Fault {
           no_flag()
           @machine.Gt(reg(a), reg(b))
         }
-        _ => @base.error("Unsupported symbolic instruction in preprocess: " + m)
+        _ =>
+          @utils.error("Unsupported symbolic instruction in preprocess: " + m)
       }
     }
   }
 }
 
 ///|
-fn symbols(code : Array[Item]) -> Symbols raise @base.Fault {
+fn symbols(code : Array[Item]) -> Symbols raise @utils.Fault {
   let consts = []
   let text_labels = []
   let data_labels = []
@@ -292,8 +293,8 @@ fn symbols(code : Array[Item]) -> Symbols raise @base.Fault {
   let mut data_len = 0
   let mut data = false
   let seen : Map[String, Bool] = Map([])
-  fn available(n : String) -> Unit raise @base.Fault {
-    @base.require(!seen.contains(n), "Duplicate symbol definition: " + n)
+  fn available(n : String) -> Unit raise @utils.Fault {
+    @utils.require(!seen.contains(n), "Duplicate symbol definition: " + n)
     seen[n] = true
   }
   for item in code {
@@ -313,11 +314,11 @@ fn symbols(code : Array[Item]) -> Symbols raise @base.Fault {
         }
       }
       Inst(_) => {
-        @base.require(!data, "Instruction found outside \\text section")
+        @utils.require(!data, "Instruction found outside \\text section")
         code_len += 1
       }
       DataValue(_) => {
-        @base.require(data, "Data value found outside \\data section")
+        @utils.require(data, "Data value found outside \\data section")
         data_len += 1
       }
     }
@@ -331,25 +332,25 @@ fn resolve(
   data : Bool,
   pos : Int32,
   v : RawValue,
-) -> @base.Nat raise @base.Fault {
+) -> @utils.Nat raise @utils.Fault {
   match v {
     Imm(n) => n
     Const(n) =>
-      match @data.env_get(symbols.consts, n) {
+      match @utils.env_get(symbols.consts, n) {
         Some(v) => v
-        None => @base.error("Unknown const reference: " + n)
+        None => @utils.error("Unknown const reference: " + n)
       }
-    Builtin(This) => @base.nint(pos)
-    Builtin(CodeLen) => @base.nint(symbols.code_len)
-    Builtin(DataLen) => @base.nint(symbols.data_len)
+    Builtin(This) => @utils.nint(pos.reinterpret_as_uint())
+    Builtin(CodeLen) => @utils.nint(symbols.code_len.reinterpret_as_uint())
+    Builtin(DataLen) => @utils.nint(symbols.data_len.reinterpret_as_uint())
     Label(n) =>
-      match @data.env_get(symbols.text_labels, n) {
-        Some(i) => @base.nint(i)
+      match @utils.env_get(symbols.text_labels, n) {
+        Some(i) => @utils.nint(i.reinterpret_as_uint())
         None =>
-          match @data.env_get(symbols.data_labels, n) {
-            Some(i) => @base.nint(i)
+          match @utils.env_get(symbols.data_labels, n) {
+            Some(i) => @utils.nint(i.reinterpret_as_uint())
             None =>
-              @base.error(
+              @utils.error(
                 "Unknown label reference in " +
                 (if data { "\\data" } else { "\\text" }) +
                 ": @" +

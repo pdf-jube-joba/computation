@@ -2,16 +2,31 @@
 package "computation/models/models/logic_circuit"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Circuit, Unit, Signals, Signals, Unit, Circuit]
 
 // Errors
 
 // Types and methods
+#alias(Code)
+type Circuit
+pub impl @definition.Render for Circuit
+pub impl @definition.Snapshot for Circuit
+pub impl @definition.Text for Circuit
+
+#alias(Rinput)
+#alias(Routput)
+type Signals
+pub impl @definition.Text for Signals
 
 // Type aliases
+pub type Ainput = Unit
+
+pub type Foutput = Unit
 
 // Traits

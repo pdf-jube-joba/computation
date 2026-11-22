@@ -1,5 +1,5 @@
 ///|
-pub fn compile(e : @s.Expr) -> Array[@target.Instr] raise @base.Fault {
+pub fn compile(e : @s.Expr) -> Array[@target.Instr] raise @utils.Fault {
   match e {
     @s.Nat(n) => [@target.PushNat(n)]
     @s.Bool(b) => [@target.PushBool(b)]
@@ -39,37 +39,28 @@ pub fn compile(e : @s.Expr) -> Array[@target.Instr] raise @base.Fault {
       c
     }
     @s.Block(_, _) =>
-      @base.error("SECD compiler accepts the direct expression language")
+      @utils.error("SECD compiler accepts the direct expression language")
   }
 }
 
 ///|
-fn input(text : String) -> String raise @base.Fault {
-  "(" + @base.join(@s.inputs(text).map(n => n.to_string()), ", ") + ")"
-}
-
-///|
-fn unit(text : String) -> String raise @base.Fault {
-  @base.unit_input(text)
-  ""
-}
-
-///|
-fn effect(text : String) -> String raise @base.Fault {
-  if text.trim().is_empty() {
-    ""
-  } else {
-    @base.nat(text).to_string()
-  }
-}
-
-///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => @target.print_code(compile(@s.parse(text))),
-    encode_ainput: input,
-    encode_rinput: unit,
-    decode_routput: effect,
-    decode_foutput: text => @base.nat(text).to_string(),
-  }
+pub fn compiler() -> @definition.Compiler[
+  @s.Expr,
+  @s.Inputs,
+  Unit,
+  @s.Output,
+  @utils.Nat,
+  @target.Code,
+  @target.Ainput,
+  @target.Rinput,
+  @target.Routput,
+  @target.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=code => { instructions: compile(code), },
+    encode_ainput=input => input,
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=output => output,
+  )
 }

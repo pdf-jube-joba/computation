@@ -45,7 +45,7 @@ fn live_variables(body : Array[@source.Stmt]) -> Array[Array[String]] {
 }
 
 ///|
-pub fn compile(program : @source.Code) -> @target.Definition raise @base.Fault {
+pub fn compile(program : @source.Code) -> @target.Definition raise @utils.Fault {
   @source.validate(program)
   let alphabet = @syntax.normalized_alphabet(program.alphabet)
   let vars = @source.collect_vars(program.body)
@@ -53,7 +53,7 @@ pub fn compile(program : @source.Code) -> @target.Definition raise @base.Fault {
   let states : Map[String, Int32] = Map([])
   let work : Array[(Int32, Array[String], Int32)] = []
   let names : Array[(Int32, String)] = []
-  let supply = @names.supply()
+  let supply = @utils.supply()
   fn state_for(pc : Int32, values : Array[String]) -> Int32 {
     let values = values.mapi((i, v) => {
       if live[pc].contains(vars[i]) {
@@ -62,7 +62,7 @@ pub fn compile(program : @source.Code) -> @target.Definition raise @base.Fault {
         "-"
       }
     })
-    let key = pc.to_string() + ":" + @base.join(values, ",")
+    let key = pc.to_string() + ":" + @utils.join(values, ",")
     match states.get(key) {
       Some(id) => id
       None => {
@@ -88,7 +88,7 @@ pub fn compile(program : @source.Code) -> @target.Definition raise @base.Fault {
     let environment = @syntax.env_create(vars)
     let env = { ..environment, values: values.mapi((i, v) => (i, v)), }
     for head in alphabet {
-      let tape = @data.blank(head)
+      let tape = @utils.blank(head)
       let (next_pc, next_values, write, dir) = match program.body[pc] {
         @source.Lt => (pc + 1, values, head, -1)
         @source.Rt => (pc + 1, values, head, 1)
@@ -140,8 +140,23 @@ pub fn compile(program : @source.Code) -> @target.Definition raise @base.Fault {
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  @encoding.compiler(text => {
-    @target.print_code(compile(@source.parse_code(text)))
-  })
+pub fn compiler() -> @definition.Compiler[
+  @source.Code,
+  @source.Ainput,
+  @source.Rinput,
+  @source.Routput,
+  @source.Foutput,
+  @target.Code,
+  @target.Ainput,
+  @target.Rinput,
+  @target.Routput,
+  @target.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=compile,
+    encode_ainput=input => { value: input.value, },
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=output => { value: output.value, },
+  )
 }

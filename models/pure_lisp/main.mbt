@@ -1,6 +1,6 @@
 ///|
 #derive(Eq)
-priv enum Sexp {
+enum Sexp {
   Nil
   Symbol(String)
   Cons(Sexp, Sexp)
@@ -21,7 +21,7 @@ priv enum Control {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Sexp
   control : Control
   kont : Array[Frame]
@@ -37,7 +37,7 @@ fn list(xs : Array[Sexp], tail~ : Sexp = Nil) -> Sexp {
 }
 
 ///|
-fn elements(s : Sexp) -> Array[Sexp] raise @base.Fault {
+fn elements(s : Sexp) -> Array[Sexp] raise @utils.Fault {
   let xs = []
   for value = s {
     match value {
@@ -46,7 +46,7 @@ fn elements(s : Sexp) -> Array[Sexp] raise @base.Fault {
         xs.push(a)
         continue b
       }
-      _ => @base.error("Expected a proper list")
+      _ => @utils.error("Expected a proper list")
     }
   }
   xs
@@ -119,9 +119,9 @@ fn Reader::dot(self : Reader) -> Bool {
 }
 
 ///|
-fn Reader::read(self : Reader) -> Sexp raise @base.Fault {
+fn Reader::read(self : Reader) -> Sexp raise @utils.Fault {
   self.skip()
-  @base.require(self.pos < self.chars.length(), "Expected an S-expression")
+  @utils.require(self.pos < self.chars.length(), "Expected an S-expression")
   let c = self.chars[self.pos]
   self.pos += 1
   if c == '\'' {
@@ -131,17 +131,17 @@ fn Reader::read(self : Reader) -> Sexp raise @base.Fault {
     let items = []
     while true {
       self.skip()
-      @base.require(self.pos < self.chars.length(), "Unclosed list")
+      @utils.require(self.pos < self.chars.length(), "Unclosed list")
       if self.chars[self.pos] == ')' {
         self.pos += 1
         return list(items)
       }
       if self.dot() {
-        @base.require(!items.is_empty(), "Dot requires a preceding element")
+        @utils.require(!items.is_empty(), "Dot requires a preceding element")
         self.pos += 1
         let tail = self.read()
         self.skip()
-        @base.require(
+        @utils.require(
           self.pos < self.chars.length() && self.chars[self.pos] == ')',
           "Expected ')' after dotted tail",
         )
@@ -151,9 +151,9 @@ fn Reader::read(self : Reader) -> Sexp raise @base.Fault {
       items.push(self.read())
     }
   }
-  @base.require(c != ')', "Unexpected ')'")
+  @utils.require(c != ')', "Unexpected ')'")
   self.pos -= 1
-  @base.require(!self.dot(), "Unexpected dot")
+  @utils.require(!self.dot(), "Unexpected dot")
   let start = self.pos
   while self.pos < self.chars.length() && !delimiter(self.chars[self.pos]) {
     self.pos += 1
@@ -167,11 +167,11 @@ fn Reader::read(self : Reader) -> Sexp raise @base.Fault {
 }
 
 ///|
-fn parse(text : String) -> Sexp raise @base.Fault {
+fn parse(text : String) -> Sexp raise @utils.Fault {
   let r = { chars: text.to_array(), pos: 0, }
   let s = r.read()
   r.skip()
-  @base.require(r.pos == r.chars.length(), "Expected one S-expression")
+  @utils.require(r.pos == r.chars.length(), "Expected one S-expression")
   s
 }
 
@@ -179,45 +179,43 @@ fn parse(text : String) -> Sexp raise @base.Fault {
 let primitives : Array[String] = ["atom", "eq", "cons", "car", "cdr", "eval"]
 
 ///|
-fn make(code : String, input : String) -> State raise @base.Fault {
-  @base.unit_input(input)
-  let code = parse(code)
+fn make(code : Sexp, _input : Unit) -> State {
   { code, control: Eval(code, primitives.map(n => (n, Symbol(n)))), kont: [], }
 }
 
 ///|
-fn binder(s : Sexp) -> String raise @base.Fault {
+fn binder(s : Sexp) -> String raise @utils.Fault {
   match s {
     Symbol(n) if n != "t" => n
-    _ => @base.error("Expected a variable name (not nil or t)")
+    _ => @utils.error("Expected a variable name (not nil or t)")
   }
 }
 
 ///|
-fn lambda(s : Sexp) -> (Array[String], Sexp) raise @base.Fault {
+fn lambda(s : Sexp) -> (Array[String], Sexp) raise @utils.Fault {
   match s {
     Cons(Symbol("lambda"), Cons(params, Cons(body, Nil))) => {
       let names = elements(params).map(binder)
       let seen : Map[String, Bool] = Map([])
       for name in names {
-        @base.require(!seen.contains(name), "Duplicate parameter: " + name)
+        @utils.require(!seen.contains(name), "Duplicate parameter: " + name)
         seen[name] = true
       }
       (names, body)
     }
-    _ => @base.error("Expected (lambda (parameters ...) body)")
+    _ => @utils.error("Expected (lambda (parameters ...) body)")
   }
 }
 
 ///|
-fn labelled(s : Sexp) -> (String, Array[String], Sexp) raise @base.Fault {
+fn labelled(s : Sexp) -> (String, Array[String], Sexp) raise @utils.Fault {
   match s {
     Cons(Symbol("label"), Cons(name, Cons(f, Nil))) => {
       let name = binder(name)
       let (params, body) = lambda(f)
       (name, params, body)
     }
-    _ => @base.error("Expected (label name (lambda (parameters ...) body))")
+    _ => @utils.error("Expected (label name (lambda (parameters ...) body))")
   }
 }
 
@@ -272,13 +270,13 @@ fn apply(
   f : Sexp,
   args : Array[Sexp],
   env : Array[(String, Sexp)],
-) -> Control raise @base.Fault {
+) -> Control raise @utils.Fault {
   fn bind(
     names : Array[String],
     body : Sexp,
     env : Array[(String, Sexp)],
-  ) -> Control raise @base.Fault {
-    @base.require(
+  ) -> Control raise @utils.Fault {
+    @utils.require(
       names.length() == args.length(),
       "Wrong number of arguments to lambda",
     )
@@ -288,7 +286,7 @@ fn apply(
   }
   match f {
     Symbol(name) if primitives.contains(name) => {
-      @base.require(
+      @utils.require(
         args.length() == (if name == "eq" || name == "cons" { 2 } else { 1 }),
         "Wrong number of arguments to " + name,
       )
@@ -320,7 +318,7 @@ fn apply(
             match args[0] {
               Nil => Nil
               Cons(a, b) => if name == "car" { a } else { b }
-              _ => @base.error("car/cdr expects a pair or nil")
+              _ => @utils.error("car/cdr expects a pair or nil")
             },
             env,
           )
@@ -337,12 +335,12 @@ fn apply(
       e.append(env)
       bind(names, body, e)
     }
-    _ => @base.error("Not a function: " + print(f))
+    _ => @utils.error("Not a function: " + print(f))
   }
 }
 
 ///|
-fn transition(s : State) -> (Control, Array[Frame]) raise @base.Fault {
+fn transition(s : State) -> (Control, Array[Frame]) raise @utils.Fault {
   match s.control {
     Eval(Nil | Symbol("t") as v, env) => (Return(v, env), s.kont)
     Eval(Symbol(name), env) => {
@@ -351,13 +349,13 @@ fn transition(s : State) -> (Control, Array[Frame]) raise @base.Fault {
           return (Return(pair.1, env), s.kont)
         }
       }
-      @base.error("Unbound symbol: " + name)
+      @utils.error("Unbound symbol: " + name)
     }
     Eval(Cons(op, operands) as expression, env) => {
       let args = elements(operands)
       match op {
         Symbol("quote") => {
-          @base.require(args.length() == 1, "quote expects one argument")
+          @utils.require(args.length() == 1, "quote expects one argument")
           (Return(args[0], env), s.kont)
         }
         Symbol("lambda") => {
@@ -374,7 +372,7 @@ fn transition(s : State) -> (Control, Array[Frame]) raise @base.Fault {
             s.kont,
             args.map(a => {
               let xs = elements(a)
-              @base.require(
+              @utils.require(
                 xs.length() == 2,
                 "Each cond clause must be (test body)",
               )
@@ -386,7 +384,7 @@ fn transition(s : State) -> (Control, Array[Frame]) raise @base.Fault {
     }
     Apply(f, args, env) => (apply(f, args, env), s.kont)
     Return(value, _) => {
-      @base.require(!s.kont.is_empty(), "Evaluation already finished")
+      @utils.require(!s.kont.is_empty(), "Evaluation already finished")
       let kont = s.kont[1:].to_owned()
       match s.kont[0] {
         Operator(args, env) => arguments(value, args, env, kont)
@@ -417,14 +415,13 @@ fn transition(s : State) -> (Control, Array[Frame]) raise @base.Fault {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   match s.control {
-    Return(v, _) if s.kont.is_empty() => @runtime.Halt(print(v))
+    Return(v, _) if s.kont.is_empty() => @definition.Halt(v)
     _ => {
       let (control, kont) = transition(s)
-      @runtime.Continue({ ..s, control, kont, }, "")
+      @definition.Continue({ ..s, control, kont, }, ())
     }
   }
 }
@@ -432,33 +429,33 @@ fn step(
 ///|
 fn sj(s : Sexp) -> Json {
   match s {
-    Nil => @base.tag("Nil", [])
-    Symbol(n) => @base.tag("Symbol", [@base.jstr(n)])
-    Cons(a, b) => @base.tag("Cons", [sj(a), sj(b)])
+    Nil => @utils.tag("Nil", [])
+    Symbol(n) => @utils.tag("Symbol", [@utils.jstr(n)])
+    Cons(a, b) => @utils.tag("Cons", [sj(a), sj(b)])
   }
 }
 
 ///|
-fn sd(j : Json) -> Sexp raise @base.Fault {
-  match @base.tag_name(j) {
+fn sd(j : Json) -> Sexp raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Nil" => Nil
-    "Symbol" => Symbol(@base.string(@base.tag_arg(j, 0)))
-    "Cons" => Cons(sd(@base.tag_arg(j, 0)), sd(@base.tag_arg(j, 1)))
-    _ => @base.error("Invalid S-expression")
+    "Symbol" => Symbol(@utils.string(@utils.tag_arg(j, 0)))
+    "Cons" => Cons(sd(@utils.tag_arg(j, 0)), sd(@utils.tag_arg(j, 1)))
+    _ => @utils.error("Invalid S-expression")
   }
 }
 
 ///|
 fn ej(env : Array[(String, Sexp)]) -> Json {
-  @base.jarray(env.map(p => @base.jarray([@base.jstr(p.0), sj(p.1)])))
+  @utils.jarray(env.map(p => @utils.jarray([@utils.jstr(p.0), sj(p.1)])))
 }
 
 ///|
-fn ed(j : Json) -> Array[(String, Sexp)] raise @base.Fault {
-  @base.array(j).map(j => {
-    let a = @base.array(j)
-    @base.require(a.length() == 2, "Invalid environment entry")
-    (@base.string(a[0]), sd(a[1]))
+fn ed(j : Json) -> Array[(String, Sexp)] raise @utils.Fault {
+  @utils.array(j).map(j => {
+    let a = @utils.array(j)
+    @utils.require(a.length() == 2, "Invalid environment entry")
+    (@utils.string(a[0]), sd(a[1]))
   })
 }
 
@@ -466,116 +463,102 @@ fn ed(j : Json) -> Array[(String, Sexp)] raise @base.Fault {
 fn fj(f : Frame) -> Json {
   match f {
     Operator(args, env) =>
-      @base.tag("Operator", [@base.jarray(args.map(sj)), ej(env)])
+      @utils.tag("Operator", [@utils.jarray(args.map(sj)), ej(env)])
     Argument(f, done, rest, env) =>
-      @base.tag("Argument", [
+      @utils.tag("Argument", [
         sj(f),
-        @base.jarray(done.map(sj)),
-        @base.jarray(rest.map(sj)),
+        @utils.jarray(done.map(sj)),
+        @utils.jarray(rest.map(sj)),
         ej(env),
       ])
     Branch(b, rest, env) =>
-      @base.tag("Branch", [
+      @utils.tag("Branch", [
         sj(b),
-        @base.jarray(rest.map(p => @base.jarray([sj(p.0), sj(p.1)]))),
+        @utils.jarray(rest.map(p => @utils.jarray([sj(p.0), sj(p.1)]))),
         ej(env),
       ])
   }
 }
 
 ///|
-fn fd(j : Json) -> Frame raise @base.Fault {
-  fn a(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn fd(j : Json) -> Frame raise @utils.Fault {
+  fn a(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
-    "Operator" => Operator(@base.array(a(0)).map(sd), ed(a(1)))
+  match @utils.tag_name(j) {
+    "Operator" => Operator(@utils.array(a(0)).map(sd), ed(a(1)))
     "Argument" =>
       Argument(
         sd(a(0)),
-        @base.array(a(1)).map(sd),
-        @base.array(a(2)).map(sd),
+        @utils.array(a(1)).map(sd),
+        @utils.array(a(2)).map(sd),
         ed(a(3)),
       )
     "Branch" =>
       Branch(
         sd(a(0)),
-        @base.array(a(1)).map(j => {
-          let a = @base.array(j)
-          @base.require(a.length() == 2, "Invalid branch")
+        @utils.array(a(1)).map(j => {
+          let a = @utils.array(j)
+          @utils.require(a.length() == 2, "Invalid branch")
           (sd(a[0]), sd(a[1]))
         }),
         ed(a(2)),
       )
-    _ => @base.error("Invalid continuation frame")
+    _ => @utils.error("Invalid continuation frame")
   }
 }
 
 ///|
 fn cj(c : Control) -> Json {
   match c {
-    Eval(s, env) => @base.tag("Eval", [sj(s), ej(env)])
-    Return(s, env) => @base.tag("Return", [sj(s), ej(env)])
+    Eval(s, env) => @utils.tag("Eval", [sj(s), ej(env)])
+    Return(s, env) => @utils.tag("Return", [sj(s), ej(env)])
     Apply(f, args, env) =>
-      @base.tag("Apply", [sj(f), @base.jarray(args.map(sj)), ej(env)])
+      @utils.tag("Apply", [sj(f), @utils.jarray(args.map(sj)), ej(env)])
   }
 }
 
 ///|
-fn cd(j : Json) -> Control raise @base.Fault {
-  fn a(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn cd(j : Json) -> Control raise @utils.Fault {
+  fn a(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
+  match @utils.tag_name(j) {
     "Eval" => Eval(sd(a(0)), ed(a(1)))
     "Return" => Return(sd(a(0)), ed(a(1)))
-    "Apply" => Apply(sd(a(0)), @base.array(a(1)).map(sd), ed(a(2)))
-    _ => @base.error("Invalid control")
+    "Apply" => Apply(sd(a(0)), @utils.array(a(1)).map(sd), ed(a(2)))
+    _ => @utils.error("Invalid control")
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("code", sj(s.code)),
     ("control", cj(s.control)),
-    ("kont", @base.jarray(s.kont.map(fj))),
+    ("kont", @utils.jarray(s.kont.map(fj))),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
+fn decode(j : Json) -> State raise @utils.Fault {
   {
-    code: sd(@base.field(j, "code")),
-    control: cd(@base.field(j, "control")),
-    kont: @base.array(@base.field(j, "kont")).map(fd),
+    code: sd(@utils.field(j, "code")),
+    control: cd(@utils.field(j, "control")),
+    kont: @utils.array(@utils.field(j, "kont")).map(fd),
   }
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, s => {
-    let (mode, focus, env) = match s.control {
-      Eval(e, env) => ("eval", print(e), env)
-      Return(v, env) => ("return", print(v), env)
-      Apply(f, args, env) => {
-        let xs = [f]
-        xs.append(args)
-        ("apply", print(list(xs)), env)
-      }
-    }
-    @base.jarray([
-      @base.titled("code", print(s.code)),
-      @base.table("state", ["field", "value"], [
-        ["mode", mode],
-        ["focus", focus],
-      ]),
-      @base.table("env", ["name", "value"], env.map(p => [p.0, print(p.1)])),
-      @base.table(
-        "kont",
-        ["depth", "frame"],
-        s.kont.mapi((i, f) => [i.to_string(), fj(f).stringify()]),
-      ),
-    ])
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
   })
 }

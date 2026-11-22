@@ -1,68 +1,63 @@
 ///|
-priv struct State {
-  code : @data.LoopCode
+struct State {
+  code : @utils.LoopCode
   pc : Int32
-  tape : @data.Tape[Int32]
+  tape : @utils.Tape[Int32]
   input : Array[Int32]
   output_rev : Array[Int32]
 }
 
 ///|
-fn parse_code(text : String) -> @data.LoopCode raise @base.Fault {
+fn parse_code(text : String) -> @utils.LoopCode raise @utils.Fault {
   let tokens = text
     .to_array()
     .filter(c => "><+-.,[]".contains_char(c))
     .map(c => c.to_string())
-  @data.loop_code(tokens, "[", "]", true)
+  @utils.loop_code(tokens, "[", "]", true)
 }
 
 ///|
-fn byte(value : Json) -> Int32 raise @base.Fault {
-  let value = @base.int(value)
-  @base.require(value >= 0 && value <= 255, "Expected a byte (0..255)")
+fn byte(value : Json) -> Int32 raise @utils.Fault {
+  let value = @utils.int(value)
+  @utils.require(value >= 0 && value <= 255, "Expected a byte (0..255)")
   value
 }
 
 ///|
-fn make(code : String, input : String) -> State raise @base.Fault {
+fn make(code : Code, input : ByteArray) -> State {
   {
-    code: parse_code(code),
+    code: code.value,
     pc: 0,
-    tape: @data.blank(0),
-    input: if input.trim().is_empty() {
-      []
-    } else {
-      @base.array(@base.parse_json(input)).map(byte)
-    },
+    tape: @utils.blank(0),
+    input: input.values,
     output_rev: [],
   }
 }
 
 ///|
 fn bytes_text(values : Array[Int32]) -> String {
-  "[" + @base.join(values.map(n => n.to_string()), ", ") + "]"
+  "[" + @utils.join(values.map(n => n.to_string()), ", ") + "]"
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
-  @base.require(
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
+  @utils.require(
     s.pc >= 0 && s.pc <= s.code.instructions.length(),
     "Invalid instruction pointer",
   )
   if s.pc == s.code.instructions.length() {
     let values = s.output_rev.copy()
     values.rev_in_place()
-    return @runtime.Halt(bytes_text(values))
+    return @definition.Halt(ByteArray::{ values, })
   }
   let next = { ..s, pc: s.pc + 1, }
   let state = match s.code.instructions[s.pc] {
     ">" => { ..next, tape: s.tape.shift(1, 0), }
     "<" => {
-      @base.require(
+      @utils.require(
         !s.tape.left.is_empty(),
         "Cannot move left of the tape origin",
       )
@@ -73,9 +68,9 @@ fn step(
     "." => {
       let output = [s.tape.head]
       output.append(s.output_rev)
-      return @runtime.Continue(
+      return @definition.Continue(
         { ..next, output_rev: output, },
-        s.tape.head.to_string(),
+        Wrote(s.tape.head.to_byte()),
       )
     }
     "," =>
@@ -100,57 +95,66 @@ fn step(
       } else {
         next
       }
-    _ => @base.error("Invalid instruction")
+    _ => @utils.error("Invalid instruction")
   }
-  @runtime.Continue(state, "")
+  @definition.Continue(state, Silent)
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
-    ("code", @base.jstr(@base.join(s.code.instructions, ""))),
-    ("pc", @base.jint(s.pc)),
-    ("tape", s.tape.json(@base.jint)),
-    ("input", @base.jarray(s.input.map(@base.jint))),
-    ("output_rev", @base.jarray(s.output_rev.map(@base.jint))),
+  @utils.object([
+    ("code", @utils.jstr(@utils.join(s.code.instructions, ""))),
+    ("pc", @utils.jint(s.pc)),
+    ("tape", s.tape.json(@utils.jint)),
+    ("input", @utils.jarray(s.input.map(@utils.jint))),
+    ("output_rev", @utils.jarray(s.output_rev.map(@utils.jint))),
   ])
 }
 
 ///|
-fn decode(value : Json) -> State raise @base.Fault {
-  let code = parse_code(@base.string(@base.field(value, "code")))
-  let pc = @base.int(@base.field(value, "pc"))
-  @base.require(
+fn decode(value : Json) -> State raise @utils.Fault {
+  let code = parse_code(@utils.string(@utils.field(value, "code")))
+  let pc = @utils.int(@utils.field(value, "pc"))
+  @utils.require(
     pc >= 0 && pc <= code.instructions.length(),
     "Invalid instruction pointer",
   )
   {
     code,
     pc,
-    tape: @data.decode_tape(@base.field(value, "tape"), byte),
-    input: @base.array(@base.field(value, "input")).map(byte),
-    output_rev: @base.array(@base.field(value, "output_rev")).map(byte),
+    tape: @utils.decode_tape(@utils.field(value, "tape"), byte),
+    input: @utils.array(@utils.field(value, "input")).map(byte),
+    output_rev: @utils.array(@utils.field(value, "output_rev")).map(byte),
   }
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let output = s.output_rev.copy()
   output.rev_in_place()
-  @base.jarray([
-    @base.highlight("code", s.pc, s.code.instructions),
-    @base.titled("pc", s.pc.to_string()),
-    @base.highlight(
+  [
+    @definition.highlight("code", s.pc, s.code.instructions),
+    @definition.titled("pc", s.pc.to_string()),
+    @definition.highlight(
       "tape",
       s.tape.left.length(),
       s.tape.values().map(n => n.to_string()),
     ),
-    @base.titled("remaining input (bytes)", bytes_text(s.input)),
-    @base.titled("output (bytes)", bytes_text(output)),
-  ])
+    @definition.titled("remaining input (bytes)", bytes_text(s.input)),
+    @definition.titled("output (bytes)", bytes_text(output)),
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

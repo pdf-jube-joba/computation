@@ -2,49 +2,50 @@
 package "computation/models/models/tiny_isa/shared"
 
 import {
-  "computation/models/utils/base",
-  "moonbitlang/core/bigint",
+  "computation/models/definition",
+  "computation/models/utils",
   "moonbitlang/core/json",
 }
 
 // Values
-pub fn decode(@bigint.BigInt) -> Instr[@bigint.BigInt] raise @base.Fault
+pub fn decode(@utils.Nat) -> Instr[@utils.Nat] raise @utils.Fault
 
-pub fn[T] decode_instr(@json.Json, (@json.Json) -> T raise @base.Fault) -> Instr[T] raise @base.Fault
+pub fn[T] decode_instr(@json.Json, (@json.Json) -> T raise @utils.Fault) -> Instr[T] raise @utils.Fault
 
-pub fn decode_nats(@json.Json) -> Array[@bigint.BigInt] raise @base.Fault
+pub fn decode_nats(@json.Json) -> Array[@utils.Nat] raise @utils.Fault
 
-pub fn encode(Instr[@bigint.BigInt]) -> @bigint.BigInt
+pub fn encode(Instr[@utils.Nat]) -> @utils.Nat
 
-pub fn[T] execute(Instr[T], (T) -> @bigint.BigInt raise @base.Fault, Array[@bigint.BigInt], Bool, Array[@bigint.BigInt]) -> (Array[@bigint.BigInt], Bool, Array[@bigint.BigInt], Bool) raise @base.Fault
+pub fn[T] execute(Instr[T], (T) -> @utils.Nat raise @utils.Fault, Array[@utils.Nat], Bool, Array[@utils.Nat]) -> (Array[@utils.Nat], Bool, Array[@utils.Nat], Bool) raise @utils.Fault
 
-pub fn image(String) -> Image raise @base.Fault
+pub fn image(String) -> Image raise @utils.Fault
 
-pub fn image_text(Array[@bigint.BigInt], Array[@bigint.BigInt]) -> String
+pub fn image_text(Array[@utils.Nat], Array[@utils.Nat]) -> String
 
 pub fn[T] instr_json(Instr[T], (T) -> @json.Json) -> @json.Json
 
-pub fn nats_json(Array[@bigint.BigInt]) -> @json.Json
+pub fn nats_json(Array[@utils.Nat]) -> @json.Json
 
-pub fn natural_lines(String) -> Array[@bigint.BigInt] raise @base.Fault
+pub fn natural_lines(String) -> Array[@utils.Nat] raise @utils.Fault
 
-pub fn read(Array[@bigint.BigInt], Int32) -> @bigint.BigInt raise @base.Fault
+pub fn read(Array[@utils.Nat], Int32) -> @utils.Nat raise @utils.Fault
 
-pub fn registers(Array[@bigint.BigInt]) -> @json.Json
+pub fn registers(Array[@utils.Nat]) -> @definition.Block
 
 pub fn[T] text(Instr[T], (T) -> String) -> String
 
-pub fn validate_regs(Array[@bigint.BigInt]) -> Unit raise @base.Fault
+pub fn validate_regs(Array[@utils.Nat]) -> Unit raise @utils.Fault
 
-pub fn write(Array[@bigint.BigInt], Int32, @bigint.BigInt) -> Array[@bigint.BigInt] raise @base.Fault
+pub fn write(Array[@utils.Nat], Int32, @utils.Nat) -> Array[@utils.Nat] raise @utils.Fault
 
 // Errors
 
 // Types and methods
 pub(all) struct Image {
-  register : Array[@bigint.BigInt]
-  memory : Array[@bigint.BigInt]
+  register : Array[@utils.Nat]
+  memory : Array[@utils.Nat]
 }
+pub impl @definition.Text for Image
 
 pub(all) enum Instr[T] {
   Nop

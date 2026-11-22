@@ -1,7 +1,6 @@
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/data",
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
   "computation/models/models/flow_ir" @ir,
   "computation/models/models/structured_lang/shared" @a,
   "computation/models/models/structured_lang/proc_lang" @s,

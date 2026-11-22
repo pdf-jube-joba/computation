@@ -1,179 +1,180 @@
 ///|
 fn builtin_json(v : Builtin) -> Json {
   match v {
-    This => @base.tag("This", [])
-    CodeLen => @base.tag("Code_len", [])
-    DataLen => @base.tag("Data_len", [])
+    This => @utils.tag("This", [])
+    CodeLen => @utils.tag("Code_len", [])
+    DataLen => @utils.tag("Data_len", [])
   }
 }
 
 ///|
-fn decode_builtin(j : Json) -> Builtin raise @base.Fault {
-  match @base.tag_name(j) {
+fn decode_builtin(j : Json) -> Builtin raise @utils.Fault {
+  match @utils.tag_name(j) {
     "This" => This
     "Code_len" => CodeLen
     "Data_len" => DataLen
-    _ => @base.error("Invalid symbolic assembly snapshot")
+    _ => @utils.error("Invalid symbolic assembly snapshot")
   }
 }
 
 ///|
 fn rawvalue_json(v : RawValue) -> Json {
   match v {
-    Imm(v0) => @base.tag("Imm", [@base.jstr(v0.to_string())])
-    Label(v0) => @base.tag("Label", [@base.jstr(v0)])
-    Const(v0) => @base.tag("Const", [@base.jstr(v0)])
-    Builtin(v0) => @base.tag("Builtin", [builtin_json(v0)])
+    Imm(v0) => @utils.tag("Imm", [@utils.jstr(v0.to_string())])
+    Label(v0) => @utils.tag("Label", [@utils.jstr(v0)])
+    Const(v0) => @utils.tag("Const", [@utils.jstr(v0)])
+    Builtin(v0) => @utils.tag("Builtin", [builtin_json(v0)])
   }
 }
 
 ///|
-fn decode_rawvalue(j : Json) -> RawValue raise @base.Fault {
-  match @base.tag_name(j) {
-    "Imm" => Imm(@base.json_nat(@base.tag_arg(j, 0)))
-    "Label" => Label(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    "Const" => Const(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    "Builtin" => Builtin(decode_builtin(@base.tag_arg(j, 0)))
-    _ => @base.error("Invalid symbolic assembly snapshot")
+fn decode_rawvalue(j : Json) -> RawValue raise @utils.Fault {
+  match @utils.tag_name(j) {
+    "Imm" => Imm(@utils.json_nat(@utils.tag_arg(j, 0)))
+    "Label" => Label(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    "Const" => Const(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    "Builtin" => Builtin(decode_builtin(@utils.tag_arg(j, 0)))
+    _ => @utils.error("Invalid symbolic assembly snapshot")
   }
 }
 
 ///|
 fn operand_json(v : Operand) -> Json {
   match v {
-    Reg(v0) => @base.tag("Reg", [@base.jint(v0)])
-    Value(v0) => @base.tag("Value", [rawvalue_json(v0)])
+    Reg(v0) => @utils.tag("Reg", [@utils.jint(v0)])
+    Value(v0) => @utils.tag("Value", [rawvalue_json(v0)])
   }
 }
 
 ///|
-fn decode_operand(j : Json) -> Operand raise @base.Fault {
-  match @base.tag_name(j) {
-    "Reg" => Reg(@base.int(@base.tag_arg(j, 0)))
-    "Value" => Value(decode_rawvalue(@base.tag_arg(j, 0)))
-    _ => @base.error("Invalid symbolic assembly snapshot")
+fn decode_operand(j : Json) -> Operand raise @utils.Fault {
+  match @utils.tag_name(j) {
+    "Reg" => Reg(@utils.int(@utils.tag_arg(j, 0)))
+    "Value" => Value(decode_rawvalue(@utils.tag_arg(j, 0)))
+    _ => @utils.error("Invalid symbolic assembly snapshot")
   }
 }
 
 ///|
 fn directive_json(v : Directive) -> Json {
   match v {
-    Text => @base.tag("Text", [])
-    Data => @base.tag("Data", [])
+    Text => @utils.tag("Text", [])
+    Data => @utils.tag("Data", [])
     Equ(v0, v1) =>
-      @base.tag("Equ", [@base.jstr(v0), @base.jstr(v1.to_string())])
+      @utils.tag("Equ", [@utils.jstr(v0), @utils.jstr(v1.to_string())])
   }
 }
 
 ///|
-fn decode_directive(j : Json) -> Directive raise @base.Fault {
-  match @base.tag_name(j) {
+fn decode_directive(j : Json) -> Directive raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Text" => Text
     "Data" => Data
     "Equ" =>
       Equ(
-        @base.identifier(@base.string(@base.tag_arg(j, 0))),
-        @base.json_nat(@base.tag_arg(j, 1)),
+        @utils.identifier(@utils.string(@utils.tag_arg(j, 0))),
+        @utils.json_nat(@utils.tag_arg(j, 1)),
       )
-    _ => @base.error("Invalid symbolic assembly snapshot")
+    _ => @utils.error("Invalid symbolic assembly snapshot")
   }
 }
 
 ///|
 fn item_json(v : Item) -> Json {
   match v {
-    Directive(v0) => @base.tag("Directive", [directive_json(v0)])
-    LabelDef(v0) => @base.tag("LabelDef", [@base.jstr(v0)])
-    Inst(v0) => @base.tag("Inst", [rawinst_json(v0)])
-    DataValue(v0) => @base.tag("DataValue", [rawvalue_json(v0)])
+    Directive(v0) => @utils.tag("Directive", [directive_json(v0)])
+    LabelDef(v0) => @utils.tag("LabelDef", [@utils.jstr(v0)])
+    Inst(v0) => @utils.tag("Inst", [rawinst_json(v0)])
+    DataValue(v0) => @utils.tag("DataValue", [rawvalue_json(v0)])
   }
 }
 
 ///|
-fn decode_item(j : Json) -> Item raise @base.Fault {
-  match @base.tag_name(j) {
-    "Directive" => Directive(decode_directive(@base.tag_arg(j, 0)))
-    "LabelDef" => LabelDef(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    "Inst" => Inst(decode_rawinst(@base.tag_arg(j, 0)))
-    "DataValue" => DataValue(decode_rawvalue(@base.tag_arg(j, 0)))
-    _ => @base.error("Invalid symbolic assembly snapshot")
+fn decode_item(j : Json) -> Item raise @utils.Fault {
+  match @utils.tag_name(j) {
+    "Directive" => Directive(decode_directive(@utils.tag_arg(j, 0)))
+    "LabelDef" =>
+      LabelDef(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    "Inst" => Inst(decode_rawinst(@utils.tag_arg(j, 0)))
+    "DataValue" => DataValue(decode_rawvalue(@utils.tag_arg(j, 0)))
+    _ => @utils.error("Invalid symbolic assembly snapshot")
   }
 }
 
 ///|
 fn rawinst_json(i : RawInst) -> Json {
-  @base.object([
-    ("mnemonic", @base.jstr(i.mnemonic)),
-    ("cond_flag", @base.jbool(i.cond_flag)),
-    ("operands", @base.jarray(i.operands.map(operand_json))),
+  @utils.object([
+    ("mnemonic", @utils.jstr(i.mnemonic)),
+    ("cond_flag", @utils.jbool(i.cond_flag)),
+    ("operands", @utils.jarray(i.operands.map(operand_json))),
   ])
 }
 
 ///|
-fn decode_rawinst(j : Json) -> RawInst raise @base.Fault {
+fn decode_rawinst(j : Json) -> RawInst raise @utils.Fault {
   {
-    mnemonic: @base.string(@base.field(j, "mnemonic")),
-    cond_flag: @base.boolean(@base.field(j, "cond_flag")),
-    operands: @base.array(@base.field(j, "operands")).map(decode_operand),
+    mnemonic: @utils.string(@utils.field(j, "mnemonic")),
+    cond_flag: @utils.boolean(@utils.field(j, "cond_flag")),
+    operands: @utils.array(@utils.field(j, "operands")).map(decode_operand),
   }
 }
 
 ///|
 fn labels_json(labels : Array[(String, Int32)]) -> Json {
-  @data.env_json(labels, @base.jint)
+  @utils.env_json(labels, @utils.jint)
 }
 
 ///|
 fn symbols_json(s : Symbols) -> Json {
-  @base.object([
-    ("consts", @data.env_json(s.consts, n => @base.jstr(n.to_string()))),
+  @utils.object([
+    ("consts", @utils.env_json(s.consts, n => @utils.jstr(n.to_string()))),
     ("text_labels", labels_json(s.text_labels)),
     ("data_labels", labels_json(s.data_labels)),
-    ("code_len", @base.jint(s.code_len)),
-    ("data_len", @base.jint(s.data_len)),
+    ("code_len", @utils.jint(s.code_len)),
+    ("data_len", @utils.jint(s.data_len)),
   ])
 }
 
 ///|
-fn decode_symbols(j : Json) -> Symbols raise @base.Fault {
+fn decode_symbols(j : Json) -> Symbols raise @utils.Fault {
   {
-    consts: @data.decode_env(@base.field(j, "consts"), @base.json_nat),
-    text_labels: @data.decode_env(@base.field(j, "text_labels"), @base.int),
-    data_labels: @data.decode_env(@base.field(j, "data_labels"), @base.int),
-    code_len: @base.int(@base.field(j, "code_len")),
-    data_len: @base.int(@base.field(j, "data_len")),
+    consts: @utils.decode_env(@utils.field(j, "consts"), @utils.json_nat),
+    text_labels: @utils.decode_env(@utils.field(j, "text_labels"), @utils.int),
+    data_labels: @utils.decode_env(@utils.field(j, "data_labels"), @utils.int),
+    code_len: @utils.int(@utils.field(j, "code_len")),
+    data_len: @utils.int(@utils.field(j, "data_len")),
   }
 }
 
 ///|
 fn debug_json(d : DebugInfo) -> Json {
   fn labels(xs : Array[(Int32, Array[String])]) -> Json {
-    @base.jarray(
+    @utils.jarray(
       xs.map(p => {
-        @base.jarray([@base.jint(p.0), @base.jarray(p.1.map(@base.jstr))])
+        @utils.jarray([@utils.jint(p.0), @utils.jarray(p.1.map(@utils.jstr))])
       }),
     )
   }
-  @base.object([
+  @utils.object([
     ("text_labels_by_addr", labels(d.text_labels_by_addr)),
     ("data_labels_by_addr", labels(d.data_labels_by_addr)),
   ])
 }
 
 ///|
-fn decode_debug(j : Json) -> DebugInfo raise @base.Fault {
-  fn labels(j : Json) -> Array[(Int32, Array[String])] raise @base.Fault {
-    @base.array(j).map(j => {
-      let a = @base.array(j)
-      @base.require(a.length() == 2, "Invalid debug labels")
+fn decode_debug(j : Json) -> DebugInfo raise @utils.Fault {
+  fn labels(j : Json) -> Array[(Int32, Array[String])] raise @utils.Fault {
+    @utils.array(j).map(j => {
+      let a = @utils.array(j)
+      @utils.require(a.length() == 2, "Invalid debug labels")
       (
-        @base.int(a[0]),
-        @base.array(a[1]).map(j => @base.identifier(@base.string(j))),
+        @utils.int(a[0]),
+        @utils.array(a[1]).map(j => @utils.identifier(@utils.string(j))),
       )
     })
   }
   {
-    text_labels_by_addr: labels(@base.field(j, "text_labels_by_addr")),
-    data_labels_by_addr: labels(@base.field(j, "data_labels_by_addr")),
+    text_labels_by_addr: labels(@utils.field(j, "text_labels_by_addr")),
+    data_labels_by_addr: labels(@utils.field(j, "data_labels_by_addr")),
   }
 }

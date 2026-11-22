@@ -1,5 +1,5 @@
 ///|
-fn compile(source : @f.Code) -> @c.Code raise @base.Fault {
+fn compile(source : @f.Code) -> @c.Code raise @utils.Fault {
   @f.validate(source)
   let resolution = @f.build_resolution(source)
   let main_region = @f.id_of_name(resolution.regions, "main")
@@ -105,12 +105,23 @@ fn compile(source : @f.Code) -> @c.Code raise @base.Fault {
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => @c.print_code(compile(@f.parse(text))),
-    encode_ainput: encode_input,
-    encode_rinput: text => text,
-    decode_routput: text => text,
-    decode_foutput: decode_output,
-  }
+pub fn compiler() -> @definition.Compiler[
+  @f.Code,
+  @f.Ainput,
+  @f.Rinput,
+  @f.Routput,
+  @f.Foutput,
+  @c.Code,
+  @c.Ainput,
+  @c.Rinput,
+  @c.Routput,
+  @c.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=compile,
+    encode_ainput=input => encode_input(input),
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=decode_output,
+  )
 }

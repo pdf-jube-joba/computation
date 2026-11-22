@@ -2,16 +2,33 @@
 package "computation/models/models/structured_lang/fn_ptr"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, Unit, Unit, Unit, Final, State]
 
 // Errors
 
 // Types and methods
+type Code
+pub impl @definition.Text for Code
+
+#alias(Foutput)
+type Final
+pub impl @definition.Text for Final
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Ainput = Unit
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

@@ -38,7 +38,7 @@ priv enum Place {
 
 ///|
 priv enum Expr {
-  Number(@base.Nat)
+  Number(@utils.Nat)
   Char(String)
   Boolean(Bool)
   Unit_value
@@ -86,7 +86,7 @@ priv enum Projection {
 
 ///|
 priv enum Value {
-  Number_value(@base.Nat)
+  Number_value(@utils.Nat)
   Char_value(String)
   Bool_value(Bool)
   Unit_v
@@ -136,7 +136,7 @@ priv struct FunctionDecl {
 }
 
 ///|
-priv struct Code {
+struct Code {
   statics : Array[StaticDecl]
   functions : Array[FunctionDecl]
 }
@@ -170,7 +170,7 @@ priv struct FnFrame {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Code
   current_function : String
   exec : Exec

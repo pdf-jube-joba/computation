@@ -17,10 +17,10 @@ pub(all) enum Unop {
 ///|
 #derive(Eq)
 pub(all) enum Expr {
-  Nat(@base.Nat)
+  Nat(@utils.Nat)
   Bool(Bool)
   Unit
-  Print(@base.Nat)
+  Print(@utils.Nat)
   Var(String)
   BinOp(Expr, Binop, Expr)
   UnOp(Unop, Expr)
@@ -35,7 +35,7 @@ pub(all) enum Expr {
 #derive(Eq)
 pub(all) enum Stmt {
   Skip
-  PrintStmt(@base.Nat)
+  PrintStmt(@utils.Nat)
   Seq(Stmt, Stmt)
   Let(String, Expr)
   IfStmt(Expr, Stmt)
@@ -44,7 +44,7 @@ pub(all) enum Stmt {
 
 ///|
 pub(all) enum Value {
-  VNat(@base.Nat)
+  VNat(@utils.Nat)
   VBool(Bool)
   VUnit
   VFun(String, Expr, Array[(String, Value)])
@@ -112,16 +112,16 @@ pub fn print_stmt(s : Stmt) -> String {
 
 ///|
 pub fn read(
-  p : @p.Parser,
+  p : @utils.Parser,
   statements~ : Bool = false,
-) -> Expr raise @base.Fault {
+) -> Expr raise @utils.Fault {
   if p.eat_keyword("if") {
     return read_if(p, statements)
   }
   let mut e = application(p, statements)
-  while p.peek() == @p.Symbol('+') ||
-        p.peek() == @p.Symbol('-') ||
-        p.peek() == @p.Symbol('&') {
+  while p.peek() == @utils.Symbol('+') ||
+        p.peek() == @utils.Symbol('-') ||
+        p.peek() == @utils.Symbol('&') {
     let o = if p.eat('+') {
       Add
     } else if p.eat('-') {
@@ -136,7 +136,7 @@ pub fn read(
 }
 
 ///|
-fn read_if(p : @p.Parser, statements : Bool) -> Expr raise @base.Fault {
+fn read_if(p : @utils.Parser, statements : Bool) -> Expr raise @utils.Fault {
   let c = read(p, statements~)
   p.expect_keyword("then")
   let t = read(p, statements~)
@@ -147,9 +147,9 @@ fn read_if(p : @p.Parser, statements : Bool) -> Expr raise @base.Fault {
 }
 
 ///|
-fn application(p : @p.Parser, statements : Bool) -> Expr raise @base.Fault {
+fn application(p : @utils.Parser, statements : Bool) -> Expr raise @utils.Fault {
   let mut e = prefix(p, statements)
-  while p.peek() == @p.Symbol('(') {
+  while p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let a = read(g, statements~)
     g.finish()
@@ -159,7 +159,7 @@ fn application(p : @p.Parser, statements : Bool) -> Expr raise @base.Fault {
 }
 
 ///|
-fn prefix(p : @p.Parser, statements : Bool) -> Expr raise @base.Fault {
+fn prefix(p : @utils.Parser, statements : Bool) -> Expr raise @utils.Fault {
   if p.eat_keyword("inc") {
     UnOp(Inc, prefix(p, statements))
   } else if p.eat_keyword("dec") {
@@ -168,47 +168,47 @@ fn prefix(p : @p.Parser, statements : Bool) -> Expr raise @base.Fault {
     UnOp(Not, prefix(p, statements))
   } else {
     match p.peek() {
-      @p.Number(_) => Nat(p.natural())
-      @p.Keyword("true") => {
+      @utils.Number(_) => Nat(p.natural())
+      @utils.Keyword("true") => {
         ignore(p.bump())
         Bool(true)
       }
-      @p.Keyword("false") => {
+      @utils.Keyword("false") => {
         ignore(p.bump())
         Bool(false)
       }
-      @p.Keyword("unit") => {
+      @utils.Keyword("unit") => {
         ignore(p.bump())
         Unit
       }
-      @p.Keyword("print") if !statements => {
+      @utils.Keyword("print") if !statements => {
         ignore(p.bump())
         Print(p.natural())
       }
-      @p.Keyword("fun") => {
+      @utils.Keyword("fun") => {
         ignore(p.bump())
         let x = p.ident()
         p.expect_text("=>")
         Fun(x, read(p, statements~))
       }
-      @p.Keyword("rec") => {
+      @utils.Keyword("rec") => {
         ignore(p.bump())
         let f = p.ident()
         let x = p.ident()
         p.expect_text("=>")
         Rec(f, x, read(p, statements~))
       }
-      @p.Keyword("if") => {
+      @utils.Keyword("if") => {
         ignore(p.bump())
         read_if(p, statements)
       }
-      @p.Symbol('(') => {
+      @utils.Symbol('(') => {
         let g = p.group('(')
         let e = read(g, statements~)
         g.finish()
         e
       }
-      @p.Symbol('{') if statements => {
+      @utils.Symbol('{') if statements => {
         let g = p.group('{')
         let (s, e) = block_contents(g)
         g.finish()
@@ -220,7 +220,7 @@ fn prefix(p : @p.Parser, statements : Bool) -> Expr raise @base.Fault {
 }
 
 ///|
-fn simple_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
+fn simple_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("skip") {
     Skip
   } else if p.eat_keyword("print") {
@@ -247,7 +247,7 @@ fn simple_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
+fn statement(p : @utils.Parser) -> Stmt raise @utils.Fault {
   let mut s = simple_stmt(p)
   while p.eat(';') {
     s = Seq(s, simple_stmt(p))
@@ -256,7 +256,7 @@ fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn block_contents(p : @p.Parser) -> (Stmt, Expr) raise @base.Fault {
+fn block_contents(p : @utils.Parser) -> (Stmt, Expr) raise @utils.Fault {
   let s = simple_stmt(p)
   p.expect(';')
   let pos = p.position()
@@ -272,10 +272,10 @@ fn block_contents(p : @p.Parser) -> (Stmt, Expr) raise @base.Fault {
 }
 
 ///|
-pub fn validate_direct(e : Expr) -> Unit raise @base.Fault {
+pub fn validate_direct(e : Expr) -> Unit raise @utils.Fault {
   match e {
     Block(_, _) =>
-      @base.error("blocks belong to the expression/statement machine")
+      @utils.error("blocks belong to the expression/statement machine")
     BinOp(a, _, b) | App(a, b) => {
       validate_direct(a)
       validate_direct(b)
@@ -291,41 +291,41 @@ pub fn validate_direct(e : Expr) -> Unit raise @base.Fault {
 }
 
 ///|
-fn view(e : Expr) -> @names.View[Expr] {
+fn view(e : Expr) -> @utils.View[Expr] {
   match e {
-    Var(x) => @names.Variable(x)
-    Fun(x, b) => @names.Node([x], [([0], b)], (ns, cs) => Fun(ns[0], cs[0]))
+    Var(x) => @utils.Variable(x)
+    Fun(x, b) => @utils.Node([x], [([0], b)], (ns, cs) => Fun(ns[0], cs[0]))
     Rec(f, x, b) =>
-      @names.Node([f, x], [([0, 1], b)], (ns, cs) => Rec(ns[0], ns[1], cs[0]))
+      @utils.Node([f, x], [([0, 1], b)], (ns, cs) => Rec(ns[0], ns[1], cs[0]))
     BinOp(a, o, b) =>
-      @names.Node([], [([], a), ([], b)], (_, cs) => BinOp(cs[0], o, cs[1]))
-    UnOp(o, e) => @names.Node([], [([], e)], (_, cs) => UnOp(o, cs[0]))
+      @utils.Node([], [([], a), ([], b)], (_, cs) => BinOp(cs[0], o, cs[1]))
+    UnOp(o, e) => @utils.Node([], [([], e)], (_, cs) => UnOp(o, cs[0]))
     App(a, b) =>
-      @names.Node([], [([], a), ([], b)], (_, cs) => App(cs[0], cs[1]))
+      @utils.Node([], [([], a), ([], b)], (_, cs) => App(cs[0], cs[1]))
     If(c, t, e) =>
-      @names.Node([], [([], c), ([], t), ([], e)], (_, cs) => {
+      @utils.Node([], [([], c), ([], t), ([], e)], (_, cs) => {
         If(cs[0], cs[1], cs[2])
       })
-    _ => @names.Node([], [], (_, _) => e)
+    _ => @utils.Node([], [], (_, _) => e)
   }
 }
 
 ///|
 pub fn normalize(e : Expr) -> Expr {
-  @names.normalize({ view, variable: x => Var(x), }, e)
+  @utils.normalize({ view, variable: x => Var(x), }, e)
 }
 
 ///|
 pub fn substitute(e : Expr, x : String, value : Expr) -> Expr {
-  @names.substitute({ view, variable: x => Var(x), }, e, x, value)
+  @utils.substitute({ view, variable: x => Var(x), }, e, x, value)
 }
 
 ///|
 pub fn parse(
   text : String,
   statements~ : Bool = false,
-) -> Expr raise @base.Fault {
-  let p = @p.create(text)
+) -> Expr raise @utils.Fault {
+  let p = @utils.create(text)
   let e = read(p, statements~)
   p.finish()
   if statements {
@@ -337,8 +337,8 @@ pub fn parse(
 }
 
 ///|
-pub fn inputs(text : String) -> Array[@base.Nat] raise @base.Fault {
-  let p = @p.create(text)
+pub fn inputs(text : String) -> Array[@utils.Nat] raise @utils.Fault {
+  let p = @utils.create(text)
   let g = p.group('(')
   p.finish()
   let xs = []
@@ -353,7 +353,7 @@ pub fn inputs(text : String) -> Array[@base.Nat] raise @base.Fault {
 }
 
 ///|
-pub fn apply_inputs(e : Expr, inputs : Array[@base.Nat]) -> Expr {
+pub fn apply_inputs(e : Expr, inputs : Array[@utils.Nat]) -> Expr {
   let mut e = e
   for n in inputs {
     e = App(e, Nat(n))
@@ -370,32 +370,32 @@ pub fn is_value(e : Expr) -> Bool {
 }
 
 ///|
-pub fn binop(o : Binop, a : Expr, b : Expr) -> Expr raise @base.Fault {
+pub fn binop(o : Binop, a : Expr, b : Expr) -> Expr raise @utils.Fault {
   match (o, a, b) {
     (Add, Nat(a), Nat(b)) => Nat(a + b)
     (Sub, Nat(a), Nat(b)) => {
-      @base.require(a >= b, "operator '-' expects lhs >= rhs over naturals")
+      @utils.require(a >= b, "operator '-' expects lhs >= rhs over naturals")
       Nat(a - b)
     }
     (And, Bool(a), Bool(b)) => Bool(a && b)
-    (Add, _, _) => @base.error("operator '+' expects naturals")
-    (Sub, _, _) => @base.error("operator '-' expects naturals")
-    (And, _, _) => @base.error("operator '&&' expects booleans")
+    (Add, _, _) => @utils.error("operator '+' expects naturals")
+    (Sub, _, _) => @utils.error("operator '-' expects naturals")
+    (And, _, _) => @utils.error("operator '&&' expects booleans")
   }
 }
 
 ///|
-pub fn unop(o : Unop, e : Expr) -> Expr raise @base.Fault {
+pub fn unop(o : Unop, e : Expr) -> Expr raise @utils.Fault {
   match (o, e) {
-    (Inc, Nat(n)) => Nat(n + @base.one())
+    (Inc, Nat(n)) => Nat(n + @utils.one())
     (Dec, Nat(n)) => {
-      @base.require(!n.is_zero(), "operator 'dec' expects a positive natural")
-      Nat(@base.pred(n))
+      @utils.require(!n.is_zero(), "operator 'dec' expects a positive natural")
+      Nat(@utils.pred(n))
     }
     (Not, Bool(b)) => Bool(!b)
-    (Inc, _) => @base.error("operator 'inc' expects a natural")
-    (Dec, _) => @base.error("operator 'dec' expects a natural")
-    (Not, _) => @base.error("operator 'not' expects a boolean")
+    (Inc, _) => @utils.error("operator 'inc' expects a natural")
+    (Dec, _) => @utils.error("operator 'dec' expects a natural")
+    (Not, _) => @utils.error("operator 'not' expects a boolean")
   }
 }
 
@@ -416,49 +416,49 @@ pub fn value_text(v : Value) -> String {
 }
 
 ///|
-pub fn scalar_value(e : Expr) -> Value raise @base.Fault {
+pub fn scalar_value(e : Expr) -> Value raise @utils.Fault {
   match e {
     Nat(n) => VNat(n)
     Bool(b) => VBool(b)
     Unit => VUnit
-    _ => @base.error("expected scalar value")
+    _ => @utils.error("expected scalar value")
   }
 }
 
 ///|
-pub fn value_binop(o : Binop, a : Value, b : Value) -> Value raise @base.Fault {
+pub fn value_binop(o : Binop, a : Value, b : Value) -> Value raise @utils.Fault {
   scalar_value(binop(o, value_expr(a), value_expr(b)))
 }
 
 ///|
-pub fn value_unop(o : Unop, v : Value) -> Value raise @base.Fault {
+pub fn value_unop(o : Unop, v : Value) -> Value raise @utils.Fault {
   scalar_value(unop(o, value_expr(v)))
 }
 
 ///|
-pub fn as_nat(v : Value) -> @base.Nat raise @base.Fault {
+pub fn as_nat(v : Value) -> @utils.Nat raise @utils.Fault {
   match v {
     VNat(n) => n
-    _ => @base.error("final value is not a natural number")
+    _ => @utils.error("final value is not a natural number")
   }
 }
 
 ///|
-pub fn boolean(context : String, v : Value) -> Bool raise @base.Fault {
+pub fn boolean(context : String, v : Value) -> Bool raise @utils.Fault {
   match v {
     VBool(b) => b
     _ =>
-      @base.error(
+      @utils.error(
         context + " expects a boolean condition, found " + value_text(v),
       )
   }
 }
 
 ///|
-pub fn lookup(env : Env, x : String) -> Value raise @base.Fault {
-  match @data.env_get(env, x) {
+pub fn lookup(env : Env, x : String) -> Value raise @utils.Fault {
+  match @utils.env_get(env, x) {
     Some(v) => v
-    None => @base.error("unbound variable: " + x)
+    None => @utils.error("unbound variable: " + x)
   }
 }
 
@@ -470,17 +470,17 @@ pub fn bind(env : Env, x : String, v : Value) -> Env {
 }
 
 ///|
-pub fn apply(f : Value, arg : Value) -> (Expr, Env) raise @base.Fault {
+pub fn apply(f : Value, arg : Value) -> (Expr, Env) raise @utils.Fault {
   match f {
     VFun(x, b, env) => (b, bind(env, x, arg))
     VRec(f, x, b, env) as r => (b, bind(bind(env, f, r), x, arg))
-    _ => @base.error("application expects a closure, found " + value_text(f))
+    _ => @utils.error("application expects a closure, found " + value_text(f))
   }
 }
 
 ///|
-pub fn render_env(env : Env) -> Json {
-  @base.table(
+pub fn render_env(env : Env) -> @definition.Block {
+  @definition.text_table(
     "env",
     ["name", "value"],
     env.rev().map(p => [p.0, value_text(p.1)]),

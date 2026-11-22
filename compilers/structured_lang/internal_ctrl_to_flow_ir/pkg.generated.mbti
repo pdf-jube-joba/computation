@@ -2,11 +2,14 @@
 package "computation/models/compilers/structured_lang/internal_ctrl_to_flow_ir"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/flow_ir",
+  "computation/models/models/structured_lang/internal_ctrl",
+  "computation/models/models/structured_lang/shared",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@internal_ctrl.Code, @shared.Environment, Unit, String, @shared.Environment, @flow_ir.Code, @flow_ir.Environment, String, String, @flow_ir.Environment]
 
 // Errors
 

@@ -9,7 +9,7 @@ priv struct Lowering {
 fn canonical(
   ctx : Lowering,
   target : @f.Target,
-) -> @c.ValueExpr raise @base.Fault {
+) -> @c.ValueExpr raise @utils.Fault {
   name(@f.target_name(ctx.resolution, target))
 }
 
@@ -18,7 +18,7 @@ fn value(
   ctx : Lowering,
   region : Int32,
   v : @f.ValueExpr,
-) -> Triple raise @base.Fault {
+) -> Triple raise @utils.Fault {
   let c = ctx.builder
   match v {
     @f.Imm(n) => (imm(0), @c.Imm(n), imm(0))
@@ -45,7 +45,7 @@ fn place(
   ctx : Lowering,
   region : Int32,
   p : @f.PlaceExpr,
-) -> Triple raise @base.Fault {
+) -> Triple raise @utils.Fault {
   let c = ctx.builder
   match p {
     @f.Label(label) => {
@@ -81,7 +81,7 @@ fn heap_info(c : Builder, handle : @c.ValueExpr) -> Triple {
 fn static_addr(
   ctx : Lowering,
   key : @c.ValueExpr,
-) -> @c.ValueExpr raise @base.Fault {
+) -> @c.ValueExpr raise @utils.Fault {
   let c = ctx.builder
   let out = fresh(c, "static_offset")
   choose(c, key, ctx.statics, i => set(c, out, imm(3 * i)))
@@ -92,8 +92,8 @@ fn static_addr(
 fn access(
   ctx : Lowering,
   key : Triple,
-  action : (Int32, @c.ValueExpr) -> Unit raise @base.Fault,
-) -> Unit raise @base.Fault {
+  action : (Int32, @c.ValueExpr) -> Unit raise @utils.Fault,
+) -> Unit raise @utils.Fault {
   let c = ctx.builder
   let (t, a, b) = key
   choose(c, t, [(imm(2), 2), (imm(3), 3), (imm(4), 4)], kind => {
@@ -114,7 +114,7 @@ fn access(
 }
 
 ///|
-fn load_key(ctx : Lowering, key : Triple) -> Triple raise @base.Fault {
+fn load_key(ctx : Lowering, key : Triple) -> Triple raise @utils.Fault {
   let c = ctx.builder
   let t = fresh(c, "loaded_tag")
   let a = fresh(c, "loaded_a")
@@ -134,7 +134,7 @@ fn jump(
   region : Int32,
   enter : Bool,
   v : @f.ValueExpr,
-) -> Unit raise @base.Fault {
+) -> Unit raise @utils.Fault {
   let c = ctx.builder
   let (t, a, _) = match v {
     @f.CodeLabel(label) => {
@@ -174,7 +174,7 @@ fn condition(
   cond : @f.Cond,
   yes : String,
   no : String,
-) -> Unit raise @base.Fault {
+) -> Unit raise @utils.Fault {
   let c = ctx.builder
   let (a, op, b) = match cond {
     @f.Eq(a, b) => (a, @c.Eq, b)
@@ -203,7 +203,7 @@ fn statement(
   ctx : Lowering,
   region : Int32,
   stmt : @f.Stmt,
-) -> Unit raise @base.Fault {
+) -> Unit raise @utils.Fault {
   let c = ctx.builder
   match stmt {
     @f.Nop => ()

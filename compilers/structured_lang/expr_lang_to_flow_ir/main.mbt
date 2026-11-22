@@ -163,20 +163,36 @@ fn statement(c : @lower.Builder, stmt : @s.Stmt, cont : String) -> String {
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  @lower.compiler(text => {
-    let source = @s.parse_code(text)
-    let c = @lower.create()
-    let halt = c.fresh_region("halt")
-    c.region(halt, [
-      @lower.block(c.fresh_block("halt_entry"), [@ir.Nop], @ir.Halt([])),
-    ])
-    let entry = statement(c, source, halt)
-    c.finish(prefix=[
-      {
-        label: "main",
-        blocks: [@lower.block("entry", [@ir.Nop], @lower.enter(entry))],
-      },
-    ])
-  })
+pub fn compiler() -> @definition.Compiler[
+  @s.Code,
+  @s.Ainput,
+  @s.Rinput,
+  @s.Routput,
+  @s.Foutput,
+  @ir.Code,
+  @ir.Ainput,
+  @ir.Rinput,
+  @ir.Routput,
+  @ir.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=source => {
+      let c = @lower.create()
+      let halt = c.fresh_region("halt")
+      c.region(halt, [
+        @lower.block(c.fresh_block("halt_entry"), [@ir.Nop], @ir.Halt([])),
+      ])
+      let entry = statement(c, source, halt)
+      c.finish(prefix=[
+        {
+          label: "main",
+          blocks: [@lower.block("entry", [@ir.Nop], @lower.enter(entry))],
+        },
+      ])
+    },
+    encode_ainput=input => @lower.encode_env(input.values),
+    encode_rinput=_ => "",
+    decode_routput=_ => (),
+    decode_foutput=output => { values: @lower.decode_env(output), },
+  )
 }

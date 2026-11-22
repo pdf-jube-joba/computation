@@ -2,16 +2,34 @@
 package "computation/models/models/tiny_isa/isa"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/tiny_isa/shared",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, @shared.Image, Unit, Unit, @shared.Image, State]
 
 // Errors
 
 // Types and methods
+pub(all) struct Code {
+  words : Array[@utils.Nat]
+}
+pub impl @definition.Text for Code
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub using @shared {type Image as Ainput}
+
+pub using @shared {type Image as Foutput}
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

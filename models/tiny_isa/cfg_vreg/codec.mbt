@@ -1,129 +1,135 @@
 ///|
 fn addr_json(v : Addr) -> Json {
   match v {
-    VReg(v0) => @base.tag("VReg", [@base.jint(v0)])
-    Label(v0) => @base.tag("Label", [@base.jstr(v0)])
-    Imm(v0) => @base.tag("Imm", [@base.jstr(v0.to_string())])
+    VReg(v0) => @utils.tag("VReg", [@utils.jint(v0)])
+    Label(v0) => @utils.tag("Label", [@utils.jstr(v0)])
+    Imm(v0) => @utils.tag("Imm", [@utils.jstr(v0.to_string())])
   }
 }
 
 ///|
-fn decode_addr(j : Json) -> Addr raise @base.Fault {
-  match @base.tag_name(j) {
-    "VReg" => VReg(@base.int(@base.tag_arg(j, 0)))
-    "Label" => Label(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    "Imm" => Imm(@base.json_nat(@base.tag_arg(j, 0)))
-    _ => @base.error("Invalid CFG snapshot")
+fn decode_addr(j : Json) -> Addr raise @utils.Fault {
+  match @utils.tag_name(j) {
+    "VReg" => VReg(@utils.int(@utils.tag_arg(j, 0)))
+    "Label" => Label(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    "Imm" => Imm(@utils.json_nat(@utils.tag_arg(j, 0)))
+    _ => @utils.error("Invalid CFG snapshot")
   }
 }
 
 ///|
 fn value_json(v : Value) -> Json {
   match v {
-    VRegValue(v0) => @base.tag("VRegValue", [@base.jint(v0)])
-    ImmValue(v0) => @base.tag("ImmValue", [@base.jstr(v0.to_string())])
-    LabelValue(v0) => @base.tag("LabelValue", [@base.jstr(v0)])
-    Deref(v0) => @base.tag("Deref", [addr_json(v0)])
+    VRegValue(v0) => @utils.tag("VRegValue", [@utils.jint(v0)])
+    ImmValue(v0) => @utils.tag("ImmValue", [@utils.jstr(v0.to_string())])
+    LabelValue(v0) => @utils.tag("LabelValue", [@utils.jstr(v0)])
+    Deref(v0) => @utils.tag("Deref", [addr_json(v0)])
   }
 }
 
 ///|
-fn decode_value(j : Json) -> Value raise @base.Fault {
-  match @base.tag_name(j) {
-    "VRegValue" => VRegValue(@base.int(@base.tag_arg(j, 0)))
-    "ImmValue" => ImmValue(@base.json_nat(@base.tag_arg(j, 0)))
+fn decode_value(j : Json) -> Value raise @utils.Fault {
+  match @utils.tag_name(j) {
+    "VRegValue" => VRegValue(@utils.int(@utils.tag_arg(j, 0)))
+    "ImmValue" => ImmValue(@utils.json_nat(@utils.tag_arg(j, 0)))
     "LabelValue" =>
-      LabelValue(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    "Deref" => Deref(decode_addr(@base.tag_arg(j, 0)))
-    _ => @base.error("Invalid CFG snapshot")
+      LabelValue(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    "Deref" => Deref(decode_addr(@utils.tag_arg(j, 0)))
+    _ => @utils.error("Invalid CFG snapshot")
   }
 }
 
 ///|
 fn binop_json(v : Binop) -> Json {
   match v {
-    Add => @base.tag("Add", [])
-    Sub => @base.tag("Sub", [])
+    Add => @utils.tag("Add", [])
+    Sub => @utils.tag("Sub", [])
   }
 }
 
 ///|
-fn decode_binop(j : Json) -> Binop raise @base.Fault {
-  match @base.tag_name(j) {
+fn decode_binop(j : Json) -> Binop raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Add" => Add
     "Sub" => Sub
-    _ => @base.error("Invalid CFG snapshot")
+    _ => @utils.error("Invalid CFG snapshot")
   }
 }
 
 ///|
 fn cond_json(v : Cond) -> Json {
   match v {
-    Lt(v0, v1) => @base.tag("Lt", [value_json(v0), value_json(v1)])
-    Eq(v0, v1) => @base.tag("Eq", [value_json(v0), value_json(v1)])
-    Gt(v0, v1) => @base.tag("Gt", [value_json(v0), value_json(v1)])
+    Lt(v0, v1) => @utils.tag("Lt", [value_json(v0), value_json(v1)])
+    Eq(v0, v1) => @utils.tag("Eq", [value_json(v0), value_json(v1)])
+    Gt(v0, v1) => @utils.tag("Gt", [value_json(v0), value_json(v1)])
   }
 }
 
 ///|
-fn decode_cond(j : Json) -> Cond raise @base.Fault {
-  match @base.tag_name(j) {
+fn decode_cond(j : Json) -> Cond raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Lt" =>
-      Lt(decode_value(@base.tag_arg(j, 0)), decode_value(@base.tag_arg(j, 1)))
+      Lt(decode_value(@utils.tag_arg(j, 0)), decode_value(@utils.tag_arg(j, 1)))
     "Eq" =>
-      Eq(decode_value(@base.tag_arg(j, 0)), decode_value(@base.tag_arg(j, 1)))
+      Eq(decode_value(@utils.tag_arg(j, 0)), decode_value(@utils.tag_arg(j, 1)))
     "Gt" =>
-      Gt(decode_value(@base.tag_arg(j, 0)), decode_value(@base.tag_arg(j, 1)))
-    _ => @base.error("Invalid CFG snapshot")
+      Gt(decode_value(@utils.tag_arg(j, 0)), decode_value(@utils.tag_arg(j, 1)))
+    _ => @utils.error("Invalid CFG snapshot")
   }
 }
 
 ///|
 fn stmt_json(v : Stmt) -> Json {
   match v {
-    Assign(v0, v1) => @base.tag("Assign", [@base.jint(v0), value_json(v1)])
+    Assign(v0, v1) => @utils.tag("Assign", [@utils.jint(v0), value_json(v1)])
     BinOp(v0, v1, v2, v3) =>
-      @base.tag("BinOp", [
-        @base.jint(v0),
+      @utils.tag("BinOp", [
+        @utils.jint(v0),
         value_json(v1),
         binop_json(v2),
         value_json(v3),
       ])
-    Store(v0, v1) => @base.tag("Store", [addr_json(v0), value_json(v1)])
+    Store(v0, v1) => @utils.tag("Store", [addr_json(v0), value_json(v1)])
   }
 }
 
 ///|
-fn decode_stmt(j : Json) -> Stmt raise @base.Fault {
-  match @base.tag_name(j) {
+fn decode_stmt(j : Json) -> Stmt raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Assign" =>
-      Assign(@base.int(@base.tag_arg(j, 0)), decode_value(@base.tag_arg(j, 1)))
+      Assign(
+        @utils.int(@utils.tag_arg(j, 0)),
+        decode_value(@utils.tag_arg(j, 1)),
+      )
     "BinOp" =>
       BinOp(
-        @base.int(@base.tag_arg(j, 0)),
-        decode_value(@base.tag_arg(j, 1)),
-        decode_binop(@base.tag_arg(j, 2)),
-        decode_value(@base.tag_arg(j, 3)),
+        @utils.int(@utils.tag_arg(j, 0)),
+        decode_value(@utils.tag_arg(j, 1)),
+        decode_binop(@utils.tag_arg(j, 2)),
+        decode_value(@utils.tag_arg(j, 3)),
       )
     "Store" =>
-      Store(decode_addr(@base.tag_arg(j, 0)), decode_value(@base.tag_arg(j, 1)))
-    _ => @base.error("Invalid CFG snapshot")
+      Store(
+        decode_addr(@utils.tag_arg(j, 0)),
+        decode_value(@utils.tag_arg(j, 1)),
+      )
+    _ => @utils.error("Invalid CFG snapshot")
   }
 }
 
 ///|
 fn block_json(b : Block) -> Json {
-  @base.object([
-    ("label", @base.jstr(b.label)),
-    ("stmts", @base.jarray(b.stmts.map(stmt_json))),
+  @utils.object([
+    ("label", @utils.jstr(b.label)),
+    ("stmts", @utils.jarray(b.stmts.map(stmt_json))),
     (
       "cont",
-      @base.object([
+      @utils.object([
         (
           "ifs",
-          @base.jarray(
+          @utils.jarray(
             b.cont.ifs.map(j => {
-              @base.object([
+              @utils.object([
                 ("cond", cond_json(j.cond)),
                 ("target", addr_json(j.target)),
               ])
@@ -137,66 +143,69 @@ fn block_json(b : Block) -> Json {
 }
 
 ///|
-fn decode_block(j : Json) -> Block raise @base.Fault {
-  let c = @base.field(j, "cont")
+fn decode_block(j : Json) -> Block raise @utils.Fault {
+  let c = @utils.field(j, "cont")
   {
-    label: @base.identifier(@base.string(@base.field(j, "label"))),
-    stmts: @base.array(@base.field(j, "stmts")).map(decode_stmt),
+    label: @utils.identifier(@utils.string(@utils.field(j, "label"))),
+    stmts: @utils.array(@utils.field(j, "stmts")).map(decode_stmt),
     cont: {
-      ifs: @base.array(@base.field(c, "ifs")).map(j => {
-        cond: decode_cond(@base.field(j, "cond")),
-        target: decode_addr(@base.field(j, "target")),
+      ifs: @utils.array(@utils.field(c, "ifs")).map(j => {
+        cond: decode_cond(@utils.field(j, "cond")),
+        target: decode_addr(@utils.field(j, "target")),
       }),
-      jump: decode_addr(@base.field(c, "jump")),
+      jump: decode_addr(@utils.field(c, "jump")),
     },
   }
 }
 
 ///|
 fn code_json(c : Code) -> Json {
-  @base.object([
+  @utils.object([
     (
       "statics",
-      @base.jarray(
+      @utils.jarray(
         c.statics.map(s => {
-          @base.object([
-            ("label", @base.jstr(s.label)),
-            ("value", @base.jstr(s.value.to_string())),
+          @utils.object([
+            ("label", @utils.jstr(s.label)),
+            ("value", @utils.jstr(s.value.to_string())),
           ])
         }),
       ),
     ),
-    ("blocks", @base.jarray(c.blocks.map(block_json))),
+    ("blocks", @utils.jarray(c.blocks.map(block_json))),
   ])
 }
 
 ///|
-fn decode_code(j : Json) -> Code raise @base.Fault {
+fn decode_code(j : Json) -> Code raise @utils.Fault {
   {
-    statics: @base.array(@base.field(j, "statics")).map(j => {
-      label: @base.identifier(@base.string(@base.field(j, "label"))),
-      value: @base.json_nat(@base.field(j, "value")),
+    statics: @utils.array(@utils.field(j, "statics")).map(j => {
+      label: @utils.identifier(@utils.string(@utils.field(j, "label"))),
+      value: @utils.json_nat(@utils.field(j, "value")),
     }),
-    blocks: @base.array(@base.field(j, "blocks")).map(decode_block),
+    blocks: @utils.array(@utils.field(j, "blocks")).map(decode_block),
   }
 }
 
 ///|
 fn compiled_json(c : Compiled) -> Json {
-  @base.object([
-    ("blocks", @base.jarray(c.blocks.map(block_json))),
-    ("entry_block", @base.jint(c.entry_block)),
-    ("block_index", @data.env_json(c.block_index, @base.jint)),
-    ("static_labels", @data.env_json(c.static_labels, @base.jint)),
+  @utils.object([
+    ("blocks", @utils.jarray(c.blocks.map(block_json))),
+    ("entry_block", @utils.jint(c.entry_block)),
+    ("block_index", @utils.env_json(c.block_index, @utils.jint)),
+    ("static_labels", @utils.env_json(c.static_labels, @utils.jint)),
   ])
 }
 
 ///|
-fn decode_compiled(j : Json) -> Compiled raise @base.Fault {
+fn decode_compiled(j : Json) -> Compiled raise @utils.Fault {
   {
-    blocks: @base.array(@base.field(j, "blocks")).map(decode_block),
-    entry_block: @base.int(@base.field(j, "entry_block")),
-    block_index: @data.decode_env(@base.field(j, "block_index"), @base.int),
-    static_labels: @data.decode_env(@base.field(j, "static_labels"), @base.int),
+    blocks: @utils.array(@utils.field(j, "blocks")).map(decode_block),
+    entry_block: @utils.int(@utils.field(j, "entry_block")),
+    block_index: @utils.decode_env(@utils.field(j, "block_index"), @utils.int),
+    static_labels: @utils.decode_env(
+      @utils.field(j, "static_labels"),
+      @utils.int,
+    ),
   }
 }

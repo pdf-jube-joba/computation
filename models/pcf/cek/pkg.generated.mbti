@@ -2,18 +2,37 @@
 package "computation/models/models/pcf/cek"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/pcf/shared",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model(statements? : Bool) -> @runtime.Model
+pub fn model() -> @definition.Model[@shared.Expr, @shared.Inputs, Unit, @shared.Output, @utils.Nat, State]
 
-pub fn statement_model() -> @runtime.Model
+pub fn statement_model() -> @definition.Model[@shared.StatementCode, @shared.Inputs, Unit, @shared.Output, @utils.Nat, StatementState]
 
 // Errors
 
 // Types and methods
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
+
+type StatementState
+pub impl @definition.Render for StatementState
+pub impl @definition.Snapshot for StatementState
 
 // Type aliases
+pub using @shared {type Inputs as Ainput}
+
+pub using @shared {type Expr as Code}
+
+pub using @utils {type Nat as Foutput}
+
+pub type Rinput = Unit
+
+pub using @shared {type Output as Routput}
 
 // Traits

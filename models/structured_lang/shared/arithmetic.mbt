@@ -1,10 +1,10 @@
 ///|
-pub type Env = Array[(String, @base.Nat)]
+pub type Env = Array[(String, @utils.Nat)]
 
 ///|
 pub(all) enum Atom {
   Var(String)
-  Imm(@base.Nat)
+  Imm(@utils.Nat)
 }
 
 ///|
@@ -28,10 +28,10 @@ pub(all) struct Bexp {
 }
 
 ///|
-pub fn names(p : @p.Parser) -> Array[String] raise @base.Fault {
+pub fn names(p : @utils.Parser) -> Array[String] raise @utils.Fault {
   let result = []
   match p.peek() {
-    @p.Ident(_) => {
+    @utils.Ident(_) => {
       result.push(p.ident())
       while p.eat(',') {
         result.push(p.ident())
@@ -43,15 +43,15 @@ pub fn names(p : @p.Parser) -> Array[String] raise @base.Fault {
 }
 
 ///|
-pub fn parse_atom(p : @p.Parser) -> Atom raise @base.Fault {
+pub fn parse_atom(p : @utils.Parser) -> Atom raise @utils.Fault {
   match p.peek() {
-    @p.Number(_) => Imm(p.natural())
+    @utils.Number(_) => Imm(p.natural())
     _ => Var(p.ident())
   }
 }
 
 ///|
-pub fn parse_aexp(p : @p.Parser) -> Aexp raise @base.Fault {
+pub fn parse_aexp(p : @utils.Parser) -> Aexp raise @utils.Fault {
   let a = parse_atom(p)
   if p.eat('+') {
     Bin(a, true, parse_atom(p))
@@ -63,30 +63,30 @@ pub fn parse_aexp(p : @p.Parser) -> Aexp raise @base.Fault {
 }
 
 ///|
-pub fn parse_bexp(p : @p.Parser) -> Bexp raise @base.Fault {
+pub fn parse_bexp(p : @utils.Parser) -> Bexp raise @utils.Fault {
   let left = parse_atom(p)
   let op = match p.bump() {
-    @p.Symbol('<') => Lt
-    @p.Symbol('=') => Eq
-    @p.Symbol('>') => Gt
+    @utils.Symbol('<') => Lt
+    @utils.Symbol('=') => Eq
+    @utils.Symbol('>') => Gt
     _ => p.error("Expected comparison")
   }
   { left, op, right: parse_atom(p), }
 }
 
 ///|
-pub fn env_get(env : Env, name : String) -> @base.Nat {
-  @data.env_get(env, name).unwrap_or(@base.zero())
+pub fn env_get(env : Env, name : String) -> @utils.Nat {
+  @utils.env_get(env, name).unwrap_or(@utils.zero())
 }
 
 ///|
-pub fn parse_env(text : String) -> Env raise @base.Fault {
-  @data.parse_env(text, @base.nat)
+pub fn parse_env(text : String) -> Env raise @utils.Fault {
+  @utils.parse_env(text, @utils.nat)
 }
 
 ///|
 pub fn print_env(env : Env, trailing_newline~ : Bool = true) -> String {
-  @data.print_env(env, n => n.to_string(), trailing_newline~)
+  @utils.print_env(env, n => n.to_string(), trailing_newline~)
 }
 
 ///|
@@ -96,21 +96,21 @@ pub fn validate_env(
   duplicate~ : String,
   extra~ : String,
   missing~ : String,
-) -> Unit raise @base.Fault {
-  @data.unique(statics, duplicate)
+) -> Unit raise @utils.Fault {
+  @utils.unique(statics, duplicate)
   for pair in env {
-    @base.require(statics.contains(pair.0), extra + pair.0)
+    @utils.require(statics.contains(pair.0), extra + pair.0)
   }
   for name in statics {
-    @base.require(@data.env_get(env, name) is Some(_), missing + name)
+    @utils.require(@utils.env_get(env, name) is Some(_), missing + name)
   }
 }
 
 ///|
 pub fn eval_atom(
   a : Atom,
-  lookup : (String) -> @base.Nat raise @base.Fault,
-) -> @base.Nat raise @base.Fault {
+  lookup : (String) -> @utils.Nat raise @utils.Fault,
+) -> @utils.Nat raise @utils.Fault {
   match a {
     Var(n) => lookup(n)
     Imm(n) => n
@@ -120,8 +120,8 @@ pub fn eval_atom(
 ///|
 pub fn eval_aexp(
   a : Aexp,
-  lookup : (String) -> @base.Nat raise @base.Fault,
-) -> @base.Nat raise @base.Fault {
+  lookup : (String) -> @utils.Nat raise @utils.Fault,
+) -> @utils.Nat raise @utils.Fault {
   match a {
     Atom(a) => eval_atom(a, lookup)
     Bin(a, add, b) => {
@@ -130,7 +130,7 @@ pub fn eval_aexp(
       if add {
         a + b
       } else {
-        @base.sub(a, b)
+        @utils.sub(a, b)
       }
     }
   }
@@ -139,8 +139,8 @@ pub fn eval_aexp(
 ///|
 pub fn eval_bexp(
   b : Bexp,
-  lookup : (String) -> @base.Nat raise @base.Fault,
-) -> Bool raise @base.Fault {
+  lookup : (String) -> @utils.Nat raise @utils.Fault,
+) -> Bool raise @utils.Fault {
   let a = eval_atom(b.left, lookup)
   let c = eval_atom(b.right, lookup)
   match b.op {
@@ -183,54 +183,54 @@ pub fn bexp_text(b : Bexp) -> String {
 ///|
 pub fn atom_json(a : Atom) -> Json {
   match a {
-    Var(n) => @base.tag("Var", [@base.jstr(n)])
-    Imm(n) => @base.tag("Imm", [@base.jstr(n.to_string())])
+    Var(n) => @utils.tag("Var", [@utils.jstr(n)])
+    Imm(n) => @utils.tag("Imm", [@utils.jstr(n.to_string())])
   }
 }
 
 ///|
-pub fn decode_atom(j : Json) -> Atom raise @base.Fault {
-  match @base.tag_name(j) {
-    "Var" => Var(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    "Imm" => Imm(@base.json_nat(@base.tag_arg(j, 0)))
-    _ => @base.error("Invalid arithmetic atom")
+pub fn decode_atom(j : Json) -> Atom raise @utils.Fault {
+  match @utils.tag_name(j) {
+    "Var" => Var(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    "Imm" => Imm(@utils.json_nat(@utils.tag_arg(j, 0)))
+    _ => @utils.error("Invalid arithmetic atom")
   }
 }
 
 ///|
 pub fn aexp_json(a : Aexp) -> Json {
   match a {
-    Atom(a) => @base.tag("Atom", [atom_json(a)])
+    Atom(a) => @utils.tag("Atom", [atom_json(a)])
     Bin(a, add, b) =>
-      @base.tag("Bin", [
+      @utils.tag("Bin", [
         atom_json(a),
-        @base.tag(if add { "Add" } else { "Sub" }, []),
+        @utils.tag(if add { "Add" } else { "Sub" }, []),
         atom_json(b),
       ])
   }
 }
 
 ///|
-pub fn decode_aexp(j : Json) -> Aexp raise @base.Fault {
-  fn a(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+pub fn decode_aexp(j : Json) -> Aexp raise @utils.Fault {
+  fn a(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
+  match @utils.tag_name(j) {
     "Atom" => Atom(decode_atom(a(0)))
     "Bin" => {
-      let op = @base.tag_name(a(1))
-      @base.require(op == "Add" || op == "Sub", "Invalid arithmetic operator")
+      let op = @utils.tag_name(a(1))
+      @utils.require(op == "Add" || op == "Sub", "Invalid arithmetic operator")
       Bin(decode_atom(a(0)), op == "Add", decode_atom(a(2)))
     }
-    _ => @base.error("Invalid arithmetic expression")
+    _ => @utils.error("Invalid arithmetic expression")
   }
 }
 
 ///|
 pub fn bexp_json(b : Bexp) -> Json {
-  @base.jarray([
+  @utils.jarray([
     atom_json(b.left),
-    @base.tag(
+    @utils.tag(
       match b.op {
         Lt => "Lt"
         Eq => "Eq"
@@ -243,34 +243,34 @@ pub fn bexp_json(b : Bexp) -> Json {
 }
 
 ///|
-pub fn decode_bexp(j : Json) -> Bexp raise @base.Fault {
-  let a = @base.array(j)
-  @base.require(a.length() == 3, "Invalid comparison")
-  let op = match @base.tag_name(a[1]) {
+pub fn decode_bexp(j : Json) -> Bexp raise @utils.Fault {
+  let a = @utils.array(j)
+  @utils.require(a.length() == 3, "Invalid comparison")
+  let op = match @utils.tag_name(a[1]) {
     "Lt" => Lt
     "Eq" => Eq
     "Gt" => Gt
-    _ => @base.error("Invalid comparison operator")
+    _ => @utils.error("Invalid comparison operator")
   }
   { left: decode_atom(a[0]), op, right: decode_atom(a[2]), }
 }
 
 ///|
 pub fn env_json(env : Env) -> Json {
-  @data.env_json(env, n => @base.jstr(n.to_string()))
+  @utils.env_json(env, n => @utils.jstr(n.to_string()))
 }
 
 ///|
-pub fn decode_env(j : Json) -> Env raise @base.Fault {
-  @data.decode_env(j, @base.json_nat)
+pub fn decode_env(j : Json) -> Env raise @utils.Fault {
+  @utils.decode_env(j, @utils.json_nat)
 }
 
 ///|
 pub fn names_json(names : Array[String]) -> Json {
-  @base.jarray(names.map(@base.jstr))
+  @utils.jarray(names.map(@utils.jstr))
 }
 
 ///|
-pub fn decode_names(j : Json) -> Array[String] raise @base.Fault {
-  @base.array(j).map(j => @base.identifier(@base.string(j)))
+pub fn decode_names(j : Json) -> Array[String] raise @utils.Fault {
+  @utils.array(j).map(j => @utils.identifier(@utils.string(j)))
 }

@@ -2,16 +2,35 @@
 package "computation/models/models/interaction_combinators"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Net, Unit, Selection, String, Net, State]
 
 // Errors
 
 // Types and methods
+#alias(Code)
+#alias(Foutput)
+type Net
+pub impl @definition.Text for Net
+
+#alias(Rinput)
+pub(all) struct Selection {
+  pair : (String, String)?
+}
+pub impl @definition.Text for Selection
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Ainput = Unit
+
+pub type Routput = String
 
 // Traits

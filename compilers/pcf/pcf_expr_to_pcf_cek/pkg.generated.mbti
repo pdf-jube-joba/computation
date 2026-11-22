@@ -2,11 +2,13 @@
 package "computation/models/compilers/pcf/pcf_expr_to_pcf_cek"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/pcf/shared",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@shared.Expr, @shared.Inputs, Unit, @shared.Output, @utils.Nat, @shared.Expr, @shared.Inputs, Unit, @shared.Output, @utils.Nat]
 
 // Errors
 

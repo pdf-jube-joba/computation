@@ -2,16 +2,15 @@
 package "computation/models/compilers/rec_tm/rec_tm_ir_jump_to_turing_machine"
 
 import {
+  "computation/models/definition",
   "computation/models/models/rec_tm/rec_tm_ir_jump",
-  "computation/models/models/turing_machine/shared",
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compile(@rec_tm_ir_jump.Code) -> @shared.Definition raise @base.Fault
+pub fn compile(@rec_tm_ir_jump.Code) -> @computation/models/models/turing_machine/shared.Definition raise @utils.Fault
 
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@rec_tm_ir_jump.Code, @computation/models/models/rec_tm/shared.Tape, Unit, Unit, @computation/models/models/rec_tm/shared.Tape, @computation/models/models/turing_machine/shared.Definition, @computation/models/models/turing_machine/shared.Tape, Unit, Unit, @computation/models/models/turing_machine/shared.Tape]
 
 // Errors
 

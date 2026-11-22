@@ -23,7 +23,7 @@ priv enum Phase {
 }
 
 ///|
-priv struct State {
+struct State {
   code : @s.Expr
   state : Phase
 }
@@ -39,37 +39,38 @@ fn push(f : Frame, k : Array[Frame]) -> Array[Frame] {
 fn transition(
   phase : Phase,
   statements : Bool,
-) -> (Phase, String) raise @base.Fault {
+) -> (Phase, @s.Output) raise @utils.Fault {
   match phase {
     EvalExpr(e, env, k) =>
       match e {
-        @s.Nat(n) => (Return(@s.VNat(n), k), "")
-        @s.Bool(b) => (Return(@s.VBool(b), k), "")
-        @s.Unit => (Return(@s.VUnit, k), "")
+        @s.Nat(n) => (Return(@s.VNat(n), k), @s.Silent)
+        @s.Bool(b) => (Return(@s.VBool(b), k), @s.Silent)
+        @s.Unit => (Return(@s.VUnit, k), @s.Silent)
         @s.Print(n) => {
-          @base.require(
+          @utils.require(
             !statements,
             "print is a statement in the expression/statement language",
           )
-          (Return(@s.VUnit, k), n.to_string())
+          (Return(@s.VUnit, k), @s.Printed(n))
         }
-        @s.Var(x) => (Return(@s.lookup(env, x), k), "")
-        @s.Fun(x, b) => (Return(@s.VFun(x, b, env), k), "")
-        @s.Rec(f, x, b) => (Return(@s.VRec(f, x, b, env), k), "")
+        @s.Var(x) => (Return(@s.lookup(env, x), k), @s.Silent)
+        @s.Fun(x, b) => (Return(@s.VFun(x, b, env), k), @s.Silent)
+        @s.Rec(f, x, b) => (Return(@s.VRec(f, x, b, env), k), @s.Silent)
         @s.BinOp(a, o, b) =>
-          (EvalExpr(a, env, push(BinOpLeft(o, b, env), k)), "")
-        @s.UnOp(o, e) => (EvalExpr(e, env, push(Unary(o), k)), "")
-        @s.App(f, a) => (EvalExpr(f, env, push(AppFun(a, env), k)), "")
-        @s.If(c, t, e) => (EvalExpr(c, env, push(IfExpr(t, e, env), k)), "")
+          (EvalExpr(a, env, push(BinOpLeft(o, b, env), k)), @s.Silent)
+        @s.UnOp(o, e) => (EvalExpr(e, env, push(Unary(o), k)), @s.Silent)
+        @s.App(f, a) => (EvalExpr(f, env, push(AppFun(a, env), k)), @s.Silent)
+        @s.If(c, t, e) =>
+          (EvalExpr(c, env, push(IfExpr(t, e, env), k)), @s.Silent)
         @s.Block(s, e) => {
-          @base.require(
+          @utils.require(
             statements, "blocks belong to the expression/statement machine",
           )
-          (EvalStmt(s, env, push(ScopeOut(e), k)), "")
+          (EvalStmt(s, env, push(ScopeOut(e), k)), @s.Silent)
         }
       }
     Return(v, frames) => {
-      @base.require(!frames.is_empty(), "empty continuation")
+      @utils.require(!frames.is_empty(), "empty continuation")
       let k = frames[1:].to_owned()
       let next = match frames[0] {
         Init => Return(v, push(Init, k))
@@ -96,21 +97,23 @@ fn transition(
           } else {
             Done(env, k)
           }
-        _ => @base.error("internal CEK error: statement frame during return")
+        _ => @utils.error("internal CEK error: statement frame during return")
       }
-      (next, "")
+      (next, @s.Silent)
     }
     EvalStmt(s, env, k) =>
       match s {
-        @s.Skip => (Done(env, k), "")
-        @s.PrintStmt(n) => (Done(env, k), n.to_string())
-        @s.Seq(a, b) => (EvalStmt(a, env, push(SeqFrame(b), k)), "")
-        @s.Let(x, e) => (EvalExpr(e, env, push(LetFrame(x, env), k)), "")
-        @s.IfStmt(c, s) => (EvalExpr(c, env, push(IfStmtFrame(s, env), k)), "")
-        @s.While(c, s) => (EvalExpr(c, env, push(WhileFrame(c, s, env), k)), "")
+        @s.Skip => (Done(env, k), @s.Silent)
+        @s.PrintStmt(n) => (Done(env, k), @s.Printed(n))
+        @s.Seq(a, b) => (EvalStmt(a, env, push(SeqFrame(b), k)), @s.Silent)
+        @s.Let(x, e) => (EvalExpr(e, env, push(LetFrame(x, env), k)), @s.Silent)
+        @s.IfStmt(c, s) =>
+          (EvalExpr(c, env, push(IfStmtFrame(s, env), k)), @s.Silent)
+        @s.While(c, s) =>
+          (EvalExpr(c, env, push(WhileFrame(c, s, env), k)), @s.Silent)
       }
     Done(env, frames) => {
-      @base.require(!frames.is_empty(), "empty continuation")
+      @utils.require(!frames.is_empty(), "empty continuation")
       let k = frames[1:].to_owned()
       (
         match frames[0] {
@@ -118,70 +121,61 @@ fn transition(
           ScopeOut(e) => EvalExpr(e, env, k)
           Init => Done(env, push(Init, k))
           _ =>
-            @base.error(
+            @utils.error(
               "internal CEK error: unexpected frame after statement completion",
             )
         },
-        "",
+        @s.Silent,
       )
     }
   }
 }
 
 ///|
-fn make(
-  code : String,
-  input : String,
-  statements : Bool,
-) -> State raise @base.Fault {
-  let code = @s.parse(code, statements~)
-  {
-    code,
-    state: EvalExpr(@s.apply_inputs(code, @s.inputs(input)), [], [Init]),
-  }
+fn make(code : @s.Expr, input : @s.Inputs) -> State {
+  { code, state: EvalExpr(@s.apply_inputs(code, input.values), [], [Init]), }
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
+  _input : Rinput,
   statements : Bool,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   match s.state {
     Return(v, k) if k.length() == 1 =>
       match k[0] {
-        Init => @runtime.Halt(@s.as_nat(v).to_string())
+        Init => @definition.Halt(@s.as_nat(v))
         _ => {
           let (state, out) = transition(s.state, statements)
-          @runtime.Continue({ ..s, state, }, out)
+          @definition.Continue({ ..s, state, }, out)
         }
       }
     _ => {
       let (state, out) = transition(s.state, statements)
-      @runtime.Continue({ ..s, state, }, out)
+      @definition.Continue({ ..s, state, }, out)
     }
   }
 }
 
 ///|
 fn encode(s : State, statements : Bool) -> Json {
-  @base.object([
+  @utils.object([
     ("code", @s.expr_json(s.code)),
     ("state", phase_json(s.state, statements)),
   ])
 }
 
 ///|
-fn decode(j : Json, statements : Bool) -> State raise @base.Fault {
+fn decode(j : Json, statements : Bool) -> State raise @utils.Fault {
   {
-    code: @s.decode_expr(@base.field(j, "code")),
-    state: decode_phase(@base.field(j, "state"), statements),
+    code: @s.decode_expr(@utils.field(j, "code")),
+    state: decode_phase(@utils.field(j, "state"), statements),
   }
 }
 
 ///|
-fn render(s : State, statements : Bool) -> Json {
+fn render(s : State, statements : Bool) -> Array[@definition.Block] {
   fn env_from(k : Array[Frame]) -> @s.Env {
     for f in k {
       match f {
@@ -203,30 +197,52 @@ fn render(s : State, statements : Bool) -> Json {
     Return(v, k) => ("return", @s.value_text(v), env_from(k), k)
     Done(env, k) => ("done", "scope complete", env, k)
   }
-  @base.jarray([
-    @base.titled("code", @s.print(s.code)),
-    @base.table("state", ["field", "value"], [["mode", mode], ["focus", focus]]),
+  [
+    @definition.titled("code", @s.print(s.code)),
+    @definition.text_table("state", ["field", "value"], [
+      ["mode", mode],
+      ["focus", focus],
+    ]),
     @s.render_env(env),
-    @base.table(
+    @definition.text_table(
       "kont",
       ["depth", "frame"],
       k.mapi((i, f) => [i.to_string(), frame_json(f, statements).stringify()]),
     ),
-  ])
+  ]
 }
 
 ///|
-pub fn model(statements~ : Bool = false) -> @runtime.Model {
-  @runtime.model(
-    (c, i) => make(c, i, statements),
-    (s, i) => step(s, i, statements),
-    s => encode(s, statements),
-    j => decode(j, statements),
-    s => render(s, statements),
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input, false)
+  })
+}
+
+///|
+pub fn statement_model() -> @definition.Model[
+  @s.StatementCode,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  StatementState,
+] {
+  @definition.Model(
+    make=(code, input) => { value: make(code.expression, input), },
+    step=(state, input) => {
+      match step(state.value, input, true) {
+        @definition.Continue(next, output) =>
+          @definition.Continue({ value: next, }, output)
+        @definition.Halt(output) => @definition.Halt(output)
+      }
+    },
   )
-}
-
-///|
-pub fn statement_model() -> @runtime.Model {
-  model(statements=true)
 }

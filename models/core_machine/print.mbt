@@ -54,13 +54,13 @@ pub fn print_code(code : Code) -> String {
   "\\memories " +
   code.memories.to_string() +
   ";\n" +
-  @base.join(
+  @utils.join(
     code.blocks.map(b => {
       ":" +
       b.label +
       " {\n" +
-      @base.join(b.stmts.map(s => "  " + syntax_stmt_text(s) + ";\n"), "") +
-      @base.join(
+      @utils.join(b.stmts.map(s => "  " + syntax_stmt_text(s) + ";\n"), "") +
+      @utils.join(
         b.ifs.map(j => {
           "  \\if " +
           syntax_value_text(j.cond.0) +

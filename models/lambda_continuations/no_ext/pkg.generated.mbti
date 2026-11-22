@@ -2,16 +2,32 @@
 package "computation/models/models/lambda_continuations/no_ext"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/pcf/shared",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Term, @shared.Inputs, Unit, Unit, Term, State]
 
 // Errors
 
 // Types and methods
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
+
+#alias(Code)
+#alias(Foutput)
+type Term
+pub impl @definition.Text for Term
 
 // Type aliases
+pub using @shared {type Inputs as Ainput}
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

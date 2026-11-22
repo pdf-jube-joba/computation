@@ -2,22 +2,22 @@
 package "computation/models/models/structured_lang/expr_lang"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
-  "moonbitlang/core/bigint",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Stmt, Environment, Unit, Unit, Environment, State]
 
-pub fn parse_code(String) -> Stmt raise @base.Fault
+pub fn parse_code(String) -> Stmt raise @utils.Fault
 
 // Errors
 
 // Types and methods
 pub(all) enum Aexp {
   Var(String)
-  Num(@bigint.BigInt)
+  Num(@utils.Nat)
   Bin(Aexp, Bool, Aexp)
   Conditional(Bexp, Aexp, Aexp)
 }
@@ -28,6 +28,18 @@ pub(all) enum Bexp {
   Not(Bexp)
 }
 
+#alias(Ainput)
+#alias(Foutput)
+pub(all) struct Environment {
+  values : Array[(String, @utils.Nat)]
+}
+pub impl @definition.Text for Environment
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
+
+#alias(Code)
 pub(all) enum Stmt {
   Nop
   Assign(String, Aexp)
@@ -35,7 +47,11 @@ pub(all) enum Stmt {
   If(Bexp, Stmt)
   While(Bexp, Stmt)
 }
+pub impl @definition.Text for Stmt
 
 // Type aliases
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

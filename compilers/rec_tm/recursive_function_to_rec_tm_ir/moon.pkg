@@ -1,7 +1,6 @@
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/names",
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
   "computation/models/models/recursive_function" @source,
   "computation/models/models/rec_tm/rec_tm_ir" @ir,
   "computation/models/models/rec_tm/shared" @s,

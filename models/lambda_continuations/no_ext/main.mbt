@@ -1,5 +1,5 @@
 ///|
-priv enum Term {
+enum Term {
   Var(String)
   Lam(String, Term)
   App(Term, Term)
@@ -14,27 +14,27 @@ priv enum Term {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Term
   current : Term
 }
 
 ///|
-fn number(n : @base.Nat) -> Term {
+fn number(n : @utils.Nat) -> Term {
   let mut t = Zero
   let mut n = n
   while !n.is_zero() {
     t = Succ(t)
-    n = @base.pred(n)
+    n = @utils.pred(n)
   }
   t
 }
 
 ///|
-fn as_number(t : Term) -> @base.Nat? {
+fn as_number(t : Term) -> @utils.Nat? {
   match t {
-    Zero => Some(@base.zero())
-    Succ(t) => as_number(t).map(n => n + @base.one())
+    Zero => Some(@utils.zero())
+    Succ(t) => as_number(t).map(n => n + @utils.one())
     _ => None
   }
 }
@@ -48,35 +48,35 @@ fn is_value(t : Term) -> Bool {
 }
 
 ///|
-fn view(t : Term) -> @names.View[Term] {
+fn view(t : Term) -> @utils.View[Term] {
   match t {
-    Var(n) => @names.Variable(n)
-    Lam(x, b) => @names.Node([x], [([0], b)], (ns, cs) => Lam(ns[0], cs[0]))
+    Var(n) => @utils.Variable(n)
+    Lam(x, b) => @utils.Node([x], [([0], b)], (ns, cs) => Lam(ns[0], cs[0]))
     Rec(f, x, b) =>
-      @names.Node([f, x], [([0, 1], b)], (ns, cs) => Rec(ns[0], ns[1], cs[0]))
+      @utils.Node([f, x], [([0, 1], b)], (ns, cs) => Rec(ns[0], ns[1], cs[0]))
     Let(x, e, b) =>
-      @names.Node([x], [([], e), ([0], b)], (ns, cs) => Let(ns[0], cs[0], cs[1]))
+      @utils.Node([x], [([], e), ([0], b)], (ns, cs) => Let(ns[0], cs[0], cs[1]))
     App(a, b) =>
-      @names.Node([], [([], a), ([], b)], (_, cs) => App(cs[0], cs[1]))
+      @utils.Node([], [([], a), ([], b)], (_, cs) => App(cs[0], cs[1]))
     IfZ(c, t, f) =>
-      @names.Node([], [([], c), ([], t), ([], f)], (_, cs) => {
+      @utils.Node([], [([], c), ([], t), ([], f)], (_, cs) => {
         IfZ(cs[0], cs[1], cs[2])
       })
-    Succ(t) => @names.Node([], [([], t)], (_, cs) => Succ(cs[0]))
-    Pred(t) => @names.Node([], [([], t)], (_, cs) => Pred(cs[0]))
-    Abort(t) => @names.Node([], [([], t)], (_, cs) => Abort(cs[0]))
-    Control(t) => @names.Node([], [([], t)], (_, cs) => Control(cs[0]))
-    Zero => @names.Node([], [], (_, _) => Zero)
+    Succ(t) => @utils.Node([], [([], t)], (_, cs) => Succ(cs[0]))
+    Pred(t) => @utils.Node([], [([], t)], (_, cs) => Pred(cs[0]))
+    Abort(t) => @utils.Node([], [([], t)], (_, cs) => Abort(cs[0]))
+    Control(t) => @utils.Node([], [([], t)], (_, cs) => Control(cs[0]))
+    Zero => @utils.Node([], [], (_, _) => Zero)
   }
 }
 
 ///|
 fn subst(t : Term, x : String, r : Term) -> Term {
-  @names.substitute({ view, variable: x => Var(x), }, t, x, r)
+  @utils.substitute({ view, variable: x => Var(x), }, t, x, r)
 }
 
 ///|
-fn read(p : @p.Parser) -> Term raise @base.Fault {
+fn read(p : @utils.Parser) -> Term raise @utils.Fault {
   if p.eat_keyword("fun") {
     let x = p.ident()
     p.expect_text("=>")
@@ -87,7 +87,7 @@ fn read(p : @p.Parser) -> Term raise @base.Fault {
     let b = read(g)
     g.finish()
     App(a, b)
-  } else if p.peek() == @p.Symbol('(') {
+  } else if p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let a = read(g)
     let t = if g.eof() { a } else { App(a, read(g)) }
@@ -95,7 +95,7 @@ fn read(p : @p.Parser) -> Term raise @base.Fault {
     t
   } else if p.eat_keyword("zero") {
     Zero
-  } else if p.peek() == @p.Number("0") {
+  } else if p.peek() == @utils.Number("0") {
     ignore(p.bump())
     Zero
   } else if p.eat_keyword("succ") || p.eat_keyword("S") {
@@ -162,7 +162,7 @@ fn reduce(t : Term) -> Term? {
     Succ(t) => if is_value(t) { None } else { reduce(t).map(t => Succ(t)) }
     Pred(t) =>
       match as_number(t) {
-        Some(n) => Some(number(@base.pred(n)))
+        Some(n) => Some(number(@utils.pred(n)))
         None => if is_value(t) { None } else { reduce(t).map(t => Pred(t)) }
       }
     IfZ(c, t, f) =>
@@ -182,13 +182,9 @@ fn reduce(t : Term) -> Term? {
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let p = @p.create(text)
-  let code = read(p)
-  p.finish()
-  let code = @names.normalize({ view, variable: x => Var(x), }, code)
+fn make(code : Term, input : @pcf.Inputs) -> State {
   let mut current = code
-  for n in @pcf.inputs(input) {
+  for n in input.values {
     current = App(current, number(n))
   }
   { code, current, }
@@ -197,37 +193,40 @@ fn make(text : String, input : String) -> State raise @base.Fault {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   match reduce(s.current) {
-    Some(current) => @runtime.Continue({ ..s, current, }, "")
+    Some(current) => @definition.Continue({ ..s, current, }, ())
     None => {
-      @base.require(is_value(s.current), "stuck term: " + pretty(s.current))
-      @runtime.Halt(pretty(s.current))
+      @utils.require(is_value(s.current), "stuck term: " + pretty(s.current))
+      @definition.Halt(s.current)
     }
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([("code", term_json(s.code)), ("current", term_json(s.current))])
+  @utils.object([("code", term_json(s.code)), ("current", term_json(s.current))])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
+fn decode(j : Json) -> State raise @utils.Fault {
   {
-    code: decode_term(@base.field(j, "code")),
-    current: decode_term(@base.field(j, "current")),
+    code: decode_term(@utils.field(j, "code")),
+    current: decode_term(@utils.field(j, "current")),
   }
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, s => {
-    @base.jarray([
-      @base.titled("code", pretty(s.code)),
-      @base.titled("current", pretty(s.current)),
-    ])
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
   })
 }

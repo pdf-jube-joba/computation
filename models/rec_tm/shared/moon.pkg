@@ -1,5 +1,4 @@
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/data",
-  "computation/models/utils/parsing" @p,
+  "computation/models/definition",
+  "computation/models/utils",
 }

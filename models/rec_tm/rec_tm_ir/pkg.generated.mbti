@@ -2,9 +2,9 @@
 package "computation/models/models/rec_tm/rec_tm_ir"
 
 import {
+  "computation/models/definition",
   "computation/models/models/rec_tm/shared",
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/utils",
   "moonbitlang/core/json",
 }
 
@@ -15,19 +15,19 @@ pub fn code_json(Code) -> @json.Json
 
 pub fn collect_vars(Array[Block]) -> Array[String]
 
-pub fn decode_blocks(@json.Json) -> Array[Block] raise @base.Fault
+pub fn decode_blocks(@json.Json) -> Array[Block] raise @utils.Fault
 
-pub fn decode_code(@json.Json) -> Code raise @base.Fault
+pub fn decode_code(@json.Json) -> Code raise @utils.Fault
 
-pub fn find_function(Code, String) -> FunctionDef raise @base.Fault
+pub fn find_function(Code, String) -> FunctionDef raise @utils.Fault
 
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, @shared.Tape, Unit, Unit, @shared.Tape, State]
 
-pub fn parse_code(String) -> Code raise @base.Fault
+pub fn parse_code(String) -> Code raise @utils.Fault
 
-pub fn print_code(Code) -> String raise @base.Fault
+pub fn print_code(Code) -> String
 
-pub fn sd(@json.Json) -> Stmt raise @base.Fault
+pub fn sd(@json.Json) -> Stmt raise @utils.Fault
 
 pub fn sj(Stmt) -> @json.Json
 
@@ -35,7 +35,7 @@ pub fn stmt_text(Stmt) -> String
 
 pub fn stmt_vars(Stmt) -> Array[String]
 
-pub fn validate(Code) -> Unit raise @base.Fault
+pub fn validate(Code) -> Unit raise @utils.Fault
 
 // Errors
 
@@ -51,12 +51,17 @@ pub(all) struct Code {
   alphabet : Array[String]
   functions : Array[FunctionDef]
 }
+pub impl @definition.Text for Code
 
 #derive(Eq)
 pub(all) struct FunctionDef {
   name : String
   blocks : Array[Block]
 }
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 #derive(Eq)
 pub(all) enum Stmt {
@@ -71,5 +76,12 @@ pub(all) enum Stmt {
 }
 
 // Type aliases
+pub using @shared {type Tape as Ainput}
+
+pub using @shared {type Tape as Foutput}
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

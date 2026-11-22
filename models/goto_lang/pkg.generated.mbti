@@ -2,16 +2,44 @@
 package "computation/models/models/goto_lang"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, Environment, Unit, Unit, Environment, State]
 
 // Errors
 
 // Types and methods
+pub(all) struct Code {
+  commands : Array[Command]
+}
+pub impl @definition.Text for Code
+
+pub(all) enum Command {
+  Clr(String)
+  Inc(String)
+  Dec(String)
+  Cpy(String, String)
+  Ifnz(String, @utils.Nat)
+}
+
+#alias(Ainput)
+#alias(Foutput)
+pub(all) struct Environment {
+  values : Array[(String, @utils.Nat)]
+}
+pub impl @definition.Text for Environment
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

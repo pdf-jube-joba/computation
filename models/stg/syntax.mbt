@@ -2,7 +2,7 @@
 #derive(Eq)
 priv enum Atom {
   Var(String)
-  Lit(@base.Nat)
+  Lit(@utils.Nat)
 }
 
 ///|
@@ -27,7 +27,7 @@ priv enum Prim {
 priv enum Expr {
   App(String, Array[Atom])
   Con(String, Array[Atom])
-  Nat(@base.Nat)
+  Nat(@utils.Nat)
   Prim(Prim, Atom, Atom)
   Let(Bool, Array[(String, Lambda)], Expr)
   Case(Expr, Array[(Pattern, Expr)])
@@ -46,19 +46,19 @@ priv struct Lambda {
 #derive(Eq)
 priv enum Pattern {
   Constructor(String, Array[String])
-  Literal(@base.Nat)
+  Literal(@utils.Nat)
   Default(String?)
 }
 
 ///|
-type Code = Array[(String, Lambda)]
+type Bindings = Array[(String, Lambda)]
 
 ///|
 fn[T] list(
-  p : @p.Parser,
+  p : @utils.Parser,
   opening : Char,
-  read : (@p.Parser) -> T raise @base.Fault,
-) -> Array[T] raise @base.Fault {
+  read : (@utils.Parser) -> T raise @utils.Fault,
+) -> Array[T] raise @utils.Fault {
   let g = p.group(opening)
   let xs = []
   while !g.eof() {
@@ -67,47 +67,47 @@ fn[T] list(
       break
     }
     g.expect(',')
-    @base.require(!g.eof(), "Expected item after comma")
+    @utils.require(!g.eof(), "Expected item after comma")
   }
   xs
 }
 
 ///|
-fn read_atom(p : @p.Parser) -> Atom raise @base.Fault {
+fn read_atom(p : @utils.Parser) -> Atom raise @utils.Fault {
   match p.peek() {
-    @p.Ident(_) => Var(p.ident())
-    @p.Number(_) => Lit(p.natural())
+    @utils.Ident(_) => Var(p.ident())
+    @utils.Number(_) => Lit(p.natural())
     _ => p.error("Expected a variable or natural number")
   }
 }
 
 ///|
-fn read_expr(p : @p.Parser) -> Expr raise @base.Fault {
-  if p.peek() == @p.Symbol('(') {
+fn read_expr(p : @utils.Parser) -> Expr raise @utils.Fault {
+  if p.peek() == @utils.Symbol('(') {
     let g = p.group('(')
     let e = read_expr(g)
     g.finish()
     return e
   }
   match p.peek() {
-    @p.Number(_) => Nat(p.natural())
-    @p.Ident(_) => {
+    @utils.Number(_) => Nat(p.natural())
+    @utils.Ident(_) => {
       let n = p.ident()
       App(n, list(p, '(', read_atom))
     }
-    @p.Keyword("con") => {
+    @utils.Keyword("con") => {
       ignore(p.bump())
       let n = p.ident()
       Con(n, list(p, '(', read_atom))
     }
-    @p.Keyword("let") | @p.Keyword("letrec") => {
+    @utils.Keyword("let") | @utils.Keyword("letrec") => {
       let rec = p.keyword() == "letrec"
       let g = p.group('{')
       let bs = read_bindings(g)
       p.expect_keyword("in")
       Let(rec, bs, read_expr(p))
     }
-    @p.Keyword("case") => {
+    @utils.Keyword("case") => {
       ignore(p.bump())
       let e = read_expr(p)
       p.expect_keyword("of")
@@ -122,11 +122,11 @@ fn read_expr(p : @p.Parser) -> Expr raise @base.Fault {
       }
       Case(e, alts)
     }
-    @p.Keyword("add")
-    | @p.Keyword("sub")
-    | @p.Keyword("mul")
-    | @p.Keyword("eq")
-    | @p.Keyword("lt") => {
+    @utils.Keyword("add")
+    | @utils.Keyword("sub")
+    | @utils.Keyword("mul")
+    | @utils.Keyword("eq")
+    | @utils.Keyword("lt") => {
       let o = match p.keyword() {
         "add" => Add
         "sub" => Sub
@@ -135,7 +135,7 @@ fn read_expr(p : @p.Parser) -> Expr raise @base.Fault {
         _ => Lt
       }
       let xs = list(p, '(', read_atom)
-      @base.require(xs.length() == 2, "Primitive operations require two atoms")
+      @utils.require(xs.length() == 2, "Primitive operations require two atoms")
       Prim(o, xs[0], xs[1])
     }
     _ => p.error("Expected an STG expression")
@@ -143,7 +143,7 @@ fn read_expr(p : @p.Parser) -> Expr raise @base.Fault {
 }
 
 ///|
-fn read_bindings(p : @p.Parser) -> Code raise @base.Fault {
+fn read_bindings(p : @utils.Parser) -> Bindings raise @utils.Fault {
   let bs = []
   while !p.eof() {
     let n = p.ident()
@@ -167,18 +167,18 @@ fn read_bindings(p : @p.Parser) -> Code raise @base.Fault {
 }
 
 ///|
-fn read_alternative(p : @p.Parser) -> (Pattern, Expr) raise @base.Fault {
+fn read_alternative(p : @utils.Parser) -> (Pattern, Expr) raise @utils.Fault {
   let pattern = match p.peek() {
-    @p.Number(_) => Literal(p.natural())
-    @p.Ident(_) => {
+    @utils.Number(_) => Literal(p.natural())
+    @utils.Ident(_) => {
       let n = p.ident()
       Constructor(n, list(p, '(', p => p.ident()))
     }
-    @p.Keyword("default") => {
+    @utils.Keyword("default") => {
       ignore(p.bump())
       Default(
         match p.peek() {
-          @p.Ident(_) => Some(p.ident())
+          @utils.Ident(_) => Some(p.ident())
           _ => None
         },
       )
@@ -190,8 +190,8 @@ fn read_alternative(p : @p.Parser) -> (Pattern, Expr) raise @base.Fault {
 }
 
 ///|
-fn unique(label : String, names : Array[String]) -> Unit raise @base.Fault {
-  @data.unique(names, "Duplicate " + label + ": ")
+fn unique(label : String, names : Array[String]) -> Unit raise @utils.Fault {
+  @utils.unique(names, "Duplicate " + label + ": ")
 }
 
 ///|
@@ -202,12 +202,12 @@ fn[T] append(a : Array[T], b : Array[T]) -> Array[T] {
 }
 
 ///|
-fn bound(scope : Array[String], x : String) -> Unit raise @base.Fault {
-  @base.require(scope.contains(x), "Unbound variable: " + x)
+fn bound(scope : Array[String], x : String) -> Unit raise @utils.Fault {
+  @utils.require(scope.contains(x), "Unbound variable: " + x)
 }
 
 ///|
-fn check_atom(scope : Array[String], a : Atom) -> Unit raise @base.Fault {
+fn check_atom(scope : Array[String], a : Atom) -> Unit raise @utils.Fault {
   match a {
     Var(x) => bound(scope, x)
     _ => ()
@@ -219,7 +219,7 @@ fn check_expr(
   globals : Array[String],
   scope : Array[String],
   e : Expr,
-) -> Unit raise @base.Fault {
+) -> Unit raise @utils.Fault {
   match e {
     Nat(_) => ()
     App(f, xs) => {
@@ -237,7 +237,7 @@ fn check_expr(
       check_atom(scope, b)
     }
     Let(rec, bs, body) => {
-      @base.require(!bs.is_empty(), "Empty let binding group")
+      @utils.require(!bs.is_empty(), "Empty let binding group")
       let names = bs.map(b => b.0)
       unique("binding", names)
       let inner = append(names, scope)
@@ -258,9 +258,9 @@ fn check_lambda(
   globals : Array[String],
   scope : Array[String],
   lf : Lambda,
-) -> Unit raise @base.Fault {
+) -> Unit raise @utils.Fault {
   unique("capture/parameter", append(lf.free, lf.args))
-  @base.require(
+  @utils.require(
     !(lf.update == Updatable && !lf.args.is_empty()),
     "An updatable lambda must have no parameters",
   )
@@ -276,8 +276,8 @@ fn check_alternatives(
   globals : Array[String],
   scope : Array[String],
   alts : Array[(Pattern, Expr)],
-) -> Unit raise @base.Fault {
-  @base.require(!alts.is_empty(), "Empty case alternatives")
+) -> Unit raise @utils.Fault {
+  @utils.require(!alts.is_empty(), "Empty case alternatives")
   let keys = alts.map(a => {
     match a.0 {
       Constructor(c, _) => "con:" + c
@@ -298,24 +298,24 @@ fn check_alternatives(
 }
 
 ///|
-fn validate(code : Code) -> Unit raise @base.Fault {
+fn validate(code : Bindings) -> Unit raise @utils.Fault {
   let globals = code.map(b => b.0)
   unique("global binding", globals)
-  @base.require(globals.contains("main"), "Missing main binding")
+  @utils.require(globals.contains("main"), "Missing main binding")
   for b in code {
-    @base.require(
+    @utils.require(
       b.1.free.is_empty(),
       "Top-level lambdas cannot capture local variables",
     )
     check_lambda(globals, globals, b.1)
   }
   let main = code.iter().find_first(b => b.0 == "main").unwrap().1
-  @base.require(main.args.is_empty(), "main must have no parameters")
+  @utils.require(main.args.is_empty(), "main must have no parameters")
 }
 
 ///|
-fn parse(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+fn parse(text : String) -> Bindings raise @utils.Fault {
+  let p = @utils.create(text)
   let code = read_bindings(p)
   validate(code)
   code
@@ -331,7 +331,7 @@ fn atom_text(a : Atom) -> String {
 
 ///|
 fn atoms(xs : Array[Atom]) -> String {
-  "(" + @base.join(xs.map(atom_text), ", ") + ")"
+  "(" + @utils.join(xs.map(atom_text), ", ") + ")"
 }
 
 ///|
@@ -362,7 +362,7 @@ fn expr_text(e : Expr) -> String {
       "\\case " +
       expr_text(e) +
       " \\of { " +
-      @base.join(
+      @utils.join(
         alts.map(a => pattern_text(a.0) + " -> " + expr_text(a.1)),
         "; ",
       ) +
@@ -373,7 +373,7 @@ fn expr_text(e : Expr) -> String {
 ///|
 fn pattern_text(p : Pattern) -> String {
   match p {
-    Constructor(c, xs) => c + "(" + @base.join(xs, ", ") + ")"
+    Constructor(c, xs) => c + "(" + @utils.join(xs, ", ") + ")"
     Literal(n) => n.to_string()
     Default(None) => "\\default"
     Default(Some(x)) => "\\default " + x
@@ -383,16 +383,16 @@ fn pattern_text(p : Pattern) -> String {
 ///|
 fn lambda_text(lf : Lambda) -> String {
   "\\fun [" +
-  @base.join(lf.free, ", ") +
+  @utils.join(lf.free, ", ") +
   "] " +
   (if lf.update == Updatable { "\\u" } else { "\\n" }) +
   " [" +
-  @base.join(lf.args, ", ") +
+  @utils.join(lf.args, ", ") +
   "] -> " +
   expr_text(lf.body)
 }
 
 ///|
-fn code_text(bs : Code) -> String {
-  @base.join(bs.map(b => b.0 + " = " + lambda_text(b.1)), "; ")
+fn code_text(bs : Bindings) -> String {
+  @utils.join(bs.map(b => b.0 + " = " + lambda_text(b.1)), "; ")
 }

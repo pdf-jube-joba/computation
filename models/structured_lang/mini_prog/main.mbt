@@ -1,31 +1,16 @@
 ///|
-fn validate(code : Code) -> Unit raise @base.Fault {
+fn validate(code : Code) -> Unit raise @utils.Fault {
   let names : Map[String, Bool] = Map([])
   for f in code.functions {
-    @base.require(!names.contains(f.name), "duplicate function: " + f.name)
+    @utils.require(!names.contains(f.name), "duplicate function: " + f.name)
     names[f.name] = true
   }
 }
 
 ///|
-fn make(code : String, input : String) -> State raise @base.Fault {
-  let code = parse_code(code)
+fn make(code : Code, input : Ainput) -> State raise @utils.Fault {
   validate(code)
-  let p = @p.create(input)
-  let g = p.group('(')
-  let args = []
-  while !g.eof() {
-    if g.eat(',') {
-      continue
-    }
-    ignore(g.eat('+'))
-    args.push(Number_value(g.natural()))
-    if !g.eof() {
-      g.expect(',')
-    }
-  }
-  g.finish()
-  p.finish()
+  let args = input.values.map(n => Number_value(n))
   let mut statics = []
   for definition in code.statics {
     statics = assoc_set(statics, definition.name, {
@@ -50,46 +35,45 @@ fn make(code : String, input : String) -> State raise @base.Fault {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   match s.exec {
-    Eval(st) => @runtime.Continue(step_eval(s, st), "")
-    Ctrl(c) => @runtime.Continue(step_ctrl(s, c), "")
+    Eval(st) => @definition.Continue(step_eval(s, st), ())
+    Ctrl(c) => @definition.Continue(step_ctrl(s, c), ())
     Ret(values) =>
       if s.fn_k.is_empty() {
-        @base.require(
+        @utils.require(
           values.length() == 1,
           "main must return exactly one value",
         )
         match values[0] {
-          Number_value(n) => @runtime.Halt(n.to_string())
-          _ => @base.error("main must return a natural number")
+          Number_value(n) => @definition.Halt(n)
+          _ => @utils.error("main must return a natural number")
         }
       } else {
-        @runtime.Continue(step_ret(s, values), "")
+        @definition.Continue(step_ret(s, values), ())
       }
   }
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
+fn decode(j : Json) -> State raise @utils.Fault {
   let s = read_state(j)
   validate(s.code)
-  @base.require(
+  @utils.require(
     s.next_local_id >= 0 && s.next_heap_id >= 0,
     "Invalid ID supply",
   )
-  fn key(k : Key) -> Unit raise @base.Fault {
+  fn key(k : Key) -> Unit raise @utils.Fault {
     match k {
       Heap(id) =>
-        @base.require(id >= 0 && id < s.next_heap_id, "Invalid heap ID")
+        @utils.require(id >= 0 && id < s.next_heap_id, "Invalid heap ID")
       Local_key(id) =>
-        @base.require(id >= 0 && id < s.next_local_id, "Invalid local ID")
+        @utils.require(id >= 0 && id < s.next_local_id, "Invalid local ID")
       Static_key(_) => ()
     }
   }
-  fn value(v : Value) -> Unit raise @base.Fault {
+  fn value(v : Value) -> Unit raise @utils.Fault {
     match v {
       Ptr_value(Some(loc)) => key(loc.key)
       Aggregate(vs) =>
@@ -134,6 +118,15 @@ fn decode(j : Json) -> State raise @base.Fault {
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, json_state, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

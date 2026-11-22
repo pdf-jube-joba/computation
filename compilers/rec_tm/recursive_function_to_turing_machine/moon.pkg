@@ -1,5 +1,5 @@
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
   "computation/models/compilers/rec_tm/recursive_function_to_rec_tm_ir" @first,
   "computation/models/compilers/rec_tm/rec_tm_ir_to_rec_tm_ir_jump" @second,
   "computation/models/compilers/rec_tm/rec_tm_ir_jump_to_turing_machine" @third,

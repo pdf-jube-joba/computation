@@ -2,78 +2,77 @@
 package "computation/models/models/pcf/shared"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/parsing",
-  "moonbitlang/core/bigint",
+  "computation/models/definition",
+  "computation/models/utils",
   "moonbitlang/core/json",
 }
 
 // Values
-pub fn apply(Value, Value) -> (Expr, Array[(String, Value)]) raise @base.Fault
+pub fn apply(Value, Value) -> (Expr, Array[(String, Value)]) raise @utils.Fault
 
-pub fn apply_inputs(Expr, Array[@bigint.BigInt]) -> Expr
+pub fn apply_inputs(Expr, Array[@utils.Nat]) -> Expr
 
-pub fn as_nat(Value) -> @bigint.BigInt raise @base.Fault
+pub fn as_nat(Value) -> @utils.Nat raise @utils.Fault
 
 pub fn bind(Array[(String, Value)], String, Value) -> Array[(String, Value)]
 
-pub fn binop(Binop, Expr, Expr) -> Expr raise @base.Fault
+pub fn binop(Binop, Expr, Expr) -> Expr raise @utils.Fault
 
 pub fn binop_json(Binop) -> @json.Json
 
 pub fn binop_text(Binop) -> String
 
-pub fn boolean(String, Value) -> Bool raise @base.Fault
+pub fn boolean(String, Value) -> Bool raise @utils.Fault
 
-pub fn decode_binop(@json.Json) -> Binop raise @base.Fault
+pub fn decode_binop(@json.Json) -> Binop raise @utils.Fault
 
-pub fn decode_env(@json.Json) -> Array[(String, Value)] raise @base.Fault
+pub fn decode_env(@json.Json) -> Array[(String, Value)] raise @utils.Fault
 
-pub fn decode_expr(@json.Json) -> Expr raise @base.Fault
+pub fn decode_expr(@json.Json) -> Expr raise @utils.Fault
 
-pub fn decode_stmt(@json.Json) -> Stmt raise @base.Fault
+pub fn decode_stmt(@json.Json) -> Stmt raise @utils.Fault
 
-pub fn decode_unop(@json.Json) -> Unop raise @base.Fault
+pub fn decode_unop(@json.Json) -> Unop raise @utils.Fault
 
-pub fn decode_value(@json.Json) -> Value raise @base.Fault
+pub fn decode_value(@json.Json) -> Value raise @utils.Fault
 
 pub fn env_json(Array[(String, Value)]) -> @json.Json
 
 pub fn expr_json(Expr) -> @json.Json
 
-pub fn inputs(String) -> Array[@bigint.BigInt] raise @base.Fault
+pub fn inputs(String) -> Array[@utils.Nat] raise @utils.Fault
 
 pub fn is_value(Expr) -> Bool
 
-pub fn lookup(Array[(String, Value)], String) -> Value raise @base.Fault
+pub fn lookup(Array[(String, Value)], String) -> Value raise @utils.Fault
 
 pub fn normalize(Expr) -> Expr
 
-pub fn parse(String, statements? : Bool) -> Expr raise @base.Fault
+pub fn parse(String, statements? : Bool) -> Expr raise @utils.Fault
 
 pub fn print(Expr) -> String
 
 pub fn print_stmt(Stmt) -> String
 
-pub fn read(@parsing.Parser, statements? : Bool) -> Expr raise @base.Fault
+pub fn read(@utils.Parser, statements? : Bool) -> Expr raise @utils.Fault
 
-pub fn render_env(Array[(String, Value)]) -> @json.Json
+pub fn render_env(Array[(String, Value)]) -> @definition.Block
 
-pub fn scalar_value(Expr) -> Value raise @base.Fault
+pub fn scalar_value(Expr) -> Value raise @utils.Fault
 
 pub fn stmt_json(Stmt) -> @json.Json
 
 pub fn substitute(Expr, String, Expr) -> Expr
 
-pub fn unop(Unop, Expr) -> Expr raise @base.Fault
+pub fn unop(Unop, Expr) -> Expr raise @utils.Fault
 
 pub fn unop_json(Unop) -> @json.Json
 
 pub fn unop_text(Unop) -> String
 
-pub fn validate_direct(Expr) -> Unit raise @base.Fault
+pub fn validate_direct(Expr) -> Unit raise @utils.Fault
 
-pub fn value_binop(Binop, Value, Value) -> Value raise @base.Fault
+pub fn value_binop(Binop, Value, Value) -> Value raise @utils.Fault
 
 pub fn value_expr(Value) -> Expr
 
@@ -81,7 +80,7 @@ pub fn value_json(Value) -> @json.Json
 
 pub fn value_text(Value) -> String
 
-pub fn value_unop(Unop, Value) -> Value raise @base.Fault
+pub fn value_unop(Unop, Value) -> Value raise @utils.Fault
 
 // Errors
 
@@ -95,10 +94,10 @@ pub(all) enum Binop {
 
 #derive(Eq)
 pub(all) enum Expr {
-  Nat(@bigint.BigInt)
+  Nat(@utils.Nat)
   Bool(Bool)
   Unit
-  Print(@bigint.BigInt)
+  Print(@utils.Nat)
   Var(String)
   BinOp(Expr, Binop, Expr)
   UnOp(Unop, Expr)
@@ -108,11 +107,28 @@ pub(all) enum Expr {
   If(Expr, Expr, Expr)
   Block(Stmt, Expr)
 }
+pub impl @definition.Text for Expr
+
+pub(all) struct Inputs {
+  values : Array[@utils.Nat]
+}
+pub impl @definition.Text for Inputs
+
+pub(all) enum Output {
+  Silent
+  Printed(@utils.Nat)
+}
+pub impl @definition.Text for Output
+
+pub(all) struct StatementCode {
+  expression : Expr
+}
+pub impl @definition.Text for StatementCode
 
 #derive(Eq)
 pub(all) enum Stmt {
   Skip
-  PrintStmt(@bigint.BigInt)
+  PrintStmt(@utils.Nat)
   Seq(Stmt, Stmt)
   Let(String, Expr)
   IfStmt(Expr, Stmt)
@@ -127,7 +143,7 @@ pub(all) enum Unop {
 }
 
 pub(all) enum Value {
-  VNat(@bigint.BigInt)
+  VNat(@utils.Nat)
   VBool(Bool)
   VUnit
   VFun(String, Expr, Array[(String, Value)])

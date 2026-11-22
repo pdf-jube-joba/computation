@@ -2,16 +2,31 @@
 package "computation/models/models/pcf/expr"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/pcf/shared",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[@shared.Expr, @shared.Inputs, Unit, @shared.Output, @utils.Nat, State]
 
 // Errors
 
 // Types and methods
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub using @shared {type Inputs as Ainput}
+
+pub using @shared {type Expr as Code}
+
+pub using @utils {type Nat as Foutput}
+
+pub type Rinput = Unit
+
+pub using @shared {type Output as Routput}
 
 // Traits

@@ -2,16 +2,32 @@
 package "computation/models/models/pure_lisp"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Sexp, Unit, Unit, Unit, Sexp, State]
 
 // Errors
 
 // Types and methods
+#alias(Code)
+#alias(Foutput)
+#derive(Eq)
+type Sexp
+pub impl @definition.Text for Sexp
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Ainput = Unit
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

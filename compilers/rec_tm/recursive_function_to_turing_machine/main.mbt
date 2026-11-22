@@ -1,14 +1,18 @@
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  let first = @first.compiler()
-  {
-    ..first,
-    compile_code: text => {
-      @target.print_code(
-        @third.compile(
-          @second.compile(@first.compile(@source.parse_code(text))),
-        ),
-      )
-    },
-  }
+pub fn compiler() -> @definition.Compiler[
+  @source.Code,
+  @source.Ainput,
+  @source.Rinput,
+  @source.Routput,
+  @source.Foutput,
+  @target.Code,
+  @target.Ainput,
+  @target.Rinput,
+  @target.Routput,
+  @target.Foutput,
+] {
+  @definition.compose(
+    @definition.compose(@first.compiler(), @second.compiler()),
+    @third.compiler(),
+  )
 }

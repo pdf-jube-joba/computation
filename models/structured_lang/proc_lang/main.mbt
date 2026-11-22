@@ -31,7 +31,7 @@ priv struct Frame {
 }
 
 ///|
-priv struct State {
+struct State {
   code : Code
   stmt : Stmt
   global_env : @a.Env
@@ -40,7 +40,7 @@ priv struct State {
 }
 
 ///|
-fn group(p : @p.Parser) -> Stmt raise @base.Fault {
+fn group(p : @utils.Parser) -> Stmt raise @utils.Fault {
   let g = p.group('[')
   let s = statement(g)
   g.finish()
@@ -48,7 +48,7 @@ fn group(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn single(p : @p.Parser) -> Stmt raise @base.Fault {
+fn single(p : @utils.Parser) -> Stmt raise @utils.Fault {
   if p.eat_keyword("Nop") {
     Nop
   } else if p.eat_keyword("if") {
@@ -66,7 +66,7 @@ fn single(p : @p.Parser) -> Stmt raise @base.Fault {
     Call(n, args, @a.names(p))
   } else if p.eat_keyword("return") {
     Return(@a.names(p))
-  } else if p.peek() == @p.Symbol('[') {
+  } else if p.peek() == @utils.Symbol('[') {
     group(p)
   } else {
     let n = p.ident()
@@ -76,7 +76,7 @@ fn single(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
+fn statement(p : @utils.Parser) -> Stmt raise @utils.Fault {
   let statements = [single(p)]
   while p.eat(';') {
     if p.eof() {
@@ -92,8 +92,8 @@ fn statement(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-pub fn parse_code(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse_code(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text)
   p.expect_keyword("static")
   let statics = @a.names(p)
   p.expect(';')
@@ -110,7 +110,7 @@ pub fn parse_code(text : String) -> Code raise @base.Fault {
     g.finish()
     procs.push({ name, params, locals, body, })
   }
-  @base.require(!procs.is_empty(), "At least one procedure is required")
+  @utils.require(!procs.is_empty(), "At least one procedure is required")
   { statics, procs, }
 }
 
@@ -126,10 +126,10 @@ fn st(s : Stmt) -> String {
       "\\call " +
       n +
       "(" +
-      @base.join(args, ", ") +
+      @utils.join(args, ", ") +
       ") -> " +
-      @base.join(rets, ", ")
-    Return(vs) => "\\return " + @base.join(vs, ", ")
+      @utils.join(rets, ", ")
+    Return(vs) => "\\return " + @utils.join(vs, ", ")
   }
 }
 
@@ -150,13 +150,13 @@ pub fn with_return(s : Stmt) -> Stmt {
 }
 
 ///|
-fn validate(code : Code) -> Procedure raise @base.Fault {
-  @data.unique(code.statics, "Duplicate static variable: ")
-  @data.unique(code.procs.map(p => p.name), "Duplicate procedure name: ")
+fn validate(code : Code) -> Procedure raise @utils.Fault {
+  @utils.unique(code.statics, "Duplicate static variable: ")
+  @utils.unique(code.procs.map(p => p.name), "Duplicate procedure name: ")
   for p in code.procs {
     let seen : Map[String, Bool] = Map([])
     for v in p.params {
-      @base.require(
+      @utils.require(
         !code.statics.contains(v),
         "Name conflict in " +
         p.name +
@@ -164,18 +164,18 @@ fn validate(code : Code) -> Procedure raise @base.Fault {
         v +
         " conflicts with static",
       )
-      @base.require(
+      @utils.require(
         !seen.contains(v),
         "Duplicate parameter " + v + " in " + p.name,
       )
       seen[v] = true
     }
     for v in p.locals {
-      @base.require(
+      @utils.require(
         !code.statics.contains(v),
         "Name conflict in " + p.name + ": local " + v + " conflicts with static",
       )
-      @base.require(
+      @utils.require(
         !seen.contains(v),
         "Name conflict in " +
         p.name +
@@ -188,17 +188,16 @@ fn validate(code : Code) -> Procedure raise @base.Fault {
   }
   let main = match code.procs.iter().find_first(p => p.name == "main") {
     Some(p) => p
-    None => @base.error("Procedure 'main' is required")
+    None => @utils.error("Procedure 'main' is required")
   }
-  @base.require(main.params.is_empty(), "main must have no parameters")
+  @utils.require(main.params.is_empty(), "main must have no parameters")
   main
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let code = parse_code(text)
+fn make(code : Code, input : @a.Environment) -> State raise @utils.Fault {
   let main = validate(code)
-  let global_env = @data.env_sorted(@a.parse_env(input))
+  let global_env = @utils.env_sorted(input.values)
   @a.validate_env(
     code.statics,
     global_env,
@@ -210,26 +209,30 @@ fn make(text : String, input : String) -> State raise @base.Fault {
     code,
     stmt: with_return(main.body),
     global_env,
-    local_env: @data.env_sorted(main.locals.map(n => (n, @base.zero()))),
+    local_env: @utils.env_sorted(main.locals.map(n => (n, @utils.zero()))),
     call_stack: [],
   }
 }
 
 ///|
-fn lookup(s : State, n : String) -> @base.Nat raise @base.Fault {
-  match @data.env_get(s.local_env, n) {
+fn lookup(s : State, n : String) -> @utils.Nat raise @utils.Fault {
+  match @utils.env_get(s.local_env, n) {
     Some(v) => v
-    None => @data.env_lookup(s.global_env, n)
+    None => @utils.env_lookup(s.global_env, n)
   }
 }
 
 ///|
-fn assign(s : State, n : String, value : @base.Nat) -> State raise @base.Fault {
-  if @data.env_get(s.local_env, n) is Some(_) {
-    { ..s, local_env: @data.env_set(s.local_env, n, value), }
+fn assign(
+  s : State,
+  n : String,
+  value : @utils.Nat,
+) -> State raise @utils.Fault {
+  if @utils.env_get(s.local_env, n) is Some(_) {
+    { ..s, local_env: @utils.env_set(s.local_env, n, value), }
   } else {
-    ignore(@data.env_lookup(s.global_env, n))
-    { ..s, global_env: @data.env_set(s.global_env, n, value), }
+    ignore(@utils.env_lookup(s.global_env, n))
+    { ..s, global_env: @utils.env_set(s.global_env, n, value), }
   }
 }
 
@@ -240,12 +243,12 @@ fn call(
   args : Array[String],
   rets : Array[String],
   continuation : Stmt,
-) -> (Stmt, State) raise @base.Fault {
+) -> (Stmt, State) raise @utils.Fault {
   let p = match s.code.procs.iter().find_first(p => p.name == n) {
     Some(p) => p
-    None => @base.error("Unknown procedure: " + n)
+    None => @utils.error("Unknown procedure: " + n)
   }
-  @base.require(
+  @utils.require(
     args.length() == p.params.length(),
     "Argument count mismatch for " +
     n +
@@ -257,7 +260,7 @@ fn call(
   let values = args.map(n => lookup(s, n))
   let mut local_env = p.params.mapi((i, n) => (n, values[i]))
   for n in p.locals {
-    local_env = @data.env_set(local_env, n, @base.zero())
+    local_env = @utils.env_set(local_env, n, @utils.zero())
   }
   let call_stack = [
     { stmt: continuation, local_env: s.local_env, ret_vars: rets, },
@@ -265,12 +268,12 @@ fn call(
   call_stack.append(s.call_stack)
   (
     with_return(p.body),
-    { ..s, local_env: @data.env_sorted(local_env), call_stack, },
+    { ..s, local_env: @utils.env_sorted(local_env), call_stack, },
   )
 }
 
 ///|
-fn small(s : State, stmt : Stmt) -> (Stmt, State) raise @base.Fault {
+fn small(s : State, stmt : Stmt) -> (Stmt, State) raise @utils.Fault {
   match stmt {
     Nop => (Nop, s)
     Assign(n, a) => (Nop, assign(s, n, @a.eval_aexp(a, n => lookup(s, n))))
@@ -289,7 +292,7 @@ fn small(s : State, stmt : Stmt) -> (Stmt, State) raise @base.Fault {
         (stmt, s)
       } else {
         let frame = s.call_stack[0]
-        @base.require(
+        @utils.require(
           vs.length() == frame.ret_vars.length(),
           "Return count mismatch: expected " +
           frame.ret_vars.length().to_string() +
@@ -313,14 +316,14 @@ fn small(s : State, stmt : Stmt) -> (Stmt, State) raise @base.Fault {
 ///|
 fn step(
   s : State,
-  _input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
+  __input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   match s.stmt {
     Return(_) if s.call_stack.is_empty() =>
-      @runtime.Halt(@a.print_env(s.global_env))
+      @definition.Halt(@a.Environment::{ values: s.global_env, })
     _ => {
       let (stmt, next) = small(s, s.stmt)
-      @runtime.Continue({ ..next, stmt, }, st(s.stmt))
+      @definition.Continue({ ..next, stmt, }, st(s.stmt))
     }
   }
 }
@@ -328,54 +331,54 @@ fn step(
 ///|
 fn sj(s : Stmt) -> Json {
   match s {
-    Nop => @base.tag("Nop", [])
-    Seq(a, b) => @base.tag("Seq", [sj(a), sj(b)])
-    Assign(n, a) => @base.tag("Assign", [@base.jstr(n), @a.aexp_json(a)])
-    If(c, b) => @base.tag("If", [@a.bexp_json(c), sj(b)])
-    While(c, b) => @base.tag("While", [@a.bexp_json(c), sj(b)])
+    Nop => @utils.tag("Nop", [])
+    Seq(a, b) => @utils.tag("Seq", [sj(a), sj(b)])
+    Assign(n, a) => @utils.tag("Assign", [@utils.jstr(n), @a.aexp_json(a)])
+    If(c, b) => @utils.tag("If", [@a.bexp_json(c), sj(b)])
+    While(c, b) => @utils.tag("While", [@a.bexp_json(c), sj(b)])
     Call(n, args, rets) =>
-      @base.tag("Call", [
-        @base.jstr(n),
+      @utils.tag("Call", [
+        @utils.jstr(n),
         @a.names_json(args),
         @a.names_json(rets),
       ])
-    Return(vs) => @base.tag("Return", [@a.names_json(vs)])
+    Return(vs) => @utils.tag("Return", [@a.names_json(vs)])
   }
 }
 
 ///|
-fn sd(j : Json) -> Stmt raise @base.Fault {
-  fn a(i : Int32) -> Json raise @base.Fault {
-    @base.tag_arg(j, i)
+fn sd(j : Json) -> Stmt raise @utils.Fault {
+  fn a(i : Int32) -> Json raise @utils.Fault {
+    @utils.tag_arg(j, i)
   }
-  match @base.tag_name(j) {
+  match @utils.tag_name(j) {
     "Nop" => Nop
     "Seq" => Seq(sd(a(0)), sd(a(1)))
     "Assign" =>
-      Assign(@base.identifier(@base.string(a(0))), @a.decode_aexp(a(1)))
+      Assign(@utils.identifier(@utils.string(a(0))), @a.decode_aexp(a(1)))
     "If" => If(@a.decode_bexp(a(0)), sd(a(1)))
     "While" => While(@a.decode_bexp(a(0)), sd(a(1)))
     "Call" =>
       Call(
-        @base.identifier(@base.string(a(0))),
+        @utils.identifier(@utils.string(a(0))),
         @a.decode_names(a(1)),
         @a.decode_names(a(2)),
       )
     "Return" => Return(@a.decode_names(a(0)))
-    _ => @base.error("Invalid procedure statement")
+    _ => @utils.error("Invalid procedure statement")
   }
 }
 
 ///|
 fn code_json(code : Code) -> Json {
-  @base.object([
+  @utils.object([
     ("statics", @a.names_json(code.statics)),
     (
       "procs",
-      @base.jarray(
+      @utils.jarray(
         code.procs.map(p => {
-          @base.object([
-            ("name", @base.jstr(p.name)),
+          @utils.object([
+            ("name", @utils.jstr(p.name)),
             ("params", @a.names_json(p.params)),
             ("locals", @a.names_json(p.locals)),
             ("body", sj(p.body)),
@@ -387,30 +390,30 @@ fn code_json(code : Code) -> Json {
 }
 
 ///|
-fn decode_code(j : Json) -> Code raise @base.Fault {
+fn decode_code(j : Json) -> Code raise @utils.Fault {
   {
-    statics: @a.decode_names(@base.field(j, "statics")),
-    procs: @base.array(@base.field(j, "procs")).map(j => {
-      name: @base.identifier(@base.string(@base.field(j, "name"))),
-      params: @a.decode_names(@base.field(j, "params")),
-      locals: @a.decode_names(@base.field(j, "locals")),
-      body: sd(@base.field(j, "body")),
+    statics: @a.decode_names(@utils.field(j, "statics")),
+    procs: @utils.array(@utils.field(j, "procs")).map(j => {
+      name: @utils.identifier(@utils.string(@utils.field(j, "name"))),
+      params: @a.decode_names(@utils.field(j, "params")),
+      locals: @a.decode_names(@utils.field(j, "locals")),
+      body: sd(@utils.field(j, "body")),
     }),
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
+  @utils.object([
     ("code", code_json(s.code)),
     ("stmt", sj(s.stmt)),
     ("global_env", @a.env_json(s.global_env)),
     ("local_env", @a.env_json(s.local_env)),
     (
       "call_stack",
-      @base.jarray(
+      @utils.jarray(
         s.call_stack.map(f => {
-          @base.object([
+          @utils.object([
             ("stmt", sj(f.stmt)),
             ("local_env", @a.env_json(f.local_env)),
             ("ret_vars", @a.names_json(f.ret_vars)),
@@ -422,34 +425,30 @@ fn encode(s : State) -> Json {
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
+fn decode(j : Json) -> State raise @utils.Fault {
   {
-    code: decode_code(@base.field(j, "code")),
-    stmt: sd(@base.field(j, "stmt")),
-    global_env: @a.decode_env(@base.field(j, "global_env")),
-    local_env: @a.decode_env(@base.field(j, "local_env")),
-    call_stack: @base.array(@base.field(j, "call_stack")).map(j => {
-      stmt: sd(@base.field(j, "stmt")),
-      local_env: @a.decode_env(@base.field(j, "local_env")),
-      ret_vars: @a.decode_names(@base.field(j, "ret_vars")),
+    code: decode_code(@utils.field(j, "code")),
+    stmt: sd(@utils.field(j, "stmt")),
+    global_env: @a.decode_env(@utils.field(j, "global_env")),
+    local_env: @a.decode_env(@utils.field(j, "local_env")),
+    call_stack: @utils.array(@utils.field(j, "call_stack")).map(j => {
+      stmt: sd(@utils.field(j, "stmt")),
+      local_env: @a.decode_env(@utils.field(j, "local_env")),
+      ret_vars: @a.decode_names(@utils.field(j, "ret_vars")),
     }),
   }
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, s => {
-    @base.jarray([
-      @base.titled("stmt", st(s.stmt)),
-      @base.titled(
-        "global env",
-        @a.print_env(@data.env_sorted(s.global_env), trailing_newline=false),
-      ),
-      @base.titled(
-        "local env",
-        @a.print_env(@data.env_sorted(s.local_env), trailing_newline=false),
-      ),
-      @base.titled("call stack depth", s.call_stack.length().to_string()),
-    ])
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
   })
 }

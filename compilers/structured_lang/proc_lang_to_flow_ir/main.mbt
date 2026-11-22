@@ -22,7 +22,12 @@ fn index_from_top(
   let len = c.fresh_vreg("len")
   [
     @ir.LGet(len),
-    @ir.BinOp(dst, @ir.VReg(len), @ir.Sub, @ir.Imm(@base.nint(offset))),
+    @ir.BinOp(
+      dst,
+      @ir.VReg(len),
+      @ir.Sub,
+      @ir.Imm(@utils.nint(offset.reinterpret_as_uint())),
+    ),
   ]
 }
 
@@ -31,8 +36,8 @@ fn variable_place(
   c : @lower.Builder,
   scope : Scope,
   name : String,
-) -> (Array[@ir.Stmt], @ir.PlaceExpr) raise @base.Fault {
-  match @data.env_lookup(scope.vars, name) {
+) -> (Array[@ir.Stmt], @ir.PlaceExpr) raise @utils.Fault {
+  match @utils.env_lookup(scope.vars, name) {
     Global => ([], @ir.Label(name))
     Local(i) => {
       let index = c.fresh_vreg("idx_local")
@@ -54,7 +59,7 @@ fn load_var(
   scope : Scope,
   name : String,
   dst : String,
-) -> Array[@ir.Stmt] raise @base.Fault {
+) -> Array[@ir.Stmt] raise @utils.Fault {
   let (stmts, place) = variable_place(c, scope, name)
   stmts + [@ir.Load(dst, place)]
 }
@@ -65,7 +70,7 @@ fn store_var(
   scope : Scope,
   name : String,
   src : @ir.ValueExpr,
-) -> Array[@ir.Stmt] raise @base.Fault {
+) -> Array[@ir.Stmt] raise @utils.Fault {
   let (stmts, place) = variable_place(c, scope, name)
   stmts + [@ir.Store(place, src)]
 }
@@ -76,7 +81,7 @@ fn atom(
   scope : Scope,
   dst : String,
   a : @a.Atom,
-) -> Array[@ir.Stmt] raise @base.Fault {
+) -> Array[@ir.Stmt] raise @utils.Fault {
   match a {
     @a.Imm(n) => [@ir.Assign(dst, @ir.Imm(n))]
     @a.Var(v) => load_var(c, scope, v, dst)
@@ -89,7 +94,7 @@ fn arithmetic(
   scope : Scope,
   dst : String,
   a : @a.Aexp,
-) -> Array[@ir.Stmt] raise @base.Fault {
+) -> Array[@ir.Stmt] raise @utils.Fault {
   match a {
     @a.Atom(a) => atom(c, scope, dst, a)
     @a.Bin(a, add, b) => {
@@ -108,7 +113,7 @@ fn statement(
   stmt : @s.Stmt,
   cont : String,
   scope : Scope,
-) -> String raise @base.Fault {
+) -> String raise @utils.Fault {
   match stmt {
     @s.Nop => {
       let label = c.fresh_region("nop")
@@ -192,7 +197,7 @@ fn statement(
         ss.append(load_var(c, scope, arg, r))
         arg_regs.push(r)
       }
-      let target = @data.env_lookup(scope.entries, name)
+      let target = @utils.env_lookup(scope.entries, name)
       let call_region = c.fresh_region("call")
       for r in arg_regs {
         ss.push(@ir.Push(@ir.VReg(r)))
@@ -211,10 +216,20 @@ fn statement(
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  @lower.compiler(
-    text => {
-      let source = @s.parse_code(text)
+pub fn compiler() -> @definition.Compiler[
+  @s.Code,
+  @s.Ainput,
+  @s.Rinput,
+  @s.Routput,
+  @s.Foutput,
+  @ir.Code,
+  @ir.Ainput,
+  @ir.Rinput,
+  @ir.Routput,
+  @ir.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=source => {
       let c = @lower.create()
       let halt = c.fresh_region("halt")
       c.single(halt, [@ir.Nop], @ir.Halt([]))
@@ -224,10 +239,10 @@ pub fn compiler() -> @runtime.Compiler {
       for p in source.procs {
         let mut vars = source.statics.map(v => (v, Global))
         for i, v in p.params {
-          vars = @data.env_set(vars, v, Param(i))
+          vars = @utils.env_set(vars, v, Param(i))
         }
         for i, v in p.locals {
-          vars = @data.env_set(vars, v, Local(i))
+          vars = @utils.env_set(vars, v, Local(i))
         }
         let scope = {
           vars,
@@ -237,12 +252,12 @@ pub fn compiler() -> @runtime.Compiler {
         }
         let body = statement(c, @s.with_return(p.body), halt, scope)
         c.single(
-          @data.env_lookup(entries, p.name),
-          p.locals.map(_ => @ir.Push(@ir.Imm(@base.zero()))),
+          @utils.env_lookup(entries, p.name),
+          p.locals.map(_ => @ir.Push(@ir.Imm(@utils.zero()))),
           @lower.enter(body),
         )
       }
-      let main = @data.env_lookup(entries, "main")
+      let main = @utils.env_lookup(entries, "main")
       c.single(
         "main",
         [@ir.Push(@ir.CodeLabel(halt)), @ir.Nop],
@@ -250,7 +265,9 @@ pub fn compiler() -> @runtime.Compiler {
       )
       c.finish(statics=Some(source.statics))
     },
-    rinput_identity=true,
-    routput_identity=true,
+    encode_ainput=input => @lower.encode_env(input.values),
+    encode_rinput=_ => "",
+    decode_routput=output => output,
+    decode_foutput=output => { values: @lower.decode_env(output), },
   )
 }

@@ -2,15 +2,15 @@
 #derive(Eq)
 priv enum Value {
   Addr(Int32)
-  Integer(@base.Nat)
+  Integer(@utils.Nat)
 }
 
 ///|
 type Env = Array[(String, Value)]
 
 ///|
-priv enum ResultValue {
-  Number(@base.Nat)
+enum ResultValue {
+  Number(@utils.Nat)
   Data(String, Array[Value])
   Function(Int32)
 }
@@ -37,8 +37,8 @@ priv enum Frame {
 }
 
 ///|
-priv struct State {
-  code : Code
+struct State {
+  code : Bindings
   globals : Env
   heap : Array[(Int32, Closure)]
   next_addr : Int32
@@ -57,7 +57,7 @@ fn value_text(v : Value) -> String {
 
 ///|
 fn values_text(xs : Array[Value]) -> String {
-  @base.join(xs.map(value_text), ", ")
+  @utils.join(xs.map(value_text), ", ")
 }
 
 ///|
@@ -70,18 +70,18 @@ fn result_text(v : ResultValue) -> String {
 }
 
 ///|
-fn lookup(env : Env, x : String) -> Value raise @base.Fault {
-  match @data.env_get(env, x) {
+fn lookup(env : Env, x : String) -> Value raise @utils.Fault {
+  match @utils.env_get(env, x) {
     Some(v) => v
-    None => @base.error("Unbound variable: " + x)
+    None => @utils.error("Unbound variable: " + x)
   }
 }
 
 ///|
-fn heap(s : State, a : Int32) -> Closure raise @base.Fault {
+fn heap(s : State, a : Int32) -> Closure raise @utils.Fault {
   match s.heap.iter().find_first(p => p.0 == a) {
     Some(p) => p.1
-    None => @base.error("Invalid heap address: @" + a.to_string())
+    None => @utils.error("Invalid heap address: @" + a.to_string())
   }
 }
 
@@ -91,7 +91,7 @@ fn bind(bindings : Env, env : Env) -> Env {
 }
 
 ///|
-fn atom(env : Env, a : Atom) -> Value raise @base.Fault {
+fn atom(env : Env, a : Atom) -> Value raise @utils.Fault {
   match a {
     Var(x) => lookup(env, x)
     Lit(n) => Integer(n)
@@ -104,8 +104,8 @@ fn set_heap(s : State, a : Int32, c : Closure) -> State {
 }
 
 ///|
-fn allocate(s : State, c : Closure) -> (Int32, State) raise @base.Fault {
-  @base.require(s.next_addr < 2147483647, "Heap address space exhausted")
+fn allocate(s : State, c : Closure) -> (Int32, State) raise @utils.Fault {
+  @utils.require(s.next_addr < 2147483647, "Heap address space exhausted")
   let a = s.next_addr
   (a, { ..s, heap: append([(a, c)], s.heap), next_addr: a + 1, })
 }
@@ -115,10 +115,10 @@ fn allocate_bindings(
   s : State,
   env : Env,
   rec : Bool,
-  bindings : Code,
-) -> (State, Env) raise @base.Fault {
+  bindings : Bindings,
+) -> (State, Env) raise @utils.Fault {
   let count = bindings.length()
-  @base.require(
+  @utils.require(
     count <= 2147483647 - s.next_addr,
     "Heap address space exhausted",
   )
@@ -132,9 +132,8 @@ fn allocate_bindings(
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  @base.unit_input(input)
-  let code = parse(text)
+fn make(program : Code, _input : Unit) -> State raise @utils.Fault {
+  let code = program.bindings
   let globals = code.mapi((a, b) => (b.0, Addr(a)))
   {
     code,
@@ -148,20 +147,20 @@ fn make(text : String, input : String) -> State raise @base.Fault {
 }
 
 ///|
-fn primitive(o : Prim, a : Value, b : Value) -> ResultValue raise @base.Fault {
+fn primitive(o : Prim, a : Value, b : Value) -> ResultValue raise @utils.Fault {
   match (a, b) {
     (Integer(a), Integer(b)) =>
       Number(
         match o {
           Add => a + b
-          Sub => @base.sub(a, b)
+          Sub => @utils.sub(a, b)
           Mul => a * b
-          Eq => if a == b { @base.one() } else { @base.zero() }
-          Lt => if a < b { @base.one() } else { @base.zero() }
+          Eq => if a == b { @utils.one() } else { @utils.zero() }
+          Lt => if a < b { @utils.one() } else { @utils.zero() }
         },
       )
     _ =>
-      @base.error(
+      @utils.error(
         "Primitive operands must be unboxed naturals; force them with case",
       )
   }
@@ -173,7 +172,7 @@ fn match_result(
   v : ResultValue,
   alts : Array[(Pattern, Expr)],
   env : Env,
-) -> (State, Expr, Env) raise @base.Fault {
+) -> (State, Expr, Env) raise @utils.Fault {
   let chosen = alts
     .iter()
     .find_first(a => {
@@ -188,19 +187,19 @@ fn match_result(
     None =>
       match alts.iter().find_first(a => a.0 is Default(_)) {
         Some(a) => a
-        None => @base.error("No matching case alternative")
+        None => @utils.error("No matching case alternative")
       }
   }
   let (p, body) = chosen
   match (p, v) {
     (Constructor(_, names), Data(_, fields)) => {
-      @base.require(
+      @utils.require(
         names.length() == fields.length(),
         "Constructor pattern arity mismatch",
       )
       (s, body, bind(names.mapi((i, n) => (n, fields[i])), env))
     }
-    (Constructor(_, _), _) => @base.error("Constructor pattern arity mismatch")
+    (Constructor(_, _), _) => @utils.error("Constructor pattern arity mismatch")
     (Default(Some(x)), v) => {
       let (v, s) = match v {
         Number(n) => (Integer(n), s)
@@ -217,7 +216,7 @@ fn match_result(
 }
 
 ///|
-fn transition(s : State) -> State raise @base.Fault {
+fn transition(s : State) -> State raise @utils.Fault {
   match s.control {
     Eval(e, env) => {
       let scope = append(env, s.globals)
@@ -253,7 +252,7 @@ fn transition(s : State) -> State raise @base.Fault {
     Enter(Addr(a)) =>
       match heap(s, a) {
         Blackhole =>
-          @base.error("Black hole: recursive thunk entry at @" + a.to_string())
+          @utils.error("Black hole: recursive thunk entry at @" + a.to_string())
         Evaluated(v) => { ..s, control: Return(v), }
         Pap(f, xs) =>
           if s.arguments.is_empty() {
@@ -301,10 +300,10 @@ fn transition(s : State) -> State raise @base.Fault {
       if !s.arguments.is_empty() {
         match v {
           Function(a) => { ..s, control: Enter(Addr(a)), }
-          _ => @base.error("Cannot apply a number or constructor")
+          _ => @utils.error("Cannot apply a number or constructor")
         }
       } else {
-        @base.require(!s.stack.is_empty(), "Evaluation already finished")
+        @utils.require(!s.stack.is_empty(), "Evaluation already finished")
         let stack = s.stack[1:].to_owned()
         match s.stack[0] {
           Update(a, arguments) => {
@@ -323,19 +322,18 @@ fn transition(s : State) -> State raise @base.Fault {
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   match s.control {
     Return(v) if s.arguments.is_empty() && s.stack.is_empty() =>
-      @runtime.Halt(result_text(v))
-    _ => @runtime.Continue(transition(s), "")
+      @definition.Halt(v)
+    _ => @definition.Continue(transition(s), ())
   }
 }
 
 ///|
 fn env_text(env : Env) -> String {
-  @base.join(env.map(p => p.0 + " = " + value_text(p.1)), ", ")
+  @utils.join(env.map(p => p.0 + " = " + value_text(p.1)), ", ")
 }
 
 ///|
@@ -354,7 +352,7 @@ fn frame_text(f : Frame) -> String {
     Update(a, xs) =>
       "update @" + a.to_string() + "; saved arguments: " + values_text(xs)
     Match(alts, env, xs) =>
-      @base.join(
+      @utils.join(
         alts.map(a => pattern_text(a.0) + " -> " + expr_text(a.1)),
         "; ",
       ) +
@@ -366,7 +364,7 @@ fn frame_text(f : Frame) -> String {
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let (mode, focus, env) = match s.control {
     Eval(e, env) => ("eval", expr_text(e), env)
     Enter(v) => ("enter", value_text(v), [])
@@ -374,33 +372,33 @@ fn render(s : State) -> Json {
   }
   let heap = s.heap.copy()
   heap.sort_by((a, b) => a.0.compare(b.0))
-  @base.jarray([
-    @base.titled("code", code_text(s.code)),
-    @base.table("control", ["mode", "focus"], [[mode, focus]]),
-    @base.table(
+  [
+    @definition.titled("code", code_text(s.code)),
+    @definition.text_table("control", ["mode", "focus"], [[mode, focus]]),
+    @definition.text_table(
       "environment",
       ["name", "value"],
       env.map(p => [p.0, value_text(p.1)]),
     ),
-    @base.table(
+    @definition.text_table(
       "globals",
       ["name", "value"],
       s.globals.map(p => [p.0, value_text(p.1)]),
     ),
-    @base.table(
+    @definition.text_table(
       "arguments (top first)",
       ["index", "value"],
       s.arguments.mapi((i, v) => [i.to_string(), value_text(v)]),
     ),
-    @base.table(
+    @definition.text_table(
       "return / update stack (top first)",
       ["index", "value"],
       s.stack.mapi((i, f) => [i.to_string(), frame_text(f)]),
     ),
-    @base.table(
+    @definition.text_table(
       "heap",
       ["address", "closure"],
       heap.map(p => ["@" + p.0.to_string(), closure_text(p.1)]),
     ),
-  ])
+  ]
 }

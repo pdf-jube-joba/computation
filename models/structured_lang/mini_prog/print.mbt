@@ -7,8 +7,8 @@ fn type_text(t : Ty) -> String {
     Unit => "\\unit"
     Ptr => "\\ptr"
     Fn => "\\fn"
-    Product(ts) => @base.join(ts.map(type_text), " * ")
-    Sum(ts) => @base.join(ts.map(type_text), " + ")
+    Product(ts) => @utils.join(ts.map(type_text), " * ")
+    Sum(ts) => @utils.join(ts.map(type_text), " + ")
     Array(t, n) => "[" + type_text(t) + "; " + n.to_string() + "]"
   }
 }
@@ -41,7 +41,7 @@ fn place_text(p : Place) -> String {
 fn expr_text(v : Expr) -> String {
   match v {
     Number(n) => n.to_string()
-    Char(c) => "'" + c + "'"
+    Char(c) => @utils.char_text(c)
     Boolean(b) => if b { "\\true" } else { "\\false" }
     Unit_value => "\\unit"
     NullPtr => "\\null_ptr"
@@ -49,7 +49,7 @@ fn expr_text(v : Expr) -> String {
     BinOp(a, op, b) => expr_text(a) + " " + expr_text(b) + " " + op_text(op)
     UnOp(Not, v) => expr_text(v) + " !"
     Pair(vs) =>
-      @base.join(vs.map(expr_text), ", ") +
+      @utils.join(vs.map(expr_text), ", ") +
       " \\pair(" +
       vs.length().to_string() +
       ")"
@@ -76,15 +76,15 @@ fn stmt_text(st : Stmt) -> String {
       "\\call " +
       expr_text(f) +
       "(" +
-      @base.join(args.map(expr_text), ", ") +
+      @utils.join(args.map(expr_text), ", ") +
       ") -> " +
-      @base.join(rets.map(place_text), ", ")
+      @utils.join(rets.map(place_text), ", ")
     Return(vs) =>
       "\\return" +
       (if vs.is_empty() {
         ""
       } else {
-        " " + @base.join(vs.map(expr_text), ", ")
+        " " + @utils.join(vs.map(expr_text), ", ")
       })
     Block(b) => "\\block " + block_text(b)
   }
@@ -93,12 +93,12 @@ fn stmt_text(st : Stmt) -> String {
 ///|
 fn block_text(b : Block) -> String {
   "(" +
-  @base.join(
+  @utils.join(
     b.bindings.map(binding => binding.0 + ": " + type_text(binding.1)),
     ", ",
   ) +
   ") { " +
-  @base.join(b.stmts.map(stmt_text), "; ") +
+  @utils.join(b.stmts.map(stmt_text), "; ") +
   " }"
 }
 
@@ -114,7 +114,7 @@ fn key_text(key : Key) -> String {
 ///|
 fn location_text(loc : Location) -> String {
   key_text(loc.key) +
-  @base.join(
+  @utils.join(
     loc.projections.map(p => {
       match p {
         Field_proj(n) => "." + n.to_string()
@@ -137,7 +137,7 @@ fn value_text(v : Value) -> String {
     Ptr_value(Some(l)) => location_text(l)
     FnPtr(None) => "\\null_fn"
     FnPtr(Some(n)) => "fn " + n
-    Aggregate(vs) => "(" + @base.join(vs.map(value_text), ", ") + ")"
+    Aggregate(vs) => "(" + @utils.join(vs.map(value_text), ", ") + ")"
     Sum_value(t, v) => "tag(" + t.to_string() + ", " + value_text(v) + ")"
   }
 }
@@ -149,7 +149,7 @@ fn exec_text(exec : Exec) -> String {
     Ctrl(Next) => "ctrl next"
     Ctrl(Break_ctrl(l)) => "ctrl break " + l
     Ctrl(Continue_ctrl(l)) => "ctrl continue " + l
-    Ret(vs) => "ret " + @base.join(vs.map(value_text), ", ")
+    Ret(vs) => "ret " + @utils.join(vs.map(value_text), ", ")
   }
 }
 
@@ -172,36 +172,40 @@ fn cell_rows(cells : Array[(Int32, Cell)]) -> Array[Array[String]] {
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let env = []
   for index, scope in s.env {
-    for entry in @data.env_sorted(scope) {
+    for entry in @utils.env_sorted(scope) {
       env.push([index.to_string(), entry.0, entry.1.to_string()])
     }
   }
-  @base.jarray([
-    @base.table("status", ["field", "value"], [
+  [
+    @definition.text_table("status", ["field", "value"], [
       ["function", s.current_function],
       ["exec", exec_text(s.exec)],
       ["next_local_id", s.next_local_id.to_string()],
       ["next_heap_id", s.next_heap_id.to_string()],
     ]),
-    @base.table("env", ["scope", "name", "local"], env),
-    @base.table(
+    @definition.text_table("env", ["scope", "name", "local"], env),
+    @definition.text_table(
       "statics",
       ["name", "type", "value"],
-      @data.env_sorted(s.store.statics).map(entry => {
+      @utils.env_sorted(s.store.statics).map(entry => {
         [entry.0, type_text(entry.1.ty), value_text(entry.1.value)]
       }),
     ),
-    @base.table("heap", ["heap", "type", "value"], cell_rows(s.store.heap)),
-    @base.container(
+    @definition.text_table(
+      "heap",
+      ["heap", "type", "value"],
+      cell_rows(s.store.heap),
+    ),
+    @definition.container(
       "locals",
       s.store.locals.mapi((i, scopes) => {
-        @base.container(
+        @definition.container(
           "fn frame " + i.to_string(),
           scopes.mapi((j, cells) => {
-            @base.table(
+            @definition.text_table(
               "scope " + j.to_string(),
               ["local", "type", "value"],
               cell_rows(cells),
@@ -210,12 +214,12 @@ fn render(s : State) -> Json {
         )
       }),
     ),
-    @base.table(
+    @definition.text_table(
       "inner_k",
       ["depth", "frame"],
       s.inner_k.mapi((i, f) => [i.to_string(), inner_text(f)]),
     ),
-    @base.table(
+    @definition.text_table(
       "fn_k",
       ["depth", "function", "rets", "resume"],
       s.fn_k.mapi((i, f) => {
@@ -227,5 +231,5 @@ fn render(s : State) -> Json {
         ]
       }),
     ),
-  ])
+  ]
 }

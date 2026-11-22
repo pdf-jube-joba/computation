@@ -1,22 +1,21 @@
 ///|
-priv struct State {
+struct State {
   code : Array[Item]
   insts : Array[@machine.Instr[RawValue]]
   symbols : Symbols
   debug_info : DebugInfo
-  regs : Array[@base.Nat]
+  regs : Array[@utils.Nat]
   flag : Bool
   pc : Int32
   static_data_len : Int32
-  static_data : Array[@base.Nat]
-  data_memory : Array[@base.Nat]
+  static_data : Array[@utils.Nat]
+  data_memory : Array[@utils.Nat]
   halted : Bool
 }
 
 ///|
-fn make(text : String, input : String) -> State raise @base.Fault {
-  let code = parse(text)
-  let image = @machine.image(input)
+fn make(program : Code, image : @machine.Image) -> State raise @utils.Fault {
+  let code = program.items
   let symbols = symbols(code)
   let insts = []
   let static_data = []
@@ -26,11 +25,11 @@ fn make(text : String, input : String) -> State raise @base.Fault {
       Directive(Text) => data = false
       Directive(Data) => data = true
       Inst(i) => {
-        @base.require(!data, "Instruction found outside \\text section")
+        @utils.require(!data, "Instruction found outside \\text section")
         insts.push(lower(i))
       }
       DataValue(v) => {
-        @base.require(data, "Data value found outside \\data section")
+        @utils.require(data, "Data value found outside \\data section")
         static_data.push(resolve(symbols, true, static_data.length(), v))
       }
       _ => ()
@@ -48,7 +47,7 @@ fn make(text : String, input : String) -> State raise @base.Fault {
     },
     regs: image.register,
     flag: false,
-    pc: @base.index(image.register[0]),
+    pc: @utils.index(image.register[0]),
     static_data_len: static_data.length(),
     static_data,
     data_memory,
@@ -57,25 +56,24 @@ fn make(text : String, input : String) -> State raise @base.Fault {
 }
 
 ///|
-fn output(s : State) -> String {
-  @machine.image_text(s.regs, s.data_memory)
+fn output(s : State) -> @machine.Image {
+  { register: s.regs, memory: s.data_memory, }
 }
 
 ///|
 fn step(
   s : State,
-  input : String,
-) -> @runtime.Transition[State] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[State, Routput, Foutput] raise @utils.Fault {
   if s.halted {
-    return @runtime.Halt(output(s))
+    return @definition.Halt(output(s))
   }
   if s.pc >= s.insts.length() {
     let regs = s.regs.copy()
-    regs[0] = @base.nint(s.pc)
-    return @runtime.Halt(output({ ..s, regs, halted: true, }))
+    regs[0] = @utils.nint(s.pc.reinterpret_as_uint())
+    return @definition.Halt(output({ ..s, regs, halted: true, }))
   }
-  @base.require(s.pc >= 0, "Negative program counter")
+  @utils.require(s.pc >= 0, "Negative program counter")
   let (regs, flag, data_memory, halted) = @machine.execute(
     s.insts[s.pc],
     v => resolve(s.symbols, false, s.pc, v),
@@ -83,43 +81,43 @@ fn step(
     s.flag,
     s.data_memory,
   )
-  let pc = @base.index(regs[0])
+  let pc = @utils.index(regs[0])
   let next = { ..s, regs, flag, data_memory, halted, pc, }
   if halted {
-    @runtime.Halt(output(next))
+    @definition.Halt(output(next))
   } else {
-    @runtime.Continue(next, "")
+    @definition.Continue(next, ())
   }
 }
 
 ///|
 fn encode(s : State) -> Json {
-  @base.object([
-    ("code", @base.jarray(s.code.map(item_json))),
+  @utils.object([
+    ("code", @utils.jarray(s.code.map(item_json))),
     (
       "insts",
-      @base.jarray(s.insts.map(i => @machine.instr_json(i, rawvalue_json))),
+      @utils.jarray(s.insts.map(i => @machine.instr_json(i, rawvalue_json))),
     ),
     ("symbols", symbols_json(s.symbols)),
     ("debug_info", debug_json(s.debug_info)),
     ("regs", @machine.nats_json(s.regs)),
-    ("flag", @base.jbool(s.flag)),
-    ("pc", @base.jint(s.pc)),
-    ("static_data_len", @base.jint(s.static_data_len)),
+    ("flag", @utils.jbool(s.flag)),
+    ("pc", @utils.jint(s.pc)),
+    ("static_data_len", @utils.jint(s.static_data_len)),
     ("static_data", @machine.nats_json(s.static_data)),
     ("data_memory", @machine.nats_json(s.data_memory)),
-    ("halted", @base.jbool(s.halted)),
+    ("halted", @utils.jbool(s.halted)),
   ])
 }
 
 ///|
-fn decode(j : Json) -> State raise @base.Fault {
-  let regs = @machine.decode_nats(@base.field(j, "regs"))
+fn decode(j : Json) -> State raise @utils.Fault {
+  let regs = @machine.decode_nats(@utils.field(j, "regs"))
   @machine.validate_regs(regs)
-  let pc = @base.int(@base.field(j, "pc"))
-  let static_data_len = @base.int(@base.field(j, "static_data_len"))
-  let data_memory = @machine.decode_nats(@base.field(j, "data_memory"))
-  @base.require(
+  let pc = @utils.int(@utils.field(j, "pc"))
+  let static_data_len = @utils.int(@utils.field(j, "static_data_len"))
+  let data_memory = @machine.decode_nats(@utils.field(j, "data_memory"))
+  @utils.require(
     pc >= 0 && static_data_len >= 0 && static_data_len <= data_memory.length(),
     "Invalid assembly snapshot",
   )
@@ -128,34 +126,34 @@ fn decode(j : Json) -> State raise @base.Fault {
     pc,
     static_data_len,
     data_memory,
-    code: @base.array(@base.field(j, "code")).map(decode_item),
-    insts: @base.array(@base.field(j, "insts")).map(j => {
+    code: @utils.array(@utils.field(j, "code")).map(decode_item),
+    insts: @utils.array(@utils.field(j, "insts")).map(j => {
       @machine.decode_instr(j, decode_rawvalue)
     }),
-    symbols: decode_symbols(@base.field(j, "symbols")),
-    debug_info: decode_debug(@base.field(j, "debug_info")),
-    flag: @base.boolean(@base.field(j, "flag")),
-    static_data: @machine.decode_nats(@base.field(j, "static_data")),
-    halted: @base.boolean(@base.field(j, "halted")),
+    symbols: decode_symbols(@utils.field(j, "symbols")),
+    debug_info: decode_debug(@utils.field(j, "debug_info")),
+    flag: @utils.boolean(@utils.field(j, "flag")),
+    static_data: @machine.decode_nats(@utils.field(j, "static_data")),
+    halted: @utils.boolean(@utils.field(j, "halted")),
   }
 }
 
 ///|
-fn render(s : State) -> Json {
+fn render(s : State) -> Array[@definition.Block] {
   let next = if s.pc >= 0 && s.pc < s.insts.length() {
     @machine.text(s.insts[s.pc], raw_text)
   } else {
     "halt"
   }
-  @base.jarray([
-    @base.table("status", ["field", "value"], [
+  [
+    @definition.text_table("status", ["field", "value"], [
       ["pc", s.pc.to_string()],
       ["flag", s.flag.to_string()],
       ["next", next],
       ["halted", s.halted.to_string()],
     ]),
     @machine.registers(s.regs),
-    @base.table(
+    @definition.text_table(
       "data",
       ["addr", "label", "value"],
       s.data_memory.mapi((addr, v) => {
@@ -169,16 +167,25 @@ fn render(s : State) -> Json {
           if names.is_empty() {
             "-"
           } else {
-            @base.join(names, ", ")
+            @utils.join(names, ", ")
           },
           v.to_string(),
         ]
       }),
     ),
-  ])
+  ]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  State,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

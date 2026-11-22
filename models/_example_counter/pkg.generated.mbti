@@ -2,16 +2,42 @@
 package "computation/models/models/_example_counter"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Count, Unit, Operation, Event, Unit, Count]
 
 // Errors
 
 // Types and methods
+#alias(Code)
+pub(all) struct Count {
+  value : UInt32
+}
+pub impl @definition.Render for Count
+pub impl @definition.Snapshot for Count
+pub impl @definition.Text for Count
+
+#alias(Routput)
+pub(all) enum Event {
+  Incremented
+  Decremented
+}
+pub impl @definition.Text for Event
+
+#alias(Rinput)
+pub(all) enum Operation {
+  Inc
+  Dec
+}
+pub impl @definition.Text for Operation
 
 // Type aliases
+pub type Ainput = Unit
+
+pub type Foutput = Unit
 
 // Traits

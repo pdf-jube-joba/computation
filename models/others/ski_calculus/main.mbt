@@ -1,5 +1,5 @@
 ///|
-priv enum Term {
+enum Term {
   S
   K
   I
@@ -8,16 +8,16 @@ priv enum Term {
 }
 
 ///|
-fn read(p : @p.Parser) -> Term raise @base.Fault {
-  fn atom(p : @p.Parser) -> Array[Term] raise @base.Fault {
+fn read(p : @utils.Parser) -> Term raise @utils.Fault {
+  fn atom(p : @utils.Parser) -> Array[Term] raise @utils.Fault {
     match p.peek() {
-      @p.Symbol('(') => {
+      @utils.Symbol('(') => {
         let inner = p.group('(')
         let term = read(inner)
         inner.finish()
         [term]
       }
-      @p.Ident(word) => {
+      @utils.Ident(word) => {
         ignore(p.bump())
         if word.all(c => c == 'S' || c == 'K' || c == 'I') {
           word
@@ -50,8 +50,8 @@ fn read(p : @p.Parser) -> Term raise @base.Fault {
 }
 
 ///|
-fn parse(text : String) -> Term raise @base.Fault {
-  let p = @p.create(text)
+fn parse(text : String) -> Term raise @utils.Fault {
+  let p = @utils.create(text)
   read(p)
 }
 
@@ -88,60 +88,67 @@ fn reduce(term : Term) -> Term? {
 }
 
 ///|
-fn make(code : String, input : String) -> Term raise @base.Fault {
-  @base.unit_input(input)
-  parse(code)
+fn make(code : Term, _input : Unit) -> Term {
+  code
 }
 
 ///|
 fn step(
   term : Term,
-  input : String,
-) -> @runtime.Transition[Term] raise @base.Fault {
-  @base.unit_input(input)
+  _input : Rinput,
+) -> @definition.Transition[Term, Routput, Foutput] {
   match reduce(term) {
-    None => @runtime.Halt(print(term))
-    Some(next) => @runtime.Continue(next, "")
+    None => @definition.Halt(term)
+    Some(next) => @definition.Continue(next, ())
   }
 }
 
 ///|
 fn encode(term : Term) -> Json {
   match term {
-    S => @base.tag("S", [])
-    K => @base.tag("K", [])
-    I => @base.tag("I", [])
-    Var(name) => @base.tag("Var", [@base.jstr(name)])
-    App(a, b) => @base.tag("App", [encode(a), encode(b)])
+    S => @utils.tag("S", [])
+    K => @utils.tag("K", [])
+    I => @utils.tag("I", [])
+    Var(name) => @utils.tag("Var", [@utils.jstr(name)])
+    App(a, b) => @utils.tag("App", [encode(a), encode(b)])
   }
 }
 
 ///|
-fn decode(value : Json) -> Term raise @base.Fault {
-  match @base.tag_name(value) {
+fn decode(value : Json) -> Term raise @utils.Fault {
+  match @utils.tag_name(value) {
     "S" => S
     "K" => K
     "I" => I
     "Var" => {
-      let name = @base.identifier(@base.string(@base.tag_arg(value, 0)))
-      @base.require(
+      let name = @utils.identifier(@utils.string(@utils.tag_arg(value, 0)))
+      @utils.require(
         !name.all(c => c == 'S' || c == 'K' || c == 'I'),
         "Combinators cannot be variable names",
       )
       Var(name)
     }
     "App" =>
-      App(decode(@base.tag_arg(value, 0)), decode(@base.tag_arg(value, 1)))
-    _ => @base.error("Invalid combinator snapshot")
+      App(decode(@utils.tag_arg(value, 0)), decode(@utils.tag_arg(value, 1)))
+    _ => @utils.error("Invalid combinator snapshot")
   }
 }
 
 ///|
-fn render(term : Term) -> Json {
-  @base.jarray([@base.titled("term", print(term))])
+fn render(term : Term) -> Array[@definition.Block] {
+  [@definition.titled("term", print(term))]
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, render)
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  Term,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
+  })
 }

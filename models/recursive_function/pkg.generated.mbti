@@ -2,27 +2,33 @@
 package "computation/models/models/recursive_function"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
-  "moonbitlang/core/bigint",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
 pub fn arity(Func) -> Int32
 
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Func, Ainput, Unit, Unit, @utils.Nat, State]
 
-pub fn parse_code(String) -> Func raise @base.Fault
+pub fn parse_code(String) -> Func raise @utils.Fault
 
-pub fn parse_input(String) -> Array[@bigint.BigInt] raise @base.Fault
+pub fn parse_input(String) -> Array[@utils.Nat] raise @utils.Fault
 
 pub fn print_code(Func) -> String
 
-pub fn validate(Func) -> Unit raise @base.Fault
+pub fn validate(Func) -> Unit raise @utils.Fault
 
 // Errors
 
 // Types and methods
+pub(all) struct Ainput {
+  values : Array[@utils.Nat]
+}
+pub impl @definition.Text for Ainput
+
+#alias(Code)
 pub(all) enum Func {
   Zero
   Succ
@@ -31,7 +37,17 @@ pub(all) enum Func {
   Prim(Func, Func)
   Mu(Func)
 }
+pub impl @definition.Text for Func
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub using @utils {type Nat as Foutput}
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

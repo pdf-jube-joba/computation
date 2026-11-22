@@ -11,7 +11,7 @@ priv struct Builder {
 
 ///|
 fn imm(n : Int32) -> @c.ValueExpr {
-  @c.Imm(@base.nint(n))
+  @c.Imm(@utils.nint(n.reinterpret_as_uint()))
 }
 
 ///|
@@ -139,7 +139,7 @@ fn write3(
 
 ///|
 fn regs(register : String) -> (String, String, String) {
-  let n = @data.of_bytes(register).to_string()
+  let n = @utils.of_bytes(register).to_string()
   ("v" + n + "t", "v" + n + "a", "v" + n + "b")
 }
 
@@ -166,7 +166,7 @@ fn numeric(c : Builder, value : Triple) -> @c.ValueExpr {
 ///|
 fn index(c : Builder, value : Triple) -> @c.ValueExpr {
   let n = numeric(c, value)
-  require(c, (n, @c.Lt, @c.Imm(@base.nint(2147483647) + @base.one())))
+  require(c, (n, @c.Lt, @c.Imm(@utils.nint(2147483647) + @utils.one())))
   n
 }
 
@@ -175,8 +175,8 @@ fn[T] choose(
   c : Builder,
   key : @c.ValueExpr,
   cases : Array[(@c.ValueExpr, T)],
-  action : (T) -> Unit raise @base.Fault,
-) -> Unit raise @base.Fault {
+  action : (T) -> Unit raise @utils.Fault,
+) -> Unit raise @utils.Fault {
   let join = fresh(c, "join")
   let cases = cases.map(entry => (entry.0, entry.1, fresh(c, "case")))
   finish(

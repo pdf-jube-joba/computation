@@ -1,7 +1,7 @@
 ///|
 pub(all) enum ValueExpr {
   Reg(String)
-  Imm(@base.Nat)
+  Imm(@utils.Nat)
   Label(String)
   Memory(Int32)
 }
@@ -73,23 +73,23 @@ pub(all) struct Code {
 }
 
 ///|
-fn reg(p : @p.Parser) -> String raise @base.Fault {
+fn reg(p : @utils.Parser) -> String raise @utils.Fault {
   p.expect('%')
   p.ident()
 }
 
 ///|
-fn read_value(p : @p.Parser) -> ValueExpr raise @base.Fault {
-  if p.peek() == @p.Symbol('%') {
+fn read_value(p : @utils.Parser) -> ValueExpr raise @utils.Fault {
+  if p.peek() == @utils.Symbol('%') {
     Reg(reg(p))
   } else if p.eat(':') {
     Label(p.ident())
   } else {
     match p.peek() {
-      @p.Ident(n) if n.has_prefix("MEM_") => {
+      @utils.Ident(n) if n.has_prefix("MEM_") => {
         ignore(p.bump())
         Memory(
-          @base.index(@base.nat(n.unsafe_substring(start=4, end=n.length()))),
+          @utils.index(@utils.nat(n.unsafe_substring(start=4, end=n.length()))),
         )
       }
       _ => {
@@ -101,13 +101,13 @@ fn read_value(p : @p.Parser) -> ValueExpr raise @base.Fault {
 }
 
 ///|
-fn read_place(p : @p.Parser) -> Place raise @base.Fault {
+fn read_place(p : @utils.Parser) -> Place raise @utils.Fault {
   p.expect_keyword("deref")
   Deref(read_value(p))
 }
 
 ///|
-fn read_target(p : @p.Parser) -> ValueExpr raise @base.Fault {
+fn read_target(p : @utils.Parser) -> ValueExpr raise @utils.Fault {
   match read_value(p) {
     Reg(_) | Label(_) as v => v
     _ => p.error("Jump target must be a register or code label")
@@ -115,7 +115,7 @@ fn read_target(p : @p.Parser) -> ValueExpr raise @base.Fault {
 }
 
 ///|
-fn read_rhs(p : @p.Parser) -> Rhs raise @base.Fault {
+fn read_rhs(p : @utils.Parser) -> Rhs raise @utils.Fault {
   if p.eat_keyword("ld") {
     Load(read_place(p))
   } else if p.eat_keyword("slice") {
@@ -140,12 +140,12 @@ fn read_rhs(p : @p.Parser) -> Rhs raise @base.Fault {
 }
 
 ///|
-fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
+fn read_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
   let s = if p.eat_keyword("print") {
     Print(read_value(p))
   } else if p.eat_keyword("input") {
     Input(read_place(p))
-  } else if p.peek() == @p.Symbol('%') {
+  } else if p.peek() == @utils.Symbol('%') {
     let r = reg(p)
     p.expect_text(":=")
     Assign(r, read_rhs(p))
@@ -159,7 +159,7 @@ fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn read_cond(p : @p.Parser) -> Cond raise @base.Fault {
+fn read_cond(p : @utils.Parser) -> Cond raise @utils.Fault {
   let a = read_value(p)
   let o = if p.eat_text("==") {
     Eq
@@ -173,12 +173,12 @@ fn read_cond(p : @p.Parser) -> Cond raise @base.Fault {
 }
 
 ///|
-fn parse(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+fn parse(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text)
   p.expect_keyword("memories")
   let memories = p.integer()
   p.expect(';')
-  @base.require(memories >= 1, "At least one memory is required")
+  @utils.require(memories >= 1, "At least one memory is required")
   let blocks = []
   while !p.eof() {
     p.expect(':')
@@ -205,7 +205,7 @@ fn parse(text : String) -> Code raise @base.Fault {
         g.expect(';')
         ifs.push({ cond, target, })
       } else {
-        @base.require(ifs.is_empty(), "Statement after conditional jump")
+        @utils.require(ifs.is_empty(), "Statement after conditional jump")
         stmts.push(read_stmt(g))
       }
     }

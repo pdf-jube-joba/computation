@@ -2,16 +2,40 @@
 package "computation/models/models/others/brainfuck"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, ByteArray, Unit, Routput, ByteArray, State]
 
 // Errors
 
 // Types and methods
+#alias(Ainput)
+#alias(Foutput)
+pub(all) struct ByteArray {
+  values : Array[Int32]
+}
+pub impl @definition.Text for ByteArray
+
+pub(all) struct Code {
+  value : @utils.LoopCode
+}
+pub impl @definition.Text for Code
+
+pub(all) enum Routput {
+  Silent
+  Wrote(Byte)
+}
+pub impl @definition.Text for Routput
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub type Rinput = Unit
 
 // Traits

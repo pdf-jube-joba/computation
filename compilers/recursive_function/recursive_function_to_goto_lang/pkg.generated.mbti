@@ -2,11 +2,14 @@
 package "computation/models/compilers/recursive_function/recursive_function_to_goto_lang"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/goto_lang",
+  "computation/models/models/recursive_function",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@recursive_function.Func, @recursive_function.Ainput, Unit, Unit, @utils.Nat, @goto_lang.Code, @goto_lang.Environment, Unit, Unit, @goto_lang.Environment]
 
 // Errors
 

@@ -1,0 +1,102 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "computation/models/definition"
+
+import {
+  "computation/models/utils",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn[AC : Text, AA : Text, ARI : Text, ARO : Text, AFO : Text, BC, BA, BRI, BRO, BFO, CC : Text, CA : Text, CRI : Text, CRO : Text, CFO : Text] compose(Compiler[AC, AA, ARI, ARO, AFO, BC, BA, BRI, BRO, BFO], Compiler[BC, BA, BRI, BRO, BFO, CC, CA, CRI, CRO, CFO]) -> Compiler[AC, AA, ARI, ARO, AFO, CC, CA, CRI, CRO, CFO]
+
+pub fn container(String, Array[Block], orientation? : Orientation, display? : Display) -> Block
+
+pub fn graph(String, Array[GraphNode], Array[GraphEdge]) -> Block
+
+pub fn highlight(String, Int32, Array[String]) -> Block
+
+pub fn table(Array[Array[Block]], title? : String?, columns? : Array[Block], highlight? : Int32?) -> Block
+
+pub fn text(String, title? : String?, class_name? : String?) -> Block
+
+pub fn text_table(String, Array[String], Array[Array[String]], highlight? : Int32) -> Block
+
+pub fn titled(String, String) -> Block
+
+// Errors
+
+// Types and methods
+pub(all) enum Block {
+  Text(value~ : String, title~ : String?, class_name~ : String?)
+  Table(title~ : String?, columns~ : Array[Block], rows~ : Array[Array[Block]], highlight~ : Int32?)
+  Container(title~ : String?, orientation~ : Orientation, display~ : Display, children~ : Array[Block])
+  Graph(title~ : String?, nodes~ : Array[GraphNode], edges~ : Array[GraphEdge])
+}
+
+pub struct Compiler[SC, SA, SRI, SRO, SFO, TC, TA, TRI, TRO, TFO] {
+  compile_code : (SC) -> TC raise @utils.Fault
+  encode_ainput : (SA) -> TA raise @utils.Fault
+  encode_rinput : (SRI) -> TRI raise @utils.Fault
+  decode_routput : (TRO) -> SRO raise @utils.Fault
+  decode_foutput : (TFO) -> SFO raise @utils.Fault
+}
+pub fn[SC : Text, SA : Text, SRI : Text, SRO : Text, SFO : Text, TC : Text, TA : Text, TRI : Text, TRO : Text, TFO : Text] Compiler::Compiler(compile_code~ : (SC) -> TC raise @utils.Fault, encode_ainput~ : (SA) -> TA raise @utils.Fault, encode_rinput~ : (SRI) -> TRI raise @utils.Fault, decode_routput~ : (TRO) -> SRO raise @utils.Fault, decode_foutput~ : (TFO) -> SFO raise @utils.Fault) -> Self[SC, SA, SRI, SRO, SFO, TC, TA, TRI, TRO, TFO]
+
+pub(all) enum Display {
+  Inline
+  Block
+}
+
+pub(all) struct GraphEdge {
+  source : GraphEndpoint
+  target : GraphEndpoint
+  highlighted : Bool
+}
+
+pub(all) struct GraphEndpoint {
+  node : String
+  port : Int32
+}
+
+pub(all) struct GraphNode {
+  id : String
+  label : String
+  ports : Array[String]
+}
+
+pub struct Model[C, A, RI, RO, FO, S] {
+  make : (C, A) -> S raise @utils.Fault
+  step : (S, RI) -> Transition[S, RO, FO] raise @utils.Fault
+}
+pub fn[C : Text, A : Text, RI : Text, RO : Text, FO : Text, S : Snapshot + Render] Model::Model(make~ : (C, A) -> S raise @utils.Fault, step~ : (S, RI) -> Transition[S, RO, FO] raise @utils.Fault) -> Self[C, A, RI, RO, FO, S]
+
+pub(all) enum Orientation {
+  Vertical
+  Horizontal
+}
+
+pub(all) enum Transition[S, RO, FO] {
+  Continue(S, RO)
+  Halt(FO)
+}
+
+// Type aliases
+
+// Traits
+pub(open) trait Render {
+  fn render(Self) -> Array[Block]
+}
+
+pub(open) trait Snapshot {
+  fn encode(Self) -> @json.Json
+  fn decode(@json.Json) -> Self raise @utils.Fault
+}
+
+pub(open) trait Text {
+  fn parse(String) -> Self raise @utils.Fault
+  fn print(Self) -> String
+}
+pub impl Text for Unit
+pub impl Text for UInt32
+pub impl Text for String
+pub impl Text for @utils.Nat

@@ -2,10 +2,9 @@
 package "computation/models/models/flow_ir"
 
 import {
-  "computation/models/utils/base",
-  "computation/models/utils/parsing",
-  "computation/models/utils/runtime",
-  "moonbitlang/core/bigint",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
@@ -15,37 +14,37 @@ pub fn cond_text(Cond) -> String
 
 pub fn flow_text(Value[String, String]) -> String
 
-pub fn[T] id_of_name(Array[(String, T)], String) -> T raise @base.Fault
+pub fn[T] id_of_name(Array[(String, T)], String) -> T raise @utils.Fault
 
 pub fn ifs(Cont) -> Array[JumpIf]
 
-pub fn local_target(Resolution, Int32, String) -> Target raise @base.Fault
+pub fn local_target(Resolution, Int32, String) -> Target raise @utils.Fault
 
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, Environment, String, String, Environment, State]
 
-pub fn[T : Eq] name_of_id(Array[(String, T)], T) -> String raise @base.Fault
+pub fn[T : Eq] name_of_id(Array[(String, T)], T) -> String raise @utils.Fault
 
-pub fn parse(String) -> Code raise @base.Fault
+pub fn parse(String) -> Code raise @utils.Fault
 
-pub fn parse_input(String) -> Array[(String, Value[String, String])] raise @base.Fault
+pub fn parse_input(String) -> Array[(String, Value[String, String])] raise @utils.Fault
 
 pub fn place_text(PlaceExpr) -> String
 
 pub fn print_code(Code) -> String
 
-pub fn read_place(@parsing.Parser) -> PlaceExpr raise @base.Fault
+pub fn read_place(@utils.Parser) -> PlaceExpr raise @utils.Fault
 
-pub fn read_value(@parsing.Parser) -> ValueExpr raise @base.Fault
+pub fn read_value(@utils.Parser) -> ValueExpr raise @utils.Fault
 
-pub fn region_target(Resolution, String) -> Target raise @base.Fault
+pub fn region_target(Resolution, String) -> Target raise @utils.Fault
 
-pub fn resolve_target(Resolution, Int32, String) -> Target raise @base.Fault
+pub fn resolve_target(Resolution, Int32, String) -> Target raise @utils.Fault
 
 pub fn stmt_text(Stmt) -> String
 
-pub fn target_name(Resolution, Target) -> String raise @base.Fault
+pub fn target_name(Resolution, Target) -> String raise @utils.Fault
 
-pub fn validate(Code) -> Unit raise @base.Fault
+pub fn validate(Code) -> Unit raise @utils.Fault
 
 pub fn value_text(ValueExpr) -> String
 
@@ -70,6 +69,7 @@ pub(all) struct Code {
   statics : Array[StaticDef]
   regions : Array[Region]
 }
+pub impl @definition.Text for Code
 
 #derive(Eq)
 pub(all) enum Cond {
@@ -84,6 +84,13 @@ pub(all) enum Cont {
   Enter(Array[JumpIf], ValueExpr)
   Halt(Array[JumpIf])
 }
+
+#alias(Ainput)
+#alias(Foutput)
+pub(all) struct Environment {
+  values : Array[(String, Value[String, String])]
+}
+pub impl @definition.Text for Environment
 
 #derive(Eq)
 pub(all) struct JumpIf {
@@ -121,10 +128,14 @@ pub(all) struct Resolution {
   label_names : Array[(Target, String)]
 }
 
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
+
 #derive(Eq)
 pub(all) struct StaticDef {
   label : String
-  value : @bigint.BigInt
+  value : @utils.Nat
 }
 
 #derive(Eq)
@@ -151,7 +162,7 @@ pub(all) enum Target {
 
 #derive(Eq)
 pub(all) enum Value[L, D] {
-  Num(@bigint.BigInt)
+  Num(@utils.Nat)
   Code_label(L)
   Key(Location[D])
 }
@@ -159,12 +170,16 @@ pub(all) enum Value[L, D] {
 #derive(Eq)
 pub(all) enum ValueExpr {
   VReg(String)
-  Imm(@bigint.BigInt)
+  Imm(@utils.Nat)
   CodeLabel(String)
   Ref(PlaceExpr)
 }
 
 // Type aliases
 pub type FlowValue = Value[String, String]
+
+pub type Rinput = String
+
+pub type Routput = String
 
 // Traits

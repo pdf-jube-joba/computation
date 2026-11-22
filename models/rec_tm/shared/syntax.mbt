@@ -28,17 +28,17 @@ pub(all) struct Environment {
 }
 
 ///|
-pub fn sign(text : String) -> String raise @base.Fault {
+pub fn sign(text : String) -> String raise @utils.Fault {
   let text = text.trim().to_owned()
   if text == "-" {
     text
   } else {
-    @base.identifier(text)
+    @utils.identifier(text)
   }
 }
 
 ///|
-pub fn read_sign(p : @p.Parser) -> String raise @base.Fault {
+pub fn read_sign(p : @utils.Parser) -> String raise @utils.Fault {
   if p.eat('-') {
     "-"
   } else {
@@ -47,7 +47,7 @@ pub fn read_sign(p : @p.Parser) -> String raise @base.Fault {
 }
 
 ///|
-pub fn alphabet(p : @p.Parser) -> Array[String] raise @base.Fault {
+pub fn alphabet(p : @utils.Parser) -> Array[String] raise @utils.Fault {
   p.expect_text("\\alphabet:")
   let g = p.group('(')
   let signs = []
@@ -64,8 +64,8 @@ pub fn alphabet(p : @p.Parser) -> Array[String] raise @base.Fault {
 ///|
 pub fn normalized_alphabet(
   signs : Array[String],
-) -> Array[String] raise @base.Fault {
-  @base.require(!signs.is_empty(), "\\alphabet must not be empty")
+) -> Array[String] raise @utils.Fault {
+  @utils.require(!signs.is_empty(), "\\alphabet must not be empty")
   let result = []
   for s in signs {
     ignore(sign(s))
@@ -80,7 +80,7 @@ pub fn normalized_alphabet(
 }
 
 ///|
-pub fn lvalue(p : @p.Parser) -> Lvalue raise @base.Fault {
+pub fn lvalue(p : @utils.Parser) -> Lvalue raise @utils.Fault {
   if p.eat('@') {
     PutHead
   } else {
@@ -89,7 +89,7 @@ pub fn lvalue(p : @p.Parser) -> Lvalue raise @base.Fault {
 }
 
 ///|
-pub fn rvalue(p : @p.Parser) -> Rvalue raise @base.Fault {
+pub fn rvalue(p : @utils.Parser) -> Rvalue raise @utils.Fault {
   if p.eat('@') {
     Head
   } else if p.eat_keyword("const") {
@@ -100,7 +100,7 @@ pub fn rvalue(p : @p.Parser) -> Rvalue raise @base.Fault {
 }
 
 ///|
-pub fn condition(p : @p.Parser) -> Condition? raise @base.Fault {
+pub fn condition(p : @utils.Parser) -> Condition? raise @utils.Fault {
   if p.eat_keyword("if") {
     let left = rvalue(p)
     p.expect_text("==")
@@ -167,10 +167,10 @@ pub fn cvars(c : Condition?) -> Array[String] {
 pub fn validate_value(
   allowed : Array[String],
   v : Rvalue,
-) -> Unit raise @base.Fault {
+) -> Unit raise @utils.Fault {
   match v {
     Const(s) =>
-      @base.require(allowed.contains(s), "Unknown sign in \\const: " + s)
+      @utils.require(allowed.contains(s), "Unknown sign in \\const: " + s)
     _ => ()
   }
 }
@@ -179,7 +179,7 @@ pub fn validate_value(
 pub fn validate_condition(
   allowed : Array[String],
   c : Condition?,
-) -> Unit raise @base.Fault {
+) -> Unit raise @utils.Fault {
   match c {
     None => ()
     Some(c) => {
@@ -192,10 +192,10 @@ pub fn validate_condition(
 ///|
 pub fn validate_tape(
   allowed : Array[String],
-  tape : @data.Tape[String],
-) -> Unit raise @base.Fault {
+  tape : @utils.Tape[String],
+) -> Unit raise @utils.Fault {
   for s in tape.values() {
-    @base.require(allowed.contains(s), "Unknown sign on tape: " + s)
+    @utils.require(allowed.contains(s), "Unknown sign on tape: " + s)
   }
 }
 
@@ -215,13 +215,13 @@ pub fn env_create(vars : Array[String]) -> Environment {
 }
 
 ///|
-pub fn variable(env : Environment, name : String) -> Int32 raise @base.Fault {
+pub fn variable(env : Environment, name : String) -> Int32 raise @utils.Fault {
   for pair in env.names {
     if pair.0 == name {
       return pair.1
     }
   }
-  @base.error("Unknown variable: " + name)
+  @utils.error("Unknown variable: " + name)
 }
 
 ///|
@@ -241,9 +241,9 @@ pub fn env_named(env : Environment) -> Array[(String, String)] {
 ///|
 pub fn eval(
   env : Environment,
-  tape : @data.Tape[String],
+  tape : @utils.Tape[String],
   v : Rvalue,
-) -> String raise @base.Fault {
+) -> String raise @utils.Fault {
   match v {
     Const(s) => s
     Head => tape.head
@@ -260,9 +260,9 @@ pub fn eval(
 ///|
 pub fn eval_condition(
   env : Environment,
-  tape : @data.Tape[String],
+  tape : @utils.Tape[String],
   c : Condition?,
-) -> Bool raise @base.Fault {
+) -> Bool raise @utils.Fault {
   match c {
     None => true
     Some(c) => {
@@ -275,10 +275,10 @@ pub fn eval_condition(
 ///|
 pub fn assign(
   env : Environment,
-  tape : @data.Tape[String],
+  tape : @utils.Tape[String],
   dst : Lvalue,
   value : String,
-) -> (Environment, @data.Tape[String]) raise @base.Fault {
+) -> (Environment, @utils.Tape[String]) raise @utils.Fault {
   match dst {
     PutHead => (env, tape.write(value))
     PutVar(n) => {
@@ -296,110 +296,110 @@ pub fn sign_json(s : String) -> Json {
   if s == "-" {
     Json::null()
   } else {
-    @base.jstr(s)
+    @utils.jstr(s)
   }
 }
 
 ///|
-pub fn decode_sign(j : Json) -> String raise @base.Fault {
+pub fn decode_sign(j : Json) -> String raise @utils.Fault {
   match j {
     Null => "-"
-    _ => @base.identifier(@base.string(j))
+    _ => @utils.identifier(@utils.string(j))
   }
 }
 
 ///|
 pub fn lj(v : Lvalue) -> Json {
   match v {
-    PutHead => @base.tag("Head", [])
-    PutVar(n) => @base.tag("Var", [@base.jstr(n)])
+    PutHead => @utils.tag("Head", [])
+    PutVar(n) => @utils.tag("Var", [@utils.jstr(n)])
   }
 }
 
 ///|
-pub fn ld(j : Json) -> Lvalue raise @base.Fault {
-  match @base.tag_name(j) {
+pub fn ld(j : Json) -> Lvalue raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Head" => PutHead
-    "Var" => PutVar(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    _ => @base.error("Invalid tape lvalue")
+    "Var" => PutVar(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    _ => @utils.error("Invalid tape lvalue")
   }
 }
 
 ///|
 pub fn rj(v : Rvalue) -> Json {
   match v {
-    Head => @base.tag("Head", [])
-    Var(n) => @base.tag("Var", [@base.jstr(n)])
-    Const(s) => @base.tag("Const", [sign_json(s)])
+    Head => @utils.tag("Head", [])
+    Var(n) => @utils.tag("Var", [@utils.jstr(n)])
+    Const(s) => @utils.tag("Const", [sign_json(s)])
   }
 }
 
 ///|
-pub fn rd(j : Json) -> Rvalue raise @base.Fault {
-  match @base.tag_name(j) {
+pub fn rd(j : Json) -> Rvalue raise @utils.Fault {
+  match @utils.tag_name(j) {
     "Head" => Head
-    "Var" => Var(@base.identifier(@base.string(@base.tag_arg(j, 0))))
-    "Const" => Const(decode_sign(@base.tag_arg(j, 0)))
-    _ => @base.error("Invalid tape rvalue")
+    "Var" => Var(@utils.identifier(@utils.string(@utils.tag_arg(j, 0))))
+    "Const" => Const(decode_sign(@utils.tag_arg(j, 0)))
+    _ => @utils.error("Invalid tape rvalue")
   }
 }
 
 ///|
 pub fn cj(c : Condition?) -> Json {
-  @base.optional_json(c, c => {
-    @base.object([("left", rj(c.left)), ("right", rj(c.right))])
+  @utils.optional_json(c, c => {
+    @utils.object([("left", rj(c.left)), ("right", rj(c.right))])
   })
 }
 
 ///|
-pub fn cd(j : Json) -> Condition? raise @base.Fault {
+pub fn cd(j : Json) -> Condition? raise @utils.Fault {
   match j {
     Null => None
     _ =>
       Some({
-        left: rd(@base.field(j, "left")),
-        right: rd(@base.field(j, "right")),
+        left: rd(@utils.field(j, "left")),
+        right: rd(@utils.field(j, "right")),
       })
   }
 }
 
 ///|
 pub fn ej(env : Environment) -> Json {
-  @base.object([
+  @utils.object([
     (
       "names",
-      @base.jarray(
-        env.names.map(v => @base.jarray([@base.jstr(v.0), @base.jint(v.1)])),
+      @utils.jarray(
+        env.names.map(v => @utils.jarray([@utils.jstr(v.0), @utils.jint(v.1)])),
       ),
     ),
     (
       "values",
-      @base.jarray(
-        env.values.map(v => @base.jarray([@base.jint(v.0), sign_json(v.1)])),
+      @utils.jarray(
+        env.values.map(v => @utils.jarray([@utils.jint(v.0), sign_json(v.1)])),
       ),
     ),
   ])
 }
 
 ///|
-pub fn ed(j : Json, vars : Array[String]) -> Environment raise @base.Fault {
-  let names = @base.array(@base.field(j, "names")).map(j => {
-    let a = @base.array(j)
-    @base.require(a.length() == 2, "Invalid environment name")
-    (@base.identifier(@base.string(a[0])), @base.int(a[1]))
+pub fn ed(j : Json, vars : Array[String]) -> Environment raise @utils.Fault {
+  let names = @utils.array(@utils.field(j, "names")).map(j => {
+    let a = @utils.array(j)
+    @utils.require(a.length() == 2, "Invalid environment name")
+    (@utils.identifier(@utils.string(a[0])), @utils.int(a[1]))
   })
   let expected = env_create(vars)
-  @base.require(
+  @utils.require(
     names == expected.names,
     "Inconsistent variable IDs in environment",
   )
-  let values = @base.array(@base.field(j, "values")).map(j => {
-    let a = @base.array(j)
-    @base.require(a.length() == 2, "Invalid environment value")
-    (@base.int(a[0]), decode_sign(a[1]))
+  let values = @utils.array(@utils.field(j, "values")).map(j => {
+    let a = @utils.array(j)
+    @utils.require(a.length() == 2, "Invalid environment value")
+    (@utils.int(a[0]), decode_sign(a[1]))
   })
   let ids = values.map(v => v.0)
-  @base.require(
+  @utils.require(
     ids.length() == names.length() && names.all(v => ids.contains(v.1)),
     "Inconsistent environment values",
   )

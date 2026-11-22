@@ -19,7 +19,7 @@ pub fn fresh(next : Ref[Int32], name : String) -> Variable {
 }
 
 ///|
-fn read(p : @p.Parser) -> Term raise @base.Fault {
+fn read(p : @utils.Parser) -> Term raise @utils.Fault {
   let next : Ref[Int32] = { val: 0, }
   let free : Map[String, Variable] = Map([])
   application(p, Map([]), next, free)
@@ -27,14 +27,14 @@ fn read(p : @p.Parser) -> Term raise @base.Fault {
 
 ///|
 fn application(
-  p : @p.Parser,
+  p : @utils.Parser,
   env : Map[String, Variable],
   next : Ref[Int32],
   free : Map[String, Variable],
-) -> Term raise @base.Fault {
+) -> Term raise @utils.Fault {
   let mut term = atom(p, env, next, free)
   while (match p.peek() {
-          @p.Ident(_) | @p.Keyword("fun") | @p.Symbol('(') => true
+          @utils.Ident(_) | @utils.Keyword("fun") | @utils.Symbol('(') => true
           _ => false
         }) {
     term = App(term, atom(p, env, next, free))
@@ -44,13 +44,13 @@ fn application(
 
 ///|
 fn atom(
-  p : @p.Parser,
+  p : @utils.Parser,
   env : Map[String, Variable],
   next : Ref[Int32],
   free : Map[String, Variable],
-) -> Term raise @base.Fault {
+) -> Term raise @utils.Fault {
   match p.peek() {
-    @p.Ident(name) => {
+    @utils.Ident(name) => {
       ignore(p.bump())
       let v = match env.get(name) {
         Some(v) => v
@@ -66,18 +66,18 @@ fn atom(
       }
       Var(v)
     }
-    @p.Symbol('(') => {
+    @utils.Symbol('(') => {
       let g = p.group('(')
       let t = application(g, env, next, free)
       g.finish()
       t
     }
-    @p.Keyword("fun") => {
+    @utils.Keyword("fun") => {
       ignore(p.bump())
       let env = env.copy()
       let binders = []
       while (match p.peek() {
-              @p.Ident(_) => true
+              @utils.Ident(_) => true
               _ => false
             }) {
         let name = p.ident()
@@ -85,7 +85,7 @@ fn atom(
         env[name] = v
         binders.push(v)
       }
-      @base.require(!binders.is_empty(), "Expected binders followed by '.'")
+      @utils.require(!binders.is_empty(), "Expected binders followed by '.'")
       p.expect('.')
       let mut t = application(p, env, next, free)
       binders.rev_in_place()
@@ -99,16 +99,26 @@ fn atom(
 }
 
 ///|
-pub fn parse_code(text : String) -> Term raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse_code(text : String) -> Term raise @utils.Fault {
+  let p = @utils.create(text)
   let t = read(p)
   p.finish()
   t
 }
 
 ///|
-pub fn parse_input(text : String) -> Array[Term] raise @base.Fault {
-  let p = @p.create(text)
+pub fn parse_input(text : String) -> Array[Term] raise @utils.Fault {
+  let outer = @utils.create(text)
+  let p = if outer.peek() == @utils.Symbol('(') {
+    let inner = outer.group('(')
+    if outer.eof() {
+      inner
+    } else {
+      @utils.create(text)
+    }
+  } else {
+    outer
+  }
   let terms = []
   while !p.eof() {
     terms.push(read(p))
@@ -116,7 +126,7 @@ pub fn parse_input(text : String) -> Array[Term] raise @base.Fault {
       break
     }
     p.expect(',')
-    @base.require(!p.eof(), "Expected lambda term after comma")
+    @utils.require(!p.eof(), "Expected lambda term after comma")
   }
   terms
 }
@@ -180,10 +190,10 @@ pub fn freshen_bound(t : Term, next : Ref[Int32]) -> Term {
 }
 
 ///|
-fn make(code : String, input : String) -> Term raise @base.Fault {
-  let mut t = parse_code(code)
+fn make(code : Term, input : Ainput) -> Term {
+  let mut t = code
   let next : Ref[Int32] = { val: max_id(t) + 1, }
-  for arg in parse_input(input) {
+  for arg in input.values {
     t = App(t, freshen(arg, next))
   }
   t
@@ -224,9 +234,9 @@ fn redexes(t : Term) -> Array[Term] {
 ///|
 fn step(
   t : Term,
-  input : String,
-) -> @runtime.Transition[Term] raise @base.Fault {
-  let index : Ref[Int32] = { val: @base.index(@base.nat(input)), }
+  input : Rinput,
+) -> @definition.Transition[Term, Routput, Foutput] raise @utils.Fault {
+  let index : Ref[UInt32] = { val: input, }
   let done : Ref[Bool] = { val: false, }
   let next : Ref[Int32] = { val: max_id(t) + 1, }
   fn visit(t : Term) -> Term {
@@ -256,11 +266,11 @@ fn step(
     }
   }
   let t = visit(t)
-  @base.require(done.val, "No redex found at the given index")
+  @utils.require(done.val, "No redex found at the given index")
   if redexes(t).is_empty() {
-    @runtime.Halt(print_code(t))
+    @definition.Halt(t)
   } else {
-    @runtime.Continue(t, "")
+    @definition.Continue(t, ())
   }
 }
 
@@ -324,40 +334,40 @@ pub fn print_code(t : Term) -> String {
 ///|
 fn encode(t : Term) -> Json {
   fn variable(v : Variable) -> Json {
-    @base.object([("id", @base.jint(v.id)), ("name", @base.jstr(v.name))])
+    @utils.object([("id", @utils.jint(v.id)), ("name", @utils.jstr(v.name))])
   }
   match t {
-    Var(v) => @base.tag("var", [variable(v)])
-    Abs(v, b) => @base.tag("abs", [variable(v), encode(b)])
-    App(a, b) => @base.tag("app", [encode(a), encode(b)])
+    Var(v) => @utils.tag("var", [variable(v)])
+    Abs(v, b) => @utils.tag("abs", [variable(v), encode(b)])
+    App(a, b) => @utils.tag("app", [encode(a), encode(b)])
   }
 }
 
 ///|
-fn decode(j : Json) -> Term raise @base.Fault {
+fn decode(j : Json) -> Term raise @utils.Fault {
   let vars : Map[Int32, Variable] = Map([])
   let binders : Array[Int32] = []
-  fn collect(j : Json) -> Unit raise @base.Fault {
-    match @base.tag_name(j) {
+  fn collect(j : Json) -> Unit raise @utils.Fault {
+    match @utils.tag_name(j) {
       "abs" => {
-        binders.push(@base.int(@base.field(@base.tag_arg(j, 0), "id")))
-        collect(@base.tag_arg(j, 1))
+        binders.push(@utils.int(@utils.field(@utils.tag_arg(j, 0), "id")))
+        collect(@utils.tag_arg(j, 1))
       }
       "app" => {
-        collect(@base.tag_arg(j, 0))
-        collect(@base.tag_arg(j, 1))
+        collect(@utils.tag_arg(j, 0))
+        collect(@utils.tag_arg(j, 1))
       }
       _ => ()
     }
   }
   collect(j)
-  fn variable(j : Json) -> Variable raise @base.Fault {
-    let id = @base.int(@base.field(j, "id"))
-    @base.require(id >= 0 && id < 2147483647, "Invalid variable ID")
-    let name = @base.identifier(@base.string(@base.field(j, "name")))
+  fn variable(j : Json) -> Variable raise @utils.Fault {
+    let id = @utils.int(@utils.field(j, "id"))
+    @utils.require(id >= 0 && id < 2147483647, "Invalid variable ID")
+    let name = @utils.identifier(@utils.string(@utils.field(j, "name")))
     match vars.get(id) {
       Some(v) => {
-        @base.require(v.name == name, "Conflicting variable names")
+        @utils.require(v.name == name, "Conflicting variable names")
         v
       }
       None => {
@@ -367,47 +377,47 @@ fn decode(j : Json) -> Term raise @base.Fault {
       }
     }
   }
-  fn visit(j : Json, env : Array[Int32]) -> Term raise @base.Fault {
-    let a = @base.array(j)
-    match @base.tag_name(j) {
+  fn visit(j : Json, env : Array[Int32]) -> Term raise @utils.Fault {
+    let a = @utils.array(j)
+    match @utils.tag_name(j) {
       "var" => {
-        @base.require(a.length() == 2, "Invalid lambda snapshot")
+        @utils.require(a.length() == 2, "Invalid lambda snapshot")
         let v = variable(a[1])
-        @base.require(
+        @utils.require(
           !binders.contains(v.id) || env.contains(v.id),
           "Bound variable occurs outside its scope",
         )
         Var(v)
       }
       "abs" => {
-        @base.require(a.length() == 3, "Invalid lambda snapshot")
+        @utils.require(a.length() == 3, "Invalid lambda snapshot")
         let v = variable(a[1])
-        @base.require(!env.contains(v.id), "Repeated binder ID")
+        @utils.require(!env.contains(v.id), "Repeated binder ID")
         let env = env.copy()
         env.push(v.id)
         Abs(v, visit(a[2], env))
       }
       "app" => {
-        @base.require(a.length() == 3, "Invalid lambda snapshot")
+        @utils.require(a.length() == 3, "Invalid lambda snapshot")
         let a = visit(a[1], env)
-        App(a, visit(@base.tag_arg(j, 1), env))
+        App(a, visit(@utils.tag_arg(j, 1), env))
       }
-      _ => @base.error("Invalid lambda snapshot")
+      _ => @utils.error("Invalid lambda snapshot")
     }
   }
   visit(j, [])
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(make, step, encode, decode, t => {
-    @base.jarray([
-      @base.titled("term", print_code(t)),
-      @base.table(
-        "redexes",
-        ["index", "term"],
-        redexes(t).mapi((i, t) => [i.to_string(), print_code(t)]),
-      ),
-    ])
+pub fn model() -> @definition.Model[
+  Code,
+  Ainput,
+  Rinput,
+  Routput,
+  Foutput,
+  Term,
+] {
+  @definition.Model(make=(code, input) => make(code, input), step=(state, input) => {
+    step(state, input)
   })
 }

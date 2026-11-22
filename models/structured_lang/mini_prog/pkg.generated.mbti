@@ -2,16 +2,34 @@
 package "computation/models/models/structured_lang/mini_prog"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/utils",
+  "moonbitlang/core/json",
 }
 
 // Values
-pub fn model() -> @runtime.Model
+pub fn model() -> @definition.Model[Code, Ainput, Unit, Unit, @utils.Nat, State]
 
 // Errors
 
 // Types and methods
+pub(all) struct Ainput {
+  values : Array[@utils.Nat]
+}
+pub impl @definition.Text for Ainput
+
+type Code
+pub impl @definition.Text for Code
+
+type State
+pub impl @definition.Render for State
+pub impl @definition.Snapshot for State
 
 // Type aliases
+pub using @utils {type Nat as Foutput}
+
+pub type Rinput = Unit
+
+pub type Routput = Unit
 
 // Traits

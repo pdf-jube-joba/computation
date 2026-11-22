@@ -1,21 +1,21 @@
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => @s.print(@s.parse(text)),
-    encode_ainput: text => {
-      "(" + @base.join(@s.inputs(text).map(n => n.to_string()), ", ") + ")"
-    },
-    encode_rinput: text => {
-      @base.unit_input(text)
-      ""
-    },
-    decode_routput: text => {
-      if text.trim().is_empty() {
-        ""
-      } else {
-        @base.nat(text).to_string()
-      }
-    },
-    decode_foutput: text => @base.nat(text).to_string(),
-  }
+pub fn compiler() -> @definition.Compiler[
+  @s.Expr,
+  @s.Inputs,
+  Unit,
+  @s.Output,
+  @utils.Nat,
+  @s.Expr,
+  @s.Inputs,
+  Unit,
+  @s.Output,
+  @utils.Nat,
+] {
+  @definition.Compiler(
+    compile_code=code => code,
+    encode_ainput=input => input,
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=output => output,
+  )
 }

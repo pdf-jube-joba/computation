@@ -2,11 +2,14 @@
 package "computation/models/compilers/recursive_function/recursive_function_to_lambda_calculus"
 
 import {
-  "computation/models/utils/runtime",
+  "computation/models/definition",
+  "computation/models/models/lambda_calculus",
+  "computation/models/models/recursive_function",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@recursive_function.Func, @recursive_function.Ainput, Unit, Unit, @utils.Nat, @lambda_calculus.Term, @lambda_calculus.Ainput, UInt32, Unit, @lambda_calculus.Term]
 
 // Errors
 

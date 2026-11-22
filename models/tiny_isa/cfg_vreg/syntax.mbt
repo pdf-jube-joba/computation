@@ -2,13 +2,13 @@
 priv enum Addr {
   VReg(Int32)
   Label(String)
-  Imm(@base.Nat)
+  Imm(@utils.Nat)
 }
 
 ///|
 priv enum Value {
   VRegValue(Int32)
-  ImmValue(@base.Nat)
+  ImmValue(@utils.Nat)
   LabelValue(String)
   Deref(Addr)
 }
@@ -55,26 +55,26 @@ priv struct Block {
 ///|
 priv struct StaticDef {
   label : String
-  value : @base.Nat
+  value : @utils.Nat
 }
 
 ///|
-priv struct Code {
+struct Code {
   statics : Array[StaticDef]
   blocks : Array[Block]
 }
 
 ///|
-fn read_vreg(p : @p.Parser) -> Int32 raise @base.Fault {
+fn read_vreg(p : @utils.Parser) -> Int32 raise @utils.Fault {
   p.expect('%')
   let n = p.ident()
-  @base.require(n.has_prefix("v"), "Invalid vreg: %" + n)
-  @base.index(@base.nat(n.unsafe_substring(start=1, end=n.length())))
+  @utils.require(n.has_prefix("v"), "Invalid vreg: %" + n)
+  @utils.index(@utils.nat(n.unsafe_substring(start=1, end=n.length())))
 }
 
 ///|
-fn read_addr(p : @p.Parser) -> Addr raise @base.Fault {
-  if p.peek() == @p.Symbol('%') {
+fn read_addr(p : @utils.Parser) -> Addr raise @utils.Fault {
+  if p.peek() == @utils.Symbol('%') {
     VReg(read_vreg(p))
   } else if p.eat('@') {
     Label(p.ident())
@@ -87,7 +87,7 @@ fn read_addr(p : @p.Parser) -> Addr raise @base.Fault {
 }
 
 ///|
-fn read_place(p : @p.Parser) -> Addr raise @base.Fault {
+fn read_place(p : @utils.Parser) -> Addr raise @utils.Fault {
   let g = p.group('[')
   let a = read_addr(g)
   g.finish()
@@ -95,7 +95,7 @@ fn read_place(p : @p.Parser) -> Addr raise @base.Fault {
 }
 
 ///|
-fn read_value(p : @p.Parser) -> Value raise @base.Fault {
+fn read_value(p : @utils.Parser) -> Value raise @utils.Fault {
   if p.eat('*') {
     Deref(read_place(p))
   } else {
@@ -108,8 +108,8 @@ fn read_value(p : @p.Parser) -> Value raise @base.Fault {
 }
 
 ///|
-fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
-  let s = if p.peek() == @p.Symbol('%') {
+fn read_stmt(p : @utils.Parser) -> Stmt raise @utils.Fault {
+  let s = if p.peek() == @utils.Symbol('%') {
     let d = read_vreg(p)
     p.expect_text(":=")
     let a = read_value(p)
@@ -130,25 +130,25 @@ fn read_stmt(p : @p.Parser) -> Stmt raise @base.Fault {
 }
 
 ///|
-fn read_cond(p : @p.Parser) -> Cond raise @base.Fault {
+fn read_cond(p : @utils.Parser) -> Cond raise @utils.Fault {
   let a = read_value(p)
   match p.bump() {
-    @p.Symbol('<') => Lt(a, read_value(p))
-    @p.Symbol('=') => Eq(a, read_value(p))
-    @p.Symbol('>') => Gt(a, read_value(p))
+    @utils.Symbol('<') => Lt(a, read_value(p))
+    @utils.Symbol('=') => Eq(a, read_value(p))
+    @utils.Symbol('>') => Gt(a, read_value(p))
     _ => p.error("Expected comparison")
   }
 }
 
 ///|
-fn parse(text : String) -> Code raise @base.Fault {
-  let p = @p.create(text)
+fn parse(text : String) -> Code raise @utils.Fault {
+  let p = @utils.create(text)
   let statics = []
   let blocks = []
   while !p.eof() {
     p.expect('@')
     let label = p.ident()
-    if p.peek() == @p.Symbol('{') {
+    if p.peek() == @utils.Symbol('{') {
       let g = p.group('{')
       let stmts = []
       let ifs = []
@@ -161,14 +161,14 @@ fn parse(text : String) -> Code raise @base.Fault {
           g.expect(';')
           ifs.push({ cond, target, })
         } else if g.eat_keyword("goto") {
-          @base.require(
+          @utils.require(
             jump.val is None,
             "Multiple final \\goto in block @" + label,
           )
           jump.val = Some(read_addr(g))
           g.expect(';')
         } else {
-          @base.require(
+          @utils.require(
             jump.val is None,
             "Statement after \\goto in block @" + label,
           )

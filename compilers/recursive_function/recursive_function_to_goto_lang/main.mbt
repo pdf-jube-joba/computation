@@ -1,6 +1,6 @@
 ///|
 priv enum Instruction {
-  Command(String)
+  Command(@target.Command)
   Branch(String, Int32)
 }
 
@@ -35,23 +35,23 @@ fn temp(b : Builder) -> String {
 }
 
 ///|
-fn emit(b : Builder, code : String) -> Unit {
-  b.commands.push(Command(code + ";"))
+fn emit(b : Builder, command : @target.Command) -> Unit {
+  b.commands.push(Command(command))
 }
 
 ///|
 fn cpy(b : Builder, dst : String, src : String) -> Unit {
-  emit(b, "\\cpy " + dst + " <- " + src)
+  emit(b, @target.Cpy(dst, src))
 }
 
 ///|
 fn clr(b : Builder, dst : String) -> Unit {
-  emit(b, "\\clr " + dst)
+  emit(b, @target.Clr(dst))
 }
 
 ///|
 fn inc(b : Builder, dst : String) -> Unit {
-  emit(b, "\\inc " + dst)
+  emit(b, @target.Inc(dst))
 }
 
 ///|
@@ -107,7 +107,7 @@ fn compile_into(
       compile_into(b, s, inputs, succ_value)
       cpy(b, result, succ_value)
       inc(b, index)
-      emit(b, "\\dec " + counter)
+      emit(b, @target.Dec(counter))
       go(b, condition)
       mark(b, finish)
       cpy(b, dst, result)
@@ -135,10 +135,21 @@ fn compile_into(
 }
 
 ///|
-pub fn compiler() -> @runtime.Compiler {
-  {
-    compile_code: text => {
-      let f = @source.parse_code(text)
+pub fn compiler() -> @definition.Compiler[
+  @source.Code,
+  @source.Ainput,
+  @source.Rinput,
+  @source.Routput,
+  @source.Foutput,
+  @target.Code,
+  @target.Ainput,
+  @target.Rinput,
+  @target.Routput,
+  @target.Foutput,
+] {
+  @definition.Compiler(
+    compile_code=f => {
+      @source.validate(f)
       let b = { commands: [], labels: [], next_temp: 0, }
       clr(b, "__one")
       inc(b, "__one")
@@ -148,46 +159,32 @@ pub fn compiler() -> @runtime.Compiler {
         Array::makei(@source.arity(f), i => "x" + i.to_string()),
         "y",
       )
-      @base.join(
-        b.commands.map(i => {
+      @target.Code::{
+        commands: b.commands.map(i => {
           match i {
-            Command(text) => text
+            Command(command) => command
             Branch(v, label) =>
-              "\\ifnz " + v + " : " + b.labels[label].to_string() + ";"
+              @target.Ifnz(
+                v,
+                @utils.nint(b.labels[label].reinterpret_as_uint()),
+              )
           }
         }),
-        "\n",
-      )
+      }
     },
-    encode_ainput: text => {
-      @base.join(
-        @source.parse_input(text).mapi((i, n) => {
-          "x" + i.to_string() + " = " + n.to_string()
-        }),
-        "\n",
-      )
+    encode_ainput=input => {
+      values: input.values.mapi((i, n) => ("x" + i.to_string(), n)),
     },
-    encode_rinput: text => {
-      @base.unit_input(text)
-      ""
-    },
-    decode_routput: text => {
-      @base.unit_input(text)
-      ""
-    },
-    decode_foutput: text => {
-      let p = @p.create(text)
-      let result : Ref[@base.Nat] = { val: @base.zero(), }
-      while !p.eof() {
-        let name = p.ident()
-        p.expect('=')
-        let n = p.natural()
+    encode_rinput=input => input,
+    decode_routput=output => output,
+    decode_foutput=output => {
+      let result : Ref[@utils.Nat] = { val: @utils.zero(), }
+      for (name, n) in output.values {
         if name == "y" {
           result.val = n
         }
-        ignore(p.eat(';'))
       }
-      result.val.to_string()
+      result.val
     },
-  }
+  )
 }

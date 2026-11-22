@@ -1,7 +1,7 @@
 ///|
-fn row(text : String) -> Array[Bool] raise @base.Fault {
+fn row(text : String) -> Array[Bool] raise @utils.Fault {
   let chars = text.trim().to_owned().to_array()
-  @base.require(
+  @utils.require(
     !chars.is_empty(),
     "Expected a nonempty row of 0/1 or ./# cells",
   )
@@ -9,29 +9,29 @@ fn row(text : String) -> Array[Bool] raise @base.Fault {
     match c {
       '0' | '.' => false
       '1' | '#' => true
-      _ => @base.error("Expected only 0/1 or ./# cells in a row")
+      _ => @utils.error("Expected only 0/1 or ./# cells in a row")
     }
   })
 }
 
 ///|
 fn row_text(cells : Array[Bool]) -> String {
-  @base.join(cells.map(b => if b { "1" } else { "0" }), "")
+  @utils.join(cells.map(b => if b { "1" } else { "0" }), "")
 }
 
 ///|
 fn row_json(cells : Array[Bool]) -> Json {
-  @base.jarray(cells.map(@base.jbool))
+  @utils.jarray(cells.map(@utils.jbool))
 }
 
 ///|
-fn decode_row(j : Json) -> Array[Bool] raise @base.Fault {
-  @base.array(j).map(@base.boolean)
+fn decode_row(j : Json) -> Array[Bool] raise @utils.Fault {
+  @utils.array(j).map(@utils.boolean)
 }
 
 ///|
-fn cell_table(cells : Array[Array[Bool]]) -> Json {
-  @base.table(
+fn cell_table(cells : Array[Array[Bool]]) -> @definition.Block {
+  @definition.text_table(
     "cells",
     [],
     cells.map(r => r.map(b => if b { "■" } else { "□" })),
@@ -39,7 +39,7 @@ fn cell_table(cells : Array[Array[Bool]]) -> Json {
 }
 
 ///|
-priv struct Elementary {
+struct Elementary {
   rule : Int32
   generation : Int32
   background : Bool
@@ -47,30 +47,25 @@ priv struct Elementary {
 }
 
 ///|
-fn valid_rule(rule : Int32) -> Unit raise @base.Fault {
-  @base.require(
+fn valid_rule(rule : Int32) -> Unit raise @utils.Fault {
+  @utils.require(
     rule >= 0 && rule <= 255,
     "Expected an elementary cellular automaton rule (0..255)",
   )
 }
 
 ///|
-fn elementary_make(
-  code : String,
-  input : String,
-) -> Elementary raise @base.Fault {
-  let rule = @base.index(@base.nat(code))
-  valid_rule(rule)
-  { rule, generation: 0, background: false, cells: row(input), }
+fn elementary_make(code : Rule, input : Row) -> Elementary raise @utils.Fault {
+  valid_rule(code.value)
+  { rule: code.value, generation: 0, background: false, cells: input.cells, }
 }
 
 ///|
 fn elementary_step(
   s : Elementary,
-  input : String,
-) -> @runtime.Transition[Elementary] raise @base.Fault {
-  @base.unit_input(input)
-  @base.require(s.generation < 2147483647, "Generation overflow")
+  _input : Unit,
+) -> @definition.Transition[Elementary, Row, Unit] raise @utils.Fault {
+  @utils.require(s.generation < 2147483647, "Generation overflow")
   fn at(i) {
     if i < 0 || i >= s.cells.length() {
       s.background
@@ -87,34 +82,34 @@ fn elementary_step(
   let cells = Array::makei(s.cells.length() + 2, i => {
     transition(at(i - 2), at(i - 1), at(i))
   })
-  @runtime.Continue(
+  @definition.Continue(
     {
       ..s,
       generation: s.generation + 1,
       background: transition(s.background, s.background, s.background),
       cells,
     },
-    row_text(cells),
+    Row::{ cells, },
   )
 }
 
 ///|
 fn elementary_encode(s : Elementary) -> Json {
-  @base.object([
-    ("rule", @base.jint(s.rule)),
-    ("generation", @base.jint(s.generation)),
-    ("background", @base.jbool(s.background)),
+  @utils.object([
+    ("rule", @utils.jint(s.rule)),
+    ("generation", @utils.jint(s.generation)),
+    ("background", @utils.jbool(s.background)),
     ("cells", row_json(s.cells)),
   ])
 }
 
 ///|
-fn elementary_decode(j : Json) -> Elementary raise @base.Fault {
-  let rule = @base.int(@base.field(j, "rule"))
+fn elementary_decode(j : Json) -> Elementary raise @utils.Fault {
+  let rule = @utils.int(@utils.field(j, "rule"))
   valid_rule(rule)
-  let generation = @base.int(@base.field(j, "generation"))
-  let cells = decode_row(@base.field(j, "cells"))
-  @base.require(
+  let generation = @utils.int(@utils.field(j, "generation"))
+  let cells = decode_row(@utils.field(j, "cells"))
+  @utils.require(
     !cells.is_empty() &&
     generation >= 0 &&
     generation <= (cells.length() - 1) / 2,
@@ -124,67 +119,48 @@ fn elementary_decode(j : Json) -> Elementary raise @base.Fault {
     rule,
     generation,
     cells,
-    background: @base.boolean(@base.field(j, "background")),
+    background: @utils.boolean(@utils.field(j, "background")),
   }
 }
 
 ///|
-pub fn model() -> @runtime.Model {
-  @runtime.model(
-    elementary_make,
-    elementary_step,
-    elementary_encode,
-    elementary_decode,
-    s => {
-      @base.jarray([
-        @base.titled("rule", s.rule.to_string()),
-        @base.titled("generation", s.generation.to_string()),
-        @base.titled("left coordinate", (-s.generation).to_string()),
-        @base.titled("background", row_text([s.background])),
-        cell_table([s.cells]),
-      ])
-    },
-  )
+pub fn model() -> @definition.Model[Rule, Row, Unit, Row, Unit, Elementary] {
+  @definition.Model(make=(code, input) => elementary_make(code, input), step=(
+    state,
+    input,
+  ) => elementary_step(state, input))
 }
 
 ///|
-priv struct Life {
+struct Life {
   generation : Int32
   cells : Array[Array[Bool]]
 }
 
 ///|
-fn valid_grid(cells : Array[Array[Bool]]) -> Unit raise @base.Fault {
-  @base.require(
+fn valid_grid(cells : Array[Array[Bool]]) -> Unit raise @utils.Fault {
+  @utils.require(
     !cells.is_empty() && !cells[0].is_empty(),
     "Expected a nonempty grid",
   )
-  @base.require(
+  @utils.require(
     cells.all(r => r.length() == cells[0].length()),
     "Grid rows must have the same width",
   )
 }
 
 ///|
-fn life_make(code : String, input : String) -> Life raise @base.Fault {
-  @base.unit_input(code)
-  let cells = input
-    .trim()
-    .to_owned()
-    .split("\n")
-    .collect()
-    .map(r => row(r.to_owned()))
-  valid_grid(cells)
-  { generation: 0, cells, }
+fn life_make(_code : Unit, input : Grid) -> Life raise @utils.Fault {
+  valid_grid(input.cells)
+  { generation: 0, cells: input.cells, }
 }
 
 ///|
 fn life_step(
   s : Life,
-  input : String,
-) -> @runtime.Transition[Life] raise @base.Fault {
-  @base.unit_input(input)
-  @base.require(s.generation < 2147483647, "Generation overflow")
+  _input : Unit,
+) -> @definition.Transition[Life, Grid, Unit] raise @utils.Fault {
+  @utils.require(s.generation < 2147483647, "Generation overflow")
   let height = s.cells.length()
   let width = s.cells[0].length()
   fn at(x, y) {
@@ -205,26 +181,25 @@ fn life_step(
       neighbours == 3 || (neighbours == 2 && at(x, y))
     })
   })
-  @runtime.Continue(
-    { generation: s.generation + 1, cells, },
-    @base.join(cells.map(row_text), "\n"),
-  )
+  @definition.Continue({ generation: s.generation + 1, cells, }, Grid::{
+    cells,
+  })
 }
 
 ///|
 fn life_encode(s : Life) -> Json {
-  @base.object([
-    ("generation", @base.jint(s.generation)),
-    ("cells", @base.jarray(s.cells.map(row_json))),
+  @utils.object([
+    ("generation", @utils.jint(s.generation)),
+    ("cells", @utils.jarray(s.cells.map(row_json))),
   ])
 }
 
 ///|
-fn life_decode(j : Json) -> Life raise @base.Fault {
-  let generation = @base.int(@base.field(j, "generation"))
-  let cells = @base.array(@base.field(j, "cells")).map(decode_row)
+fn life_decode(j : Json) -> Life raise @utils.Fault {
+  let generation = @utils.int(@utils.field(j, "generation"))
+  let cells = @utils.array(@utils.field(j, "cells")).map(decode_row)
   valid_grid(cells)
-  @base.require(
+  @utils.require(
     generation >= 0 &&
     generation <= (Int32::min(cells.length(), cells[0].length()) - 1) / 2,
     "Invalid generation for the stored grid",
@@ -233,16 +208,9 @@ fn life_decode(j : Json) -> Life raise @base.Fault {
 }
 
 ///|
-pub fn life_model() -> @runtime.Model {
-  @runtime.model(life_make, life_step, life_encode, life_decode, s => {
-    @base.jarray([
-      @base.titled("rule", "B3/S23"),
-      @base.titled("generation", s.generation.to_string()),
-      @base.titled(
-        "top-left coordinate",
-        "(\{-s.generation}, \{-s.generation})",
-      ),
-      cell_table(s.cells),
-    ])
-  })
+pub fn life_model() -> @definition.Model[Unit, Grid, Unit, Grid, Unit, Life] {
+  @definition.Model(make=(code, input) => life_make(code, input), step=(
+    state,
+    input,
+  ) => life_step(state, input))
 }

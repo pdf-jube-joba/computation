@@ -2,16 +2,17 @@
 package "computation/models/compilers/rec_tm/rec_tm_ir_to_rec_tm_ir_jump"
 
 import {
+  "computation/models/definition",
   "computation/models/models/rec_tm/rec_tm_ir",
   "computation/models/models/rec_tm/rec_tm_ir_jump",
-  "computation/models/utils/base",
-  "computation/models/utils/runtime",
+  "computation/models/models/rec_tm/shared",
+  "computation/models/utils",
 }
 
 // Values
-pub fn compile(@rec_tm_ir.Code) -> @rec_tm_ir_jump.Code raise @base.Fault
+pub fn compile(@rec_tm_ir.Code) -> @rec_tm_ir_jump.Code raise @utils.Fault
 
-pub fn compiler() -> @runtime.Compiler
+pub fn compiler() -> @definition.Compiler[@rec_tm_ir.Code, @shared.Tape, Unit, Unit, @shared.Tape, @rec_tm_ir_jump.Code, @shared.Tape, Unit, Unit, @shared.Tape]
 
 // Errors
 

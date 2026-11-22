@@ -1,9 +1,9 @@
 ///|
 pub struct Builder {
   regions : Array[@ir.Region]
-  region_names : @names.Supply
-  block_names : @names.Supply
-  registers : @names.Supply
+  region_names : @utils.Supply
+  block_names : @utils.Supply
+  registers : @utils.Supply
   variables : Map[String, Bool]
 }
 
@@ -11,9 +11,9 @@ pub struct Builder {
 pub fn create() -> Builder {
   {
     regions: [],
-    region_names: @names.supply(reserved=["main"]),
-    block_names: @names.supply(),
-    registers: @names.supply(),
+    region_names: @utils.supply(reserved=["main"]),
+    block_names: @utils.supply(),
+    registers: @utils.supply(),
     variables: Map([]),
   }
 }
@@ -91,7 +91,7 @@ pub fn Builder::finish(
     }
   }
   {
-    statics: names.map(label => { label, value: @base.zero(), }),
+    statics: names.map(label => { label, value: @utils.zero(), }),
     regions: prefix + self.regions,
   }
 }
@@ -163,21 +163,19 @@ pub fn branch_region(
 }
 
 ///|
-pub fn compiler(
-  compile : (String) -> @ir.Code raise @base.Fault,
-  rinput_identity~ : Bool = false,
-  routput_identity~ : Bool = false,
-) -> @runtime.Compiler {
-  {
-    compile_code: text => @ir.print_code(compile(text)),
-    encode_ainput: text => @a.print_env(@data.env_sorted(@a.parse_env(text))),
-    encode_rinput: text => {
-      if !rinput_identity {
-        @base.unit_input(text)
-      }
-      text
-    },
-    decode_routput: text => if routput_identity { text } else { "" },
-    decode_foutput: text => @a.print_env(@data.env_sorted(@a.parse_env(text))),
-  }
+pub fn encode_env(values : Array[(String, @utils.Nat)]) -> @ir.Environment {
+  { values: @utils.env_sorted(values).map(pair => (pair.0, @ir.Num(pair.1))), }
+}
+
+///|
+pub fn decode_env(
+  output : @ir.Environment,
+) -> Array[(String, @utils.Nat)] raise @utils.Fault {
+  @utils.env_sorted(output.values).map(pair => {
+    let number = match pair.1 {
+      @ir.Num(n) => n
+      _ => @utils.error("Expected a natural number in compiler output")
+    }
+    (pair.0, number)
+  })
 }

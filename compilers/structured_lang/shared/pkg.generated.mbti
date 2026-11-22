@@ -3,9 +3,7 @@ package "computation/models/compilers/structured_lang/shared"
 
 import {
   "computation/models/models/flow_ir",
-  "computation/models/utils/base",
-  "computation/models/utils/names",
-  "computation/models/utils/runtime",
+  "computation/models/utils",
 }
 
 // Values
@@ -13,13 +11,15 @@ pub fn block(String, Array[@flow_ir.Stmt], @flow_ir.Cont) -> @flow_ir.Block
 
 pub fn branch_region(Builder, String, Array[@flow_ir.Stmt], @flow_ir.Cond, String, String) -> Unit
 
-pub fn compiler((String) -> @flow_ir.Code raise @base.Fault, rinput_identity? : Bool, routput_identity? : Bool) -> @runtime.Compiler
-
 pub fn create() -> Builder
+
+pub fn decode_env(@flow_ir.Environment) -> Array[(String, @utils.Nat)] raise @utils.Fault
 
 pub fn emit_aexp(Builder, String, @computation/models/models/structured_lang/shared.Aexp) -> Array[@flow_ir.Stmt]
 
 pub fn emit_atom(Builder, String, @computation/models/models/structured_lang/shared.Atom) -> Array[@flow_ir.Stmt]
+
+pub fn encode_env(Array[(String, @utils.Nat)]) -> @flow_ir.Environment
 
 pub fn enter(String) -> @flow_ir.Cont
 
@@ -34,9 +34,9 @@ pub fn relation(@computation/models/models/structured_lang/shared.Rel, @flow_ir.
 // Types and methods
 pub struct Builder {
   regions : Array[@flow_ir.Region]
-  region_names : @names.Supply
-  block_names : @names.Supply
-  registers : @names.Supply
+  region_names : @utils.Supply
+  block_names : @utils.Supply
+  registers : @utils.Supply
   variables : Map[String, Bool]
 }
 pub fn Builder::finish(Self, prefix? : Array[@flow_ir.Region], statics? : Array[String]?) -> @flow_ir.Code
